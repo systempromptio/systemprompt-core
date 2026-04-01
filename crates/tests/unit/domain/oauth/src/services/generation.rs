@@ -255,14 +255,6 @@ fn test_jwt_config_no_expiry() {
 }
 
 #[test]
-fn test_jwt_config_clone() {
-    let config = JwtConfig::default();
-    let cloned = config.clone();
-    assert_eq!(config.permissions, cloned.permissions);
-    assert_eq!(config.expires_in_hours, cloned.expires_in_hours);
-}
-
-#[test]
 fn test_jwt_config_debug() {
     let config = JwtConfig::default();
     let debug_str = format!("{:?}", config);

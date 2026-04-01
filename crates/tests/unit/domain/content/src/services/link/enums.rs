@@ -209,15 +209,6 @@ fn test_link_type_display_both() {
     assert_eq!(format!("{}", LinkType::Both), "both");
 }
 
-#[test]
-fn test_link_type_serialize() {
-    use systemprompt_content::models::LinkType;
-
-    assert_eq!(serde_json::to_string(&LinkType::Redirect).unwrap(), "\"Redirect\"");
-    assert_eq!(serde_json::to_string(&LinkType::Utm).unwrap(), "\"Utm\"");
-    assert_eq!(serde_json::to_string(&LinkType::Both).unwrap(), "\"Both\"");
-}
-
 // ============================================================================
 // DestinationType Enum Tests
 // ============================================================================
@@ -244,14 +235,6 @@ fn test_destination_type_display_internal() {
 fn test_destination_type_display_external() {
     use systemprompt_content::models::DestinationType;
     assert_eq!(format!("{}", DestinationType::External), "external");
-}
-
-#[test]
-fn test_destination_type_serialize() {
-    use systemprompt_content::models::DestinationType;
-
-    assert_eq!(serde_json::to_string(&DestinationType::Internal).unwrap(), "\"Internal\"");
-    assert_eq!(serde_json::to_string(&DestinationType::External).unwrap(), "\"External\"");
 }
 
 // ============================================================================

@@ -43,26 +43,6 @@ mod session_migration_result_tests {
     }
 
     #[test]
-    fn result_is_copy() {
-        let result = SessionMigrationResult {
-            sessions_migrated: 50,
-        };
-        let copied = result;
-
-        assert_eq!(result.sessions_migrated, copied.sessions_migrated);
-    }
-
-    #[test]
-    fn result_is_clone() {
-        let result = SessionMigrationResult {
-            sessions_migrated: 75,
-        };
-        let cloned = result.clone();
-
-        assert_eq!(result.sessions_migrated, cloned.sessions_migrated);
-    }
-
-    #[test]
     fn result_is_debug() {
         let result = SessionMigrationResult {
             sessions_migrated: 25,

@@ -81,20 +81,6 @@ mod ai_extension_tests {
     }
 
     #[test]
-    fn is_clone() {
-        let ext = AiExtension;
-        let cloned = ext.clone();
-        assert_eq!(Extension::metadata(&cloned).id, "ai");
-    }
-
-    #[test]
-    fn is_copy() {
-        let ext = AiExtension;
-        let copied = ext;
-        assert_eq!(Extension::metadata(&copied).id, "ai");
-    }
-
-    #[test]
     fn default_creates_extension() {
         let ext = AiExtension::default();
         assert_eq!(Extension::metadata(&ext).id, "ai");

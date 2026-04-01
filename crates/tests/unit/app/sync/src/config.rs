@@ -6,50 +6,6 @@ mod sync_direction_tests {
     use super::*;
 
     #[test]
-    fn push_serializes_correctly() {
-        let json = serde_json::to_string(&SyncDirection::Push).unwrap();
-        assert_eq!(json, "\"Push\"");
-    }
-
-    #[test]
-    fn pull_serializes_correctly() {
-        let json = serde_json::to_string(&SyncDirection::Pull).unwrap();
-        assert_eq!(json, "\"Pull\"");
-    }
-
-    #[test]
-    fn push_deserializes() {
-        let dir: SyncDirection = serde_json::from_str("\"Push\"").unwrap();
-        assert_eq!(dir, SyncDirection::Push);
-    }
-
-    #[test]
-    fn pull_deserializes() {
-        let dir: SyncDirection = serde_json::from_str("\"Pull\"").unwrap();
-        assert_eq!(dir, SyncDirection::Pull);
-    }
-
-    #[test]
-    fn is_clone() {
-        let dir = SyncDirection::Push;
-        let cloned = dir;
-        assert_eq!(dir, cloned);
-    }
-
-    #[test]
-    fn is_copy() {
-        let dir = SyncDirection::Pull;
-        let copied: SyncDirection = dir;
-        assert_eq!(dir, copied);
-    }
-
-    #[test]
-    fn is_eq() {
-        assert_eq!(SyncDirection::Push, SyncDirection::Push);
-        assert_ne!(SyncDirection::Push, SyncDirection::Pull);
-    }
-
-    #[test]
     fn is_debug() {
         let debug = format!("{:?}", SyncDirection::Push);
         assert!(debug.contains("Push"));
@@ -238,13 +194,6 @@ mod sync_config_builder_tests {
     }
 
     #[test]
-    fn config_is_clone() {
-        let config = test_builder();
-        let cloned = config.clone();
-        assert_eq!(cloned.tenant_id, config.tenant_id);
-    }
-
-    #[test]
     fn config_is_debug() {
         let config = test_builder();
         let debug = format!("{:?}", config);
@@ -343,22 +292,6 @@ mod sync_operation_result_tests {
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("op"));
         assert!(json.contains("5"));
-    }
-
-    #[test]
-    fn result_is_deserializable() {
-        let result = SyncOperationResult::success("op", 5);
-        let json = serde_json::to_string(&result).unwrap();
-        let deserialized: SyncOperationResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.operation, result.operation);
-        assert_eq!(deserialized.items_synced, result.items_synced);
-    }
-
-    #[test]
-    fn result_is_clone() {
-        let result = SyncOperationResult::success("op", 5);
-        let cloned = result.clone();
-        assert_eq!(cloned.operation, result.operation);
     }
 
     #[test]

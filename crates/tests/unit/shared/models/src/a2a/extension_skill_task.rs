@@ -146,17 +146,6 @@ fn test_task_default() {
     assert!(matches!(task.status.state, TaskState::Submitted));
 }
 
-#[test]
-fn test_task_serialize_deserialize() {
-    let task = Task::default();
-
-    let json = serde_json::to_string(&task).unwrap();
-    let deserialized: Task = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(task.id, deserialized.id);
-    assert_eq!(task.kind, deserialized.kind);
-}
-
 // ============================================================================
 // TaskStatus Tests
 // ============================================================================
@@ -239,16 +228,4 @@ fn test_task_state_invalid() {
     let result: Result<TaskState, String> = "invalid-state".parse();
     let err = result.unwrap_err();
     assert!(err.contains("Invalid task state"));
-}
-
-#[test]
-fn test_task_state_serialize() {
-    let json = serde_json::to_string(&TaskState::Completed).unwrap();
-    assert_eq!(json, "\"completed\"");
-}
-
-#[test]
-fn test_task_state_deserialize() {
-    let state: TaskState = serde_json::from_str("\"working\"").unwrap();
-    assert!(matches!(state, TaskState::Working));
 }

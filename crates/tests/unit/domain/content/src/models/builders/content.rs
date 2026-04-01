@@ -196,22 +196,6 @@ fn test_create_content_params_builder_chain() {
     assert_eq!(params.version_hash, "fullhash123");
 }
 
-#[test]
-fn test_create_content_params_clone() {
-    let params = CreateContentParams::new(
-        "clone".to_string(),
-        "Clone".to_string(),
-        "Desc".to_string(),
-        "Body".to_string(),
-        SourceId::new("src"),
-    )
-    .with_author("Author".to_string());
-
-    let cloned = params.clone();
-    assert_eq!(cloned.slug, params.slug);
-    assert_eq!(cloned.author, params.author);
-}
-
 // ============================================================================
 // UpdateContentParams Tests
 // ============================================================================

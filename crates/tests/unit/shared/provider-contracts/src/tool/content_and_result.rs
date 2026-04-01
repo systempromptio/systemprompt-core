@@ -75,15 +75,6 @@ mod tool_content_tests {
     }
 
     #[test]
-    fn is_clone() {
-        let content = ToolContent::text("test");
-        let cloned = content.clone();
-        if let ToolContent::Text { text } = cloned {
-            assert_eq!(text, "test");
-        }
-    }
-
-    #[test]
     fn is_debug() {
         let content = ToolContent::text("test");
         let debug = format!("{:?}", content);
@@ -152,13 +143,6 @@ mod tool_call_result_tests {
         let result = ToolCallResult::success("test");
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("test"));
-    }
-
-    #[test]
-    fn is_clone() {
-        let result = ToolCallResult::success("test");
-        let cloned = result.clone();
-        assert_eq!(cloned.content.len(), result.content.len());
     }
 
     #[test]

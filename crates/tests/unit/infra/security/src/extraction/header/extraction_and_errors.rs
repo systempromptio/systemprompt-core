@@ -185,17 +185,3 @@ fn test_header_injection_error_clone() {
     let cloned = error;
     assert_eq!(format!("{}", error), format!("{}", cloned));
 }
-
-#[test]
-fn test_header_injection_error_copy() {
-    let error = HeaderInjectionError;
-    let copied: HeaderInjectionError = error;
-    assert_eq!(format!("{}", error), format!("{}", copied));
-}
-
-#[test]
-fn test_header_injection_error_equality() {
-    let error1 = HeaderInjectionError;
-    let error2 = HeaderInjectionError;
-    assert_eq!(error1, error2);
-}

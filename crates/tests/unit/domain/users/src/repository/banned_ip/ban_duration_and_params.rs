@@ -101,21 +101,6 @@ mod ban_duration_tests {
     }
 
     #[test]
-    fn ban_duration_is_copy() {
-        let duration = BanDuration::Hours(24);
-        let copied = duration;
-        assert!(matches!(duration, BanDuration::Hours(24)));
-        assert!(matches!(copied, BanDuration::Hours(24)));
-    }
-
-    #[test]
-    fn ban_duration_is_clone() {
-        let duration = BanDuration::Days(7);
-        let cloned = duration;
-        assert!(matches!(cloned, BanDuration::Days(7)));
-    }
-
-    #[test]
     fn ban_duration_debug() {
         let duration = BanDuration::Permanent;
         let debug = format!("{:?}", duration);

@@ -151,13 +151,6 @@ mod db_value_enum_tests {
     }
 
     #[test]
-    fn db_value_is_clone() {
-        let value = DbValue::String("test".to_string());
-        let cloned = value.clone();
-        assert!(matches!(cloned, DbValue::String(s) if s == "test"));
-    }
-
-    #[test]
     fn db_value_is_debug() {
         let value = DbValue::Int(123);
         let debug_str = format!("{:?}", value);

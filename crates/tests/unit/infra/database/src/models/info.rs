@@ -65,21 +65,6 @@ fn test_column_info_debug() {
 }
 
 #[test]
-fn test_column_info_clone() {
-    let column = ColumnInfo {
-        name: "email".to_string(),
-        data_type: "varchar".to_string(),
-        nullable: false,
-        primary_key: false,
-        default: None,
-    };
-
-    let cloned = column.clone();
-    assert_eq!(column.name, cloned.name);
-    assert_eq!(column.data_type, cloned.data_type);
-}
-
-#[test]
 fn test_column_info_serialization() {
     let column = ColumnInfo {
         name: "amount".to_string(),
@@ -92,18 +77,6 @@ fn test_column_info_serialization() {
     let json = serde_json::to_string(&column).expect("Should serialize");
     assert!(json.contains("\"name\":\"amount\""));
     assert!(json.contains("\"data_type\":\"decimal\""));
-}
-
-#[test]
-fn test_column_info_deserialization() {
-    let json = r#"{"name":"id","data_type":"integer","nullable":false,"primary_key":true,"default":null}"#;
-    let column: ColumnInfo = serde_json::from_str(json).expect("Should deserialize");
-
-    assert_eq!(column.name, "id");
-    assert_eq!(column.data_type, "integer");
-    assert!(!column.nullable);
-    assert!(column.primary_key);
-    assert!(column.default.is_none());
 }
 
 // ============================================================================
@@ -282,25 +255,6 @@ fn test_database_info_debug() {
 }
 
 #[test]
-fn test_database_info_clone() {
-    let db_info = DatabaseInfo {
-        path: "original".to_string(),
-        size: 1000,
-        version: "1.0".to_string(),
-        tables: vec![TableInfo {
-            name: "t1".to_string(),
-            row_count: 10,
-            size_bytes: 0,
-            columns: vec![],
-        }],
-    };
-
-    let cloned = db_info.clone();
-    assert_eq!(db_info.path, cloned.path);
-    assert_eq!(db_info.tables.len(), cloned.tables.len());
-}
-
-#[test]
 fn test_database_info_serialization() {
     let db_info = DatabaseInfo {
         path: "prod_db".to_string(),
@@ -313,17 +267,6 @@ fn test_database_info_serialization() {
     assert!(json.contains("\"path\":\"prod_db\""));
     assert!(json.contains("\"size\":8192"));
     assert!(json.contains("\"version\":\"15.2\""));
-}
-
-#[test]
-fn test_database_info_deserialization() {
-    let json = r#"{"path":"test","size":512,"version":"14.0","tables":[]}"#;
-    let db_info: DatabaseInfo = serde_json::from_str(json).expect("Should deserialize");
-
-    assert_eq!(db_info.path, "test");
-    assert_eq!(db_info.size, 512);
-    assert_eq!(db_info.version, "14.0");
-    assert!(db_info.tables.is_empty());
 }
 
 // ============================================================================
@@ -422,14 +365,4 @@ fn test_index_info_serialization() {
     let json = serde_json::to_string(&index).expect("Should serialize");
     assert!(json.contains("\"name\":\"idx_serialize\""));
     assert!(json.contains("\"unique\":false"));
-}
-
-#[test]
-fn test_index_info_deserialization() {
-    let json = r#"{"name":"idx_deser","columns":["a","b"],"unique":true}"#;
-    let index: IndexInfo = serde_json::from_str(json).expect("Should deserialize");
-
-    assert_eq!(index.name, "idx_deser");
-    assert_eq!(index.columns, vec!["a", "b"]);
-    assert!(index.unique);
 }

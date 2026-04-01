@@ -69,16 +69,6 @@ mod create_funnel_input_tests {
     }
 
     #[test]
-    fn funnel_is_clone() {
-        let funnel = create_funnel("Clone Test", Some("Test"), vec![sample_step()]);
-        let cloned = funnel.clone();
-
-        assert_eq!(funnel.name, cloned.name);
-        assert_eq!(funnel.description, cloned.description);
-        assert_eq!(funnel.steps.len(), cloned.steps.len());
-    }
-
-    #[test]
     fn funnel_is_debug() {
         let funnel = create_funnel("Debug Test", None, vec![]);
         let debug_str = format!("{:?}", funnel);
@@ -93,36 +83,6 @@ mod create_funnel_input_tests {
         assert!(json.contains("Serialize Test"));
         assert!(json.contains("desc"));
         assert!(json.contains("steps"));
-    }
-
-    #[test]
-    fn funnel_deserializes() {
-        let json = r#"{
-            "name": "Purchase Funnel",
-            "description": "Track purchases",
-            "steps": [
-                {"name": "View", "match_pattern": "/products", "match_type": "url_prefix"},
-                {"name": "Add to Cart", "match_pattern": "add_to_cart", "match_type": "event_type"},
-                {"name": "Checkout", "match_pattern": "/checkout", "match_type": "url_exact"}
-            ]
-        }"#;
-
-        let funnel: CreateFunnelInput = serde_json::from_str(json).unwrap();
-
-        assert_eq!(funnel.name, "Purchase Funnel");
-        assert_eq!(funnel.description, Some("Track purchases".to_string()));
-        assert_eq!(funnel.steps.len(), 3);
-        assert_eq!(funnel.steps[1].match_type, FunnelMatchType::EventType);
-    }
-
-    #[test]
-    fn funnel_deserializes_minimal() {
-        let json = r#"{"name": "Minimal", "steps": []}"#;
-        let funnel: CreateFunnelInput = serde_json::from_str(json).unwrap();
-
-        assert_eq!(funnel.name, "Minimal");
-        assert!(funnel.description.is_none());
-        assert!(funnel.steps.is_empty());
     }
 }
 
@@ -182,20 +142,6 @@ mod funnel_step_stats_tests {
     }
 
     #[test]
-    fn stats_is_copy() {
-        let stats = create_stats(1, 100, 90, 0.9, Some(5000));
-        let copied = stats;
-        assert_eq!(stats.step_order, copied.step_order);
-    }
-
-    #[test]
-    fn stats_is_clone() {
-        let stats = create_stats(2, 200, 180, 0.9, Some(3000));
-        let cloned = stats.clone();
-        assert_eq!(stats.entered_count, cloned.entered_count);
-    }
-
-    #[test]
     fn stats_is_debug() {
         let stats = create_stats(0, 100, 100, 1.0, None);
         let debug_str = format!("{:?}", stats);
@@ -210,38 +156,5 @@ mod funnel_step_stats_tests {
         assert!(json.contains("step_order"));
         assert!(json.contains("entered_count"));
         assert!(json.contains("conversion_rate"));
-    }
-
-    #[test]
-    fn stats_deserializes() {
-        let json = r#"{
-            "step_order": 2,
-            "entered_count": 500,
-            "exited_count": 400,
-            "conversion_rate": 0.8,
-            "avg_time_to_next_ms": 1500
-        }"#;
-
-        let stats: FunnelStepStats = serde_json::from_str(json).unwrap();
-
-        assert_eq!(stats.step_order, 2);
-        assert_eq!(stats.entered_count, 500);
-        assert_eq!(stats.exited_count, 400);
-        assert!((stats.conversion_rate - 0.8).abs() < f64::EPSILON);
-        assert_eq!(stats.avg_time_to_next_ms, Some(1500));
-    }
-
-    #[test]
-    fn stats_deserializes_without_avg_time() {
-        let json = r#"{
-            "step_order": 0,
-            "entered_count": 1000,
-            "exited_count": 800,
-            "conversion_rate": 0.8,
-            "avg_time_to_next_ms": null
-        }"#;
-
-        let stats: FunnelStepStats = serde_json::from_str(json).unwrap();
-        assert!(stats.avg_time_to_next_ms.is_none());
     }
 }

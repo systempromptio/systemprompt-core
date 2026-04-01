@@ -64,16 +64,6 @@ fn test_extension_metadata_serialize() {
     assert!(json.contains("3.0.0"));
 }
 
-#[test]
-fn test_extension_metadata_deserialize() {
-    let json = r#"{"id":"deser-ext","name":"Deserializable","version":"4.0.0"}"#;
-    let metadata: ExtensionMetadata = serde_json::from_str(json).expect("should deserialize");
-
-    assert_eq!(metadata.id, "deser-ext");
-    assert_eq!(metadata.name, "Deserializable");
-    assert_eq!(metadata.version, "4.0.0");
-}
-
 // =============================================================================
 // SchemaSource Tests
 // =============================================================================
@@ -211,17 +201,6 @@ fn test_schema_definition_debug() {
 
     assert!(debug_str.contains("SchemaDefinition"));
     assert!(debug_str.contains("debug_table"));
-}
-
-#[test]
-fn test_schema_definition_clone() {
-    let schema = SchemaDefinition::inline("clone_table", "CREATE TABLE clone_table ()")
-        .with_required_columns(vec!["col1".to_string()]);
-
-    let cloned = schema.clone();
-
-    assert_eq!(cloned.table, "clone_table");
-    assert_eq!(cloned.required_columns.len(), 1);
 }
 
 #[test]

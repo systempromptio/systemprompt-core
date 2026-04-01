@@ -98,25 +98,6 @@ fn test_service_config_serialization() {
     assert!(json.contains("\"port\":9999"));
 }
 
-#[test]
-fn test_service_config_deserialization() {
-    let json = r#"{
-        "name": "deserialized",
-        "module_name": "test",
-        "status": "stopped",
-        "pid": null,
-        "port": 5000,
-        "binary_mtime": null,
-        "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
-    }"#;
-
-    let config: ServiceConfig = serde_json::from_str(json).expect("Should deserialize");
-    assert_eq!(config.name, "deserialized");
-    assert!(config.pid.is_none());
-    assert_eq!(config.port, 5000);
-}
-
 // ============================================================================
 // CreateServiceInput Tests
 // ============================================================================

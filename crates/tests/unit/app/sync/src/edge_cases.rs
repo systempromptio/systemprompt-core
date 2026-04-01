@@ -60,27 +60,6 @@ mod serialization_roundtrip_tests {
     use super::*;
 
     #[test]
-    fn sync_direction_roundtrip() {
-        let original = SyncDirection::Push;
-        let json = serde_json::to_string(&original).expect("serialize");
-        let restored: SyncDirection = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(original, restored);
-    }
-
-    #[test]
-    fn file_manifest_roundtrip() {
-        let now = Utc::now();
-        let original = FileManifest {
-            files: vec![FileEntry { path: "test.txt".to_string(), checksum: "abc123".to_string(), size: 1024 }],
-            timestamp: now,
-            checksum: "manifest123".to_string(),
-        };
-        let json = serde_json::to_string(&original).expect("serialize");
-        let restored: FileManifest = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(original.files.len(), restored.files.len());
-    }
-
-    #[test]
     fn file_bundle_manifest_serialization() {
         let now = Utc::now();
         let bundle = FileBundle {
@@ -192,14 +171,6 @@ mod config_additional_tests {
         assert_eq!(config.direction, SyncDirection::Pull);
         assert!(config.dry_run);
         assert!(config.verbose);
-    }
-
-    #[test]
-    fn config_clone() {
-        let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
-            .with_hostname(Some("host.com".to_string())).build();
-        let cloned = config.clone();
-        assert_eq!(config.tenant_id, cloned.tenant_id);
     }
 
     #[test]

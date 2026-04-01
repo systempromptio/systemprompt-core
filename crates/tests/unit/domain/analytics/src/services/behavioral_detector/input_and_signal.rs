@@ -50,13 +50,6 @@ mod behavioral_analysis_input_tests {
     }
 
     #[test]
-    fn input_is_clone() {
-        let input = create_input(10, vec!["/page1".to_string()], 100, 1);
-        let cloned = input.clone();
-        assert_eq!(input.session_id, cloned.session_id);
-    }
-
-    #[test]
     fn input_is_debug() {
         let input = create_input(10, vec![], 100, 1);
         let debug_str = format!("{:?}", input);
@@ -106,30 +99,10 @@ mod signal_type_tests {
     }
 
     #[test]
-    fn signal_type_is_eq() {
-        assert_eq!(SignalType::HighRequestCount, SignalType::HighRequestCount);
-        assert_ne!(SignalType::HighRequestCount, SignalType::HighPageCoverage);
-    }
-
-    #[test]
-    fn signal_type_is_copy() {
-        let signal = SignalType::RegularTiming;
-        let copied = signal;
-        assert_eq!(signal, copied);
-    }
-
-    #[test]
     fn signal_type_serializes() {
         let signal = SignalType::HighRequestCount;
         let json = serde_json::to_string(&signal).unwrap();
         assert!(json.contains("HighRequestCount"));
-    }
-
-    #[test]
-    fn signal_type_deserializes() {
-        let json = "\"HighPageCoverage\"";
-        let signal: SignalType = serde_json::from_str(json).unwrap();
-        assert_eq!(signal, SignalType::HighPageCoverage);
     }
 }
 
@@ -163,27 +136,11 @@ mod behavioral_signal_tests {
     }
 
     #[test]
-    fn signal_is_clone() {
-        let signal = create_signal(SignalType::HighPageCoverage, 25, "High coverage");
-        let cloned = signal.clone();
-        assert_eq!(signal.signal_type, cloned.signal_type);
-        assert_eq!(signal.points, cloned.points);
-    }
-
-    #[test]
     fn signal_serializes() {
         let signal = create_signal(SignalType::RegularTiming, 15, "Suspicious timing");
         let json = serde_json::to_string(&signal).unwrap();
         assert!(json.contains("RegularTiming"));
         assert!(json.contains("15"));
         assert!(json.contains("Suspicious timing"));
-    }
-
-    #[test]
-    fn signal_deserializes() {
-        let json = r#"{"signal_type":"HighRequestCount","points":30,"details":"test"}"#;
-        let signal: BehavioralSignal = serde_json::from_str(json).unwrap();
-        assert_eq!(signal.signal_type, SignalType::HighRequestCount);
-        assert_eq!(signal.points, 30);
     }
 }

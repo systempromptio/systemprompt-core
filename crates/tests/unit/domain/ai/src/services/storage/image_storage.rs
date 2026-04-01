@@ -67,18 +67,6 @@ mod storage_config_tests {
     }
 
     #[test]
-    fn config_is_clone() {
-        let config = StorageConfig::new(
-            PathBuf::from("/images"),
-            "https://example.com".to_string(),
-        );
-        let cloned = config.clone();
-
-        assert_eq!(config.base_path, cloned.base_path);
-        assert_eq!(config.url_prefix, cloned.url_prefix);
-    }
-
-    #[test]
     fn config_is_debug() {
         let config = StorageConfig::new(
             PathBuf::from("/images"),

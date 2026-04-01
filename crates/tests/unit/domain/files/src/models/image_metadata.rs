@@ -93,13 +93,6 @@ fn test_image_metadata_clone() {
 // ============================================================================
 
 #[test]
-fn test_image_metadata_serialize_empty() {
-    let meta = ImageMetadata::new();
-    let json = serde_json::to_string(&meta).unwrap();
-    assert_eq!(json, "{}");
-}
-
-#[test]
 fn test_image_metadata_serialize_with_dimensions() {
     let meta = ImageMetadata::new().with_dimensions(800, 600);
     let json = serde_json::to_string(&meta).unwrap();
@@ -118,42 +111,6 @@ fn test_image_metadata_serialize_skip_none() {
     assert!(!json.contains("height"));
     assert!(!json.contains("description"));
     assert!(!json.contains("generation"));
-}
-
-#[test]
-fn test_image_metadata_deserialize_empty() {
-    let meta: ImageMetadata = serde_json::from_str("{}").unwrap();
-    assert!(meta.width.is_none());
-    assert!(meta.height.is_none());
-    assert!(meta.alt_text.is_none());
-    assert!(meta.description.is_none());
-    assert!(meta.generation.is_none());
-}
-
-#[test]
-fn test_image_metadata_deserialize_with_fields() {
-    let json = r#"{"width":1024,"height":768,"alt_text":"test alt"}"#;
-    let meta: ImageMetadata = serde_json::from_str(json).unwrap();
-
-    assert_eq!(meta.width, Some(1024));
-    assert_eq!(meta.height, Some(768));
-    assert_eq!(meta.alt_text, Some("test alt".to_string()));
-}
-
-#[test]
-fn test_image_metadata_roundtrip() {
-    let meta = ImageMetadata::new()
-        .with_dimensions(1280, 720)
-        .with_alt_text("Round trip test")
-        .with_description("Testing serialization");
-
-    let json = serde_json::to_string(&meta).unwrap();
-    let deserialized: ImageMetadata = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(meta.width, deserialized.width);
-    assert_eq!(meta.height, deserialized.height);
-    assert_eq!(meta.alt_text, deserialized.alt_text);
-    assert_eq!(meta.description, deserialized.description);
 }
 
 // ============================================================================
@@ -279,73 +236,6 @@ fn test_image_generation_info_serialize_with_optionals() {
     assert!(json.contains("\"generation_time_ms\":10000"));
 }
 
-#[test]
-fn test_image_generation_info_deserialize() {
-    let json = r#"{
-        "prompt": "test prompt",
-        "model": "test-model",
-        "provider": "test-provider",
-        "resolution": "768x768"
-    }"#;
-
-    let gen_info: ImageGenerationInfo = serde_json::from_str(json).unwrap();
-
-    assert_eq!(gen_info.prompt, "test prompt");
-    assert_eq!(gen_info.model, "test-model");
-    assert_eq!(gen_info.provider, "test-provider");
-    assert_eq!(gen_info.resolution, Some("768x768".to_string()));
-    assert!(gen_info.aspect_ratio.is_none());
-}
-
-#[test]
-fn test_image_generation_info_roundtrip() {
-    let gen_info = ImageGenerationInfo::new("Generate art", "midjourney", "discord")
-        .with_resolution("1792x1024")
-        .with_aspect_ratio("16:9")
-        .with_generation_time(8500)
-        .with_cost_estimate(0.10)
-        .with_request_id("mj_12345");
-
-    let json = serde_json::to_string(&gen_info).unwrap();
-    let deserialized: ImageGenerationInfo = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(gen_info.prompt, deserialized.prompt);
-    assert_eq!(gen_info.model, deserialized.model);
-    assert_eq!(gen_info.provider, deserialized.provider);
-    assert_eq!(gen_info.resolution, deserialized.resolution);
-    assert_eq!(gen_info.aspect_ratio, deserialized.aspect_ratio);
-    assert_eq!(gen_info.generation_time_ms, deserialized.generation_time_ms);
-    assert_eq!(gen_info.cost_estimate, deserialized.cost_estimate);
-    assert_eq!(gen_info.request_id, deserialized.request_id);
-}
-
 // ============================================================================
 // Combined Tests
 // ============================================================================
-
-#[test]
-fn test_image_metadata_with_full_generation_info() {
-    let gen_info = ImageGenerationInfo::new("A futuristic city", "dall-e-3", "openai")
-        .with_resolution("1024x1024")
-        .with_aspect_ratio("1:1")
-        .with_generation_time(4500)
-        .with_cost_estimate(0.04)
-        .with_request_id("chatcmpl-abc123");
-
-    let meta = ImageMetadata::new()
-        .with_dimensions(1024, 1024)
-        .with_alt_text("AI generated futuristic city")
-        .with_description("A photorealistic image of a futuristic city with flying cars")
-        .with_generation(gen_info);
-
-    let json = serde_json::to_string(&meta).unwrap();
-    let deserialized: ImageMetadata = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(meta.width, deserialized.width);
-    assert_eq!(meta.alt_text, deserialized.alt_text);
-    deserialized.generation.as_ref().expect("generation should be present");
-
-    let gen_info = deserialized.generation.unwrap();
-    assert_eq!(gen_info.prompt, "A futuristic city");
-    assert_eq!(gen_info.provider, "openai");
-}

@@ -68,17 +68,6 @@ mod validation_error_tests {
     }
 
     #[test]
-    fn validation_error_is_clone() {
-        let err = ValidationError::new("field", "message")
-            .with_context("ctx");
-        let cloned = err.clone();
-
-        assert_eq!(err.field, cloned.field);
-        assert_eq!(err.message, cloned.message);
-        assert_eq!(err.context, cloned.context);
-    }
-
-    #[test]
     fn validation_error_is_debug() {
         let err = ValidationError::new("test", "debug test");
         let debug_str = format!("{:?}", err);

@@ -94,15 +94,6 @@ mod funnel_stats_tests {
     }
 
     #[test]
-    fn stats_is_clone() {
-        let stats = create_funnel_stats("fnl_clone", "Clone Test", 100, 50, 0.5);
-        let cloned = stats.clone();
-
-        assert_eq!(stats.funnel_name, cloned.funnel_name);
-        assert_eq!(stats.total_entries, cloned.total_entries);
-    }
-
-    #[test]
     fn stats_is_debug() {
         let stats = create_funnel_stats("fnl_debug", "Debug Test", 50, 25, 0.5);
         let debug_str = format!("{:?}", stats);
@@ -208,15 +199,6 @@ mod funnel_with_steps_tests {
         assert_eq!(fws.steps.len(), 2);
         assert_eq!(fws.steps[0].name, "Step 1");
         assert_eq!(fws.steps[1].step_order, 1);
-    }
-
-    #[test]
-    fn funnel_with_steps_is_clone() {
-        let fws = create_funnel_with_steps();
-        let cloned = fws.clone();
-
-        assert_eq!(fws.funnel.name, cloned.funnel.name);
-        assert_eq!(fws.steps.len(), cloned.steps.len());
     }
 
     #[test]

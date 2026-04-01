@@ -53,13 +53,6 @@ fn test_link_id_as_ref() {
 }
 
 #[test]
-fn test_link_id_clone_and_eq() {
-    let id1 = LinkId::new("clone-link");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_link_id_hash() {
     let id1 = LinkId::new("hash-link");
     let id2 = LinkId::new("hash-link");
@@ -67,13 +60,6 @@ fn test_link_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_link_id_serialize_json() {
-    let id = LinkId::new("serialize-link");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-link\"");
 }
 
 #[test]
@@ -132,13 +118,6 @@ fn test_campaign_id_as_ref() {
 }
 
 #[test]
-fn test_campaign_id_clone_and_eq() {
-    let id1 = CampaignId::new("clone-campaign");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_campaign_id_hash() {
     let id1 = CampaignId::new("hash-campaign");
     let id2 = CampaignId::new("hash-campaign");
@@ -146,13 +125,6 @@ fn test_campaign_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_campaign_id_serialize_json() {
-    let id = CampaignId::new("serialize-campaign");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-campaign\"");
 }
 
 #[test]
@@ -225,13 +197,6 @@ fn test_link_click_id_as_ref() {
 }
 
 #[test]
-fn test_link_click_id_clone_and_eq() {
-    let id1 = LinkClickId::new("clone-click");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_link_click_id_hash() {
     let id1 = LinkClickId::new("hash-click");
     let id2 = LinkClickId::new("hash-click");
@@ -239,13 +204,6 @@ fn test_link_click_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_link_click_id_serialize_json() {
-    let id = LinkClickId::new("serialize-click");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-click\"");
 }
 
 #[test]

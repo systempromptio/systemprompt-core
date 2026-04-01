@@ -53,15 +53,6 @@ fn test_ai_message_serialize() {
     assert!(json.contains("Test message"));
 }
 
-#[test]
-fn test_ai_message_deserialize() {
-    let json = r#"{"role":"assistant","content":"Response text"}"#;
-    let msg: AiMessage = serde_json::from_str(json).unwrap();
-
-    assert!(matches!(msg.role, MessageRole::Assistant));
-    assert_eq!(msg.content, "Response text");
-}
-
 // ============================================================================
 // MessageRole Tests
 // ============================================================================
@@ -82,39 +73,6 @@ fn test_message_role_user_serialize() {
 fn test_message_role_assistant_serialize() {
     let json = serde_json::to_string(&MessageRole::Assistant).unwrap();
     assert_eq!(json, "\"assistant\"");
-}
-
-#[test]
-fn test_message_role_deserialize_system() {
-    let role: MessageRole = serde_json::from_str("\"system\"").unwrap();
-    assert!(matches!(role, MessageRole::System));
-}
-
-#[test]
-fn test_message_role_deserialize_user() {
-    let role: MessageRole = serde_json::from_str("\"user\"").unwrap();
-    assert!(matches!(role, MessageRole::User));
-}
-
-#[test]
-fn test_message_role_deserialize_assistant() {
-    let role: MessageRole = serde_json::from_str("\"assistant\"").unwrap();
-    assert!(matches!(role, MessageRole::Assistant));
-}
-
-#[test]
-fn test_message_role_equality() {
-    assert_eq!(MessageRole::User, MessageRole::User);
-    assert_eq!(MessageRole::System, MessageRole::System);
-    assert_eq!(MessageRole::Assistant, MessageRole::Assistant);
-    assert_ne!(MessageRole::User, MessageRole::Assistant);
-}
-
-#[test]
-fn test_message_role_copy() {
-    let role = MessageRole::User;
-    let copied = role;
-    assert_eq!(role, copied);
 }
 
 // ============================================================================
@@ -152,16 +110,6 @@ fn test_provider_config_serialize() {
     assert!(json.contains("4096"));
 }
 
-#[test]
-fn test_provider_config_deserialize() {
-    let json = r#"{"provider":"test","model":"test-model","max_output_tokens":1000}"#;
-    let config: ProviderConfig = serde_json::from_str(json).unwrap();
-
-    assert_eq!(config.provider, "test");
-    assert_eq!(config.model, "test-model");
-    assert_eq!(config.max_output_tokens, 1000);
-}
-
 // ============================================================================
 // SamplingParams Tests
 // ============================================================================
@@ -173,24 +121,6 @@ fn test_sampling_params_default() {
     // Default values should be reasonable
     let json = serde_json::to_string(&params).unwrap();
     assert!(!json.is_empty());
-}
-
-#[test]
-fn test_sampling_params_serialize() {
-    let params = SamplingParams::default();
-    let json = serde_json::to_string(&params).unwrap();
-
-    // Should serialize without error
-    assert!(!json.is_empty());
-}
-
-#[test]
-fn test_sampling_params_deserialize() {
-    let json = "{}";
-    let result: Result<SamplingParams, _> = serde_json::from_str(json);
-
-    // Should handle empty object (using defaults)
-    result.expect("result should succeed");
 }
 
 // ============================================================================

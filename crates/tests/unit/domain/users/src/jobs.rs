@@ -67,21 +67,6 @@ mod cleanup_anonymous_users_job_tests {
     }
 
     #[test]
-    fn job_is_copy() {
-        let job = CleanupAnonymousUsersJob;
-        let copied = job;
-        // Both should still be usable
-        assert_eq!(job.name(), copied.name());
-    }
-
-    #[test]
-    fn job_is_clone() {
-        let job = CleanupAnonymousUsersJob;
-        let cloned = job;
-        assert_eq!(job.name(), cloned.name());
-    }
-
-    #[test]
     fn job_debug() {
         let job = CleanupAnonymousUsersJob;
         let debug = format!("{:?}", job);

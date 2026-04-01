@@ -51,28 +51,6 @@ fn test_module_health_all_crashed() {
 }
 
 #[test]
-fn test_module_health_copy() {
-    let original = ModuleHealth {
-        healthy: 3,
-        crashed: 1,
-    };
-    let copied = original;
-    assert_eq!(copied.healthy, 3);
-    assert_eq!(copied.crashed, 1);
-}
-
-#[test]
-fn test_module_health_clone() {
-    let original = ModuleHealth {
-        healthy: 7,
-        crashed: 2,
-    };
-    let cloned = original.clone();
-    assert_eq!(cloned.healthy, 7);
-    assert_eq!(cloned.crashed, 2);
-}
-
-#[test]
 fn test_module_health_debug() {
     let health = ModuleHealth {
         healthy: 4,

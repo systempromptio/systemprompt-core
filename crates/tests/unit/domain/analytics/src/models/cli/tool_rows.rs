@@ -29,20 +29,6 @@ mod tool_row_tests {
     }
 
     #[test]
-    fn tool_list_row_is_clone() {
-        let row = ToolListRow {
-            tool_name: "test".to_string(),
-            server_name: "server".to_string(),
-            execution_count: 10,
-            success_count: 9,
-            avg_time: 100.0,
-            last_used: Utc::now(),
-        };
-        let cloned = row.clone();
-        assert_eq!(row.tool_name, cloned.tool_name);
-    }
-
-    #[test]
     fn tool_stats_row_stores_values() {
         let row = ToolStatsRow {
             total_tools: 50,
@@ -61,21 +47,6 @@ mod tool_row_tests {
         assert_eq!(row.timeout, 500);
         assert!((row.avg_time - 150.0).abs() < f64::EPSILON);
         assert!((row.p95_time - 500.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn tool_stats_row_is_copy() {
-        let row = ToolStatsRow {
-            total_tools: 10,
-            total_executions: 1000,
-            successful: 980,
-            failed: 15,
-            timeout: 5,
-            avg_time: 100.0,
-            p95_time: 300.0,
-        };
-        let copied = row;
-        assert_eq!(row.total_tools, copied.total_tools);
     }
 
     #[test]

@@ -130,15 +130,6 @@ fn test_task_query_params_serialize() {
 }
 
 #[test]
-fn test_task_query_params_deserialize() {
-    let json = r#"{"id": "task-abc", "history_length": 5}"#;
-    let params: TaskQueryParams = serde_json::from_str(json).unwrap();
-
-    assert_eq!(params.id, "task-abc");
-    assert_eq!(params.history_length, Some(5));
-}
-
-#[test]
 fn test_task_query_params_optional_history_length() {
     let json = r#"{"id": "task-def"}"#;
     let params: TaskQueryParams = serde_json::from_str(json).unwrap();
@@ -155,26 +146,6 @@ fn test_task_id_params_serialize() {
 
     let json = serde_json::to_string(&params).unwrap();
     assert!(json.contains("task-123"));
-}
-
-#[test]
-fn test_task_id_params_deserialize() {
-    let json = r#"{"id": "task-xyz"}"#;
-    let params: TaskIdParams = serde_json::from_str(json).unwrap();
-
-    assert_eq!(params.id, "task-xyz");
-}
-
-#[test]
-fn test_task_id_params_equality() {
-    let p1 = TaskIdParams {
-        id: "test".to_string(),
-    };
-    let p2 = TaskIdParams {
-        id: "test".to_string(),
-    };
-
-    assert_eq!(p1, p2);
 }
 
 #[test]

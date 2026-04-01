@@ -72,13 +72,6 @@ mod chat_request_tests {
     }
 
     #[test]
-    fn is_clone() {
-        let req = test_request();
-        let cloned = req.clone();
-        assert_eq!(cloned.model, req.model);
-    }
-
-    #[test]
     fn is_debug() {
         let req = test_request();
         let debug = format!("{:?}", req);
@@ -153,13 +146,6 @@ mod chat_response_tests {
         let resp = test_response();
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("Hello!"));
-    }
-
-    #[test]
-    fn is_clone() {
-        let resp = test_response();
-        let cloned = resp.clone();
-        assert_eq!(cloned.content, resp.content);
     }
 
     #[test]
@@ -271,13 +257,6 @@ mod tool_execution_context_tests {
         let overrides = serde_json::json!({"temperature": 0.5});
         let ctx = ToolExecutionContext::new("token").with_model_overrides(overrides.clone());
         assert_eq!(ctx.model_overrides, Some(overrides));
-    }
-
-    #[test]
-    fn is_clone() {
-        let ctx = ToolExecutionContext::new("token");
-        let cloned = ctx.clone();
-        assert_eq!(cloned.auth_token, ctx.auth_token);
     }
 
     #[test]

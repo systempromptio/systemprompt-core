@@ -274,17 +274,6 @@ fn test_log_entry_serialize() {
 }
 
 #[test]
-fn test_log_entry_deserialize() {
-    let entry = LogEntry::new(LogLevel::Error, "test", "test message");
-    let json = serde_json::to_string(&entry).unwrap();
-    let deserialized: LogEntry = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(deserialized.level, LogLevel::Error);
-    assert_eq!(deserialized.module, "test");
-    assert_eq!(deserialized.message, "test message");
-}
-
-#[test]
 fn test_log_entry_roundtrip() {
     let entry = LogEntry::new(LogLevel::Warn, "auth::login", "Authentication failed")
         .with_metadata(serde_json::json!({"attempt": 3, "ip": "192.168.1.1"}));

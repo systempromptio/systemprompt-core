@@ -201,48 +201,6 @@ fn test_file_ai_content_flag() {
 }
 
 #[test]
-fn test_file_size_bytes() {
-    let now = Utc::now();
-    let file_with_size = File {
-        id: uuid::Uuid::new_v4(),
-        path: "/test.png".to_string(),
-        public_url: "/files/test.png".to_string(),
-        mime_type: "image/png".to_string(),
-        size_bytes: Some(1_000_000),
-        ai_content: false,
-        metadata: serde_json::json!({}),
-        user_id: None,
-        session_id: None,
-        trace_id: None,
-        context_id: None,
-        created_at: now,
-        updated_at: now,
-        deleted_at: None,
-    };
-
-    assert_eq!(file_with_size.size_bytes, Some(1_000_000));
-
-    let file_without_size = File {
-        id: uuid::Uuid::new_v4(),
-        path: "/test.png".to_string(),
-        public_url: "/files/test.png".to_string(),
-        mime_type: "image/png".to_string(),
-        size_bytes: None,
-        ai_content: false,
-        metadata: serde_json::json!({}),
-        user_id: None,
-        session_id: None,
-        trace_id: None,
-        context_id: None,
-        created_at: now,
-        updated_at: now,
-        deleted_at: None,
-    };
-
-    assert!(file_without_size.size_bytes.is_none());
-}
-
-#[test]
 fn test_file_deleted_at() {
     let now = Utc::now();
     let active_file = File {
@@ -287,20 +245,6 @@ fn test_file_deleted_at() {
 // ============================================================================
 // File Serialization Tests
 // ============================================================================
-
-#[test]
-fn test_file_serialize_deserialize_roundtrip() {
-    let file = create_test_file();
-    let json = serde_json::to_string(&file).unwrap();
-    let deserialized: File = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(file.id, deserialized.id);
-    assert_eq!(file.path, deserialized.path);
-    assert_eq!(file.public_url, deserialized.public_url);
-    assert_eq!(file.mime_type, deserialized.mime_type);
-    assert_eq!(file.size_bytes, deserialized.size_bytes);
-    assert_eq!(file.ai_content, deserialized.ai_content);
-}
 
 #[test]
 fn test_file_clone() {

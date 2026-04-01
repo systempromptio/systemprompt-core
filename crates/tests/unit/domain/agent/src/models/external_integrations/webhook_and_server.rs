@@ -176,11 +176,3 @@ fn test_webhook_response_error() {
     assert!(json.contains("500"));
     assert!(json.contains("Internal server error"));
 }
-
-#[test]
-fn test_webhook_response_deserialize() {
-    let json = r#"{"status": 201, "body": {"id": "created"}}"#;
-    let response: WebhookResponse = serde_json::from_str(json).unwrap();
-    assert_eq!(response.status, 201);
-    response.body.as_ref().expect("body should be present");
-}

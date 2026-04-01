@@ -42,12 +42,6 @@ fn test_is_port_responsive_unused() {
     assert!(!result);
 }
 
-#[test]
-fn test_is_port_responsive_equals_is_port_in_use() {
-    let port = 59992;
-    assert_eq!(is_port_in_use(port), is_port_responsive(port));
-}
-
 // ============================================================================
 // find_available_port Tests
 // ============================================================================

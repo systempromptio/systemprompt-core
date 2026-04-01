@@ -159,14 +159,6 @@ fn test_cimd_metadata_debug() {
     assert!(debug_str.contains("example.com"));
 }
 
-#[test]
-fn test_cimd_metadata_clone() {
-    let metadata = create_valid_cimd_metadata();
-    let cloned = metadata.clone();
-    assert_eq!(metadata.client_id, cloned.client_id);
-    assert_eq!(metadata.redirect_uris, cloned.redirect_uris);
-}
-
 // ============================================================================
 // ClientValidation Tests
 // ============================================================================

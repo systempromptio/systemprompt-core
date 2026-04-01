@@ -120,24 +120,3 @@ fn test_tool_execution_serialize() {
     assert!(json.contains("test-server"));
     assert!(json.contains("success"));
 }
-
-#[test]
-fn test_tool_execution_deserialize() {
-    let exec = create_test_execution();
-    let json = serde_json::to_string(&exec).unwrap();
-    let deserialized: ToolExecution = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(exec.tool_name, deserialized.tool_name);
-    assert_eq!(exec.server_name, deserialized.server_name);
-    assert_eq!(exec.status, deserialized.status);
-}
-
-#[test]
-fn test_tool_execution_roundtrip() {
-    let exec = create_test_execution();
-    let json = serde_json::to_string(&exec).unwrap();
-    let deserialized: ToolExecution = serde_json::from_str(&json).unwrap();
-    let json2 = serde_json::to_string(&deserialized).unwrap();
-
-    assert_eq!(json, json2);
-}

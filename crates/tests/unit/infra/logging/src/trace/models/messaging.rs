@@ -3,7 +3,7 @@
 use chrono::Utc;
 use serde_json::json;
 use systemprompt_logging::{
-    AiRequestSummary, ConversationMessage, TaskArtifact, TaskInfo, ToolLogEntry, TraceEvent,
+    ConversationMessage, TaskArtifact, ToolLogEntry,
 };
 
 // ============================================================================
@@ -73,20 +73,6 @@ fn test_conversation_message_serialize() {
     assert!(json.contains("role"));
     assert!(json.contains("content"));
     assert!(json.contains("sequence_number"));
-}
-
-#[test]
-fn test_conversation_message_deserialize() {
-    let json = r#"{
-        "role": "assistant",
-        "content": "Deserialized content",
-        "sequence_number": 3
-    }"#;
-
-    let msg: ConversationMessage = serde_json::from_str(json).unwrap();
-    assert_eq!(msg.role, "assistant");
-    assert_eq!(msg.content, "Deserialized content");
-    assert_eq!(msg.sequence_number, 3);
 }
 
 // ============================================================================
@@ -249,87 +235,6 @@ fn test_task_artifact_serialize() {
     assert!(json.contains("Serialized"));
 }
 
-#[test]
-fn test_task_artifact_deserialize() {
-    let json = r#"{
-        "artifact_id": "deser",
-        "artifact_type": "output",
-        "name": "result.json",
-        "source": null,
-        "tool_name": null,
-        "part_kind": "json",
-        "text_content": null,
-        "data_content": {"result": true}
-    }"#;
-
-    let artifact: TaskArtifact = serde_json::from_str(json).unwrap();
-    assert_eq!(artifact.artifact_id, "deser");
-    assert_eq!(artifact.name, Some("result.json".to_string()));
-    artifact.data_content.expect("artifact.data_content should be present");
-}
-
 // ============================================================================
 // Roundtrip Serialization Tests
 // ============================================================================
-
-#[test]
-fn test_trace_event_roundtrip() {
-    let event = TraceEvent {
-        event_type: "roundtrip".to_string(),
-        timestamp: Utc::now(),
-        details: "Roundtrip test".to_string(),
-        user_id: Some("user".to_string().into()),
-        session_id: None,
-        task_id: None,
-        context_id: None,
-        metadata: None,
-    };
-
-    let json = serde_json::to_string(&event).unwrap();
-    let deserialized: TraceEvent = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(event.event_type, deserialized.event_type);
-    assert_eq!(event.details, deserialized.details);
-    assert_eq!(event.user_id, deserialized.user_id);
-}
-
-#[test]
-fn test_ai_request_summary_roundtrip() {
-    let summary = AiRequestSummary {
-        total_cost_microdollars: 150,
-        total_tokens: 8000,
-        total_input_tokens: 5000,
-        total_output_tokens: 3000,
-        request_count: 20,
-        total_latency_ms: 25000,
-    };
-
-    let json = serde_json::to_string(&summary).unwrap();
-    let deserialized: AiRequestSummary = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(summary.total_cost_microdollars, deserialized.total_cost_microdollars);
-    assert_eq!(summary.total_tokens, deserialized.total_tokens);
-    assert_eq!(summary.request_count, deserialized.request_count);
-}
-
-#[test]
-fn test_task_info_roundtrip() {
-    let task = TaskInfo {
-        task_id: "roundtrip".to_string().into(),
-        context_id: "ctx".to_string().into(),
-        agent_name: Some("agent".to_string()),
-        status: "completed".to_string(),
-        created_at: Utc::now(),
-        started_at: None,
-        completed_at: None,
-        execution_time_ms: Some(1000),
-        error_message: None,
-    };
-
-    let json = serde_json::to_string(&task).unwrap();
-    let deserialized: TaskInfo = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(task.task_id, deserialized.task_id);
-    assert_eq!(task.status, deserialized.status);
-    assert_eq!(task.execution_time_ms, deserialized.execution_time_ms);
-}

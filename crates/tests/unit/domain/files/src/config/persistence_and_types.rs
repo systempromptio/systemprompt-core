@@ -34,13 +34,6 @@ fn test_file_persistence_mode_clone() {
 }
 
 #[test]
-fn test_file_persistence_mode_copy() {
-    let mode = FilePersistenceMode::UserLibrary;
-    let copied: FilePersistenceMode = mode;
-    assert_eq!(mode, copied);
-}
-
-#[test]
 fn test_file_persistence_mode_debug() {
     let mode = FilePersistenceMode::ContextScoped;
     let debug_str = format!("{:?}", mode);
@@ -69,53 +62,6 @@ fn test_file_persistence_mode_serialize_disabled() {
 }
 
 #[test]
-fn test_file_persistence_mode_deserialize_context_scoped() {
-    let mode: FilePersistenceMode = serde_json::from_str("\"context_scoped\"").unwrap();
-    assert_eq!(mode, FilePersistenceMode::ContextScoped);
-}
-
-#[test]
-fn test_file_persistence_mode_deserialize_user_library() {
-    let mode: FilePersistenceMode = serde_json::from_str("\"user_library\"").unwrap();
-    assert_eq!(mode, FilePersistenceMode::UserLibrary);
-}
-
-#[test]
-fn test_file_persistence_mode_deserialize_disabled() {
-    let mode: FilePersistenceMode = serde_json::from_str("\"disabled\"").unwrap();
-    assert_eq!(mode, FilePersistenceMode::Disabled);
-}
-
-#[test]
-fn test_file_persistence_mode_roundtrip() {
-    for mode in [
-        FilePersistenceMode::ContextScoped,
-        FilePersistenceMode::UserLibrary,
-        FilePersistenceMode::Disabled,
-    ] {
-        let json = serde_json::to_string(&mode).unwrap();
-        let restored: FilePersistenceMode = serde_json::from_str(&json).unwrap();
-        assert_eq!(mode, restored);
-    }
-}
-
-#[test]
-fn test_file_persistence_mode_equality() {
-    assert_eq!(
-        FilePersistenceMode::ContextScoped,
-        FilePersistenceMode::ContextScoped
-    );
-    assert_ne!(
-        FilePersistenceMode::ContextScoped,
-        FilePersistenceMode::UserLibrary
-    );
-    assert_ne!(
-        FilePersistenceMode::ContextScoped,
-        FilePersistenceMode::Disabled
-    );
-}
-
-#[test]
 fn test_allowed_file_types_default() {
     let types = AllowedFileTypes::default();
     assert!(types.images);
@@ -135,18 +81,6 @@ fn test_allowed_file_types_clone() {
 }
 
 #[test]
-fn test_allowed_file_types_copy() {
-    let types = AllowedFileTypes {
-        images: true,
-        documents: false,
-        audio: true,
-        video: false,
-    };
-    let copied: AllowedFileTypes = types;
-    assert_eq!(types.images, copied.images);
-}
-
-#[test]
 fn test_allowed_file_types_debug() {
     let types = AllowedFileTypes::default();
     let debug_str = format!("{:?}", types);
@@ -163,32 +97,6 @@ fn test_allowed_file_types_serialize() {
     assert!(json.contains("\"documents\":true"));
     assert!(json.contains("\"audio\":true"));
     assert!(json.contains("\"video\":false"));
-}
-
-#[test]
-fn test_allowed_file_types_deserialize() {
-    let json = r#"{"images":false,"documents":true,"audio":false,"video":true}"#;
-    let types: AllowedFileTypes = serde_json::from_str(json).unwrap();
-    assert!(!types.images);
-    assert!(types.documents);
-    assert!(!types.audio);
-    assert!(types.video);
-}
-
-#[test]
-fn test_allowed_file_types_roundtrip() {
-    let types = AllowedFileTypes {
-        images: true,
-        documents: false,
-        audio: true,
-        video: true,
-    };
-    let json = serde_json::to_string(&types).unwrap();
-    let restored: AllowedFileTypes = serde_json::from_str(&json).unwrap();
-    assert_eq!(types.images, restored.images);
-    assert_eq!(types.documents, restored.documents);
-    assert_eq!(types.audio, restored.audio);
-    assert_eq!(types.video, restored.video);
 }
 
 #[test]

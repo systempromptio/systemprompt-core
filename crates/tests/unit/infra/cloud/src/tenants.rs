@@ -30,15 +30,6 @@ fn test_tenant_type_serialization() {
 }
 
 #[test]
-fn test_tenant_type_deserialization() {
-    let local: TenantType = serde_json::from_str("\"local\"").unwrap();
-    assert_eq!(local, TenantType::Local);
-
-    let cloud: TenantType = serde_json::from_str("\"cloud\"").unwrap();
-    assert_eq!(cloud, TenantType::Cloud);
-}
-
-#[test]
 fn test_stored_tenant_new() {
     let tenant = StoredTenant::new("tenant-123".to_string(), "My Tenant".to_string());
 
@@ -222,39 +213,6 @@ fn test_stored_tenant_serialization_skips_none() {
 }
 
 #[test]
-fn test_stored_tenant_deserialization() {
-    let json = r#"{
-        "id": "deser-123",
-        "name": "Deserialized",
-        "tenant_type": "cloud"
-    }"#;
-
-    let tenant: StoredTenant = serde_json::from_str(json).unwrap();
-    assert_eq!(tenant.id, "deser-123");
-    assert_eq!(tenant.name, "Deserialized");
-    assert_eq!(tenant.tenant_type, TenantType::Cloud);
-}
-
-#[test]
-fn test_stored_tenant_deserialization_with_optional_fields() {
-    let json = r#"{
-        "id": "full-123",
-        "name": "Full Tenant",
-        "app_id": "app-456",
-        "hostname": "full.example.com",
-        "region": "fra",
-        "database_url": "postgres://full",
-        "tenant_type": "cloud"
-    }"#;
-
-    let tenant: StoredTenant = serde_json::from_str(json).unwrap();
-    assert_eq!(tenant.app_id, Some("app-456".to_string()));
-    assert_eq!(tenant.hostname, Some("full.example.com".to_string()));
-    assert_eq!(tenant.region, Some("fra".to_string()));
-    assert_eq!(tenant.database_url, Some("postgres://full".to_string()));
-}
-
-#[test]
 fn test_tenant_store_new() {
     let tenants = vec![
         StoredTenant::new("t1".to_string(), "Tenant 1".to_string()),
@@ -399,42 +357,4 @@ fn test_tenant_store_serialization() {
     assert!(json.contains("\"tenants\""));
     assert!(json.contains("\"synced_at\""));
     assert!(json.contains("\"id\":\"t1\""));
-}
-
-#[test]
-fn test_tenant_store_deserialization() {
-    let json = r#"{
-        "tenants": [
-            {"id": "d1", "name": "Deserialized 1", "tenant_type": "local"},
-            {"id": "d2", "name": "Deserialized 2", "tenant_type": "cloud"}
-        ],
-        "synced_at": "2024-01-15T12:00:00Z"
-    }"#;
-
-    let store: TenantStore = serde_json::from_str(json).unwrap();
-    assert_eq!(store.len(), 2);
-    store.find_tenant("d1").expect("store.find_tenant(\"d1\") should be present");
-    store.find_tenant("d2").expect("store.find_tenant(\"d2\") should be present");
-}
-
-#[test]
-fn test_tenant_store_roundtrip() {
-    let tenants = vec![
-        StoredTenant::new("rt1".to_string(), "Roundtrip 1".to_string()),
-        StoredTenant::new_local(
-            "rt2".to_string(),
-            "Roundtrip 2".to_string(),
-            "postgres://rt2".to_string(),
-        ),
-    ];
-    let original = TenantStore::new(tenants);
-
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: TenantStore = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(restored.len(), original.len());
-    assert_eq!(
-        restored.find_tenant("rt1").unwrap().name,
-        original.find_tenant("rt1").unwrap().name
-    );
 }

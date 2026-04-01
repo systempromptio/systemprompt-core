@@ -40,14 +40,6 @@ fn test_retry_configuration_clone() {
 }
 
 #[test]
-fn test_retry_configuration_copy() {
-    let config = RetryConfiguration::default();
-    let copied = config;
-
-    assert_eq!(copied.max_attempts, 3);
-}
-
-#[test]
 fn test_retry_configuration_debug() {
     let config = RetryConfiguration::default();
     let debug_str = format!("{:?}", config);

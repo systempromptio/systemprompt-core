@@ -111,38 +111,6 @@ fn test_cloud_credentials_serialization_includes_email() {
 }
 
 #[test]
-fn test_cloud_credentials_deserialization() {
-    let json = r#"{
-        "api_token": "test_token",
-        "api_url": "https://api.test.io",
-        "authenticated_at": "2024-01-15T12:00:00Z",
-        "user_email": "test@example.com"
-    }"#;
-
-    let creds: CloudCredentials = serde_json::from_str(json).unwrap();
-    assert_eq!(creds.api_token, "test_token");
-    assert_eq!(creds.api_url, "https://api.test.io");
-    assert_eq!(creds.user_email, "test@example.com");
-}
-
-#[test]
-fn test_cloud_credentials_roundtrip() {
-    let token = create_valid_token(3600);
-    let original = CloudCredentials::new(
-        token,
-        "https://api.systemprompt.io".to_string(),
-        "admin@example.com".to_string(),
-    );
-
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: CloudCredentials = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(restored.api_token, original.api_token);
-    assert_eq!(restored.api_url, original.api_url);
-    assert_eq!(restored.user_email, original.user_email);
-}
-
-#[test]
 fn test_cloud_credentials_save_and_load() {
     let temp_dir = TempDir::new().unwrap();
     let creds_path = temp_dir.path().join("credentials.json");

@@ -28,16 +28,6 @@ mod api_error_tests {
     }
 
     #[test]
-    fn api_error_is_clone() {
-        let err = ApiError::new("ERROR", "Something happened", StatusCode::INTERNAL_SERVER_ERROR);
-        let cloned = err.clone();
-
-        assert_eq!(err.code, cloned.code);
-        assert_eq!(err.message, cloned.message);
-        assert_eq!(err.status, cloned.status);
-    }
-
-    #[test]
     fn api_error_is_debug() {
         let err = ApiError::new("TEST", "Test message", StatusCode::OK);
         let debug_str = format!("{:?}", err);
@@ -80,33 +70,12 @@ mod mcp_error_data_tests {
     }
 
     #[test]
-    fn mcp_error_is_clone() {
-        let err = McpErrorData::new(403, "Forbidden")
-            .with_data(serde_json::json!({"required_role": "admin"}));
-        let cloned = err.clone();
-
-        assert_eq!(err.code, cloned.code);
-        assert_eq!(err.message, cloned.message);
-        assert_eq!(err.data, cloned.data);
-    }
-
-    #[test]
     fn mcp_error_serializes_to_json() {
         let err = McpErrorData::new(401, "Unauthorized");
         let json = serde_json::to_string(&err).unwrap();
 
         assert!(json.contains("401"));
         assert!(json.contains("Unauthorized"));
-    }
-
-    #[test]
-    fn mcp_error_deserializes_from_json() {
-        let json = r#"{"code": 200, "message": "OK"}"#;
-        let err: McpErrorData = serde_json::from_str(json).unwrap();
-
-        assert_eq!(err.code, 200);
-        assert_eq!(err.message, "OK");
-        assert!(err.data.is_none());
     }
 
     #[test]

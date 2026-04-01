@@ -53,13 +53,6 @@ fn test_scheduled_job_id_as_ref() {
 }
 
 #[test]
-fn test_scheduled_job_id_clone_and_eq() {
-    let id1 = ScheduledJobId::new("clone-job");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_scheduled_job_id_hash() {
     let id1 = ScheduledJobId::new("hash-job");
     let id2 = ScheduledJobId::new("hash-job");
@@ -67,13 +60,6 @@ fn test_scheduled_job_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_scheduled_job_id_serialize_json() {
-    let id = ScheduledJobId::new("serialize-job");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-job\"");
 }
 
 #[test]
@@ -132,13 +118,6 @@ fn test_job_name_as_ref() {
 }
 
 #[test]
-fn test_job_name_clone_and_eq() {
-    let name1 = JobName::new("clone-job");
-    let name2 = name1.clone();
-    assert_eq!(name1, name2);
-}
-
-#[test]
 fn test_job_name_hash() {
     let name1 = JobName::new("hash-job");
     let name2 = JobName::new("hash-job");
@@ -146,13 +125,6 @@ fn test_job_name_hash() {
     let mut set = HashSet::new();
     set.insert(name1.clone());
     assert!(set.contains(&name2));
-}
-
-#[test]
-fn test_job_name_serialize_json() {
-    let name = JobName::new("serialize-job");
-    let json = serde_json::to_string(&name).unwrap();
-    assert_eq!(json, "\"serialize-job\"");
 }
 
 #[test]

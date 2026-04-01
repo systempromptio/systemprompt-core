@@ -153,25 +153,6 @@ fn test_content_summary_creation() {
 }
 
 #[test]
-fn test_content_summary_clone() {
-    use systemprompt_content::models::ContentSummary;
-    use systemprompt_identifiers::ContentId;
-    use chrono::Utc;
-
-    let summary = ContentSummary {
-        id: ContentId::new("summary-2"),
-        slug: "clone-summary".to_string(),
-        title: "Clone Summary".to_string(),
-        description: "Description".to_string(),
-        published_at: Utc::now(),
-    };
-
-    let cloned = summary.clone();
-    assert_eq!(cloned.id, summary.id);
-    assert_eq!(cloned.slug, summary.slug);
-}
-
-#[test]
 fn test_content_summary_serialization() {
     use systemprompt_content::models::ContentSummary;
     use systemprompt_identifiers::ContentId;

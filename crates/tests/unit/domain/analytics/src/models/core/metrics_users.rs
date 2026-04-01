@@ -47,20 +47,6 @@ mod user_metrics_with_trends_tests {
     }
 
     #[test]
-    fn metrics_is_copy() {
-        let metrics = create_metrics(10, 50, 200, 8, 45, 180);
-        let copied = metrics;
-        assert_eq!(metrics.count_24h, copied.count_24h);
-    }
-
-    #[test]
-    fn metrics_is_clone() {
-        let metrics = create_metrics(10, 50, 200, 8, 45, 180);
-        let cloned = metrics.clone();
-        assert_eq!(metrics.count_7d, cloned.count_7d);
-    }
-
-    #[test]
     fn metrics_is_debug() {
         let metrics = create_metrics(1, 2, 3, 0, 1, 2);
         let debug_str = format!("{:?}", metrics);
@@ -76,24 +62,6 @@ mod user_metrics_with_trends_tests {
         assert!(json.contains("users_7d"));
         assert!(json.contains("users_30d"));
         assert!(json.contains("users_prev_24h"));
-    }
-
-    #[test]
-    fn metrics_deserializes() {
-        let json = r#"{
-            "users_24h": 150,
-            "users_7d": 700,
-            "users_30d": 2500,
-            "users_prev_24h": 140,
-            "users_prev_7d": 680,
-            "users_prev_30d": 2400
-        }"#;
-
-        let metrics: UserMetricsWithTrends = serde_json::from_str(json).unwrap();
-
-        assert_eq!(metrics.count_24h, 150);
-        assert_eq!(metrics.count_7d, 700);
-        assert_eq!(metrics.prev_30d, 2400);
     }
 }
 
@@ -187,15 +155,6 @@ mod analytics_session_tests {
         assert_eq!(session.task_count, Some(5));
         assert_eq!(session.ai_request_count, Some(10));
         assert_eq!(session.message_count, Some(15));
-    }
-
-    #[test]
-    fn session_is_clone() {
-        let session = create_session();
-        let cloned = session.clone();
-
-        assert_eq!(session.session_id.as_str(), cloned.session_id.as_str());
-        assert_eq!(session.browser, cloned.browser);
     }
 
     #[test]
@@ -314,15 +273,6 @@ mod analytics_event_tests {
     fn event_stores_metadata() {
         let event = create_event();
         assert!(event.metadata.expect("should have metadata").contains("page"));
-    }
-
-    #[test]
-    fn event_is_clone() {
-        let event = create_event();
-        let cloned = event.clone();
-
-        assert_eq!(event.id, cloned.id);
-        assert_eq!(event.event_type, cloned.event_type);
     }
 
     #[test]

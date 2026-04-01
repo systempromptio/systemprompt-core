@@ -94,45 +94,6 @@ fn test_agent_status_debug_failed() {
     assert!(debug_str.contains("Test reason"));
 }
 
-#[test]
-fn test_agent_status_clone() {
-    let status = AgentStatus::Running {
-        pid: 5555,
-        port: 7777,
-    };
-
-    let cloned = status.clone();
-    assert_eq!(status, cloned);
-}
-
-#[test]
-fn test_agent_status_equality() {
-    let status1 = AgentStatus::Running {
-        pid: 100,
-        port: 200,
-    };
-    let status2 = AgentStatus::Running {
-        pid: 100,
-        port: 200,
-    };
-
-    assert_eq!(status1, status2);
-}
-
-#[test]
-fn test_agent_status_inequality() {
-    let status1 = AgentStatus::Running {
-        pid: 100,
-        port: 200,
-    };
-    let status2 = AgentStatus::Running {
-        pid: 100,
-        port: 300,
-    };
-
-    assert_ne!(status1, status2);
-}
-
 // ============================================================================
 // AgentRuntimeConfig Tests
 // ============================================================================

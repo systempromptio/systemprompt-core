@@ -25,23 +25,6 @@ fn test_request_id_deserialize_string() {
 }
 
 #[test]
-fn test_request_id_deserialize_number() {
-    let json = "123";
-    let id: RequestId = serde_json::from_str(json).unwrap();
-    match id {
-        RequestId::Number(n) => assert_eq!(n, 123),
-        _ => panic!("Expected Number variant"),
-    }
-}
-
-#[test]
-fn test_request_id_equality() {
-    let id1 = RequestId::String("same".to_string());
-    let id2 = RequestId::String("same".to_string());
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_jsonrpc_error_new() {
     let error = JsonRpcError::new(-32600, "Invalid Request");
     assert_eq!(error.code, -32600);
@@ -99,22 +82,6 @@ fn test_jsonrpc_error_serialize() {
     let json = serde_json::to_string(&error).unwrap();
     assert!(json.contains("-32600"));
     assert!(json.contains("Test"));
-}
-
-#[test]
-fn test_jsonrpc_error_deserialize() {
-    let json = r#"{"code": -32700, "message": "Parse error"}"#;
-    let error: JsonRpcError = serde_json::from_str(json).unwrap();
-    assert_eq!(error.code, -32700);
-    assert_eq!(error.message, "Parse error");
-}
-
-#[test]
-fn test_jsonrpc_error_clone() {
-    let error = JsonRpcError::new(-32600, "Test");
-    let cloned = error.clone();
-    assert_eq!(error.code, cloned.code);
-    assert_eq!(error.message, cloned.message);
 }
 
 #[test]

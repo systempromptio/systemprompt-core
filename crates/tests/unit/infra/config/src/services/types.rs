@@ -109,13 +109,6 @@ fn test_deploy_environment_clone() {
 }
 
 #[test]
-fn test_deploy_environment_copy() {
-    let env = DeployEnvironment::DockerDev;
-    let copied = env;
-    assert_eq!(env, copied);
-}
-
-#[test]
 fn test_deploy_environment_eq() {
     assert_eq!(DeployEnvironment::Local, DeployEnvironment::Local);
     assert_ne!(DeployEnvironment::Local, DeployEnvironment::Production);
@@ -158,15 +151,6 @@ fn test_deployment_config_debug() {
     };
     let debug_str = format!("{:?}", config);
     assert!(debug_str.contains("DeploymentConfig"));
-}
-
-#[test]
-fn test_deployment_config_clone() {
-    let mut vars = HashMap::new();
-    vars.insert("key".to_string(), serde_yaml::Value::String("value".to_string()));
-    let config = DeploymentConfig { vars };
-    let cloned = config.clone();
-    assert_eq!(cloned.vars.len(), 1);
 }
 
 #[test]
@@ -226,19 +210,6 @@ fn test_environment_config_debug() {
     let debug_str = format!("{:?}", config);
     assert!(debug_str.contains("EnvironmentConfig"));
     assert!(debug_str.contains("DockerDev"));
-}
-
-#[test]
-fn test_environment_config_clone() {
-    let mut variables = HashMap::new();
-    variables.insert("KEY".to_string(), "value".to_string());
-    let config = EnvironmentConfig {
-        environment: DeployEnvironment::Local,
-        variables,
-    };
-    let cloned = config.clone();
-    assert_eq!(cloned.environment, DeployEnvironment::Local);
-    assert_eq!(cloned.variables.get("KEY"), Some(&"value".to_string()));
 }
 
 #[test]

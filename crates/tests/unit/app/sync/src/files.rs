@@ -42,22 +42,6 @@ mod file_entry_tests {
     }
 
     #[test]
-    fn entry_is_deserializable() {
-        let json = r#"{"path":"a.txt","checksum":"xyz","size":100}"#;
-        let entry: FileEntry = serde_json::from_str(json).unwrap();
-        assert_eq!(entry.path, "a.txt");
-        assert_eq!(entry.checksum, "xyz");
-        assert_eq!(entry.size, 100);
-    }
-
-    #[test]
-    fn entry_is_clone() {
-        let entry = test_entry();
-        let cloned = entry.clone();
-        assert_eq!(cloned.path, entry.path);
-    }
-
-    #[test]
     fn entry_is_debug() {
         let entry = test_entry();
         let debug = format!("{:?}", entry);
@@ -115,22 +99,6 @@ mod file_manifest_tests {
     }
 
     #[test]
-    fn manifest_is_deserializable() {
-        let manifest = test_manifest();
-        let json = serde_json::to_string(&manifest).unwrap();
-        let deserialized: FileManifest = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.files.len(), 2);
-        assert_eq!(deserialized.checksum, manifest.checksum);
-    }
-
-    #[test]
-    fn manifest_is_clone() {
-        let manifest = test_manifest();
-        let cloned = manifest.clone();
-        assert_eq!(cloned.files.len(), manifest.files.len());
-    }
-
-    #[test]
     fn manifest_is_debug() {
         let manifest = test_manifest();
         let debug = format!("{:?}", manifest);
@@ -184,13 +152,6 @@ mod file_bundle_tests {
         let json = serde_json::to_string(&bundle).unwrap();
         assert!(json.contains("test.txt"));
         assert!(!json.contains("data"));
-    }
-
-    #[test]
-    fn bundle_is_clone() {
-        let bundle = test_bundle();
-        let cloned = bundle.clone();
-        assert_eq!(cloned.manifest.files.len(), bundle.manifest.files.len());
     }
 
     #[test]

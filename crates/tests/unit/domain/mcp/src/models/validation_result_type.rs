@@ -141,46 +141,6 @@ fn test_validation_result_type_display() {
 // ValidationResultType Equality and Clone Tests
 // ============================================================================
 
-#[test]
-fn test_validation_result_type_equality() {
-    assert_eq!(
-        ValidationResultType::AuthRequired,
-        ValidationResultType::AuthRequired
-    );
-    assert_eq!(
-        ValidationResultType::Success,
-        ValidationResultType::Success
-    );
-    assert_eq!(ValidationResultType::Error, ValidationResultType::Error);
-}
-
-#[test]
-fn test_validation_result_type_inequality() {
-    assert_ne!(
-        ValidationResultType::AuthRequired,
-        ValidationResultType::Success
-    );
-    assert_ne!(ValidationResultType::Timeout, ValidationResultType::Error);
-    assert_ne!(
-        ValidationResultType::ConnectionFailed,
-        ValidationResultType::PortUnavailable
-    );
-}
-
-#[test]
-fn test_validation_result_type_clone() {
-    let result = ValidationResultType::Success;
-    let cloned = result.clone();
-    assert_eq!(result, cloned);
-}
-
-#[test]
-fn test_validation_result_type_copy() {
-    let result = ValidationResultType::Timeout;
-    let copied = result;
-    assert_eq!(result, copied);
-}
-
 // ============================================================================
 // ValidationResultType Roundtrip Tests
 // ============================================================================

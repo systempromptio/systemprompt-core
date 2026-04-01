@@ -35,28 +35,6 @@ fn test_bot_type_human() {
     assert_eq!(bot_type, BotType::Human);
 }
 
-#[test]
-fn test_bot_type_not_equal() {
-    assert_ne!(BotType::KnownBot, BotType::Human);
-    assert_ne!(BotType::Scanner, BotType::Suspicious);
-    assert_ne!(BotType::Human, BotType::Scanner);
-    assert_ne!(BotType::KnownBot, BotType::Scanner);
-}
-
-#[test]
-fn test_bot_type_copy() {
-    let original = BotType::KnownBot;
-    let copied = original;
-    assert_eq!(original, copied);
-}
-
-#[test]
-fn test_bot_type_clone() {
-    let original = BotType::Scanner;
-    let cloned = original.clone();
-    assert_eq!(original, cloned);
-}
-
 // ============================================================================
 // BotMarker Struct Tests
 // ============================================================================

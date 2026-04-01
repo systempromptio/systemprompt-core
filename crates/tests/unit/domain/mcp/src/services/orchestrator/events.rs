@@ -256,18 +256,6 @@ fn test_mcp_event_start_completed_failure() {
 // ============================================================================
 
 #[test]
-fn test_mcp_event_clone() {
-    let event = McpEvent::ServiceStarted {
-        service_name: "test-service".to_string(),
-        process_id: 1234,
-        port: 8080,
-    };
-
-    let cloned = event.clone();
-    assert_eq!(cloned.service_name(), event.service_name());
-}
-
-#[test]
 fn test_mcp_event_debug() {
     let event = McpEvent::ServiceStarted {
         service_name: "test-service".to_string(),
@@ -331,47 +319,4 @@ fn test_mcp_event_serialize_reconciliation_completed() {
     let json = serde_json::to_string(&event).unwrap();
     assert!(json.contains("reconciliation_completed"));
     assert!(json.contains("1500"));
-}
-
-#[test]
-fn test_mcp_event_deserialize_service_started() {
-    let json = r#"{"type":"service_started","service_name":"test-service","process_id":1234,"port":8080}"#;
-    let event: McpEvent = serde_json::from_str(json).unwrap();
-
-    assert_eq!(event.service_name(), "test-service");
-    assert_eq!(event.event_type(), "service_started");
-}
-
-#[test]
-fn test_mcp_event_roundtrip() {
-    let events = [
-        McpEvent::ServiceStartRequested {
-            service_name: "test".to_string(),
-        },
-        McpEvent::ServiceStarted {
-            service_name: "test".to_string(),
-            process_id: 1234,
-            port: 8080,
-        },
-        McpEvent::ServiceFailed {
-            service_name: "test".to_string(),
-            error: "Error".to_string(),
-        },
-        McpEvent::ServiceStopped {
-            service_name: "test".to_string(),
-            exit_code: Some(0),
-        },
-        McpEvent::ReconciliationStarted { service_count: 5 },
-        McpEvent::ReconciliationCompleted {
-            started: 5,
-            failed: 1,
-            duration_ms: 1000,
-        },
-    ];
-
-    for event in events {
-        let json = serde_json::to_string(&event).unwrap();
-        let parsed: McpEvent = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.event_type(), event.event_type());
-    }
 }

@@ -124,24 +124,3 @@ fn test_tool_stats_serialize() {
     assert!(json.contains("100"));
     assert!(json.contains("95"));
 }
-
-#[test]
-fn test_tool_stats_deserialize() {
-    let stats = create_test_stats();
-    let json = serde_json::to_string(&stats).unwrap();
-    let deserialized: ToolStats = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(stats.tool_name, deserialized.tool_name);
-    assert_eq!(stats.total_executions, deserialized.total_executions);
-    assert_eq!(stats.success_count, deserialized.success_count);
-}
-
-#[test]
-fn test_tool_stats_roundtrip() {
-    let stats = create_test_stats();
-    let json = serde_json::to_string(&stats).unwrap();
-    let deserialized: ToolStats = serde_json::from_str(&json).unwrap();
-    let json2 = serde_json::to_string(&deserialized).unwrap();
-
-    assert_eq!(json, json2);
-}

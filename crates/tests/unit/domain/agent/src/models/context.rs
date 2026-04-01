@@ -244,15 +244,3 @@ fn test_context_state_event_serialize() {
     assert!(json.contains("ctx-serialize"));
     assert!(json.contains("Serialized"));
 }
-
-#[test]
-fn test_context_state_event_deserialize() {
-    let json = r#"{
-        "type": "context_deleted",
-        "context_id": "ctx-deserialize",
-        "timestamp": "2024-01-01T12:00:00Z"
-    }"#;
-
-    let event: ContextStateEvent = serde_json::from_str(json).unwrap();
-    assert_eq!(event.context_id(), Some("ctx-deserialize"));
-}

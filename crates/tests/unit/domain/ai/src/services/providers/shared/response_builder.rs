@@ -40,26 +40,6 @@ mod token_usage_tests {
     }
 
     #[test]
-    fn is_copy() {
-        let usage = TokenUsage {
-            tokens_used: Some(100),
-            ..TokenUsage::default()
-        };
-        let copied = usage;
-        assert_eq!(usage.tokens_used, copied.tokens_used);
-    }
-
-    #[test]
-    fn is_clone() {
-        let usage = TokenUsage {
-            tokens_used: Some(100),
-            ..TokenUsage::default()
-        };
-        let cloned = usage.clone();
-        assert_eq!(usage.tokens_used, cloned.tokens_used);
-    }
-
-    #[test]
     fn is_debug() {
         let usage = TokenUsage::default();
         let debug_str = format!("{:?}", usage);

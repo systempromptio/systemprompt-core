@@ -36,13 +36,6 @@ fn test_database_query_with_placeholders() {
 }
 
 #[test]
-fn test_database_query_copy() {
-    const ORIGINAL: DatabaseQuery = DatabaseQuery::new("SELECT 1");
-    let copy = ORIGINAL;
-    assert_eq!(ORIGINAL.postgres(), copy.postgres());
-}
-
-#[test]
 fn test_database_query_debug() {
     const QUERY: DatabaseQuery = DatabaseQuery::new("SELECT * FROM test");
     let debug = format!("{:?}", QUERY);

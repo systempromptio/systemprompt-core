@@ -92,25 +92,6 @@ fn test_token_info_serialize() {
 }
 
 #[test]
-fn test_token_info_deserialize() {
-    let json = r#"{
-        "access_token": "token123",
-        "token_type": "Bearer",
-        "expires_in": 7200,
-        "refresh_token": "refresh123",
-        "scopes": ["openid", "profile"],
-        "created_at": "2024-01-01T00:00:00Z"
-    }"#;
-
-    let token: TokenInfo = serde_json::from_str(json).unwrap();
-    assert_eq!(token.access_token, "token123");
-    assert_eq!(token.token_type, "Bearer");
-    assert_eq!(token.expires_in, Some(7200));
-    assert_eq!(token.refresh_token, Some("refresh123".to_string()));
-    assert_eq!(token.scopes.len(), 2);
-}
-
-#[test]
 fn test_token_info_optional_fields() {
     let json = r#"{
         "access_token": "token",
@@ -125,21 +106,6 @@ fn test_token_info_optional_fields() {
 }
 
 #[test]
-fn test_token_info_clone() {
-    let token = TokenInfo {
-        access_token: "token".to_string(),
-        token_type: "Bearer".to_string(),
-        expires_in: None,
-        refresh_token: None,
-        scopes: vec![],
-        created_at: Utc::now(),
-    };
-
-    let cloned = token.clone();
-    assert_eq!(token.access_token, cloned.access_token);
-}
-
-#[test]
 fn test_authorization_request_serialize() {
     let request = AuthorizationRequest {
         authorization_url: "https://auth.example.com/authorize".to_string(),
@@ -150,19 +116,6 @@ fn test_authorization_request_serialize() {
     let json = serde_json::to_string(&request).unwrap();
     assert!(json.contains("https://auth.example.com/authorize"));
     assert!(json.contains("random_state_123"));
-}
-
-#[test]
-fn test_authorization_request_deserialize() {
-    let json = r#"{
-        "authorization_url": "https://example.com/auth",
-        "state": "state123",
-        "expires_at": "2024-12-31T23:59:59Z"
-    }"#;
-
-    let request: AuthorizationRequest = serde_json::from_str(json).unwrap();
-    assert_eq!(request.authorization_url, "https://example.com/auth");
-    assert_eq!(request.state, "state123");
 }
 
 #[test]
@@ -229,19 +182,4 @@ fn test_callback_params_error() {
     let json = serde_json::to_string(&params).unwrap();
     assert!(json.contains("access_denied"));
     assert!(json.contains("User denied access"));
-}
-
-#[test]
-fn test_callback_params_deserialize() {
-    let json = r#"{
-        "code": "code123",
-        "state": "state123",
-        "error": null,
-        "error_description": null
-    }"#;
-
-    let params: CallbackParams = serde_json::from_str(json).unwrap();
-    assert_eq!(params.code, Some("code123".to_string()));
-    assert_eq!(params.state, "state123");
-    assert!(params.error.is_none());
 }

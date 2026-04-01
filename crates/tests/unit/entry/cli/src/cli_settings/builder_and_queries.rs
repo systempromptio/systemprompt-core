@@ -176,16 +176,6 @@ fn test_cli_config_clone() {
 }
 
 #[test]
-fn test_cli_config_clone_independence() {
-    let original = CliConfig::default();
-    let mut cloned = original.clone();
-    cloned = cloned.with_output_format(OutputFormat::Yaml);
-
-    assert_eq!(original.output_format, OutputFormat::Table);
-    assert_eq!(cloned.output_format, OutputFormat::Yaml);
-}
-
-#[test]
 fn test_cli_config_debug() {
     let config = CliConfig::default();
     let debug_str = format!("{:?}", config);

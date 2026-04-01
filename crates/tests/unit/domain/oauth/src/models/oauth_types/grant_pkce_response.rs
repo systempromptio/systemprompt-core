@@ -62,26 +62,6 @@ fn test_grant_type_default_grant_types() {
 }
 
 #[test]
-fn test_grant_type_equality() {
-    assert_eq!(GrantType::AuthorizationCode, GrantType::AuthorizationCode);
-    assert_ne!(GrantType::AuthorizationCode, GrantType::RefreshToken);
-}
-
-#[test]
-fn test_grant_type_clone() {
-    let grant_type = GrantType::AuthorizationCode;
-    let cloned = grant_type.clone();
-    assert_eq!(grant_type, cloned);
-}
-
-#[test]
-fn test_grant_type_copy() {
-    let grant_type = GrantType::RefreshToken;
-    let copied = grant_type;
-    assert_eq!(grant_type, copied);
-}
-
-#[test]
 fn test_grant_type_debug() {
     let debug_str = format!("{:?}", GrantType::AuthorizationCode);
     assert!(debug_str.contains("AuthorizationCode"));
@@ -126,26 +106,6 @@ fn test_pkce_method_display() {
 }
 
 #[test]
-fn test_pkce_method_equality() {
-    assert_eq!(PkceMethod::S256, PkceMethod::S256);
-    assert_ne!(PkceMethod::S256, PkceMethod::Plain);
-}
-
-#[test]
-fn test_pkce_method_clone() {
-    let method = PkceMethod::S256;
-    let cloned = method.clone();
-    assert_eq!(method, cloned);
-}
-
-#[test]
-fn test_pkce_method_copy() {
-    let method = PkceMethod::Plain;
-    let copied = method;
-    assert_eq!(method, copied);
-}
-
-#[test]
 fn test_pkce_method_debug() {
     let debug_str = format!("{:?}", PkceMethod::S256);
     assert!(debug_str.contains("S256"));
@@ -175,25 +135,6 @@ fn test_response_type_from_str_invalid() {
 #[test]
 fn test_response_type_display() {
     assert_eq!(format!("{}", ResponseType::Code), "code");
-}
-
-#[test]
-fn test_response_type_equality() {
-    assert_eq!(ResponseType::Code, ResponseType::Code);
-}
-
-#[test]
-fn test_response_type_clone() {
-    let response_type = ResponseType::Code;
-    let cloned = response_type.clone();
-    assert_eq!(response_type, cloned);
-}
-
-#[test]
-fn test_response_type_copy() {
-    let response_type = ResponseType::Code;
-    let copied = response_type;
-    assert_eq!(response_type, copied);
 }
 
 #[test]
@@ -238,26 +179,6 @@ fn test_response_mode_from_str_invalid() {
 fn test_response_mode_display() {
     assert_eq!(format!("{}", ResponseMode::Query), "query");
     assert_eq!(format!("{}", ResponseMode::Fragment), "fragment");
-}
-
-#[test]
-fn test_response_mode_equality() {
-    assert_eq!(ResponseMode::Query, ResponseMode::Query);
-    assert_ne!(ResponseMode::Query, ResponseMode::Fragment);
-}
-
-#[test]
-fn test_response_mode_clone() {
-    let mode = ResponseMode::Query;
-    let cloned = mode.clone();
-    assert_eq!(mode, cloned);
-}
-
-#[test]
-fn test_response_mode_copy() {
-    let mode = ResponseMode::Fragment;
-    let copied = mode;
-    assert_eq!(mode, copied);
 }
 
 #[test]

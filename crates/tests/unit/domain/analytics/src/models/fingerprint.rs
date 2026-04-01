@@ -50,13 +50,6 @@ mod flag_reason_tests {
     }
 
     #[test]
-    fn flag_reasons_are_copy() {
-        let reason = FlagReason::ExcessiveSessions;
-        let copied = reason;
-        assert_eq!(reason, copied);
-    }
-
-    #[test]
     fn flag_reasons_are_debug() {
         let debug_str = format!("{:?}", FlagReason::ReputationDecay);
         assert!(debug_str.contains("ReputationDecay"));
@@ -118,16 +111,6 @@ mod fingerprint_analysis_result_tests {
 
         assert!(result.should_ban_ip);
         assert_eq!(result.ip_to_ban, Some("192.168.1.1".to_string()));
-    }
-
-    #[test]
-    fn result_is_clone() {
-        let result = create_result(true, vec![FlagReason::HighRequestCount]);
-        let cloned = result.clone();
-
-        assert_eq!(result.fingerprint_hash, cloned.fingerprint_hash);
-        assert_eq!(result.should_flag, cloned.should_flag);
-        assert_eq!(result.flag_reasons.len(), cloned.flag_reasons.len());
     }
 
     #[test]

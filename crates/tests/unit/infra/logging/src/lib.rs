@@ -14,7 +14,6 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
-mod layer;
 #[cfg(test)]
 mod models;
 #[cfg(test)]

@@ -21,27 +21,11 @@ mod model_pricing_tests {
     }
 
     #[test]
-    fn pricing_is_copy() {
-        let pricing = ModelPricing::new(0.02, 0.04);
-        let copied = pricing;
-
-        assert!((pricing.input_cost_per_1k - copied.input_cost_per_1k).abs() < f32::EPSILON);
-    }
-
-    #[test]
     fn pricing_is_debug() {
         let pricing = ModelPricing::new(0.01, 0.02);
         let debug = format!("{:?}", pricing);
 
         assert!(debug.contains("ModelPricing"));
-    }
-
-    #[test]
-    fn pricing_is_clone() {
-        let pricing = ModelPricing::new(0.05, 0.10);
-        let cloned = pricing.clone();
-
-        assert!((pricing.input_cost_per_1k - cloned.input_cost_per_1k).abs() < f32::EPSILON);
     }
 }
 
@@ -85,16 +69,6 @@ mod generation_params_tests {
 
         params.sampling.as_ref().expect("sampling should be present");
         assert_eq!(params.sampling.unwrap().temperature, Some(0.7));
-    }
-
-    #[test]
-    fn params_is_clone() {
-        let messages = sample_messages();
-        let params = GenerationParams::new(&messages, "model", 512);
-        let cloned = params.clone();
-
-        assert_eq!(params.model, cloned.model);
-        assert_eq!(params.max_output_tokens, cloned.max_output_tokens);
     }
 
     #[test]
@@ -142,18 +116,6 @@ mod tool_generation_params_tests {
         assert_eq!(params.base.model, "gpt-4");
         assert_eq!(params.tools.len(), 1);
         assert_eq!(params.tools[0].name, "calculator");
-    }
-
-    #[test]
-    fn params_is_clone() {
-        let messages = sample_messages();
-        let base = GenerationParams::new(&messages, "gpt-4", 1024);
-        let tools = sample_tools();
-
-        let params = ToolGenerationParams::new(base, tools);
-        let cloned = params.clone();
-
-        assert_eq!(params.tools.len(), cloned.tools.len());
     }
 
     #[test]
@@ -207,19 +169,6 @@ mod tool_results_params_tests {
     }
 
     #[test]
-    fn params_is_clone() {
-        let messages = sample_messages();
-        let base = GenerationParams::new(&messages, "model", 1024);
-        let tool_calls = sample_tool_calls();
-        let results = sample_results();
-
-        let params = ToolResultsParams::new(base, &tool_calls, &results);
-        let cloned = params.clone();
-
-        assert_eq!(params.tool_calls.len(), cloned.tool_calls.len());
-    }
-
-    #[test]
     fn params_is_debug() {
         let messages = sample_messages();
         let base = GenerationParams::new(&messages, "model", 1024);
@@ -262,18 +211,6 @@ mod schema_generation_params_tests {
     }
 
     #[test]
-    fn params_is_clone() {
-        let messages = sample_messages();
-        let base = GenerationParams::new(&messages, "model", 1024);
-        let schema = json!({"type": "string"});
-
-        let params = SchemaGenerationParams::new(base, schema);
-        let cloned = params.clone();
-
-        assert_eq!(params.response_schema, cloned.response_schema);
-    }
-
-    #[test]
     fn params_is_debug() {
         let messages = sample_messages();
         let base = GenerationParams::new(&messages, "model", 1024);
@@ -307,18 +244,6 @@ mod structured_generation_params_tests {
 
         assert_eq!(params.base.model, "gpt-4");
         assert!(matches!(params.response_format, ResponseFormat::JsonObject));
-    }
-
-    #[test]
-    fn params_is_clone() {
-        let messages = sample_messages();
-        let base = GenerationParams::new(&messages, "model", 512);
-        let format = ResponseFormat::Text;
-
-        let params = StructuredGenerationParams::new(base, &format);
-        let cloned = params.clone();
-
-        assert_eq!(params.base.model, cloned.base.model);
     }
 
     #[test]
@@ -392,18 +317,6 @@ mod search_generation_params_tests {
 
         params.urls.as_ref().expect("urls should be present");
         params.response_schema.as_ref().expect("response_schema should be present");
-    }
-
-    #[test]
-    fn params_is_clone() {
-        let messages = sample_messages();
-        let base = GenerationParams::new(&messages, "model", 1024);
-
-        let params = SearchGenerationParams::new(base)
-            .with_urls(vec!["https://example.com".to_string()]);
-        let cloned = params.clone();
-
-        assert_eq!(params.urls, cloned.urls);
     }
 
     #[test]

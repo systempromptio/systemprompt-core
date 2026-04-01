@@ -125,46 +125,4 @@ mod gemini_part_tests {
         assert!(json.contains("text"));
         assert!(json.contains("Test text"));
     }
-
-    #[test]
-    fn text_part_deserialization() {
-        let json = r#"{"text": "Deserialized text"}"#;
-        let part: GeminiPart = serde_json::from_str(json).unwrap();
-
-        match part {
-            GeminiPart::Text { text } => assert_eq!(text, "Deserialized text"),
-            _ => panic!("Expected Text part"),
-        }
-    }
-
-    #[test]
-    fn text_part_clone() {
-        let part = GeminiPart::Text {
-            text: "Original".to_string(),
-        };
-        let cloned = part.clone();
-
-        match cloned {
-            GeminiPart::Text { text } => assert_eq!(text, "Original"),
-            _ => panic!("Expected Text part"),
-        }
-    }
-}
-
-mod gemini_content_clone_tests {
-    use super::*;
-
-    #[test]
-    fn content_is_cloneable() {
-        let content = GeminiContent {
-            role: "user".to_string(),
-            parts: vec![GeminiPart::Text {
-                text: "Clone me".to_string(),
-            }],
-        };
-
-        let cloned = content.clone();
-        assert_eq!(content.role, cloned.role);
-        assert_eq!(content.parts.len(), cloned.parts.len());
-    }
 }

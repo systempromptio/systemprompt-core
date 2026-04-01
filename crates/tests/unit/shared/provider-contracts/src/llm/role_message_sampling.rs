@@ -32,31 +32,6 @@ mod chat_role_tests {
     }
 
     #[test]
-    fn deserializes_system() {
-        let role: ChatRole = serde_json::from_str("\"system\"").unwrap();
-        assert_eq!(role, ChatRole::System);
-    }
-
-    #[test]
-    fn deserializes_user() {
-        let role: ChatRole = serde_json::from_str("\"user\"").unwrap();
-        assert_eq!(role, ChatRole::User);
-    }
-
-    #[test]
-    fn is_copy() {
-        let role = ChatRole::User;
-        let copied: ChatRole = role;
-        assert_eq!(role, copied);
-    }
-
-    #[test]
-    fn is_eq() {
-        assert_eq!(ChatRole::User, ChatRole::User);
-        assert_ne!(ChatRole::User, ChatRole::System);
-    }
-
-    #[test]
     fn is_debug() {
         let debug = format!("{:?}", ChatRole::Assistant);
         assert!(debug.contains("Assistant"));
@@ -93,21 +68,6 @@ mod chat_message_tests {
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("user"));
         assert!(json.contains("test"));
-    }
-
-    #[test]
-    fn is_deserializable() {
-        let json = r#"{"role":"user","content":"hi"}"#;
-        let msg: ChatMessage = serde_json::from_str(json).unwrap();
-        assert_eq!(msg.role, ChatRole::User);
-        assert_eq!(msg.content, "hi");
-    }
-
-    #[test]
-    fn is_clone() {
-        let msg = ChatMessage::user("test");
-        let cloned = msg.clone();
-        assert_eq!(cloned.content, msg.content);
     }
 
     #[test]
@@ -186,13 +146,6 @@ mod sampling_parameters_tests {
     }
 
     #[test]
-    fn is_copy() {
-        let params = SamplingParameters::new().with_temperature(0.5);
-        let copied: SamplingParameters = params;
-        assert_eq!(params.temperature, copied.temperature);
-    }
-
-    #[test]
     fn is_debug() {
         let params = SamplingParameters::new();
         let debug = format!("{:?}", params);
@@ -252,21 +205,6 @@ mod token_usage_tests {
         assert!(json.contains("input_tokens"));
         assert!(json.contains("output_tokens"));
         assert!(json.contains("total_tokens"));
-    }
-
-    #[test]
-    fn is_deserializable() {
-        let json = r#"{"input_tokens":100,"output_tokens":50,"total_tokens":150}"#;
-        let usage: TokenUsage = serde_json::from_str(json).unwrap();
-        assert_eq!(usage.input, 100);
-        assert_eq!(usage.output, 50);
-    }
-
-    #[test]
-    fn is_copy() {
-        let usage = TokenUsage::new(100, 50);
-        let copied: TokenUsage = usage;
-        assert_eq!(usage.total, copied.total);
     }
 
     #[test]

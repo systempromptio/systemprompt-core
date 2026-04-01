@@ -24,17 +24,6 @@ mod overview_row_tests {
     }
 
     #[test]
-    fn agent_row_is_copy() {
-        let row = OverviewAgentRow {
-            active_agents: 5,
-            total_tasks: 100,
-            completed_tasks: 90,
-        };
-        let copied = row;
-        assert_eq!(row.active_agents, copied.active_agents);
-    }
-
-    #[test]
     fn request_row_stores_values() {
         let row = OverviewRequestRow {
             total: 10000,
@@ -105,19 +94,6 @@ mod session_row_tests {
     }
 
     #[test]
-    fn session_stats_row_is_copy() {
-        let row = SessionStatsRow {
-            total_sessions: 100,
-            unique_users: 50,
-            avg_duration: Some(60.0),
-            avg_requests: Some(5.0),
-            conversions: 10,
-        };
-        let copied = row;
-        assert_eq!(row.total_sessions, copied.total_sessions);
-    }
-
-    #[test]
     fn session_stats_row_handles_none() {
         let row = SessionStatsRow {
             total_sessions: 50,
@@ -150,21 +126,6 @@ mod session_row_tests {
     }
 
     #[test]
-    fn live_session_row_is_clone() {
-        let now = Utc::now();
-        let row = LiveSessionRow {
-            session_id: SessionId::new("sess_clone".to_string()),
-            user_type: None,
-            started_at: now,
-            duration_seconds: None,
-            request_count: None,
-            last_activity_at: now,
-        };
-        let cloned = row.clone();
-        assert_eq!(row.session_id.as_str(), cloned.session_id.as_str());
-    }
-
-    #[test]
     fn session_trend_row_stores_values() {
         let now = Utc::now();
         let row = SessionTrendRow {
@@ -176,17 +137,5 @@ mod session_row_tests {
         assert_eq!(row.started_at, now);
         row.user_id.as_ref().expect("user_id should be present");
         assert_eq!(row.duration_seconds, Some(180));
-    }
-
-    #[test]
-    fn session_trend_row_is_clone() {
-        let now = Utc::now();
-        let row = SessionTrendRow {
-            started_at: now,
-            user_id: None,
-            duration_seconds: None,
-        };
-        let cloned = row.clone();
-        assert_eq!(row.started_at, cloned.started_at);
     }
 }

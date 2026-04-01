@@ -30,20 +30,6 @@ mod top_entity_tests {
     }
 
     #[test]
-    fn top_user_is_clone() {
-        let user = TopUser {
-            user_id: UserId::new("user_1".to_string()),
-            user_name: "Test".to_string(),
-            session_count: 10,
-            task_count: 50,
-            ai_request_count: 100,
-            total_cost: 10.0,
-        };
-        let cloned = user.clone();
-        assert_eq!(user.user_name, cloned.user_name);
-    }
-
-    #[test]
     fn top_agent_stores_values() {
         let agent = TopAgent {
             agent_name: "research-assistant".to_string(),
@@ -91,19 +77,6 @@ mod conversation_stats_tests {
         assert_eq!(summary.completed_conversations, 9500);
         assert!((summary.avg_messages_per_conversation - 15.5).abs() < f64::EPSILON);
         assert!((summary.avg_duration_minutes - 10.2).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn conversation_summary_is_copy() {
-        let summary = ConversationSummary {
-            total_conversations: 100,
-            active_conversations: 10,
-            completed_conversations: 90,
-            avg_messages_per_conversation: 10.0,
-            avg_duration_minutes: 5.0,
-        };
-        let copied = summary;
-        assert_eq!(summary.total_conversations, copied.total_conversations);
     }
 
     #[test]
@@ -159,20 +132,6 @@ mod recent_conversation_tests {
         assert_eq!(conv.status, "active");
         assert_eq!(conv.message_count, 10);
     }
-
-    #[test]
-    fn recent_conversation_is_clone() {
-        let conv = RecentConversation {
-            context_id: ContextId::new("ctx_clone".to_string()),
-            agent_name: "test".to_string(),
-            user_name: "test".to_string(),
-            status: "completed".to_string(),
-            message_count: 5,
-            started_at: Utc::now(),
-        };
-        let cloned = conv.clone();
-        assert_eq!(conv.agent_name, cloned.agent_name);
-    }
 }
 
 mod content_stat_tests {
@@ -197,21 +156,6 @@ mod content_stat_tests {
         assert_eq!(stat.views_1d, 500);
         assert_eq!(stat.views_7d, 2500);
         assert_eq!(stat.views_30d, 10000);
-    }
-
-    #[test]
-    fn content_stat_is_clone() {
-        let stat = ContentStat {
-            title: "Test".to_string(),
-            slug: "test".to_string(),
-            views_5m: 1,
-            views_1h: 5,
-            views_1d: 50,
-            views_7d: 250,
-            views_30d: 1000,
-        };
-        let cloned = stat.clone();
-        assert_eq!(stat.title, cloned.title);
     }
 
     #[test]
@@ -263,18 +207,6 @@ mod error_summary_tests {
 
         assert!(summary.sample_message.is_none());
     }
-
-    #[test]
-    fn error_summary_is_clone() {
-        let summary = ErrorSummary {
-            error_type: "test".to_string(),
-            count: 5,
-            last_occurred: Utc::now(),
-            sample_message: Some("test".to_string()),
-        };
-        let cloned = summary.clone();
-        assert_eq!(summary.error_type, cloned.error_type);
-    }
 }
 
 mod activity_trend_tests {
@@ -298,20 +230,6 @@ mod activity_trend_tests {
         assert_eq!(trend.tasks, 2000);
         assert_eq!(trend.ai_requests, 5000);
         assert_eq!(trend.tool_executions, 3000);
-    }
-
-    #[test]
-    fn activity_trend_is_copy() {
-        let trend = ActivityTrend {
-            date: Utc::now(),
-            sessions: 100,
-            contexts: 50,
-            tasks: 200,
-            ai_requests: 500,
-            tool_executions: 300,
-        };
-        let copied = trend;
-        assert_eq!(trend.sessions, copied.sessions);
     }
 
     #[test]

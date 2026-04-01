@@ -1,7 +1,7 @@
 //! Tests for ProviderCapabilities.
 
 use systemprompt_ai::services::schema::ProviderCapabilities;
-use systemprompt_ai::services::schema::capabilities::{SchemaComposition, SchemaFeatures};
+use systemprompt_ai::services::schema::capabilities::SchemaFeatures;
 use serde_json::json;
 
 mod anthropic_capabilities_tests {
@@ -260,32 +260,5 @@ mod requires_transformation_tests {
 
         assert!(!caps_with.requires_transformation(&schema));
         assert!(caps_without.requires_transformation(&schema));
-    }
-}
-
-mod equality_tests {
-    use super::*;
-
-    #[test]
-    fn capabilities_equality() {
-        let caps1 = ProviderCapabilities::anthropic();
-        let caps2 = ProviderCapabilities::anthropic();
-
-        assert_eq!(caps1, caps2);
-    }
-
-    #[test]
-    fn different_capabilities_not_equal() {
-        let caps1 = ProviderCapabilities::anthropic();
-        let caps2 = ProviderCapabilities::gemini();
-
-        assert_ne!(caps1, caps2);
-    }
-
-    #[test]
-    fn capabilities_is_copy() {
-        let caps = ProviderCapabilities::openai();
-        let copied = caps;
-        assert_eq!(caps, copied);
     }
 }

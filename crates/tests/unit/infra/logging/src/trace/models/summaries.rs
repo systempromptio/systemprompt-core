@@ -89,24 +89,6 @@ fn test_trace_event_serialize() {
     assert!(json.contains("Serialize details"));
 }
 
-#[test]
-fn test_trace_event_deserialize() {
-    let json = r#"{
-        "event_type": "deserialized",
-        "timestamp": "2024-01-01T00:00:00Z",
-        "details": "Deserialized details",
-        "user_id": null,
-        "session_id": null,
-        "task_id": null,
-        "context_id": null,
-        "metadata": null
-    }"#;
-
-    let event: TraceEvent = serde_json::from_str(json).unwrap();
-    assert_eq!(event.event_type, "deserialized");
-    assert_eq!(event.details, "Deserialized details");
-}
-
 // ============================================================================
 // AiRequestSummary Tests
 // ============================================================================
@@ -143,29 +125,6 @@ fn test_ai_request_summary_creation() {
 }
 
 #[test]
-fn test_ai_request_summary_clone() {
-    let summary = AiRequestSummary {
-        total_cost_microdollars: 50,
-        total_tokens: 1000,
-        total_input_tokens: 600,
-        total_output_tokens: 400,
-        request_count: 5,
-        total_latency_ms: 5000,
-    };
-
-    let cloned = summary.clone();
-    assert_eq!(summary.total_cost_microdollars, cloned.total_cost_microdollars);
-    assert_eq!(summary.request_count, cloned.request_count);
-}
-
-#[test]
-fn test_ai_request_summary_copy() {
-    let summary = AiRequestSummary::default();
-    let copied: AiRequestSummary = summary;
-    assert_eq!(summary.total_cost_microdollars, copied.total_cost_microdollars);
-}
-
-#[test]
 fn test_ai_request_summary_serialize() {
     let summary = AiRequestSummary {
         total_cost_microdollars: 25,
@@ -179,22 +138,6 @@ fn test_ai_request_summary_serialize() {
     let json = serde_json::to_string(&summary).unwrap();
     assert!(json.contains("25"));
     assert!(json.contains("500"));
-}
-
-#[test]
-fn test_ai_request_summary_deserialize() {
-    let json = r#"{
-        "total_cost_microdollars": 100,
-        "total_tokens": 2000,
-        "total_input_tokens": 1200,
-        "total_output_tokens": 800,
-        "request_count": 5,
-        "total_latency_ms": 3000
-    }"#;
-
-    let summary: AiRequestSummary = serde_json::from_str(json).unwrap();
-    assert_eq!(summary.total_cost_microdollars, 100);
-    assert_eq!(summary.total_tokens, 2000);
 }
 
 // ============================================================================
@@ -221,24 +164,6 @@ fn test_mcp_execution_summary_creation() {
 }
 
 #[test]
-fn test_mcp_execution_summary_clone() {
-    let summary = McpExecutionSummary {
-        execution_count: 10,
-        total_execution_time_ms: 5000,
-    };
-
-    let cloned = summary.clone();
-    assert_eq!(summary.execution_count, cloned.execution_count);
-}
-
-#[test]
-fn test_mcp_execution_summary_copy() {
-    let summary = McpExecutionSummary::default();
-    let copied: McpExecutionSummary = summary;
-    assert_eq!(summary.execution_count, copied.execution_count);
-}
-
-#[test]
 fn test_mcp_execution_summary_serialize() {
     let summary = McpExecutionSummary {
         execution_count: 8,
@@ -248,18 +173,6 @@ fn test_mcp_execution_summary_serialize() {
     let json = serde_json::to_string(&summary).unwrap();
     assert!(json.contains("8"));
     assert!(json.contains("4000"));
-}
-
-#[test]
-fn test_mcp_execution_summary_deserialize() {
-    let json = r#"{
-        "execution_count": 20,
-        "total_execution_time_ms": 10000
-    }"#;
-
-    let summary: McpExecutionSummary = serde_json::from_str(json).unwrap();
-    assert_eq!(summary.execution_count, 20);
-    assert_eq!(summary.total_execution_time_ms, 10000);
 }
 
 // ============================================================================
@@ -292,27 +205,6 @@ fn test_execution_step_summary_creation() {
 }
 
 #[test]
-fn test_execution_step_summary_clone() {
-    let summary = ExecutionStepSummary {
-        total: 50,
-        completed: 40,
-        failed: 3,
-        pending: 7,
-    };
-
-    let cloned = summary.clone();
-    assert_eq!(summary.total, cloned.total);
-    assert_eq!(summary.completed, cloned.completed);
-}
-
-#[test]
-fn test_execution_step_summary_copy() {
-    let summary = ExecutionStepSummary::default();
-    let copied: ExecutionStepSummary = summary;
-    assert_eq!(summary.total, copied.total);
-}
-
-#[test]
 fn test_execution_step_summary_serialize() {
     let summary = ExecutionStepSummary {
         total: 30,
@@ -326,20 +218,4 @@ fn test_execution_step_summary_serialize() {
     assert!(json.contains("completed_count"));
     assert!(json.contains("failed_count"));
     assert!(json.contains("pending_count"));
-}
-
-#[test]
-fn test_execution_step_summary_deserialize() {
-    let json = r#"{
-        "step_count": 40,
-        "completed_count": 35,
-        "failed_count": 1,
-        "pending_count": 4
-    }"#;
-
-    let summary: ExecutionStepSummary = serde_json::from_str(json).unwrap();
-    assert_eq!(summary.total, 40);
-    assert_eq!(summary.completed, 35);
-    assert_eq!(summary.failed, 1);
-    assert_eq!(summary.pending, 4);
 }

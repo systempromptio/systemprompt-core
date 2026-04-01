@@ -406,15 +406,6 @@ fn test_cli_session_serialization() {
 }
 
 #[test]
-fn test_cli_session_clone() {
-    let session = create_test_builder().build();
-    let cloned = session.clone();
-
-    assert_eq!(session.profile_name.as_str(), cloned.profile_name.as_str());
-    assert_eq!(session.session_id.as_str(), cloned.session_id.as_str());
-}
-
-#[test]
 fn test_cli_session_debug() {
     let session = create_test_builder().build();
     let debug_str = format!("{:?}", session);

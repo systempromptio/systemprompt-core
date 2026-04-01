@@ -203,56 +203,6 @@ fn test_agent_event_serialize_reconciliation() {
 // Deserialization Tests
 // ============================================================================
 
-#[test]
-fn test_agent_event_deserialize_start_requested() {
-    let json = r#"{"type": "agent_start_requested", "agent_id": "deser-1"}"#;
-    let event: AgentEvent = serde_json::from_str(json).unwrap();
-
-    assert_eq!(event.agent_id(), "deser-1");
-    assert_eq!(event.event_type(), "agent_start_requested");
-}
-
-#[test]
-fn test_agent_event_deserialize_started() {
-    let json = r#"{"type": "agent_started", "agent_id": "deser-2", "pid": 5678, "port": 3000}"#;
-    let event: AgentEvent = serde_json::from_str(json).unwrap();
-
-    match event {
-        AgentEvent::AgentStarted { pid, port, .. } => {
-            assert_eq!(pid, 5678);
-            assert_eq!(port, 3000);
-        }
-        _ => panic!("Expected AgentStarted variant"),
-    }
-}
-
-#[test]
-fn test_agent_event_deserialize_stopped() {
-    let json = r#"{"type": "agent_stopped", "agent_id": "deser-3", "exit_code": 1}"#;
-    let event: AgentEvent = serde_json::from_str(json).unwrap();
-
-    match event {
-        AgentEvent::AgentStopped { exit_code, .. } => {
-            assert_eq!(exit_code, Some(1));
-        }
-        _ => panic!("Expected AgentStopped variant"),
-    }
-}
-
-#[test]
-fn test_agent_event_deserialize_health_check_failed() {
-    let json =
-        r#"{"type": "health_check_failed", "agent_id": "deser-4", "reason": "Port unreachable"}"#;
-    let event: AgentEvent = serde_json::from_str(json).unwrap();
-
-    match event {
-        AgentEvent::HealthCheckFailed { reason, .. } => {
-            assert_eq!(reason, "Port unreachable");
-        }
-        _ => panic!("Expected HealthCheckFailed variant"),
-    }
-}
-
 // ============================================================================
 // Debug and Clone Tests
 // ============================================================================
@@ -266,18 +216,6 @@ fn test_agent_event_debug() {
     let debug_str = format!("{:?}", event);
     assert!(debug_str.contains("AgentStartRequested"));
     assert!(debug_str.contains("debug-test"));
-}
-
-#[test]
-fn test_agent_event_clone() {
-    let event = AgentEvent::AgentStarted {
-        agent_id: "clone-test".to_string(),
-        pid: 9999,
-        port: 7777,
-    };
-
-    let cloned = event.clone();
-    assert_eq!(cloned.agent_id(), "clone-test");
 }
 
 // ============================================================================

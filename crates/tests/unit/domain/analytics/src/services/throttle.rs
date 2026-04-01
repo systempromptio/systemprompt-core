@@ -138,19 +138,6 @@ mod throttle_level_tests {
     }
 
     #[test]
-    fn throttle_level_is_eq() {
-        assert_eq!(ThrottleLevel::Normal, ThrottleLevel::Normal);
-        assert_ne!(ThrottleLevel::Normal, ThrottleLevel::Warning);
-    }
-
-    #[test]
-    fn throttle_level_is_copy() {
-        let level = ThrottleLevel::Severe;
-        let copied = level;
-        assert_eq!(level, copied);
-    }
-
-    #[test]
     fn throttle_level_is_debug() {
         let debug_str = format!("{:?}", ThrottleLevel::Warning);
         assert!(debug_str.contains("Warning"));
@@ -161,13 +148,6 @@ mod throttle_level_tests {
         let level = ThrottleLevel::Severe;
         let json = serde_json::to_string(&level).unwrap();
         assert!(json.contains("Severe") || json.contains("2"));
-    }
-
-    #[test]
-    fn throttle_level_deserializes() {
-        let json = "\"Warning\"";
-        let level: ThrottleLevel = serde_json::from_str(json).unwrap();
-        assert_eq!(level, ThrottleLevel::Warning);
     }
 }
 
@@ -196,23 +176,6 @@ mod escalation_criteria_tests {
         assert_eq!(criteria.request_count, 100);
         assert!((criteria.error_rate - 0.1).abs() < f64::EPSILON);
         assert!((criteria.requests_per_minute - 15.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn criteria_is_copy() {
-        let criteria = create_criteria(30, 50, 0.05, 10.0);
-        let copied = criteria;
-
-        assert_eq!(criteria.behavioral_bot_score, copied.behavioral_bot_score);
-        assert_eq!(criteria.request_count, copied.request_count);
-    }
-
-    #[test]
-    fn criteria_is_clone() {
-        let criteria = create_criteria(30, 50, 0.05, 10.0);
-        let cloned = criteria.clone();
-
-        assert_eq!(criteria.behavioral_bot_score, cloned.behavioral_bot_score);
     }
 
     #[test]

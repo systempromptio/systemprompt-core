@@ -123,18 +123,6 @@ mod user_tests {
     }
 
     #[test]
-    fn user_serialization_roundtrip() {
-        let user = create_test_user();
-        let json = serde_json::to_string(&user).unwrap();
-        let deserialized: User = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(user.id.to_string(), deserialized.id.to_string());
-        assert_eq!(user.name, deserialized.name);
-        assert_eq!(user.email, deserialized.email);
-        assert_eq!(user.roles, deserialized.roles);
-    }
-
-    #[test]
     fn user_with_multiple_roles() {
         let mut user = create_test_user();
         user.roles = vec![

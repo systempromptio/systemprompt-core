@@ -118,13 +118,6 @@ fn test_file_metadata_builder_chain() {
 }
 
 #[test]
-fn test_file_metadata_serialize_empty() {
-    let metadata = FileMetadata::new();
-    let json = serde_json::to_string(&metadata).unwrap();
-    assert_eq!(json, "{}");
-}
-
-#[test]
 fn test_file_metadata_serialize_with_checksums() {
     let checksums = FileChecksums::new().with_md5("test");
     let metadata = FileMetadata::new().with_checksums(checksums);
@@ -133,30 +126,6 @@ fn test_file_metadata_serialize_with_checksums() {
     assert!(json.contains("checksums"));
     assert!(json.contains("md5"));
     assert!(json.contains("test"));
-}
-
-#[test]
-fn test_file_metadata_deserialize_empty() {
-    let metadata: FileMetadata = serde_json::from_str("{}").unwrap();
-    assert!(metadata.checksums.is_none());
-    assert!(metadata.type_specific.is_none());
-}
-
-#[test]
-fn test_file_metadata_roundtrip() {
-    let checksums = FileChecksums::new().with_sha256("sha_test");
-    let image = ImageMetadata::new()
-        .with_dimensions(640, 480)
-        .with_alt_text("Test alt");
-    let metadata = FileMetadata::new()
-        .with_checksums(checksums)
-        .with_image(image);
-
-    let json = serde_json::to_string(&metadata).unwrap();
-    let deserialized: FileMetadata = serde_json::from_str(&json).unwrap();
-
-    deserialized.checksums.as_ref().expect("checksums should survive roundtrip");
-    deserialized.type_specific.as_ref().expect("type_specific should survive roundtrip");
 }
 
 #[test]

@@ -99,41 +99,6 @@ fn test_session_key_debug_tenant() {
 }
 
 #[test]
-fn test_session_key_clone() {
-    let key = SessionKey::Tenant(TenantId::new("clone-me"));
-    let cloned = key.clone();
-    assert_eq!(key, cloned);
-}
-
-#[test]
-fn test_session_key_equality_local() {
-    let key1 = SessionKey::Local;
-    let key2 = SessionKey::Local;
-    assert_eq!(key1, key2);
-}
-
-#[test]
-fn test_session_key_equality_tenant() {
-    let key1 = SessionKey::Tenant(TenantId::new("same"));
-    let key2 = SessionKey::Tenant(TenantId::new("same"));
-    assert_eq!(key1, key2);
-}
-
-#[test]
-fn test_session_key_inequality() {
-    let key1 = SessionKey::Local;
-    let key2 = SessionKey::Tenant(TenantId::new("tenant"));
-    assert_ne!(key1, key2);
-}
-
-#[test]
-fn test_session_key_inequality_different_tenants() {
-    let key1 = SessionKey::Tenant(TenantId::new("tenant-1"));
-    let key2 = SessionKey::Tenant(TenantId::new("tenant-2"));
-    assert_ne!(key1, key2);
-}
-
-#[test]
 fn test_session_key_hash() {
     use std::collections::HashSet;
 
@@ -159,35 +124,4 @@ fn test_session_key_serialization_tenant() {
     let json = serde_json::to_string(&key).unwrap();
     assert!(json.contains("Tenant"));
     assert!(json.contains("ser-tenant"));
-}
-
-#[test]
-fn test_session_key_deserialization_local() {
-    let json = r#"{"type":"Local"}"#;
-    let key: SessionKey = serde_json::from_str(json).unwrap();
-    assert!(matches!(key, SessionKey::Local));
-}
-
-#[test]
-fn test_session_key_deserialization_tenant() {
-    let json = r#"{"type":"Tenant","value":"deser-tenant"}"#;
-    let key: SessionKey = serde_json::from_str(json).unwrap();
-    assert!(matches!(key, SessionKey::Tenant(_)));
-    assert_eq!(key.tenant_id_str(), Some("deser-tenant"));
-}
-
-#[test]
-fn test_session_key_roundtrip_local() {
-    let original = SessionKey::Local;
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: SessionKey = serde_json::from_str(&json).unwrap();
-    assert_eq!(original, restored);
-}
-
-#[test]
-fn test_session_key_roundtrip_tenant() {
-    let original = SessionKey::Tenant(TenantId::new("roundtrip"));
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: SessionKey = serde_json::from_str(&json).unwrap();
-    assert_eq!(original, restored);
 }

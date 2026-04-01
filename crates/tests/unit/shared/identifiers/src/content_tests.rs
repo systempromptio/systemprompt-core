@@ -55,13 +55,6 @@ fn test_skill_id_as_ref() {
 }
 
 #[test]
-fn test_skill_id_clone_and_eq() {
-    let id1 = SkillId::new("clone-skill");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_skill_id_hash() {
     let id1 = SkillId::new("hash-skill");
     let id2 = SkillId::new("hash-skill");
@@ -69,13 +62,6 @@ fn test_skill_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_skill_id_serialize_json() {
-    let id = SkillId::new("serialize-skill");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-skill\"");
 }
 
 #[test]
@@ -127,13 +113,6 @@ fn test_source_id_as_ref() {
 }
 
 #[test]
-fn test_source_id_clone_and_eq() {
-    let id1 = SourceId::new("clone-source");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_source_id_hash() {
     let id1 = SourceId::new("hash-source");
     let id2 = SourceId::new("hash-source");
@@ -141,13 +120,6 @@ fn test_source_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_source_id_serialize_json() {
-    let id = SourceId::new("serialize-source");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-source\"");
 }
 
 #[test]
@@ -193,13 +165,6 @@ fn test_category_id_as_ref() {
 }
 
 #[test]
-fn test_category_id_clone_and_eq() {
-    let id1 = CategoryId::new("clone-category");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_category_id_hash() {
     let id1 = CategoryId::new("hash-category");
     let id2 = CategoryId::new("hash-category");
@@ -207,13 +172,6 @@ fn test_category_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_category_id_serialize_json() {
-    let id = CategoryId::new("serialize-category");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-category\"");
 }
 
 #[test]
@@ -259,13 +217,6 @@ fn test_content_id_as_ref() {
 }
 
 #[test]
-fn test_content_id_clone_and_eq() {
-    let id1 = ContentId::new("clone-content");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_content_id_hash() {
     let id1 = ContentId::new("hash-content");
     let id2 = ContentId::new("hash-content");
@@ -273,13 +224,6 @@ fn test_content_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_content_id_serialize_json() {
-    let id = ContentId::new("serialize-content");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-content\"");
 }
 
 #[test]
@@ -325,13 +269,6 @@ fn test_tag_id_as_ref() {
 }
 
 #[test]
-fn test_tag_id_clone_and_eq() {
-    let id1 = TagId::new("clone-tag");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_tag_id_hash() {
     let id1 = TagId::new("hash-tag");
     let id2 = TagId::new("hash-tag");
@@ -339,13 +276,6 @@ fn test_tag_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_tag_id_serialize_json() {
-    let id = TagId::new("serialize-tag");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-tag\"");
 }
 
 #[test]
@@ -405,13 +335,6 @@ fn test_file_id_as_ref() {
 }
 
 #[test]
-fn test_file_id_clone_and_eq() {
-    let id1 = FileId::new("clone-file");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_file_id_hash() {
     let id1 = FileId::new("hash-file");
     let id2 = FileId::new("hash-file");
@@ -419,13 +342,6 @@ fn test_file_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_file_id_serialize_json() {
-    let id = FileId::new("serialize-file");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-file\"");
 }
 
 #[test]

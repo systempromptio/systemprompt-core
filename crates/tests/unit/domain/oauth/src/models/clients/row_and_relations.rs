@@ -60,14 +60,6 @@ fn test_oauth_client_row_with_none_values() {
 }
 
 #[test]
-fn test_oauth_client_row_clone() {
-    let row = create_test_client_row();
-    let cloned = row.clone();
-    assert_eq!(row.client_id, cloned.client_id);
-    assert_eq!(row.client_name, cloned.client_name);
-}
-
-#[test]
 fn test_oauth_client_row_debug() {
     let row = create_test_client_row();
     let debug_str = format!("{:?}", row);

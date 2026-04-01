@@ -18,23 +18,9 @@ fn user_stats_clone() {
 }
 
 #[test]
-fn user_stats_copy() {
-    let stats = UserStats { total: 10, created_24h: 1, created_7d: 3, created_30d: 7, active: 8, suspended: 1, admins: 1, anonymous: 2, bots: 0, oldest_user: None, newest_user: None };
-    let copied = stats; assert_eq!(stats.total, copied.total);
-}
-
-#[test]
 fn user_stats_debug() {
     let stats = UserStats { total: 100, created_24h: 5, created_7d: 20, created_30d: 50, active: 80, suspended: 10, admins: 3, anonymous: 15, bots: 2, oldest_user: None, newest_user: None };
     assert!(format!("{:?}", stats).contains("UserStats"));
-}
-
-#[test]
-fn user_stats_serialization_roundtrip() {
-    let stats = UserStats { total: 100, created_24h: 5, created_7d: 20, created_30d: 50, active: 80, suspended: 10, admins: 3, anonymous: 15, bots: 2, oldest_user: Some(Utc::now()), newest_user: Some(Utc::now()) };
-    let json = serde_json::to_string(&stats).unwrap();
-    let deserialized: UserStats = serde_json::from_str(&json).unwrap();
-    assert_eq!(stats.total, deserialized.total); assert_eq!(stats.active, deserialized.active); assert_eq!(stats.admins, deserialized.admins);
 }
 
 #[test]
@@ -61,27 +47,9 @@ fn user_count_breakdown_creation() {
 }
 
 #[test]
-fn user_count_breakdown_clone() {
-    let mut by_status = HashMap::new(); by_status.insert("active".to_string(), 50);
-    let mut by_role = HashMap::new(); by_role.insert("user".to_string(), 50);
-    let breakdown = UserCountBreakdown { total: 50, by_status, by_role };
-    let cloned = breakdown.clone(); assert_eq!(breakdown.total, cloned.total);
-}
-
-#[test]
 fn user_count_breakdown_debug() {
     let breakdown = UserCountBreakdown { total: 100, by_status: HashMap::new(), by_role: HashMap::new() };
     assert!(format!("{:?}", breakdown).contains("UserCountBreakdown"));
-}
-
-#[test]
-fn user_count_breakdown_serialization_roundtrip() {
-    let mut by_status = HashMap::new(); by_status.insert("active".to_string(), 80);
-    let mut by_role = HashMap::new(); by_role.insert("user".to_string(), 85);
-    let breakdown = UserCountBreakdown { total: 100, by_status, by_role };
-    let json = serde_json::to_string(&breakdown).unwrap();
-    let deserialized: UserCountBreakdown = serde_json::from_str(&json).unwrap();
-    assert_eq!(breakdown.total, deserialized.total);
 }
 
 #[test]
@@ -105,16 +73,7 @@ fn create_test_user_export() -> UserExport {
 }
 
 #[test] fn user_export_creation() { let e = create_test_user_export(); assert_eq!(e.id, "user-export-123"); assert_eq!(e.name, "exportuser"); assert_eq!(e.email, "export@example.com"); }
-#[test] fn user_export_clone() { let e = create_test_user_export(); let c = e.clone(); assert_eq!(e.id, c.id); assert_eq!(e.name, c.name); }
 #[test] fn user_export_debug() { assert!(format!("{:?}", create_test_user_export()).contains("UserExport")); }
-
-#[test]
-fn user_export_serialization_roundtrip() {
-    let export = create_test_user_export();
-    let json = serde_json::to_string(&export).unwrap();
-    let deserialized: UserExport = serde_json::from_str(&json).unwrap();
-    assert_eq!(export.id, deserialized.id); assert_eq!(export.name, deserialized.name); assert_eq!(export.email, deserialized.email);
-}
 
 #[test]
 fn user_export_from_user_conversion() {

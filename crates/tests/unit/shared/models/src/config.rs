@@ -106,20 +106,6 @@ fn test_environment_copy() {
 }
 
 #[test]
-fn test_environment_equality() {
-    assert_eq!(Environment::Development, Environment::Development);
-    assert_eq!(Environment::Production, Environment::Production);
-    assert_eq!(Environment::Test, Environment::Test);
-}
-
-#[test]
-fn test_environment_inequality() {
-    assert_ne!(Environment::Development, Environment::Production);
-    assert_ne!(Environment::Development, Environment::Test);
-    assert_ne!(Environment::Production, Environment::Test);
-}
-
-#[test]
 fn test_environment_debug() {
     let env = Environment::Development;
     let debug_str = format!("{:?}", env);

@@ -173,23 +173,6 @@ mod stats_tests {
         assert_eq!(cloned.providers, 1);
         assert_eq!(cloned.templates, 2);
     }
-
-    #[test]
-    fn registry_stats_copy() {
-        let stats = RegistryStats {
-            providers: 10,
-            templates: 20,
-            loaders: 30,
-            extenders: 40,
-            components: 50,
-            page_providers: 60,
-            page_prerenderers: 70,
-        };
-
-        let copied: RegistryStats = stats;
-        assert_eq!(copied.providers, 10);
-        assert_eq!(stats.providers, 10);
-    }
 }
 
 mod template_provider_lookup_tests {

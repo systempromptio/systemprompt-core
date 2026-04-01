@@ -66,26 +66,6 @@ fn test_display_mode_display() {
 }
 
 #[test]
-fn test_display_mode_equality() {
-    assert_eq!(DisplayMode::Page, DisplayMode::Page);
-    assert_ne!(DisplayMode::Page, DisplayMode::Popup);
-}
-
-#[test]
-fn test_display_mode_clone() {
-    let mode = DisplayMode::Touch;
-    let cloned = mode.clone();
-    assert_eq!(mode, cloned);
-}
-
-#[test]
-fn test_display_mode_copy() {
-    let mode = DisplayMode::Wap;
-    let copied = mode;
-    assert_eq!(mode, copied);
-}
-
-#[test]
 fn test_display_mode_debug() {
     let debug_str = format!("{:?}", DisplayMode::Page);
     assert!(debug_str.contains("Page"));
@@ -154,26 +134,6 @@ fn test_prompt_display() {
 }
 
 #[test]
-fn test_prompt_equality() {
-    assert_eq!(Prompt::Login, Prompt::Login);
-    assert_ne!(Prompt::Login, Prompt::Consent);
-}
-
-#[test]
-fn test_prompt_clone() {
-    let prompt = Prompt::Consent;
-    let cloned = prompt.clone();
-    assert_eq!(prompt, cloned);
-}
-
-#[test]
-fn test_prompt_copy() {
-    let prompt = Prompt::SelectAccount;
-    let copied = prompt;
-    assert_eq!(prompt, copied);
-}
-
-#[test]
 fn test_prompt_debug() {
     let debug_str = format!("{:?}", Prompt::Login);
     assert!(debug_str.contains("Login"));
@@ -232,26 +192,6 @@ fn test_token_auth_method_display() {
     assert_eq!(format!("{}", TokenAuthMethod::ClientSecretPost), "client_secret_post");
     assert_eq!(format!("{}", TokenAuthMethod::ClientSecretBasic), "client_secret_basic");
     assert_eq!(format!("{}", TokenAuthMethod::None), "none");
-}
-
-#[test]
-fn test_token_auth_method_equality() {
-    assert_eq!(TokenAuthMethod::ClientSecretPost, TokenAuthMethod::ClientSecretPost);
-    assert_ne!(TokenAuthMethod::ClientSecretPost, TokenAuthMethod::ClientSecretBasic);
-}
-
-#[test]
-fn test_token_auth_method_clone() {
-    let method = TokenAuthMethod::ClientSecretBasic;
-    let cloned = method.clone();
-    assert_eq!(method, cloned);
-}
-
-#[test]
-fn test_token_auth_method_copy() {
-    let method = TokenAuthMethod::None;
-    let copied = method;
-    assert_eq!(method, copied);
 }
 
 #[test]

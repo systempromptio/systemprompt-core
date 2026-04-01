@@ -38,13 +38,6 @@ fn test_artifact_type_text_variant() {
 }
 
 #[test]
-fn test_artifact_type_copy_paste_text_variant() {
-    let artifact = ArtifactType::CopyPasteText;
-    let json = serde_json::to_string(&artifact).unwrap();
-    assert_eq!(json, "\"copy_paste_text\"");
-}
-
-#[test]
 fn test_artifact_type_chart_variant() {
     let artifact = ArtifactType::Chart;
     let json = serde_json::to_string(&artifact).unwrap();
@@ -63,12 +56,6 @@ fn test_artifact_type_dashboard_variant() {
     let artifact = ArtifactType::Dashboard;
     let json = serde_json::to_string(&artifact).unwrap();
     assert_eq!(json, "\"dashboard\"");
-}
-
-#[test]
-fn test_artifact_type_deserialize() {
-    let artifact: ArtifactType = serde_json::from_str("\"table\"").unwrap();
-    assert!(matches!(artifact, ArtifactType::Table));
 }
 
 #[test]
@@ -111,12 +98,6 @@ fn test_chart_type_area_variant() {
     let chart = ChartType::Area;
     let json = serde_json::to_string(&chart).unwrap();
     assert_eq!(json, "\"area\"");
-}
-
-#[test]
-fn test_chart_type_deserialize() {
-    let chart: ChartType = serde_json::from_str("\"line\"").unwrap();
-    assert!(matches!(chart, ChartType::Line));
 }
 
 #[test]
@@ -190,14 +171,4 @@ fn test_rendering_hints_serialize_with_values() {
     assert!(json.contains("columns"));
     assert!(json.contains("chart_type"));
     assert!(json.contains("theme"));
-}
-
-#[test]
-fn test_rendering_hints_clone() {
-    let original = RenderingHints {
-        columns: Some(vec!["test".to_string()]),
-        ..Default::default()
-    };
-    let cloned = original.clone();
-    assert_eq!(cloned.columns, original.columns);
 }

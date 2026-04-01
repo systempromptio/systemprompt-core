@@ -67,25 +67,6 @@ fn test_task_info_with_error() {
 }
 
 #[test]
-fn test_task_info_clone() {
-    let task = TaskInfo {
-        task_id: "clone".to_string().into(),
-        context_id: "ctx".to_string().into(),
-        agent_name: Some("agent".to_string()),
-        status: "running".to_string(),
-        created_at: Utc::now(),
-        started_at: None,
-        completed_at: None,
-        execution_time_ms: None,
-        error_message: None,
-    };
-
-    let cloned = task.clone();
-    assert_eq!(task.task_id, cloned.task_id);
-    assert_eq!(task.agent_name, cloned.agent_name);
-}
-
-#[test]
 fn test_task_info_serialize() {
     let task = TaskInfo {
         task_id: "ser".to_string().into(),
@@ -158,22 +139,6 @@ fn test_execution_step_with_error() {
 }
 
 #[test]
-fn test_execution_step_clone() {
-    let step = ExecutionStep {
-        step_id: "clone".to_string().into(),
-        step_type: Some("test".to_string()),
-        title: Some("Test step".to_string()),
-        status: "completed".to_string(),
-        duration_ms: Some(100),
-        error_message: None,
-    };
-
-    let cloned = step.clone();
-    assert_eq!(step.step_id, cloned.step_id);
-    assert_eq!(step.step_type, cloned.step_type);
-}
-
-#[test]
 fn test_execution_step_serialize() {
     let step = ExecutionStep {
         step_id: "ser".to_string().into(),
@@ -229,24 +194,6 @@ fn test_ai_request_info_minimal() {
     assert!(info.max_tokens.is_none());
     assert!(info.input_tokens.is_none());
     assert!(info.latency_ms.is_none());
-}
-
-#[test]
-fn test_ai_request_info_clone() {
-    let info = AiRequestInfo {
-        id: "clone".to_string().into(),
-        provider: "anthropic".to_string(),
-        model: "claude".to_string(),
-        max_tokens: Some(1000),
-        input_tokens: Some(100),
-        output_tokens: Some(200),
-        cost_microdollars: 3,
-        latency_ms: Some(500),
-    };
-
-    let cloned = info.clone();
-    assert_eq!(info.id, cloned.id);
-    assert_eq!(info.provider, cloned.provider);
 }
 
 #[test]
@@ -307,24 +254,6 @@ fn test_mcp_tool_execution_with_error() {
     assert_eq!(exec.status, "error");
     exec.error_message.expect("exec.error_message should be present");
     assert!(exec.output.is_none());
-}
-
-#[test]
-fn test_mcp_tool_execution_clone() {
-    let exec = McpToolExecution {
-        mcp_execution_id: "clone".to_string().into(),
-        tool_name: "tool".to_string(),
-        server_name: "server".to_string(),
-        status: "success".to_string(),
-        execution_time_ms: Some(500),
-        error_message: None,
-        input: "input".to_string(),
-        output: Some("output".to_string()),
-    };
-
-    let cloned = exec.clone();
-    assert_eq!(exec.mcp_execution_id, cloned.mcp_execution_id);
-    assert_eq!(exec.tool_name, cloned.tool_name);
 }
 
 #[test]

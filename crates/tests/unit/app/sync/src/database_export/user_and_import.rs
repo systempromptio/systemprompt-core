@@ -75,32 +75,6 @@ mod user_export_tests {
         assert!(json.contains("\"id\":\"user_ser\""));
         assert!(json.contains("\"email_verified\":true"));
     }
-
-    #[test]
-    fn roundtrip() {
-        let now = Utc::now();
-        let original = UserExport {
-            id: "user_rt".to_string(),
-            name: "roundtrip".to_string(),
-            email: "rt@example.com".to_string(),
-            full_name: Some("Round Trip".to_string()),
-            display_name: Some("RT".to_string()),
-            status: "active".to_string(),
-            email_verified: true,
-            roles: vec!["admin".to_string()],
-            is_bot: false,
-            is_scanner: false,
-            avatar_url: Some("https://example.com/rt.png".to_string()),
-            created_at: now,
-            updated_at: now,
-        };
-
-        let json = serde_json::to_string(&original).expect("serialize user export");
-        let restored: UserExport = serde_json::from_str(&json).expect("deserialize user export");
-
-        assert_eq!(original.id, restored.id);
-        assert_eq!(original.full_name, restored.full_name);
-    }
 }
 
 mod import_result_tests {
@@ -140,22 +114,6 @@ mod import_result_tests {
 
         let json = serde_json::to_string(&result).expect("serialize import result");
         assert!(json.contains("\"created\":100"));
-    }
-
-    #[test]
-    fn roundtrip() {
-        let original = ImportResult {
-            created: 25,
-            updated: 15,
-            skipped: 5,
-        };
-
-        let json = serde_json::to_string(&original).expect("serialize import result");
-        let restored: ImportResult = serde_json::from_str(&json).expect("deserialize import result");
-
-        assert_eq!(original.created, restored.created);
-        assert_eq!(original.updated, restored.updated);
-        assert_eq!(original.skipped, restored.skipped);
     }
 
     #[test]

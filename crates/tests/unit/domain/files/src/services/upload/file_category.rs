@@ -54,9 +54,3 @@ fn test_file_category_debug() {
     let debug_str = format!("{:?}", FileCategory::Document);
     assert!(debug_str.contains("Document"));
 }
-
-#[test]
-fn test_file_category_equality() {
-    assert_eq!(FileCategory::Image, FileCategory::Image);
-    assert_ne!(FileCategory::Image, FileCategory::Document);
-}

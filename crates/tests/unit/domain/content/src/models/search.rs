@@ -78,19 +78,6 @@ fn test_search_request_serialization() {
     assert!(json.contains("\"limit\":10"));
 }
 
-#[test]
-fn test_search_request_clone() {
-    let request = SearchRequest {
-        query: "clone test".to_string(),
-        filters: None,
-        limit: Some(5),
-    };
-
-    let cloned = request.clone();
-    assert_eq!(cloned.query, request.query);
-    assert_eq!(cloned.limit, request.limit);
-}
-
 // ============================================================================
 // SearchFilters Tests
 // ============================================================================
@@ -120,19 +107,6 @@ fn test_search_filters_serialization() {
 
     let json = serde_json::to_string(&filters).unwrap();
     assert!(json.contains("test-category"));
-}
-
-#[test]
-fn test_search_filters_clone() {
-    let filters = SearchFilters {
-        category_id: Some(CategoryId::new("cloneable")),
-    };
-
-    let cloned = filters.clone();
-    assert_eq!(
-        cloned.category_id.as_ref().unwrap().as_str(),
-        filters.category_id.as_ref().unwrap().as_str()
-    );
 }
 
 // ============================================================================
@@ -286,16 +260,4 @@ fn test_search_response_serialization() {
     let json = serde_json::to_string(&response).unwrap();
     assert!(json.contains("\"total\":1"));
     assert!(json.contains("\"results\":["));
-}
-
-#[test]
-fn test_search_response_clone() {
-    let response = SearchResponse {
-        results: vec![],
-        total: 0,
-    };
-
-    let cloned = response.clone();
-    assert_eq!(cloned.total, response.total);
-    assert_eq!(cloned.results.len(), response.results.len());
 }

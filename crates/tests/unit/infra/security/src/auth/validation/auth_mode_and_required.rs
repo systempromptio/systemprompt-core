@@ -35,23 +35,6 @@ fn test_auth_mode_clone() {
     assert_eq!(mode, cloned);
 }
 
-#[test]
-fn test_auth_mode_copy() {
-    let mode = AuthMode::Optional;
-    let copied: AuthMode = mode;
-    assert_eq!(mode, copied);
-}
-
-#[test]
-fn test_auth_mode_equality() {
-    assert_eq!(AuthMode::Required, AuthMode::Required);
-    assert_eq!(AuthMode::Optional, AuthMode::Optional);
-    assert_eq!(AuthMode::Disabled, AuthMode::Disabled);
-    assert_ne!(AuthMode::Required, AuthMode::Optional);
-    assert_ne!(AuthMode::Required, AuthMode::Disabled);
-    assert_ne!(AuthMode::Optional, AuthMode::Disabled);
-}
-
 // ============================================================================
 // AuthValidationService Constructor Tests
 // ============================================================================

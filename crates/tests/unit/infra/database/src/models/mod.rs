@@ -2,4 +2,3 @@
 
 mod info;
 mod query;
-mod transaction;

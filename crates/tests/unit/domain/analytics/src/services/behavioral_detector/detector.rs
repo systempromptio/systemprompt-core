@@ -206,16 +206,6 @@ mod behavioral_bot_detector_tests {
     }
 
     #[test]
-    fn analyze_result_is_clone() {
-        let input = create_input(10, vec![], 100, 1, 10);
-        let result = BehavioralBotDetector::analyze(&input);
-        let cloned = result.clone();
-
-        assert_eq!(result.score, cloned.score);
-        assert_eq!(result.is_suspicious, cloned.is_suspicious);
-    }
-
-    #[test]
     fn analyze_result_serializes() {
         let input = create_input(100, vec![], 100, 10, 5);
         let result = BehavioralBotDetector::analyze(&input);

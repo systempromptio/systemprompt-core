@@ -143,39 +143,3 @@ mod job_schedule_validation_tests {
         }
     }
 }
-
-mod job_copy_tests {
-    use super::*;
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob,
-    };
-
-    #[test]
-    fn behavioral_analysis_job_copy() {
-        let job1 = BehavioralAnalysisJob;
-        let job2 = job1;
-        assert_eq!(job1.name(), job2.name());
-    }
-
-    #[test]
-    fn database_cleanup_job_copy() {
-        let job1 = DatabaseCleanupJob;
-        let job2 = job1;
-        assert_eq!(job1.name(), job2.name());
-    }
-
-    #[test]
-    fn cleanup_empty_contexts_job_copy() {
-        let job1 = CleanupEmptyContextsJob;
-        let job2 = job1;
-        assert_eq!(job1.name(), job2.name());
-    }
-
-    #[test]
-    fn cleanup_inactive_sessions_job_copy() {
-        let job1 = CleanupInactiveSessionsJob;
-        let job2 = job1;
-        assert_eq!(job1.name(), job2.name());
-    }
-}

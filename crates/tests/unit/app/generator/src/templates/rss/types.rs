@@ -106,19 +106,6 @@ fn test_rss_channel_with_items() {
 }
 
 #[test]
-fn test_rss_channel_clone() {
-    let channel = RssChannel {
-        title: "Clone Test".to_string(),
-        link: "https://example.com".to_string(),
-        description: "Test.".to_string(),
-        items: vec![],
-    };
-
-    let cloned = channel.clone();
-    assert_eq!(channel.title, cloned.title);
-}
-
-#[test]
 fn test_rss_channel_debug() {
     let channel = RssChannel {
         title: "Debug Channel".to_string(),

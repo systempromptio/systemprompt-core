@@ -325,11 +325,3 @@ fn test_base_path_accessor() {
     let resolver = IncludeResolver::new(path.clone());
     assert_eq!(resolver.base_path(), &path);
 }
-
-#[test]
-fn test_base_path_after_clone() {
-    let path = PathBuf::from("/test/path");
-    let resolver = IncludeResolver::new(path.clone());
-    let cloned = resolver.clone();
-    assert_eq!(cloned.base_path(), &path);
-}

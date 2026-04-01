@@ -49,13 +49,6 @@ fn test_task_id_as_ref() {
 }
 
 #[test]
-fn test_task_id_clone_and_eq() {
-    let id1 = TaskId::new("clone-task");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_task_id_hash() {
     let id1 = TaskId::new("hash-task");
     let id2 = TaskId::new("hash-task");
@@ -63,13 +56,6 @@ fn test_task_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_task_id_serialize_json() {
-    let id = TaskId::new("serialize-task");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-task\"");
 }
 
 #[test]

@@ -51,20 +51,6 @@ fn test_environment_debug_sandbox() {
 }
 
 #[test]
-fn test_environment_clone() {
-    let prod = Environment::Production;
-    let cloned = prod.clone();
-    assert_eq!(prod, cloned);
-}
-
-#[test]
-fn test_environment_copy() {
-    let sandbox = Environment::Sandbox;
-    let copied = sandbox;
-    assert_eq!(sandbox, copied);
-}
-
-#[test]
 fn test_oauth_provider_github_as_str() {
     let github = OAuthProvider::Github;
     assert_eq!(github.as_str(), "github");
@@ -107,20 +93,6 @@ fn test_oauth_provider_debug_google() {
     let google = OAuthProvider::Google;
     let debug_str = format!("{:?}", google);
     assert!(debug_str.contains("Google"));
-}
-
-#[test]
-fn test_oauth_provider_clone() {
-    let github = OAuthProvider::Github;
-    let cloned = github.clone();
-    assert_eq!(github, cloned);
-}
-
-#[test]
-fn test_oauth_provider_copy() {
-    let google = OAuthProvider::Google;
-    let copied = google;
-    assert_eq!(google, copied);
 }
 
 #[test]

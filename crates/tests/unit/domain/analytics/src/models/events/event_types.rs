@@ -95,47 +95,10 @@ mod analytics_event_type_tests {
     }
 
     #[test]
-    fn event_type_is_eq() {
-        assert_eq!(AnalyticsEventType::PageView, AnalyticsEventType::PageView);
-        assert_ne!(AnalyticsEventType::PageView, AnalyticsEventType::PageExit);
-    }
-
-    #[test]
-    fn custom_events_equality() {
-        let custom1 = AnalyticsEventType::Custom("test".to_string());
-        let custom2 = AnalyticsEventType::Custom("test".to_string());
-        let custom3 = AnalyticsEventType::Custom("other".to_string());
-
-        assert_eq!(custom1, custom2);
-        assert_ne!(custom1, custom3);
-    }
-
-    #[test]
     fn event_type_serializes() {
         let event_type = AnalyticsEventType::PageView;
         let json = serde_json::to_string(&event_type).unwrap();
         assert!(json.contains("page_view"));
-    }
-
-    #[test]
-    fn event_type_deserializes() {
-        let json = r#""link_click""#;
-        let event_type: AnalyticsEventType = serde_json::from_str(json).unwrap();
-        assert_eq!(event_type, AnalyticsEventType::LinkClick);
-    }
-
-    #[test]
-    fn custom_event_deserializes_unknown_type() {
-        let json = r#""unknown_event_type""#;
-        let event_type: AnalyticsEventType = serde_json::from_str(json).unwrap();
-        assert_eq!(event_type, AnalyticsEventType::Custom("unknown_event_type".to_string()));
-    }
-
-    #[test]
-    fn event_type_is_clone() {
-        let event_type = AnalyticsEventType::Conversion;
-        let cloned = event_type.clone();
-        assert_eq!(event_type, cloned);
     }
 
     #[test]

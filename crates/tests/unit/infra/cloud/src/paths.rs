@@ -84,26 +84,6 @@ fn test_cloud_path_debug() {
 }
 
 #[test]
-fn test_cloud_path_clone() {
-    let path = CloudPath::Tenants;
-    let cloned = path.clone();
-    assert_eq!(path, cloned);
-}
-
-#[test]
-fn test_cloud_path_copy() {
-    let path = CloudPath::CliSession;
-    let copied = path;
-    assert_eq!(path, copied);
-}
-
-#[test]
-fn test_cloud_path_equality() {
-    assert_eq!(CloudPath::Credentials, CloudPath::Credentials);
-    assert_ne!(CloudPath::Credentials, CloudPath::Tenants);
-}
-
-#[test]
 fn test_cloud_path_hash() {
     use std::collections::HashSet;
 
@@ -239,15 +219,6 @@ fn test_cloud_paths_debug() {
     let debug_str = format!("{:?}", paths);
     assert!(debug_str.contains("CloudPaths"));
     assert!(debug_str.contains("base_dir"));
-}
-
-#[test]
-fn test_cloud_paths_clone() {
-    let temp_dir = TempDir::new().unwrap();
-    let paths = CloudPaths::new(temp_dir.path());
-    let cloned = paths.clone();
-
-    assert_eq!(paths.base_dir(), cloned.base_dir());
 }
 
 #[test]

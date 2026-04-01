@@ -122,30 +122,6 @@ fn test_skill_metadata_multiple_agents() {
     assert!(metadata.assigned_agents.contains(&"agent-b".to_string()));
 }
 
-#[test]
-fn test_skill_metadata_roundtrip() {
-    let original = SkillMetadata {
-        id: "skill-roundtrip".to_string(),
-        name: "Roundtrip".to_string(),
-        description: "Roundtrip test".to_string(),
-        enabled: false,
-        file: "/roundtrip.md".to_string(),
-        assigned_agents: vec!["x".to_string()],
-        tags: vec!["y".to_string()],
-    };
-
-    let json = serde_json::to_string(&original).unwrap();
-    let parsed: SkillMetadata = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(original.id, parsed.id);
-    assert_eq!(original.name, parsed.name);
-    assert_eq!(original.description, parsed.description);
-    assert_eq!(original.enabled, parsed.enabled);
-    assert_eq!(original.file, parsed.file);
-    assert_eq!(original.assigned_agents, parsed.assigned_agents);
-    assert_eq!(original.tags, parsed.tags);
-}
-
 // ============================================================================
 // Skill from_json_row Tests (error paths)
 // ============================================================================

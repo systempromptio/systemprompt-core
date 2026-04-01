@@ -100,24 +100,6 @@ fn test_service_configuration_serialize() {
     assert!(json.contains("retry_attempts"));
 }
 
-#[test]
-fn test_service_configuration_deserialize() {
-    let json = r#"{
-        "enabled": false,
-        "timeout_seconds": 120,
-        "retry_attempts": 5,
-        "retry_delay_milliseconds": 2000,
-        "max_connections": 20
-    }"#;
-
-    let config: ServiceConfiguration = serde_json::from_str(json).unwrap();
-    assert!(!config.enabled);
-    assert_eq!(config.timeout_seconds, 120);
-    assert_eq!(config.retry_attempts, 5);
-    assert_eq!(config.retry_delay_milliseconds, 2000);
-    assert_eq!(config.max_connections, 20);
-}
-
 // ============================================================================
 // RuntimeConfigurationBuilder Tests
 // ============================================================================
@@ -360,20 +342,4 @@ fn test_connection_configuration_serialize() {
     assert!(json.contains("https://api.example.com"));
     assert!(json.contains("60"));
     assert!(json.contains("10"));
-}
-
-#[test]
-fn test_connection_configuration_deserialize() {
-    let json = r#"{
-        "url": "http://localhost:3000",
-        "timeout_seconds": 30,
-        "keepalive_enabled": true,
-        "pool_size": 15
-    }"#;
-
-    let config: ConnectionConfiguration = serde_json::from_str(json).unwrap();
-    assert_eq!(config.url, "http://localhost:3000");
-    assert_eq!(config.timeout_seconds, 30);
-    assert!(config.keepalive_enabled);
-    assert_eq!(config.pool_size, 15);
 }

@@ -69,26 +69,6 @@ fn test_service_status_unknown_text() {
 }
 
 #[test]
-fn test_service_status_clone() {
-    let status = ServiceStatus::Failed;
-    let cloned = status.clone();
-    assert_eq!(status, cloned);
-}
-
-#[test]
-fn test_service_status_copy() {
-    let status = ServiceStatus::Starting;
-    let copied: ServiceStatus = status;
-    assert_eq!(status, copied);
-}
-
-#[test]
-fn test_service_status_equality() {
-    assert_eq!(ServiceStatus::Running, ServiceStatus::Running);
-    assert_ne!(ServiceStatus::Running, ServiceStatus::Stopped);
-}
-
-#[test]
 fn test_service_status_all_variants_have_symbol() {
     let variants = [
         ServiceStatus::Running,

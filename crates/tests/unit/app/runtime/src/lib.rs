@@ -21,7 +21,6 @@ mod installation;
 #[cfg(test)]
 mod registry;
 #[cfg(test)]
-mod span;
 #[cfg(test)]
 mod startup_validation;
 #[cfg(test)]

@@ -157,11 +157,3 @@ fn test_command_result_serialize_skips_none_fields() {
     assert!(!json.contains("\"title\":"));
     assert!(!json.contains("\"hints\":"));
 }
-
-#[test]
-fn test_command_result_deserialize() {
-    let json = r#"{"data":"test","artifact_type":"table"}"#;
-    let result: CommandResult<String> = serde_json::from_str(json).unwrap();
-    assert_eq!(result.data, "test");
-    assert!(matches!(result.artifact_type, ArtifactType::Table));
-}

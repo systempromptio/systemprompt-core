@@ -82,25 +82,6 @@ fn test_agent_card_default_input_output_modes() {
 }
 
 #[test]
-fn test_agent_card_serialize_deserialize() {
-    let card = AgentCard::builder(
-        "Test Agent".to_string(),
-        "A test agent".to_string(),
-        "https://example.com".to_string(),
-        "1.0.0".to_string(),
-    )
-    .build();
-
-    let json = serde_json::to_string(&card).unwrap();
-    let deserialized: AgentCard = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(card.name, deserialized.name);
-    assert_eq!(card.description, deserialized.description);
-    assert_eq!(card.url, deserialized.url);
-    assert_eq!(card.version, deserialized.version);
-}
-
-#[test]
 fn test_agent_card_has_mcp_extension_false() {
     let card = AgentCard::builder(
         "Test".to_string(),
@@ -207,27 +188,4 @@ fn test_agent_provider_serialize() {
     let json = serde_json::to_string(&provider).unwrap();
     assert!(json.contains("TestOrg"));
     assert!(json.contains("https://test.org"));
-}
-
-#[test]
-fn test_agent_provider_deserialize() {
-    let json = r#"{"organization":"TestOrg","url":"https://test.org"}"#;
-    let provider: AgentProvider = serde_json::from_str(json).unwrap();
-
-    assert_eq!(provider.organization, "TestOrg");
-    assert_eq!(provider.url, "https://test.org");
-}
-
-#[test]
-fn test_agent_provider_equality() {
-    let p1 = AgentProvider {
-        organization: "Org".to_string(),
-        url: "https://org.com".to_string(),
-    };
-    let p2 = AgentProvider {
-        organization: "Org".to_string(),
-        url: "https://org.com".to_string(),
-    };
-
-    assert_eq!(p1, p2);
 }

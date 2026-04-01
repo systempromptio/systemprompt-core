@@ -38,13 +38,6 @@ fn test_string_entity_id_uuid_like() {
 }
 
 #[test]
-fn test_string_entity_id_clone() {
-    let id = String::from_string("original-id".to_string());
-    let cloned = id.clone();
-    assert_eq!(id.as_str(), cloned.as_str());
-}
-
-#[test]
 fn test_string_entity_id_roundtrip() {
     let original = "test-entity-id";
     let id = String::from_string(original.to_string());

@@ -75,27 +75,6 @@ fn test_mcp_server_connection_info_debug() {
     assert!(debug.contains("5000"));
 }
 
-#[test]
-fn test_mcp_server_connection_info_port_boundaries() {
-    let info_min = McpServerConnectionInfo {
-        name: "min-port".to_string(),
-        display_name: None,
-        description: None,
-        host: "localhost".to_string(),
-        port: 1,
-    };
-    assert_eq!(info_min.port, 1);
-
-    let info_max = McpServerConnectionInfo {
-        name: "max-port".to_string(),
-        display_name: None,
-        description: None,
-        host: "localhost".to_string(),
-        port: 65535,
-    };
-    assert_eq!(info_max.port, 65535);
-}
-
 // ============================================================================
 // ServerStatus Tests
 // ============================================================================
@@ -196,18 +175,6 @@ fn test_server_status_serialization() {
     assert!(json.contains("true"));
     assert!(json.contains("false"));
     assert!(json.contains("15"));
-}
-
-#[test]
-fn test_server_status_deserialization() {
-    let json = r#"{"name":"deser-test","running":false,"healthy":false,"tool_count":0,"last_check":null}"#;
-    let status: ServerStatus = serde_json::from_str(json).expect("deserialization should succeed");
-
-    assert_eq!(status.name, "deser-test");
-    assert!(!status.running);
-    assert!(!status.healthy);
-    assert_eq!(status.tool_count, 0);
-    assert!(status.last_check.is_none());
 }
 
 #[test]

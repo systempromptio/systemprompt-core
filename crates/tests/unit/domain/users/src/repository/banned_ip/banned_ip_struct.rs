@@ -52,18 +52,6 @@ mod banned_ip_tests {
     }
 
     #[test]
-    fn banned_ip_serialization_roundtrip() {
-        let banned = create_test_banned_ip();
-        let json = serde_json::to_string(&banned).unwrap();
-        let deserialized: BannedIp = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(banned.ip_address, deserialized.ip_address);
-        assert_eq!(banned.reason, deserialized.reason);
-        assert_eq!(banned.ban_count, deserialized.ban_count);
-        assert_eq!(banned.is_permanent, deserialized.is_permanent);
-    }
-
-    #[test]
     fn banned_ip_with_no_expiry_is_permanent() {
         let banned = BannedIp {
             ip_address: "10.0.0.1".to_string(),

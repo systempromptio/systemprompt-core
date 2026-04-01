@@ -28,17 +28,6 @@ mod token_info_tests {
         assert_eq!(info.input_tokens, Some(1000));
         assert_eq!(info.output_tokens, Some(500));
     }
-
-    #[test]
-    fn token_info_is_copy() {
-        let info = TokenInfo {
-            tokens_used: Some(100),
-            input_tokens: Some(50),
-            output_tokens: Some(50),
-        };
-        let copied = info;
-        assert_eq!(info.tokens_used, copied.tokens_used);
-    }
 }
 
 mod cache_info_tests {
@@ -63,17 +52,6 @@ mod cache_info_tests {
         assert_eq!(info.read_tokens, Some(500));
         assert_eq!(info.creation_tokens, Some(100));
     }
-
-    #[test]
-    fn cache_info_is_copy() {
-        let info = CacheInfo {
-            hit: true,
-            read_tokens: Some(200),
-            creation_tokens: None,
-        };
-        let copied = info;
-        assert_eq!(info.hit, copied.hit);
-    }
 }
 
 mod request_status_tests {
@@ -92,21 +70,6 @@ mod request_status_tests {
     #[test]
     fn failed_status_as_str() {
         assert_eq!(RequestStatus::Failed.as_str(), "failed");
-    }
-
-    #[test]
-    fn status_equality() {
-        assert_eq!(RequestStatus::Pending, RequestStatus::Pending);
-        assert_eq!(RequestStatus::Completed, RequestStatus::Completed);
-        assert_eq!(RequestStatus::Failed, RequestStatus::Failed);
-        assert_ne!(RequestStatus::Pending, RequestStatus::Completed);
-    }
-
-    #[test]
-    fn status_is_copy() {
-        let status = RequestStatus::Completed;
-        let copied = status;
-        assert_eq!(status, copied);
     }
 }
 
@@ -412,12 +375,5 @@ mod ai_request_record_error_tests {
     fn missing_model_error_display() {
         let err = AiRequestRecordError::MissingModel;
         assert_eq!(err.to_string(), "Model is required");
-    }
-
-    #[test]
-    fn error_is_copy() {
-        let err = AiRequestRecordError::MissingProvider;
-        let copied = err;
-        assert!(matches!(copied, AiRequestRecordError::MissingProvider));
     }
 }

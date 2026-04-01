@@ -32,20 +32,6 @@ fn test_output_format_yaml_variant() {
 }
 
 #[test]
-fn test_output_format_not_equal() {
-    assert_ne!(OutputFormat::Table, OutputFormat::Json);
-    assert_ne!(OutputFormat::Json, OutputFormat::Yaml);
-    assert_ne!(OutputFormat::Table, OutputFormat::Yaml);
-}
-
-#[test]
-fn test_output_format_copy() {
-    let format = OutputFormat::Json;
-    let copied = format;
-    assert_eq!(format, copied);
-}
-
-#[test]
 fn test_output_format_debug() {
     let format = OutputFormat::Table;
     let debug_str = format!("{:?}", format);
@@ -95,13 +81,6 @@ fn test_verbosity_level_ordering_transitive() {
 }
 
 #[test]
-fn test_verbosity_level_copy() {
-    let level = VerbosityLevel::Verbose;
-    let copied = level;
-    assert_eq!(level, copied);
-}
-
-#[test]
 fn test_verbosity_level_debug_format() {
     let level = VerbosityLevel::Debug;
     let debug_str = format!("{:?}", level);
@@ -128,20 +107,6 @@ fn test_color_mode_always_variant() {
 fn test_color_mode_never_variant() {
     let mode = ColorMode::Never;
     assert_eq!(mode, ColorMode::Never);
-}
-
-#[test]
-fn test_color_mode_not_equal() {
-    assert_ne!(ColorMode::Auto, ColorMode::Always);
-    assert_ne!(ColorMode::Always, ColorMode::Never);
-    assert_ne!(ColorMode::Auto, ColorMode::Never);
-}
-
-#[test]
-fn test_color_mode_copy() {
-    let mode = ColorMode::Always;
-    let copied = mode;
-    assert_eq!(mode, copied);
 }
 
 #[test]

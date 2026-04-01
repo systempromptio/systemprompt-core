@@ -17,26 +17,6 @@ mod anomaly_threshold_config_tests {
     }
 
     #[test]
-    fn config_is_copy() {
-        let config = AnomalyThresholdConfig {
-            warning_threshold: 5.0,
-            critical_threshold: 10.0,
-        };
-        let copied = config;
-        assert!((copied.warning_threshold - 5.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn config_is_clone() {
-        let config = AnomalyThresholdConfig {
-            warning_threshold: 5.0,
-            critical_threshold: 10.0,
-        };
-        let cloned = config.clone();
-        assert!((cloned.warning_threshold - 5.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
     fn config_is_debug() {
         let config = AnomalyThresholdConfig {
             warning_threshold: 5.0,
@@ -64,28 +44,6 @@ mod anomaly_event_tests {
     }
 
     #[test]
-    fn event_is_copy() {
-        let now = Utc::now();
-        let event = AnomalyEvent {
-            timestamp: now,
-            value: 10.0,
-        };
-        let copied = event;
-        assert!((copied.value - 10.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn event_is_clone() {
-        let now = Utc::now();
-        let event = AnomalyEvent {
-            timestamp: now,
-            value: 10.0,
-        };
-        let cloned = event.clone();
-        assert!((cloned.value - 10.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
     fn event_is_debug() {
         let event = AnomalyEvent {
             timestamp: Utc::now(),
@@ -100,39 +58,10 @@ mod anomaly_level_tests {
     use super::*;
 
     #[test]
-    fn normal_is_eq() {
-        assert_eq!(AnomalyLevel::Normal, AnomalyLevel::Normal);
-    }
-
-    #[test]
-    fn warning_is_eq() {
-        assert_eq!(AnomalyLevel::Warning, AnomalyLevel::Warning);
-    }
-
-    #[test]
-    fn critical_is_eq() {
-        assert_eq!(AnomalyLevel::Critical, AnomalyLevel::Critical);
-    }
-
-    #[test]
     fn levels_are_different() {
         assert_ne!(AnomalyLevel::Normal, AnomalyLevel::Warning);
         assert_ne!(AnomalyLevel::Warning, AnomalyLevel::Critical);
         assert_ne!(AnomalyLevel::Normal, AnomalyLevel::Critical);
-    }
-
-    #[test]
-    fn level_is_copy() {
-        let level = AnomalyLevel::Warning;
-        let copied = level;
-        assert_eq!(level, copied);
-    }
-
-    #[test]
-    fn level_is_clone() {
-        let level = AnomalyLevel::Critical;
-        let cloned = level.clone();
-        assert_eq!(level, cloned);
     }
 
     #[test]
@@ -192,13 +121,6 @@ mod anomaly_check_result_tests {
     fn result_critical_has_message() {
         let result = create_result("metric", 30.0, AnomalyLevel::Critical);
         result.message.as_ref().expect("critical should have message");
-    }
-
-    #[test]
-    fn result_is_clone() {
-        let result = create_result("metric", 10.0, AnomalyLevel::Warning);
-        let cloned = result.clone();
-        assert_eq!(result.metric_name, cloned.metric_name);
     }
 
     #[test]

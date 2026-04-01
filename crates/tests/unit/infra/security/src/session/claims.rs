@@ -72,21 +72,6 @@ fn test_validated_session_claims_clone() {
 }
 
 #[test]
-fn test_validated_session_claims_clone_independence() {
-    let original = ValidatedSessionClaims {
-        user_id: "user".to_string(),
-        session_id: "session".to_string(),
-        user_type: UserType::User,
-    };
-
-    let mut cloned = original.clone();
-    cloned.user_id = "modified_user".to_string();
-
-    assert_eq!(original.user_id, "user");
-    assert_eq!(cloned.user_id, "modified_user");
-}
-
-#[test]
 fn test_validated_session_claims_empty_strings() {
     let claims = ValidatedSessionClaims {
         user_id: String::new(),

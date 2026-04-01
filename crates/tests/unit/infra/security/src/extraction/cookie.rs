@@ -315,26 +315,6 @@ fn test_cookie_extraction_error_is_std_error() {
 }
 
 #[test]
-fn test_cookie_extraction_error_equality() {
-    assert_eq!(
-        CookieExtractionError::MissingCookie,
-        CookieExtractionError::MissingCookie
-    );
-    assert_eq!(
-        CookieExtractionError::InvalidCookieFormat,
-        CookieExtractionError::InvalidCookieFormat
-    );
-    assert_eq!(
-        CookieExtractionError::TokenNotFoundInCookie,
-        CookieExtractionError::TokenNotFoundInCookie
-    );
-    assert_ne!(
-        CookieExtractionError::MissingCookie,
-        CookieExtractionError::InvalidCookieFormat
-    );
-}
-
-#[test]
 fn test_cookie_extraction_error_clone() {
     let error = CookieExtractionError::MissingCookie;
     let cloned = error;

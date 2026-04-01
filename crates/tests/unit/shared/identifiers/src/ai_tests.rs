@@ -54,13 +54,6 @@ fn test_ai_request_id_as_ref() {
 }
 
 #[test]
-fn test_ai_request_id_clone_and_eq() {
-    let id1 = AiRequestId::new("clone-req");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_ai_request_id_hash() {
     let id1 = AiRequestId::new("hash-req");
     let id2 = AiRequestId::new("hash-req");
@@ -68,13 +61,6 @@ fn test_ai_request_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_ai_request_id_serialize_json() {
-    let id = AiRequestId::new("serialize-req");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-req\"");
 }
 
 #[test]
@@ -147,13 +133,6 @@ fn test_message_id_as_ref() {
 }
 
 #[test]
-fn test_message_id_clone_and_eq() {
-    let id1 = MessageId::new("clone-msg");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_message_id_hash() {
     let id1 = MessageId::new("hash-msg");
     let id2 = MessageId::new("hash-msg");
@@ -161,13 +140,6 @@ fn test_message_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_message_id_serialize_json() {
-    let id = MessageId::new("serialize-msg");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-msg\"");
 }
 
 #[test]
@@ -233,13 +205,6 @@ fn test_config_id_as_ref() {
 }
 
 #[test]
-fn test_config_id_clone_and_eq() {
-    let id1 = ConfigId::new("clone-cfg");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_config_id_hash() {
     let id1 = ConfigId::new("hash-cfg");
     let id2 = ConfigId::new("hash-cfg");
@@ -247,13 +212,6 @@ fn test_config_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_config_id_serialize_json() {
-    let id = ConfigId::new("serialize-cfg");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-cfg\"");
 }
 
 #[test]

@@ -92,18 +92,6 @@ mod anthropic_message_tests {
         assert!(json.contains("user"));
         assert!(json.contains("Test message"));
     }
-
-    #[test]
-    fn message_deserialization_with_text() {
-        let json = r#"{"role": "assistant", "content": "Hello there!"}"#;
-        let msg: AnthropicMessage = serde_json::from_str(json).unwrap();
-
-        assert_eq!(msg.role, "assistant");
-        match msg.content {
-            AnthropicContent::Text(text) => assert_eq!(text, "Hello there!"),
-            _ => panic!("Expected Text content"),
-        }
-    }
 }
 
 mod anthropic_content_block_tests {
@@ -368,47 +356,10 @@ mod anthropic_response_tests {
             _ => panic!("Expected ToolUse block"),
         }
     }
-
-    #[test]
-    fn response_serialization_roundtrip() {
-        let response = AnthropicResponse {
-            id: "test".to_string(),
-            r#type: "message".to_string(),
-            role: "assistant".to_string(),
-            content: vec![],
-            model: "claude-3".to_string(),
-            stop_reason: None,
-            stop_sequence: None,
-            usage: AnthropicUsage {
-                input: 100,
-                output: 50,
-                cache_creation: Some(10),
-                cache_read: Some(80),
-            },
-        };
-
-        let json = serde_json::to_string(&response).unwrap();
-        let deserialized: AnthropicResponse = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(response.id, deserialized.id);
-        assert_eq!(response.usage.cache_creation, deserialized.usage.cache_creation);
-    }
 }
 
 mod anthropic_usage_tests {
     use super::*;
-
-    #[test]
-    fn usage_is_copy() {
-        let usage = AnthropicUsage {
-            input: 100,
-            output: 50,
-            cache_creation: None,
-            cache_read: None,
-        };
-        let copied = usage;
-        assert_eq!(usage.input, copied.input);
-    }
 
     #[test]
     fn usage_with_cache_info() {

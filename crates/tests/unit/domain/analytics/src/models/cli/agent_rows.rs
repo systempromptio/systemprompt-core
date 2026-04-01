@@ -30,20 +30,6 @@ mod agent_row_tests {
     }
 
     #[test]
-    fn agent_list_row_is_clone() {
-        let row = AgentListRow {
-            agent_name: "test".to_string(),
-            task_count: 10,
-            completed_count: 9,
-            avg_execution_time_ms: 100,
-            total_cost_microdollars: 50,
-            last_active: Utc::now(),
-        };
-        let cloned = row.clone();
-        assert_eq!(row.agent_name, cloned.agent_name);
-    }
-
-    #[test]
     fn agent_stats_row_stores_values() {
         let row = AgentStatsRow {
             total_agents: 25,
@@ -58,19 +44,6 @@ mod agent_row_tests {
         assert_eq!(row.completed_tasks, 9500);
         assert_eq!(row.failed_tasks, 500);
         assert!((row.avg_execution_time_ms - 1500.5).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn agent_stats_row_is_copy() {
-        let row = AgentStatsRow {
-            total_agents: 5,
-            total_tasks: 100,
-            completed_tasks: 90,
-            failed_tasks: 10,
-            avg_execution_time_ms: 500.0,
-        };
-        let copied = row;
-        assert_eq!(row.total_agents, copied.total_agents);
     }
 
     #[test]

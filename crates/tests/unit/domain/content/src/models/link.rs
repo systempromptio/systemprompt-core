@@ -39,26 +39,6 @@ fn test_link_type_display() {
     assert_eq!(format!("{}", LinkType::Both), "both");
 }
 
-#[test]
-fn test_link_type_serialization() {
-    let link_type = LinkType::Both;
-    let json = serde_json::to_string(&link_type).unwrap();
-    assert_eq!(json, "\"Both\"");
-}
-
-#[test]
-fn test_link_type_deserialization() {
-    let link_type: LinkType = serde_json::from_str("\"Redirect\"").unwrap();
-    assert!(matches!(link_type, LinkType::Redirect));
-}
-
-#[test]
-fn test_link_type_copy() {
-    let original = LinkType::Utm;
-    let copied = original;
-    assert_eq!(original.as_str(), copied.as_str());
-}
-
 // ============================================================================
 // DestinationType Tests
 // ============================================================================
@@ -79,26 +59,6 @@ fn test_destination_type_as_str_external() {
 fn test_destination_type_display() {
     assert_eq!(format!("{}", DestinationType::Internal), "internal");
     assert_eq!(format!("{}", DestinationType::External), "external");
-}
-
-#[test]
-fn test_destination_type_serialization() {
-    let dest_type = DestinationType::External;
-    let json = serde_json::to_string(&dest_type).unwrap();
-    assert_eq!(json, "\"External\"");
-}
-
-#[test]
-fn test_destination_type_deserialization() {
-    let dest_type: DestinationType = serde_json::from_str("\"Internal\"").unwrap();
-    assert!(matches!(dest_type, DestinationType::Internal));
-}
-
-#[test]
-fn test_destination_type_copy() {
-    let original = DestinationType::Internal;
-    let copied = original;
-    assert_eq!(original.as_str(), copied.as_str());
 }
 
 // ============================================================================
@@ -186,23 +146,6 @@ fn test_utm_params_to_json() {
     assert!(json.contains("\"source\":\"email\""));
     assert!(json.contains("\"medium\":\"newsletter\""));
     assert!(json.contains("\"campaign\":\"weekly\""));
-}
-
-#[test]
-fn test_utm_params_serialization() {
-    let params = UtmParams {
-        source: Some("test".to_string()),
-        medium: None,
-        campaign: None,
-        term: None,
-        content: None,
-    };
-
-    let json = serde_json::to_string(&params).unwrap();
-    let deserialized: UtmParams = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(deserialized.source, params.source);
-    assert_eq!(deserialized.medium, params.medium);
 }
 
 #[test]

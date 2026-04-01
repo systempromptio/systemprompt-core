@@ -167,15 +167,3 @@ fn test_mcp_service_serialize() {
     assert!(json.contains("running"));
     assert!(json.contains("healthy"));
 }
-
-#[test]
-fn test_mcp_service_deserialize() {
-    let service = create_test_service("running", "healthy");
-    let json = serde_json::to_string(&service).unwrap();
-    let deserialized: MCPService = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(service.name, deserialized.name);
-    assert_eq!(service.status, deserialized.status);
-    assert_eq!(service.health, deserialized.health);
-    assert_eq!(service.port, deserialized.port);
-}

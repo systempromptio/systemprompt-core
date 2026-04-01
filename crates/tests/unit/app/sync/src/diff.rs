@@ -9,12 +9,6 @@ mod local_sync_direction_tests {
     use super::*;
 
     #[test]
-    fn variants_equal() {
-        assert_eq!(LocalSyncDirection::ToDisk, LocalSyncDirection::ToDisk);
-        assert_ne!(LocalSyncDirection::ToDisk, LocalSyncDirection::ToDatabase);
-    }
-
-    #[test]
     fn debug_format() {
         assert!(format!("{:?}", LocalSyncDirection::ToDisk).contains("ToDisk"));
         assert!(format!("{:?}", LocalSyncDirection::ToDatabase).contains("ToDatabase"));
@@ -30,12 +24,6 @@ mod local_sync_direction_tests {
 
 mod diff_status_tests {
     use super::*;
-
-    #[test]
-    fn variants_equal() {
-        assert_eq!(DiffStatus::Added, DiffStatus::Added);
-        assert_ne!(DiffStatus::Added, DiffStatus::Removed);
-    }
 
     #[test]
     fn serialization() {

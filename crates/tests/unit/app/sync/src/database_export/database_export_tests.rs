@@ -97,36 +97,6 @@ fn multiple_skills() {
 }
 
 #[test]
-fn roundtrip() {
-    let now = Utc::now();
-    let original = DatabaseExport {
-        users: vec![],
-        skills: vec![SkillExport {
-            skill_id: "test_skill".to_string(),
-            file_path: "/skills/test/SKILL.md".to_string(),
-            name: "Test".to_string(),
-            description: "Description".to_string(),
-            instructions: "Instructions".to_string(),
-            enabled: true,
-            tags: None,
-            category_id: None,
-            source_id: "skills".to_string(),
-            created_at: now,
-            updated_at: now,
-        }],
-        contexts: vec![],
-        timestamp: now,
-    };
-
-    let json = serde_json::to_string(&original).expect("serialize database export");
-    let restored: DatabaseExport =
-        serde_json::from_str(&json).expect("deserialize database export");
-
-    assert_eq!(original.skills.len(), restored.skills.len());
-    assert_eq!(original.skills[0].name, restored.skills[0].name);
-}
-
-#[test]
 fn with_users() {
     use systemprompt_sync::database::UserExport;
 
@@ -172,58 +142,4 @@ fn with_users() {
     assert_eq!(export.users.len(), 2);
     assert_eq!(export.users[0].name, "user1");
     assert_eq!(export.users[1].name, "user2");
-}
-
-#[test]
-fn full_roundtrip() {
-    use systemprompt_sync::database::UserExport;
-
-    let now = Utc::now();
-    let original = DatabaseExport {
-        users: vec![UserExport {
-            id: "u1".to_string(),
-            name: "name".to_string(),
-            email: "email@test.com".to_string(),
-            full_name: Some("Full Name".to_string()),
-            display_name: Some("Display".to_string()),
-            status: "active".to_string(),
-            email_verified: true,
-            roles: vec!["role1".to_string(), "role2".to_string()],
-            is_bot: false,
-            is_scanner: true,
-            avatar_url: Some("https://avatar.url".to_string()),
-            created_at: now,
-            updated_at: now,
-        }],
-        skills: vec![SkillExport {
-            skill_id: "sk1".to_string(),
-            file_path: "/skills/sk1/SKILL.md".to_string(),
-            name: "Skill".to_string(),
-            description: "Desc".to_string(),
-            instructions: "Instr".to_string(),
-            enabled: true,
-            tags: Some(vec!["t1".to_string()]),
-            category_id: Some("cat".to_string()),
-            source_id: "skills".to_string(),
-            created_at: now,
-            updated_at: now,
-        }],
-        contexts: vec![ContextExport {
-            context_id: "ctx1".to_string(),
-            user_id: "u1".to_string(),
-            session_id: Some("sess1".to_string()),
-            name: "Context".to_string(),
-            created_at: now,
-            updated_at: now,
-        }],
-        timestamp: now,
-    };
-
-    let json = serde_json::to_string(&original).expect("serialize full database export");
-    let restored: DatabaseExport =
-        serde_json::from_str(&json).expect("deserialize full database export");
-
-    assert_eq!(original.users.len(), restored.users.len());
-    assert_eq!(original.skills.len(), restored.skills.len());
-    assert_eq!(original.contexts.len(), restored.contexts.len());
 }

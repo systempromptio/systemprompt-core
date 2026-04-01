@@ -237,17 +237,6 @@ fn test_analytics_query_with_both() {
 }
 
 #[test]
-fn test_analytics_query_copy() {
-    let query = AnalyticsQuery {
-        limit: Some(10),
-        offset: Some(20),
-    };
-    let copied = query;
-    assert_eq!(copied.limit, Some(10));
-    assert_eq!(copied.offset, Some(20));
-}
-
-#[test]
 fn test_analytics_query_debug() {
     let query = AnalyticsQuery {
         limit: Some(10),

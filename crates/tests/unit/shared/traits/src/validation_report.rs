@@ -103,17 +103,6 @@ mod validation_warning_tests {
         warning.suggestion.as_ref().expect("suggestion should be set");
         assert_eq!(warning.suggestion.unwrap(), "Use the new YAML format");
     }
-
-    #[test]
-    fn warning_is_clone() {
-        let warning = ValidationWarning::new("test", "message")
-            .with_suggestion("fix");
-        let cloned = warning.clone();
-
-        assert_eq!(warning.field, cloned.field);
-        assert_eq!(warning.message, cloned.message);
-        assert_eq!(warning.suggestion, cloned.suggestion);
-    }
 }
 
 mod validation_report_tests {

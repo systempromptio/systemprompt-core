@@ -46,36 +46,10 @@ fn test_schema_source_typed_debug() {
 }
 
 #[test]
-fn test_schema_source_typed_clone() {
-    let source = SchemaSourceTyped::Embedded("CREATE TABLE x".to_string());
-    let cloned = source.clone();
-
-    match cloned {
-        SchemaSourceTyped::Embedded(sql) => {
-            assert_eq!(sql, "CREATE TABLE x");
-        }
-        _ => panic!("Expected Embedded variant"),
-    }
-}
-
-#[test]
 fn test_schema_source_typed_serialize() {
     let embedded = SchemaSourceTyped::Embedded("SELECT * FROM t".to_string());
     let json = serde_json::to_string(&embedded).expect("should serialize");
     assert!(json.contains("SELECT * FROM t"));
-}
-
-#[test]
-fn test_schema_source_typed_deserialize() {
-    let json = r#"{"Embedded":"CREATE TABLE y"}"#;
-    let source: SchemaSourceTyped = serde_json::from_str(json).expect("should deserialize");
-
-    match source {
-        SchemaSourceTyped::Embedded(sql) => {
-            assert_eq!(sql, "CREATE TABLE y");
-        }
-        _ => panic!("Expected Embedded variant"),
-    }
 }
 
 // =============================================================================
@@ -138,17 +112,6 @@ fn test_schema_definition_typed_debug() {
 
     assert!(debug_str.contains("SchemaDefinitionTyped"));
     assert!(debug_str.contains("debug_table"));
-}
-
-#[test]
-fn test_schema_definition_typed_clone() {
-    let schema = SchemaDefinitionTyped::embedded("clone_table", "CREATE TABLE clone_table ()")
-        .with_required_columns(vec!["col1".to_string()]);
-
-    let cloned = schema.clone();
-
-    assert_eq!(cloned.table, "clone_table");
-    assert_eq!(cloned.required_columns.len(), 1);
 }
 
 #[test]

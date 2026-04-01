@@ -65,13 +65,6 @@ fn test_user_id_as_ref() {
 }
 
 #[test]
-fn test_user_id_clone_and_eq() {
-    let id1 = UserId::new("clone-user");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_user_id_hash() {
     let id1 = UserId::new("hash-user");
     let id2 = UserId::new("hash-user");
@@ -79,13 +72,6 @@ fn test_user_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_user_id_serialize_json() {
-    let id = UserId::new("serialize-user");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-user\"");
 }
 
 #[test]

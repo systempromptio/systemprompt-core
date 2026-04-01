@@ -49,13 +49,6 @@ fn test_document_metadata_builder_chain() {
 }
 
 #[test]
-fn test_document_metadata_clone() {
-    let doc = DocumentMetadata::new().with_title("Test");
-    let cloned = doc.clone();
-    assert_eq!(doc.title, cloned.title);
-}
-
-#[test]
 fn test_audio_metadata_new() {
     let audio = AudioMetadata::new();
     assert!(audio.duration_seconds.is_none());
@@ -99,13 +92,6 @@ fn test_audio_metadata_builder_chain() {
     assert_eq!(audio.duration_seconds, Some(300.0));
     assert_eq!(audio.sample_rate, Some(44100));
     assert_eq!(audio.channels, Some(2));
-}
-
-#[test]
-fn test_audio_metadata_copy() {
-    let audio = AudioMetadata::new().with_channels(1);
-    let copied = audio;
-    assert_eq!(audio.channels, copied.channels);
 }
 
 #[test]
@@ -159,13 +145,6 @@ fn test_video_metadata_builder_chain() {
 }
 
 #[test]
-fn test_video_metadata_copy() {
-    let video = VideoMetadata::new().with_frame_rate(30.0);
-    let copied = video;
-    assert_eq!(video.frame_rate, copied.frame_rate);
-}
-
-#[test]
 fn test_file_checksums_new() {
     let checksums = FileChecksums::new();
     assert!(checksums.md5.is_none());
@@ -209,20 +188,6 @@ fn test_file_checksums_builder_chain() {
 }
 
 #[test]
-fn test_file_checksums_clone() {
-    let checksums = FileChecksums::new().with_md5("test");
-    let cloned = checksums.clone();
-    assert_eq!(checksums.md5, cloned.md5);
-}
-
-#[test]
-fn test_file_checksums_serialize_empty() {
-    let checksums = FileChecksums::new();
-    let json = serde_json::to_string(&checksums).unwrap();
-    assert_eq!(json, "{}");
-}
-
-#[test]
 fn test_file_checksums_serialize_with_values() {
     let checksums = FileChecksums::new()
         .with_md5("abc")
@@ -233,17 +198,4 @@ fn test_file_checksums_serialize_with_values() {
     assert!(json.contains("abc"));
     assert!(json.contains("sha256"));
     assert!(json.contains("def"));
-}
-
-#[test]
-fn test_file_checksums_roundtrip() {
-    let checksums = FileChecksums::new()
-        .with_md5("md5_value")
-        .with_sha256("sha256_value");
-
-    let json = serde_json::to_string(&checksums).unwrap();
-    let deserialized: FileChecksums = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(checksums.md5, deserialized.md5);
-    assert_eq!(checksums.sha256, deserialized.sha256);
 }

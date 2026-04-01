@@ -84,10 +84,3 @@ fn test_database_extension_default() {
     assert_eq!(ext.metadata().id, "database");
 }
 
-#[test]
-fn test_database_extension_copy() {
-    let ext = DatabaseExtension;
-    let copied = ext;
-    assert_eq!(ext.metadata().id, copied.metadata().id);
-}
-

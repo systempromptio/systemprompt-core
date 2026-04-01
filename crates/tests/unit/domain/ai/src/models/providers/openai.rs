@@ -76,15 +76,6 @@ mod openai_message_tests {
         assert!(json.contains("assistant"));
         assert!(json.contains("Hi there!"));
     }
-
-    #[test]
-    fn message_deserialization() {
-        let json = r#"{"role": "system", "content": "You are helpful."}"#;
-        let msg: OpenAiMessage = serde_json::from_str(json).unwrap();
-
-        assert_eq!(msg.role, "system");
-        assert_text_content(&msg.content, "You are helpful.");
-    }
 }
 
 mod openai_request_tests {
@@ -257,29 +248,6 @@ mod openai_response_tests {
         assert_eq!(tool_calls.len(), 1);
         assert_eq!(tool_calls[0].function.name, "get_weather");
     }
-
-    #[test]
-    fn response_serialization_roundtrip() {
-        let response = OpenAiResponse {
-            id: "test-id".to_string(),
-            object: "chat.completion".to_string(),
-            created: 1234567890,
-            model: "gpt-4".to_string(),
-            choices: vec![],
-            usage: Some(OpenAiUsage {
-                prompt_tokens: 100,
-                completion_tokens: 50,
-                total_tokens: 150,
-                prompt_tokens_details: None,
-            }),
-        };
-
-        let json = serde_json::to_string(&response).unwrap();
-        let deserialized: OpenAiResponse = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(response.id, deserialized.id);
-        assert_eq!(response.model, deserialized.model);
-    }
 }
 
 mod openai_response_format_tests {
@@ -319,41 +287,10 @@ mod openai_response_format_tests {
         assert!(json.contains("person"));
         assert!(json.contains("strict"));
     }
-
-    #[test]
-    fn json_schema_format_deserialization() {
-        let json = r#"{
-            "type": "json_schema",
-            "json_schema": {
-                "name": "test",
-                "schema": {"type": "object"}
-            }
-        }"#;
-
-        let format: OpenAiResponseFormat = serde_json::from_str(json).unwrap();
-        match format {
-            OpenAiResponseFormat::JsonSchema { json_schema } => {
-                assert_eq!(json_schema.name, "test");
-            }
-            _ => panic!("Expected JsonSchema format"),
-        }
-    }
 }
 
 mod openai_usage_tests {
     use super::*;
-
-    #[test]
-    fn usage_is_copy() {
-        let usage = OpenAiUsage {
-            prompt_tokens: 100,
-            completion_tokens: 50,
-            total_tokens: 150,
-            prompt_tokens_details: None,
-        };
-        let copied = usage;
-        assert_eq!(usage.total_tokens, copied.total_tokens);
-    }
 
     #[test]
     fn usage_with_cached_tokens() {

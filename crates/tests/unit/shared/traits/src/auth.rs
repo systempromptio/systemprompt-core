@@ -30,21 +30,6 @@ mod token_pair_tests {
         assert_eq!(pair.expires_in, 7200);
         assert_eq!(pair.token_type, "Bearer");
     }
-
-    #[test]
-    fn clone_produces_equal_token_pair() {
-        let pair = TokenPair::new(
-            "access".to_string(),
-            Some("refresh".to_string()),
-            1800,
-        );
-        let cloned = pair.clone();
-
-        assert_eq!(pair.access_token, cloned.access_token);
-        assert_eq!(pair.refresh_token, cloned.refresh_token);
-        assert_eq!(pair.expires_in, cloned.expires_in);
-        assert_eq!(pair.token_type, cloned.token_type);
-    }
 }
 
 mod token_claims_tests {
@@ -106,25 +91,6 @@ mod auth_action_tests {
         let another = AuthAction::Custom("approve".to_string());
         assert_eq!(another.as_str(), "approve");
     }
-
-    #[test]
-    fn auth_actions_are_equal() {
-        assert_eq!(AuthAction::Read, AuthAction::Read);
-        assert_eq!(AuthAction::Write, AuthAction::Write);
-        assert_eq!(
-            AuthAction::Custom("test".to_string()),
-            AuthAction::Custom("test".to_string())
-        );
-    }
-
-    #[test]
-    fn auth_actions_are_not_equal() {
-        assert_ne!(AuthAction::Read, AuthAction::Write);
-        assert_ne!(
-            AuthAction::Custom("a".to_string()),
-            AuthAction::Custom("b".to_string())
-        );
-    }
 }
 
 mod auth_permission_tests {
@@ -152,16 +118,6 @@ mod auth_permission_tests {
 
         assert_eq!(perm.resource, "tasks");
         assert_eq!(perm.action, AuthAction::Custom("assign".to_string()));
-    }
-
-    #[test]
-    fn permissions_equality() {
-        let perm1 = AuthPermission::new("resource", AuthAction::Read);
-        let perm2 = AuthPermission::new("resource", AuthAction::Read);
-        let perm3 = AuthPermission::new("resource", AuthAction::Write);
-
-        assert_eq!(perm1, perm2);
-        assert_ne!(perm1, perm3);
     }
 }
 

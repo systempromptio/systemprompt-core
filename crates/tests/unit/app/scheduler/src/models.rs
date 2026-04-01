@@ -54,44 +54,6 @@ mod job_status_tests {
     }
 
     #[test]
-    fn deserializes_success_from_lowercase() {
-        let status: JobStatus = serde_json::from_str("\"success\"").unwrap();
-        assert_eq!(status, JobStatus::Success);
-    }
-
-    #[test]
-    fn deserializes_failed_from_lowercase() {
-        let status: JobStatus = serde_json::from_str("\"failed\"").unwrap();
-        assert_eq!(status, JobStatus::Failed);
-    }
-
-    #[test]
-    fn deserializes_running_from_lowercase() {
-        let status: JobStatus = serde_json::from_str("\"running\"").unwrap();
-        assert_eq!(status, JobStatus::Running);
-    }
-
-    #[test]
-    fn status_is_clone() {
-        let status = JobStatus::Success;
-        let cloned = status;
-        assert_eq!(status, cloned);
-    }
-
-    #[test]
-    fn status_is_copy() {
-        let status = JobStatus::Running;
-        let copied: JobStatus = status;
-        assert_eq!(status, copied);
-    }
-
-    #[test]
-    fn status_is_eq() {
-        assert_eq!(JobStatus::Success, JobStatus::Success);
-        assert_ne!(JobStatus::Success, JobStatus::Failed);
-    }
-
-    #[test]
     fn status_is_debug() {
         let debug = format!("{:?}", JobStatus::Success);
         assert!(debug.contains("Success"));

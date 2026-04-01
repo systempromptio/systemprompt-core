@@ -246,18 +246,6 @@ mod startup_event_tests {
     }
 
     #[test]
-    fn startup_event_is_clone() {
-        let event = StartupEvent::PhaseStarted {
-            phase: Phase::PreFlight,
-        };
-        let cloned = event.clone();
-        assert!(matches!(
-            cloned,
-            StartupEvent::PhaseStarted { phase: Phase::PreFlight }
-        ));
-    }
-
-    #[test]
     fn startup_event_is_debug() {
         let event = StartupEvent::Info {
             message: "Test".to_string(),

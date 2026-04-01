@@ -316,19 +316,4 @@ mod transformed_tool_tests {
         let debug = format!("{:?}", tool);
         assert!(debug.contains("test"));
     }
-
-    #[test]
-    fn transformed_tool_is_clone() {
-        let tool = TransformedTool {
-            name: "test".to_string(),
-            description: "Test".to_string(),
-            input_schema: json!({"type": "object"}),
-            original_name: "test".to_string(),
-            discriminator_value: Some("variant".to_string()),
-        };
-
-        let cloned = tool.clone();
-        assert_eq!(tool.name, cloned.name);
-        assert_eq!(tool.discriminator_value, cloned.discriminator_value);
-    }
 }

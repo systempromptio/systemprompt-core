@@ -106,16 +106,6 @@ fn test_mcp_auth_state_has_permission_anonymous_denied() {
 // ============================================================================
 
 #[test]
-fn test_mcp_auth_state_clone_authenticated() {
-    let user = create_test_user();
-    let state = McpAuthState::Authenticated(user);
-    let cloned = state.clone();
-
-    assert!(cloned.is_authenticated());
-    assert_eq!(state.username(), cloned.username());
-}
-
-#[test]
 fn test_mcp_auth_state_clone_anonymous() {
     let state = McpAuthState::Anonymous;
     let cloned = state.clone();

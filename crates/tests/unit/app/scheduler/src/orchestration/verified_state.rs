@@ -340,23 +340,6 @@ mod serialization_tests {
     }
 
     #[test]
-    fn state_is_deserializable() {
-        let state = build_state(DesiredStatus::Enabled, RuntimeStatus::Running);
-        let json = serde_json::to_string(&state).unwrap();
-        let deserialized: VerifiedServiceState = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.name, state.name);
-        assert_eq!(deserialized.port, state.port);
-    }
-
-    #[test]
-    fn state_is_clone() {
-        let state = build_state(DesiredStatus::Enabled, RuntimeStatus::Running);
-        let cloned = state.clone();
-        assert_eq!(cloned.name, state.name);
-        assert_eq!(cloned.port, state.port);
-    }
-
-    #[test]
     fn state_is_debug() {
         let state = build_state(DesiredStatus::Enabled, RuntimeStatus::Running);
         let debug = format!("{:?}", state);

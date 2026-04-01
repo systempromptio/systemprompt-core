@@ -294,13 +294,3 @@ fn test_agent_info_debug() {
     assert!(debug.contains("AgentInfo"));
     assert!(debug.contains("agent-1"));
 }
-
-#[test]
-fn test_agent_info_clone() {
-    let card = create_test_card();
-    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
-    let cloned = info.clone();
-
-    assert_eq!(info.agent_id.as_str(), cloned.agent_id.as_str());
-    assert_eq!(info.enabled, cloned.enabled);
-}

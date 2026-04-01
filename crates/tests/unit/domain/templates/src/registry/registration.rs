@@ -23,22 +23,6 @@ mod registry_creation_tests {
     }
 
     #[test]
-    fn default_equals_new() {
-        let registry1 = TemplateRegistry::new();
-        let registry2 = TemplateRegistry::default();
-
-        let stats1 = registry1.stats();
-        let stats2 = registry2.stats();
-
-        assert_eq!(stats1.providers, stats2.providers);
-        assert_eq!(stats1.templates, stats2.templates);
-        assert_eq!(stats1.loaders, stats2.loaders);
-        assert_eq!(stats1.extenders, stats2.extenders);
-        assert_eq!(stats1.components, stats2.components);
-        assert_eq!(stats1.page_providers, stats2.page_providers);
-    }
-
-    #[test]
     fn debug_impl_includes_registry_name() {
         let registry = TemplateRegistry::new();
         let debug_str = format!("{:?}", registry);

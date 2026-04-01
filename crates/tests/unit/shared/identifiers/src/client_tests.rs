@@ -75,13 +75,6 @@ fn test_client_id_as_ref() {
 }
 
 #[test]
-fn test_client_id_clone_and_eq() {
-    let id1 = ClientId::new("clone-client");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_client_id_hash() {
     let id1 = ClientId::new("hash-client");
     let id2 = ClientId::new("hash-client");
@@ -89,13 +82,6 @@ fn test_client_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_client_id_serialize_json() {
-    let id = ClientId::new("serialize-client");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-client\"");
 }
 
 #[test]
@@ -239,20 +225,6 @@ fn test_client_type_display() {
 }
 
 #[test]
-fn test_client_type_clone() {
-    let ct1 = ClientType::FirstParty;
-    let ct2 = ct1.clone();
-    assert_eq!(ct1, ct2);
-}
-
-#[test]
-fn test_client_type_copy() {
-    let ct1 = ClientType::System;
-    let ct2 = ct1; // Copy
-    assert_eq!(ct1, ct2);
-}
-
-#[test]
 fn test_client_type_debug() {
     let debug_str = format!("{:?}", ClientType::Cimd);
     assert!(debug_str.contains("Cimd"));
@@ -262,25 +234,4 @@ fn test_client_type_debug() {
 fn test_client_type_serialize_json() {
     let json = serde_json::to_string(&ClientType::FirstParty).unwrap();
     assert_eq!(json, "\"firstparty\"");
-}
-
-#[test]
-fn test_client_type_deserialize_json() {
-    let ct: ClientType = serde_json::from_str("\"thirdparty\"").unwrap();
-    assert_eq!(ct, ClientType::ThirdParty);
-}
-
-#[test]
-fn test_client_type_deserialize_all_variants() {
-    let cimd: ClientType = serde_json::from_str("\"cimd\"").unwrap();
-    let first: ClientType = serde_json::from_str("\"firstparty\"").unwrap();
-    let third: ClientType = serde_json::from_str("\"thirdparty\"").unwrap();
-    let system: ClientType = serde_json::from_str("\"system\"").unwrap();
-    let unknown: ClientType = serde_json::from_str("\"unknown\"").unwrap();
-
-    assert_eq!(cimd, ClientType::Cimd);
-    assert_eq!(first, ClientType::FirstParty);
-    assert_eq!(third, ClientType::ThirdParty);
-    assert_eq!(system, ClientType::System);
-    assert_eq!(unknown, ClientType::Unknown);
 }

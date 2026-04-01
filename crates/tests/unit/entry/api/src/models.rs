@@ -119,17 +119,6 @@ fn test_server_config_common_ports() {
 // ============================================================================
 
 #[test]
-fn test_server_config_clone() {
-    let original = ServerConfig {
-        host: "192.168.1.1".to_string(),
-        port: 5000,
-    };
-    let cloned = original.clone();
-    assert_eq!(cloned.host, "192.168.1.1");
-    assert_eq!(cloned.port, 5000);
-}
-
-#[test]
 fn test_server_config_clone_independence() {
     let original = ServerConfig {
         host: "original".to_string(),

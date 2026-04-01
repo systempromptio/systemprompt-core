@@ -29,18 +29,6 @@ mod analytics_event_created_tests {
     }
 
     #[test]
-    fn created_is_clone() {
-        let created = AnalyticsEventCreated {
-            id: "evt_789".to_string(),
-            event_type: "engagement".to_string(),
-        };
-        let cloned = created.clone();
-
-        assert_eq!(created.id, cloned.id);
-        assert_eq!(created.event_type, cloned.event_type);
-    }
-
-    #[test]
     fn created_is_debug() {
         let created = AnalyticsEventCreated {
             id: "test".to_string(),
@@ -102,17 +90,6 @@ mod analytics_event_batch_response_tests {
         assert!(json.contains("recorded"));
         assert!(json.contains("events"));
         assert!(json.contains("test"));
-    }
-
-    #[test]
-    fn response_is_clone() {
-        let response = AnalyticsEventBatchResponse {
-            recorded: 3,
-            events: vec![],
-        };
-        let cloned = response.clone();
-
-        assert_eq!(response.recorded, cloned.recorded);
     }
 
     #[test]

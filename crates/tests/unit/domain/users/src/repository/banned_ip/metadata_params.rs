@@ -1,6 +1,5 @@
 //! Tests for BanIpWithMetadataParams.
 
-use chrono::Utc;
 use systemprompt_users::{BanDuration, BanIpWithMetadataParams};
 
 mod ban_ip_with_metadata_params_tests {

@@ -55,13 +55,6 @@ fn test_execution_step_id_as_ref() {
 }
 
 #[test]
-fn test_execution_step_id_clone_and_eq() {
-    let id1 = ExecutionStepId::new("clone-step");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_execution_step_id_hash() {
     let id1 = ExecutionStepId::new("hash-step");
     let id2 = ExecutionStepId::new("hash-step");
@@ -69,13 +62,6 @@ fn test_execution_step_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_execution_step_id_serialize_json() {
-    let id = ExecutionStepId::new("serialize-step");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-step\"");
 }
 
 #[test]
@@ -141,13 +127,6 @@ fn test_log_id_as_ref() {
 }
 
 #[test]
-fn test_log_id_clone_and_eq() {
-    let id1 = LogId::new("clone-log");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_log_id_hash() {
     let id1 = LogId::new("hash-log");
     let id2 = LogId::new("hash-log");
@@ -155,13 +134,6 @@ fn test_log_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_log_id_serialize_json() {
-    let id = LogId::new("serialize-log");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-log\"");
 }
 
 #[test]
@@ -227,13 +199,6 @@ fn test_token_id_as_ref() {
 }
 
 #[test]
-fn test_token_id_clone_and_eq() {
-    let id1 = TokenId::new("clone-token");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_token_id_hash() {
     let id1 = TokenId::new("hash-token");
     let id2 = TokenId::new("hash-token");
@@ -241,13 +206,6 @@ fn test_token_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_token_id_serialize_json() {
-    let id = TokenId::new("serialize-token");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-token\"");
 }
 
 #[test]
@@ -313,13 +271,6 @@ fn test_artifact_id_as_ref() {
 }
 
 #[test]
-fn test_artifact_id_clone_and_eq() {
-    let id1 = ArtifactId::new("clone-artifact");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_artifact_id_hash() {
     let id1 = ArtifactId::new("hash-artifact");
     let id2 = ArtifactId::new("hash-artifact");
@@ -327,13 +278,6 @@ fn test_artifact_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_artifact_id_serialize_json() {
-    let id = ArtifactId::new("serialize-artifact");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-artifact\"");
 }
 
 #[test]

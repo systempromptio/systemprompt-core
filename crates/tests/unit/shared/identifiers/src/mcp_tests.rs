@@ -39,13 +39,6 @@ fn test_ai_tool_call_id_as_ref() {
 }
 
 #[test]
-fn test_ai_tool_call_id_clone_and_eq() {
-    let id1 = AiToolCallId::new("clone-tool");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_ai_tool_call_id_hash() {
     let id1 = AiToolCallId::new("hash-tool");
     let id2 = AiToolCallId::new("hash-tool");
@@ -53,13 +46,6 @@ fn test_ai_tool_call_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_ai_tool_call_id_serialize_json() {
-    let id = AiToolCallId::new("serialize-tool");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-tool\"");
 }
 
 #[test]
@@ -138,13 +124,6 @@ fn test_mcp_execution_id_as_ref() {
 }
 
 #[test]
-fn test_mcp_execution_id_clone_and_eq() {
-    let id1 = McpExecutionId::new("clone-exec");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_mcp_execution_id_hash() {
     let id1 = McpExecutionId::new("hash-exec");
     let id2 = McpExecutionId::new("hash-exec");
@@ -152,13 +131,6 @@ fn test_mcp_execution_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_mcp_execution_id_serialize_json() {
-    let id = McpExecutionId::new("serialize-exec");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-exec\"");
 }
 
 #[test]
@@ -217,13 +189,6 @@ fn test_mcp_server_id_as_ref() {
 }
 
 #[test]
-fn test_mcp_server_id_clone_and_eq() {
-    let id1 = McpServerId::new("clone-server");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_mcp_server_id_hash() {
     let id1 = McpServerId::new("hash-server");
     let id2 = McpServerId::new("hash-server");
@@ -231,13 +196,6 @@ fn test_mcp_server_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_mcp_server_id_serialize_json() {
-    let id = McpServerId::new("serialize-server");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-server\"");
 }
 
 #[test]

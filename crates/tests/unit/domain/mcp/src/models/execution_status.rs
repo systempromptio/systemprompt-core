@@ -58,31 +58,3 @@ fn test_execution_status_display_failed() {
 // ExecutionStatus Equality and Clone Tests
 // ============================================================================
 
-#[test]
-fn test_execution_status_equality() {
-    assert_eq!(ExecutionStatus::Pending, ExecutionStatus::Pending);
-    assert_eq!(ExecutionStatus::Success, ExecutionStatus::Success);
-    assert_eq!(ExecutionStatus::Failed, ExecutionStatus::Failed);
-}
-
-#[test]
-fn test_execution_status_inequality() {
-    assert_ne!(ExecutionStatus::Pending, ExecutionStatus::Success);
-    assert_ne!(ExecutionStatus::Success, ExecutionStatus::Failed);
-    assert_ne!(ExecutionStatus::Failed, ExecutionStatus::Pending);
-}
-
-#[test]
-fn test_execution_status_clone() {
-    let status = ExecutionStatus::Success;
-    let cloned = status.clone();
-    assert_eq!(status, cloned);
-}
-
-#[test]
-fn test_execution_status_copy() {
-    let status = ExecutionStatus::Pending;
-    let copied = status;
-    assert_eq!(status, copied);
-}
-

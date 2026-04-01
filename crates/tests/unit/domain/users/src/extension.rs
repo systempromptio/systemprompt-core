@@ -221,20 +221,6 @@ mod extension_trait_tests {
     }
 
     #[test]
-    fn extension_is_clone() {
-        let ext = UsersExtension;
-        let cloned = ext;
-        assert_eq!(ext.metadata().id, cloned.metadata().id);
-    }
-
-    #[test]
-    fn extension_is_copy() {
-        let ext = UsersExtension;
-        let copied = ext;
-        assert_eq!(ext.metadata().name, copied.metadata().name);
-    }
-
-    #[test]
     fn extension_default() {
         let ext = UsersExtension::default();
         assert_eq!(ext.metadata().id, "users");

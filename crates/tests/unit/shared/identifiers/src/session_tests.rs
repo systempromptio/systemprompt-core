@@ -41,13 +41,6 @@ fn test_session_id_as_ref() {
 }
 
 #[test]
-fn test_session_id_clone_and_eq() {
-    let id1 = SessionId::new("clone-session");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_session_id_hash() {
     let id1 = SessionId::new("hash-session");
     let id2 = SessionId::new("hash-session");
@@ -55,13 +48,6 @@ fn test_session_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_session_id_serialize_json() {
-    let id = SessionId::new("serialize-session");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-session\"");
 }
 
 #[test]

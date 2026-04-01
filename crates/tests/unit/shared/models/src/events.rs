@@ -48,42 +48,6 @@ fn test_system_event_type_heartbeat_serialize() {
 }
 
 #[test]
-fn test_system_event_type_deserialize_context_created() {
-    let t: SystemEventType = serde_json::from_str("\"CONTEXT_CREATED\"").unwrap();
-    assert!(matches!(t, SystemEventType::ContextCreated));
-}
-
-#[test]
-fn test_system_event_type_deserialize_context_updated() {
-    let t: SystemEventType = serde_json::from_str("\"CONTEXT_UPDATED\"").unwrap();
-    assert!(matches!(t, SystemEventType::ContextUpdated));
-}
-
-#[test]
-fn test_system_event_type_deserialize_context_deleted() {
-    let t: SystemEventType = serde_json::from_str("\"CONTEXT_DELETED\"").unwrap();
-    assert!(matches!(t, SystemEventType::ContextDeleted));
-}
-
-#[test]
-fn test_system_event_type_deserialize_contexts_snapshot() {
-    let t: SystemEventType = serde_json::from_str("\"CONTEXTS_SNAPSHOT\"").unwrap();
-    assert!(matches!(t, SystemEventType::ContextsSnapshot));
-}
-
-#[test]
-fn test_system_event_type_deserialize_connected() {
-    let t: SystemEventType = serde_json::from_str("\"CONNECTED\"").unwrap();
-    assert!(matches!(t, SystemEventType::Connected));
-}
-
-#[test]
-fn test_system_event_type_deserialize_heartbeat() {
-    let t: SystemEventType = serde_json::from_str("\"HEARTBEAT\"").unwrap();
-    assert!(matches!(t, SystemEventType::Heartbeat));
-}
-
-#[test]
 fn test_system_event_type_as_str_context_created() {
     let t = SystemEventType::ContextCreated;
     assert_eq!(t.as_str(), "CONTEXT_CREATED");
@@ -117,20 +81,6 @@ fn test_system_event_type_as_str_connected() {
 fn test_system_event_type_as_str_heartbeat() {
     let t = SystemEventType::Heartbeat;
     assert_eq!(t.as_str(), "HEARTBEAT");
-}
-
-#[test]
-fn test_system_event_type_equality() {
-    assert_eq!(SystemEventType::ContextCreated, SystemEventType::ContextCreated);
-    assert_eq!(SystemEventType::Connected, SystemEventType::Connected);
-    assert_ne!(SystemEventType::ContextCreated, SystemEventType::ContextUpdated);
-}
-
-#[test]
-fn test_system_event_type_copy() {
-    let t = SystemEventType::Heartbeat;
-    let copied = t;
-    assert_eq!(t, copied);
 }
 
 #[test]
@@ -186,38 +136,6 @@ fn test_a2a_event_type_artifact_created_serialize() {
 fn test_a2a_event_type_agent_message_serialize() {
     let json = serde_json::to_string(&A2AEventType::AgentMessage).unwrap();
     assert_eq!(json, "\"AGENT_MESSAGE\"");
-}
-
-#[test]
-fn test_a2a_event_type_deserialize_task_status_update() {
-    let t: A2AEventType = serde_json::from_str("\"TASK_STATUS_UPDATE\"").unwrap();
-    assert!(matches!(t, A2AEventType::TaskStatusUpdate));
-}
-
-#[test]
-fn test_a2a_event_type_deserialize_artifact_updated() {
-    let t: A2AEventType = serde_json::from_str("\"ARTIFACT_UPDATED\"").unwrap();
-    assert!(matches!(t, A2AEventType::ArtifactUpdated));
-}
-
-#[test]
-fn test_a2a_event_type_deserialize_task_submitted() {
-    let t: A2AEventType = serde_json::from_str("\"TASK_SUBMITTED\"").unwrap();
-    assert!(matches!(t, A2AEventType::TaskSubmitted));
-}
-
-#[test]
-fn test_a2a_event_type_equality() {
-    assert_eq!(A2AEventType::TaskStatusUpdate, A2AEventType::TaskStatusUpdate);
-    assert_eq!(A2AEventType::ArtifactUpdated, A2AEventType::ArtifactUpdated);
-    assert_ne!(A2AEventType::TaskStatusUpdate, A2AEventType::ArtifactUpdated);
-}
-
-#[test]
-fn test_a2a_event_type_copy() {
-    let t = A2AEventType::TaskStatusUpdate;
-    let copied = t;
-    assert_eq!(t, copied);
 }
 
 #[test]

@@ -41,23 +41,6 @@ fn test_jwt_token_as_ref() {
 }
 
 #[test]
-fn test_jwt_token_clone() {
-    let token1 = JwtToken::new("clone-token");
-    let token2 = token1.clone();
-    assert_eq!(token1, token2);
-}
-
-#[test]
-fn test_jwt_token_equality() {
-    let token1 = JwtToken::new("equal-token");
-    let token2 = JwtToken::new("equal-token");
-    let token3 = JwtToken::new("different-token");
-
-    assert_eq!(token1, token2);
-    assert_ne!(token1, token3);
-}
-
-#[test]
 fn test_jwt_token_hash() {
     let token1 = JwtToken::new("hash-token");
     let token2 = JwtToken::new("hash-token");
@@ -66,13 +49,6 @@ fn test_jwt_token_hash() {
     set.insert(token1.clone());
 
     assert!(set.contains(&token2));
-}
-
-#[test]
-fn test_jwt_token_serialize_json() {
-    let token = JwtToken::new("serialize-token");
-    let json = serde_json::to_string(&token).unwrap();
-    assert_eq!(json, "\"serialize-token\"");
 }
 
 #[test]

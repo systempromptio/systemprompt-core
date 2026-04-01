@@ -68,13 +68,6 @@ mod tool_context_tests {
     }
 
     #[test]
-    fn is_clone() {
-        let ctx = ToolContext::new("token");
-        let cloned = ctx.clone();
-        assert_eq!(cloned.auth_token, ctx.auth_token);
-    }
-
-    #[test]
     fn is_debug() {
         let ctx = ToolContext::new("token");
         let debug = format!("{:?}", ctx);

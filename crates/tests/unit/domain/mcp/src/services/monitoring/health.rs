@@ -54,36 +54,6 @@ fn test_health_status_unknown_emoji() {
 // HealthStatus Equality and Clone Tests
 // ============================================================================
 
-#[test]
-fn test_health_status_equality() {
-    assert_eq!(HealthStatus::Healthy, HealthStatus::Healthy);
-    assert_eq!(HealthStatus::Degraded, HealthStatus::Degraded);
-    assert_eq!(HealthStatus::Unhealthy, HealthStatus::Unhealthy);
-    assert_eq!(HealthStatus::Unknown, HealthStatus::Unknown);
-}
-
-#[test]
-fn test_health_status_inequality() {
-    assert_ne!(HealthStatus::Healthy, HealthStatus::Degraded);
-    assert_ne!(HealthStatus::Degraded, HealthStatus::Unhealthy);
-    assert_ne!(HealthStatus::Unhealthy, HealthStatus::Unknown);
-    assert_ne!(HealthStatus::Unknown, HealthStatus::Healthy);
-}
-
-#[test]
-fn test_health_status_clone() {
-    let status = HealthStatus::Healthy;
-    let cloned = status.clone();
-    assert_eq!(status, cloned);
-}
-
-#[test]
-fn test_health_status_copy() {
-    let status = HealthStatus::Degraded;
-    let copied = status;
-    assert_eq!(status, copied);
-}
-
 // ============================================================================
 // HealthStatus All Variants Tests
 // ============================================================================

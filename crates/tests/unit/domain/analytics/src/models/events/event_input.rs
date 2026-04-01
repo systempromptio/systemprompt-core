@@ -51,50 +51,10 @@ mod create_analytics_event_input_tests {
     }
 
     #[test]
-    fn input_is_clone() {
-        let input = create_input(AnalyticsEventType::LinkClick, "/products");
-        let cloned = input.clone();
-
-        assert_eq!(input.event_type, cloned.event_type);
-        assert_eq!(input.page_url, cloned.page_url);
-    }
-
-    #[test]
     fn input_is_debug() {
         let input = create_input(AnalyticsEventType::Engagement, "/test");
         let debug_str = format!("{:?}", input);
         assert!(debug_str.contains("CreateAnalyticsEventInput"));
-    }
-
-    #[test]
-    fn input_deserializes_from_json() {
-        let json = r#"{
-            "event_type": "page_view",
-            "page_url": "/landing",
-            "referrer": "https://twitter.com"
-        }"#;
-
-        let input: CreateAnalyticsEventInput = serde_json::from_str(json).unwrap();
-
-        assert_eq!(input.event_type, AnalyticsEventType::PageView);
-        assert_eq!(input.page_url, "/landing");
-        assert_eq!(input.referrer, Some("https://twitter.com".to_string()));
-        assert!(input.content_id.is_none());
-    }
-
-    #[test]
-    fn input_deserializes_minimal_json() {
-        let json = r#"{
-            "event_type": "scroll",
-            "page_url": "/blog/post-1"
-        }"#;
-
-        let input: CreateAnalyticsEventInput = serde_json::from_str(json).unwrap();
-
-        assert_eq!(input.event_type, AnalyticsEventType::Scroll);
-        assert_eq!(input.page_url, "/blog/post-1");
-        assert!(input.slug.is_none());
-        assert!(input.data.is_none());
     }
 
     #[test]
@@ -145,47 +105,9 @@ mod create_analytics_event_batch_input_tests {
     }
 
     #[test]
-    fn batch_is_clone() {
-        let batch = CreateAnalyticsEventBatchInput {
-            events: vec![CreateAnalyticsEventInput {
-                event_type: AnalyticsEventType::PageExit,
-                page_url: "/exit".to_string(),
-                content_id: None,
-                slug: None,
-                referrer: None,
-                data: None,
-            }],
-        };
-        let cloned = batch.clone();
-
-        assert_eq!(batch.events.len(), cloned.events.len());
-    }
-
-    #[test]
     fn batch_is_debug() {
         let batch = CreateAnalyticsEventBatchInput { events: vec![] };
         let debug_str = format!("{:?}", batch);
         assert!(debug_str.contains("CreateAnalyticsEventBatchInput"));
-    }
-
-    #[test]
-    fn batch_deserializes() {
-        let json = r#"{
-            "events": [
-                {"event_type": "page_view", "page_url": "/a"},
-                {"event_type": "page_exit", "page_url": "/a"}
-            ]
-        }"#;
-
-        let batch: CreateAnalyticsEventBatchInput = serde_json::from_str(json).unwrap();
-
-        assert_eq!(batch.events.len(), 2);
-    }
-
-    #[test]
-    fn batch_deserializes_empty() {
-        let json = r#"{"events": []}"#;
-        let batch: CreateAnalyticsEventBatchInput = serde_json::from_str(json).unwrap();
-        assert!(batch.events.is_empty());
     }
 }

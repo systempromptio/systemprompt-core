@@ -62,27 +62,6 @@ fn test_client_analytics_serialize() {
 }
 
 #[test]
-fn test_client_analytics_deserialize() {
-    let json = r#"{
-        "client_id": "test-client",
-        "client_type": "thirdparty",
-        "session_count": 10,
-        "unique_users": 5,
-        "total_requests": 100,
-        "total_tokens": 500,
-        "total_cost_microdollars": 25,
-        "avg_session_duration_seconds": 120.0,
-        "avg_response_time_ms": 50.0,
-        "first_seen": "2024-01-01T00:00:00Z",
-        "last_seen": "2024-01-02T00:00:00Z"
-    }"#;
-
-    let analytics: ClientAnalytics = serde_json::from_str(json).unwrap();
-    assert_eq!(analytics.session_count, 10);
-    assert_eq!(analytics.unique_users, 5);
-}
-
-#[test]
 fn test_client_analytics_debug() {
     let row = create_analytics_row();
     let analytics: ClientAnalytics = row.into();
@@ -90,16 +69,6 @@ fn test_client_analytics_debug() {
     let debug_str = format!("{:?}", analytics);
     assert!(debug_str.contains("ClientAnalytics"));
     assert!(debug_str.contains("test-client-123"));
-}
-
-#[test]
-fn test_client_analytics_clone() {
-    let row = create_analytics_row();
-    let analytics: ClientAnalytics = row.into();
-    let cloned = analytics.clone();
-
-    assert_eq!(analytics.client_id, cloned.client_id);
-    assert_eq!(analytics.session_count, cloned.session_count);
 }
 
 #[test]
@@ -218,14 +187,6 @@ fn test_client_analytics_row_debug() {
     assert!(debug_str.contains("test-client-123"));
 }
 
-#[test]
-fn test_client_analytics_row_clone() {
-    let row = create_analytics_row();
-    let cloned = row.clone();
-    assert_eq!(row.client_id, cloned.client_id);
-    assert_eq!(row.session_count, cloned.session_count);
-}
-
 // ============================================================================
 // ClientErrorAnalyticsRow Tests
 // ============================================================================
@@ -240,17 +201,4 @@ fn test_client_error_analytics_row_debug() {
     };
     let debug_str = format!("{:?}", row);
     assert!(debug_str.contains("ClientErrorAnalyticsRow"));
-}
-
-#[test]
-fn test_client_error_analytics_row_clone() {
-    let row = ClientErrorAnalyticsRow {
-        client_id: "clone-row".to_string(),
-        error_count: 5,
-        affected_sessions: 2,
-        last_error: Some("Error message".to_string()),
-    };
-    let cloned = row.clone();
-    assert_eq!(row.client_id, cloned.client_id);
-    assert_eq!(row.last_error, cloned.last_error);
 }

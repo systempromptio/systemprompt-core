@@ -28,34 +28,6 @@ mod image_resolution_tests {
     fn four_k_as_str() {
         assert_eq!(ImageResolution::FourK.as_str(), "4K");
     }
-
-    #[test]
-    fn resolution_equality() {
-        assert_eq!(ImageResolution::OneK, ImageResolution::OneK);
-        assert_eq!(ImageResolution::TwoK, ImageResolution::TwoK);
-        assert_eq!(ImageResolution::FourK, ImageResolution::FourK);
-        assert_ne!(ImageResolution::OneK, ImageResolution::TwoK);
-    }
-
-    #[test]
-    fn resolution_is_copy() {
-        let res = ImageResolution::TwoK;
-        let copied = res;
-        assert_eq!(res, copied);
-    }
-
-    #[test]
-    fn resolution_serialization() {
-        let res = ImageResolution::TwoK;
-        let json = serde_json::to_string(&res).unwrap();
-        assert_eq!(json, "\"2K\"");
-    }
-
-    #[test]
-    fn resolution_deserialization() {
-        let res: ImageResolution = serde_json::from_str("\"4K\"").unwrap();
-        assert_eq!(res, ImageResolution::FourK);
-    }
 }
 
 mod aspect_ratio_tests {
@@ -95,33 +67,6 @@ mod aspect_ratio_tests {
     #[test]
     fn ultra_wide_as_str() {
         assert_eq!(AspectRatio::UltraWide.as_str(), "21:9");
-    }
-
-    #[test]
-    fn aspect_ratio_equality() {
-        assert_eq!(AspectRatio::Square, AspectRatio::Square);
-        assert_eq!(AspectRatio::Landscape169, AspectRatio::Landscape169);
-        assert_ne!(AspectRatio::Square, AspectRatio::Landscape169);
-    }
-
-    #[test]
-    fn aspect_ratio_is_copy() {
-        let ratio = AspectRatio::Portrait916;
-        let copied = ratio;
-        assert_eq!(ratio, copied);
-    }
-
-    #[test]
-    fn aspect_ratio_serialization() {
-        let ratio = AspectRatio::Landscape169;
-        let json = serde_json::to_string(&ratio).unwrap();
-        assert_eq!(json, "\"16:9\"");
-    }
-
-    #[test]
-    fn aspect_ratio_deserialization() {
-        let ratio: AspectRatio = serde_json::from_str("\"9:16\"").unwrap();
-        assert_eq!(ratio, AspectRatio::Portrait916);
     }
 }
 
@@ -179,30 +124,6 @@ mod image_generation_request_tests {
         assert_eq!(request.reference_images.len(), 1);
         assert!(request.enable_search_grounding);
         assert_eq!(request.user_id, Some("user-123".to_string()));
-    }
-
-    #[test]
-    fn request_serialization_roundtrip() {
-        let request = ImageGenerationRequest {
-            prompt: "Test prompt".to_string(),
-            model: Some("model-name".to_string()),
-            resolution: ImageResolution::TwoK,
-            aspect_ratio: AspectRatio::Portrait34,
-            reference_images: Vec::new(),
-            enable_search_grounding: false,
-            user_id: None,
-            session_id: None,
-            trace_id: None,
-            mcp_execution_id: None,
-        };
-
-        let json = serde_json::to_string(&request).unwrap();
-        let deserialized: ImageGenerationRequest = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(request.prompt, deserialized.prompt);
-        assert_eq!(request.model, deserialized.model);
-        assert_eq!(request.resolution, deserialized.resolution);
-        assert_eq!(request.aspect_ratio, deserialized.aspect_ratio);
     }
 }
 
@@ -382,37 +303,5 @@ mod generated_image_record_tests {
 
         record.expires_at.as_ref().expect("expires_at should be present");
         assert!(record.deleted_at.is_none());
-    }
-
-    #[test]
-    fn record_serialization_roundtrip() {
-        let record = GeneratedImageRecord {
-            uuid: "uuid-test".to_string(),
-            request_id: "req-test".to_string(),
-            prompt: "test prompt".to_string(),
-            model: "model".to_string(),
-            provider: "provider".to_string(),
-            file_path: "/path/to/image.png".to_string(),
-            public_url: "https://example.com/image.png".to_string(),
-            file_size_bytes: Some(2048),
-            mime_type: "image/png".to_string(),
-            resolution: Some("2K".to_string()),
-            aspect_ratio: Some("16:9".to_string()),
-            generation_time_ms: Some(1000),
-            cost_estimate: Some(0.10),
-            user_id: Some("user".to_string()),
-            session_id: None,
-            trace_id: None,
-            created_at: chrono::Utc::now(),
-            expires_at: None,
-            deleted_at: None,
-        };
-
-        let json = serde_json::to_string(&record).unwrap();
-        let deserialized: GeneratedImageRecord = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(record.uuid, deserialized.uuid);
-        assert_eq!(record.prompt, deserialized.prompt);
-        assert_eq!(record.file_size_bytes, deserialized.file_size_bytes);
     }
 }

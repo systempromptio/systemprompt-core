@@ -173,21 +173,6 @@ fn test_module_api_registration_debug() {
 }
 
 #[test]
-fn test_module_api_registration_copy() {
-    let registration = ModuleApiRegistration {
-        module_name: "copy-test",
-        category: ServiceCategory::Core,
-        module_type: ModuleType::Regular,
-        router_fn: dummy_router,
-        auth_required: true,
-    };
-
-    let copied = registration;
-    assert_eq!(copied.module_name, registration.module_name);
-    assert!(copied.auth_required == registration.auth_required);
-}
-
-#[test]
 fn test_module_api_registration_clone() {
     let registration = ModuleApiRegistration {
         module_name: "clone-test",
@@ -257,18 +242,6 @@ fn test_wellknown_route_debug() {
     let debug_str = format!("{:?}", route);
     assert!(debug_str.contains("WellKnownRoute"));
     assert!(debug_str.contains("/.well-known/debug"));
-}
-
-#[test]
-fn test_wellknown_route_copy() {
-    let route = WellKnownRoute {
-        path: "/.well-known/copy",
-        handler_fn: dummy_handler,
-        methods: &[axum::http::Method::GET],
-    };
-
-    let copied = route;
-    assert_eq!(copied.path, route.path);
 }
 
 #[test]

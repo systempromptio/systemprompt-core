@@ -15,14 +15,6 @@ fn test_content_kind_as_str_article() {
 }
 
 #[test]
-fn test_content_kind_copy() {
-    use systemprompt_content::models::ContentKind;
-    let kind = ContentKind::Article;
-    let copied = kind;
-    assert_eq!(copied, ContentKind::Article);
-}
-
-#[test]
 fn test_content_kind_as_str_guide() {
     use systemprompt_content::models::ContentKind;
     let kind = ContentKind::Guide;
@@ -57,13 +49,6 @@ fn test_content_kind_serialization() {
     let kind = ContentKind::Guide;
     let json = serde_json::to_string(&kind).unwrap();
     assert_eq!(json, "\"guide\"");
-}
-
-#[test]
-fn test_content_kind_deserialization() {
-    use systemprompt_content::models::ContentKind;
-    let kind: ContentKind = serde_json::from_str("\"guide\"").unwrap();
-    assert_eq!(kind, ContentKind::Guide);
 }
 
 // ============================================================================

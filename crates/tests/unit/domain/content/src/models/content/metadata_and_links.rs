@@ -108,17 +108,3 @@ fn test_content_link_metadata_creation() {
     assert_eq!(link.title, "External Resource");
     assert_eq!(link.url, "https://example.com/resource");
 }
-
-#[test]
-fn test_content_link_metadata_clone() {
-    use systemprompt_content::models::ContentLinkMetadata;
-
-    let link = ContentLinkMetadata {
-        title: "Link".to_string(),
-        url: "https://example.com".to_string(),
-    };
-    let cloned = link.clone();
-
-    assert_eq!(cloned.title, link.title);
-    assert_eq!(cloned.url, link.url);
-}

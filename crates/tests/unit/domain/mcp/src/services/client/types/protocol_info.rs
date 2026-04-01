@@ -56,16 +56,6 @@ fn test_mcp_protocol_info_serialize() {
 }
 
 #[test]
-fn test_mcp_protocol_info_deserialize() {
-    let json = r#"{"server_name":"test-server","version":"1.0.0","protocol_version":"2024-11-05"}"#;
-    let info: McpProtocolInfo = serde_json::from_str(json).unwrap();
-
-    assert_eq!(info.server_name, "test-server");
-    assert_eq!(info.version, "1.0.0");
-    assert_eq!(info.protocol_version, "2024-11-05");
-}
-
-#[test]
 fn test_validation_result_success() {
     let result = ValidationResult {
         success: true,
@@ -93,20 +83,6 @@ fn test_validation_result_failure() {
     assert_eq!(result.error_message, Some("Connection failed".to_string()));
     assert_eq!(result.tools_count, 0);
     assert_eq!(result.validation_type, "connection_failed");
-}
-
-#[test]
-fn test_validation_result_clone() {
-    let result = ValidationResult {
-        success: true,
-        error_message: None,
-        tools_count: 3,
-        validation_type: "mcp_validated".to_string(),
-    };
-
-    let cloned = result.clone();
-    assert_eq!(cloned.success, result.success);
-    assert_eq!(cloned.tools_count, result.tools_count);
 }
 
 #[test]

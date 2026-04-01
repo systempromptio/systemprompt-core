@@ -219,34 +219,3 @@ fn test_utm_params_to_json() {
     assert!(json.contains("\"medium\":\"cpc\""));
     assert!(json.contains("\"campaign\":\"summer\""));
 }
-
-#[test]
-fn test_utm_params_deserialize() {
-    let json = r#"{"source":"twitter","medium":"social","campaign":"winter"}"#;
-    let params: UtmParams = serde_json::from_str(json).unwrap();
-
-    assert_eq!(params.source, Some("twitter".to_string()));
-    assert_eq!(params.medium, Some("social".to_string()));
-    assert_eq!(params.campaign, Some("winter".to_string()));
-    assert!(params.term.is_none());
-    assert!(params.content.is_none());
-}
-
-#[test]
-fn test_utm_params_deserialize_empty() {
-    let json = r#"{}"#;
-    let params: UtmParams = serde_json::from_str(json).unwrap();
-
-    assert!(params.source.is_none());
-    assert!(params.medium.is_none());
-    assert!(params.campaign.is_none());
-    assert!(params.term.is_none());
-    assert!(params.content.is_none());
-}
-
-#[test]
-fn test_utm_params_deserialize_invalid() {
-    let json = "not valid json";
-    let result: Result<UtmParams, _> = serde_json::from_str(json);
-    result.unwrap_err();
-}

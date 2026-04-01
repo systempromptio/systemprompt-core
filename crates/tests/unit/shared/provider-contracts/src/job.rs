@@ -101,13 +101,6 @@ mod job_result_tests {
     }
 
     #[test]
-    fn is_clone() {
-        let result = JobResult::success().with_message("test");
-        let cloned = result.clone();
-        assert_eq!(cloned.message, result.message);
-    }
-
-    #[test]
     fn is_debug() {
         let result = JobResult::success();
         let debug = format!("{:?}", result);

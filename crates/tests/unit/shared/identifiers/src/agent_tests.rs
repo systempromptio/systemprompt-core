@@ -45,23 +45,6 @@ fn test_agent_id_as_ref() {
 }
 
 #[test]
-fn test_agent_id_clone() {
-    let id1 = AgentId::new("clone-test");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
-fn test_agent_id_equality() {
-    let id1 = AgentId::new("equal");
-    let id2 = AgentId::new("equal");
-    let id3 = AgentId::new("different");
-
-    assert_eq!(id1, id2);
-    assert_ne!(id1, id3);
-}
-
-#[test]
 fn test_agent_id_hash() {
     let id1 = AgentId::new("hash-test");
     let id2 = AgentId::new("hash-test");
@@ -70,13 +53,6 @@ fn test_agent_id_hash() {
     set.insert(id1.clone());
 
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_agent_id_serialize_json() {
-    let id = AgentId::new("serialize-test");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-test\"");
 }
 
 #[test]
@@ -158,23 +134,6 @@ fn test_agent_name_as_ref() {
     let name = AgentName::new("as-ref-agent");
     let s: &str = name.as_ref();
     assert_eq!(s, "as-ref-agent");
-}
-
-#[test]
-fn test_agent_name_clone() {
-    let name1 = AgentName::new("clone-agent");
-    let name2 = name1.clone();
-    assert_eq!(name1, name2);
-}
-
-#[test]
-fn test_agent_name_equality() {
-    let name1 = AgentName::new("equal-agent");
-    let name2 = AgentName::new("equal-agent");
-    let name3 = AgentName::new("different-agent");
-
-    assert_eq!(name1, name2);
-    assert_ne!(name1, name3);
 }
 
 #[test]

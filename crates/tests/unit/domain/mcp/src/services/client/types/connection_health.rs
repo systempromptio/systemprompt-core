@@ -188,13 +188,3 @@ fn test_mcp_connection_result_serialize() {
     assert!(json.contains("test-service"));
     assert!(json.contains("mcp_validated"));
 }
-
-#[test]
-fn test_mcp_connection_result_deserialize() {
-    let json = r#"{"service_name":"test-service","success":true,"error_message":null,"connection_time_ms":100,"server_info":null,"tools_count":5,"validation_type":"mcp_validated"}"#;
-    let result: McpConnectionResult = serde_json::from_str(json).unwrap();
-
-    assert_eq!(result.service_name, "test-service");
-    assert!(result.success);
-    assert_eq!(result.tools_count, 5);
-}

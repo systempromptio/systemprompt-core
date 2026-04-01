@@ -73,13 +73,6 @@ fn test_context_id_as_ref() {
 }
 
 #[test]
-fn test_context_id_clone_and_eq() {
-    let id1 = ContextId::new("clone-context");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_context_id_hash() {
     let id1 = ContextId::new("hash-context");
     let id2 = ContextId::new("hash-context");
@@ -87,13 +80,6 @@ fn test_context_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_context_id_serialize_json() {
-    let id = ContextId::new("serialize-context");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-context\"");
 }
 
 #[test]

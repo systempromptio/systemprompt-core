@@ -46,29 +46,6 @@ mod merge_result_tests {
     }
 
     #[test]
-    fn merge_result_is_copy() {
-        let result = MergeResult {
-            sessions_transferred: 3,
-            tasks_transferred: 7,
-        };
-
-        let copied = result;
-        assert_eq!(result.sessions_transferred, copied.sessions_transferred);
-        assert_eq!(result.tasks_transferred, copied.tasks_transferred);
-    }
-
-    #[test]
-    fn merge_result_is_clone() {
-        let result = MergeResult {
-            sessions_transferred: 3,
-            tasks_transferred: 7,
-        };
-
-        let cloned = result;
-        assert_eq!(result.sessions_transferred, cloned.sessions_transferred);
-    }
-
-    #[test]
     fn merge_result_debug() {
         let result = MergeResult {
             sessions_transferred: 5,

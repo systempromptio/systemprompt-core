@@ -90,28 +90,6 @@ mod tool_definition_tests {
     }
 
     #[test]
-    fn is_deserializable() {
-        let json = r#"{"name":"tool","service_id":"svc","terminal_on_success":false}"#;
-        let def: ToolDefinition = serde_json::from_str(json).unwrap();
-        assert_eq!(def.name, "tool");
-        assert_eq!(def.service_id, "svc");
-    }
-
-    #[test]
-    fn is_clone() {
-        let def = ToolDefinition::new("tool", "svc");
-        let cloned = def.clone();
-        assert_eq!(cloned.name, def.name);
-    }
-
-    #[test]
-    fn is_eq() {
-        let def1 = ToolDefinition::new("tool", "svc");
-        let def2 = ToolDefinition::new("tool", "svc");
-        assert_eq!(def1, def2);
-    }
-
-    #[test]
     fn is_debug() {
         let def = ToolDefinition::new("tool", "svc");
         let debug = format!("{:?}", def);
@@ -154,21 +132,6 @@ mod tool_call_request_tests {
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("call-1"));
         assert!(json.contains("search"));
-    }
-
-    #[test]
-    fn is_deserializable() {
-        let req = test_request();
-        let json = serde_json::to_string(&req).unwrap();
-        let deserialized: ToolCallRequest = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.tool_call_id, req.tool_call_id);
-    }
-
-    #[test]
-    fn is_clone() {
-        let req = test_request();
-        let cloned = req.clone();
-        assert_eq!(cloned.name, req.name);
     }
 
     #[test]

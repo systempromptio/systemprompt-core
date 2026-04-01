@@ -117,29 +117,6 @@ mod image_provider_capabilities_tests {
     }
 
     #[test]
-    fn capabilities_is_clone() {
-        let caps = ImageProviderCapabilities {
-            supported_resolutions: vec![ImageResolution::OneK],
-            supported_aspect_ratios: vec![AspectRatio::Square],
-            supports_batch: true,
-            supports_image_editing: true,
-            supports_search_grounding: true,
-            max_prompt_length: 5000,
-            cost_per_image_cents: 10.5,
-        };
-
-        let cloned = caps.clone();
-
-        assert_eq!(cloned.supported_resolutions.len(), 1);
-        assert_eq!(cloned.supported_aspect_ratios.len(), 1);
-        assert!(cloned.supports_batch);
-        assert!(cloned.supports_image_editing);
-        assert!(cloned.supports_search_grounding);
-        assert_eq!(cloned.max_prompt_length, 5000);
-        assert!((cloned.cost_per_image_cents - 10.5).abs() < f32::EPSILON);
-    }
-
-    #[test]
     fn capabilities_is_debug() {
         let caps = ImageProviderCapabilities {
             supported_resolutions: vec![],

@@ -111,13 +111,6 @@ fn test_file_stats_clone() {
 }
 
 #[test]
-fn test_file_stats_copy() {
-    let stats = create_test_stats();
-    let copied: FileStats = stats;
-    assert_eq!(stats.total_files, copied.total_files);
-}
-
-#[test]
 fn test_file_stats_debug() {
     let stats = create_test_stats();
     let debug_str = format!("{:?}", stats);

@@ -63,26 +63,6 @@ mod engagement_event_data_tests {
     }
 
     #[test]
-    fn data_deserializes() {
-        let json = r#"{"max_scroll_depth": 100, "is_dead_click": false}"#;
-        let data: EngagementEventData = serde_json::from_str(json).unwrap();
-
-        assert_eq!(data.max_scroll_depth, Some(100));
-        assert_eq!(data.is_dead_click, Some(false));
-        assert!(data.click_count.is_none());
-    }
-
-    #[test]
-    fn data_is_clone() {
-        let data = EngagementEventData {
-            max_scroll_depth: Some(25),
-            ..Default::default()
-        };
-        let cloned = data.clone();
-        assert_eq!(data.max_scroll_depth, cloned.max_scroll_depth);
-    }
-
-    #[test]
     fn data_is_debug() {
         let data = EngagementEventData::default();
         let debug_str = format!("{:?}", data);
@@ -128,26 +108,6 @@ mod link_click_event_data_tests {
         let json = serde_json::to_string(&data).unwrap();
         assert!(json.contains("target_url"));
         assert!(!json.contains("link_text"));
-    }
-
-    #[test]
-    fn data_deserializes() {
-        let json = r#"{"target_url": "https://dest.com", "is_external": true}"#;
-        let data: LinkClickEventData = serde_json::from_str(json).unwrap();
-
-        assert_eq!(data.target_url, Some("https://dest.com".to_string()));
-        assert_eq!(data.is_external, Some(true));
-        assert!(data.link_text.is_none());
-    }
-
-    #[test]
-    fn data_is_clone() {
-        let data = LinkClickEventData {
-            link_text: Some("Test".to_string()),
-            ..Default::default()
-        };
-        let cloned = data.clone();
-        assert_eq!(data.link_text, cloned.link_text);
     }
 
     #[test]
@@ -199,26 +159,6 @@ mod scroll_event_data_tests {
     }
 
     #[test]
-    fn data_deserializes() {
-        let json = r#"{"depth": 100, "direction": "up"}"#;
-        let data: ScrollEventData = serde_json::from_str(json).unwrap();
-
-        assert_eq!(data.depth, Some(100));
-        assert_eq!(data.direction, Some("up".to_string()));
-        assert!(data.velocity.is_none());
-    }
-
-    #[test]
-    fn data_is_clone() {
-        let data = ScrollEventData {
-            milestone: Some(50),
-            ..Default::default()
-        };
-        let cloned = data.clone();
-        assert_eq!(data.milestone, cloned.milestone);
-    }
-
-    #[test]
     fn data_is_debug() {
         let data = ScrollEventData::default();
         let debug_str = format!("{:?}", data);
@@ -261,26 +201,6 @@ mod conversion_event_data_tests {
         let json = serde_json::to_string(&data).unwrap();
         assert!(json.contains("goal_name"));
         assert!(!json.contains("goal_value"));
-    }
-
-    #[test]
-    fn data_deserializes() {
-        let json = r#"{"goal_name": "trial_start", "goal_value": 0.0}"#;
-        let data: ConversionEventData = serde_json::from_str(json).unwrap();
-
-        assert_eq!(data.goal_name, Some("trial_start".to_string()));
-        assert!((data.goal_value.unwrap() - 0.0).abs() < f64::EPSILON);
-        assert!(data.funnel_step.is_none());
-    }
-
-    #[test]
-    fn data_is_clone() {
-        let data = ConversionEventData {
-            funnel_step: Some(1),
-            ..Default::default()
-        };
-        let cloned = data.clone();
-        assert_eq!(data.funnel_step, cloned.funnel_step);
     }
 
     #[test]

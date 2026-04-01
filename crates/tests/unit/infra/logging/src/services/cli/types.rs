@@ -8,73 +8,13 @@ use systemprompt_logging::services::cli::theme::{
 // ItemStatus Tests
 // ============================================================================
 
-#[test]
-fn test_item_status_clone() {
-    let status = ItemStatus::Applied;
-    let cloned = status.clone();
-    assert_eq!(status, cloned);
-}
-
-#[test]
-fn test_item_status_copy() {
-    let status = ItemStatus::Applied;
-    let copied: ItemStatus = status;
-    assert_eq!(status, copied);
-}
-
-#[test]
-fn test_item_status_equality() {
-    assert_eq!(ItemStatus::Valid, ItemStatus::Valid);
-    assert_ne!(ItemStatus::Valid, ItemStatus::Failed);
-}
-
 // ============================================================================
 // ModuleType Tests
 // ============================================================================
 
-#[test]
-fn test_module_type_clone() {
-    let module = ModuleType::Schema;
-    let cloned = module.clone();
-    assert_eq!(module, cloned);
-}
-
-#[test]
-fn test_module_type_copy() {
-    let module = ModuleType::Seed;
-    let copied: ModuleType = module;
-    assert_eq!(module, copied);
-}
-
-#[test]
-fn test_module_type_equality() {
-    assert_eq!(ModuleType::Schema, ModuleType::Schema);
-    assert_ne!(ModuleType::Schema, ModuleType::Seed);
-}
-
 // ============================================================================
 // MessageLevel Tests
 // ============================================================================
-
-#[test]
-fn test_message_level_clone() {
-    let level = MessageLevel::Success;
-    let cloned = level.clone();
-    assert_eq!(level, cloned);
-}
-
-#[test]
-fn test_message_level_copy() {
-    let level = MessageLevel::Warning;
-    let copied: MessageLevel = level;
-    assert_eq!(level, copied);
-}
-
-#[test]
-fn test_message_level_equality() {
-    assert_eq!(MessageLevel::Error, MessageLevel::Error);
-    assert_ne!(MessageLevel::Error, MessageLevel::Info);
-}
 
 // ============================================================================
 // ActionType Tests

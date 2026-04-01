@@ -112,18 +112,6 @@ fn test_migration_result_debug() {
 }
 
 #[test]
-fn test_migration_result_copy() {
-    let result = MigrationResult {
-        migrations_run: 7,
-        migrations_skipped: 1,
-    };
-
-    let copied = result;
-    assert_eq!(result.migrations_run, copied.migrations_run);
-    assert_eq!(result.migrations_skipped, copied.migrations_skipped);
-}
-
-#[test]
 fn test_migration_result_zero_values() {
     let result = MigrationResult {
         migrations_run: 0,

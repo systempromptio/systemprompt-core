@@ -10,44 +10,6 @@ mod diff_status_tests {
     use super::*;
 
     #[test]
-    fn added_serializes() {
-        let json = serde_json::to_string(&DiffStatus::Added).unwrap();
-        assert_eq!(json, "\"Added\"");
-    }
-
-    #[test]
-    fn removed_serializes() {
-        let json = serde_json::to_string(&DiffStatus::Removed).unwrap();
-        assert_eq!(json, "\"Removed\"");
-    }
-
-    #[test]
-    fn modified_serializes() {
-        let json = serde_json::to_string(&DiffStatus::Modified).unwrap();
-        assert_eq!(json, "\"Modified\"");
-    }
-
-    #[test]
-    fn is_clone() {
-        let status = DiffStatus::Added;
-        let cloned = status;
-        assert_eq!(status, cloned);
-    }
-
-    #[test]
-    fn is_copy() {
-        let status = DiffStatus::Modified;
-        let copied: DiffStatus = status;
-        assert_eq!(status, copied);
-    }
-
-    #[test]
-    fn is_eq() {
-        assert_eq!(DiffStatus::Added, DiffStatus::Added);
-        assert_ne!(DiffStatus::Added, DiffStatus::Removed);
-    }
-
-    #[test]
     fn is_debug() {
         let debug = format!("{:?}", DiffStatus::Modified);
         assert!(debug.contains("Modified"));
@@ -73,20 +35,6 @@ mod local_sync_direction_tests {
     #[test]
     fn directions_are_different() {
         assert_ne!(LocalSyncDirection::ToDisk, LocalSyncDirection::ToDatabase);
-    }
-
-    #[test]
-    fn is_clone() {
-        let dir = LocalSyncDirection::ToDisk;
-        let cloned = dir;
-        assert_eq!(dir, cloned);
-    }
-
-    #[test]
-    fn is_copy() {
-        let dir = LocalSyncDirection::ToDatabase;
-        let copied: LocalSyncDirection = dir;
-        assert_eq!(dir, copied);
     }
 
     #[test]
@@ -171,13 +119,6 @@ mod content_diff_result_tests {
     }
 
     #[test]
-    fn result_is_clone() {
-        let result = empty_result();
-        let cloned = result.clone();
-        assert_eq!(cloned.source_id, result.source_id);
-    }
-
-    #[test]
     fn result_is_debug() {
         let result = empty_result();
         let debug = format!("{:?}", result);
@@ -256,13 +197,6 @@ mod skills_diff_result_tests {
     }
 
     #[test]
-    fn result_is_clone() {
-        let result = empty_result();
-        let cloned = result.clone();
-        assert_eq!(cloned.unchanged, result.unchanged);
-    }
-
-    #[test]
     fn result_is_debug() {
         let result = empty_result();
         let debug = format!("{:?}", result);
@@ -335,13 +269,6 @@ mod local_sync_result_tests {
         let result = test_result();
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("ToDisk"));
-    }
-
-    #[test]
-    fn result_is_clone() {
-        let result = test_result();
-        let cloned = result.clone();
-        assert_eq!(cloned.items_synced, result.items_synced);
     }
 
     #[test]

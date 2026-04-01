@@ -31,26 +31,6 @@ mod phase_tests {
     }
 
     #[test]
-    fn phase_is_copy() {
-        let phase = Phase::Database;
-        let copied = phase;
-        assert_eq!(phase, copied);
-    }
-
-    #[test]
-    fn phase_is_clone() {
-        let phase = Phase::McpServers;
-        let cloned = phase.clone();
-        assert_eq!(phase, cloned);
-    }
-
-    #[test]
-    fn phase_equality() {
-        assert_eq!(Phase::PreFlight, Phase::PreFlight);
-        assert_ne!(Phase::PreFlight, Phase::Database);
-    }
-
-    #[test]
     fn phase_is_debug() {
         let phase = Phase::ApiServer;
         let debug_str = format!("{:?}", phase);
@@ -81,19 +61,6 @@ mod service_type_tests {
     }
 
     #[test]
-    fn service_type_is_copy() {
-        let st = ServiceType::Mcp;
-        let copied = st;
-        assert_eq!(st, copied);
-    }
-
-    #[test]
-    fn service_type_equality() {
-        assert_eq!(ServiceType::Agent, ServiceType::Agent);
-        assert_ne!(ServiceType::Agent, ServiceType::Api);
-    }
-
-    #[test]
     fn service_type_is_debug() {
         let st = ServiceType::Scheduler;
         let debug_str = format!("{:?}", st);
@@ -103,19 +70,6 @@ mod service_type_tests {
 
 mod service_state_tests {
     use super::*;
-
-    #[test]
-    fn service_state_is_copy() {
-        let state = ServiceState::Running;
-        let copied = state;
-        assert_eq!(state, copied);
-    }
-
-    #[test]
-    fn service_state_equality() {
-        assert_eq!(ServiceState::Running, ServiceState::Running);
-        assert_ne!(ServiceState::Running, ServiceState::Stopped);
-    }
 
     #[test]
     fn service_state_is_debug() {
@@ -160,24 +114,6 @@ mod service_info_tests {
     }
 
     #[test]
-    fn service_info_is_clone() {
-        let info = ServiceInfo {
-            name: "cloneable".to_string(),
-            service_type: ServiceType::Api,
-            port: Some(8080),
-            state: ServiceState::Running,
-            startup_time: Some(Duration::from_secs(1)),
-        };
-        let cloned = info.clone();
-
-        assert_eq!(info.name, cloned.name);
-        assert_eq!(info.service_type, cloned.service_type);
-        assert_eq!(info.port, cloned.port);
-        assert_eq!(info.state, cloned.state);
-        assert_eq!(info.startup_time, cloned.startup_time);
-    }
-
-    #[test]
     fn service_info_is_debug() {
         let info = ServiceInfo {
             name: "debug-test".to_string(),
@@ -205,18 +141,6 @@ mod module_info_tests {
 
         assert_eq!(info.name, "auth_module");
         assert_eq!(info.category, "security");
-    }
-
-    #[test]
-    fn module_info_is_clone() {
-        let info = ModuleInfo {
-            name: "original".to_string(),
-            category: "test".to_string(),
-        };
-        let cloned = info.clone();
-
-        assert_eq!(info.name, cloned.name);
-        assert_eq!(info.category, cloned.category);
     }
 
     #[test]

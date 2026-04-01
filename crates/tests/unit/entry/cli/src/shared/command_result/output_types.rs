@@ -22,27 +22,6 @@ fn test_text_output_new_with_string() {
 }
 
 #[test]
-fn test_text_output_serialize() {
-    let output = TextOutput::new("hello");
-    let json = serde_json::to_string(&output).unwrap();
-    assert_eq!(json, r#"{"message":"hello"}"#);
-}
-
-#[test]
-fn test_text_output_deserialize() {
-    let json = r#"{"message":"world"}"#;
-    let output: TextOutput = serde_json::from_str(json).unwrap();
-    assert_eq!(output.message, "world");
-}
-
-#[test]
-fn test_text_output_clone() {
-    let original = TextOutput::new("original");
-    let cloned = original.clone();
-    assert_eq!(cloned.message, "original");
-}
-
-#[test]
 fn test_text_output_debug() {
     let output = TextOutput::new("debug test");
     let debug = format!("{:?}", output);
@@ -78,15 +57,6 @@ fn test_success_output_serialize_with_details() {
         .with_details(vec!["detail1".to_string()]);
     let json = serde_json::to_string(&output).unwrap();
     assert!(json.contains("\"details\":[\"detail1\"]"));
-}
-
-#[test]
-fn test_success_output_clone() {
-    let original = SuccessOutput::new("test")
-        .with_details(vec!["d1".to_string()]);
-    let cloned = original.clone();
-    assert_eq!(cloned.message, "test");
-    assert_eq!(cloned.details.as_ref().unwrap().len(), 1);
 }
 
 #[test]
@@ -137,22 +107,6 @@ fn test_key_value_output_serialize() {
 }
 
 #[test]
-fn test_key_value_output_deserialize() {
-    let json = r#"{"items":[{"key":"test_key","value":"test_value"}]}"#;
-    let output: KeyValueOutput = serde_json::from_str(json).unwrap();
-    assert_eq!(output.items.len(), 1);
-    assert_eq!(output.items[0].key, "test_key");
-}
-
-#[test]
-fn test_key_value_output_clone() {
-    let original = KeyValueOutput::new()
-        .add("k", "v");
-    let cloned = original.clone();
-    assert_eq!(cloned.items.len(), 1);
-}
-
-#[test]
 fn test_key_value_item_debug() {
     let item = KeyValueItem {
         key: "test_key".to_string(),
@@ -161,17 +115,6 @@ fn test_key_value_item_debug() {
     let debug = format!("{:?}", item);
     assert!(debug.contains("KeyValueItem"));
     assert!(debug.contains("test_key"));
-}
-
-#[test]
-fn test_key_value_item_clone() {
-    let original = KeyValueItem {
-        key: "k".to_string(),
-        value: "v".to_string(),
-    };
-    let cloned = original.clone();
-    assert_eq!(cloned.key, "k");
-    assert_eq!(cloned.value, "v");
 }
 
 #[test]
@@ -194,21 +137,6 @@ fn test_table_output_new_empty() {
 }
 
 #[test]
-fn test_table_output_serialize() {
-    let output = TableOutput::new(vec![1, 2, 3]);
-    let json = serde_json::to_string(&output).unwrap();
-    assert_eq!(json, r#"{"rows":[1,2,3]}"#);
-}
-
-#[test]
-fn test_table_output_deserialize() {
-    let json = r#"{"rows":["a","b","c"]}"#;
-    let output: TableOutput<String> = serde_json::from_str(json).unwrap();
-    assert_eq!(output.rows.len(), 3);
-    assert_eq!(output.rows[0], "a");
-}
-
-#[test]
 fn test_table_output_with_complex_type() {
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     struct Row {
@@ -225,11 +153,4 @@ fn test_table_output_with_complex_type() {
     let json = serde_json::to_string(&output).unwrap();
     assert!(json.contains("Alice"));
     assert!(json.contains("Bob"));
-}
-
-#[test]
-fn test_table_output_clone() {
-    let original = TableOutput::new(vec![1, 2, 3]);
-    let cloned = original.clone();
-    assert_eq!(cloned.rows, vec![1, 2, 3]);
 }

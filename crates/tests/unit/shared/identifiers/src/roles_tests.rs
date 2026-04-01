@@ -35,13 +35,6 @@ fn test_role_id_as_ref() {
 }
 
 #[test]
-fn test_role_id_clone_and_eq() {
-    let id1 = RoleId::new("clone-role");
-    let id2 = id1.clone();
-    assert_eq!(id1, id2);
-}
-
-#[test]
 fn test_role_id_hash() {
     let id1 = RoleId::new("hash-role");
     let id2 = RoleId::new("hash-role");
@@ -49,13 +42,6 @@ fn test_role_id_hash() {
     let mut set = HashSet::new();
     set.insert(id1.clone());
     assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_role_id_serialize_json() {
-    let id = RoleId::new("serialize-role");
-    let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serialize-role\"");
 }
 
 #[test]

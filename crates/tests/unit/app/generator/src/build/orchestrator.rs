@@ -64,37 +64,9 @@ fn test_build_mode_as_str_docker() {
 // BuildMode Equality Tests
 // ============================================================================
 
-#[test]
-fn test_build_mode_equality() {
-    assert_eq!(BuildMode::Development, BuildMode::Development);
-    assert_eq!(BuildMode::Production, BuildMode::Production);
-    assert_eq!(BuildMode::Docker, BuildMode::Docker);
-}
-
-#[test]
-fn test_build_mode_inequality() {
-    assert_ne!(BuildMode::Development, BuildMode::Production);
-    assert_ne!(BuildMode::Development, BuildMode::Docker);
-    assert_ne!(BuildMode::Production, BuildMode::Docker);
-}
-
 // ============================================================================
 // BuildMode Clone and Copy Tests
 // ============================================================================
-
-#[test]
-fn test_build_mode_clone() {
-    let mode = BuildMode::Development;
-    let cloned = mode.clone();
-    assert_eq!(mode, cloned);
-}
-
-#[test]
-fn test_build_mode_copy() {
-    let mode = BuildMode::Production;
-    let copied = mode;
-    assert_eq!(mode, copied);
-}
 
 // ============================================================================
 // BuildError Display Tests

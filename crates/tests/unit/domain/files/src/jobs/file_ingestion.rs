@@ -19,16 +19,6 @@ fn test_file_ingestion_job_default() {
     assert_eq!(job.name(), "file_ingestion");
 }
 
-#[test]
-fn test_file_ingestion_job_new_equals_default() {
-    let job1 = FileIngestionJob::new();
-    let job2 = FileIngestionJob::default();
-
-    assert_eq!(job1.name(), job2.name());
-    assert_eq!(job1.description(), job2.description());
-    assert_eq!(job1.schedule(), job2.schedule());
-}
-
 // ============================================================================
 // Job Trait Implementation Tests
 // ============================================================================
@@ -75,22 +65,6 @@ fn test_file_ingestion_job_enabled() {
 // ============================================================================
 // Copy/Clone Tests
 // ============================================================================
-
-#[test]
-fn test_file_ingestion_job_copy() {
-    let job = FileIngestionJob::new();
-    let copied = job;
-
-    assert_eq!(job.name(), copied.name());
-}
-
-#[test]
-fn test_file_ingestion_job_clone() {
-    let job = FileIngestionJob::new();
-    let cloned = job.clone();
-
-    assert_eq!(job.name(), cloned.name());
-}
 
 // ============================================================================
 // Debug Implementation Tests

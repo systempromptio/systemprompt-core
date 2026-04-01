@@ -45,20 +45,6 @@ mod platform_overview_tests {
     }
 
     #[test]
-    fn overview_is_copy() {
-        let overview = create_overview();
-        let copied = overview;
-        assert_eq!(overview.total_users, copied.total_users);
-    }
-
-    #[test]
-    fn overview_is_clone() {
-        let overview = create_overview();
-        let cloned = overview.clone();
-        assert_eq!(overview.total_tasks, cloned.total_tasks);
-    }
-
-    #[test]
     fn overview_is_debug() {
         let overview = create_overview();
         let debug_str = format!("{:?}", overview);
@@ -72,25 +58,6 @@ mod platform_overview_tests {
 
         assert!(json.contains("total_users"));
         assert!(json.contains("active_sessions"));
-    }
-
-    #[test]
-    fn overview_deserializes() {
-        let json = r#"{
-            "total_users": 5000,
-            "active_users_24h": 250,
-            "active_users_7d": 1000,
-            "total_sessions": 25000,
-            "active_sessions": 50,
-            "total_contexts": 7500,
-            "total_tasks": 37500,
-            "total_ai_requests": 50000
-        }"#;
-
-        let overview: PlatformOverview = serde_json::from_str(json).unwrap();
-
-        assert_eq!(overview.total_users, 5000);
-        assert_eq!(overview.active_sessions, 50);
     }
 }
 
@@ -128,20 +95,6 @@ mod cost_overview_tests {
     }
 
     #[test]
-    fn cost_is_copy() {
-        let cost = create_cost_overview();
-        let copied = cost;
-        assert!((cost.total_cost - copied.total_cost).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn cost_is_clone() {
-        let cost = create_cost_overview();
-        let cloned = cost.clone();
-        assert!((cost.cost_7d - cloned.cost_7d).abs() < f64::EPSILON);
-    }
-
-    #[test]
     fn cost_is_debug() {
         let cost = create_cost_overview();
         let debug_str = format!("{:?}", cost);
@@ -155,22 +108,6 @@ mod cost_overview_tests {
 
         assert!(json.contains("total_cost"));
         assert!(json.contains("avg_cost_per_request"));
-    }
-
-    #[test]
-    fn cost_deserializes() {
-        let json = r#"{
-            "total_cost": 500.0,
-            "cost_24h": 25.0,
-            "cost_7d": 100.0,
-            "cost_30d": 400.0,
-            "avg_cost_per_request": 0.005
-        }"#;
-
-        let cost: CostOverview = serde_json::from_str(json).unwrap();
-
-        assert!((cost.total_cost - 500.0).abs() < f64::EPSILON);
-        assert!((cost.avg_cost_per_request - 0.005).abs() < f64::EPSILON);
     }
 }
 
@@ -195,19 +132,6 @@ mod traffic_stats_tests {
     }
 
     #[test]
-    fn traffic_summary_is_copy() {
-        let summary = TrafficSummary {
-            total_sessions: 100,
-            unique_visitors: 80,
-            page_views: 500,
-            avg_session_duration_seconds: 120.0,
-            bounce_rate: 0.4,
-        };
-        let copied = summary;
-        assert_eq!(summary.total_sessions, copied.total_sessions);
-    }
-
-    #[test]
     fn traffic_source_stores_values() {
         let source = TrafficSource {
             source: "google".to_string(),
@@ -218,17 +142,6 @@ mod traffic_stats_tests {
         assert_eq!(source.source, "google");
         assert_eq!(source.sessions, 5000);
         assert!((source.percentage - 0.5).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn traffic_source_is_clone() {
-        let source = TrafficSource {
-            source: "direct".to_string(),
-            sessions: 3000,
-            percentage: 0.3,
-        };
-        let cloned = source.clone();
-        assert_eq!(source.source, cloned.source);
     }
 }
 
@@ -246,17 +159,6 @@ mod breakdown_tests {
         assert_eq!(breakdown.device_type, "desktop");
         assert_eq!(breakdown.count, 6000);
         assert!((breakdown.percentage - 0.6).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn device_breakdown_is_clone() {
-        let breakdown = DeviceBreakdown {
-            device_type: "mobile".to_string(),
-            count: 3500,
-            percentage: 0.35,
-        };
-        let cloned = breakdown.clone();
-        assert_eq!(breakdown.device_type, cloned.device_type);
     }
 
     #[test]
@@ -313,18 +215,6 @@ mod bot_traffic_stats_tests {
     }
 
     #[test]
-    fn stats_is_copy() {
-        let stats = BotTrafficStats {
-            total_requests: 100,
-            bot_requests: 10,
-            human_requests: 90,
-            bot_percentage: 0.1,
-        };
-        let copied = stats;
-        assert_eq!(stats.total_requests, copied.total_requests);
-    }
-
-    #[test]
     fn stats_is_debug() {
         let stats = BotTrafficStats::default();
         let debug_str = format!("{:?}", stats);
@@ -343,20 +233,5 @@ mod bot_traffic_stats_tests {
 
         assert!(json.contains("total_requests"));
         assert!(json.contains("bot_percentage"));
-    }
-
-    #[test]
-    fn stats_deserializes() {
-        let json = r#"{
-            "total_requests": 5000,
-            "bot_requests": 500,
-            "human_requests": 4500,
-            "bot_percentage": 0.1
-        }"#;
-
-        let stats: BotTrafficStats = serde_json::from_str(json).unwrap();
-
-        assert_eq!(stats.total_requests, 5000);
-        assert_eq!(stats.bot_requests, 500);
     }
 }

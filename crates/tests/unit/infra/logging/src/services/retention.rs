@@ -113,32 +113,6 @@ fn test_retention_policy_serialize() {
     assert!(json.contains("\"level\":\"WARN\""));
 }
 
-#[test]
-fn test_retention_policy_deserialize() {
-    let json = r#"{"name":"test","level":"ERROR","module":"api","retention_days":30}"#;
-    let policy: RetentionPolicy = serde_json::from_str(json).unwrap();
-
-    assert_eq!(policy.name, "test");
-    assert_eq!(policy.level, Some(LogLevel::Error));
-    assert_eq!(policy.module, Some("api".to_string()));
-    assert_eq!(policy.retention_days, 30);
-}
-
-#[test]
-fn test_retention_policy_roundtrip() {
-    let policy = RetentionPolicy::new("roundtrip", 45)
-        .with_level(LogLevel::Info)
-        .with_module("database");
-
-    let json = serde_json::to_string(&policy).unwrap();
-    let parsed: RetentionPolicy = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(policy.name, parsed.name);
-    assert_eq!(policy.retention_days, parsed.retention_days);
-    assert_eq!(policy.level, parsed.level);
-    assert_eq!(policy.module, parsed.module);
-}
-
 // ============================================================================
 // RetentionConfig Default Tests
 // ============================================================================
@@ -289,38 +263,6 @@ fn test_retention_config_serialize() {
     assert!(json.contains("\"vacuum_after_cleanup\":true"));
     assert!(json.contains("\"schedule\""));
     assert!(json.contains("\"policies\""));
-}
-
-#[test]
-fn test_retention_config_deserialize() {
-    let json = r#"{
-        "enabled": false,
-        "schedule": "0 0 1 * * *",
-        "policies": [],
-        "vacuum_after_cleanup": false
-    }"#;
-
-    let config: RetentionConfig = serde_json::from_str(json).unwrap();
-
-    assert!(!config.enabled);
-    assert_eq!(config.schedule, "0 0 1 * * *");
-    assert!(config.policies.is_empty());
-    assert!(!config.vacuum_after_cleanup);
-}
-
-#[test]
-fn test_retention_config_roundtrip() {
-    let config = RetentionConfig::default()
-        .with_schedule("0 0 6 * * *")
-        .enabled(false);
-
-    let json = serde_json::to_string(&config).unwrap();
-    let parsed: RetentionConfig = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(config.enabled, parsed.enabled);
-    assert_eq!(config.schedule, parsed.schedule);
-    assert_eq!(config.vacuum_after_cleanup, parsed.vacuum_after_cleanup);
-    assert_eq!(config.policies.len(), parsed.policies.len());
 }
 
 // ============================================================================

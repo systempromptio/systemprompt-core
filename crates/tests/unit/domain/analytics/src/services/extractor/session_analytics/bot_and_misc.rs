@@ -159,15 +159,6 @@ mod session_analytics_tests {
     }
 
     #[test]
-    fn analytics_is_clone() {
-        let headers = create_full_headers();
-        let analytics = SessionAnalytics::from_headers(&headers);
-        let cloned = analytics.clone();
-        assert_eq!(analytics.user_agent, cloned.user_agent);
-        assert_eq!(analytics.ip_address, cloned.ip_address);
-    }
-
-    #[test]
     fn analytics_is_debug() {
         let headers = create_full_headers();
         let analytics = SessionAnalytics::from_headers(&headers);

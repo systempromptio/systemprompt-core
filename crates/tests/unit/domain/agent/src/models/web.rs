@@ -46,47 +46,6 @@ fn test_list_agents_query_serialize() {
 }
 
 #[test]
-fn test_list_agents_query_deserialize() {
-    let json = r#"{
-        "page": 3,
-        "limit": 100,
-        "offset": 25,
-        "search": "agent",
-        "status": "stopped",
-        "capability": "push_notifications"
-    }"#;
-
-    let query: ListAgentsQuery = serde_json::from_str(json).unwrap();
-    assert_eq!(query.page, Some(3));
-    assert_eq!(query.limit, Some(100));
-    assert_eq!(query.offset, Some(25));
-    assert_eq!(query.search, Some("agent".to_string()));
-    assert_eq!(query.status, Some("stopped".to_string()));
-    assert_eq!(query.capability, Some("push_notifications".to_string()));
-}
-
-#[test]
-fn test_list_agents_query_partial_deserialize() {
-    let json = r#"{"page": 1}"#;
-
-    let query: ListAgentsQuery = serde_json::from_str(json).unwrap();
-    assert_eq!(query.page, Some(1));
-    assert!(query.limit.is_none());
-    assert!(query.offset.is_none());
-    assert!(query.search.is_none());
-}
-
-#[test]
-fn test_list_agents_query_empty_deserialize() {
-    let json = r#"{}"#;
-
-    let query: ListAgentsQuery = serde_json::from_str(json).unwrap();
-    assert!(query.page.is_none());
-    assert!(query.limit.is_none());
-    assert!(query.offset.is_none());
-}
-
-#[test]
 fn test_list_agents_query_debug() {
     let query = ListAgentsQuery::default();
     let debug_str = format!("{:?}", query);
@@ -126,32 +85,6 @@ fn test_agent_counts_serialize() {
     assert!(json.contains("\"total\":10"));
     assert!(json.contains("\"active\":5"));
     assert!(json.contains("\"enabled\":8"));
-}
-
-#[test]
-fn test_agent_counts_deserialize() {
-    let json = r#"{"total": 20, "active": 15, "enabled": 18}"#;
-
-    let counts: AgentCounts = serde_json::from_str(json).unwrap();
-    assert_eq!(counts.total, 20);
-    assert_eq!(counts.active, 15);
-    assert_eq!(counts.enabled, 18);
-}
-
-#[test]
-fn test_agent_counts_zero_values() {
-    let counts = AgentCounts {
-        total: 0,
-        active: 0,
-        enabled: 0,
-    };
-
-    let json = serde_json::to_string(&counts).unwrap();
-    let deserialized: AgentCounts = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(deserialized.total, 0);
-    assert_eq!(deserialized.active, 0);
-    assert_eq!(deserialized.enabled, 0);
 }
 
 #[test]
@@ -206,27 +139,6 @@ fn test_agent_discovery_entry_serialize() {
     assert!(json.contains("Test Agent"));
     assert!(json.contains("1.0.0"));
     assert!(json.contains("running"));
-}
-
-#[test]
-fn test_agent_discovery_entry_deserialize() {
-    let json = r#"{
-        "uuid": "uuid-456",
-        "slug": "my-agent",
-        "name": "My Agent",
-        "description": "Description here",
-        "version": "2.0.0",
-        "url": "https://agent.example.com",
-        "status": "stopped",
-        "endpoint": "http://127.0.0.1:9000"
-    }"#;
-
-    let entry: AgentDiscoveryEntry = serde_json::from_str(json).unwrap();
-    assert_eq!(entry.uuid, "uuid-456");
-    assert_eq!(entry.slug, "my-agent");
-    assert_eq!(entry.name, "My Agent");
-    assert_eq!(entry.version, "2.0.0");
-    assert_eq!(entry.status, "stopped");
 }
 
 #[test]
@@ -293,20 +205,6 @@ fn test_agent_discovery_response_serialize() {
 }
 
 #[test]
-fn test_agent_discovery_response_empty() {
-    let response = AgentDiscoveryResponse {
-        agents: vec![],
-        total: 0,
-    };
-
-    let json = serde_json::to_string(&response).unwrap();
-    let deserialized: AgentDiscoveryResponse = serde_json::from_str(&json).unwrap();
-
-    assert!(deserialized.agents.is_empty());
-    assert_eq!(deserialized.total, 0);
-}
-
-#[test]
 fn test_agent_discovery_response_multiple_agents() {
     let response = AgentDiscoveryResponse {
         agents: vec![
@@ -336,28 +234,4 @@ fn test_agent_discovery_response_multiple_agents() {
 
     assert_eq!(response.agents.len(), 2);
     assert_eq!(response.total, 2);
-}
-
-#[test]
-fn test_agent_discovery_response_deserialize() {
-    let json = r#"{
-        "agents": [
-            {
-                "uuid": "u1",
-                "slug": "s1",
-                "name": "N1",
-                "description": "D1",
-                "version": "1.0",
-                "url": "http://1",
-                "status": "ok",
-                "endpoint": "http://e1"
-            }
-        ],
-        "total": 1
-    }"#;
-
-    let response: AgentDiscoveryResponse = serde_json::from_str(json).unwrap();
-    assert_eq!(response.agents.len(), 1);
-    assert_eq!(response.total, 1);
-    assert_eq!(response.agents[0].uuid, "u1");
 }

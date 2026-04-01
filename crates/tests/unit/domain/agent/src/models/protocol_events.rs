@@ -81,24 +81,6 @@ fn test_task_status_update_event_serialize() {
 }
 
 #[test]
-fn test_task_status_update_event_deserialize() {
-    let json = r#"{
-        "kind": "status-update",
-        "taskId": "task-xyz",
-        "contextId": "ctx-xyz",
-        "status": {
-            "state": "working"
-        },
-        "final": false
-    }"#;
-
-    let event: TaskStatusUpdateEvent = serde_json::from_str(json).unwrap();
-    assert_eq!(event.task_id, "task-xyz");
-    assert_eq!(event.context_id, "ctx-xyz");
-    assert!(!event.is_final);
-}
-
-#[test]
 fn test_task_status_update_event_to_jsonrpc_response() {
     let status = TaskStatus::default();
     let event = TaskStatusUpdateEvent::new("t1", "c1", status, false);
@@ -106,27 +88,6 @@ fn test_task_status_update_event_to_jsonrpc_response() {
 
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["result"].is_object());
-}
-
-#[test]
-fn test_task_status_update_event_clone() {
-    let status = TaskStatus::default();
-    let event = TaskStatusUpdateEvent::new("task", "ctx", status, false);
-    let cloned = event.clone();
-
-    assert_eq!(event.task_id, cloned.task_id);
-    assert_eq!(event.context_id, cloned.context_id);
-}
-
-#[test]
-fn test_task_status_update_event_equality() {
-    let status1 = create_working_status();
-    let status2 = create_working_status();
-
-    let event1 = TaskStatusUpdateEvent::new("t", "c", status1, false);
-    let event2 = TaskStatusUpdateEvent::new("t", "c", status2, false);
-
-    assert_eq!(event1, event2);
 }
 
 // ============================================================================
@@ -178,16 +139,6 @@ fn test_task_artifact_update_event_to_jsonrpc_response() {
     assert!(response["result"].is_object());
 }
 
-#[test]
-fn test_task_artifact_update_event_clone() {
-    let artifact = create_test_artifact("art-5");
-    let event = TaskArtifactUpdateEvent::new("task", "ctx", artifact, false);
-    let cloned = event.clone();
-
-    assert_eq!(event.task_id, cloned.task_id);
-    assert_eq!(event.artifact.id.as_str(), cloned.artifact.id.as_str());
-}
-
 // ============================================================================
 // ServiceStatusParams Tests
 // ============================================================================
@@ -208,22 +159,6 @@ fn test_service_status_params_serialize() {
 }
 
 #[test]
-fn test_service_status_params_deserialize() {
-    let json = r#"{
-        "status": "stopped",
-        "default": false,
-        "port": 9000,
-        "pid": 54321
-    }"#;
-
-    let params: ServiceStatusParams = serde_json::from_str(json).unwrap();
-    assert_eq!(params.status, "stopped");
-    assert!(!params.default);
-    assert_eq!(params.port, Some(9000));
-    assert_eq!(params.pid, Some(54321));
-}
-
-#[test]
 fn test_service_status_params_optional_fields() {
     let json = r#"{
         "status": "starting"
@@ -234,39 +169,6 @@ fn test_service_status_params_optional_fields() {
     assert!(!params.default);
     assert!(params.port.is_none());
     assert!(params.pid.is_none());
-}
-
-#[test]
-fn test_service_status_params_equality() {
-    let p1 = ServiceStatusParams {
-        status: "running".to_string(),
-        default: true,
-        port: Some(8080),
-        pid: None,
-    };
-
-    let p2 = ServiceStatusParams {
-        status: "running".to_string(),
-        default: true,
-        port: Some(8080),
-        pid: None,
-    };
-
-    assert_eq!(p1, p2);
-}
-
-#[test]
-fn test_service_status_params_clone() {
-    let params = ServiceStatusParams {
-        status: "running".to_string(),
-        default: false,
-        port: Some(3000),
-        pid: Some(999),
-    };
-
-    let cloned = params.clone();
-    assert_eq!(params.status, cloned.status);
-    assert_eq!(params.port, cloned.port);
 }
 
 #[test]

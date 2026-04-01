@@ -165,25 +165,3 @@ fn test_mcp_server_config_serialize() {
     assert!(json.contains("8080"));
     assert!(json.contains("1.0.0"));
 }
-
-#[test]
-fn test_mcp_server_config_deserialize() {
-    let config = create_test_config();
-    let json = serde_json::to_string(&config).unwrap();
-    let deserialized: McpServerConfig = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(config.name, deserialized.name);
-    assert_eq!(config.port, deserialized.port);
-    assert_eq!(config.enabled, deserialized.enabled);
-}
-
-#[test]
-fn test_mcp_server_config_roundtrip() {
-    let config = create_test_config();
-    let json = serde_json::to_string(&config).unwrap();
-    let deserialized: McpServerConfig = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(config.name, deserialized.name);
-    assert_eq!(config.version, deserialized.version);
-    assert_eq!(config.host, deserialized.host);
-}

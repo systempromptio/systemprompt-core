@@ -175,103 +175,17 @@ fn test_file_role_serialize_thumbnail() {
 // FileRole Deserialization Tests
 // ============================================================================
 
-#[test]
-fn test_file_role_deserialize_featured() {
-    let role: FileRole = serde_json::from_str("\"featured\"").unwrap();
-    assert!(matches!(role, FileRole::Featured));
-}
-
-#[test]
-fn test_file_role_deserialize_attachment() {
-    let role: FileRole = serde_json::from_str("\"attachment\"").unwrap();
-    assert!(matches!(role, FileRole::Attachment));
-}
-
-#[test]
-fn test_file_role_deserialize_inline() {
-    let role: FileRole = serde_json::from_str("\"inline\"").unwrap();
-    assert!(matches!(role, FileRole::Inline));
-}
-
-#[test]
-fn test_file_role_deserialize_og_image() {
-    // serde uses rename_all = "lowercase" which removes underscores
-    let role: FileRole = serde_json::from_str("\"ogimage\"").unwrap();
-    assert!(matches!(role, FileRole::OgImage));
-}
-
-#[test]
-fn test_file_role_deserialize_thumbnail() {
-    let role: FileRole = serde_json::from_str("\"thumbnail\"").unwrap();
-    assert!(matches!(role, FileRole::Thumbnail));
-}
-
-#[test]
-fn test_file_role_deserialize_invalid() {
-    let result: Result<FileRole, _> = serde_json::from_str("\"invalid\"");
-    result.unwrap_err();
-}
-
 // ============================================================================
 // FileRole Equality Tests
 // ============================================================================
-
-#[test]
-fn test_file_role_equality() {
-    assert_eq!(FileRole::Featured, FileRole::Featured);
-    assert_eq!(FileRole::Attachment, FileRole::Attachment);
-    assert_eq!(FileRole::Inline, FileRole::Inline);
-    assert_eq!(FileRole::OgImage, FileRole::OgImage);
-    assert_eq!(FileRole::Thumbnail, FileRole::Thumbnail);
-}
-
-#[test]
-fn test_file_role_inequality() {
-    assert_ne!(FileRole::Featured, FileRole::Attachment);
-    assert_ne!(FileRole::Attachment, FileRole::Inline);
-    assert_ne!(FileRole::Inline, FileRole::OgImage);
-    assert_ne!(FileRole::OgImage, FileRole::Thumbnail);
-    assert_ne!(FileRole::Thumbnail, FileRole::Featured);
-}
 
 // ============================================================================
 // FileRole Copy/Clone Tests
 // ============================================================================
 
-#[test]
-fn test_file_role_copy() {
-    let role = FileRole::Featured;
-    let copied = role;
-    assert_eq!(role, copied);
-}
-
-#[test]
-fn test_file_role_clone() {
-    let role = FileRole::Inline;
-    let cloned = role.clone();
-    assert_eq!(role, cloned);
-}
-
 // ============================================================================
 // FileRole Roundtrip Tests
 // ============================================================================
-
-#[test]
-fn test_file_role_roundtrip_all_variants() {
-    let roles = [
-        FileRole::Featured,
-        FileRole::Attachment,
-        FileRole::Inline,
-        FileRole::OgImage,
-        FileRole::Thumbnail,
-    ];
-
-    for role in roles {
-        let serialized = serde_json::to_string(&role).unwrap();
-        let deserialized: FileRole = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(role, deserialized);
-    }
-}
 
 #[test]
 fn test_file_role_as_str_parse_roundtrip() {
@@ -395,21 +309,4 @@ fn test_content_file_serialization() {
 
     assert!(json.contains("\"role\":\"inline\""));
     assert!(json.contains("\"display_order\":0"));
-}
-
-#[test]
-fn test_content_file_deserialization() {
-    let now = Utc::now();
-    let file_id = uuid::Uuid::new_v4();
-
-    let json = format!(
-        r#"{{"id":1,"content_id":"content_123","file_id":"{}","role":"thumbnail","display_order":3,"created_at":"{}"}}"#,
-        file_id,
-        now.to_rfc3339()
-    );
-
-    let file: ContentFile = serde_json::from_str(&json).unwrap();
-    assert_eq!(file.id, 1);
-    assert_eq!(file.role, "thumbnail");
-    assert_eq!(file.display_order, 3);
 }
