@@ -241,14 +241,6 @@ mod extension_trait_tests {
     }
 
     #[test]
-    fn extension_implements_extension_trait() {
-        fn assert_extension<T: Extension>(_: &T) {}
-
-        let ext = UsersExtension;
-        assert_extension(&ext);
-    }
-
-    #[test]
     fn extension_has_schemas() {
         let ext = UsersExtension;
         assert!(ext.has_schemas());

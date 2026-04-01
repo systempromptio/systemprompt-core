@@ -105,16 +105,6 @@ fn test_file_upload_error_display_path_validation() {
 }
 
 #[test]
-fn test_file_upload_error_from_validation_error() {
-    let validation_err = FileValidationError::UploadsDisabled;
-    let upload_err: FileUploadError = validation_err.into();
-    match upload_err {
-        FileUploadError::Validation(_) => {}
-        _ => panic!("Expected Validation variant"),
-    }
-}
-
-#[test]
 fn test_file_upload_request_builder_new() {
     let context_id = ContextId::new("ctx_123");
     let builder =

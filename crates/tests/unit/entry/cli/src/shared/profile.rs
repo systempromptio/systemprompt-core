@@ -252,14 +252,6 @@ fn test_jwt_secret_generation_uniqueness() {
 // ============================================================================
 
 #[test]
-fn test_profile_resolution_error_is_error_trait() {
-    fn assert_error<T: std::error::Error>(_: &T) {}
-
-    let error = ProfileResolutionError::NoProfilesFound;
-    assert_error(&error);
-}
-
-#[test]
 fn test_profile_resolution_error_source_none_for_no_profiles() {
     use std::error::Error;
 

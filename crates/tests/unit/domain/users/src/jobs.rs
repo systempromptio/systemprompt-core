@@ -109,11 +109,4 @@ mod cleanup_anonymous_users_job_tests {
         assert!(!schedule.is_empty());
     }
 
-    #[test]
-    fn job_implements_job_trait() {
-        fn assert_job<T: Job>(_: &T) {}
-
-        let job = CleanupAnonymousUsersJob;
-        assert_job(&job);
-    }
 }

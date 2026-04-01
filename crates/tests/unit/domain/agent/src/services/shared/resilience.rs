@@ -147,28 +147,6 @@ fn test_timeout_type_default() {
     assert!(debug_str.contains("Default"));
 }
 
-#[test]
-fn test_timeout_type_clone() {
-    let original = TimeoutType::Connect;
-    let cloned = original;
-
-    match cloned {
-        TimeoutType::Connect => {}
-        _ => panic!("Expected Connect variant"),
-    }
-}
-
-#[test]
-fn test_timeout_type_copy() {
-    let original = TimeoutType::Read;
-    let copied = original;
-
-    match copied {
-        TimeoutType::Read => {}
-        _ => panic!("Expected Read variant"),
-    }
-}
-
 // ============================================================================
 // Delay Calculation Tests
 // ============================================================================

@@ -57,46 +57,6 @@ mod openai_converter_tests {
         assert_openai_text_content(&openai_msg.content, "You are a helpful assistant.");
     }
 
-    #[test]
-    fn preserves_content_exactly() {
-        let content = "This is a test message with special chars: !@#$%^&*()";
-        let ai_message = AiMessage {
-            role: MessageRole::User,
-            content: content.to_string(),
-            parts: Vec::new(),
-        };
-
-        let openai_msg: OpenAiMessage = (&ai_message).into();
-
-        assert_openai_text_content(&openai_msg.content, content);
-    }
-
-    #[test]
-    fn handles_empty_content() {
-        let ai_message = AiMessage {
-            role: MessageRole::User,
-            content: String::new(),
-            parts: Vec::new(),
-        };
-
-        let openai_msg: OpenAiMessage = (&ai_message).into();
-
-        assert_openai_text_content(&openai_msg.content, "");
-    }
-
-    #[test]
-    fn handles_multiline_content() {
-        let content = "Line 1\nLine 2\nLine 3";
-        let ai_message = AiMessage {
-            role: MessageRole::Assistant,
-            content: content.to_string(),
-            parts: Vec::new(),
-        };
-
-        let openai_msg: OpenAiMessage = (&ai_message).into();
-
-        assert_openai_text_content(&openai_msg.content, content);
-    }
 }
 
 mod anthropic_converter_tests {

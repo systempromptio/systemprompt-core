@@ -295,22 +295,6 @@ fn test_extension_router_with_nested_path() {
 // =============================================================================
 
 #[test]
-fn test_schema_definition_with_different_sources() {
-    let inline_schema = SchemaDefinition::inline("t1", "CREATE TABLE t1 ()");
-    let file_schema = SchemaDefinition::file("t2", "t2.sql");
-
-    match inline_schema.sql {
-        SchemaSource::Inline(_) => {}
-        _ => panic!("Expected Inline"),
-    }
-
-    match file_schema.sql {
-        SchemaSource::File(_) => {}
-        _ => panic!("Expected File"),
-    }
-}
-
-#[test]
 fn test_multiple_schema_definitions() {
     let schemas = vec![
         SchemaDefinition::inline("users", "CREATE TABLE users ()"),

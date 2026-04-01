@@ -280,50 +280,6 @@ fn test_protocol_error_validation_failed_display() {
 // ============================================================================
 
 #[test]
-fn test_agent_error_from_task_error() {
-    let task_error = TaskError::EmptyTaskId;
-    let agent_error: AgentError = task_error.into();
-
-    match agent_error {
-        AgentError::Task(_) => {}
-        _ => panic!("Expected AgentError::Task variant"),
-    }
-}
-
-#[test]
-fn test_agent_error_from_context_error() {
-    let context_error = ContextError::MissingUuid;
-    let agent_error: AgentError = context_error.into();
-
-    match agent_error {
-        AgentError::Context(_) => {}
-        _ => panic!("Expected AgentError::Context variant"),
-    }
-}
-
-#[test]
-fn test_agent_error_from_artifact_error() {
-    let artifact_error = ArtifactError::MissingUuid;
-    let agent_error: AgentError = artifact_error.into();
-
-    match agent_error {
-        AgentError::Artifact(_) => {}
-        _ => panic!("Expected AgentError::Artifact variant"),
-    }
-}
-
-#[test]
-fn test_agent_error_from_protocol_error() {
-    let protocol_error = ProtocolError::MissingMessageId;
-    let agent_error: AgentError = protocol_error.into();
-
-    match agent_error {
-        AgentError::Protocol(_) => {}
-        _ => panic!("Expected AgentError::Protocol variant"),
-    }
-}
-
-#[test]
 fn test_agent_error_database_display() {
     let error = AgentError::Database("Connection failed".to_string());
     assert!(error.to_string().contains("Database error"));

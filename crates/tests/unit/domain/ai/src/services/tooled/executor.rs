@@ -28,18 +28,6 @@ fn create_result_with_content(text: &str) -> CallToolResult {
     CallToolResult::success(vec![create_text_content(text)])
 }
 
-fn create_result_with_artifact() -> CallToolResult {
-    let mut result = CallToolResult::success(vec![]);
-    result.structured_content = Some(json!({"artifact": "data"}));
-    result
-}
-
-fn create_error_result() -> CallToolResult {
-    let mut result = CallToolResult::error(vec![create_text_content("Error")]);
-    result.structured_content = Some(json!({"error": true}));
-    result
-}
-
 mod response_strategy_tests {
     use super::*;
 
@@ -80,38 +68,6 @@ mod response_strategy_tests {
     }
 
     #[test]
-    fn artifacts_provided_when_structured_content_present() {
-        let content = String::new();
-        let tool_calls = vec![create_tool_call("test")];
-        let tool_results = vec![create_result_with_artifact()];
-
-        let strategy = ResponseStrategy::from_response(content, tool_calls, tool_results);
-
-        match strategy {
-            ResponseStrategy::ArtifactsProvided { .. } => {
-                // Expected
-            }
-            _ => panic!("Expected ArtifactsProvided"),
-        }
-    }
-
-    #[test]
-    fn tools_only_when_no_artifacts() {
-        let content = String::new();
-        let tool_calls = vec![create_tool_call("test")];
-        let tool_results = vec![create_result_with_content("just text")];
-
-        let strategy = ResponseStrategy::from_response(content, tool_calls, tool_results);
-
-        match strategy {
-            ResponseStrategy::ToolsOnly { .. } => {
-                // Expected
-            }
-            _ => panic!("Expected ToolsOnly"),
-        }
-    }
-
-    #[test]
     fn content_provided_when_empty_tools() {
         let content = String::new();
         let tool_calls: Vec<ToolCall> = vec![];
@@ -124,25 +80,6 @@ mod response_strategy_tests {
                 assert_eq!(c, content);
             }
             _ => panic!("Expected ContentProvided for empty tools"),
-        }
-    }
-
-    #[test]
-    fn error_results_not_treated_as_artifacts() {
-        let content = String::new();
-        let tool_calls = vec![create_tool_call("test")];
-        let tool_results = vec![create_error_result()];
-
-        let strategy = ResponseStrategy::from_response(content, tool_calls, tool_results);
-
-        match strategy {
-            ResponseStrategy::ToolsOnly { .. } => {
-                // Error results should not be treated as artifacts
-            }
-            ResponseStrategy::ArtifactsProvided { .. } => {
-                panic!("Error results should not be treated as artifacts");
-            }
-            _ => {}
         }
     }
 

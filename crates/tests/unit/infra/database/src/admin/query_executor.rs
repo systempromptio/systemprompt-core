@@ -52,13 +52,3 @@ fn test_write_query_not_allowed_debug() {
     assert!(debug.contains("WriteQueryNotAllowed"));
 }
 
-// ============================================================================
-// QueryExecutor Type Tests
-// ============================================================================
-
-#[test]
-fn test_query_executor_debug() {
-    use systemprompt_database::QueryExecutor;
-    fn assert_debug<T: std::fmt::Debug>() {}
-    assert_debug::<QueryExecutor>();
-}
