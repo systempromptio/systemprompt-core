@@ -174,8 +174,13 @@ fn test_validate_redirect_uri_relative_path_matches_absolute() {
     let registered = vec!["/admin/login".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com/admin/login"));
 
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "https://example.com/admin/login");
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        AuthError::InvalidRequest { reason } => {
+            assert!(reason.contains("not registered"));
+        }
+        _ => panic!("Expected InvalidRequest error"),
+    }
 }
 
 #[test]
@@ -183,7 +188,13 @@ fn test_validate_redirect_uri_relative_path_different_host() {
     let registered = vec!["/admin/login".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://other-host.io/admin/login"));
 
-    assert!(result.is_ok());
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        AuthError::InvalidRequest { reason } => {
+            assert!(reason.contains("not registered"));
+        }
+        _ => panic!("Expected InvalidRequest error"),
+    }
 }
 
 #[test]
@@ -222,7 +233,7 @@ fn test_validate_redirect_uri_relative_alongside_absolute() {
     let result = validate_redirect_uri(&registered, Some("http://localhost:8080/callback"));
     assert!(result.is_ok());
 
-    // Relative match works for any origin
+    // Absolute URI no longer matches relative registered path
     let result = validate_redirect_uri(&registered, Some("https://prod.example.com/callback"));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
