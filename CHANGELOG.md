@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.1.20] - 2026-04-01
+
+### Changed
+- Upgrade `rmcp`/`rmcp-macros` from 1.1 to 1.3
+- Simplify MCP `StreamableHttpServerConfig` to use library defaults instead of manual field construction
+- Adapt MCP HTTP client to rmcp 1.3 API: replace removed `AuthRequiredError` with `UnexpectedServerResponse`
+- Rebrand README messaging: reposition from "production infrastructure for AI agents" to "AI governance layer" with compliance-first positioning (SOC 2, ISO 27001, HIPAA, FedRAMP)
+- Update README navigation: "Playbooks" → "Skills"
+
+### Added
+- `ensure_project_scaffolding()` function in cloud init — auto-creates `services/` and `web/` directories during local tenant setup
+- Project scaffolding step integrated into local tenant creation workflow (runs before profile setup)
+
+### Refactored
+- Resolve all remaining clippy errors and warnings to achieve zero-warning build
+- Introduce parameter structs for `too_many_arguments` in agent services (Wave 2)
+- Eliminate all redundant closure violations (Wave 1)
+- Split large files: complete `deploy/mod.rs` split and file split extractions from source files
+- Remove `unsafe` blocks and convert static SQL to compile-time verified macros
+
+### Removed
+- Clean up ~120 stale SQLx query cache files from sync crate
+
 ## [0.1.19] - 2026-03-31
 
 ### Added
