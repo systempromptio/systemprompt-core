@@ -2,7 +2,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
 use systemprompt_mcp::services::RegistryManager;
-use systemprompt_models::{ApiError, CollectionResponse};
+use systemprompt_models::{ApiError, CollectionResponse, modules::ApiPaths};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct McpRegistryServer {
@@ -45,7 +45,7 @@ pub async fn handle_mcp_registry() -> impl IntoResponse {
                 .iter()
                 .map(ToString::to_string)
                 .collect(),
-            endpoint: format!("/api/v1/mcp/{}/mcp", config.name),
+            endpoint: ApiPaths::mcp_server_endpoint(&config.name),
             status: if config.enabled {
                 "enabled".to_string()
             } else {

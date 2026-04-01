@@ -154,7 +154,7 @@ pub fn configure_routes(
     );
 
     router = router.nest(
-        "/api/v1/sync",
+        ApiPaths::SYNC_BASE,
         crate::routes::sync::router().with_state(ctx.clone()),
     );
 
@@ -166,7 +166,7 @@ pub fn configure_routes(
     );
 
     router = router.nest(
-        "/api/v1/analytics",
+        ApiPaths::ANALYTICS_BASE,
         crate::routes::analytics::router(ctx)
             .map_err(|e| LoaderError::InitializationFailed {
                 extension: "analytics".to_string(),
@@ -188,7 +188,7 @@ pub fn configure_routes(
     );
 
     router = router.nest(
-        "/api/v1/admin",
+        ApiPaths::ADMIN_BASE,
         crate::routes::admin::router()
             .with_state(ctx.clone())
             .with_rate_limit(rate_config, 10)

@@ -11,6 +11,8 @@ impl ApiPaths {
     pub const MCP_BASE: &'static str = "/api/v1/mcp";
     pub const STREAM_BASE: &'static str = "/api/v1/stream";
     pub const CONTENT_BASE: &'static str = "/api/v1/content";
+    pub const SYNC_BASE: &'static str = "/api/v1/sync";
+    pub const ANALYTICS_BASE: &'static str = "/api/v1/analytics";
     pub const META_BASE: &'static str = "/api/v1/meta";
 
     pub const CORE_CONTEXTS: &'static str = "/api/v1/core/contexts";

@@ -1,5 +1,6 @@
 //! Service category classification.
 
+use super::api_paths::ApiPaths;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +14,9 @@ pub enum ServiceCategory {
 impl ServiceCategory {
     pub const fn base_path(&self) -> &'static str {
         match self {
-            Self::Core => "/api/v1/core",
-            Self::Agent => "/api/v1/agents",
-            Self::Mcp => "/api/v1/mcp",
+            Self::Core => ApiPaths::CORE_BASE,
+            Self::Agent => ApiPaths::AGENTS_BASE,
+            Self::Mcp => ApiPaths::MCP_BASE,
             Self::Meta => "/",
         }
     }
@@ -47,7 +48,7 @@ impl ServiceCategory {
     pub fn matches_path(&self, path: &str) -> bool {
         let base = self.base_path();
         if base == "/" {
-            path == "/" || path.starts_with("/.well-known") || path.starts_with("/api/v1/meta")
+            path == "/" || path.starts_with("/.well-known") || path.starts_with(ApiPaths::META_BASE)
         } else {
             path.starts_with(base)
         }

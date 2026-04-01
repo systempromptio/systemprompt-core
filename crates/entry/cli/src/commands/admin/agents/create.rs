@@ -12,6 +12,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -83,7 +84,7 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
         endpoint: args
             .agent
             .endpoint
-            .unwrap_or_else(|| format!("/api/v1/agents/{}", name)),
+            .unwrap_or_else(|| ApiPaths::agent_endpoint(&name)),
         enabled: args.enabled,
         dev_only: args.agent.dev_only,
         is_primary: args.agent.is_primary,

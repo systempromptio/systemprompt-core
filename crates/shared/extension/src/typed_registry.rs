@@ -3,24 +3,11 @@ use std::collections::HashMap;
 
 use crate::any::AnyExtension;
 use crate::error::LoaderError;
+pub use crate::registry::RESERVED_PATHS;
 #[cfg(feature = "web")]
 use crate::typed::ApiExtensionTypedDyn;
 use crate::typed::SchemaExtensionTyped;
 use crate::types::ExtensionType;
-
-pub const RESERVED_PATHS: &[&str] = &[
-    "/api/v1/oauth",
-    "/api/v1/users",
-    "/api/v1/agents",
-    "/api/v1/mcp",
-    "/api/v1/stream",
-    "/api/v1/files",
-    "/api/v1/analytics",
-    "/api/v1/scheduler",
-    "/api/v1/core",
-    "/api/v1/admin",
-    "/.well-known",
-];
 
 pub struct TypedExtensionRegistry {
     extensions: Vec<Box<dyn AnyExtension>>,

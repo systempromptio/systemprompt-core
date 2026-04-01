@@ -91,3 +91,6 @@ audit/
 
 # Instructions (local-only documentation)
 instructions/
+
+# Report files
+report/
