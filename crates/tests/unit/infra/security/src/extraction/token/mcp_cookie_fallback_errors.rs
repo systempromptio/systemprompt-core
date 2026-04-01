@@ -16,9 +16,9 @@ fn test_extract_from_mcp_proxy_success() {
         HeaderValue::from_static("Bearer mcp_token"),
     );
 
-    let result = extractor.extract_from_mcp_proxy(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "mcp_token");
+    let token = extractor.extract_from_mcp_proxy(&headers)
+        .expect("Should extract from MCP proxy header");
+    assert_eq!(token, "mcp_token");
 }
 
 #[test]
@@ -26,12 +26,8 @@ fn test_extract_from_mcp_proxy_missing() {
     let extractor = TokenExtractor::standard();
     let headers = HeaderMap::new();
 
-    let result = extractor.extract_from_mcp_proxy(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::MissingMcpProxyHeader
-    );
+    let err = extractor.extract_from_mcp_proxy(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::MissingMcpProxyHeader);
 }
 
 #[test]
@@ -43,12 +39,8 @@ fn test_extract_from_mcp_proxy_invalid_format() {
         HeaderValue::from_static("token_without_bearer"),
     );
 
-    let result = extractor.extract_from_mcp_proxy(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::InvalidMcpProxyFormat
-    );
+    let err = extractor.extract_from_mcp_proxy(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::InvalidMcpProxyFormat);
 }
 
 // ============================================================================
@@ -64,9 +56,9 @@ fn test_extract_from_cookie_success() {
         HeaderValue::from_static("access_token=cookie_token_value"),
     );
 
-    let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "cookie_token_value");
+    let token = extractor.extract_from_cookie(&headers)
+        .expect("Should extract from cookie");
+    assert_eq!(token, "cookie_token_value");
 }
 
 #[test]
@@ -78,9 +70,9 @@ fn test_extract_from_cookie_multiple_cookies() {
         HeaderValue::from_static("session=abc123; access_token=the_token; other=value"),
     );
 
-    let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "the_token");
+    let token = extractor.extract_from_cookie(&headers)
+        .expect("Should extract from multiple cookies");
+    assert_eq!(token, "the_token");
 }
 
 #[test]
@@ -88,9 +80,8 @@ fn test_extract_from_cookie_missing() {
     let extractor = TokenExtractor::standard();
     let headers = HeaderMap::new();
 
-    let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::MissingCookie);
+    let err = extractor.extract_from_cookie(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::MissingCookie);
 }
 
 #[test]
@@ -99,12 +90,8 @@ fn test_extract_from_cookie_token_not_found() {
     let mut headers = HeaderMap::new();
     headers.insert("cookie", HeaderValue::from_static("other_cookie=value"));
 
-    let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::TokenNotFoundInCookie
-    );
+    let err = extractor.extract_from_cookie(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::TokenNotFoundInCookie);
 }
 
 #[test]
@@ -113,12 +100,8 @@ fn test_extract_from_cookie_empty_value() {
     let mut headers = HeaderMap::new();
     headers.insert("cookie", HeaderValue::from_static("access_token="));
 
-    let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::TokenNotFoundInCookie
-    );
+    let err = extractor.extract_from_cookie(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::TokenNotFoundInCookie);
 }
 
 #[test]
@@ -130,9 +113,9 @@ fn test_extract_from_cookie_with_spaces() {
         HeaderValue::from_static("  access_token=spaced_token  ; other=val"),
     );
 
-    let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "spaced_token");
+    let token = extractor.extract_from_cookie(&headers)
+        .expect("Should extract from cookie with spaces");
+    assert_eq!(token, "spaced_token");
 }
 
 // ============================================================================
@@ -156,9 +139,8 @@ fn test_extract_fallback_authorization_first() {
         HeaderValue::from_static("access_token=cookie_token"),
     );
 
-    let result = extractor.extract(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "auth_token");
+    let token = extractor.extract(&headers).expect("Should extract from authorization first");
+    assert_eq!(token, "auth_token");
 }
 
 #[test]
@@ -174,9 +156,8 @@ fn test_extract_fallback_to_mcp_proxy() {
         HeaderValue::from_static("access_token=cookie_token"),
     );
 
-    let result = extractor.extract(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "mcp_token");
+    let token = extractor.extract(&headers).expect("Should fallback to MCP proxy");
+    assert_eq!(token, "mcp_token");
 }
 
 #[test]
@@ -188,9 +169,8 @@ fn test_extract_fallback_to_cookie() {
         HeaderValue::from_static("access_token=cookie_token"),
     );
 
-    let result = extractor.extract(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "cookie_token");
+    let token = extractor.extract(&headers).expect("Should fallback to cookie");
+    assert_eq!(token, "cookie_token");
 }
 
 #[test]
@@ -198,9 +178,8 @@ fn test_extract_no_token_found() {
     let extractor = TokenExtractor::standard();
     let headers = HeaderMap::new();
 
-    let result = extractor.extract(&headers);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::NoTokenFound);
+    let err = extractor.extract(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::NoTokenFound);
 }
 
 #[test]
@@ -209,9 +188,8 @@ fn test_extract_empty_chain() {
     let mut headers = HeaderMap::new();
     headers.insert("authorization", HeaderValue::from_static("Bearer token"));
 
-    let result = extractor.extract(&headers);
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::NoTokenFound);
+    let err = extractor.extract(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::NoTokenFound);
 }
 
 // ============================================================================

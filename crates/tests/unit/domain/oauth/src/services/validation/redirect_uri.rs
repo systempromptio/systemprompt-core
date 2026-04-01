@@ -12,8 +12,7 @@ fn test_validate_redirect_uri_success() {
     let registered = vec!["https://example.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback"));
 
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "https://example.com/callback");
+    assert_eq!(result.expect("valid redirect URI should succeed"), "https://example.com/callback");
 }
 
 #[test]
@@ -25,8 +24,7 @@ fn test_validate_redirect_uri_multiple_registered() {
     ];
 
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback2"));
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "https://example.com/callback2");
+    assert_eq!(result.expect("valid redirect URI should succeed"), "https://example.com/callback2");
 }
 
 #[test]
@@ -34,7 +32,6 @@ fn test_validate_redirect_uri_none() {
     let registered = vec!["https://example.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, None);
 
-    assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AuthError::InvalidRedirectUri));
 }
 
@@ -43,7 +40,6 @@ fn test_validate_redirect_uri_empty_string() {
     let registered = vec!["https://example.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some(""));
 
-    assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AuthError::InvalidRedirectUri));
 }
 
@@ -52,7 +48,6 @@ fn test_validate_redirect_uri_not_registered() {
     let registered = vec!["https://example.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://evil.com/callback"));
 
-    assert!(result.is_err());
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
@@ -67,7 +62,6 @@ fn test_validate_redirect_uri_empty_registered_list() {
     let registered: Vec<String> = vec![];
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback"));
 
-    assert!(result.is_err());
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
@@ -82,11 +76,11 @@ fn test_validate_redirect_uri_case_sensitive() {
 
     // Same case should match
     let result = validate_redirect_uri(&registered, Some("https://Example.com/callback"));
-    assert!(result.is_ok());
+    result.expect("same case should match");
 
     // Different case should not match
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback"));
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -94,7 +88,7 @@ fn test_validate_redirect_uri_with_query_params() {
     let registered = vec!["https://example.com/callback?foo=bar".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback?foo=bar"));
 
-    assert!(result.is_ok());
+    result.expect("URI with query params should match");
 }
 
 #[test]
@@ -103,10 +97,10 @@ fn test_validate_redirect_uri_partial_match_fails() {
 
     // Should not match partial URIs
     let result = validate_redirect_uri(&registered, Some("https://example.com/callbac"));
-    assert!(result.is_err());
+    result.unwrap_err();
 
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback/extra"));
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -114,7 +108,7 @@ fn test_validate_redirect_uri_localhost() {
     let registered = vec!["http://localhost:8080/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("http://localhost:8080/callback"));
 
-    assert!(result.is_ok());
+    result.expect("localhost URI should match");
 }
 
 #[test]
@@ -122,7 +116,7 @@ fn test_validate_redirect_uri_localhost_127() {
     let registered = vec!["http://127.0.0.1:3000/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("http://127.0.0.1:3000/callback"));
 
-    assert!(result.is_ok());
+    result.expect("127.0.0.1 URI should match");
 }
 
 #[test]
@@ -130,7 +124,7 @@ fn test_validate_redirect_uri_custom_scheme() {
     let registered = vec!["myapp://callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("myapp://callback"));
 
-    assert!(result.is_ok());
+    result.expect("custom scheme URI should match");
 }
 
 #[test]
@@ -138,7 +132,7 @@ fn test_validate_redirect_uri_with_port() {
     let registered = vec!["https://example.com:8443/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com:8443/callback"));
 
-    assert!(result.is_ok());
+    result.expect("URI with port should match");
 }
 
 #[test]
@@ -146,7 +140,7 @@ fn test_validate_redirect_uri_port_mismatch() {
     let registered = vec!["https://example.com:8443/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com:9443/callback"));
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -154,7 +148,7 @@ fn test_validate_redirect_uri_with_fragment() {
     let registered = vec!["https://example.com/callback#section".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback#section"));
 
-    assert!(result.is_ok());
+    result.expect("URI with fragment should match");
 }
 
 #[test]
@@ -162,7 +156,7 @@ fn test_validate_redirect_uri_whitespace_only() {
     let registered = vec!["https://example.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("   "));
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -174,7 +168,6 @@ fn test_validate_redirect_uri_relative_path_matches_absolute() {
     let registered = vec!["/admin/login".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com/admin/login"));
 
-    assert!(result.is_err());
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
@@ -188,7 +181,6 @@ fn test_validate_redirect_uri_relative_path_different_host() {
     let registered = vec!["/admin/login".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://other-host.io/admin/login"));
 
-    assert!(result.is_err());
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
@@ -202,7 +194,7 @@ fn test_validate_redirect_uri_relative_path_no_match() {
     let registered = vec!["/admin/login".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com/other/path"));
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -210,7 +202,7 @@ fn test_validate_redirect_uri_relative_path_partial_no_match() {
     let registered = vec!["/admin/login".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com/admin/login/extra"));
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -219,7 +211,7 @@ fn test_validate_redirect_uri_protocol_relative_not_treated_as_path() {
     let registered = vec!["//evil.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com//evil.com/callback"));
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -231,9 +223,9 @@ fn test_validate_redirect_uri_relative_alongside_absolute() {
 
     // Absolute match still works
     let result = validate_redirect_uri(&registered, Some("http://localhost:8080/callback"));
-    assert!(result.is_ok());
+    result.expect("absolute match should work");
 
     // Absolute URI no longer matches relative registered path
     let result = validate_redirect_uri(&registered, Some("https://prod.example.com/callback"));
-    assert!(result.is_err());
+    result.unwrap_err();
 }

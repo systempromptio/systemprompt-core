@@ -24,9 +24,8 @@ fn test_file_metadata_with_image() {
     let image = ImageMetadata::new().with_dimensions(800, 600);
     let metadata = FileMetadata::new().with_image(image);
 
-    assert!(metadata.type_specific.is_some());
-    match &metadata.type_specific {
-        Some(TypeSpecificMetadata::Image(img)) => {
+    match metadata.type_specific.as_ref().expect("type_specific should be set") {
+        TypeSpecificMetadata::Image(img) => {
             assert_eq!(img.width, Some(800));
             assert_eq!(img.height, Some(600));
         }
@@ -43,9 +42,8 @@ fn test_file_metadata_with_document() {
 
     let metadata = FileMetadata::new().with_document(doc);
 
-    assert!(metadata.type_specific.is_some());
-    match &metadata.type_specific {
-        Some(TypeSpecificMetadata::Document(d)) => {
+    match metadata.type_specific.as_ref().expect("type_specific should be set") {
+        TypeSpecificMetadata::Document(d) => {
             assert_eq!(d.title, Some("Test Document".to_string()));
             assert_eq!(d.author, Some("Test Author".to_string()));
             assert_eq!(d.page_count, Some(10));
@@ -63,9 +61,8 @@ fn test_file_metadata_with_audio() {
 
     let metadata = FileMetadata::new().with_audio(audio);
 
-    assert!(metadata.type_specific.is_some());
-    match &metadata.type_specific {
-        Some(TypeSpecificMetadata::Audio(a)) => {
+    match metadata.type_specific.as_ref().expect("type_specific should be set") {
+        TypeSpecificMetadata::Audio(a) => {
             assert_eq!(a.duration_seconds, Some(180.5));
             assert_eq!(a.sample_rate, Some(44100));
             assert_eq!(a.channels, Some(2));
@@ -83,9 +80,8 @@ fn test_file_metadata_with_video() {
 
     let metadata = FileMetadata::new().with_video(video);
 
-    assert!(metadata.type_specific.is_some());
-    match &metadata.type_specific {
-        Some(TypeSpecificMetadata::Video(v)) => {
+    match metadata.type_specific.as_ref().expect("type_specific should be set") {
+        TypeSpecificMetadata::Video(v) => {
             assert_eq!(v.width, Some(1920));
             assert_eq!(v.height, Some(1080));
             assert_eq!(v.duration_seconds, Some(3600.0));
@@ -103,8 +99,7 @@ fn test_file_metadata_with_checksums() {
 
     let metadata = FileMetadata::new().with_checksums(checksums);
 
-    assert!(metadata.checksums.is_some());
-    let cs = metadata.checksums.unwrap();
+    let cs = metadata.checksums.expect("checksums should be set");
     assert_eq!(cs.md5, Some("abc123".to_string()));
     assert_eq!(cs.sha256, Some("def456".to_string()));
 }
@@ -118,8 +113,8 @@ fn test_file_metadata_builder_chain() {
         .with_checksums(checksums)
         .with_image(image);
 
-    assert!(metadata.checksums.is_some());
-    assert!(metadata.type_specific.is_some());
+    metadata.checksums.as_ref().expect("checksums should be set");
+    metadata.type_specific.as_ref().expect("type_specific should be set");
 }
 
 #[test]
@@ -160,8 +155,8 @@ fn test_file_metadata_roundtrip() {
     let json = serde_json::to_string(&metadata).unwrap();
     let deserialized: FileMetadata = serde_json::from_str(&json).unwrap();
 
-    assert!(deserialized.checksums.is_some());
-    assert!(deserialized.type_specific.is_some());
+    deserialized.checksums.as_ref().expect("checksums should survive roundtrip");
+    deserialized.type_specific.as_ref().expect("type_specific should survive roundtrip");
 }
 
 #[test]

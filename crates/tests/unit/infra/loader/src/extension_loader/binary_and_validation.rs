@@ -29,9 +29,8 @@ fn test_get_cli_binary_path_release() {
     let binary_path = release_dir.join("my-binary");
     std::fs::write(&binary_path, "binary content").expect("Failed to write binary");
 
-    let found = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "my-binary");
-    assert!(found.is_some());
-    let path = found.expect("Should find binary");
+    let path = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "my-binary")
+        .expect("Should find release binary");
     assert!(path.to_string_lossy().contains("release"));
 }
 
@@ -44,9 +43,8 @@ fn test_get_cli_binary_path_debug_fallback() {
     let binary_path = debug_dir.join("debug-binary");
     std::fs::write(&binary_path, "binary content").expect("Failed to write binary");
 
-    let found = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "debug-binary");
-    assert!(found.is_some());
-    let path = found.expect("Should find binary");
+    let path = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "debug-binary")
+        .expect("Should find debug binary");
     assert!(path.to_string_lossy().contains("debug"));
 }
 
@@ -68,9 +66,8 @@ fn test_get_cli_binary_path_prefers_release() {
     std::fs::write(release_dir.join("my-binary"), "release").expect("Failed to write release");
     std::fs::write(debug_dir.join("my-binary"), "debug").expect("Failed to write debug");
 
-    let found = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "my-binary");
-    assert!(found.is_some());
-    let path = found.expect("Should find binary");
+    let path = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "my-binary")
+        .expect("Should find binary");
     assert!(
         path.to_string_lossy().contains("release"),
         "Should prefer release over debug"

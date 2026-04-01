@@ -53,7 +53,7 @@ mod chat_request_tests {
     fn with_sampling() {
         let sampling = SamplingParameters::new().with_temperature(0.5);
         let req = test_request().with_sampling(sampling);
-        assert!(req.sampling.is_some());
+        req.sampling.as_ref().expect("sampling should be set");
     }
 
     #[test]
@@ -61,8 +61,7 @@ mod chat_request_tests {
         use systemprompt_provider_contracts::ToolDefinition;
         let tools = vec![ToolDefinition::new("tool", "svc")];
         let req = test_request().with_tools(tools);
-        assert!(req.tools.is_some());
-        assert_eq!(req.tools.unwrap().len(), 1);
+        assert_eq!(req.tools.expect("tools should be set").len(), 1);
     }
 
     #[test]
@@ -140,7 +139,7 @@ mod chat_response_tests {
     fn with_usage() {
         let usage = TokenUsage::new(100, 50);
         let resp = test_response().with_usage(usage);
-        assert!(resp.usage.is_some());
+        resp.usage.as_ref().expect("usage should be set");
     }
 
     #[test]

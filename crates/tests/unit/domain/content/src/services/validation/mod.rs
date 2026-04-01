@@ -27,7 +27,7 @@ fn create_valid_metadata() -> ContentMetadata {
 fn test_validate_content_metadata_valid() {
     let metadata = create_valid_metadata();
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_ok());
+    result.expect("valid metadata should pass");
 }
 
 #[test]
@@ -36,8 +36,8 @@ fn test_validate_content_metadata_empty_title() {
     metadata.title = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("title"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("title"));
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_validate_content_metadata_whitespace_title() {
     metadata.title = "   ".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_validate_content_metadata_empty_slug_allowed_for_index() {
     metadata.slug = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_ok());
+    result.expect("empty slug should be allowed for index");
 }
 
 #[test]
@@ -64,8 +64,8 @@ fn test_validate_content_metadata_empty_author() {
     metadata.author = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("author"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("author"));
 }
 
 #[test]
@@ -74,8 +74,8 @@ fn test_validate_content_metadata_empty_published_at() {
     metadata.published_at = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("published_at"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("published_at"));
 }
 
 #[test]
@@ -84,8 +84,8 @@ fn test_validate_content_metadata_invalid_slug_uppercase() {
     metadata.slug = "Invalid-Slug".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("slug"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("slug"));
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_validate_content_metadata_invalid_slug_spaces() {
     metadata.slug = "invalid slug".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_validate_content_metadata_valid_slug_with_numbers() {
     metadata.slug = "article-2024-01".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_ok());
+    result.expect("slug with numbers should be valid");
 }
 
 #[test]
@@ -112,8 +112,8 @@ fn test_validate_content_metadata_invalid_date_format() {
     metadata.published_at = "01-15-2024".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("YYYY-MM-DD"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("YYYY-MM-DD"));
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn test_validate_content_metadata_invalid_date_short() {
     metadata.published_at = "2024-1-5".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn test_validate_content_metadata_nested_slug_simple() {
     metadata.slug = "getting-started/installation".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_ok());
+    result.expect("nested slug should be valid");
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn test_validate_content_metadata_nested_slug_deep() {
     metadata.slug = "crates/infrastructure/database".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_ok());
+    result.expect("deep nested slug should be valid");
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn test_validate_content_metadata_nested_slug_with_numbers() {
     metadata.slug = "guides/v2/migration-2024".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_ok());
+    result.expect("nested slug with numbers should be valid");
 }
 
 #[test]
@@ -158,8 +158,8 @@ fn test_validate_content_metadata_nested_slug_rejects_double_slash() {
     metadata.slug = "guides//migration".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("double slashes"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("double slashes"));
 }
 
 #[test]
@@ -168,8 +168,8 @@ fn test_validate_content_metadata_nested_slug_rejects_uppercase_segment() {
     metadata.slug = "guides/Migration/steps".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("slug"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("slug"));
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn test_validate_content_metadata_nested_slug_rejects_spaces_in_segment() {
     metadata.slug = "guides/my guide/steps".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -187,7 +187,7 @@ fn test_validate_content_metadata_nested_slug_allows_leading_trailing_slash_trim
     metadata.slug = "/guides/migration/".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_ok());
+    result.expect("leading/trailing slash should be trimmed");
 }
 
 #[test]
@@ -196,7 +196,6 @@ fn test_validate_content_metadata_slug_only_slashes() {
     metadata.slug = "/".to_string();
 
     let result = validate_content_metadata(&metadata);
-    assert!(result.is_err());
     let err_str = result.unwrap_err().to_string();
     assert!(
         err_str.contains("only slashes"),
@@ -220,7 +219,7 @@ fn test_valid_date_formats() {
         metadata.published_at = date.to_string();
 
         let result = validate_content_metadata(&metadata);
-        assert!(result.is_ok(), "Date '{}' should be valid", date);
+        result.unwrap_or_else(|e| panic!("Date '{}' should be valid: {}", date, e));
     }
 }
 
@@ -242,6 +241,6 @@ fn test_invalid_date_formats() {
         metadata.published_at = date.to_string();
 
         let result = validate_content_metadata(&metadata);
-        assert!(result.is_err(), "Date '{}' should be invalid", date);
+        result.expect_err(&format!("Date '{}' should be invalid", date));
     }
 }

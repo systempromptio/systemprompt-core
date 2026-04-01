@@ -9,16 +9,14 @@ use super::{create_headers_with_user_agent, create_headers_with_ip};
 fn from_headers_extracts_user_agent() {
     let headers = create_headers_with_user_agent("Mozilla/5.0 Chrome/120.0");
     let analytics = SessionAnalytics::from_headers(&headers);
-    assert!(analytics.user_agent.is_some());
-    assert!(analytics.user_agent.unwrap().contains("Chrome"));
+    assert!(analytics.user_agent.as_ref().expect("user_agent should be present").contains("Chrome"));
 }
 
 #[test]
 fn from_headers_extracts_ip_from_forwarded_for() {
     let headers = create_headers_with_ip("10.0.0.1, 192.168.1.1");
     let analytics = SessionAnalytics::from_headers(&headers);
-    assert!(analytics.ip_address.is_some());
-    assert_eq!(analytics.ip_address.unwrap(), "10.0.0.1");
+    assert_eq!(analytics.ip_address.expect("ip_address should be present"), "10.0.0.1");
 }
 
 #[test]

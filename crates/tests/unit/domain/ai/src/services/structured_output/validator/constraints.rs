@@ -14,7 +14,7 @@ mod string_validation_tests {
             "minLength": 3
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -25,7 +25,7 @@ mod string_validation_tests {
             "minLength": 3
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_err());
+        SchemaValidator::validate(&value, &schema, true).unwrap_err();
     }
 
     #[test]
@@ -36,7 +36,7 @@ mod string_validation_tests {
             "maxLength": 10
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -47,7 +47,7 @@ mod string_validation_tests {
             "maxLength": 5
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_err());
+        SchemaValidator::validate(&value, &schema, true).unwrap_err();
     }
 
     #[test]
@@ -58,7 +58,7 @@ mod string_validation_tests {
             "pattern": "^[a-z]+@[a-z]+\\.[a-z]+$"
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -69,7 +69,7 @@ mod string_validation_tests {
             "pattern": "^[a-z]+@[a-z]+\\.[a-z]+$"
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_err());
+        SchemaValidator::validate(&value, &schema, true).unwrap_err();
     }
 }
 
@@ -84,7 +84,7 @@ mod number_validation_tests {
             "minimum": 5
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -95,7 +95,7 @@ mod number_validation_tests {
             "minimum": 5
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_err());
+        SchemaValidator::validate(&value, &schema, true).unwrap_err();
     }
 
     #[test]
@@ -106,7 +106,7 @@ mod number_validation_tests {
             "maximum": 100
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -117,7 +117,7 @@ mod number_validation_tests {
             "maximum": 100
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_err());
+        SchemaValidator::validate(&value, &schema, true).unwrap_err();
     }
 }
 
@@ -131,7 +131,7 @@ mod enum_validation_tests {
             "enum": ["active", "inactive", "pending"]
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -141,7 +141,7 @@ mod enum_validation_tests {
             "enum": ["active", "inactive", "pending"]
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_err());
+        SchemaValidator::validate(&value, &schema, true).unwrap_err();
     }
 
     #[test]
@@ -151,7 +151,7 @@ mod enum_validation_tests {
             "enum": [1, 2, 3]
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -160,11 +160,11 @@ mod enum_validation_tests {
             "enum": [1, "two", null, true]
         });
 
-        assert!(SchemaValidator::validate(&json!(1), &schema, true).is_ok());
-        assert!(SchemaValidator::validate(&json!("two"), &schema, true).is_ok());
-        assert!(SchemaValidator::validate(&json!(null), &schema, true).is_ok());
-        assert!(SchemaValidator::validate(&json!(true), &schema, true).is_ok());
-        assert!(SchemaValidator::validate(&json!("other"), &schema, true).is_err());
+        SchemaValidator::validate(&json!(1), &schema, true).expect("1 should match enum");
+        SchemaValidator::validate(&json!("two"), &schema, true).expect("two should match enum");
+        SchemaValidator::validate(&json!(null), &schema, true).expect("null should match enum");
+        SchemaValidator::validate(&json!(true), &schema, true).expect("true should match enum");
+        SchemaValidator::validate(&json!("other"), &schema, true).unwrap_err();
     }
 }
 
@@ -193,7 +193,7 @@ mod nested_validation_tests {
             }
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -214,7 +214,7 @@ mod nested_validation_tests {
             }
         });
 
-        assert!(SchemaValidator::validate(&value, &schema, true).is_ok());
+        SchemaValidator::validate(&value, &schema, true).expect("validation should pass");
     }
 
     #[test]
@@ -240,9 +240,7 @@ mod nested_validation_tests {
             }
         });
 
-        let result = SchemaValidator::validate(&value, &schema, true);
-        assert!(result.is_err());
-        let error = result.unwrap_err().to_string();
+        let error = SchemaValidator::validate(&value, &schema, true).unwrap_err().to_string();
         assert!(error.contains("users") || error.contains("[1]"));
     }
 }
@@ -254,9 +252,9 @@ mod no_type_validation_tests {
     fn accepts_any_value_without_type() {
         let schema = json!({});
 
-        assert!(SchemaValidator::validate(&json!("string"), &schema, true).is_ok());
-        assert!(SchemaValidator::validate(&json!(42), &schema, true).is_ok());
-        assert!(SchemaValidator::validate(&json!(null), &schema, true).is_ok());
-        assert!(SchemaValidator::validate(&json!([1, 2]), &schema, true).is_ok());
+        SchemaValidator::validate(&json!("string"), &schema, true).expect("string should pass");
+        SchemaValidator::validate(&json!(42), &schema, true).expect("number should pass");
+        SchemaValidator::validate(&json!(null), &schema, true).expect("null should pass");
+        SchemaValidator::validate(&json!([1, 2]), &schema, true).expect("array should pass");
     }
 }

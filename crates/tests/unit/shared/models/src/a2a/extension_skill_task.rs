@@ -11,9 +11,9 @@ fn test_agent_extension_mcp_tools() {
     let ext = AgentExtension::mcp_tools_extension();
 
     assert_eq!(ext.uri, "systemprompt:mcp-tools");
-    assert!(ext.description.is_some());
+    ext.description.as_ref().expect("description should be set");
     assert_eq!(ext.required, Some(false));
-    assert!(ext.params.is_some());
+    ext.params.as_ref().expect("params should be set");
 }
 
 #[test]
@@ -22,8 +22,8 @@ fn test_agent_extension_mcp_tools_with_servers() {
     let ext = AgentExtension::mcp_tools_extension_with_servers(&servers);
 
     assert_eq!(ext.uri, "systemprompt:mcp-tools");
-    let params = ext.params.unwrap();
-    assert!(params.get("servers").is_some());
+    let params = ext.params.expect("params should be set");
+    params.get("servers").expect("servers param should be set");
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn test_agent_extension_opencode_integration() {
     let ext = AgentExtension::opencode_integration_extension();
 
     assert_eq!(ext.uri, "systemprompt:opencode-integration");
-    assert!(ext.description.is_some());
+    ext.description.as_ref().expect("description should be set");
 }
 
 #[test]
@@ -39,8 +39,8 @@ fn test_agent_extension_artifact_rendering() {
     let ext = AgentExtension::artifact_rendering_extension();
 
     assert!(ext.uri.contains("artifact-rendering"));
-    let params = ext.params.unwrap();
-    assert!(params.get("supported_types").is_some());
+    let params = ext.params.expect("params should be set");
+    params.get("supported_types").expect("supported_types param should be set");
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_agent_extension_system_instructions() {
 #[test]
 fn test_agent_extension_system_instructions_opt_some() {
     let ext = AgentExtension::system_instructions_opt(Some("test prompt"));
-    assert!(ext.is_some());
+    ext.expect("system_instructions_opt with Some should return Some");
 }
 
 #[test]
@@ -237,8 +237,8 @@ fn test_task_state_unknown() {
 #[test]
 fn test_task_state_invalid() {
     let result: Result<TaskState, String> = "invalid-state".parse();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid task state"));
+    let err = result.unwrap_err();
+    assert!(err.contains("Invalid task state"));
 }
 
 #[test]

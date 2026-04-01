@@ -76,7 +76,7 @@ fn test_oauth_client_validate_success() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_ok());
+    result.expect("valid client should pass validation");
 }
 
 #[test]
@@ -87,8 +87,8 @@ fn test_oauth_client_validate_empty_client_id() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("client_id"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("client_id"));
 }
 
 #[test]
@@ -99,8 +99,8 @@ fn test_oauth_client_validate_empty_client_name() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("client_name"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("client_name"));
 }
 
 #[test]
@@ -111,8 +111,8 @@ fn test_oauth_client_validate_empty_redirect_uris() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("redirect_uris"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("redirect_uris"));
 }
 
 #[test]
@@ -123,8 +123,8 @@ fn test_oauth_client_validate_empty_grant_types() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("grant_types"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("grant_types"));
 }
 
 #[test]
@@ -135,8 +135,8 @@ fn test_oauth_client_validate_empty_response_types() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("response_types"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("response_types"));
 }
 
 #[test]
@@ -147,8 +147,8 @@ fn test_oauth_client_validate_empty_scopes() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("scopes"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("scopes"));
 }
 
 #[test]

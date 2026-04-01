@@ -35,7 +35,7 @@ async fn test_put_request_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.update_context_name("ctx-123", "New Name").await;
 
-    assert!(result.is_ok());
+    result.expect("PUT request should succeed");
 }
 
 #[tokio::test]
@@ -58,7 +58,7 @@ async fn test_put_request_with_json_body() {
         .update_context_name("ctx-123", "Updated Context")
         .await;
 
-    assert!(result.is_ok());
+    result.expect("PUT with JSON body should succeed");
 }
 
 #[tokio::test]
@@ -74,7 +74,7 @@ async fn test_put_request_404_not_found() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.update_context_name("nonexistent", "Name").await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -94,7 +94,7 @@ async fn test_delete_request_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.delete_context("ctx-to-delete").await;
 
-    assert!(result.is_ok());
+    result.expect("DELETE request should succeed");
 }
 
 #[tokio::test]
@@ -113,8 +113,7 @@ async fn test_delete_request_with_auth() {
         .unwrap()
         .with_token(token);
 
-    let result = client.delete_context("ctx-123").await;
-    assert!(result.is_ok());
+    client.delete_context("ctx-123").await.expect("DELETE with auth should succeed");
 }
 
 #[tokio::test]
@@ -130,7 +129,6 @@ async fn test_delete_request_403_forbidden() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.delete_context("protected").await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("403"));
 }
@@ -158,7 +156,6 @@ async fn test_error_response_json_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("400"));
 }
@@ -176,7 +173,6 @@ async fn test_error_response_plain_text_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("503"));
 }
@@ -194,7 +190,7 @@ async fn test_error_response_empty_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -206,7 +202,6 @@ async fn test_connection_refused() {
     let client = SystempromptClient::new("http://127.0.0.1:59998").unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("HTTP request failed"));
 }
@@ -234,5 +229,5 @@ async fn test_request_timeout() {
     let client = SystempromptClient::with_timeout(&mock_server.uri(), 1).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }

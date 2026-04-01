@@ -11,8 +11,7 @@ use systemprompt_identifiers::JwtToken;
 
 #[test]
 fn test_client_new_success() {
-    let client = SystempromptClient::new("https://api.example.com");
-    assert!(client.is_ok());
+    SystempromptClient::new("https://api.example.com").expect("client creation should succeed");
 }
 
 #[test]
@@ -35,8 +34,7 @@ fn test_client_new_no_trailing_slash() {
 
 #[test]
 fn test_client_with_timeout_success() {
-    let client = SystempromptClient::with_timeout("https://api.example.com", 60);
-    assert!(client.is_ok());
+    SystempromptClient::with_timeout("https://api.example.com", 60).expect("client with timeout should succeed");
 }
 
 #[test]
@@ -47,14 +45,12 @@ fn test_client_with_timeout_trims_trailing_slash() {
 
 #[test]
 fn test_client_with_zero_timeout() {
-    let client = SystempromptClient::with_timeout("https://api.example.com", 0);
-    assert!(client.is_ok());
+    SystempromptClient::with_timeout("https://api.example.com", 0).expect("zero timeout should succeed");
 }
 
 #[test]
 fn test_client_with_large_timeout() {
-    let client = SystempromptClient::with_timeout("https://api.example.com", 3600);
-    assert!(client.is_ok());
+    SystempromptClient::with_timeout("https://api.example.com", 3600).expect("large timeout should succeed");
 }
 
 // ============================================================================
@@ -74,8 +70,7 @@ fn test_client_with_token() {
         .unwrap()
         .with_token(token);
 
-    assert!(client.token().is_some());
-    assert_eq!(client.token().unwrap().as_str(), "test-token-12345");
+    assert_eq!(client.token().expect("token should be set").as_str(), "test-token-12345");
 }
 
 #[test]
@@ -86,8 +81,7 @@ fn test_client_set_token() {
     let token = JwtToken::new("new-token");
     client.set_token(token);
 
-    assert!(client.token().is_some());
-    assert_eq!(client.token().unwrap().as_str(), "new-token");
+    assert_eq!(client.token().expect("token should be set").as_str(), "new-token");
 }
 
 #[test]

@@ -73,8 +73,8 @@ fn test_update_oauth_client_request_full() {
 
     let request: UpdateOAuthClientRequest = serde_json::from_str(json).unwrap();
     assert_eq!(request.name, Some("Updated Name".to_string()));
-    assert!(request.redirect_uris.is_some());
-    assert!(request.scopes.is_some());
+    request.redirect_uris.as_ref().expect("redirect_uris should be present");
+    request.scopes.as_ref().expect("scopes should be present");
 }
 
 #[test]

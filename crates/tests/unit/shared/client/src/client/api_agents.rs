@@ -95,8 +95,7 @@ async fn test_list_agents_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let agents = client.list_agents().await;
 
-    assert!(agents.is_ok());
-    let agents = agents.unwrap();
+    let agents = agents.expect("list_agents should succeed");
     assert_eq!(agents.len(), 1);
     assert_eq!(agents[0].name, "test-agent");
 }
@@ -119,8 +118,8 @@ async fn test_list_agents_empty() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let agents = client.list_agents().await;
 
-    assert!(agents.is_ok());
-    assert!(agents.unwrap().is_empty());
+    let agents = agents.expect("list_agents should succeed for empty list");
+    assert!(agents.is_empty());
 }
 
 #[tokio::test]
@@ -136,7 +135,7 @@ async fn test_list_agents_unauthorized() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -159,9 +158,8 @@ async fn test_verify_token_success() {
         .unwrap()
         .with_token(token);
 
-    let is_valid = client.verify_token().await;
-    assert!(is_valid.is_ok());
-    assert!(is_valid.unwrap());
+    let is_valid = client.verify_token().await.expect("verify_token should succeed");
+    assert!(is_valid);
 }
 
 #[tokio::test]
@@ -179,9 +177,8 @@ async fn test_verify_token_invalid() {
         .unwrap()
         .with_token(token);
 
-    let is_valid = client.verify_token().await;
-    assert!(is_valid.is_ok());
-    assert!(!is_valid.unwrap());
+    let is_valid = client.verify_token().await.expect("verify_token should succeed");
+    assert!(!is_valid);
 }
 
 #[tokio::test]
@@ -189,5 +186,5 @@ async fn test_verify_token_no_token_configured() {
     let client = SystempromptClient::new("https://api.example.com").unwrap();
     let result = client.verify_token().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }

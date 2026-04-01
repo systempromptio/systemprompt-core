@@ -72,9 +72,7 @@ name: test
         .generate_config(DeployEnvironment::Local)
         .expect("Should generate config");
 
-    let result = manager.write_web_env_file(&config);
-
-    assert!(result.is_ok());
+    manager.write_web_env_file(&config).expect("Should write web env file with no vite vars");
 
     let web_env_path = temp_dir.path().join("web/.env.local");
     assert!(!web_env_path.exists());

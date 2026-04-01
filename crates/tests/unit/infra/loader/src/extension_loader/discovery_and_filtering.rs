@@ -241,9 +241,9 @@ fn test_find_cli_extension_by_name() {
     )
     .expect("Failed to write cli manifest");
 
-    let found = ExtensionLoader::find_cli_extension(temp_dir.path(), "my-cli");
-    assert!(found.is_some());
-    assert_eq!(found.expect("Should find").manifest.extension.name, "my-cli");
+    let found = ExtensionLoader::find_cli_extension(temp_dir.path(), "my-cli")
+        .expect("Should find CLI extension by name");
+    assert_eq!(found.manifest.extension.name, "my-cli");
 }
 
 #[test]
@@ -259,8 +259,8 @@ fn test_find_cli_extension_by_binary() {
     )
     .expect("Failed to write cli manifest");
 
-    let found = ExtensionLoader::find_cli_extension(temp_dir.path(), "my-cli-binary");
-    assert!(found.is_some());
+    ExtensionLoader::find_cli_extension(temp_dir.path(), "my-cli-binary")
+        .expect("Should find CLI extension by binary name");
 }
 
 #[test]

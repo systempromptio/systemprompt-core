@@ -40,7 +40,7 @@ async fn test_get_request_success_json_response() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_ok());
+    result.expect("GET request should succeed");
 }
 
 #[tokio::test]
@@ -62,8 +62,7 @@ async fn test_get_request_with_auth_token() {
         .unwrap()
         .with_token(token);
 
-    let result = client.list_agents().await;
-    assert!(result.is_ok());
+    client.list_agents().await.expect("request with auth should succeed");
 }
 
 #[tokio::test]
@@ -79,7 +78,6 @@ async fn test_get_request_401_unauthorized() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     let err_str = err.to_string();
     assert!(err_str.contains("401"), "Expected error to contain '401', got: {}", err_str);
@@ -98,7 +96,6 @@ async fn test_get_request_404_not_found() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("404"));
 }
@@ -116,7 +113,6 @@ async fn test_get_request_500_server_error() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("500"));
 }
@@ -134,7 +130,7 @@ async fn test_get_request_invalid_json_response() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -170,7 +166,7 @@ async fn test_post_request_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(None).await;
 
-    assert!(result.is_ok());
+    result.expect("POST request should succeed");
 }
 
 #[tokio::test]
@@ -202,8 +198,7 @@ async fn test_post_request_with_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(Some("My Context")).await;
 
-    assert!(result.is_ok());
-    let context = result.unwrap();
+    let context = result.expect("POST with body should succeed");
     assert_eq!(context.name, "My Context");
 }
 
@@ -232,7 +227,7 @@ async fn test_post_request_content_type_json() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(None).await;
 
-    assert!(result.is_ok());
+    result.expect("POST with content-type should succeed");
 }
 
 #[tokio::test]
@@ -250,7 +245,6 @@ async fn test_post_request_422_validation_error() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(Some("test")).await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("422"));
 }

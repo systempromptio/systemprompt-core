@@ -22,7 +22,7 @@ fn test_startup_validation_report_with_profile_path() {
 
     let report = StartupValidationReport::new()
         .with_profile_path(PathBuf::from("/etc/config/profile.yaml"));
-    assert!(report.profile_path.is_some());
+    report.profile_path.as_ref().expect("Should have profile path");
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn test_validation_error_with_path() {
 
     let error = ValidationError::new("field", "message")
         .with_path(PathBuf::from("/path/to/file"));
-    assert!(error.path.is_some());
+    error.path.as_ref().expect("Should have path");
 }
 
 #[test]
@@ -150,8 +150,7 @@ fn test_validation_error_with_suggestion() {
 
     let error = ValidationError::new("field", "message")
         .with_suggestion("Try this fix");
-    assert!(error.suggestion.is_some());
-    assert_eq!(error.suggestion.unwrap(), "Try this fix");
+    assert_eq!(error.suggestion.expect("Should have suggestion"), "Try this fix");
 }
 
 #[test]
@@ -164,8 +163,8 @@ fn test_validation_error_full_chain() {
         .with_suggestion("Check your database credentials");
     assert_eq!(error.field, "database_url");
     assert_eq!(error.message, "Connection failed");
-    assert!(error.path.is_some());
-    assert!(error.suggestion.is_some());
+    error.path.as_ref().expect("Should have path in full chain");
+    error.suggestion.as_ref().expect("Should have suggestion in full chain");
 }
 
 // ============================================================================
@@ -187,7 +186,7 @@ fn test_validation_warning_with_suggestion() {
 
     let warning = ValidationWarning::new("field", "message")
         .with_suggestion("Consider this");
-    assert!(warning.suggestion.is_some());
+    warning.suggestion.as_ref().expect("Should have suggestion");
 }
 
 // ============================================================================

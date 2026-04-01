@@ -153,7 +153,7 @@ async fn test_broadcaster_many_connections_stress() {
     assert_eq!(count, 10);
 
     for mut rx in receivers {
-        assert!(rx.recv().await.is_some());
+        let _event = rx.recv().await.expect("Should receive broadcast on connection");
     }
 }
 

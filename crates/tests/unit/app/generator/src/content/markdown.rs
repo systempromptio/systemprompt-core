@@ -195,10 +195,8 @@ date: 2024-01-15
 ---
 Body content here."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (yaml, body) = result.unwrap();
+    let (yaml, body) = extract_frontmatter(content)
+        .expect("Should extract valid frontmatter");
     assert_eq!(yaml["title"].as_str(), Some("My Title"));
     assert_eq!(yaml["date"].as_str(), Some("2024-01-15"));
     assert!(body.contains("Body content here."));
@@ -227,9 +225,8 @@ fn test_extract_frontmatter_empty_frontmatter() {
 ---
 Body content."#;
 
-    let result = extract_frontmatter(content);
-    // Empty frontmatter should still parse (as empty YAML)
-    assert!(result.is_some());
+    extract_frontmatter(content)
+        .expect("Empty frontmatter should still parse as empty YAML");
 }
 
 #[test]
@@ -246,13 +243,11 @@ metadata:
 ---
 Content body."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (yaml, body) = result.unwrap();
+    let (yaml, body) = extract_frontmatter(content)
+        .expect("Should extract complex frontmatter");
     assert_eq!(yaml["title"].as_str(), Some("Complex Title"));
-    assert!(yaml["tags"].as_sequence().is_some());
-    assert!(yaml["metadata"]["author"].as_str().is_some());
+    yaml["tags"].as_sequence().expect("tags should be a sequence");
+    yaml["metadata"]["author"].as_str().expect("metadata.author should be a string");
     assert!(body.contains("Content body."));
 }
 
@@ -266,10 +261,8 @@ description: |
 ---
 Body."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (yaml, _) = result.unwrap();
+    let (yaml, _) = extract_frontmatter(content)
+        .expect("Should extract frontmatter with special characters");
     assert!(yaml["title"].as_str().unwrap().contains("colons"));
 }
 
@@ -295,10 +288,8 @@ title: Test
 
 Some **bold** text and a [link](http://example.com)."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (_, body) = result.unwrap();
+    let (_, body) = extract_frontmatter(content)
+        .expect("Should extract frontmatter with markdown body");
     assert!(body.contains("# Heading"));
     assert!(body.contains("**bold**"));
 }
@@ -313,10 +304,8 @@ draft: false
 ---
 Content."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (yaml, _) = result.unwrap();
+    let (yaml, _) = extract_frontmatter(content)
+        .expect("Should extract frontmatter with numbers and booleans");
     assert_eq!(yaml["count"].as_i64(), Some(42));
     assert_eq!(yaml["rating"].as_f64(), Some(4.5));
     assert_eq!(yaml["published"].as_bool(), Some(true));
@@ -331,11 +320,8 @@ updated: 2024-01-20T10:30:00Z
 ---
 Body."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (yaml, _) = result.unwrap();
-    // Dates are typically parsed as strings in serde_yaml
+    let (yaml, _) = extract_frontmatter(content)
+        .expect("Should extract frontmatter with dates");
     assert!(yaml["created"].as_str().is_some() || yaml["created"].is_string());
 }
 
@@ -348,11 +334,8 @@ title: Test
 
 Body with leading whitespace."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (_, body) = result.unwrap();
-    // Body should preserve whitespace but may be trimmed depending on implementation
+    let (_, body) = extract_frontmatter(content)
+        .expect("Should extract frontmatter with whitespace around delimiters");
     assert!(body.contains("Body with leading whitespace."));
 }
 
@@ -363,9 +346,7 @@ title: Test
 ---
 Some content with --- dashes in the middle."#;
 
-    let result = extract_frontmatter(content);
-    assert!(result.is_some());
-
-    let (_, body) = result.unwrap();
+    let (_, body) = extract_frontmatter(content)
+        .expect("Should extract frontmatter when body contains triple dashes");
     assert!(body.contains("---"));
 }

@@ -20,8 +20,7 @@ async fn test_retry_operation_succeeds_first_try() {
 
     let result = retry_operation(|| async { Ok::<i32, AgentServiceError>(42) }, config).await;
 
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.expect("retry should succeed"), 42);
 }
 
 #[tokio::test]
@@ -39,7 +38,7 @@ async fn test_retry_operation_fails_all_attempts() {
     )
     .await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[tokio::test]
@@ -70,8 +69,7 @@ async fn test_retry_operation_succeeds_after_retries() {
     )
     .await;
 
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.expect("retry should eventually succeed"), 42);
     assert_eq!(counter.load(Ordering::SeqCst), 3);
 }
 
@@ -84,8 +82,7 @@ async fn test_retry_operation_with_backoff_succeeds() {
     )
     .await;
 
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "success");
+    assert_eq!(result.expect("backoff retry should succeed"), "success");
 }
 
 #[tokio::test]
@@ -97,7 +94,7 @@ async fn test_retry_operation_with_backoff_fails() {
     )
     .await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[tokio::test]
@@ -107,8 +104,7 @@ async fn test_execute_with_timeout_succeeds() {
     })
     .await;
 
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.expect("timeout should not trigger"), 42);
 }
 
 #[tokio::test]
@@ -119,7 +115,6 @@ async fn test_execute_with_timeout_times_out() {
     })
     .await;
 
-    assert!(result.is_err());
     match result.unwrap_err() {
         AgentServiceError::Timeout(ms) => assert_eq!(ms, 1),
         _ => panic!("Expected Timeout error"),
@@ -133,7 +128,6 @@ async fn test_execute_with_timeout_propagates_error() {
     })
     .await;
 
-    assert!(result.is_err());
     match result.unwrap_err() {
         AgentServiceError::Database(msg) => assert_eq!(msg, "db error"),
         _ => panic!("Expected Database error"),
@@ -152,7 +146,7 @@ async fn test_execute_with_custom_timeout_connect() {
     let result =
         execute_with_custom_timeout(config, TimeoutType::Connect, async { Ok::<i32, AgentServiceError>(1) }).await;
 
-    assert!(result.is_ok());
+    result.expect("connect timeout should succeed");
 }
 
 #[tokio::test]
@@ -167,7 +161,7 @@ async fn test_execute_with_custom_timeout_read() {
     let result =
         execute_with_custom_timeout(config, TimeoutType::Read, async { Ok::<i32, AgentServiceError>(2) }).await;
 
-    assert!(result.is_ok());
+    result.expect("read timeout should succeed");
 }
 
 #[tokio::test]
@@ -182,7 +176,7 @@ async fn test_execute_with_custom_timeout_write() {
     let result =
         execute_with_custom_timeout(config, TimeoutType::Write, async { Ok::<i32, AgentServiceError>(3) }).await;
 
-    assert!(result.is_ok());
+    result.expect("write timeout should succeed");
 }
 
 #[tokio::test]
@@ -197,5 +191,5 @@ async fn test_execute_with_custom_timeout_default() {
     let result =
         execute_with_custom_timeout(config, TimeoutType::Default, async { Ok::<i32, AgentServiceError>(4) }).await;
 
-    assert!(result.is_ok());
+    result.expect("default timeout should succeed");
 }

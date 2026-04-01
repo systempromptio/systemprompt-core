@@ -27,8 +27,7 @@ mod anomaly_detection_service_tests {
         let result = service.check_anomaly("requests_per_minute", 20.0).await;
 
         assert_eq!(result.level, AnomalyLevel::Warning);
-        assert!(result.message.is_some());
-        assert!(result.message.unwrap().contains("WARNING"));
+        assert!(result.message.as_ref().expect("warning should have message").contains("WARNING"));
     }
 
     #[tokio::test]
@@ -37,8 +36,7 @@ mod anomaly_detection_service_tests {
         let result = service.check_anomaly("requests_per_minute", 50.0).await;
 
         assert_eq!(result.level, AnomalyLevel::Critical);
-        assert!(result.message.is_some());
-        assert!(result.message.unwrap().contains("CRITICAL"));
+        assert!(result.message.as_ref().expect("critical should have message").contains("CRITICAL"));
     }
 
     #[tokio::test]
@@ -155,8 +153,7 @@ mod anomaly_detection_service_tests {
         service.record_event("spike_metric", 100.0).await;
 
         let result = service.check_trend_anomaly("spike_metric", 60).await;
-        assert!(result.is_some());
-        let result = result.unwrap();
+        let result = result.expect("spike should be detected");
         assert!(
             result.level == AnomalyLevel::Critical || result.level == AnomalyLevel::Warning,
             "Expected Critical or Warning, got {:?}",
@@ -175,8 +172,7 @@ mod anomaly_detection_service_tests {
         service.record_event("elevated_metric", 35.0).await;
 
         let result = service.check_trend_anomaly("elevated_metric", 60).await;
-        assert!(result.is_some());
-        let result = result.unwrap();
+        let result = result.expect("elevated trend should be detected");
         assert_eq!(result.level, AnomalyLevel::Warning);
     }
 

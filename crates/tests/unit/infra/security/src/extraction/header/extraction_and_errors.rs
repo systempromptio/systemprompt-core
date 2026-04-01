@@ -69,9 +69,9 @@ fn test_header_extractor_extract_task_id_present() {
     let mut headers = HeaderMap::new();
     headers.insert("x-task-id", HeaderValue::from_static("task-12345"));
 
-    let task_id = HeaderExtractor::extract_task_id(&headers);
-    assert!(task_id.is_some());
-    assert_eq!(task_id.unwrap().as_str(), "task-12345");
+    let task_id = HeaderExtractor::extract_task_id(&headers)
+        .expect("Should extract task id from header");
+    assert_eq!(task_id.as_str(), "task-12345");
 }
 
 #[test]

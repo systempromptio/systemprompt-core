@@ -174,7 +174,7 @@ mod session_row_tests {
         };
 
         assert_eq!(row.started_at, now);
-        assert!(row.user_id.is_some());
+        row.user_id.as_ref().expect("user_id should be present");
         assert_eq!(row.duration_seconds, Some(180));
     }
 

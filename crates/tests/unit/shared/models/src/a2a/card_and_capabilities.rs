@@ -34,8 +34,7 @@ fn test_agent_card_builder_with_provider() {
     .with_provider("systemprompt.io".to_string(), "https://systemprompt.io".to_string())
     .build();
 
-    assert!(card.provider.is_some());
-    let provider = card.provider.unwrap();
+    let provider = card.provider.expect("provider should be set");
     assert_eq!(provider.organization, "systemprompt.io");
     assert_eq!(provider.url, "https://systemprompt.io");
 }

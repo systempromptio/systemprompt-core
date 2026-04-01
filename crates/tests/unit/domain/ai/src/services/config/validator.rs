@@ -48,8 +48,7 @@ mod validate_providers_tests {
     #[test]
     fn valid_config_passes() {
         let config = create_valid_config();
-        let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        ConfigValidator::validate(&config, &[]).expect("valid config should pass validation");
     }
 
     #[test]
@@ -57,10 +56,9 @@ mod validate_providers_tests {
         let mut config = create_valid_config();
         config.providers.get_mut("openai").unwrap().enabled = false;
 
-        let result = ConfigValidator::validate(&config, &[]);
+        let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No AI providers"));
+        assert!(err.to_string().contains("No AI providers"));
     }
 
     #[test]
@@ -69,10 +67,7 @@ mod validate_providers_tests {
         config.providers.get_mut("openai").unwrap().enabled = false;
 
         let missing = vec!["OPENAI_API_KEY not set".to_string()];
-        let result = ConfigValidator::validate(&config, &missing);
-
-        assert!(result.is_err());
-        let error = result.unwrap_err().to_string();
+        let error = ConfigValidator::validate(&config, &missing).unwrap_err().to_string();
         assert!(error.contains("OPENAI_API_KEY"));
     }
 
@@ -81,10 +76,9 @@ mod validate_providers_tests {
         let mut config = create_valid_config();
         config.providers.get_mut("openai").unwrap().api_key = String::new();
 
-        let result = ConfigValidator::validate(&config, &[]);
+        let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("no API key"));
+        assert!(err.to_string().contains("no API key"));
     }
 
     #[test]
@@ -92,10 +86,9 @@ mod validate_providers_tests {
         let mut config = create_valid_config();
         config.providers.get_mut("openai").unwrap().default_model = String::new();
 
-        let result = ConfigValidator::validate(&config, &[]);
+        let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("no default model"));
+        assert!(err.to_string().contains("no default model"));
     }
 
     #[test]
@@ -103,10 +96,9 @@ mod validate_providers_tests {
         let mut config = create_valid_config();
         config.default_provider = "unknown".to_string();
 
-        let result = ConfigValidator::validate(&config, &[]);
+        let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(err.to_string().contains("not found"));
     }
 
     #[test]
@@ -131,10 +123,9 @@ mod validate_providers_tests {
         // Disable the default
         config.providers.get_mut("openai").unwrap().enabled = false;
 
-        let result = ConfigValidator::validate(&config, &[]);
+        let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not enabled"));
+        assert!(err.to_string().contains("not enabled"));
     }
 
     #[test]
@@ -154,8 +145,7 @@ mod validate_providers_tests {
             },
         );
 
-        let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        ConfigValidator::validate(&config, &[]).expect("multiple enabled providers should pass");
     }
 }
 
@@ -167,10 +157,9 @@ mod validate_mcp_tests {
         let mut config = create_valid_config();
         config.mcp.connect_timeout_ms = 0;
 
-        let result = ConfigValidator::validate(&config, &[]);
+        let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("connect timeout"));
+        assert!(err.to_string().contains("connect timeout"));
     }
 
     #[test]
@@ -178,13 +167,9 @@ mod validate_mcp_tests {
         let mut config = create_valid_config();
         config.mcp.execution_timeout_ms = 0;
 
-        let result = ConfigValidator::validate(&config, &[]);
+        let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("execution timeout"));
+        assert!(err.to_string().contains("execution timeout"));
     }
 
     #[test]
@@ -193,8 +178,7 @@ mod validate_mcp_tests {
         config.mcp.retry_attempts = 0;
 
         // Should pass but log a warning (we can't test the warning easily)
-        let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        ConfigValidator::validate(&config, &[]).expect("zero retry attempts should pass");
     }
 }
 
@@ -208,8 +192,7 @@ mod validate_sampling_tests {
         config.sampling.fallback_enabled = false;
 
         // Should pass but log a warning
-        let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        ConfigValidator::validate(&config, &[]).expect("disabled routing should pass");
     }
 }
 
@@ -222,8 +205,7 @@ mod validate_history_tests {
         config.history.retention_days = 0;
 
         // Should pass but log a warning
-        let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        ConfigValidator::validate(&config, &[]).expect("zero retention should pass");
     }
 
     #[test]
@@ -232,7 +214,6 @@ mod validate_history_tests {
         config.history.retention_days = 500;
 
         // Should pass but log a warning
-        let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        ConfigValidator::validate(&config, &[]).expect("high retention should pass");
     }
 }

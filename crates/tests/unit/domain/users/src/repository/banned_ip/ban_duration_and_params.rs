@@ -40,8 +40,7 @@ mod ban_duration_tests {
         let now = Utc::now();
         let expiry = duration.to_expiry();
 
-        assert!(expiry.is_some());
-        let expiry = expiry.unwrap();
+        let expiry = expiry.expect("hours should produce expiry");
         assert!(expiry > now);
         assert!(expiry <= now + Duration::hours(25));
     }
@@ -52,8 +51,7 @@ mod ban_duration_tests {
         let now = Utc::now();
         let expiry = duration.to_expiry();
 
-        assert!(expiry.is_some());
-        let expiry = expiry.unwrap();
+        let expiry = expiry.expect("days should produce expiry");
         assert!(expiry > now);
         assert!(expiry <= now + Duration::days(8));
     }
@@ -72,8 +70,7 @@ mod ban_duration_tests {
         let now = Utc::now();
         let expiry = duration.to_expiry();
 
-        assert!(expiry.is_some());
-        let expiry = expiry.unwrap();
+        let expiry = expiry.expect("zero hours should produce expiry");
         assert!((expiry - now).num_seconds().abs() < 2);
     }
 
@@ -83,8 +80,7 @@ mod ban_duration_tests {
         let now = Utc::now();
         let expiry = duration.to_expiry();
 
-        assert!(expiry.is_some());
-        let expiry = expiry.unwrap();
+        let expiry = expiry.expect("zero days should produce expiry");
         assert!((expiry - now).num_seconds().abs() < 2);
     }
 
@@ -93,7 +89,7 @@ mod ban_duration_tests {
         let duration = BanDuration::Hours(8760);
         let expiry = duration.to_expiry();
 
-        assert!(expiry.is_some());
+        expiry.expect("large hours should produce expiry");
     }
 
     #[test]
@@ -101,7 +97,7 @@ mod ban_duration_tests {
         let duration = BanDuration::Days(365);
         let expiry = duration.to_expiry();
 
-        assert!(expiry.is_some());
+        expiry.expect("large days should produce expiry");
     }
 
     #[test]

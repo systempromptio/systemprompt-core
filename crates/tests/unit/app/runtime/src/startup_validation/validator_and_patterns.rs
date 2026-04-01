@@ -63,7 +63,7 @@ fn test_validator_in_option() {
     assert!(maybe_validator.is_none());
 
     maybe_validator = Some(StartupValidator::new());
-    assert!(maybe_validator.is_some());
+    maybe_validator.as_ref().expect("Should contain a validator");
 
     maybe_validator = None;
     assert!(maybe_validator.is_none());
@@ -132,13 +132,13 @@ fn test_validation_error_has_message() {
 #[test]
 fn test_validation_error_optional_path() {
     let path: Option<&str> = Some("/path/to/config.yaml");
-    assert!(path.is_some());
+    path.expect("Should have a path");
 }
 
 #[test]
 fn test_validation_error_optional_suggestion() {
     let suggestion: Option<&str> = Some("Check your configuration file");
-    assert!(suggestion.is_some());
+    suggestion.expect("Should have a suggestion");
 }
 
 // ============================================================================

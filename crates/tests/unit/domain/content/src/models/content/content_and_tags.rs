@@ -35,8 +35,7 @@ fn test_content_links_metadata_valid() {
     };
 
     let result = content.links_metadata();
-    assert!(result.is_ok());
-    let links = result.unwrap();
+    let links = result.expect("links_metadata should succeed");
     assert_eq!(links.len(), 2);
     assert_eq!(links[0].title, "Link 1");
     assert_eq!(links[1].url, "https://example.com/2");
@@ -68,8 +67,7 @@ fn test_content_links_metadata_empty() {
     };
 
     let result = content.links_metadata();
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_empty());
+    assert!(result.expect("empty links should succeed").is_empty());
 }
 
 #[test]
@@ -98,7 +96,7 @@ fn test_content_links_metadata_invalid_json() {
     };
 
     let result = content.links_metadata();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

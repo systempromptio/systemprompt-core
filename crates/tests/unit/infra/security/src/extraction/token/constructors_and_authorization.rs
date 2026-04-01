@@ -74,9 +74,8 @@ fn test_token_extractor_with_cookie_name() {
         HeaderValue::from_static("custom_token=my_token_value"),
     );
 
-    let result = extractor.extract(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "my_token_value");
+    let token = extractor.extract(&headers).expect("Should extract from custom cookie");
+    assert_eq!(token, "my_token_value");
 }
 
 #[test]
@@ -90,9 +89,8 @@ fn test_token_extractor_with_mcp_header_name() {
         HeaderValue::from_static("Bearer custom_token"),
     );
 
-    let result = extractor.extract(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "custom_token");
+    let token = extractor.extract(&headers).expect("Should extract from custom MCP header");
+    assert_eq!(token, "custom_token");
 }
 
 // ============================================================================
@@ -107,21 +105,17 @@ fn test_extract_from_authorization_header_success() {
         HeaderValue::from_static("Bearer test_token_123"),
     );
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "test_token_123");
+    let token = TokenExtractor::extract_from_authorization(&headers)
+        .expect("Should extract from authorization header");
+    assert_eq!(token, "test_token_123");
 }
 
 #[test]
 fn test_extract_from_authorization_header_missing() {
     let headers = HeaderMap::new();
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::MissingAuthorizationHeader
-    );
+    let err = TokenExtractor::extract_from_authorization(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::MissingAuthorizationHeader);
 }
 
 #[test]
@@ -132,12 +126,8 @@ fn test_extract_from_authorization_header_invalid_format_no_bearer() {
         HeaderValue::from_static("Basic dXNlcjpwYXNz"),
     );
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::InvalidAuthorizationFormat
-    );
+    let err = TokenExtractor::extract_from_authorization(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::InvalidAuthorizationFormat);
 }
 
 #[test]
@@ -145,12 +135,8 @@ fn test_extract_from_authorization_header_empty_token() {
     let mut headers = HeaderMap::new();
     headers.insert("authorization", HeaderValue::from_static("Bearer "));
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::InvalidAuthorizationFormat
-    );
+    let err = TokenExtractor::extract_from_authorization(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::InvalidAuthorizationFormat);
 }
 
 #[test]
@@ -158,12 +144,8 @@ fn test_extract_from_authorization_header_whitespace_token() {
     let mut headers = HeaderMap::new();
     headers.insert("authorization", HeaderValue::from_static("Bearer    "));
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::InvalidAuthorizationFormat
-    );
+    let err = TokenExtractor::extract_from_authorization(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::InvalidAuthorizationFormat);
 }
 
 #[test]
@@ -174,12 +156,8 @@ fn test_extract_from_authorization_header_case_sensitive_bearer() {
         HeaderValue::from_static("bearer test_token"),
     );
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        TokenExtractionError::InvalidAuthorizationFormat
-    );
+    let err = TokenExtractor::extract_from_authorization(&headers).unwrap_err();
+    assert_eq!(err, TokenExtractionError::InvalidAuthorizationFormat);
 }
 
 #[test]
@@ -194,9 +172,9 @@ fn test_extract_from_authorization_multiple_headers_first_valid() {
         HeaderValue::from_static("Bearer second_token"),
     );
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "first_token");
+    let token = TokenExtractor::extract_from_authorization(&headers)
+        .expect("Should extract first valid token");
+    assert_eq!(token, "first_token");
 }
 
 #[test]
@@ -208,7 +186,7 @@ fn test_extract_from_authorization_multiple_headers_skip_invalid() {
         HeaderValue::from_static("Bearer valid_token"),
     );
 
-    let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "valid_token");
+    let token = TokenExtractor::extract_from_authorization(&headers)
+        .expect("Should skip invalid and extract valid token");
+    assert_eq!(token, "valid_token");
 }
