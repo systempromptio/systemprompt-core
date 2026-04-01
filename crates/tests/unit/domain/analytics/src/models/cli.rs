@@ -2,45 +2,16 @@
 
 use chrono::Utc;
 use systemprompt_analytics::models::{
-    ActiveSessionCountRow, AgentAiStatsRow, AgentErrorRow, AgentHourlyRow, AgentListRow,
-    AgentStatsRow, AgentStatusBreakdownRow, AgentSummaryRow, AgentTaskRow, ConversationListRow,
-    ConversationStatsRow, LiveSessionRow, MessageCountRow, OverviewActiveSessionRow,
-    OverviewAgentRow, OverviewConversationRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow,
-    OverviewTotalSessionRow, SessionStatsRow, SessionTrendRow, TaskStatsRow, TimestampRow,
-    ToolAgentUsageRow, ToolErrorRow, ToolExistsRow, ToolExecutionRow, ToolListRow,
+    AgentAiStatsRow, AgentErrorRow, AgentHourlyRow, AgentListRow, AgentStatsRow,
+    AgentStatusBreakdownRow, AgentSummaryRow, AgentTaskRow, ConversationListRow, LiveSessionRow,
+    OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow, SessionStatsRow,
+    SessionTrendRow, TimestampRow, ToolAgentUsageRow, ToolErrorRow, ToolExecutionRow, ToolListRow,
     ToolStatusBreakdownRow, ToolStatsRow, ToolSummaryRow,
 };
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
 mod overview_row_tests {
     use super::*;
-
-    #[test]
-    fn conversation_row_stores_count() {
-        let row = OverviewConversationRow { count: 150 };
-        assert_eq!(row.count, 150);
-    }
-
-    #[test]
-    fn conversation_row_is_copy() {
-        let row = OverviewConversationRow { count: 100 };
-        let copied = row;
-        assert_eq!(row.count, copied.count);
-    }
-
-    #[test]
-    fn conversation_row_is_debug() {
-        let row = OverviewConversationRow { count: 50 };
-        let debug_str = format!("{:?}", row);
-        assert!(debug_str.contains("OverviewConversationRow"));
-    }
-
-    #[test]
-    fn conversation_row_serializes() {
-        let row = OverviewConversationRow { count: 75 };
-        let json = serde_json::to_string(&row).unwrap();
-        assert!(json.contains("75"));
-    }
 
     #[test]
     fn agent_row_stores_values() {
@@ -104,18 +75,6 @@ mod overview_row_tests {
     }
 
     #[test]
-    fn active_session_row_stores_count() {
-        let row = OverviewActiveSessionRow { count: 250 };
-        assert_eq!(row.count, 250);
-    }
-
-    #[test]
-    fn total_session_row_stores_count() {
-        let row = OverviewTotalSessionRow { count: 50000 };
-        assert_eq!(row.count, 50000);
-    }
-
-    #[test]
     fn cost_row_stores_value() {
         let row = OverviewCostRow { cost: Some(12500) };
         assert_eq!(row.cost, Some(12500));
@@ -173,12 +132,6 @@ mod session_row_tests {
 
         assert!(row.avg_duration.is_none());
         assert!(row.avg_requests.is_none());
-    }
-
-    #[test]
-    fn active_session_count_row_stores_count() {
-        let row = ActiveSessionCountRow { count: 125 };
-        assert_eq!(row.count, 125);
     }
 
     #[test]
@@ -409,45 +362,6 @@ mod agent_row_tests {
     }
 
     #[test]
-    fn conversation_stats_row_stores_values() {
-        let row = ConversationStatsRow {
-            total_contexts: 5000,
-        };
-
-        assert_eq!(row.total_contexts, 5000);
-    }
-
-    #[test]
-    fn task_stats_row_stores_values() {
-        let row = TaskStatsRow {
-            total_tasks: 25000,
-            avg_execution_time_ms: Some(1200.5),
-        };
-
-        assert_eq!(row.total_tasks, 25000);
-        assert!((row.avg_execution_time_ms.unwrap() - 1200.5).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn task_stats_row_handles_none() {
-        let row = TaskStatsRow {
-            total_tasks: 0,
-            avg_execution_time_ms: None,
-        };
-
-        assert!(row.avg_execution_time_ms.is_none());
-    }
-
-    #[test]
-    fn message_count_row_stores_values() {
-        let row = MessageCountRow {
-            total_messages: 100000,
-        };
-
-        assert_eq!(row.total_messages, 100000);
-    }
-
-    #[test]
     fn timestamp_row_stores_values() {
         let now = Utc::now();
         let row = TimestampRow { timestamp: now };
@@ -526,12 +440,6 @@ mod tool_row_tests {
         };
         let copied = row;
         assert_eq!(row.total_tools, copied.total_tools);
-    }
-
-    #[test]
-    fn tool_exists_row_stores_count() {
-        let row = ToolExistsRow { count: 1 };
-        assert_eq!(row.count, 1);
     }
 
     #[test]

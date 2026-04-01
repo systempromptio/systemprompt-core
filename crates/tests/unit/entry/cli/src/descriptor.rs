@@ -10,62 +10,62 @@ use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
 #[test]
 fn test_descriptor_none_all_false() {
     let desc = CommandDescriptor::NONE;
-    assert!(!desc.profile);
-    assert!(!desc.secrets);
-    assert!(!desc.paths);
-    assert!(!desc.database);
-    assert!(!desc.remote_eligible);
-    assert!(!desc.skip_validation);
+    assert!(!desc.profile());
+    assert!(!desc.secrets());
+    assert!(!desc.paths());
+    assert!(!desc.database());
+    assert!(!desc.remote_eligible());
+    assert!(!desc.skip_validation());
 }
 
 #[test]
 fn test_descriptor_profile_only() {
     let desc = CommandDescriptor::PROFILE_ONLY;
-    assert!(desc.profile);
-    assert!(!desc.secrets);
-    assert!(!desc.paths);
-    assert!(!desc.database);
-    assert!(!desc.remote_eligible);
+    assert!(desc.profile());
+    assert!(!desc.secrets());
+    assert!(!desc.paths());
+    assert!(!desc.database());
+    assert!(!desc.remote_eligible());
 }
 
 #[test]
 fn test_descriptor_profile_and_secrets() {
     let desc = CommandDescriptor::PROFILE_AND_SECRETS;
-    assert!(desc.profile);
-    assert!(desc.secrets);
-    assert!(!desc.paths);
-    assert!(!desc.database);
+    assert!(desc.profile());
+    assert!(desc.secrets());
+    assert!(!desc.paths());
+    assert!(!desc.database());
 }
 
 #[test]
 fn test_descriptor_profile_secrets_and_paths() {
     let desc = CommandDescriptor::PROFILE_SECRETS_AND_PATHS;
-    assert!(desc.profile);
-    assert!(desc.secrets);
-    assert!(desc.paths);
-    assert!(!desc.database);
+    assert!(desc.profile());
+    assert!(desc.secrets());
+    assert!(desc.paths());
+    assert!(!desc.database());
 }
 
 #[test]
 fn test_descriptor_full() {
     let desc = CommandDescriptor::FULL;
-    assert!(desc.profile);
-    assert!(desc.secrets);
-    assert!(desc.paths);
-    assert!(desc.database);
-    assert!(desc.remote_eligible);
-    assert!(!desc.skip_validation);
+    assert!(desc.profile());
+    assert!(desc.secrets());
+    assert!(desc.paths());
+    assert!(desc.database());
+    assert!(desc.remote_eligible());
+    assert!(!desc.skip_validation());
 }
 
 #[test]
 fn test_descriptor_default_all_false() {
     let desc = CommandDescriptor::default();
-    assert!(!desc.profile);
-    assert!(!desc.secrets);
-    assert!(!desc.paths);
-    assert!(!desc.database);
-    assert!(!desc.remote_eligible);
-    assert!(!desc.skip_validation);
+    assert!(!desc.profile());
+    assert!(!desc.secrets());
+    assert!(!desc.paths());
+    assert!(!desc.database());
+    assert!(!desc.remote_eligible());
+    assert!(!desc.skip_validation());
 }
 
 #[test]
@@ -73,25 +73,24 @@ fn test_descriptor_debug_format() {
     let desc = CommandDescriptor::FULL;
     let debug = format!("{:?}", desc);
     assert!(debug.contains("CommandDescriptor"));
-    assert!(debug.contains("profile"));
-    assert!(debug.contains("remote_eligible"));
+    assert!(debug.contains("flags"));
 }
 
 #[test]
 fn test_descriptor_with_remote_eligible() {
     let desc = CommandDescriptor::PROFILE_ONLY.with_remote_eligible();
-    assert!(desc.profile);
-    assert!(!desc.secrets);
-    assert!(desc.remote_eligible);
+    assert!(desc.profile());
+    assert!(!desc.secrets());
+    assert!(desc.remote_eligible());
 }
 
 #[test]
 fn test_descriptor_with_skip_validation() {
     let desc = CommandDescriptor::FULL.with_skip_validation();
-    assert!(desc.profile);
-    assert!(desc.database);
-    assert!(desc.remote_eligible);
-    assert!(desc.skip_validation);
+    assert!(desc.profile());
+    assert!(desc.database());
+    assert!(desc.remote_eligible());
+    assert!(desc.skip_validation());
 }
 
 struct TestCommand {
@@ -112,30 +111,30 @@ impl DescribeCommand for TestCommand {
 fn test_describe_command_trait_full() {
     let cmd = TestCommand { use_database: true };
     let desc = cmd.descriptor();
-    assert!(desc.database);
-    assert!(desc.profile);
-    assert!(desc.remote_eligible);
+    assert!(desc.database());
+    assert!(desc.profile());
+    assert!(desc.remote_eligible());
 }
 
 #[test]
 fn test_describe_command_trait_profile_only() {
     let cmd = TestCommand { use_database: false };
     let desc = cmd.descriptor();
-    assert!(!desc.database);
-    assert!(desc.profile);
-    assert!(!desc.remote_eligible);
+    assert!(!desc.database());
+    assert!(desc.profile());
+    assert!(!desc.remote_eligible());
 }
 
 #[test]
 fn test_descriptor_none_vs_default() {
     let none = CommandDescriptor::NONE;
     let default = CommandDescriptor::default();
-    assert_eq!(none.profile, default.profile);
-    assert_eq!(none.secrets, default.secrets);
-    assert_eq!(none.paths, default.paths);
-    assert_eq!(none.database, default.database);
-    assert_eq!(none.remote_eligible, default.remote_eligible);
-    assert_eq!(none.skip_validation, default.skip_validation);
+    assert_eq!(none.profile(), default.profile());
+    assert_eq!(none.secrets(), default.secrets());
+    assert_eq!(none.paths(), default.paths());
+    assert_eq!(none.database(), default.database());
+    assert_eq!(none.remote_eligible(), default.remote_eligible());
+    assert_eq!(none.skip_validation(), default.skip_validation());
 }
 
 #[test]
@@ -146,9 +145,9 @@ fn test_descriptor_hierarchy_none_to_full() {
     let profile_secrets_paths = CommandDescriptor::PROFILE_SECRETS_AND_PATHS;
     let full = CommandDescriptor::FULL;
 
-    assert!(!none.profile);
-    assert!(profile_only.profile && !profile_only.secrets);
-    assert!(profile_and_secrets.profile && profile_and_secrets.secrets && !profile_and_secrets.paths);
-    assert!(profile_secrets_paths.profile && profile_secrets_paths.secrets && profile_secrets_paths.paths && !profile_secrets_paths.database);
-    assert!(full.profile && full.secrets && full.paths && full.database);
+    assert!(!none.profile());
+    assert!(profile_only.profile() && !profile_only.secrets());
+    assert!(profile_and_secrets.profile() && profile_and_secrets.secrets() && !profile_and_secrets.paths());
+    assert!(profile_secrets_paths.profile() && profile_secrets_paths.secrets() && profile_secrets_paths.paths() && !profile_secrets_paths.database());
+    assert!(full.profile() && full.secrets() && full.paths() && full.database());
 }

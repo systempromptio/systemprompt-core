@@ -211,24 +211,24 @@ impl TemplateDataExtender for MockExtender {
 }
 
 pub struct MockComponent {
-    id: String,
-    variable_name: String,
+    id: &'static str,
+    variable_name: &'static str,
     applies_to: Vec<String>,
 }
 
 impl MockComponent {
-    pub fn new(id: &str, variable_name: &str) -> Self {
+    pub fn new(id: &'static str, variable_name: &'static str) -> Self {
         Self {
-            id: id.to_string(),
-            variable_name: variable_name.to_string(),
+            id,
+            variable_name,
             applies_to: Vec::new(),
         }
     }
 
-    pub fn with_applies_to(id: &str, variable_name: &str, applies_to: Vec<String>) -> Self {
+    pub fn with_applies_to(id: &'static str, variable_name: &'static str, applies_to: Vec<String>) -> Self {
         Self {
-            id: id.to_string(),
-            variable_name: variable_name.to_string(),
+            id,
+            variable_name,
             applies_to,
         }
     }
@@ -236,12 +236,12 @@ impl MockComponent {
 
 #[async_trait]
 impl ComponentRenderer for MockComponent {
-    fn component_id(&self) -> &str {
-        &self.id
+    fn component_id(&self) -> &'static str {
+        self.id
     }
 
-    fn variable_name(&self) -> &str {
-        &self.variable_name
+    fn variable_name(&self) -> &'static str {
+        self.variable_name
     }
 
     fn applies_to(&self) -> Vec<String> {
@@ -250,7 +250,7 @@ impl ComponentRenderer for MockComponent {
 
     async fn render(&self, _ctx: &ComponentContext<'_>) -> anyhow::Result<RenderedComponent> {
         Ok(RenderedComponent::new(
-            &self.variable_name,
+            self.variable_name,
             format!("<div>Mock component {}</div>", self.id),
         ))
     }

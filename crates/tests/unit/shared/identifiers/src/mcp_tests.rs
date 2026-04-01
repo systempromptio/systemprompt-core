@@ -261,7 +261,7 @@ fn test_mcp_server_id_ref_to_db_value() {
 }
 
 #[test]
-#[should_panic(expected = "MCP server ID cannot be empty")]
+#[should_panic(expected = "McpServerId cannot be empty")]
 fn test_mcp_server_id_empty_panics() {
     let _ = McpServerId::new("");
 }

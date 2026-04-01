@@ -17,19 +17,19 @@ fn test_trace_event_creation() {
         event_type: "test_event".to_string(),
         timestamp: Utc::now(),
         details: "Test details".to_string(),
-        user_id: Some("user-123".to_string()),
-        session_id: Some("session-456".to_string()),
-        task_id: Some("task-789".to_string()),
-        context_id: Some("context-abc".to_string()),
+        user_id: Some("user-123".to_string().into()),
+        session_id: Some("session-456".to_string().into()),
+        task_id: Some("task-789".to_string().into()),
+        context_id: Some("context-abc".to_string().into()),
         metadata: Some(r#"{"key": "value"}"#.to_string()),
     };
 
     assert_eq!(event.event_type, "test_event");
     assert_eq!(event.details, "Test details");
-    assert_eq!(event.user_id, Some("user-123".to_string()));
-    assert_eq!(event.session_id, Some("session-456".to_string()));
-    assert_eq!(event.task_id, Some("task-789".to_string()));
-    assert_eq!(event.context_id, Some("context-abc".to_string()));
+    assert_eq!(event.user_id, Some("user-123".to_string().into()));
+    assert_eq!(event.session_id, Some("session-456".to_string().into()));
+    assert_eq!(event.task_id, Some("task-789".to_string().into()));
+    assert_eq!(event.context_id, Some("context-abc".to_string().into()));
     assert!(event.metadata.is_some());
 }
 
@@ -78,7 +78,7 @@ fn test_trace_event_clone() {
         event_type: "clone_test".to_string(),
         timestamp: Utc::now(),
         details: "Clone details".to_string(),
-        user_id: Some("user".to_string()),
+        user_id: Some("user".to_string().into()),
         session_id: None,
         task_id: None,
         context_id: None,
@@ -392,8 +392,8 @@ fn test_execution_step_summary_deserialize() {
 #[test]
 fn test_task_info_creation() {
     let task = TaskInfo {
-        task_id: "task-123".to_string(),
-        context_id: "ctx-456".to_string(),
+        task_id: "task-123".to_string().into(),
+        context_id: "ctx-456".to_string().into(),
         agent_name: Some("test-agent".to_string()),
         status: "completed".to_string(),
         created_at: Utc::now(),
@@ -413,8 +413,8 @@ fn test_task_info_creation() {
 #[test]
 fn test_task_info_minimal() {
     let task = TaskInfo {
-        task_id: "task-min".to_string(),
-        context_id: "ctx-min".to_string(),
+        task_id: "task-min".to_string().into(),
+        context_id: "ctx-min".to_string().into(),
         agent_name: None,
         status: "pending".to_string(),
         created_at: Utc::now(),
@@ -432,8 +432,8 @@ fn test_task_info_minimal() {
 #[test]
 fn test_task_info_with_error() {
     let task = TaskInfo {
-        task_id: "task-err".to_string(),
-        context_id: "ctx-err".to_string(),
+        task_id: "task-err".to_string().into(),
+        context_id: "ctx-err".to_string().into(),
         agent_name: Some("error-agent".to_string()),
         status: "failed".to_string(),
         created_at: Utc::now(),
@@ -451,8 +451,8 @@ fn test_task_info_with_error() {
 #[test]
 fn test_task_info_debug() {
     let task = TaskInfo {
-        task_id: "debug".to_string(),
-        context_id: "ctx".to_string(),
+        task_id: "debug".to_string().into(),
+        context_id: "ctx".to_string().into(),
         agent_name: None,
         status: "running".to_string(),
         created_at: Utc::now(),
@@ -469,8 +469,8 @@ fn test_task_info_debug() {
 #[test]
 fn test_task_info_clone() {
     let task = TaskInfo {
-        task_id: "clone".to_string(),
-        context_id: "ctx".to_string(),
+        task_id: "clone".to_string().into(),
+        context_id: "ctx".to_string().into(),
         agent_name: Some("agent".to_string()),
         status: "running".to_string(),
         created_at: Utc::now(),
@@ -488,8 +488,8 @@ fn test_task_info_clone() {
 #[test]
 fn test_task_info_serialize() {
     let task = TaskInfo {
-        task_id: "ser".to_string(),
-        context_id: "ctx".to_string(),
+        task_id: "ser".to_string().into(),
+        context_id: "ctx".to_string().into(),
         agent_name: None,
         status: "pending".to_string(),
         created_at: Utc::now(),
@@ -511,7 +511,7 @@ fn test_task_info_serialize() {
 #[test]
 fn test_execution_step_creation() {
     let step = ExecutionStep {
-        step_id: "step-123".to_string(),
+        step_id: "step-123".to_string().into(),
         step_type: Some("analysis".to_string()),
         title: Some("Analyze input".to_string()),
         status: "completed".to_string(),
@@ -529,7 +529,7 @@ fn test_execution_step_creation() {
 #[test]
 fn test_execution_step_minimal() {
     let step = ExecutionStep {
-        step_id: "step-min".to_string(),
+        step_id: "step-min".to_string().into(),
         step_type: None,
         title: None,
         status: "pending".to_string(),
@@ -545,7 +545,7 @@ fn test_execution_step_minimal() {
 #[test]
 fn test_execution_step_with_error() {
     let step = ExecutionStep {
-        step_id: "step-err".to_string(),
+        step_id: "step-err".to_string().into(),
         step_type: Some("processing".to_string()),
         title: Some("Process data".to_string()),
         status: "failed".to_string(),
@@ -560,7 +560,7 @@ fn test_execution_step_with_error() {
 #[test]
 fn test_execution_step_debug() {
     let step = ExecutionStep {
-        step_id: "debug".to_string(),
+        step_id: "debug".to_string().into(),
         step_type: None,
         title: None,
         status: "running".to_string(),
@@ -575,7 +575,7 @@ fn test_execution_step_debug() {
 #[test]
 fn test_execution_step_clone() {
     let step = ExecutionStep {
-        step_id: "clone".to_string(),
+        step_id: "clone".to_string().into(),
         step_type: Some("test".to_string()),
         title: Some("Test step".to_string()),
         status: "completed".to_string(),
@@ -591,7 +591,7 @@ fn test_execution_step_clone() {
 #[test]
 fn test_execution_step_serialize() {
     let step = ExecutionStep {
-        step_id: "ser".to_string(),
+        step_id: "ser".to_string().into(),
         step_type: None,
         title: None,
         status: "pending".to_string(),
@@ -611,7 +611,7 @@ fn test_execution_step_serialize() {
 #[test]
 fn test_ai_request_info_creation() {
     let info = AiRequestInfo {
-        id: "req-123".to_string(),
+        id: "req-123".to_string().into(),
         provider: "anthropic".to_string(),
         model: "claude-3".to_string(),
         max_tokens: Some(4096),
@@ -631,7 +631,7 @@ fn test_ai_request_info_creation() {
 #[test]
 fn test_ai_request_info_minimal() {
     let info = AiRequestInfo {
-        id: "req-min".to_string(),
+        id: "req-min".to_string().into(),
         provider: "openai".to_string(),
         model: "gpt-4".to_string(),
         max_tokens: None,
@@ -649,7 +649,7 @@ fn test_ai_request_info_minimal() {
 #[test]
 fn test_ai_request_info_debug() {
     let info = AiRequestInfo {
-        id: "debug".to_string(),
+        id: "debug".to_string().into(),
         provider: "test".to_string(),
         model: "test-model".to_string(),
         max_tokens: None,
@@ -666,7 +666,7 @@ fn test_ai_request_info_debug() {
 #[test]
 fn test_ai_request_info_clone() {
     let info = AiRequestInfo {
-        id: "clone".to_string(),
+        id: "clone".to_string().into(),
         provider: "anthropic".to_string(),
         model: "claude".to_string(),
         max_tokens: Some(1000),
@@ -684,7 +684,7 @@ fn test_ai_request_info_clone() {
 #[test]
 fn test_ai_request_info_serialize() {
     let info = AiRequestInfo {
-        id: "ser".to_string(),
+        id: "ser".to_string().into(),
         provider: "test".to_string(),
         model: "model".to_string(),
         max_tokens: None,
@@ -706,7 +706,7 @@ fn test_ai_request_info_serialize() {
 #[test]
 fn test_mcp_tool_execution_creation() {
     let exec = McpToolExecution {
-        mcp_execution_id: "exec-123".to_string(),
+        mcp_execution_id: "exec-123".to_string().into(),
         tool_name: "file_reader".to_string(),
         server_name: "filesystem".to_string(),
         status: "success".to_string(),
@@ -726,7 +726,7 @@ fn test_mcp_tool_execution_creation() {
 #[test]
 fn test_mcp_tool_execution_with_error() {
     let exec = McpToolExecution {
-        mcp_execution_id: "exec-err".to_string(),
+        mcp_execution_id: "exec-err".to_string().into(),
         tool_name: "database_query".to_string(),
         server_name: "postgres".to_string(),
         status: "error".to_string(),
@@ -744,7 +744,7 @@ fn test_mcp_tool_execution_with_error() {
 #[test]
 fn test_mcp_tool_execution_debug() {
     let exec = McpToolExecution {
-        mcp_execution_id: "debug".to_string(),
+        mcp_execution_id: "debug".to_string().into(),
         tool_name: "test".to_string(),
         server_name: "test-server".to_string(),
         status: "pending".to_string(),
@@ -761,7 +761,7 @@ fn test_mcp_tool_execution_debug() {
 #[test]
 fn test_mcp_tool_execution_clone() {
     let exec = McpToolExecution {
-        mcp_execution_id: "clone".to_string(),
+        mcp_execution_id: "clone".to_string().into(),
         tool_name: "tool".to_string(),
         server_name: "server".to_string(),
         status: "success".to_string(),
@@ -779,7 +779,7 @@ fn test_mcp_tool_execution_clone() {
 #[test]
 fn test_mcp_tool_execution_serialize() {
     let exec = McpToolExecution {
-        mcp_execution_id: "ser".to_string(),
+        mcp_execution_id: "ser".to_string().into(),
         tool_name: "tool".to_string(),
         server_name: "server".to_string(),
         status: "pending".to_string(),
@@ -969,7 +969,7 @@ fn test_tool_log_entry_serialize() {
 #[test]
 fn test_task_artifact_creation() {
     let artifact = TaskArtifact {
-        artifact_id: "art-123".to_string(),
+        artifact_id: "art-123".to_string().into(),
         artifact_type: "file".to_string(),
         name: Some("output.txt".to_string()),
         source: Some("tool_execution".to_string()),
@@ -988,7 +988,7 @@ fn test_task_artifact_creation() {
 #[test]
 fn test_task_artifact_with_data_content() {
     let artifact = TaskArtifact {
-        artifact_id: "art-data".to_string(),
+        artifact_id: "art-data".to_string().into(),
         artifact_type: "json".to_string(),
         name: Some("data.json".to_string()),
         source: None,
@@ -1007,7 +1007,7 @@ fn test_task_artifact_with_data_content() {
 #[test]
 fn test_task_artifact_minimal() {
     let artifact = TaskArtifact {
-        artifact_id: "art-min".to_string(),
+        artifact_id: "art-min".to_string().into(),
         artifact_type: "unknown".to_string(),
         name: None,
         source: None,
@@ -1027,7 +1027,7 @@ fn test_task_artifact_minimal() {
 #[test]
 fn test_task_artifact_debug() {
     let artifact = TaskArtifact {
-        artifact_id: "debug".to_string(),
+        artifact_id: "debug".to_string().into(),
         artifact_type: "test".to_string(),
         name: None,
         source: None,
@@ -1044,7 +1044,7 @@ fn test_task_artifact_debug() {
 #[test]
 fn test_task_artifact_clone() {
     let artifact = TaskArtifact {
-        artifact_id: "clone".to_string(),
+        artifact_id: "clone".to_string().into(),
         artifact_type: "file".to_string(),
         name: Some("test.txt".to_string()),
         source: Some("user".to_string()),
@@ -1063,7 +1063,7 @@ fn test_task_artifact_clone() {
 #[test]
 fn test_task_artifact_serialize() {
     let artifact = TaskArtifact {
-        artifact_id: "ser".to_string(),
+        artifact_id: "ser".to_string().into(),
         artifact_type: "text".to_string(),
         name: None,
         source: None,
@@ -1108,7 +1108,7 @@ fn test_trace_event_roundtrip() {
         event_type: "roundtrip".to_string(),
         timestamp: Utc::now(),
         details: "Roundtrip test".to_string(),
-        user_id: Some("user".to_string()),
+        user_id: Some("user".to_string().into()),
         session_id: None,
         task_id: None,
         context_id: None,
@@ -1145,8 +1145,8 @@ fn test_ai_request_summary_roundtrip() {
 #[test]
 fn test_task_info_roundtrip() {
     let task = TaskInfo {
-        task_id: "roundtrip".to_string(),
-        context_id: "ctx".to_string(),
+        task_id: "roundtrip".to_string().into(),
+        context_id: "ctx".to_string().into(),
         agent_name: Some("agent".to_string()),
         status: "completed".to_string(),
         created_at: Utc::now(),

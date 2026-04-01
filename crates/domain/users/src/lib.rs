@@ -2,7 +2,7 @@
 
 pub(crate) mod error;
 pub(crate) mod extension;
-pub(crate) mod jobs;
+pub mod jobs;
 pub(crate) mod models;
 pub(crate) mod repository;
 pub(crate) mod services;
