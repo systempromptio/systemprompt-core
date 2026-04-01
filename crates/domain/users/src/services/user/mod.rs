@@ -104,6 +104,10 @@ impl UserService {
         self.repository.list_recent_sessions(user_id, limit).await
     }
 
+    pub async fn session_exists(&self, session_id: &SessionId) -> Result<bool> {
+        self.repository.session_exists(session_id).await
+    }
+
     pub async fn end_session(&self, session_id: &SessionId) -> Result<bool> {
         self.repository.end_session(session_id).await
     }

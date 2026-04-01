@@ -88,12 +88,6 @@ pub async fn login_for_profile(
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let session_key = session_key_for_profile(profile);
 
-    if !args.force_new {
-        if let Some(output) = try_use_existing_session(&sessions_dir, &session_key, args)? {
-            return Ok(output);
-        }
-    }
-
     let email = args
         .email
         .as_deref()
@@ -104,6 +98,14 @@ pub async fn login_for_profile(
         .await
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
+
+    if !args.force_new {
+        if let Some(output) =
+            try_use_existing_session(&sessions_dir, &session_key, args, &db_pool).await?
+        {
+            return Ok(output);
+        }
+    }
 
     if !args.token_only {
         CliService::info(&format!("Fetching admin user: {}", email));
@@ -209,12 +211,13 @@ async fn resolve_email() -> Result<String> {
     Ok(creds.user_email.clone())
 }
 
-fn try_use_existing_session(
+async fn try_use_existing_session(
     sessions_dir: &Path,
     session_key: &SessionKey,
     args: &LoginArgs,
+    db_pool: &DbPool,
 ) -> Result<Option<CommandResult<LoginOutput>>> {
-    let store = SessionStore::load_or_create(sessions_dir)?;
+    let mut store = SessionStore::load_or_create(sessions_dir)?;
 
     let Some(session) = store.get_valid_session(session_key) else {
         if !args.token_only {
@@ -223,16 +226,33 @@ fn try_use_existing_session(
         return Ok(None);
     };
 
+    let session_id = session.session_id.clone();
+    let user_id = session.user_id.clone();
+    let user_email = session.user_email.to_string();
+    let session_token = session.session_token.clone();
+
+    let user_service = UserService::new(db_pool)?;
+    let exists = user_service.session_exists(&session_id).await.unwrap_or(false);
+
+    if !exists {
+        if !args.token_only {
+            CliService::info("Cached session is stale (not found in database), creating new session...");
+        }
+        store.remove_session(session_key);
+        store.save(sessions_dir)?;
+        return Ok(None);
+    }
+
     let output = LoginOutput {
         status: "existing".to_string(),
-        user_id: session.user_id.clone(),
-        email: session.user_email.to_string(),
-        session_id: session.session_id.clone(),
+        user_id,
+        email: user_email,
+        session_id,
         expires_in_hours: 24,
     };
 
     if args.token_only {
-        CliService::output(session.session_token.as_str());
+        CliService::output(session_token.as_str());
         return Ok(Some(CommandResult::text(output).with_skip_render()));
     }
 

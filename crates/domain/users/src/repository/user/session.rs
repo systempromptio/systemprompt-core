@@ -67,6 +67,17 @@ impl UserRepository {
         Ok(rows.into_iter().map(UserSession::from).collect())
     }
 
+    pub async fn session_exists(&self, session_id: &SessionId) -> Result<bool> {
+        let exists = sqlx::query_scalar!(
+            r#"SELECT EXISTS(SELECT 1 FROM user_sessions WHERE session_id = $1 AND ended_at IS NULL) as "exists!""#,
+            session_id.as_str()
+        )
+        .fetch_one(&*self.pool)
+        .await?;
+
+        Ok(exists)
+    }
+
     pub async fn end_session(&self, session_id: &SessionId) -> Result<bool> {
         let result = sqlx::query!(
             r#"
