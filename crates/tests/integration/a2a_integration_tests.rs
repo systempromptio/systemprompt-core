@@ -522,8 +522,14 @@ mod agent_registry_tests {
         let agents: Vec<AgentInfo> = serde_json::from_value(body["data"].clone())
             .expect("Failed to extract agents from response");
 
-        let agent_in_registry = agents.iter().find(|a| a.name == agent.name);
-        assert!(agent_in_registry.is_some(), "Agent should be in registry");
+        let agent_in_registry = agents
+            .iter()
+            .find(|a| a.name == agent.name)
+            .expect("Agent should be in registry");
+        assert_eq!(
+            agent_in_registry.name, agent.name,
+            "Registry agent name should match requested agent"
+        );
     }
 }
 
@@ -557,15 +563,17 @@ mod conversation_lifecycle_tests {
             "Response should contain context_id"
         );
         assert_eq!(response.kind, "task", "Response kind should be 'task'");
+        let history = response
+            .history
+            .expect("Response should contain message history");
         assert!(
-            response.history.is_some(),
-            "Response should contain message history"
+            !history.is_empty(),
+            "Expected at least 1 message in history, got 0",
         );
-        let history = response.history.expect("History should be present");
-        assert!(
-            history.len() >= 1,
-            "Expected at least 1 message in history, got {}",
-            history.len()
+        assert_eq!(
+            history.first().expect("history is non-empty").kind,
+            "message",
+            "First history entry should be a message"
         );
     }
 
@@ -663,10 +671,11 @@ mod task_creation_tests {
             response.status.state, "completed",
             "Task should be completed"
         );
-        assert!(response.history.is_some(), "Should have message history");
-        let history = response.history.expect("History should be present");
+        let history = response
+            .history
+            .expect("Response should have message history");
         assert!(
-            history.len() >= 1,
+            !history.is_empty(),
             "Should have at least 1 message in history"
         );
     }

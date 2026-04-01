@@ -107,13 +107,14 @@ fn test_config_extension_typed_nested_prefix() {
 fn test_config_extension_typed_default_validate_config() {
     let ext = BasicConfigExtension;
     let config = json!({ "anything": "goes" });
-    assert!(ext.validate_config(&config).is_ok());
+    ext.validate_config(&config)
+        .expect("default validate_config should accept any value");
 }
 
 #[test]
 fn test_config_extension_typed_default_config_schema() {
     let ext = BasicConfigExtension;
-    assert!(ext.config_schema().is_none());
+    assert_eq!(ext.config_schema(), None, "default config_schema should return None");
 }
 
 #[test]
@@ -137,7 +138,8 @@ fn test_config_extension_custom_validate_success() {
         "optional_field": 42
     });
 
-    assert!(ext.validate_config(&config).is_ok());
+    ext.validate_config(&config)
+        .expect("config with required_field and optional_field should validate");
 }
 
 #[test]
@@ -147,15 +149,16 @@ fn test_config_extension_custom_validate_missing_required() {
         "optional_field": 42
     });
 
-    let result = ext.validate_config(&config);
-    assert!(result.is_err());
+    let err = ext
+        .validate_config(&config)
+        .expect_err("config missing required_field should fail validation");
 
-    match result {
-        Err(ConfigError::InvalidValue { key, message }) => {
+    match err {
+        ConfigError::InvalidValue { key, message } => {
             assert_eq!(key, "required_field");
             assert!(message.contains("mandatory"));
         }
-        _ => panic!("Expected InvalidValue error"),
+        other => panic!("Expected InvalidValue error, got {:?}", other),
     }
 }
 
@@ -164,14 +167,15 @@ fn test_config_extension_custom_validate_not_object() {
     let ext = ValidatingConfigExtension;
     let config = json!("not an object");
 
-    let result = ext.validate_config(&config);
-    assert!(result.is_err());
+    let err = ext
+        .validate_config(&config)
+        .expect_err("non-object config should fail validation");
 
-    match result {
-        Err(ConfigError::ParseError(msg)) => {
-            assert!(msg.contains("object"));
+    match err {
+        ConfigError::ParseError(msg) => {
+            assert!(msg.contains("object"), "error message should mention 'object', got: {}", msg);
         }
-        _ => panic!("Expected ParseError"),
+        other => panic!("Expected ParseError, got {:?}", other),
     }
 }
 
@@ -180,8 +184,14 @@ fn test_config_extension_custom_validate_array() {
     let ext = ValidatingConfigExtension;
     let config = json!([1, 2, 3]);
 
-    let result = ext.validate_config(&config);
-    assert!(result.is_err());
+    let err = ext
+        .validate_config(&config)
+        .expect_err("array config should fail validation");
+    assert!(
+        matches!(err, ConfigError::ParseError(_)),
+        "expected ParseError for array input, got {:?}",
+        err
+    );
 }
 
 #[test]
@@ -189,8 +199,14 @@ fn test_config_extension_custom_validate_null() {
     let ext = ValidatingConfigExtension;
     let config = json!(null);
 
-    let result = ext.validate_config(&config);
-    assert!(result.is_err());
+    let err = ext
+        .validate_config(&config)
+        .expect_err("null config should fail validation");
+    assert!(
+        matches!(err, ConfigError::ParseError(_)),
+        "expected ParseError for null input, got {:?}",
+        err
+    );
 }
 
 // =============================================================================
@@ -202,12 +218,19 @@ fn test_config_extension_custom_schema() {
     let ext = ValidatingConfigExtension;
     let schema = ext.config_schema();
 
-    assert!(schema.is_some());
-
-    let schema = schema.expect("schema exists");
+    let schema = schema.expect("ValidatingConfigExtension should provide a schema");
     assert_eq!(schema["type"], "object");
-    assert!(schema["properties"]["required_field"].is_object());
-    assert!(schema["required"].is_array());
+    assert!(
+        schema["properties"]["required_field"].is_object(),
+        "schema should define required_field property"
+    );
+    let required = schema["required"]
+        .as_array()
+        .expect("schema should have a 'required' array");
+    assert!(
+        required.contains(&json!("required_field")),
+        "required array should contain 'required_field'"
+    );
 }
 
 #[test]
@@ -243,7 +266,10 @@ fn test_config_extension_as_trait_object() {
 fn test_config_extension_boxed_trait_object() {
     let ext: Box<dyn ConfigExtensionTyped> = Box::new(ValidatingConfigExtension);
     assert_eq!(ext.config_prefix(), "validating");
-    assert!(ext.config_schema().is_some());
+    let schema = ext
+        .config_schema()
+        .expect("ValidatingConfigExtension should provide a schema");
+    assert_eq!(schema["type"], "object");
 }
 
 // =============================================================================
@@ -309,8 +335,14 @@ fn test_validate_empty_object() {
     let ext = ValidatingConfigExtension;
     let config = json!({});
 
-    // Empty object should fail because required_field is missing
-    assert!(ext.validate_config(&config).is_err());
+    let err = ext
+        .validate_config(&config)
+        .expect_err("empty object should fail because required_field is missing");
+    assert!(
+        matches!(err, ConfigError::InvalidValue { ref key, .. } if key == "required_field"),
+        "expected InvalidValue for required_field, got {:?}",
+        err
+    );
 }
 
 #[test]
@@ -322,8 +354,8 @@ fn test_validate_with_extra_fields() {
         "another_extra": 123
     });
 
-    // Extra fields should be allowed
-    assert!(ext.validate_config(&config).is_ok());
+    ext.validate_config(&config)
+        .expect("extra fields should be allowed when required_field is present");
 }
 
 #[test]
@@ -334,9 +366,8 @@ fn test_validate_with_wrong_type_for_optional() {
         "optional_field": "not a number"
     });
 
-    // The simple validator doesn't check types, so this passes
-    // A real implementation would use JSON schema validation
-    assert!(ext.validate_config(&config).is_ok());
+    ext.validate_config(&config)
+        .expect("simple validator does not check types, so wrong type for optional_field should pass");
 }
 
 // =============================================================================
@@ -352,13 +383,27 @@ fn test_config_extension_full_workflow() {
 
     // 2. Get schema
     let schema = ext.config_schema().expect("should have schema");
-    assert!(schema["required"].as_array().is_some());
+    let required = schema["required"]
+        .as_array()
+        .expect("schema should have a 'required' array");
+    assert!(
+        required.contains(&json!("required_field")),
+        "required array should list 'required_field'"
+    );
 
     // 3. Validate good config
     let good_config = json!({ "required_field": "test" });
-    assert!(ext.validate_config(&good_config).is_ok());
+    ext.validate_config(&good_config)
+        .expect("config with required_field should validate");
 
     // 4. Validate bad config
     let bad_config = json!({});
-    assert!(ext.validate_config(&bad_config).is_err());
+    let err = ext
+        .validate_config(&bad_config)
+        .expect_err("empty config should fail validation");
+    assert!(
+        matches!(err, ConfigError::InvalidValue { ref key, .. } if key == "required_field"),
+        "expected InvalidValue for required_field, got {:?}",
+        err
+    );
 }
