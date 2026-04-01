@@ -75,25 +75,25 @@ fn test_retry_configuration_debug() {
 fn test_timeout_configuration_default() {
     let config = TimeoutConfiguration::default();
 
-    assert_eq!(config.default_timeout, Duration::from_secs(30));
-    assert_eq!(config.connect_timeout, Duration::from_secs(10));
-    assert_eq!(config.read_timeout, Duration::from_secs(30));
-    assert_eq!(config.write_timeout, Duration::from_secs(30));
+    assert_eq!(config.default, Duration::from_secs(30));
+    assert_eq!(config.connect, Duration::from_secs(10));
+    assert_eq!(config.read, Duration::from_secs(30));
+    assert_eq!(config.write, Duration::from_secs(30));
 }
 
 #[test]
 fn test_timeout_configuration_custom() {
     let config = TimeoutConfiguration {
-        default_timeout: Duration::from_secs(60),
-        connect_timeout: Duration::from_secs(5),
-        read_timeout: Duration::from_secs(120),
-        write_timeout: Duration::from_secs(90),
+        default: Duration::from_secs(60),
+        connect: Duration::from_secs(5),
+        read: Duration::from_secs(120),
+        write: Duration::from_secs(90),
     };
 
-    assert_eq!(config.default_timeout, Duration::from_secs(60));
-    assert_eq!(config.connect_timeout, Duration::from_secs(5));
-    assert_eq!(config.read_timeout, Duration::from_secs(120));
-    assert_eq!(config.write_timeout, Duration::from_secs(90));
+    assert_eq!(config.default, Duration::from_secs(60));
+    assert_eq!(config.connect, Duration::from_secs(5));
+    assert_eq!(config.read, Duration::from_secs(120));
+    assert_eq!(config.write, Duration::from_secs(90));
 }
 
 #[test]
@@ -101,8 +101,8 @@ fn test_timeout_configuration_clone() {
     let config = TimeoutConfiguration::default();
     let cloned = config;
 
-    assert_eq!(cloned.default_timeout, config.default_timeout);
-    assert_eq!(cloned.connect_timeout, config.connect_timeout);
+    assert_eq!(cloned.default, config.default);
+    assert_eq!(cloned.connect, config.connect);
 }
 
 #[test]
@@ -111,8 +111,8 @@ fn test_timeout_configuration_debug() {
     let debug_str = format!("{:?}", config);
 
     assert!(debug_str.contains("TimeoutConfiguration"));
-    assert!(debug_str.contains("default_timeout"));
-    assert!(debug_str.contains("connect_timeout"));
+    assert!(debug_str.contains("default"));
+    assert!(debug_str.contains("connect"));
 }
 
 // ============================================================================
@@ -249,10 +249,10 @@ fn test_timeout_selection() {
 
     let get_timeout = |timeout_type: TimeoutType| -> Duration {
         match timeout_type {
-            TimeoutType::Connect => config.connect_timeout,
-            TimeoutType::Read => config.read_timeout,
-            TimeoutType::Write => config.write_timeout,
-            TimeoutType::Default => config.default_timeout,
+            TimeoutType::Connect => config.connect,
+            TimeoutType::Read => config.read,
+            TimeoutType::Write => config.write,
+            TimeoutType::Default => config.default,
         }
     };
 
@@ -411,10 +411,10 @@ async fn test_execute_with_timeout_propagates_error() {
 #[tokio::test]
 async fn test_execute_with_custom_timeout_connect() {
     let config = TimeoutConfiguration {
-        default_timeout: Duration::from_secs(30),
-        connect_timeout: Duration::from_secs(1),
-        read_timeout: Duration::from_secs(30),
-        write_timeout: Duration::from_secs(30),
+        default: Duration::from_secs(30),
+        connect: Duration::from_secs(1),
+        read: Duration::from_secs(30),
+        write: Duration::from_secs(30),
     };
 
     let result =
@@ -426,10 +426,10 @@ async fn test_execute_with_custom_timeout_connect() {
 #[tokio::test]
 async fn test_execute_with_custom_timeout_read() {
     let config = TimeoutConfiguration {
-        default_timeout: Duration::from_secs(30),
-        connect_timeout: Duration::from_secs(10),
-        read_timeout: Duration::from_secs(1),
-        write_timeout: Duration::from_secs(30),
+        default: Duration::from_secs(30),
+        connect: Duration::from_secs(10),
+        read: Duration::from_secs(1),
+        write: Duration::from_secs(30),
     };
 
     let result =
@@ -441,10 +441,10 @@ async fn test_execute_with_custom_timeout_read() {
 #[tokio::test]
 async fn test_execute_with_custom_timeout_write() {
     let config = TimeoutConfiguration {
-        default_timeout: Duration::from_secs(30),
-        connect_timeout: Duration::from_secs(10),
-        read_timeout: Duration::from_secs(30),
-        write_timeout: Duration::from_secs(1),
+        default: Duration::from_secs(30),
+        connect: Duration::from_secs(10),
+        read: Duration::from_secs(30),
+        write: Duration::from_secs(1),
     };
 
     let result =
@@ -456,10 +456,10 @@ async fn test_execute_with_custom_timeout_write() {
 #[tokio::test]
 async fn test_execute_with_custom_timeout_default() {
     let config = TimeoutConfiguration {
-        default_timeout: Duration::from_secs(1),
-        connect_timeout: Duration::from_secs(10),
-        read_timeout: Duration::from_secs(30),
-        write_timeout: Duration::from_secs(30),
+        default: Duration::from_secs(1),
+        connect: Duration::from_secs(10),
+        read: Duration::from_secs(30),
+        write: Duration::from_secs(30),
     };
 
     let result =

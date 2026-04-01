@@ -1,6 +1,7 @@
 //! Tests for ProviderCapabilities.
 
 use systemprompt_ai::services::schema::ProviderCapabilities;
+use systemprompt_ai::services::schema::capabilities::{SchemaComposition, SchemaFeatures};
 use serde_json::json;
 
 mod anthropic_capabilities_tests {
@@ -10,15 +11,15 @@ mod anthropic_capabilities_tests {
     fn anthropic_supports_all_features() {
         let caps = ProviderCapabilities::anthropic();
 
-        assert!(caps.supports_allof);
-        assert!(caps.supports_anyof);
-        assert!(caps.supports_oneof);
-        assert!(caps.supports_if_then_else);
-        assert!(caps.supports_ref);
-        assert!(caps.supports_definitions);
-        assert!(caps.supports_not);
-        assert!(caps.supports_additional_properties);
-        assert!(caps.supports_const);
+        assert!(caps.composition.allof);
+        assert!(caps.composition.anyof);
+        assert!(caps.composition.oneof);
+        assert!(caps.composition.if_then_else);
+        assert!(caps.features.references);
+        assert!(caps.features.definitions);
+        assert!(caps.composition.not);
+        assert!(caps.features.additional_properties);
+        assert!(caps.features.const_values);
     }
 
     #[test]
@@ -46,15 +47,15 @@ mod openai_capabilities_tests {
     fn openai_capabilities() {
         let caps = ProviderCapabilities::openai();
 
-        assert!(caps.supports_allof);
-        assert!(caps.supports_anyof);
-        assert!(caps.supports_oneof);
-        assert!(!caps.supports_if_then_else);
-        assert!(caps.supports_ref);
-        assert!(caps.supports_definitions);
-        assert!(!caps.supports_not);
-        assert!(caps.supports_additional_properties);
-        assert!(caps.supports_const);
+        assert!(caps.composition.allof);
+        assert!(caps.composition.anyof);
+        assert!(caps.composition.oneof);
+        assert!(!caps.composition.if_then_else);
+        assert!(caps.features.references);
+        assert!(caps.features.definitions);
+        assert!(!caps.composition.not);
+        assert!(caps.features.additional_properties);
+        assert!(caps.features.const_values);
     }
 
     #[test]
@@ -102,15 +103,15 @@ mod gemini_capabilities_tests {
     fn gemini_limited_capabilities() {
         let caps = ProviderCapabilities::gemini();
 
-        assert!(!caps.supports_allof);
-        assert!(caps.supports_anyof);
-        assert!(!caps.supports_oneof);
-        assert!(!caps.supports_if_then_else);
-        assert!(caps.supports_ref);
-        assert!(caps.supports_definitions);
-        assert!(!caps.supports_not);
-        assert!(!caps.supports_additional_properties);
-        assert!(!caps.supports_const);
+        assert!(!caps.composition.allof);
+        assert!(caps.composition.anyof);
+        assert!(!caps.composition.oneof);
+        assert!(!caps.composition.if_then_else);
+        assert!(caps.features.references);
+        assert!(caps.features.definitions);
+        assert!(!caps.composition.not);
+        assert!(!caps.features.additional_properties);
+        assert!(!caps.features.const_values);
     }
 
     #[test]
@@ -200,9 +201,13 @@ mod requires_transformation_tests {
     #[test]
     fn definitions_transformation_check() {
         let caps_with = ProviderCapabilities::anthropic();
+        let anthropic = ProviderCapabilities::anthropic();
         let caps_without = ProviderCapabilities {
-            supports_definitions: false,
-            ..ProviderCapabilities::anthropic()
+            composition: anthropic.composition,
+            features: SchemaFeatures {
+                definitions: false,
+                ..anthropic.features
+            },
         };
 
         let schema = json!({
@@ -218,9 +223,13 @@ mod requires_transformation_tests {
     #[test]
     fn defs_transformation_check() {
         let caps_with = ProviderCapabilities::anthropic();
+        let anthropic = ProviderCapabilities::anthropic();
         let caps_without = ProviderCapabilities {
-            supports_definitions: false,
-            ..ProviderCapabilities::anthropic()
+            composition: anthropic.composition,
+            features: SchemaFeatures {
+                definitions: false,
+                ..anthropic.features
+            },
         };
 
         let schema = json!({
@@ -236,9 +245,13 @@ mod requires_transformation_tests {
     #[test]
     fn ref_transformation_check() {
         let caps_with = ProviderCapabilities::anthropic();
+        let anthropic = ProviderCapabilities::anthropic();
         let caps_without = ProviderCapabilities {
-            supports_ref: false,
-            ..ProviderCapabilities::anthropic()
+            composition: anthropic.composition,
+            features: SchemaFeatures {
+                references: false,
+                ..anthropic.features
+            },
         };
 
         let schema = json!({

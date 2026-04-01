@@ -163,8 +163,7 @@ mod ai_error_tests {
 
     #[test]
     fn database_error_from_anyhow() {
-        let anyhow_err = anyhow::anyhow!("connection refused");
-        let err: AiError = AiError::DatabaseError(anyhow_err);
+        let err: AiError = AiError::DatabaseError("connection refused".to_string());
         let msg = err.to_string();
         assert!(msg.contains("connection refused"));
     }
@@ -212,15 +211,6 @@ mod ai_error_tests {
         let msg = err.to_string();
         assert!(msg.contains("prompt cannot be empty"));
         assert!(msg.contains("Invalid input"));
-    }
-
-    #[test]
-    fn with_context_adds_context_message() {
-        let err = AiError::NoToolCalls;
-        let anyhow_err = err.with_context("while processing agent request");
-        let msg = anyhow_err.to_string();
-        assert!(msg.contains("while processing agent request"));
-        assert!(msg.contains("No tool calls found"));
     }
 
     #[test]

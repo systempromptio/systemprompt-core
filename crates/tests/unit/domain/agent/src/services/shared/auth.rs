@@ -73,7 +73,7 @@ fn test_extract_bearer_token_empty_header() {
 
 #[test]
 fn test_jwt_validator_new() {
-    let validator = JwtValidator::new("secret123".to_string());
+    let validator = JwtValidator::new("secret123");
     // Validator should be created without panic
     let debug = format!("{:?}", validator);
     assert!(debug.contains("JwtValidator"));
@@ -81,7 +81,7 @@ fn test_jwt_validator_new() {
 
 #[test]
 fn test_jwt_validator_debug_hides_key() {
-    let validator = JwtValidator::new("super_secret_key".to_string());
+    let validator = JwtValidator::new("super_secret_key");
     let debug = format!("{:?}", validator);
 
     // Debug should not expose the actual secret key
@@ -91,7 +91,7 @@ fn test_jwt_validator_debug_hides_key() {
 
 #[test]
 fn test_jwt_validator_validate_invalid_token() {
-    let validator = JwtValidator::new("secret".to_string());
+    let validator = JwtValidator::new("secret");
     let result = validator.validate_token("invalid_token");
 
     assert!(result.is_err());
@@ -101,7 +101,7 @@ fn test_jwt_validator_validate_invalid_token() {
 
 #[test]
 fn test_jwt_validator_validate_malformed_token() {
-    let validator = JwtValidator::new("secret".to_string());
+    let validator = JwtValidator::new("secret");
     let result = validator.validate_token("not.a.valid.jwt.token.at.all");
 
     assert!(result.is_err());
@@ -109,7 +109,7 @@ fn test_jwt_validator_validate_malformed_token() {
 
 #[test]
 fn test_jwt_validator_validate_empty_token() {
-    let validator = JwtValidator::new("secret".to_string());
+    let validator = JwtValidator::new("secret");
     let result = validator.validate_token("");
 
     assert!(result.is_err());
