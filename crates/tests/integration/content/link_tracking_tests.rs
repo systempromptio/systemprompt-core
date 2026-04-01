@@ -28,13 +28,25 @@ async fn test_link_generation() -> Result<()> {
 
     let json: serde_json::Value = serde_json::from_str(&body)?;
 
-    assert!(json.get("link_id").is_some(), "Should have link_id");
-    assert!(json.get("short_code").is_some(), "Should have short_code");
+    let link_id = json["link_id"]
+        .as_str()
+        .expect("Should have link_id as string");
+    assert!(!link_id.is_empty(), "link_id should not be empty");
+    let short_code = json["short_code"]
+        .as_str()
+        .expect("Should have short_code as string");
+    assert!(!short_code.is_empty(), "short_code should not be empty");
+    let redirect_url = json["redirect_url"]
+        .as_str()
+        .expect("Should have redirect_url as string");
     assert!(
-        json.get("redirect_url").is_some(),
-        "Should have redirect_url"
+        !redirect_url.is_empty(),
+        "redirect_url should not be empty"
     );
-    assert!(json.get("full_url").is_some(), "Should have full_url");
+    let full_url = json["full_url"]
+        .as_str()
+        .expect("Should have full_url as string");
+    assert!(!full_url.is_empty(), "full_url should not be empty");
 
     Ok(())
 }
@@ -119,10 +131,19 @@ async fn test_link_performance() -> Result<()> {
 
     let perf_json: serde_json::Value = perf_response.json().await?;
 
-    assert!(perf_json.get("id").is_some());
-    assert!(perf_json.get("click_count").is_some());
-    assert!(perf_json.get("unique_click_count").is_some());
-    assert!(perf_json.get("session_count").is_some());
+    assert!(perf_json["id"].is_string(), "Should have id as string");
+    assert!(
+        perf_json["click_count"].is_number(),
+        "Should have click_count as number"
+    );
+    assert!(
+        perf_json["unique_click_count"].is_number(),
+        "Should have unique_click_count as number"
+    );
+    assert!(
+        perf_json["session_count"].is_number(),
+        "Should have session_count as number"
+    );
 
     Ok(())
 }
@@ -283,11 +304,14 @@ async fn test_null_timestamp_binding_regression() -> Result<()> {
     // Should succeed (previously failed with "incorrect binary data format")
     let json: serde_json::Value = serde_json::from_str(&body)?;
 
-    assert!(json.get("link_id").is_some(), "Link should be created");
-    assert!(json.get("short_code").is_some(), "Should have short_code");
-
-    let link_id = json["link_id"].as_str().unwrap();
-    let short_code = json["short_code"].as_str().unwrap();
+    let link_id = json["link_id"]
+        .as_str()
+        .expect("Link should be created with link_id");
+    assert!(!link_id.is_empty(), "link_id should not be empty");
+    let short_code = json["short_code"]
+        .as_str()
+        .expect("Should have short_code as string");
+    assert!(!short_code.is_empty(), "short_code should not be empty");
 
     let row = ctx
         .db
@@ -298,8 +322,7 @@ async fn test_null_timestamp_binding_regression() -> Result<()> {
         )
         .await?;
 
-    assert!(row.is_some(), "Link should exist in database");
-    let link_row = row.unwrap();
+    let link_row = row.expect("Link should exist in database");
 
     // Verify expires_at is NULL in database
     let expires_at = link_row.get("expires_at");
@@ -366,8 +389,7 @@ async fn test_link_with_expiration() -> Result<()> {
         )
         .await?;
 
-    assert!(row.is_some(), "Link should exist");
-    let link_row = row.unwrap();
+    let link_row = row.expect("Link should exist in database");
 
     let stored_expires = link_row.get("expires_at");
     assert!(
@@ -443,8 +465,8 @@ async fn test_link_destination_type_internal() -> Result<()> {
         )
         .await?;
 
-    assert!(row.is_some());
-    let destination_type = row.unwrap().get("destination_type");
+    let link_row = row.expect("Link should exist in database");
+    let destination_type = link_row.get("destination_type");
     assert_eq!(
         destination_type.and_then(|v| v.as_str()),
         Some("internal"),
@@ -483,8 +505,8 @@ async fn test_link_destination_type_external() -> Result<()> {
         )
         .await?;
 
-    assert!(row.is_some());
-    let destination_type = row.unwrap().get("destination_type");
+    let link_row = row.expect("Link should exist in database");
+    let destination_type = link_row.get("destination_type");
     assert_eq!(
         destination_type.and_then(|v| v.as_str()),
         Some("external"),
@@ -517,11 +539,11 @@ async fn test_link_utm_only_type() -> Result<()> {
 
     let json: serde_json::Value = response.json().await?;
 
-    assert!(json.get("link_id").is_some());
-    assert!(json.get("short_code").is_some());
-    assert!(json.get("full_url").is_some());
-
-    let full_url = json["full_url"].as_str().unwrap();
+    assert!(json["link_id"].is_string(), "Should have link_id as string");
+    assert!(json["short_code"].is_string(), "Should have short_code as string");
+    let full_url = json["full_url"]
+        .as_str()
+        .expect("Should have full_url as string");
     assert!(
         full_url.contains("utm_source=newsletter"),
         "Full URL should contain UTM params"
@@ -567,8 +589,7 @@ async fn test_link_with_source_content_tracking() -> Result<()> {
         )
         .await?;
 
-    assert!(row.is_some());
-    let link_row = row.unwrap();
+    let link_row = row.expect("Link should exist in database");
 
     assert_eq!(
         link_row.get("source_content_id").and_then(|v| v.as_str()),

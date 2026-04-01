@@ -85,9 +85,11 @@ async fn test_authorization_code_lifecycle() {
         .validate_authorization_code(&code, &client_id, Some(redirect_uri), None)
         .await;
 
+    let err = validation_again.expect_err("Should not be able to use code twice");
     assert!(
-        validation_again.is_err(),
-        "Should not be able to use code twice"
+        err.to_string().contains("Invalid authorization code"),
+        "Expected 'Invalid authorization code' error, got: {}",
+        err
     );
 
     cleanup_test_client(&db, &client_id).await;
@@ -161,9 +163,11 @@ async fn test_authorization_code_pkce_invalid_verifier() {
         .validate_authorization_code(&code, &client_id, Some(redirect_uri), Some("wrong_verifier"))
         .await;
 
+    let err = invalid_verifier_result.expect_err("Invalid verifier should fail");
     assert!(
-        invalid_verifier_result.is_err(),
-        "Invalid verifier should fail"
+        err.to_string().contains("Invalid authorization code"),
+        "Expected 'Invalid authorization code' error, got: {}",
+        err
     );
 
     cleanup_test_client(&db, &client_id).await;
@@ -207,9 +211,11 @@ async fn test_refresh_token_lifecycle() {
 
     let validation_after_consume = repo.validate_refresh_token(&token_id, &client_id).await;
 
+    let err = validation_after_consume.expect_err("Consumed token should not validate");
     assert!(
-        validation_after_consume.is_err(),
-        "Consumed token should not validate"
+        err.to_string().contains("Invalid refresh token"),
+        "Expected 'Invalid refresh token' error, got: {}",
+        err
     );
 
     cleanup_test_client(&db, &client_id).await;
@@ -237,7 +243,13 @@ async fn test_refresh_token_expiration() {
 
     let validation = repo.validate_refresh_token(&token_id, &client_id).await;
 
-    assert!(validation.is_err(), "Expired token should not validate");
+    let err = validation.expect_err("Expired token should not validate");
+    assert!(
+        err.to_string().contains("expired")
+            || err.to_string().contains("Invalid refresh token"),
+        "Expected expiration-related error, got: {}",
+        err
+    );
 
     cleanup_test_client(&db, &client_id).await;
     cleanup_test_user(&db, &user_id).await;
@@ -271,7 +283,12 @@ async fn test_refresh_token_revocation() {
 
     let validation = repo.validate_refresh_token(&token_id, &client_id).await;
 
-    assert!(validation.is_err(), "Revoked token should not validate");
+    let err = validation.expect_err("Revoked token should not validate");
+    assert!(
+        err.to_string().contains("Invalid refresh token"),
+        "Expected 'Invalid refresh token' error, got: {}",
+        err
+    );
 
     cleanup_test_client(&db, &client_id).await;
     cleanup_test_user(&db, &user_id).await;
