@@ -81,10 +81,7 @@ fn test_file_role_parse_case_insensitive() {
 
 #[test]
 fn test_file_role_parse_invalid() {
-    let result = FileRole::parse("unknown_role");
-    assert!(result.is_err());
-
-    let err_msg = result.unwrap_err().to_string();
+    let err_msg = FileRole::parse("unknown_role").unwrap_err().to_string();
     assert!(err_msg.contains("Invalid file role"));
     assert!(err_msg.contains("unknown_role"));
 }
@@ -92,7 +89,7 @@ fn test_file_role_parse_invalid() {
 #[test]
 fn test_file_role_parse_empty_string() {
     let result = FileRole::parse("");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -212,7 +209,7 @@ fn test_file_role_deserialize_thumbnail() {
 #[test]
 fn test_file_role_deserialize_invalid() {
     let result: Result<FileRole, _> = serde_json::from_str("\"invalid\"");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -347,7 +344,7 @@ fn test_content_file_parsed_role_thumbnail() {
 fn test_content_file_parsed_role_invalid() {
     let file = create_test_content_file("invalid_role");
     let result = file.parsed_role();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

@@ -44,7 +44,7 @@ fn test_service_status_running() {
     };
 
     assert_eq!(status.state, "running");
-    assert!(status.pid.is_some());
+    status.pid.expect("expected Some value");
 }
 
 #[test]

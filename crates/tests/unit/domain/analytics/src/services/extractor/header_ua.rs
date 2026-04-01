@@ -39,8 +39,8 @@ mod session_analytics_tests {
         let headers = create_headers_with_user_agent("Mozilla/5.0 Chrome/120.0");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.user_agent.is_some());
-        assert!(analytics.user_agent.unwrap().contains("Chrome"));
+        let ua = analytics.user_agent.expect("expected Some value");
+        assert!(ua.contains("Chrome"));
     }
 
     #[test]
@@ -48,8 +48,8 @@ mod session_analytics_tests {
         let headers = create_headers_with_ip("10.0.0.1, 192.168.1.1");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.ip_address.is_some());
-        assert_eq!(analytics.ip_address.unwrap(), "10.0.0.1");
+        let ip = analytics.ip_address.expect("expected Some value");
+        assert_eq!(ip, "10.0.0.1");
     }
 
     #[test]

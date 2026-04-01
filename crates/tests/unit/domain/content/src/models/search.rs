@@ -43,8 +43,7 @@ fn test_search_request_with_filters() {
     let request: SearchRequest = serde_json::from_str(json).unwrap();
 
     assert_eq!(request.query, "example");
-    assert!(request.filters.is_some());
-    let filters = request.filters.unwrap();
+    let filters = request.filters.expect("expected Some value");
     assert_eq!(filters.category_id.unwrap().as_str(), "tech");
 }
 
@@ -61,7 +60,7 @@ fn test_search_request_full() {
 
     assert_eq!(request.query, "complete query");
     assert_eq!(request.limit, Some(50));
-    assert!(request.filters.is_some());
+    request.filters.expect("expected Some value");
 }
 
 #[test]

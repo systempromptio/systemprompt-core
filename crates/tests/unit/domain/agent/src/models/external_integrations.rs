@@ -475,5 +475,5 @@ fn test_webhook_response_deserialize() {
     let json = r#"{"status": 201, "body": {"id": "created"}}"#;
     let response: WebhookResponse = serde_json::from_str(json).unwrap();
     assert_eq!(response.status, 201);
-    assert!(response.body.is_some());
+    response.body.expect("expected Some value");
 }

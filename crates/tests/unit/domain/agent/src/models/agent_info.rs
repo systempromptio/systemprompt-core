@@ -129,8 +129,8 @@ fn test_agent_info_with_skills() {
 
     let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true).with_skills(skills);
 
-    assert!(info.skills.is_some());
-    assert_eq!(info.skills.as_ref().unwrap().len(), 2);
+    let skills = info.skills.expect("expected Some value");
+    assert_eq!(skills.len(), 2);
 }
 
 #[test]
@@ -140,8 +140,8 @@ fn test_agent_info_with_mcp_servers() {
 
     let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true).with_mcp_servers(servers);
 
-    assert!(info.mcp_servers.is_some());
-    assert_eq!(info.mcp_servers.as_ref().unwrap().len(), 2);
+    let servers = info.mcp_servers.expect("expected Some value");
+    assert_eq!(servers.len(), 2);
 }
 
 #[test]
@@ -165,8 +165,8 @@ fn test_agent_info_builder_chain() {
         .with_skills(skills)
         .with_mcp_servers(servers);
 
-    assert!(info.skills.is_some());
-    assert!(info.mcp_servers.is_some());
+    info.skills.expect("expected Some value");
+    info.mcp_servers.expect("expected Some value");
 }
 
 // ============================================================================

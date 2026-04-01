@@ -169,7 +169,7 @@ fn test_task_artifact_creation() {
     assert_eq!(artifact.artifact_id, "art-123");
     assert_eq!(artifact.artifact_type, "file");
     assert_eq!(artifact.name, Some("output.txt".to_string()));
-    assert!(artifact.text_content.is_some());
+    artifact.text_content.expect("artifact.text_content should be present");
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn test_task_artifact_with_data_content() {
         data_content: Some(json!({"key": "value", "count": 42})),
     };
 
-    assert!(artifact.data_content.is_some());
+    artifact.data_content.as_ref().expect("artifact.data_content should be present");
     let data = artifact.data_content.as_ref().unwrap();
     assert_eq!(data["key"], "value");
     assert_eq!(data["count"], 42);
@@ -265,7 +265,7 @@ fn test_task_artifact_deserialize() {
     let artifact: TaskArtifact = serde_json::from_str(json).unwrap();
     assert_eq!(artifact.artifact_id, "deser");
     assert_eq!(artifact.name, Some("result.json".to_string()));
-    assert!(artifact.data_content.is_some());
+    artifact.data_content.expect("artifact.data_content should be present");
 }
 
 // ============================================================================

@@ -80,7 +80,6 @@ mod convert_tools_tests {
 
         let result = convert_tools(vec![tool]);
 
-        assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.to_string().contains("no_schema_tool"));
         assert!(err.to_string().contains("input_schema"));
@@ -144,7 +143,7 @@ mod convert_response_format_tests {
         let format = ResponseFormat::JsonObject;
         let result = convert_response_format(&format).unwrap();
 
-        assert!(result.is_some());
+        result.as_ref().expect("result should be present");
         // Check it serializes correctly
         let serialized = serde_json::to_value(&result.unwrap()).unwrap();
         assert_eq!(serialized["type"], "json_object");
@@ -167,7 +166,7 @@ mod convert_response_format_tests {
 
         let result = convert_response_format(&format).unwrap();
 
-        assert!(result.is_some());
+        result.as_ref().expect("result should be present");
         let serialized = serde_json::to_value(&result.unwrap()).unwrap();
         assert_eq!(serialized["type"], "json_schema");
         assert_eq!(serialized["json_schema"]["name"], "test_schema");
@@ -184,8 +183,8 @@ mod convert_response_format_tests {
 
         let result = convert_response_format(&format);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("name"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("name"));
     }
 
     #[test]

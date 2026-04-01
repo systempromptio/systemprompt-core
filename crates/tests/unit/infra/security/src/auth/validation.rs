@@ -200,7 +200,7 @@ fn test_validate_request_disabled_mode() {
     let headers = HeaderMap::new();
 
     let result = service.validate_request(&headers, AuthMode::Disabled);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.request.session_id.as_str(), "test");
@@ -217,7 +217,7 @@ fn test_validate_request_disabled_ignores_token() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Disabled);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 // ============================================================================
@@ -230,7 +230,7 @@ fn test_validate_request_required_missing_auth() {
     let headers = HeaderMap::new();
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result
         .unwrap_err()
         .to_string()
@@ -247,7 +247,7 @@ fn test_validate_request_required_invalid_token() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("Invalid JWT"));
 }
 
@@ -267,7 +267,7 @@ fn test_validate_request_required_wrong_secret() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -286,7 +286,7 @@ fn test_validate_request_required_wrong_issuer() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -301,7 +301,7 @@ fn test_validate_request_required_expired_token() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("Invalid JWT"));
 }
 
@@ -317,7 +317,7 @@ fn test_validate_request_required_missing_session_id() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("session_id"));
 }
 
@@ -337,7 +337,7 @@ fn test_validate_request_required_valid_token() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.auth.user_id.as_str(), "user_123");
@@ -356,7 +356,7 @@ fn test_validate_request_required_admin_token() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.auth.user_type, UserType::Admin);
@@ -372,7 +372,7 @@ fn test_validate_request_optional_no_token() {
     let headers = HeaderMap::new();
 
     let result = service.validate_request(&headers, AuthMode::Optional);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.request.session_id.as_str(), "anonymous");
@@ -389,7 +389,7 @@ fn test_validate_request_optional_invalid_token() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Optional);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.request.session_id.as_str(), "anonymous");
@@ -412,7 +412,7 @@ fn test_validate_request_optional_valid_token() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Optional);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.auth.user_id.as_str(), "user_123");
@@ -441,7 +441,7 @@ fn test_validate_request_extracts_trace_id() {
     headers.insert("x-trace-id", HeaderValue::from_static("custom-trace-id"));
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.execution.trace_id.as_str(), "custom-trace-id");
@@ -467,7 +467,7 @@ fn test_validate_request_extracts_context_id() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.execution.context_id.as_str(), "custom-context-id");
@@ -490,7 +490,7 @@ fn test_validate_request_extracts_agent_name() {
     headers.insert("x-agent-name", HeaderValue::from_static("custom-agent"));
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.execution.agent_name.as_str(), "custom-agent");
@@ -512,7 +512,7 @@ fn test_validate_request_generates_trace_id_if_missing() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert!(!context.execution.trace_id.as_str().is_empty());
@@ -527,7 +527,7 @@ fn test_validate_request_anonymous_extracts_headers() {
     headers.insert("x-agent-name", HeaderValue::from_static("anon-agent"));
 
     let result = service.validate_request(&headers, AuthMode::Optional);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let context = result.unwrap();
     assert_eq!(context.execution.trace_id.as_str(), "anon-trace");
@@ -555,7 +555,7 @@ fn test_validate_request_lowercase_authorization() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -571,7 +571,7 @@ fn test_validate_request_no_bearer_prefix() {
     headers.insert("authorization", HeaderValue::from_str(&token).unwrap());
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -584,5 +584,5 @@ fn test_validate_request_basic_auth() {
     );
 
     let result = service.validate_request(&headers, AuthMode::Required);
-    assert!(result.is_err());
+    result.unwrap_err();
 }

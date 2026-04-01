@@ -44,12 +44,12 @@ async fn test_event_bus_publish() {
     };
 
     let result = event_bus.publish(event).await;
-    assert!(result.is_ok());
+    result.expect("expected success");
 
     // Verify event was received
     let received = receiver.try_recv();
-    assert!(received.is_ok());
-    assert_eq!(received.unwrap().service_name(), "test-service");
+    let val = received.expect("expected success");
+    assert_eq!(val.service_name(), "test-service");
 }
 
 #[tokio::test]
@@ -74,7 +74,7 @@ async fn test_event_bus_publish_multiple_events() {
 
     for event in events {
         let result = event_bus.publish(event).await;
-        assert!(result.is_ok());
+        result.expect("expected success");
     }
 
     // Verify all events were received
@@ -97,7 +97,7 @@ async fn test_event_bus_publish_without_subscribers() {
 
     // Should not error even without subscribers
     let result = event_bus.publish(event).await;
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[tokio::test]
@@ -113,11 +113,11 @@ async fn test_event_bus_publish_to_multiple_subscribers() {
     };
 
     let result = event_bus.publish(event).await;
-    assert!(result.is_ok());
+    result.expect("expected success");
 
     // Both receivers should receive the event
-    assert!(receiver1.try_recv().is_ok());
-    assert!(receiver2.try_recv().is_ok());
+    receiver1.try_recv().expect("expected success");
+    receiver2.try_recv().expect("expected success");
 }
 
 // ============================================================================

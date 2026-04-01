@@ -211,7 +211,7 @@ mod create_analytics_session_input_tests {
             expires_at,
         };
 
-        assert!(input.user_id.is_some());
+        input.user_id.expect("expected Some value");
         assert_eq!(input.user_id.unwrap().as_str(), "user_789");
     }
 

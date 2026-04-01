@@ -34,7 +34,7 @@ async fn admin_find_user_by_email() -> Result<()> {
     let created = user_service.create(&unique_name, &unique_email, None, None).await?;
 
     let found = admin_service.find_user(&unique_email).await?;
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.as_ref().map(|u| &u.email), Some(&unique_email));
 
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -61,7 +61,7 @@ async fn admin_find_user_by_name() -> Result<()> {
     let created = user_service.create(&unique_name, &unique_email, None, None).await?;
 
     let found = admin_service.find_user(&unique_name).await?;
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.as_ref().map(|u| &u.name), Some(&unique_name));
 
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -88,7 +88,7 @@ async fn admin_find_user_by_uuid() -> Result<()> {
     let created = user_service.create(&unique_name, &unique_email, None, None).await?;
 
     let found = admin_service.find_user(created.id.as_str()).await?;
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.as_ref().map(|u| u.id.to_string()), Some(created.id.to_string()));
 
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")

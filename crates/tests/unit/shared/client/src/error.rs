@@ -202,14 +202,13 @@ fn test_api_error_display() {
 #[test]
 fn test_client_result_ok() {
     let result: ClientResult<i32> = Ok(42);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.expect("should be Ok"), 42);
 }
 
 #[test]
 fn test_client_result_err() {
     let result: ClientResult<i32> = Err(ClientError::Timeout);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================

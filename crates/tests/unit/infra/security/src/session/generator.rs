@@ -68,7 +68,7 @@ fn test_generate_session_token_success() {
     let params = create_test_params(&user_id, &session_id);
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let token = result.unwrap();
     assert!(!token.as_str().is_empty());
@@ -204,7 +204,7 @@ fn test_generate_session_token_admin_user_type() {
     };
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn test_generate_session_token_short_duration() {
     };
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn test_generate_session_token_long_duration() {
     };
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn test_generate_session_token_multiple_permissions() {
     };
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -288,7 +288,7 @@ fn test_generate_session_token_empty_roles() {
     };
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -309,7 +309,7 @@ fn test_generate_session_token_empty_permissions() {
     };
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -387,7 +387,7 @@ fn test_generate_session_token_special_email_characters() {
     };
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -398,5 +398,5 @@ fn test_generate_session_token_uuid_ids() {
     let params = create_test_params(&user_id, &session_id);
 
     let result = generator.generate(&params);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }

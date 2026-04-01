@@ -145,7 +145,7 @@ fn test_file_upload_request_builder_with_user_id() {
         .with_user_id(user_id)
         .build();
 
-    assert!(request.user_id.is_some());
+    request.user_id.as_ref().expect("user_id should be present");
     assert_eq!(request.user_id.as_ref().unwrap().as_str(), "user_abc");
 }
 
@@ -157,7 +157,7 @@ fn test_file_upload_request_builder_with_session_id() {
         .with_session_id(session_id)
         .build();
 
-    assert!(request.session_id.is_some());
+    request.session_id.as_ref().expect("session_id should be present");
     assert_eq!(request.session_id.as_ref().unwrap().as_str(), "sess_xyz");
 }
 
@@ -169,7 +169,7 @@ fn test_file_upload_request_builder_with_trace_id() {
         .with_trace_id(trace_id)
         .build();
 
-    assert!(request.trace_id.is_some());
+    request.trace_id.as_ref().expect("trace_id should be present");
     assert_eq!(request.trace_id.as_ref().unwrap().as_str(), "trace_def");
 }
 

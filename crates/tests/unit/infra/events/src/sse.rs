@@ -56,7 +56,7 @@ fn test_cli_output_event() -> CliOutputEvent {
 fn test_agui_event_to_sse_succeeds() {
     let event = test_agui_event();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn test_agui_event_to_sse_produces_valid_json() {
 fn test_a2a_event_to_sse_succeeds() {
     let event = test_a2a_event();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn test_a2a_event_to_sse_produces_valid_json() {
 fn test_system_event_to_sse_succeeds() {
     let event = test_system_event();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -101,21 +101,21 @@ fn test_system_event_to_sse_produces_valid_json() {
 fn test_context_event_agui_to_sse_succeeds() {
     let event = test_context_event_agui();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
 fn test_context_event_system_to_sse_succeeds() {
     let event = test_context_event_system();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
 fn test_analytics_event_to_sse_succeeds() {
     let event = test_analytics_event();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -130,7 +130,7 @@ fn test_analytics_event_to_sse_produces_valid_json() {
 fn test_cli_output_event_to_sse_succeeds() {
     let event = test_cli_output_event();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -147,21 +147,21 @@ fn test_cli_output_event_error_to_sse() {
         data: "error message".to_string(),
     };
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
 fn test_cli_output_event_started_to_sse() {
     let event = CliOutputEvent::Started { pid: 12345 };
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
 fn test_cli_output_event_exit_code_to_sse() {
     let event = CliOutputEvent::ExitCode { code: 0 };
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn test_cli_output_event_error_variant_to_sse() {
         message: "Something went wrong".to_string(),
     };
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn test_context_event_a2a_to_sse_succeeds() {
     let a2a_event = test_a2a_event();
     let context_event: ContextEvent = a2a_event.into();
     let result = context_event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -216,7 +216,7 @@ fn test_system_event_heartbeat_serialization() {
 fn test_analytics_event_heartbeat() {
     let event = AnalyticsEventBuilder::heartbeat();
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -228,7 +228,7 @@ fn test_analytics_event_session_ended() {
         10,
     );
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
@@ -241,12 +241,12 @@ fn test_analytics_event_engagement_update() {
         3,
     );
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }
 
 #[test]
 fn test_analytics_event_realtime_stats() {
     let event = AnalyticsEventBuilder::realtime_stats(100, 50, 200, 500, 10);
     let result = event.to_sse();
-    assert!(result.is_ok());
+    let _ = result.expect("result should succeed");
 }

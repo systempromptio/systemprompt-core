@@ -117,7 +117,7 @@ fn test_generate_access_token_jti_valid_uuid_format() {
 fn test_generate_access_token_jti_parseable_as_uuid() {
     let jti = generate_access_token_jti();
     let parsed = uuid::Uuid::parse_str(&jti);
-    assert!(parsed.is_ok());
+    parsed.expect("expected success");
 }
 
 // ============================================================================
@@ -128,8 +128,7 @@ fn test_generate_access_token_jti_parseable_as_uuid() {
 fn test_hash_client_secret_success() {
     let secret = "my_test_secret_123";
     let result = hash_client_secret(secret);
-    assert!(result.is_ok());
-    let hash = result.unwrap();
+    let hash = result.expect("expected success");
     assert!(!hash.is_empty());
     // bcrypt hashes start with "$2b$" or "$2a$"
     assert!(hash.starts_with("$2"));
@@ -148,7 +147,7 @@ fn test_hash_client_secret_different_hashes() {
 fn test_hash_client_secret_empty_secret() {
     let secret = "";
     let result = hash_client_secret(secret);
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -156,8 +155,8 @@ fn test_verify_client_secret_correct() {
     let secret = "correct_secret";
     let hash = hash_client_secret(secret).unwrap();
     let result = verify_client_secret(secret, &hash);
-    assert!(result.is_ok());
-    assert!(result.unwrap());
+    let val = result.expect("expected success");
+    assert!(val);
 }
 
 #[test]
@@ -166,8 +165,8 @@ fn test_verify_client_secret_incorrect() {
     let wrong_secret = "wrong_secret";
     let hash = hash_client_secret(secret).unwrap();
     let result = verify_client_secret(wrong_secret, &hash);
-    assert!(result.is_ok());
-    assert!(!result.unwrap());
+    let val = result.expect("expected success");
+    assert!(!val);
 }
 
 #[test]
@@ -175,7 +174,7 @@ fn test_verify_client_secret_invalid_hash() {
     let secret = "some_secret";
     let invalid_hash = "not_a_valid_bcrypt_hash";
     let result = verify_client_secret(secret, invalid_hash);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -202,8 +201,7 @@ fn test_verify_client_secret_case_sensitive() {
 fn test_hash_client_secret_special_characters() {
     let secret = "secret!@#$%^&*()_+-=[]{}|;':\",./<>?";
     let result = hash_client_secret(secret);
-    assert!(result.is_ok());
-    let hash = result.unwrap();
+    let hash = result.expect("expected success");
     let verified = verify_client_secret(secret, &hash).unwrap();
     assert!(verified);
 }
@@ -212,8 +210,7 @@ fn test_hash_client_secret_special_characters() {
 fn test_hash_client_secret_unicode() {
     let secret = "秘密🔐パスワード";
     let result = hash_client_secret(secret);
-    assert!(result.is_ok());
-    let hash = result.unwrap();
+    let hash = result.expect("expected success");
     let verified = verify_client_secret(secret, &hash).unwrap();
     assert!(verified);
 }

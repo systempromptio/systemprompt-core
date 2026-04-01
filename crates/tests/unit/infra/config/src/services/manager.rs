@@ -43,7 +43,7 @@ fn test_generate_config_missing_base_config() {
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
     let result = manager.generate_config(DeployEnvironment::Local);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("Base config not found"));
 }
@@ -58,7 +58,7 @@ fn test_generate_config_missing_env_config() {
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
     let result = manager.generate_config(DeployEnvironment::Local);
 
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("Environment config not found"));
 }
@@ -79,7 +79,7 @@ port: 8080
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
     let result = manager.generate_config(DeployEnvironment::Local);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let config = result.unwrap();
     assert_eq!(config.environment, DeployEnvironment::Local);
@@ -542,7 +542,7 @@ fn test_generate_config_invalid_yaml() {
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
     let result = manager.generate_config(DeployEnvironment::Local);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

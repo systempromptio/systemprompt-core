@@ -99,7 +99,7 @@ settings:
     let agent = create_test_agent("test_agent");
     let result = ConfigWriter::create_agent(&agent, temp_dir.path());
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let agent_file = result.expect("Should create agent file");
     assert!(agent_file.exists());
     assert!(agent_file.to_string_lossy().contains("test_agent.yaml"));
@@ -120,7 +120,7 @@ fn test_create_agent_creates_agents_directory() {
     let agent = create_test_agent("new_agent");
     let result = ConfigWriter::create_agent(&agent, temp_dir.path());
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert!(agents_dir.exists());
 }
 
@@ -142,7 +142,7 @@ fn test_create_agent_already_exists() {
     let agent = create_test_agent("existing");
     let result = ConfigWriter::create_agent(&agent, temp_dir.path());
 
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("already exists"));
 }
 
@@ -161,8 +161,8 @@ fn test_find_agent_file_exists() {
         .expect("Failed to write agent file");
 
     let result = ConfigWriter::find_agent_file("my_agent", temp_dir.path());
-    assert!(result.is_ok());
-    assert!(result.expect("Should find agent").is_some());
+    result.as_ref().expect("result should succeed");
+    result.expect("Should find agent").expect("result.expect(\"Should find agent\") should be present");
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn test_find_agent_file_not_exists() {
     std::fs::create_dir_all(&agents_dir).expect("Failed to create agents dir");
 
     let result = ConfigWriter::find_agent_file("nonexistent", temp_dir.path());
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert!(result.expect("Should return None").is_none());
 }
 
@@ -181,7 +181,7 @@ fn test_find_agent_file_no_agents_dir() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
     let result = ConfigWriter::find_agent_file("any_agent", temp_dir.path());
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert!(result.expect("Should return None").is_none());
 }
 
@@ -219,9 +219,9 @@ fn test_find_agent_file_in_different_filename() {
     std::fs::write(&agent_file, agent_content).expect("Failed to write agent file");
 
     let result = ConfigWriter::find_agent_file("hidden_agent", temp_dir.path());
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let found = result.expect("Should find agent");
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert!(
         found
             .expect("Agent found")
@@ -248,7 +248,7 @@ fn test_update_agent_success() {
     updated_agent.card.description = "Updated description".to_string();
 
     let result = ConfigWriter::update_agent("update_agent", &updated_agent, temp_dir.path());
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 
     let content = std::fs::read_to_string(&agent_file).expect("Failed to read updated file");
     assert!(content.contains("Updated description"));
@@ -263,7 +263,7 @@ fn test_update_agent_not_found() {
     let agent = create_test_agent("nonexistent");
     let result = ConfigWriter::update_agent("nonexistent", &agent, temp_dir.path());
 
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
@@ -289,7 +289,7 @@ fn test_delete_agent_success() {
     assert!(agent_file.exists());
 
     let result = ConfigWriter::delete_agent("delete_me", temp_dir.path());
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert!(!agent_file.exists());
 }
 
@@ -300,7 +300,7 @@ fn test_delete_agent_not_found() {
     std::fs::create_dir_all(&agents_dir).expect("Failed to create agents dir");
 
     let result = ConfigWriter::delete_agent("nonexistent", temp_dir.path());
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
@@ -317,7 +317,7 @@ fn test_add_include_to_existing_includes() {
     std::fs::write(&config_path, config_content).expect("Failed to write config");
 
     let result = ConfigWriter::add_include("new-include.yaml", &config_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 
     let content = std::fs::read_to_string(&config_path).expect("Failed to read config");
     assert!(content.contains("new-include.yaml"));
@@ -333,7 +333,7 @@ fn test_add_include_creates_includes_section() {
     std::fs::write(&config_path, config_content).expect("Failed to write config");
 
     let result = ConfigWriter::add_include("new-include.yaml", &config_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 
     let content = std::fs::read_to_string(&config_path).expect("Failed to read config");
     assert!(content.contains("includes:"));
@@ -349,7 +349,7 @@ fn test_add_include_already_exists() {
     std::fs::write(&config_path, config_content).expect("Failed to write config");
 
     let result = ConfigWriter::add_include("already-there.yaml", &config_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 
     let content = std::fs::read_to_string(&config_path).expect("Failed to read config");
     let count = content.matches("already-there.yaml").count();
@@ -360,7 +360,7 @@ fn test_add_include_already_exists() {
 fn test_add_include_nonexistent_config() {
     let path = Path::new("/nonexistent/config.yaml");
     let result = ConfigWriter::add_include("include.yaml", path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -378,7 +378,7 @@ fn test_created_agent_file_has_header() {
 
     let agent = create_test_agent("header_test");
     let result = ConfigWriter::create_agent(&agent, temp_dir.path());
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let agent_file = result.expect("Should create agent file");
     let content = std::fs::read_to_string(&agent_file).expect("Failed to read agent file");
@@ -404,7 +404,7 @@ fn test_created_agent_file_is_valid_yaml() {
 
     let agent = create_test_agent("yaml_test");
     let result = ConfigWriter::create_agent(&agent, temp_dir.path());
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let agent_file = result.expect("Should create agent file");
     let content = std::fs::read_to_string(&agent_file).expect("Failed to read agent file");

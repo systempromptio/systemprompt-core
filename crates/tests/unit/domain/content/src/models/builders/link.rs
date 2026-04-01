@@ -143,16 +143,16 @@ fn test_create_link_params_full_builder() {
     .with_expires_at(Some(expires));
 
     assert_eq!(params.short_code, "fullcode");
-    assert!(params.source_content_id.is_some());
-    assert!(params.source_page.is_some());
-    assert!(params.campaign_id.is_some());
-    assert!(params.campaign_name.is_some());
-    assert!(params.utm_params.is_some());
-    assert!(params.link_text.is_some());
-    assert!(params.link_position.is_some());
-    assert!(params.destination_type.is_some());
+    params.source_content_id.expect("expected Some value");
+    params.source_page.expect("expected Some value");
+    params.campaign_id.expect("expected Some value");
+    params.campaign_name.expect("expected Some value");
+    params.utm_params.expect("expected Some value");
+    params.link_text.expect("expected Some value");
+    params.link_position.expect("expected Some value");
+    params.destination_type.expect("expected Some value");
     assert!(params.is_active);
-    assert!(params.expires_at.is_some());
+    params.expires_at.expect("expected Some value");
 }
 
 // ============================================================================
@@ -388,13 +388,13 @@ fn test_track_click_params_full_builder() {
         .with_device_type(Some("desktop".to_string()))
         .with_country(Some("UK".to_string()));
 
-    assert!(params.user_id.is_some());
-    assert!(params.context_id.is_some());
-    assert!(params.task_id.is_some());
-    assert!(params.referrer_page.is_some());
-    assert!(params.referrer_url.is_some());
-    assert!(params.user_agent.is_some());
-    assert!(params.ip_address.is_some());
-    assert!(params.device_type.is_some());
-    assert!(params.country.is_some());
+    params.user_id.expect("expected Some value");
+    params.context_id.expect("expected Some value");
+    params.task_id.expect("expected Some value");
+    params.referrer_page.expect("expected Some value");
+    params.referrer_url.expect("expected Some value");
+    params.user_agent.expect("expected Some value");
+    params.ip_address.expect("expected Some value");
+    params.device_type.expect("expected Some value");
+    params.country.expect("expected Some value");
 }

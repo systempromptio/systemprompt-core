@@ -162,7 +162,7 @@ fn test_health_check_result_unhealthy() {
     };
 
     assert_eq!(result.status, HealthStatus::Unhealthy);
-    assert!(result.details.error_message.is_some());
+    result.details.error_message.expect("expected Some value");
 }
 
 #[test]

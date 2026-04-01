@@ -354,7 +354,7 @@ mod behavioral_bot_detector_tests {
 
         assert!(result.is_suspicious);
         assert!(result.score >= BEHAVIORAL_BOT_THRESHOLD);
-        assert!(result.reason.is_some());
+        result.reason.expect("expected Some value");
     }
 
     #[test]

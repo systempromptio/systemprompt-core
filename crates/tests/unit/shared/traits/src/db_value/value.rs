@@ -11,8 +11,7 @@ mod parse_database_datetime_tests {
         let value = serde_json::json!("2024-01-15T10:30:00Z");
         let result = parse_database_datetime(&value);
 
-        assert!(result.is_some());
-        let dt = result.unwrap();
+        let dt = result.expect("should parse datetime");
         assert_eq!(dt.year(), 2024);
         assert_eq!(dt.month(), 1);
         assert_eq!(dt.day(), 15);
@@ -25,8 +24,7 @@ mod parse_database_datetime_tests {
         let value = serde_json::json!("2024-06-20T15:45:30+05:00");
         let result = parse_database_datetime(&value);
 
-        assert!(result.is_some());
-        let dt = result.unwrap();
+        let dt = result.expect("should parse datetime");
         // Should be converted to UTC (15:45 +05:00 = 10:45 UTC)
         assert_eq!(dt.hour(), 10);
         assert_eq!(dt.minute(), 45);
@@ -37,8 +35,7 @@ mod parse_database_datetime_tests {
         let value = serde_json::json!("2024-03-10 14:25:30.123");
         let result = parse_database_datetime(&value);
 
-        assert!(result.is_some());
-        let dt = result.unwrap();
+        let dt = result.expect("should parse datetime");
         assert_eq!(dt.year(), 2024);
         assert_eq!(dt.month(), 3);
         assert_eq!(dt.day(), 10);
@@ -52,8 +49,7 @@ mod parse_database_datetime_tests {
         let value = serde_json::json!(1705318200_i64); // 2024-01-15T10:30:00Z
         let result = parse_database_datetime(&value);
 
-        assert!(result.is_some());
-        let dt = result.unwrap();
+        let dt = result.expect("should parse datetime");
         assert_eq!(dt.year(), 2024);
     }
 

@@ -55,14 +55,14 @@ mod string_from_db_value_tests {
     fn from_null_fails() {
         let value = DbValue::NullString;
         let result = String::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_bytes_fails() {
         let value = DbValue::Bytes(vec![1, 2, 3]);
         let result = String::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -102,28 +102,28 @@ mod i64_from_db_value_tests {
     fn from_invalid_string_fails() {
         let value = DbValue::String("not a number".to_string());
         let result = i64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_null_fails() {
         let value = DbValue::NullInt;
         let result = i64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_nan_fails() {
         let value = DbValue::Float(f64::NAN);
         let result = i64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_infinity_fails() {
         let value = DbValue::Float(f64::INFINITY);
         let result = i64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -141,7 +141,7 @@ mod i32_from_db_value_tests {
     fn overflow_fails() {
         let value = DbValue::Int(i64::MAX);
         let result = i32::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -159,7 +159,7 @@ mod u64_from_db_value_tests {
     fn from_negative_fails() {
         let value = DbValue::Int(-1);
         let result = u64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -177,14 +177,14 @@ mod u32_from_db_value_tests {
     fn from_negative_fails() {
         let value = DbValue::Int(-100);
         let result = u32::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn overflow_fails() {
         let value = DbValue::Int(i64::from(u32::MAX) + 1);
         let result = u32::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -216,21 +216,21 @@ mod f64_from_db_value_tests {
     fn from_invalid_string_fails() {
         let value = DbValue::String("not a float".to_string());
         let result = f64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_null_fails() {
         let value = DbValue::NullFloat;
         let result = f64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_bool_fails() {
         let value = DbValue::Bool(true);
         let result = f64::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -275,21 +275,21 @@ mod bool_from_db_value_tests {
     fn from_invalid_string_fails() {
         let value = DbValue::String("maybe".to_string());
         let result = bool::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_null_fails() {
         let value = DbValue::NullBool;
         let result = bool::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_float_fails() {
         let value = DbValue::Float(1.0);
         let result = bool::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -314,14 +314,14 @@ mod vec_u8_from_db_value_tests {
     fn from_null_fails() {
         let value = DbValue::NullBytes;
         let result = Vec::<u8>::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_int_fails() {
         let value = DbValue::Int(123);
         let result = Vec::<u8>::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 
@@ -404,27 +404,27 @@ mod datetime_from_db_value_tests {
     fn from_invalid_string_fails() {
         let value = DbValue::String("not a date".to_string());
         let result = DateTime::<Utc>::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_null_fails() {
         let value = DbValue::NullTimestamp;
         let result = DateTime::<Utc>::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_float_fails() {
         let value = DbValue::Float(1705318200.5);
         let result = DateTime::<Utc>::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn from_bool_fails() {
         let value = DbValue::Bool(true);
         let result = DateTime::<Utc>::from_db_value(&value);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }

@@ -16,7 +16,7 @@ mod remove_unsupported_keywords_tests {
 
         let result = sanitizer.sanitize(schema);
         assert!(result.get("allOf").is_none());
-        assert!(result.get("type").is_some());
+        result.get("type").expect("type field should be present");
     }
 
     #[test]
@@ -38,7 +38,7 @@ mod remove_unsupported_keywords_tests {
         });
 
         let result = sanitizer.sanitize(schema);
-        assert!(result.get("anyOf").is_some());
+        result.get("anyOf").expect("anyOf field should be present");
     }
 
     #[test]
@@ -94,13 +94,13 @@ mod remove_unsupported_keywords_tests {
         });
 
         let result = sanitizer.sanitize(schema);
-        assert!(result.get("allOf").is_some());
-        assert!(result.get("anyOf").is_some());
-        assert!(result.get("oneOf").is_some());
-        assert!(result.get("if").is_some());
-        assert!(result.get("then").is_some());
-        assert!(result.get("not").is_some());
-        assert!(result.get("additionalProperties").is_some());
+        result.get("allOf").expect("allOf field should be present");
+        result.get("anyOf").expect("anyOf field should be present");
+        result.get("oneOf").expect("oneOf field should be present");
+        result.get("if").expect("if field should be present");
+        result.get("then").expect("then field should be present");
+        result.get("not").expect("not field should be present");
+        result.get("additionalProperties").expect("additionalProperties field should be present");
     }
 }
 
@@ -120,7 +120,7 @@ mod remove_metadata_fields_tests {
 
         let result = sanitizer().sanitize(schema);
         assert!(result.get("$schema").is_none());
-        assert!(result.get("type").is_some());
+        result.get("type").expect("type field should be present");
     }
 
     #[test]
@@ -243,8 +243,8 @@ mod remove_extension_fields_tests {
         });
 
         let result = sanitizer().sanitize(schema);
-        assert!(result.get("xProperty").is_some());
-        assert!(result.get("properties").is_some());
+        result.get("xProperty").expect("xProperty field should be present");
+        result.get("properties").expect("properties field should be present");
     }
 }
 
@@ -261,7 +261,7 @@ mod convert_const_to_enum_tests {
 
         let result = sanitizer.sanitize(schema);
         assert!(result.get("const").is_none());
-        assert!(result.get("enum").is_some());
+        result.get("enum").expect("enum field should be present");
 
         let enum_values = result.get("enum").unwrap().as_array().unwrap();
         assert_eq!(enum_values.len(), 1);
@@ -277,7 +277,7 @@ mod convert_const_to_enum_tests {
         });
 
         let result = sanitizer.sanitize(schema);
-        assert!(result.get("const").is_some());
+        result.get("const").expect("const field should be present");
         assert!(result.get("enum").is_none());
     }
 
@@ -319,7 +319,7 @@ mod sanitize_nested_schemas_tests {
         let nested = result["properties"]["nested"].as_object().unwrap();
         assert!(nested.get("allOf").is_none());
         assert!(nested.get("$schema").is_none());
-        assert!(nested.get("type").is_some());
+        nested.get("type").expect("type field should be present");
     }
 
     #[test]
@@ -376,7 +376,7 @@ mod sanitize_nested_schemas_tests {
         let additional = result["additionalProperties"].as_object().unwrap();
         assert!(additional.get("$schema").is_none());
         assert!(additional.get("x-custom").is_none());
-        assert!(additional.get("type").is_some());
+        additional.get("type").expect("type field should be present");
     }
 
     #[test]

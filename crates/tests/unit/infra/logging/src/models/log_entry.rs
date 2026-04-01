@@ -139,61 +139,61 @@ fn test_log_entry_builder_chaining() {
 #[test]
 fn test_log_entry_validate_valid() {
     let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert!(entry.validate().is_ok());
+    entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_empty_module() {
     let entry = LogEntry::new(LogLevel::Info, "", "message");
-    assert!(entry.validate().is_err());
+    entry.validate().unwrap_err();
 }
 
 #[test]
 fn test_log_entry_validate_empty_message() {
     let entry = LogEntry::new(LogLevel::Info, "module", "");
-    assert!(entry.validate().is_err());
+    entry.validate().unwrap_err();
 }
 
 #[test]
 fn test_log_entry_validate_with_object_metadata() {
     let entry =
         LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!({}));
-    assert!(entry.validate().is_ok());
+    entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_array_metadata() {
     let entry =
         LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!([]));
-    assert!(entry.validate().is_ok());
+    entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_string_metadata() {
     let entry = LogEntry::new(LogLevel::Info, "module", "message")
         .with_metadata(serde_json::json!("string"));
-    assert!(entry.validate().is_ok());
+    entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_null_metadata() {
     let entry =
         LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(null));
-    assert!(entry.validate().is_ok());
+    entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_number_metadata() {
     let entry =
         LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(42));
-    assert!(entry.validate().is_err());
+    entry.validate().unwrap_err();
 }
 
 #[test]
 fn test_log_entry_validate_with_boolean_metadata() {
     let entry =
         LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(true));
-    assert!(entry.validate().is_err());
+    entry.validate().unwrap_err();
 }
 
 // ============================================================================

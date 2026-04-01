@@ -295,8 +295,8 @@ mod sync_operation_result_tests {
     fn with_details_adds_details() {
         let result = SyncOperationResult::success("op", 5)
             .with_details(serde_json::json!({"key": "value"}));
-        assert!(result.details.is_some());
-        let details = result.details.unwrap();
+        result.details.as_ref().expect("result.details should be present");
+        let details = result.details.as_ref().unwrap();
         assert_eq!(details["key"], "value");
     }
 
@@ -334,7 +334,7 @@ mod sync_operation_result_tests {
     fn dry_run_sets_details() {
         let details = serde_json::json!({"files": ["a.txt", "b.txt"]});
         let result = SyncOperationResult::dry_run("op", 3, details);
-        assert!(result.details.is_some());
+        result.details.expect("result.details should be present");
     }
 
     #[test]

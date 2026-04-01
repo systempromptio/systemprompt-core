@@ -56,7 +56,7 @@ fn test_generate_admin_token_success() {
     };
 
     let result = JwtService::generate_admin_token(&params);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let token = result.unwrap();
     let token_str = token.as_str();
@@ -117,8 +117,8 @@ fn test_generate_admin_token_different_durations() {
     let short_token = JwtService::generate_admin_token(&short_params);
     let long_token = JwtService::generate_admin_token(&long_params);
 
-    assert!(short_token.is_ok());
-    assert!(long_token.is_ok());
+    short_token.as_ref().expect("short_token should succeed");
+    long_token.as_ref().expect("long_token should succeed");
 
     assert_ne!(short_token.unwrap().as_str(), long_token.unwrap().as_str());
 }

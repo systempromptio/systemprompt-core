@@ -196,7 +196,7 @@ date: 2024-01-15
 Body content here."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (yaml, body) = result.unwrap();
     assert_eq!(yaml["title"].as_str(), Some("My Title"));
@@ -229,7 +229,7 @@ Body content."#;
 
     let result = extract_frontmatter(content);
     // Empty frontmatter should still parse (as empty YAML)
-    assert!(result.is_some());
+    result.expect("result should be present");
 }
 
 #[test]
@@ -247,12 +247,12 @@ metadata:
 Content body."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (yaml, body) = result.unwrap();
     assert_eq!(yaml["title"].as_str(), Some("Complex Title"));
-    assert!(yaml["tags"].as_sequence().is_some());
-    assert!(yaml["metadata"]["author"].as_str().is_some());
+    yaml["tags"].as_sequence().expect("yaml[\"tags\"].as_sequence() should be present");
+    yaml["metadata"]["author"].as_str().expect("yaml[\"metadata\"][\"author\"].as_str() should be present");
     assert!(body.contains("Content body."));
 }
 
@@ -267,7 +267,7 @@ description: |
 Body."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (yaml, _) = result.unwrap();
     assert!(yaml["title"].as_str().unwrap().contains("colons"));
@@ -296,7 +296,7 @@ title: Test
 Some **bold** text and a [link](http://example.com)."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (_, body) = result.unwrap();
     assert!(body.contains("# Heading"));
@@ -314,7 +314,7 @@ draft: false
 Content."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (yaml, _) = result.unwrap();
     assert_eq!(yaml["count"].as_i64(), Some(42));
@@ -332,7 +332,7 @@ updated: 2024-01-20T10:30:00Z
 Body."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (yaml, _) = result.unwrap();
     // Dates are typically parsed as strings in serde_yaml
@@ -349,7 +349,7 @@ title: Test
 Body with leading whitespace."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (_, body) = result.unwrap();
     // Body should preserve whitespace but may be trimmed depending on implementation
@@ -364,7 +364,7 @@ title: Test
 Some content with --- dashes in the middle."#;
 
     let result = extract_frontmatter(content);
-    assert!(result.is_some());
+    result.as_ref().expect("result should be present");
 
     let (_, body) = result.unwrap();
     assert!(body.contains("---"));

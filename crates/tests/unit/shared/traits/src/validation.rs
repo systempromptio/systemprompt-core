@@ -30,7 +30,7 @@ mod validation_error_tests {
         let err = ValidationError::new("password", "Too weak")
             .with_context("Must contain uppercase and numbers");
 
-        assert!(err.context.is_some());
+        err.context.as_ref().expect("context should be set");
         assert_eq!(err.context.unwrap(), "Must contain uppercase and numbers");
     }
 
@@ -110,7 +110,7 @@ mod validate_trait_tests {
         let data = ValidData {
             name: "John".to_string(),
         };
-        assert!(data.validate().is_ok());
+        data.validate().expect("validation should pass");
     }
 
     #[test]
@@ -119,8 +119,6 @@ mod validate_trait_tests {
             name: String::new(),
         };
         let result = data.validate();
-        assert!(result.is_err());
-
         let err = result.unwrap_err();
         assert_eq!(err.field, "name");
     }
@@ -160,7 +158,7 @@ mod metadata_validation_trait_tests {
             author: "Author Name".to_string(),
         };
 
-        assert!(meta.validate_required_fields().is_ok());
+        meta.validate_required_fields().expect("required fields should pass");
     }
 
     #[test]
@@ -172,8 +170,6 @@ mod metadata_validation_trait_tests {
         };
 
         let result = meta.validate_required_fields();
-        assert!(result.is_err());
-
         let err = result.unwrap_err();
         assert_eq!(err.field, "title");
         assert!(err.message.contains("cannot be empty"));
@@ -188,8 +184,6 @@ mod metadata_validation_trait_tests {
         };
 
         let result = meta.validate_required_fields();
-        assert!(result.is_err());
-
         let err = result.unwrap_err();
         // Should fail on description first since it comes before author
         assert_eq!(err.field, "description");
@@ -204,8 +198,6 @@ mod metadata_validation_trait_tests {
         };
 
         let result = meta.validate();
-        assert!(result.is_err());
-
         let err = result.unwrap_err();
         assert_eq!(err.field, "author");
     }

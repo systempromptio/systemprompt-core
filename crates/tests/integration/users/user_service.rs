@@ -40,15 +40,15 @@ async fn service_create_and_find_user() -> Result<()> {
 
     // Find by ID
     let found = service.find_by_id(&created.id).await?;
-    assert!(found.is_some());
+    found.expect("found should be present");
 
     // Find by email
     let found_email = service.find_by_email(&unique_email).await?;
-    assert!(found_email.is_some());
+    found_email.expect("found_email should be present");
 
     // Find by name
     let found_name = service.find_by_name(&unique_name).await?;
-    assert!(found_name.is_some());
+    found_name.expect("found_name should be present");
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -359,7 +359,7 @@ async fn service_get_authenticated_user() -> Result<()> {
     let created = service.create(&unique_name, &unique_email, None, None).await?;
 
     let auth = service.get_authenticated_user(&created.id).await?;
-    assert!(auth.is_some());
+    auth.expect("auth should be present");
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -513,7 +513,7 @@ async fn service_get_with_sessions() -> Result<()> {
     let created = service.create(&unique_name, &unique_email, None, None).await?;
 
     let user_with_sessions = service.get_with_sessions(&created.id).await?;
-    assert!(user_with_sessions.is_some());
+    user_with_sessions.expect("user_with_sessions should be present");
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -821,7 +821,7 @@ async fn service_merge_users() -> Result<()> {
     assert!(source_found.is_none());
 
     let target_found = service.find_by_id(&target.id).await?;
-    assert!(target_found.is_some());
+    target_found.expect("target_found should be present");
 
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
         .bind(target.id.as_str())

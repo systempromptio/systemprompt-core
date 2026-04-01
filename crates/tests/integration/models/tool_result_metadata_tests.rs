@@ -5,7 +5,7 @@ use systemprompt_models::mcp::McpToolResultMetadata;
 fn test_create_and_validate() {
     let mcp_execution_id = McpExecutionId::generate();
     let metadata = McpToolResultMetadata::new(mcp_execution_id);
-    assert!(metadata.validate().is_ok());
+    metadata.validate().expect("metadata.validate() should succeed");
 }
 
 #[test]
@@ -30,5 +30,5 @@ fn test_missing_meta_fails() {
         meta: None,
     };
 
-    assert!(McpToolResultMetadata::from_call_tool_result(&result).is_err());
+    McpToolResultMetadata::from_call_tool_result(&result).unwrap_err();
 }

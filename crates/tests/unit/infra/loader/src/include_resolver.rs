@@ -40,7 +40,7 @@ fn test_resolve_string_no_include() {
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
     let result = resolver.resolve_string("regular string value");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should resolve"), "regular string value");
 }
 
@@ -50,7 +50,7 @@ fn test_resolve_string_empty() {
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
     let result = resolver.resolve_string("");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should resolve"), "");
 }
 
@@ -63,7 +63,7 @@ fn test_resolve_string_with_include() {
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
     let result = resolver.resolve_string("!include included.txt");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should resolve"), "included content");
 }
 
@@ -76,7 +76,7 @@ fn test_resolve_string_with_include_whitespace() {
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
     let result = resolver.resolve_string("!include   included.txt  ");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should resolve"), "content with whitespace");
 }
 
@@ -86,7 +86,7 @@ fn test_resolve_string_include_missing_file() {
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
     let result = resolver.resolve_string("!include nonexistent.txt");
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("Failed to read"));
 }
 
@@ -101,7 +101,7 @@ fn test_resolve_string_include_subdirectory() {
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
     let result = resolver.resolve_string("!include subdir/nested.txt");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should resolve"), "nested content");
 }
 
@@ -124,7 +124,7 @@ fn test_resolve_yaml_file_simple() {
     }
 
     let result: Result<TestConfig, _> = resolver.resolve_yaml_file("config.yaml");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let config = result.expect("Should parse yaml");
     assert_eq!(config.key, "value");
@@ -161,7 +161,7 @@ nested:
     }
 
     let result: Result<ComplexConfig, _> = resolver.resolve_yaml_file("complex.yaml");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let config = result.expect("Should parse complex yaml");
     assert_eq!(config.name, "test");
@@ -181,7 +181,7 @@ fn test_resolve_yaml_file_missing() {
     }
 
     let result: Result<AnyConfig, _> = resolver.resolve_yaml_file("nonexistent.yaml");
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("Failed to read"));
 }
 
@@ -193,14 +193,14 @@ fn test_resolve_yaml_file_invalid_yaml() {
 
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
-    #[derive(serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize)]
     struct Config {
         #[allow(dead_code)]
         not: String,
     }
 
     let result: Result<Config, _> = resolver.resolve_yaml_file("invalid.yaml");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -240,7 +240,7 @@ fn test_with_subpath_resolves_file() {
     let sub_resolver = resolver.with_subpath("configs");
 
     let result = sub_resolver.read_file("test.txt");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should read file"), "subdir content");
 }
 
@@ -287,7 +287,7 @@ fn test_read_file_success() {
 
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
     let result = resolver.read_file("readable.txt");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should read file"), "file content here");
 }
 
@@ -297,7 +297,7 @@ fn test_read_file_missing() {
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
 
     let result = resolver.read_file("missing.txt");
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("Failed to read"));
 }
 
@@ -311,7 +311,7 @@ fn test_read_file_in_subdirectory() {
 
     let resolver = IncludeResolver::new(temp_dir.path().to_path_buf());
     let result = resolver.read_file("nested/deep.txt");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.expect("Should read file"), "deep content");
 }
 

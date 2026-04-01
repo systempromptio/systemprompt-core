@@ -112,7 +112,7 @@ fn test_extension_wrapper_as_any() {
     let any_ref: &dyn Any = wrapper.as_any();
 
     // Should be able to downcast to the inner type
-    assert!(any_ref.downcast_ref::<BasicExtension>().is_some());
+    any_ref.downcast_ref::<BasicExtension>().expect("any_ref.downcast_ref::<BasicExtension>() should be present");
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn test_schema_extension_wrapper_priority() {
 fn test_schema_extension_wrapper_as_schema_returns_some() {
     let wrapper = SchemaExtensionWrapper::new(SchemaTestExtension);
     let schema = wrapper.as_schema();
-    assert!(schema.is_some());
+    schema.as_ref().expect("schema should be present");
 
     let schema_ext = schema.expect("should have schema");
     assert_eq!(schema_ext.migration_weight(), 10);
@@ -194,7 +194,7 @@ fn test_schema_extension_wrapper_as_api_returns_none() {
 fn test_schema_extension_wrapper_as_any() {
     let wrapper = SchemaExtensionWrapper::new(SchemaTestExtension);
     let any_ref: &dyn Any = wrapper.as_any();
-    assert!(any_ref.downcast_ref::<SchemaTestExtension>().is_some());
+    any_ref.downcast_ref::<SchemaTestExtension>().expect("any_ref.downcast_ref::<SchemaTestExtension>() should be present");
 }
 
 #[test]
@@ -244,7 +244,7 @@ fn test_api_extension_wrapper_priority() {
 fn test_api_extension_wrapper_as_api_returns_some() {
     let wrapper = ApiExtensionWrapper::new(ApiTestExtension);
     let api = wrapper.as_api();
-    assert!(api.is_some());
+    api.as_ref().expect("api should be present");
 
     let api_ext = api.expect("should have api");
     assert_eq!(api_ext.base_path(), "/api/v1/test-ext");
@@ -261,7 +261,7 @@ fn test_api_extension_wrapper_as_schema_returns_none() {
 fn test_api_extension_wrapper_as_any() {
     let wrapper = ApiExtensionWrapper::new(ApiTestExtension);
     let any_ref: &dyn Any = wrapper.as_any();
-    assert!(any_ref.downcast_ref::<ApiTestExtension>().is_some());
+    any_ref.downcast_ref::<ApiTestExtension>().expect("any_ref.downcast_ref::<ApiTestExtension>() should be present");
 }
 
 #[test]
@@ -300,7 +300,7 @@ fn test_schema_any_extension_as_trait_object() {
 
     let wrapper: Box<dyn AnyExtension> = Box::new(SchemaExtensionWrapper::new(SchemaTestExtension));
     assert_eq!(wrapper.id(), "schema-test");
-    assert!(wrapper.as_schema().is_some());
+    wrapper.as_schema().expect("wrapper.as_schema() should be present");
 }
 
 #[test]
@@ -309,7 +309,7 @@ fn test_api_any_extension_as_trait_object() {
 
     let wrapper: Box<dyn AnyExtension> = Box::new(ApiExtensionWrapper::new(ApiTestExtension));
     assert_eq!(wrapper.id(), "api-test");
-    assert!(wrapper.as_api().is_some());
+    wrapper.as_api().expect("wrapper.as_api() should be present");
 }
 
 // =============================================================================

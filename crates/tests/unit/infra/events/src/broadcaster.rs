@@ -179,7 +179,7 @@ async fn test_broadcaster_broadcast_to_single_connection() {
     let count = broadcaster.broadcast(&user_id, test_event()).await;
 
     assert_eq!(count, 1);
-    assert!(receiver.recv().await.is_some());
+    let _ = receiver.recv().await.expect("receiver.recv().await should be present");
 }
 
 #[tokio::test]
@@ -194,8 +194,8 @@ async fn test_broadcaster_broadcast_to_multiple_connections() {
     let count = broadcaster.broadcast(&user_id, test_event()).await;
 
     assert_eq!(count, 2);
-    assert!(rx1.recv().await.is_some());
-    assert!(rx2.recv().await.is_some());
+    let _ = rx1.recv().await.expect("rx1.recv().await should be present");
+    let _ = rx2.recv().await.expect("rx2.recv().await should be present");
 }
 
 #[tokio::test]
@@ -238,8 +238,8 @@ async fn test_broadcaster_broadcast_only_to_target_user() {
     let count = broadcaster.broadcast(&user1, test_event()).await;
 
     assert_eq!(count, 1);
-    assert!(rx1.recv().await.is_some());
-    assert!(rx2.try_recv().is_err());
+    let _ = rx1.recv().await.expect("rx1.recv().await should be present");
+    rx2.try_recv().unwrap_err();
 }
 
 #[tokio::test]
@@ -477,7 +477,7 @@ async fn test_broadcaster_many_connections_stress() {
     assert_eq!(count, 10);
 
     for mut rx in receivers {
-        assert!(rx.recv().await.is_some());
+        let _ = rx.recv().await.expect("rx.recv().await should be present");
     }
 }
 

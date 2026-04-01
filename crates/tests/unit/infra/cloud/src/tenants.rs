@@ -319,8 +319,8 @@ fn test_tenant_store_from_tenant_infos() {
     let store = TenantStore::from_tenant_infos(&infos);
 
     assert_eq!(store.len(), 2);
-    assert!(store.find_tenant("i1").is_some());
-    assert!(store.find_tenant("i2").is_some());
+    store.find_tenant("i1").expect("store.find_tenant(\"i1\") should be present");
+    store.find_tenant("i2").expect("store.find_tenant(\"i2\") should be present");
 }
 
 #[test]
@@ -332,7 +332,7 @@ fn test_tenant_store_find_tenant_found() {
     let store = TenantStore::new(tenants);
 
     let found = store.find_tenant("find-me");
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.unwrap().name, "Find Me");
 }
 
@@ -413,8 +413,8 @@ fn test_tenant_store_deserialization() {
 
     let store: TenantStore = serde_json::from_str(json).unwrap();
     assert_eq!(store.len(), 2);
-    assert!(store.find_tenant("d1").is_some());
-    assert!(store.find_tenant("d2").is_some());
+    store.find_tenant("d1").expect("store.find_tenant(\"d1\") should be present");
+    store.find_tenant("d2").expect("store.find_tenant(\"d2\") should be present");
 }
 
 #[test]

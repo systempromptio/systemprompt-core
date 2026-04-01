@@ -23,7 +23,7 @@ fn test_decode_expiry_valid_token() {
     let token = create_test_token(expected_exp);
 
     let result = decode_expiry(&token);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), expected_exp);
 }
 
@@ -33,7 +33,7 @@ fn test_decode_expiry_future_timestamp() {
     let token = create_test_token(future_exp);
 
     let result = decode_expiry(&token);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), future_exp);
 }
 
@@ -43,7 +43,7 @@ fn test_decode_expiry_past_timestamp() {
     let token = create_test_token(past_exp);
 
     let result = decode_expiry(&token);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), past_exp);
 }
 
@@ -51,21 +51,21 @@ fn test_decode_expiry_past_timestamp() {
 fn test_decode_expiry_invalid_format_no_dots() {
     let token = CloudAuthToken::new("invalid_token_without_dots");
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_decode_expiry_invalid_format_one_dot() {
     let token = CloudAuthToken::new("header.payload");
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_decode_expiry_invalid_format_too_many_dots() {
     let token = CloudAuthToken::new("part1.part2.part3.part4");
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn test_decode_expiry_invalid_base64_payload() {
     let token = CloudAuthToken::new(format!("{}.not_valid_base64!!!.signature", header));
 
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn test_decode_expiry_invalid_json_payload() {
     let token = CloudAuthToken::new(format!("{}.{}.signature", header, payload));
 
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -94,21 +94,21 @@ fn test_decode_expiry_missing_exp_claim() {
     let token = CloudAuthToken::new(format!("{}.{}.signature", header, payload));
 
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_decode_expiry_empty_token() {
     let token = CloudAuthToken::new("");
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_decode_expiry_empty_parts() {
     let token = CloudAuthToken::new("..");
     let result = decode_expiry(&token);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

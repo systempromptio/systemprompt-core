@@ -29,13 +29,13 @@ fn test_log_row_creation() {
     assert_eq!(row.level, "info");
     assert_eq!(row.module, "test::module");
     assert_eq!(row.message, "Test message");
-    assert!(row.metadata.is_some());
-    assert!(row.user_id.is_some());
-    assert!(row.session_id.is_some());
-    assert!(row.task_id.is_some());
-    assert!(row.trace_id.is_some());
-    assert!(row.context_id.is_some());
-    assert!(row.client_id.is_some());
+    row.metadata.expect("row.metadata should be present");
+    row.user_id.expect("row.user_id should be present");
+    row.session_id.expect("row.session_id should be present");
+    row.task_id.expect("row.task_id should be present");
+    row.trace_id.expect("row.trace_id should be present");
+    row.context_id.expect("row.context_id should be present");
+    row.client_id.expect("row.client_id should be present");
 }
 
 #[test]
@@ -216,8 +216,8 @@ fn test_log_row_to_log_entry_with_valid_metadata() {
 
     let entry: LogEntry = row.into();
 
-    assert!(entry.metadata.is_some());
-    let meta = entry.metadata.unwrap();
+    entry.metadata.as_ref().expect("entry.metadata should be present");
+    let meta = entry.metadata.as_ref().unwrap();
     assert_eq!(meta["key"], "value");
     assert_eq!(meta["number"], 42);
 }
@@ -303,7 +303,7 @@ fn test_log_row_to_log_entry_with_task_id() {
     };
 
     let entry: LogEntry = row.into();
-    assert!(entry.task_id.is_some());
+    entry.task_id.as_ref().expect("entry.task_id should be present");
     assert_eq!(entry.task_id.as_ref().unwrap().as_str(), "task-abcde");
 }
 
@@ -346,7 +346,7 @@ fn test_log_row_to_log_entry_with_context_id() {
     };
 
     let entry: LogEntry = row.into();
-    assert!(entry.context_id.is_some());
+    entry.context_id.as_ref().expect("entry.context_id should be present");
     assert_eq!(entry.context_id.as_ref().unwrap().as_str(), "context-klmno");
 }
 
@@ -368,7 +368,7 @@ fn test_log_row_to_log_entry_with_client_id() {
     };
 
     let entry: LogEntry = row.into();
-    assert!(entry.client_id.is_some());
+    entry.client_id.as_ref().expect("entry.client_id should be present");
     assert_eq!(entry.client_id.as_ref().unwrap().as_str(), "client-pqrst");
 }
 
@@ -438,13 +438,13 @@ fn test_log_row_to_log_entry_full_conversion() {
     assert_eq!(entry.level, LogLevel::Warn);
     assert_eq!(entry.module, "full::conversion");
     assert_eq!(entry.message, "Full conversion test");
-    assert!(entry.metadata.is_some());
+    entry.metadata.expect("entry.metadata should be present");
     assert_eq!(entry.user_id.as_str(), "user-full");
     assert_eq!(entry.session_id.as_str(), "session-full");
-    assert!(entry.task_id.is_some());
+    entry.task_id.expect("entry.task_id should be present");
     assert_eq!(entry.trace_id.as_str(), "trace-full");
-    assert!(entry.context_id.is_some());
-    assert!(entry.client_id.is_some());
+    entry.context_id.expect("entry.context_id should be present");
+    entry.client_id.expect("entry.client_id should be present");
 }
 
 // ============================================================================

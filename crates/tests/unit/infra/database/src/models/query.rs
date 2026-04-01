@@ -145,7 +145,7 @@ fn test_query_result_first_some() {
     };
 
     let first = result.first();
-    assert!(first.is_some());
+    first.as_ref().expect("first should be present");
     assert_eq!(first.unwrap().get("name").unwrap(), &serde_json::json!("Alice"));
 }
 
@@ -165,7 +165,7 @@ fn test_query_result_first_multiple_rows() {
     };
 
     let first = result.first();
-    assert!(first.is_some());
+    first.as_ref().expect("first should be present");
     assert_eq!(first.unwrap().get("id").unwrap(), &serde_json::json!(1));
 }
 

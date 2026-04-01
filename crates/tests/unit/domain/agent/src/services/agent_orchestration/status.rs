@@ -300,13 +300,13 @@ fn test_orchestration_error_debug() {
 #[test]
 fn test_orchestration_result_ok() {
     let result: Result<i32, OrchestrationError> = Ok(42);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    let val = result.expect("expected success");
+    assert_eq!(val, 42);
 }
 
 #[test]
 fn test_orchestration_result_err() {
     let result: Result<i32, OrchestrationError> =
         Err(OrchestrationError::AgentNotFound("test".to_string()));
-    assert!(result.is_err());
+    result.unwrap_err();
 }

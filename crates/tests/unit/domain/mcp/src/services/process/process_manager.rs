@@ -54,12 +54,12 @@ fn test_process_manager_is_running_current_process() {
 #[test]
 fn test_process_manager_find_pid_by_port_unused() {
     let result = ProcessManager::find_pid_by_port(59999);
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
 fn test_process_manager_find_process_on_port_with_name_unused() {
     let result = ProcessManager::find_process_on_port_with_name(59998, "nonexistent");
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_none());
+    let val = result.expect("expected success");
+    assert!(val.is_none());
 }

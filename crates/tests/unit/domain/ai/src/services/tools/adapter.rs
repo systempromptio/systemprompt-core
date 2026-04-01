@@ -46,7 +46,7 @@ mod mcp_tool_to_definition_tests {
         let mcp_tool = create_test_mcp_tool();
         let definition = mcp_tool_to_definition(&mcp_tool);
 
-        assert!(definition.input_schema.is_some());
+        definition.input_schema.as_ref().expect("input_schema should be present");
         let schema = definition.input_schema.unwrap();
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"]["query"].is_object());
@@ -57,7 +57,7 @@ mod mcp_tool_to_definition_tests {
         let mcp_tool = create_test_mcp_tool();
         let definition = mcp_tool_to_definition(&mcp_tool);
 
-        assert!(definition.output_schema.is_some());
+        definition.output_schema.as_ref().expect("output_schema should be present");
         assert_eq!(definition.output_schema.unwrap()["type"], "string");
     }
 
@@ -112,7 +112,7 @@ mod definition_to_mcp_tool_tests {
         let definition = create_test_definition();
         let mcp_tool = definition_to_mcp_tool(&definition);
 
-        assert!(mcp_tool.input_schema.is_some());
+        mcp_tool.input_schema.as_ref().expect("input_schema should be present");
         assert!(mcp_tool.output_schema.is_none());
     }
 

@@ -219,7 +219,7 @@ fn test_oauth_client_validate_success() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -230,8 +230,8 @@ fn test_oauth_client_validate_empty_client_id() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("client_id"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("client_id"));
 }
 
 #[test]
@@ -242,8 +242,8 @@ fn test_oauth_client_validate_empty_client_name() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("client_name"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("client_name"));
 }
 
 #[test]
@@ -254,8 +254,8 @@ fn test_oauth_client_validate_empty_redirect_uris() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("redirect_uris"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("redirect_uris"));
 }
 
 #[test]
@@ -266,8 +266,8 @@ fn test_oauth_client_validate_empty_grant_types() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("grant_types"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("grant_types"));
 }
 
 #[test]
@@ -278,8 +278,8 @@ fn test_oauth_client_validate_empty_response_types() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("response_types"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("response_types"));
 }
 
 #[test]
@@ -290,8 +290,8 @@ fn test_oauth_client_validate_empty_scopes() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     let result = client.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("scopes"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("scopes"));
 }
 
 #[test]
@@ -374,8 +374,8 @@ fn test_update_oauth_client_request_full() {
 
     let request: UpdateOAuthClientRequest = serde_json::from_str(json).unwrap();
     assert_eq!(request.name, Some("Updated Name".to_string()));
-    assert!(request.redirect_uris.is_some());
-    assert!(request.scopes.is_some());
+    request.redirect_uris.expect("expected Some value");
+    request.scopes.expect("expected Some value");
 }
 
 #[test]

@@ -41,7 +41,7 @@ fn test_load_from_path_minimal_config() {
     std::fs::write(&config_path, create_minimal_config()).expect("Failed to write config");
 
     let result = ConfigLoader::load_from_path(&config_path);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let config = result.expect("Should load config");
     assert!(config.agents.is_empty());
@@ -52,7 +52,7 @@ fn test_load_from_path_minimal_config() {
 fn test_load_from_path_nonexistent() {
     let path = PathBuf::from("/nonexistent/services.yaml");
     let result = ConfigLoader::load_from_path(&path);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("Failed to read"));
 }
 
@@ -64,7 +64,7 @@ fn test_load_from_path_invalid_yaml() {
     std::fs::write(&config_path, "invalid: yaml: : :").expect("Failed to write config");
 
     let result = ConfigLoader::load_from_path(&config_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -77,7 +77,7 @@ fn test_load_from_content_minimal() {
     let config_path = temp_dir.path().join("services.yaml");
 
     let result = ConfigLoader::load_from_content(&create_minimal_config(), &config_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -108,7 +108,7 @@ web:
 "#;
 
     let result = ConfigLoader::load_from_content(main_content, &config_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 // ============================================================================
@@ -123,7 +123,7 @@ fn test_validate_file_valid() {
     std::fs::write(&config_path, create_minimal_config()).expect("Failed to write config");
 
     let result = ConfigLoader::validate_file(&config_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 // ============================================================================
@@ -163,7 +163,7 @@ fn test_enhanced_loader_load() {
 
     let loader = EnhancedConfigLoader::new(config_path);
     let result = loader.load();
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -173,7 +173,7 @@ fn test_enhanced_loader_load_from_content() {
 
     let loader = EnhancedConfigLoader::new(config_path);
     let result = loader.load_from_content(&create_minimal_config());
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -207,7 +207,7 @@ web:
 
     let loader = EnhancedConfigLoader::new(config_path);
     let result = loader.load();
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 // ============================================================================
@@ -223,7 +223,7 @@ fn test_enhanced_loader_get_includes_empty() {
 
     let loader = EnhancedConfigLoader::new(config_path);
     let result = loader.get_includes();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert!(result.expect("Should get includes").is_empty());
 }
 
@@ -251,7 +251,7 @@ web:
 
     let loader = EnhancedConfigLoader::new(config_path);
     let result = loader.get_includes();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let includes = result.expect("Should get includes");
     assert_eq!(includes.len(), 2);
@@ -287,7 +287,7 @@ web:
 
     let loader = EnhancedConfigLoader::new(config_path);
     let result = loader.list_all_includes();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let includes = result.expect("Should list includes");
     assert_eq!(includes.len(), 2);
@@ -296,10 +296,10 @@ web:
     let existing = includes.iter().find(|(name, _)| name == "existing.yaml");
     let missing = includes.iter().find(|(name, _)| name == "missing.yaml");
 
-    assert!(existing.is_some());
+    existing.as_ref().expect("existing should be present");
     assert!(existing.expect("Has existing").1); // exists = true
 
-    assert!(missing.is_some());
+    missing.as_ref().expect("missing should be present");
     assert!(!missing.expect("Has missing").1); // exists = false
 }
 
@@ -315,7 +315,7 @@ fn test_enhanced_loader_validate_file_valid() {
     std::fs::write(&config_path, create_minimal_config()).expect("Failed to write config");
 
     let result = EnhancedConfigLoader::validate_file(&config_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 // ============================================================================
@@ -361,7 +361,7 @@ web:
 
     let loader = EnhancedConfigLoader::new(config_path);
     let result = loader.load();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let config = result.expect("Should load merged config");
     assert!(config.agents.is_empty());

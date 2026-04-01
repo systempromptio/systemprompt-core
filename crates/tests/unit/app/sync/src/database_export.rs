@@ -24,7 +24,7 @@ mod skill_export_tests {
         assert_eq!(skill.skill_id, "test_skill");
         assert_eq!(skill.name, "Test Skill");
         assert!(skill.enabled);
-        assert!(skill.tags.is_some());
+        skill.tags.expect("skill.tags should be present");
     }
 
     #[test]
@@ -67,7 +67,7 @@ mod context_export_tests {
 
         assert_eq!(context.context_id, "ctx_123");
         assert_eq!(context.user_id, "user_456");
-        assert!(context.session_id.is_some());
+        context.session_id.expect("context.session_id should be present");
     }
 
     #[test]

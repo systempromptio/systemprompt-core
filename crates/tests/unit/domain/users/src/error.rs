@@ -256,32 +256,32 @@ mod result_type_tests {
     #[test]
     fn result_ok_variant() {
         let result: Result<i32> = Ok(42);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        let val = result.expect("expected success");
+        assert_eq!(val, 42);
     }
 
     #[test]
     fn result_err_variant() {
         let result: Result<i32> = Err(UserError::Validation("test".to_string()));
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn result_with_string_value() {
         let result: Result<String> = Ok("success".to_string());
-        assert!(result.is_ok());
+        result.expect("expected success");
     }
 
     #[test]
     fn result_with_option_value() {
         let result: Result<Option<String>> = Ok(Some("value".to_string()));
-        assert!(result.is_ok());
+        result.expect("expected success");
     }
 
     #[test]
     fn result_with_vec_value() {
         let result: Result<Vec<i32>> = Ok(vec![1, 2, 3]);
-        assert!(result.is_ok());
+        result.expect("expected success");
     }
 
     #[test]

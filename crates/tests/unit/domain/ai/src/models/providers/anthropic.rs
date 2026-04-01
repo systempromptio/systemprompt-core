@@ -248,7 +248,7 @@ mod anthropic_request_tests {
             thinking: None,
         };
 
-        assert!(request.tools.is_some());
+        request.tools.as_ref().expect("tools should be present");
         assert_eq!(request.tools.as_ref().unwrap().len(), 1);
     }
 

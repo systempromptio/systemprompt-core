@@ -83,7 +83,7 @@ mod generation_params_tests {
 
         let params = GenerationParams::new(&messages, "gpt-4", 1024).with_sampling(&sampling);
 
-        assert!(params.sampling.is_some());
+        params.sampling.as_ref().expect("sampling should be present");
         assert_eq!(params.sampling.unwrap().temperature, Some(0.7));
     }
 
@@ -365,7 +365,7 @@ mod search_generation_params_tests {
         let params = SearchGenerationParams::new(base)
             .with_urls(vec!["https://example.com".to_string()]);
 
-        assert!(params.urls.is_some());
+        params.urls.as_ref().expect("urls should be present");
         assert_eq!(params.urls.unwrap()[0], "https://example.com");
     }
 
@@ -377,7 +377,7 @@ mod search_generation_params_tests {
 
         let params = SearchGenerationParams::new(base).with_response_schema(schema);
 
-        assert!(params.response_schema.is_some());
+        params.response_schema.as_ref().expect("response_schema should be present");
         assert_eq!(params.response_schema.unwrap()["type"], "object");
     }
 
@@ -390,8 +390,8 @@ mod search_generation_params_tests {
             .with_urls(vec!["https://test.com".to_string()])
             .with_response_schema(json!({"type": "array"}));
 
-        assert!(params.urls.is_some());
-        assert!(params.response_schema.is_some());
+        params.urls.as_ref().expect("urls should be present");
+        params.response_schema.as_ref().expect("response_schema should be present");
     }
 
     #[test]

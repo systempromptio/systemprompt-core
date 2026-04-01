@@ -36,7 +36,7 @@ fn create_full_headers() -> HeaderMap {
 fn from_headers_extracts_user_agent() {
     let headers = create_headers_with_user_agent("Mozilla/5.0 Chrome/120.0");
     let analytics = SessionAnalytics::from_headers(&headers);
-    assert!(analytics.user_agent.is_some());
+    analytics.user_agent.expect("expected Some value");
     assert!(analytics.user_agent.unwrap().contains("Chrome"));
 }
 
@@ -44,7 +44,7 @@ fn from_headers_extracts_user_agent() {
 fn from_headers_extracts_ip_from_forwarded_for() {
     let headers = create_headers_with_ip("10.0.0.1, 192.168.1.1");
     let analytics = SessionAnalytics::from_headers(&headers);
-    assert!(analytics.ip_address.is_some());
+    analytics.ip_address.expect("expected Some value");
     assert_eq!(analytics.ip_address.unwrap(), "10.0.0.1");
 }
 

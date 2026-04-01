@@ -71,7 +71,7 @@ fn test_generate_link_request_full() {
     assert_eq!(request.utm_content, Some("banner".to_string()));
     assert_eq!(request.link_text, Some("Click here".to_string()));
     assert_eq!(request.link_position, Some("header".to_string()));
-    assert!(request.expires_at.is_some());
+    request.expires_at.expect("expected Some value");
 }
 
 #[test]

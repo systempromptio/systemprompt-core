@@ -190,7 +190,7 @@ fn test_sampling_params_deserialize() {
     let result: Result<SamplingParams, _> = serde_json::from_str(json);
 
     // Should handle empty object (using defaults)
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 // ============================================================================

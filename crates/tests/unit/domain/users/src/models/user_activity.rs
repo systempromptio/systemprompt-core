@@ -65,7 +65,7 @@ fn user_with_sessions_creation() {
         created_at: Some(Utc::now()), active_sessions: 3, last_session_at: Some(Utc::now()),
     };
     assert_eq!(user.active_sessions, 3);
-    assert!(user.last_session_at.is_some());
+    user.last_session_at.expect("expected Some value");
 }
 
 #[test]

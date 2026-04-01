@@ -193,14 +193,14 @@ fn test_mcp_error_from_serde_json() {
 #[test]
 fn test_mcp_result_ok() {
     let result: Result<i32, McpError> = Ok(42);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    let val = result.expect("expected success");
+    assert_eq!(val, 42);
 }
 
 #[test]
 fn test_mcp_result_err() {
     let result: Result<i32, McpError> = Err(McpError::ServerNotFound("test".to_string()));
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

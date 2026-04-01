@@ -49,8 +49,7 @@ mod build_response_tests {
 
         let result = build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now());
 
-        assert!(result.is_ok());
-        let response = result.unwrap();
+        let response = result.expect("should succeed");
         assert_eq!(response.request_id, request_id);
         assert_eq!(response.content, "Hello, world!");
         assert_eq!(response.provider, "openai");
@@ -75,8 +74,8 @@ mod build_response_tests {
 
         let result = build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now());
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No response"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("No response"));
     }
 
     #[test]

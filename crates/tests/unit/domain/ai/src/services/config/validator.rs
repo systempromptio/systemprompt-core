@@ -49,7 +49,7 @@ mod validate_providers_tests {
     fn valid_config_passes() {
         let config = create_valid_config();
         let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        result.expect("validation should succeed");
     }
 
     #[test]
@@ -59,8 +59,8 @@ mod validate_providers_tests {
 
         let result = ConfigValidator::validate(&config, &[]);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No AI providers"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("No AI providers"));
     }
 
     #[test]
@@ -71,7 +71,6 @@ mod validate_providers_tests {
         let missing = vec!["OPENAI_API_KEY not set".to_string()];
         let result = ConfigValidator::validate(&config, &missing);
 
-        assert!(result.is_err());
         let error = result.unwrap_err().to_string();
         assert!(error.contains("OPENAI_API_KEY"));
     }
@@ -83,8 +82,8 @@ mod validate_providers_tests {
 
         let result = ConfigValidator::validate(&config, &[]);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("no API key"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("no API key"));
     }
 
     #[test]
@@ -94,8 +93,8 @@ mod validate_providers_tests {
 
         let result = ConfigValidator::validate(&config, &[]);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("no default model"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("no default model"));
     }
 
     #[test]
@@ -105,8 +104,8 @@ mod validate_providers_tests {
 
         let result = ConfigValidator::validate(&config, &[]);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("not found"));
     }
 
     #[test]
@@ -133,8 +132,8 @@ mod validate_providers_tests {
 
         let result = ConfigValidator::validate(&config, &[]);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not enabled"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("not enabled"));
     }
 
     #[test]
@@ -155,7 +154,7 @@ mod validate_providers_tests {
         );
 
         let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        result.expect("validation should succeed");
     }
 }
 
@@ -169,8 +168,8 @@ mod validate_mcp_tests {
 
         let result = ConfigValidator::validate(&config, &[]);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("connect timeout"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("connect timeout"));
     }
 
     #[test]
@@ -180,9 +179,8 @@ mod validate_mcp_tests {
 
         let result = ConfigValidator::validate(&config, &[]);
 
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
+        let err = result.unwrap_err();
+        assert!(err
             .to_string()
             .contains("execution timeout"));
     }
@@ -194,7 +192,7 @@ mod validate_mcp_tests {
 
         // Should pass but log a warning (we can't test the warning easily)
         let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        result.expect("validation should succeed");
     }
 }
 
@@ -209,7 +207,7 @@ mod validate_sampling_tests {
 
         // Should pass but log a warning
         let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        result.expect("validation should succeed");
     }
 }
 
@@ -223,7 +221,7 @@ mod validate_history_tests {
 
         // Should pass but log a warning
         let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        result.expect("validation should succeed");
     }
 
     #[test]
@@ -233,6 +231,6 @@ mod validate_history_tests {
 
         // Should pass but log a warning
         let result = ConfigValidator::validate(&config, &[]);
-        assert!(result.is_ok());
+        result.expect("validation should succeed");
     }
 }

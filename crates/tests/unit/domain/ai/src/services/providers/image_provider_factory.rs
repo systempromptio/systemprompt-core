@@ -13,10 +13,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("gemini", &config);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ImageProviderFactory::create("gemini", &config)
+            .expect("should succeed");
         assert_eq!(provider.name(), "gemini-image");
     }
 
@@ -28,10 +26,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("openai", &config);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ImageProviderFactory::create("openai", &config)
+            .expect("should succeed");
         assert_eq!(provider.name(), "openai-image");
     }
 
@@ -43,10 +39,9 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("gemini", &config);
-        assert!(result.is_err());
-
-        let error = result.err().unwrap();
+        let error = ImageProviderFactory::create("gemini", &config)
+            .err()
+            .expect("should be an error");
         assert!(error.to_string().contains("disabled"));
     }
 
@@ -58,10 +53,9 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("unknown", &config);
-        assert!(result.is_err());
-
-        let error = result.err().unwrap();
+        let error = ImageProviderFactory::create("unknown", &config)
+            .err()
+            .expect("should be an error");
         assert!(error.to_string().contains("Unknown image provider"));
     }
 
@@ -74,8 +68,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("gemini", &config);
-        assert!(result.is_ok());
+        ImageProviderFactory::create("gemini", &config)
+            .expect("should succeed");
     }
 
     #[test]
@@ -87,8 +81,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("openai", &config);
-        assert!(result.is_ok());
+        ImageProviderFactory::create("openai", &config)
+            .expect("should succeed");
     }
 
     #[test]
@@ -100,10 +94,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("gemini", &config);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ImageProviderFactory::create("gemini", &config)
+            .expect("should succeed");
         assert_eq!(provider.default_model(), "gemini-2.5-flash-image");
     }
 
@@ -116,10 +108,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ImageProviderFactory::create("openai", &config);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ImageProviderFactory::create("openai", &config)
+            .expect("should succeed");
         assert_eq!(provider.default_model(), "gpt-image-1");
     }
 }
@@ -149,10 +139,8 @@ mod create_all_tests {
             },
         );
 
-        let result = ImageProviderFactory::create_all(&configs);
-        assert!(result.is_ok());
-
-        let providers = result.unwrap();
+        let providers = ImageProviderFactory::create_all(&configs)
+            .expect("should succeed");
         assert_eq!(providers.len(), 2);
         assert!(providers.contains_key("gemini"));
         assert!(providers.contains_key("openai"));
@@ -180,10 +168,8 @@ mod create_all_tests {
             },
         );
 
-        let result = ImageProviderFactory::create_all(&configs);
-        assert!(result.is_ok());
-
-        let providers = result.unwrap();
+        let providers = ImageProviderFactory::create_all(&configs)
+            .expect("should succeed");
         assert_eq!(providers.len(), 1);
         assert!(providers.contains_key("gemini"));
     }
@@ -201,10 +187,9 @@ mod create_all_tests {
             },
         );
 
-        let result = ImageProviderFactory::create_all(&configs);
-        assert!(result.is_err());
-
-        let error = result.err().unwrap();
+        let error = ImageProviderFactory::create_all(&configs)
+            .err()
+            .expect("should be an error");
         assert!(error.to_string().contains("No image providers"));
     }
 
@@ -230,10 +215,8 @@ mod create_all_tests {
             },
         );
 
-        let result = ImageProviderFactory::create_all(&configs);
-        assert!(result.is_ok());
-
-        let providers = result.unwrap();
+        let providers = ImageProviderFactory::create_all(&configs)
+            .expect("should succeed");
         assert_eq!(providers.len(), 1);
         assert!(providers.contains_key("gemini"));
     }

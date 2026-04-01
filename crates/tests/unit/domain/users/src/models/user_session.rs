@@ -14,7 +14,7 @@ fn user_session_creation() {
         device_type: Some("desktop".to_string()),
         started_at: Some(Utc::now()), last_activity_at: Some(Utc::now()), ended_at: None,
     };
-    assert!(session.user_id.is_some());
+    session.user_id.expect("expected Some value");
     assert!(session.ended_at.is_none());
 }
 
@@ -51,7 +51,7 @@ fn user_session_serialization_roundtrip() {
     let json = serde_json::to_string(&session).unwrap();
     let deserialized: UserSession = serde_json::from_str(&json).unwrap();
     assert_eq!(session.session_id.to_string(), deserialized.session_id.to_string());
-    assert!(deserialized.ended_at.is_some());
+    deserialized.ended_at.expect("expected Some value");
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn user_session_ended_when_ended_at_set() {
         ip_address: None, user_agent: None, device_type: None,
         started_at: Some(Utc::now()), last_activity_at: Some(Utc::now()), ended_at: Some(Utc::now()),
     };
-    assert!(session.ended_at.is_some());
+    session.ended_at.expect("expected Some value");
 }
 
 #[test]

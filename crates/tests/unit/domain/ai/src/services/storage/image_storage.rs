@@ -37,7 +37,7 @@ mod storage_config_tests {
             "https://example.com".to_string(),
         );
 
-        assert!(config.validate().is_ok());
+        config.validate().expect("validation should succeed");
     }
 
     #[test]
@@ -49,8 +49,8 @@ mod storage_config_tests {
         config.url_prefix = String::new();
 
         let result = config.validate();
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("url_prefix"));
+        let err = result.unwrap_err();
+        assert!(err.contains("url_prefix"));
     }
 
     #[test]
@@ -62,8 +62,8 @@ mod storage_config_tests {
         config.max_file_size_bytes = 0;
 
         let result = config.validate();
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("max_file_size"));
+        let err = result.unwrap_err();
+        assert!(err.contains("max_file_size"));
     }
 
     #[test]
@@ -127,7 +127,7 @@ mod image_storage_tests {
         config.url_prefix = String::new();
 
         let result = ImageStorage::new(config);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
@@ -177,7 +177,7 @@ mod image_storage_tests {
         let large_bytes = vec![0u8; 200]; // Exceeds limit
 
         let result = storage.save_image_bytes(&large_bytes, "image/png");
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod image_storage_tests {
         let storage = ImageStorage::new(config).unwrap();
 
         let result = storage.save_base64_image("not valid base64!!!", "image/png");
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
@@ -224,7 +224,7 @@ mod image_storage_tests {
         let fake_path = PathBuf::from("/nonexistent/image.png");
         let result = storage.delete_image(&fake_path);
 
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]

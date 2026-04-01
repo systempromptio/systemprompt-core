@@ -8,7 +8,6 @@ mod build_thinking_config_tests {
     #[test]
     fn returns_config_for_claude_3_5_sonnet() {
         let config = build_thinking_config("claude-3-5-sonnet-20241022");
-        assert!(config.is_some());
         let config = config.expect("config should exist");
         assert_eq!(config.thinking_type, "enabled");
         assert_eq!(config.budget_tokens, 10240);
@@ -17,13 +16,13 @@ mod build_thinking_config_tests {
     #[test]
     fn returns_config_for_claude_3_5_haiku() {
         let config = build_thinking_config("claude-3-5-haiku-20241022");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]
     fn returns_config_for_claude_3_5_with_dot() {
         let config = build_thinking_config("claude-3.5-sonnet");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]

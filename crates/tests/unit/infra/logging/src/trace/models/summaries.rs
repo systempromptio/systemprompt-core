@@ -28,7 +28,7 @@ fn test_trace_event_creation() {
     assert_eq!(event.session_id, Some("session-456".to_string().into()));
     assert_eq!(event.task_id, Some("task-789".to_string().into()));
     assert_eq!(event.context_id, Some("context-abc".to_string().into()));
-    assert!(event.metadata.is_some());
+    event.metadata.expect("event.metadata should be present");
 }
 
 #[test]

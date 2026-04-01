@@ -35,7 +35,7 @@ fn test_registry_get_by_id() {
         .expect("build should succeed");
 
     let ext = registry.get("auth");
-    assert!(ext.is_some());
+    ext.as_ref().expect("ext should be present");
     assert_eq!(ext.expect("extension exists").id(), "auth");
 }
 

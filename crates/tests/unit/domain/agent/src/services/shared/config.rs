@@ -57,7 +57,7 @@ fn test_service_configuration_retry_delay() {
 #[test]
 fn test_service_configuration_validate_success() {
     let config = ServiceConfiguration::default();
-    assert!(config.validate().is_ok());
+    config.validate().expect("expected success");
 }
 
 #[test]
@@ -71,7 +71,6 @@ fn test_service_configuration_validate_zero_retry_attempts() {
     };
 
     let result = config.validate();
-    assert!(result.is_err());
     let error = result.unwrap_err();
     assert!(error.to_string().contains("retry_attempts"));
 }
@@ -87,7 +86,6 @@ fn test_service_configuration_validate_zero_max_connections() {
     };
 
     let result = config.validate();
-    assert!(result.is_err());
     let error = result.unwrap_err();
     assert!(error.to_string().contains("max_connections"));
 }
@@ -269,7 +267,7 @@ fn test_agent_service_config_default() {
 #[test]
 fn test_agent_service_config_validate_success() {
     let config = AgentServiceConfig::default();
-    assert!(config.validate().is_ok());
+    config.validate().expect("expected success");
 }
 
 #[test]
@@ -285,7 +283,6 @@ fn test_agent_service_config_validate_empty_agent_id() {
     };
 
     let result = config.validate();
-    assert!(result.is_err());
     let error = result.unwrap_err();
     assert!(error.to_string().contains("agent_id"));
 }
@@ -303,7 +300,6 @@ fn test_agent_service_config_validate_zero_port() {
     };
 
     let result = config.validate();
-    assert!(result.is_err());
     let error = result.unwrap_err();
     assert!(error.to_string().contains("port"));
 }
@@ -321,7 +317,6 @@ fn test_agent_service_config_validate_empty_name() {
     };
 
     let result = config.validate();
-    assert!(result.is_err());
     let error = result.unwrap_err();
     assert!(error.to_string().contains("name"));
 }

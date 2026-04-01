@@ -64,7 +64,7 @@ fn default_name() -> String {
 fn test_validate_yaml_str_simple_config() {
     let yaml = "name: test\nport: 8080";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let config = result.unwrap();
     assert_eq!(config.name, "test");
     assert_eq!(config.port, 8080);
@@ -74,35 +74,35 @@ fn test_validate_yaml_str_simple_config() {
 fn test_validate_yaml_str_missing_field() {
     let yaml = "name: test";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_yaml_str_wrong_type() {
     let yaml = "name: test\nport: not_a_number";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_yaml_str_empty() {
     let yaml = "";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_yaml_str_invalid_yaml() {
     let yaml = "name: [invalid: yaml: structure";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_yaml_str_optional_fields_present() {
     let yaml = "required_field: value\noptional_field: optional_value";
     let result: Result<OptionalConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let config = result.unwrap();
     assert_eq!(config.required_field, "value");
     assert_eq!(config.optional_field, Some("optional_value".to_string()));
@@ -112,7 +112,7 @@ fn test_validate_yaml_str_optional_fields_present() {
 fn test_validate_yaml_str_optional_fields_missing() {
     let yaml = "required_field: value";
     let result: Result<OptionalConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let config = result.unwrap();
     assert_eq!(config.required_field, "value");
     assert!(config.optional_field.is_none());
@@ -129,7 +129,7 @@ server:
   port: 8080
 "#;
     let result: Result<NestedConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let config = result.unwrap();
     assert_eq!(config.database.url, "postgres://localhost");
     assert_eq!(config.database.max_connections, 10);
@@ -141,7 +141,7 @@ server:
 fn test_validate_yaml_str_with_defaults() {
     let yaml = "";
     let result: Result<ConfigWithDefaults, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let config = result.unwrap();
     assert_eq!(config.name, "default");
     assert!(!config.enabled);
@@ -151,7 +151,7 @@ fn test_validate_yaml_str_with_defaults() {
 fn test_validate_yaml_str_override_defaults() {
     let yaml = "name: custom\nenabled: true";
     let result: Result<ConfigWithDefaults, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let config = result.unwrap();
     assert_eq!(config.name, "custom");
     assert!(config.enabled);
@@ -161,14 +161,14 @@ fn test_validate_yaml_str_override_defaults() {
 fn test_validate_yaml_str_extra_fields() {
     let yaml = "name: test\nport: 8080\nextra_field: ignored";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
 fn test_validate_yaml_str_boundary_port() {
     let yaml = "name: test\nport: 65535";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap().port, 65535);
 }
 
@@ -176,7 +176,7 @@ fn test_validate_yaml_str_boundary_port() {
 fn test_validate_yaml_str_zero_port() {
     let yaml = "name: test\nport: 0";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap().port, 0);
 }
 
@@ -187,7 +187,7 @@ fn test_validate_yaml_str_zero_port() {
 #[test]
 fn test_generate_schema_simple() {
     let result = generate_schema::<SimpleConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     assert!(schema.is_object());
 }
@@ -195,65 +195,65 @@ fn test_generate_schema_simple() {
 #[test]
 fn test_generate_schema_contains_properties() {
     let result = generate_schema::<SimpleConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties");
-    assert!(properties.is_some());
+    properties.expect("properties should be present");
 }
 
 #[test]
 fn test_generate_schema_has_name_field() {
     let result = generate_schema::<SimpleConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    assert!(properties.get("name").is_some());
+    properties.get("name").expect("properties.get(\"name\") should be present");
 }
 
 #[test]
 fn test_generate_schema_has_port_field() {
     let result = generate_schema::<SimpleConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    assert!(properties.get("port").is_some());
+    properties.get("port").expect("properties.get(\"port\") should be present");
 }
 
 #[test]
 fn test_generate_schema_nested() {
     let result = generate_schema::<NestedConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    assert!(properties.get("database").is_some());
-    assert!(properties.get("server").is_some());
+    properties.get("database").expect("properties.get(\"database\") should be present");
+    properties.get("server").expect("properties.get(\"server\") should be present");
 }
 
 #[test]
 fn test_generate_schema_optional_fields() {
     let result = generate_schema::<OptionalConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    assert!(properties.get("required_field").is_some());
-    assert!(properties.get("optional_field").is_some());
+    properties.get("required_field").expect("properties.get(\"required_field\") should be present");
+    properties.get("optional_field").expect("properties.get(\"optional_field\") should be present");
 }
 
 #[test]
 fn test_generate_schema_is_valid_json() {
     let result = generate_schema::<SimpleConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let json_str = serde_json::to_string(&schema);
-    assert!(json_str.is_ok());
+    json_str.expect("json_str should succeed");
 }
 
 #[test]
 fn test_generate_schema_has_schema_field() {
     let result = generate_schema::<SimpleConfig>();
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
-    assert!(schema.get("$schema").is_some());
+    schema.get("$schema").expect("schema.get(\"$schema\") should be present");
 }
 
 // ============================================================================
@@ -264,7 +264,7 @@ fn test_generate_schema_has_schema_field() {
 fn test_config_validation_error_parse() {
     let yaml = "invalid: [yaml";
     let result: Result<SimpleConfig, ConfigValidationError> = validate_yaml_str(yaml);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err = result.unwrap_err();
     let err_str = err.to_string();
     assert!(err_str.contains("YAML") || err_str.contains("parse"));
@@ -274,7 +274,7 @@ fn test_config_validation_error_parse() {
 fn test_config_validation_error_display() {
     let yaml = "name: 123\nport: not_a_number";
     let result: Result<SimpleConfig, ConfigValidationError> = validate_yaml_str(yaml);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err = result.unwrap_err();
     let display = format!("{}", err);
     assert!(!display.is_empty());
@@ -284,7 +284,7 @@ fn test_config_validation_error_display() {
 fn test_config_validation_error_debug() {
     let yaml = "invalid: [yaml";
     let result: Result<SimpleConfig, ConfigValidationError> = validate_yaml_str(yaml);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err = result.unwrap_err();
     let debug = format!("{:?}", err);
     assert!(!debug.is_empty());
@@ -300,14 +300,14 @@ fn test_validate_yaml_str_whitespace_only() {
     let yaml = "   \n\t\n   ";
     let result: Result<ConfigWithDefaults, ConfigValidationError> = validate_yaml_str(yaml);
     // This should fail because whitespace-only parses as null, not as empty map
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_yaml_str_unicode() {
     let yaml = "name: 测试名称\nport: 8080";
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap().name, "测试名称");
 }
 
@@ -318,7 +318,7 @@ fn test_validate_yaml_str_multiline_string() {
   multiline string
 port: 8080"#;
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn test_validate_yaml_str_quoted_numbers() {
     let yaml = r#"name: "8080"
 port: 8080"#;
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap().name, "8080");
 }
 
@@ -338,14 +338,14 @@ name: test  # inline comment
 port: 8080
 "#;
     let result: Result<SimpleConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
 fn test_validate_yaml_str_null_values() {
     let yaml = "required_field: value\noptional_field: null";
     let result: Result<OptionalConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert!(result.unwrap().optional_field.is_none());
 }
 
@@ -353,6 +353,6 @@ fn test_validate_yaml_str_null_values() {
 fn test_validate_yaml_str_tilde_null() {
     let yaml = "required_field: value\noptional_field: ~";
     let result: Result<OptionalConfig, _> = validate_yaml_str(yaml);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert!(result.unwrap().optional_field.is_none());
 }

@@ -167,7 +167,7 @@ mod skill_generation_tests {
             updated_at: Utc::now(),
         };
         let result = export_skill_to_disk(&skill, temp_dir.path());
-        assert!(result.is_ok());
+        result.expect("result should succeed");
         let skill_dir = temp_dir.path().join("export-test");
         assert!(skill_dir.exists());
         assert!(skill_dir.join("SKILL.md").exists());
@@ -191,7 +191,7 @@ mod skill_generation_tests {
             updated_at: Utc::now(),
         };
         let result = export_skill_to_disk(&skill, temp_dir.path());
-        assert!(result.is_ok());
+        result.expect("result should succeed");
         assert!(temp_dir.path().join("my-complex-skill-name").exists());
     }
 }
@@ -273,7 +273,7 @@ mod content_generation_tests {
             updated_at: Utc::now(),
         };
         let result = export_content_to_file(&content, temp_dir.path(), "docs");
-        assert!(result.is_ok());
+        result.expect("result should succeed");
         let file_path = temp_dir.path().join("getting-started.md");
         assert!(file_path.exists());
     }
@@ -300,7 +300,7 @@ mod content_generation_tests {
             updated_at: Utc::now(),
         };
         let result = export_content_to_file(&content, temp_dir.path(), "blog");
-        assert!(result.is_ok());
+        result.expect("result should succeed");
         assert!(temp_dir.path().join("my-blog-post").join("index.md").exists());
     }
 }

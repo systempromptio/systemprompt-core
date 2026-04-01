@@ -58,8 +58,8 @@ fn test_mcp_auth_state_user_some() {
     let state = McpAuthState::Authenticated(user);
 
     let user_ref = state.user();
-    assert!(user_ref.is_some());
-    assert_eq!(user_ref.unwrap().username, "test_user");
+    let val = user_ref.expect("expected Some value");
+    assert_eq!(val.username, "test_user");
 }
 
 #[test]

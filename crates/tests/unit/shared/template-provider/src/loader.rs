@@ -20,7 +20,7 @@ mod embedded_loader_tests {
         let loader = EmbeddedLoader;
         let source = TemplateSource::File(PathBuf::from("test.html"));
         let result = loader.load(&source).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
@@ -28,7 +28,7 @@ mod embedded_loader_tests {
         let loader = EmbeddedLoader;
         let source = TemplateSource::Directory(PathBuf::from("templates"));
         let result = loader.load(&source).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
@@ -133,7 +133,7 @@ mod filesystem_loader_tests {
         let loader = test_loader(vec![]);
         let source = TemplateSource::File(PathBuf::from("test.html"));
         let result = loader.load(&source).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
@@ -141,7 +141,7 @@ mod filesystem_loader_tests {
         let loader = test_loader(vec![]);
         let source = TemplateSource::Directory(PathBuf::from("dir"));
         let result = loader.load(&source).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
@@ -150,7 +150,7 @@ mod filesystem_loader_tests {
         let loader = FileSystemLoader::with_path(dir.path());
         let source = TemplateSource::File(PathBuf::from("../../../etc/passwd"));
         let result = loader.load(&source).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
@@ -171,14 +171,14 @@ mod filesystem_loader_tests {
         let loader = FileSystemLoader::with_path(dir.path());
         let source = TemplateSource::File(PathBuf::from("nonexistent.html"));
         let result = loader.load(&source).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
     async fn load_directory_with_no_base_paths_fails() {
         let loader = test_loader(vec![]);
         let result = loader.load_directory(PathBuf::from("templates").as_path()).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
@@ -186,7 +186,7 @@ mod filesystem_loader_tests {
         let dir = TempDir::new().unwrap();
         let loader = FileSystemLoader::with_path(dir.path());
         let result = loader.load_directory(PathBuf::from("../../../etc").as_path()).await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]

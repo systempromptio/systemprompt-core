@@ -105,9 +105,7 @@ fn test_is_process_running_init() {
 fn test_get_process_info_current_process() {
     let pid = std::process::id();
     let result = get_process_info(pid);
-    assert!(result.is_ok());
-
-    if let Ok(Some(info)) = result {
+    if let Some(info) = result.expect("expected success") {
         assert_eq!(info.pid, pid);
         assert!(!info.command.is_empty());
     }
@@ -116,8 +114,8 @@ fn test_get_process_info_current_process() {
 #[test]
 fn test_get_process_info_nonexistent() {
     let result = get_process_info(u32::MAX);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_none());
+    let val = result.expect("expected success");
+    assert!(val.is_none());
 }
 
 #[test]

@@ -327,7 +327,7 @@ fn test_cli_session_load_nonexistent() {
     let session_path = temp_dir.path().join("nonexistent.json");
 
     let result = CliSession::load_from_path(&session_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn test_cli_session_load_invalid_json() {
     std::fs::write(&session_path, "not valid json").unwrap();
 
     let result = CliSession::load_from_path(&session_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -359,7 +359,7 @@ fn test_cli_session_delete_nonexistent() {
     let session_path = temp_dir.path().join("nonexistent.json");
 
     let result = CliSession::delete_from_path(&session_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -368,7 +368,7 @@ fn test_cli_session_load_from_path_nonexistent() {
     let session_path = temp_dir.path().join("nonexistent.json");
 
     let result = CliSession::load_from_path(&session_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -379,7 +379,7 @@ fn test_cli_session_load_from_path_invalid_json() {
     std::fs::write(&session_path, "invalid json").unwrap();
 
     let result = CliSession::load_from_path(&session_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

@@ -20,7 +20,7 @@ fn test_cookie_extractor_new() {
     headers.insert("cookie", HeaderValue::from_static("my_token=test_value"));
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "test_value");
 }
 
@@ -34,7 +34,7 @@ fn test_cookie_extractor_default() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "default_value");
 }
 
@@ -56,7 +56,7 @@ fn test_extract_access_token_static() {
     );
 
     let result = CookieExtractor::extract_access_token(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "static_token");
 }
 
@@ -65,7 +65,7 @@ fn test_extract_access_token_static_missing() {
     let headers = HeaderMap::new();
 
     let result = CookieExtractor::extract_access_token(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(result.unwrap_err(), CookieExtractionError::MissingCookie);
 }
 
@@ -83,7 +83,7 @@ fn test_extract_single_cookie() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "single_value");
 }
 
@@ -97,7 +97,7 @@ fn test_extract_cookie_from_multiple() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "token456");
 }
 
@@ -111,7 +111,7 @@ fn test_extract_cookie_first_in_list() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "first_token");
 }
 
@@ -125,7 +125,7 @@ fn test_extract_cookie_last_in_list() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "last_token");
 }
 
@@ -142,7 +142,7 @@ fn test_extract_cookie_with_special_characters() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert!(result.unwrap().starts_with("eyJhbGciOiJIUzI1NiI"));
 }
 
@@ -156,7 +156,7 @@ fn test_extract_cookie_with_spaces_around_semicolons() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     // Cookie value extraction trims the cookie key prefix but not trailing spaces
     assert_eq!(result.unwrap(), "spaced");
 }
@@ -171,7 +171,7 @@ fn test_extract_missing_cookie_header() {
     let headers = HeaderMap::new();
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(result.unwrap_err(), CookieExtractionError::MissingCookie);
 }
 
@@ -185,7 +185,7 @@ fn test_extract_token_not_in_cookie() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         CookieExtractionError::TokenNotFoundInCookie
@@ -199,7 +199,7 @@ fn test_extract_empty_cookie_value() {
     headers.insert("cookie", HeaderValue::from_static("access_token="));
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         CookieExtractionError::TokenNotFoundInCookie
@@ -213,7 +213,7 @@ fn test_extract_empty_cookie_header() {
     headers.insert("cookie", HeaderValue::from_static(""));
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         CookieExtractionError::TokenNotFoundInCookie
@@ -230,7 +230,7 @@ fn test_extract_partial_cookie_name_match() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         CookieExtractionError::TokenNotFoundInCookie
@@ -251,7 +251,7 @@ fn test_extract_custom_cookie_name() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "custom_value");
 }
 
@@ -265,7 +265,7 @@ fn test_extract_custom_cookie_not_default() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         CookieExtractionError::TokenNotFoundInCookie
@@ -282,7 +282,7 @@ fn test_extract_custom_cookie_from_string() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "dynamic_value");
 }
 

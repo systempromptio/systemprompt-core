@@ -24,7 +24,7 @@ fn create_valid_cimd_metadata() -> CimdMetadata {
 #[test]
 fn test_cimd_metadata_validate_success() {
     let metadata = create_valid_cimd_metadata();
-    assert!(metadata.validate().is_ok());
+    metadata.validate().expect("expected success");
 }
 
 #[test]
@@ -36,8 +36,8 @@ fn test_cimd_metadata_validate_non_https_client_id() {
     };
 
     let result = metadata.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("HTTPS"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("HTTPS"));
 }
 
 #[test]
@@ -48,8 +48,8 @@ fn test_cimd_metadata_validate_empty_redirect_uris() {
     };
 
     let result = metadata.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("cannot be empty"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("cannot be empty"));
 }
 
 #[test]
@@ -60,8 +60,8 @@ fn test_cimd_metadata_validate_invalid_redirect_uri_with_dots() {
     };
 
     let result = metadata.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Invalid redirect_uri"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Invalid redirect_uri"));
 }
 
 #[test]
@@ -72,8 +72,8 @@ fn test_cimd_metadata_validate_invalid_redirect_uri_with_null() {
     };
 
     let result = metadata.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Invalid redirect_uri"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Invalid redirect_uri"));
 }
 
 #[test]

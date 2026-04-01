@@ -182,9 +182,9 @@ mod build_and_init_tests {
     async fn build_and_init_fails_without_loaders() {
         let result = TemplateRegistryBuilder::new().build_and_init().await;
 
-        assert!(result.is_err());
+        let err = result.unwrap_err();
         assert!(matches!(
-            result.unwrap_err(),
+            err,
             TemplateError::NotInitialized
         ));
     }
@@ -196,7 +196,7 @@ mod build_and_init_tests {
             .build_and_init()
             .await;
 
-        assert!(result.is_ok());
+        result.expect("expected success");
     }
 
     #[tokio::test]
@@ -212,8 +212,7 @@ mod build_and_init_tests {
             .build_and_init()
             .await;
 
-        assert!(result.is_ok());
-        let registry = result.unwrap();
+        let registry = result.expect("expected success");
         assert_eq!(registry.stats().templates, 2);
         assert!(registry.has_template("template-1"));
         assert!(registry.has_template("template-2"));

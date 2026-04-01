@@ -99,7 +99,7 @@ fn test_get_path_local_mode() {
     let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
     let result = registry.get_path("path-binary");
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let path = result.expect("Should get path");
     assert!(path.to_string_lossy().contains("path-ext"));
 }
@@ -110,7 +110,7 @@ fn test_get_path_local_mode_not_found() {
     let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
 
     let result = registry.get_path("nonexistent");
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("No manifest.yaml found"));
 }
 
@@ -129,7 +129,7 @@ fn test_get_path_cloud_mode() {
     );
 
     let result = registry.get_path("cloud-ext");
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn test_get_path_cloud_mode_not_found() {
     );
 
     let result = registry.get_path("missing");
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
@@ -169,7 +169,7 @@ fn test_get_extension_found() {
     let registry = ExtensionRegistry::build(temp_dir.path(), false, "/usr/local/bin");
     let ext = registry.get_extension("get-binary");
 
-    assert!(ext.is_some());
+    ext.as_ref().expect("ext should be present");
     let discovered = ext.expect("Should find extension");
     assert_eq!(discovered.manifest.extension.name, "get-ext");
 }
@@ -292,7 +292,7 @@ fn test_registry_with_multiple_extensions() {
 
     for i in 1..=5 {
         assert!(registry.has_extension(&format!("binary-{}", i)));
-        assert!(registry.get_extension(&format!("binary-{}", i)).is_some());
+        registry.get_extension(&format!("binary-{}", i)).expect("registry.get_extension(&format!(\"binary-{}\", i)) should be present");
     }
 
     assert!(!registry.has_extension("binary-6"));
@@ -309,7 +309,7 @@ fn test_registry_empty_project() {
 
     assert!(!registry.has_extension("any"));
     assert!(registry.get_extension("any").is_none());
-    assert!(registry.get_path("any").is_err());
+    registry.get_path("any").unwrap_err();
 }
 
 #[test]

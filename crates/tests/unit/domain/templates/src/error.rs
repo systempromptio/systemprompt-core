@@ -210,7 +210,7 @@ mod error_trait_tests {
             name: "test".to_string(),
             source: anyhow::anyhow!("underlying error"),
         };
-        assert!(error.source().is_some());
+        error.source().expect("expected Some value");
     }
 
     #[test]
@@ -219,7 +219,7 @@ mod error_trait_tests {
             name: "test".to_string(),
             source: anyhow::anyhow!("underlying error"),
         };
-        assert!(error.source().is_some());
+        error.source().expect("expected Some value");
     }
 
     #[test]
@@ -228,7 +228,7 @@ mod error_trait_tests {
             name: "test".to_string(),
             source: anyhow::anyhow!("underlying error"),
         };
-        assert!(error.source().is_some());
+        error.source().expect("expected Some value");
     }
 
     #[test]

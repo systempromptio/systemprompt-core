@@ -198,7 +198,7 @@ fn test_cloud_credentials_load_from_nonexistent_path() {
     let creds_path = temp_dir.path().join("nonexistent.json");
 
     let result = CloudCredentials::load_from_path(&creds_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -209,7 +209,7 @@ fn test_cloud_credentials_load_from_invalid_json() {
     std::fs::write(&creds_path, "not valid json").unwrap();
 
     let result = CloudCredentials::load_from_path(&creds_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn test_cloud_credentials_delete_nonexistent() {
     let creds_path = temp_dir.path().join("nonexistent.json");
 
     let result = CloudCredentials::delete_from_path(&creds_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]

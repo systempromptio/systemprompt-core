@@ -250,7 +250,7 @@ fn test_find_cli_extension_by_name() {
     .expect("Failed to write cli manifest");
 
     let found = ExtensionLoader::find_cli_extension(temp_dir.path(), "my-cli");
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.expect("Should find").manifest.extension.name, "my-cli");
 }
 
@@ -268,7 +268,7 @@ fn test_find_cli_extension_by_binary() {
     .expect("Failed to write cli manifest");
 
     let found = ExtensionLoader::find_cli_extension(temp_dir.path(), "my-cli-binary");
-    assert!(found.is_some());
+    found.expect("found should be present");
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn test_get_cli_binary_path_release() {
     std::fs::write(&binary_path, "binary content").expect("Failed to write binary");
 
     let found = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "my-binary");
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     let path = found.expect("Should find binary");
     assert!(path.to_string_lossy().contains("release"));
 }
@@ -310,7 +310,7 @@ fn test_get_cli_binary_path_debug_fallback() {
     std::fs::write(&binary_path, "binary content").expect("Failed to write binary");
 
     let found = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "debug-binary");
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     let path = found.expect("Should find binary");
     assert!(path.to_string_lossy().contains("debug"));
 }
@@ -334,7 +334,7 @@ fn test_get_cli_binary_path_prefers_release() {
     std::fs::write(debug_dir.join("my-binary"), "debug").expect("Failed to write debug");
 
     let found = ExtensionLoader::get_cli_binary_path(temp_dir.path(), "my-binary");
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     let path = found.expect("Should find binary");
     assert!(
         path.to_string_lossy().contains("release"),

@@ -100,7 +100,7 @@ async fn test_file_repository_insert_with_ai_content() {
     assert!(result.is_ok(), "Should insert AI-generated file");
 
     let file = repo.find_by_id(&request.id).await.expect("Should find file");
-    assert!(file.is_some());
+    file.as_ref().expect("file should be present");
     assert!(file.expect("Should have file").ai_content);
 
     // Cleanup

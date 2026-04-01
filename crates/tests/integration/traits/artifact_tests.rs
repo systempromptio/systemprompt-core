@@ -23,11 +23,11 @@ fn test_schema_resolution() {
     let args = serde_json::Map::new();
 
     let card_schema = server.get_output_schema_for_tool("card_tool", &args);
-    assert!(card_schema.is_some());
+    card_schema.as_ref().expect("card_schema should be present");
     assert_eq!(card_schema.unwrap()["x-artifact-type"], "presentation_card");
 
     let table_schema = server.get_output_schema_for_tool("table_tool", &args);
-    assert!(table_schema.is_some());
+    table_schema.as_ref().expect("table_schema should be present");
     assert_eq!(table_schema.unwrap()["x-artifact-type"], "table");
 
     let no_schema = server.get_output_schema_for_tool("unknown_tool", &args);

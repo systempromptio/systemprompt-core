@@ -280,7 +280,7 @@ mod api_tests {
     async fn test_fetch_content_invalid_url() {
         let result =
             fetch_content_from_api("http://invalid.local.test.nonexistent:9999", "blog").await;
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     async fn fetch_content_from_api(

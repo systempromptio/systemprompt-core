@@ -8,22 +8,21 @@ mod build_thinking_config_tests {
     #[test]
     fn returns_config_for_2_5_models() {
         let config = build_thinking_config("gemini-2.5-flash");
-        assert!(config.is_some());
-        let config = config.unwrap();
-        assert!(config.thinking_budget.is_some());
+        let config = config.expect("config should be present");
+        config.thinking_budget.expect("thinking_budget should be set");
         assert_eq!(config.include_thoughts, Some(false));
     }
 
     #[test]
     fn returns_config_for_2_5_pro_model() {
         let config = build_thinking_config("gemini-2.5-pro");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]
     fn returns_config_for_2_5_flash_lite() {
         let config = build_thinking_config("gemini-2.5-flash-lite");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]
@@ -56,6 +55,6 @@ mod build_thinking_config_tests {
         // but "2.5" itself doesn't have case, so uppercase model names also match
         let config = build_thinking_config("GEMINI-2.5-FLASH");
         // Since "2.5" is found in the string regardless of case of letters around it
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 }

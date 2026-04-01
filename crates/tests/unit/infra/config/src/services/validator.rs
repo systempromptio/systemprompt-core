@@ -303,7 +303,7 @@ fn test_validate_valid_config() {
     let config = create_valid_config(DeployEnvironment::Local);
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let report = result.unwrap();
     assert!(report.is_valid());
     assert!(report.errors.is_empty());
@@ -316,7 +316,7 @@ fn test_validate_detects_unresolved_variable() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("validation error"));
 }
@@ -328,7 +328,7 @@ fn test_validate_detects_unresolved_variable_with_default_syntax() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn test_validate_missing_required_service_name() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -348,7 +348,7 @@ fn test_validate_missing_required_system_path() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn test_validate_missing_required_database_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -368,7 +368,7 @@ fn test_validate_missing_required_host() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -378,7 +378,7 @@ fn test_validate_missing_required_port() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -388,7 +388,7 @@ fn test_validate_missing_required_api_server_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -398,7 +398,7 @@ fn test_validate_missing_required_jwt_secret() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -408,7 +408,7 @@ fn test_validate_missing_required_jwt_issuer() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -418,7 +418,7 @@ fn test_validate_empty_database_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -428,7 +428,7 @@ fn test_validate_empty_jwt_secret() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -438,7 +438,7 @@ fn test_validate_quoted_empty_database_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -448,7 +448,7 @@ fn test_validate_double_quoted_empty_jwt_secret() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -458,7 +458,7 @@ fn test_validate_invalid_database_url_format() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -468,7 +468,7 @@ fn test_validate_invalid_api_server_url_format() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -478,7 +478,7 @@ fn test_validate_valid_postgresql_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -488,7 +488,7 @@ fn test_validate_valid_mysql_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -498,7 +498,7 @@ fn test_validate_valid_http_api_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -508,7 +508,7 @@ fn test_validate_valid_https_api_url() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -518,7 +518,7 @@ fn test_validate_invalid_port_not_numeric() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -528,7 +528,7 @@ fn test_validate_invalid_port_zero() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -538,7 +538,7 @@ fn test_validate_invalid_port_negative() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -548,7 +548,7 @@ fn test_validate_invalid_port_too_large() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -558,7 +558,7 @@ fn test_validate_valid_port_boundary_1() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -568,7 +568,7 @@ fn test_validate_valid_port_boundary_65535() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -589,7 +589,7 @@ fn test_validate_missing_port_adds_warning() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -599,7 +599,7 @@ fn test_validate_production_use_https_warning() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let report = result.unwrap();
     assert!(report.warnings.iter().any(|w| w.contains("USE_HTTPS")));
 }
@@ -611,7 +611,7 @@ fn test_validate_production_debug_log_warning() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let report = result.unwrap();
     assert!(report.warnings.iter().any(|w| w.contains("RUST_LOG")));
 }
@@ -623,7 +623,7 @@ fn test_validate_production_with_https_true_no_warning() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let report = result.unwrap();
     assert!(!report.warnings.iter().any(|w| w.contains("USE_HTTPS")));
 }
@@ -635,7 +635,7 @@ fn test_validate_production_with_info_log_no_warning() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let report = result.unwrap();
     assert!(!report.warnings.iter().any(|w| w.contains("RUST_LOG")));
 }
@@ -648,7 +648,7 @@ fn test_validate_local_environment_no_production_warnings() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let report = result.unwrap();
     assert!(!report.warnings.iter().any(|w| w.contains("USE_HTTPS")));
     assert!(!report.warnings.iter().any(|w| w.contains("RUST_LOG")));
@@ -662,7 +662,7 @@ fn test_validate_docker_dev_environment_no_production_warnings() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     let report = result.unwrap();
     assert!(!report.warnings.iter().any(|w| w.contains("Production")));
 }
@@ -676,7 +676,7 @@ fn test_validate_multiple_errors() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("validation error"));
 }
@@ -688,7 +688,7 @@ fn test_validate_api_external_url_valid() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -698,7 +698,7 @@ fn test_validate_api_external_url_invalid() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -708,7 +708,7 @@ fn test_validate_empty_api_external_url_allowed() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -725,7 +725,7 @@ fn test_validate_unresolved_variable_in_nested_value() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -735,5 +735,5 @@ fn test_validate_empty_required_variable_treated_as_missing() {
 
     let result = ConfigValidator::validate(&config);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }

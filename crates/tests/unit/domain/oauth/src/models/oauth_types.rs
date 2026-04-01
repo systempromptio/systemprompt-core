@@ -45,7 +45,7 @@ fn test_grant_type_from_str_client_credentials() {
 #[test]
 fn test_grant_type_from_str_invalid() {
     let result = GrantType::from_str("invalid_grant");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn test_pkce_method_from_str_plain() {
 #[test]
 fn test_pkce_method_from_str_invalid() {
     let result = PkceMethod::from_str("sha256");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -171,7 +171,7 @@ fn test_response_type_from_str_code() {
 #[test]
 fn test_response_type_from_str_invalid() {
     let result = ResponseType::from_str("token");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn test_response_mode_from_str_fragment() {
 #[test]
 fn test_response_mode_from_str_invalid() {
     let result = ResponseMode::from_str("form_post");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -319,7 +319,7 @@ fn test_display_mode_from_str_wap() {
 #[test]
 fn test_display_mode_from_str_invalid() {
     let result = DisplayMode::from_str("mobile");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -407,7 +407,7 @@ fn test_prompt_from_str_select_account() {
 #[test]
 fn test_prompt_from_str_invalid() {
     let result = Prompt::from_str("create");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -484,7 +484,7 @@ fn test_token_auth_method_from_str_none() {
 #[test]
 fn test_token_auth_method_from_str_invalid() {
     let result = TokenAuthMethod::from_str("private_key_jwt");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

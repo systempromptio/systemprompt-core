@@ -187,13 +187,13 @@ mod anomaly_check_result_tests {
     #[test]
     fn result_warning_has_message() {
         let result = create_result("metric", 15.0, AnomalyLevel::Warning);
-        assert!(result.message.is_some());
+        result.message.expect("expected Some value");
     }
 
     #[test]
     fn result_critical_has_message() {
         let result = create_result("metric", 30.0, AnomalyLevel::Critical);
-        assert!(result.message.is_some());
+        result.message.expect("expected Some value");
     }
 
     #[test]
@@ -237,8 +237,8 @@ mod anomaly_detection_service_tests {
         let result = service.check_anomaly("requests_per_minute", 20.0).await;
 
         assert_eq!(result.level, AnomalyLevel::Warning);
-        assert!(result.message.is_some());
-        assert!(result.message.unwrap().contains("WARNING"));
+        let msg = result.message.expect("expected Some value");
+        assert!(msg.contains("WARNING"));
     }
 
     #[tokio::test]
@@ -248,8 +248,8 @@ mod anomaly_detection_service_tests {
         let result = service.check_anomaly("requests_per_minute", 50.0).await;
 
         assert_eq!(result.level, AnomalyLevel::Critical);
-        assert!(result.message.is_some());
-        assert!(result.message.unwrap().contains("CRITICAL"));
+        let msg = result.message.expect("expected Some value");
+        assert!(msg.contains("CRITICAL"));
     }
 
     #[tokio::test]
@@ -380,8 +380,7 @@ mod anomaly_detection_service_tests {
         service.record_event("spike_metric", 100.0).await;
 
         let result = service.check_trend_anomaly("spike_metric", 60).await;
-        assert!(result.is_some());
-        let result = result.unwrap();
+        let result = result.expect("expected Some value");
         // Note: spike detection is based on ratio of latest/avg
         // With our values the ratio should exceed the threshold
         assert!(
@@ -406,8 +405,7 @@ mod anomaly_detection_service_tests {
         service.record_event("elevated_metric", 35.0).await;
 
         let result = service.check_trend_anomaly("elevated_metric", 60).await;
-        assert!(result.is_some());
-        let result = result.unwrap();
+        let result = result.expect("expected Some value");
         assert_eq!(result.level, AnomalyLevel::Warning);
     }
 

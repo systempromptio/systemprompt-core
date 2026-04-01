@@ -111,8 +111,7 @@ mod tool_discovery_tests {
 
         let result = discovery.discover_tools(&agent_name, &context).await;
 
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
+        assert!(result.expect("should succeed").is_empty());
     }
 
     #[tokio::test]
@@ -128,8 +127,7 @@ mod tool_discovery_tests {
 
         let result = discovery.discover_tools(&agent_name, &context).await;
 
-        assert!(result.is_ok());
-        let mcp_tools = result.unwrap();
+        let mcp_tools = result.expect("should succeed");
         assert_eq!(mcp_tools.len(), 2);
     }
 
@@ -156,8 +154,7 @@ mod tool_discovery_tests {
             .find_tool_for_agent(&agent_name, "nonexistent", &context)
             .await;
 
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
+        assert!(result.expect("should succeed").is_none());
     }
 
     #[tokio::test]
@@ -172,10 +169,9 @@ mod tool_discovery_tests {
             .find_tool_for_agent(&agent_name, "search", &context)
             .await;
 
-        assert!(result.is_ok());
-        let tool = result.unwrap();
-        assert!(tool.is_some());
-        assert_eq!(tool.unwrap().name, "search");
+        let tool = result.expect("should succeed");
+        let tool = tool.expect("tool should be found");
+        assert_eq!(tool.name, "search");
     }
 
     #[test]

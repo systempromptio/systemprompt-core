@@ -33,7 +33,6 @@ mod noop_provider_tests {
 
         let result = provider.call_tool(&request, "service", &context).await;
 
-        assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.to_string().contains("NoopToolProvider"));
         assert!(error.to_string().contains("some_tool"));
@@ -45,7 +44,7 @@ mod noop_provider_tests {
 
         let result = provider.refresh_connections("agent").await;
 
-        assert!(result.is_ok());
+        result.expect("should succeed");
     }
 
     #[tokio::test]

@@ -110,7 +110,7 @@ fn test_insert_file_request_with_user_id() {
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_user_id(user_id);
 
-    assert!(request.user_id.is_some());
+    request.user_id.as_ref().expect("user_id should be present");
     assert_eq!(request.user_id.as_ref().unwrap().as_str(), "user_abc123");
 }
 
@@ -121,7 +121,7 @@ fn test_insert_file_request_with_session_id() {
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_session_id(session_id);
 
-    assert!(request.session_id.is_some());
+    request.session_id.as_ref().expect("session_id should be present");
     assert_eq!(
         request.session_id.as_ref().unwrap().as_str(),
         "sess_xyz789"
@@ -135,7 +135,7 @@ fn test_insert_file_request_with_trace_id() {
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_trace_id(trace_id);
 
-    assert!(request.trace_id.is_some());
+    request.trace_id.as_ref().expect("trace_id should be present");
     assert_eq!(request.trace_id.as_ref().unwrap().as_str(), "trace_def456");
 }
 
@@ -171,9 +171,9 @@ fn test_insert_file_request_builder_chain() {
     assert_eq!(request.size_bytes, Some(2048));
     assert!(request.ai_content);
     assert_eq!(request.metadata["custom"], "value");
-    assert!(request.user_id.is_some());
-    assert!(request.session_id.is_some());
-    assert!(request.trace_id.is_some());
+    request.user_id.as_ref().expect("user_id should be present");
+    request.session_id.as_ref().expect("session_id should be present");
+    request.trace_id.as_ref().expect("trace_id should be present");
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn test_insert_file_request_partial_builder() {
         .with_user_id(UserId::new("user"));
 
     assert_eq!(request.size_bytes, Some(1024));
-    assert!(request.user_id.is_some());
+    request.user_id.as_ref().expect("user_id should be present");
     assert!(!request.ai_content);
     assert!(request.session_id.is_none());
     assert!(request.trace_id.is_none());

@@ -93,7 +93,7 @@ mod extension_schema_tests {
         let schemas = ext.schemas();
 
         let users_schema = schemas.iter().find(|s| s.table == "users");
-        assert!(users_schema.is_some());
+        users_schema.expect("expected Some value");
     }
 
     #[test]
@@ -102,7 +102,7 @@ mod extension_schema_tests {
         let schemas = ext.schemas();
 
         let sessions_schema = schemas.iter().find(|s| s.table == "user_sessions");
-        assert!(sessions_schema.is_some());
+        sessions_schema.expect("expected Some value");
     }
 
     #[test]
@@ -111,7 +111,7 @@ mod extension_schema_tests {
         let schemas = ext.schemas();
 
         let banned_schema = schemas.iter().find(|s| s.table == "banned_ips");
-        assert!(banned_schema.is_some());
+        banned_schema.expect("expected Some value");
     }
 
     #[test]
@@ -123,9 +123,9 @@ mod extension_schema_tests {
         let referrer_analytics = schemas.iter().find(|s| s.table == "referrer_analytics_views");
         let bot_analytics = schemas.iter().find(|s| s.table == "bot_analytics_views");
 
-        assert!(session_analytics.is_some());
-        assert!(referrer_analytics.is_some());
-        assert!(bot_analytics.is_some());
+        session_analytics.expect("expected Some value");
+        referrer_analytics.expect("expected Some value");
+        bot_analytics.expect("expected Some value");
     }
 
     #[test]
@@ -238,6 +238,14 @@ mod extension_trait_tests {
     fn extension_default() {
         let ext = UsersExtension::default();
         assert_eq!(ext.metadata().id, "users");
+    }
+
+    #[test]
+    fn extension_implements_extension_trait() {
+        fn assert_extension<T: Extension>(_: &T) {}
+
+        let ext = UsersExtension;
+        assert_extension(&ext);
     }
 
     #[test]

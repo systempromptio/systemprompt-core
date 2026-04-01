@@ -380,7 +380,7 @@ mod ai_request_record_tests {
         assert_eq!(record.provider, "unknown");
         assert_eq!(record.model, "unknown");
         assert_eq!(record.status, RequestStatus::Failed);
-        assert!(record.error_message.is_some());
+        record.error_message.as_ref().expect("error_message should be present");
         assert!(record
             .error_message
             .as_ref()

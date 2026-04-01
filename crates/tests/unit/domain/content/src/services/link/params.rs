@@ -55,9 +55,9 @@ fn test_generate_link_params_full() {
 
     assert_eq!(params.target_url, "https://example.com/target");
     assert!(matches!(params.link_type, LinkType::Both));
-    assert!(params.campaign_id.is_some());
-    assert!(params.utm_params.is_some());
-    assert!(params.expires_at.is_some());
+    params.campaign_id.expect("expected Some value");
+    params.utm_params.expect("expected Some value");
+    params.expires_at.expect("expected Some value");
 }
 
 // ============================================================================

@@ -90,8 +90,8 @@ mod error_handling_tests {
         };
 
         let result = transformer.transform(&tool);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("missing"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("missing"));
     }
 
     #[test]
@@ -108,8 +108,8 @@ mod error_handling_tests {
         };
 
         let result = transformer.transform(&tool);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("empty"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("empty"));
     }
 
     #[test]
@@ -126,7 +126,7 @@ mod error_handling_tests {
         };
 
         let result = transformer.transform(&tool);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }
 

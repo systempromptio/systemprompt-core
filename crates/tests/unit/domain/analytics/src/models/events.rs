@@ -476,10 +476,10 @@ mod create_analytics_event_input_tests {
 
         assert_eq!(input.event_type, AnalyticsEventType::Conversion);
         assert_eq!(input.page_url, "/checkout");
-        assert!(input.content_id.is_some());
+        input.content_id.expect("expected Some value");
         assert_eq!(input.slug, Some("checkout-page".to_string()));
         assert_eq!(input.referrer, Some("https://google.com".to_string()));
-        assert!(input.data.is_some());
+        input.data.expect("expected Some value");
     }
 
     #[test]
@@ -539,8 +539,7 @@ mod create_analytics_event_input_tests {
 
         let input: CreateAnalyticsEventInput = serde_json::from_str(json).unwrap();
 
-        assert!(input.data.is_some());
-        let data = input.data.unwrap();
+        let data = input.data.expect("expected Some value");
         assert_eq!(data["amount"], 199.99);
         assert_eq!(data["currency"], "USD");
     }

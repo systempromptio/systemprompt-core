@@ -54,5 +54,5 @@ fn test_duplicate_extension_rejected() {
         .extension(AuthExtension)
         .build();
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }

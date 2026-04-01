@@ -49,7 +49,7 @@ fn test_network_manager_create_router() {
 fn test_network_manager_apply_cors_requires_config() {
     let router = NetworkManager::create_router();
     let result = NetworkManager::apply_cors(router);
-    assert!(result.is_err() || result.is_ok());
+    let _ = result;
 }
 
 #[test]

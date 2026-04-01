@@ -161,7 +161,7 @@ mod openai_request_tests {
             reasoning_effort: None,
         };
 
-        assert!(request.tools.is_some());
+        request.tools.as_ref().expect("tools should be present");
         assert_eq!(request.tools.as_ref().unwrap().len(), 1);
     }
 
@@ -252,7 +252,7 @@ mod openai_response_tests {
         };
 
         assert!(response.choices[0].message.content.is_none());
-        assert!(response.choices[0].message.tool_calls.is_some());
+        response.choices[0].message.tool_calls.as_ref().expect("tool_calls should be present");
         let tool_calls = response.choices[0].message.tool_calls.as_ref().unwrap();
         assert_eq!(tool_calls.len(), 1);
         assert_eq!(tool_calls[0].function.name, "get_weather");
@@ -368,7 +368,7 @@ mod openai_usage_tests {
             }),
         };
 
-        assert!(usage.prompt_tokens_details.is_some());
+        usage.prompt_tokens_details.as_ref().expect("prompt_tokens_details should be present");
         assert_eq!(
             usage.prompt_tokens_details.unwrap().cached_tokens,
             Some(80)

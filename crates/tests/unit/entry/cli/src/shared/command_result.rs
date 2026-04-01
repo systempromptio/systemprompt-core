@@ -270,7 +270,7 @@ fn test_command_result_copy_paste() {
 fn test_command_result_chart() {
     let result: CommandResult<Vec<i32>> = CommandResult::chart(vec![10, 20, 30], ChartType::Bar);
     assert!(matches!(result.artifact_type, ArtifactType::Chart));
-    assert!(result.hints.is_some());
+    result.hints.as_ref().expect("result.hints should be present");
     assert!(matches!(
         result.hints.as_ref().unwrap().chart_type,
         Some(ChartType::Bar)
@@ -315,7 +315,7 @@ fn test_command_result_with_hints() {
     };
     let result = CommandResult::table("data")
         .with_hints(hints);
-    assert!(result.hints.is_some());
+    result.hints.as_ref().expect("result.hints should be present");
     assert_eq!(result.hints.as_ref().unwrap().theme.as_ref().unwrap(), "dark");
 }
 
@@ -323,7 +323,7 @@ fn test_command_result_with_hints() {
 fn test_command_result_with_columns() {
     let result = CommandResult::table("data")
         .with_columns(vec!["col1".to_string(), "col2".to_string()]);
-    assert!(result.hints.is_some());
+    result.hints.as_ref().expect("result.hints should be present");
     let columns = result.hints.as_ref().unwrap().columns.as_ref().unwrap();
     assert_eq!(columns.len(), 2);
     assert_eq!(columns[0], "col1");
@@ -342,7 +342,7 @@ fn test_command_result_with_columns_preserves_existing_hints() {
 
     let final_hints = result.hints.as_ref().unwrap();
     assert_eq!(final_hints.theme.as_ref().unwrap(), "dark");
-    assert!(final_hints.columns.is_some());
+    final_hints.columns.as_ref().expect("final_hints.columns should be present");
 }
 
 #[test]
@@ -362,7 +362,7 @@ fn test_command_result_builder_chain() {
 
     assert!(matches!(result.artifact_type, ArtifactType::Chart));
     assert_eq!(result.title.as_ref().unwrap(), "Sales Data");
-    assert!(result.hints.is_some());
+    result.hints.expect("result.hints should be present");
 }
 
 // ============================================================================

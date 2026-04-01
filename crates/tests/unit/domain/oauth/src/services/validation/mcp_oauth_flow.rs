@@ -15,23 +15,22 @@ fn test_valid_scopes_include_user_and_admin() {
 #[test]
 fn test_validate_scopes_accepts_user() {
     let result = OAuthRepository::validate_scopes(&["user".to_string()]);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec!["user"]);
+    let val = result.expect("expected success");
+    assert_eq!(val, vec!["user"]);
 }
 
 #[test]
 fn test_validate_scopes_accepts_admin() {
     let result = OAuthRepository::validate_scopes(&["admin".to_string()]);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec!["admin"]);
+    let val = result.expect("expected success");
+    assert_eq!(val, vec!["admin"]);
 }
 
 #[test]
 fn test_validate_scopes_accepts_user_and_admin() {
     let result =
         OAuthRepository::validate_scopes(&["user".to_string(), "admin".to_string()]);
-    assert!(result.is_ok());
-    let scopes = result.unwrap();
+    let scopes = result.expect("expected success");
     assert!(scopes.contains(&"user".to_string()));
     assert!(scopes.contains(&"admin".to_string()));
 }
@@ -39,20 +38,20 @@ fn test_validate_scopes_accepts_user_and_admin() {
 #[test]
 fn test_validate_scopes_rejects_unknown() {
     let result = OAuthRepository::validate_scopes(&["unknown_scope".to_string()]);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_scopes_rejects_openid() {
     let result = OAuthRepository::validate_scopes(&["openid".to_string()]);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_scopes_empty_returns_empty() {
     let result = OAuthRepository::validate_scopes(&[]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_empty());
+    let val = result.expect("expected success");
+    assert!(val.is_empty());
 }
 
 #[test]
@@ -269,7 +268,7 @@ fn test_scope_validation_consistent_with_permission_enum() {
 fn test_mcp_server_scope_user_admin_both_valid() {
     let mcp_scopes = vec!["user".to_string(), "admin".to_string()];
     let result = OAuthRepository::validate_scopes(&mcp_scopes);
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -429,7 +428,7 @@ fn scenario_authorize_with_resource_bypasses_client_scope_check() {
 
     let result =
         simulate_authorize_scope_check(&client_scopes, &requested_scopes, resource_scopes);
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -450,7 +449,7 @@ fn scenario_authorize_broad_client_scopes_no_resource_needed() {
     let requested_scopes = vec!["user".to_string(), "admin".to_string()];
 
     let result = simulate_authorize_scope_check(&client_scopes, &requested_scopes, None);
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -459,7 +458,7 @@ fn scenario_authorize_subset_of_client_scopes() {
     let requested_scopes = vec!["user".to_string()];
 
     let result = simulate_authorize_scope_check(&client_scopes, &requested_scopes, None);
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -576,7 +575,7 @@ fn scenario_full_mcp_inspector_flow() {
 
     let requested = vec!["user".to_string(), "admin".to_string()];
     let auth_result = simulate_authorize_scope_check(&client_scopes, &requested, None);
-    assert!(auth_result.is_ok());
+    auth_result.expect("expected success");
 }
 
 #[test]

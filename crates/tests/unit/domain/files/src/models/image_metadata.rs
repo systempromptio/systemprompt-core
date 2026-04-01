@@ -53,7 +53,7 @@ fn test_image_metadata_with_generation() {
     let gen_info = ImageGenerationInfo::new("test prompt", "dall-e-3", "openai");
     let meta = ImageMetadata::new().with_generation(gen_info);
 
-    assert!(meta.generation.is_some());
+    meta.generation.as_ref().expect("generation should be present");
     let gen_info = meta.generation.unwrap();
     assert_eq!(gen_info.prompt, "test prompt");
     assert_eq!(gen_info.model, "dall-e-3");
@@ -73,7 +73,7 @@ fn test_image_metadata_builder_chain() {
     assert_eq!(meta.height, Some(512));
     assert_eq!(meta.alt_text, Some("Alt text".to_string()));
     assert_eq!(meta.description, Some("Description".to_string()));
-    assert!(meta.generation.is_some());
+    meta.generation.as_ref().expect("generation should be present");
 }
 
 #[test]
@@ -343,7 +343,7 @@ fn test_image_metadata_with_full_generation_info() {
 
     assert_eq!(meta.width, deserialized.width);
     assert_eq!(meta.alt_text, deserialized.alt_text);
-    assert!(deserialized.generation.is_some());
+    deserialized.generation.as_ref().expect("generation should be present");
 
     let gen_info = deserialized.generation.unwrap();
     assert_eq!(gen_info.prompt, "A futuristic city");

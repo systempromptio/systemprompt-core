@@ -51,7 +51,7 @@ async fn test_get_request_success_json_response() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -74,7 +74,7 @@ async fn test_get_request_with_auth_token() {
         .with_token(token);
 
     let result = client.list_agents().await;
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -90,7 +90,6 @@ async fn test_get_request_401_unauthorized() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     // ClientError::ApiError display format: "API error: {status} - {message}"
     let err_str = err.to_string();
@@ -110,7 +109,6 @@ async fn test_get_request_404_not_found() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("404"));
 }
@@ -128,7 +126,6 @@ async fn test_get_request_500_server_error() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("500"));
 }
@@ -146,7 +143,7 @@ async fn test_get_request_invalid_json_response() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
     // Just check that it's an error - the exact message format may vary
 }
 
@@ -184,7 +181,7 @@ async fn test_post_request_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(None).await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -216,8 +213,7 @@ async fn test_post_request_with_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(Some("My Context")).await;
 
-    assert!(result.is_ok());
-    let context = result.unwrap();
+    let context = result.expect("request should succeed");
     assert_eq!(context.name, "My Context");
 }
 
@@ -246,7 +242,7 @@ async fn test_post_request_content_type_json() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(None).await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -264,7 +260,6 @@ async fn test_post_request_422_validation_error() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.create_context(Some("test")).await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("422"));
 }
@@ -286,7 +281,7 @@ async fn test_put_request_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.update_context_name("ctx-123", "New Name").await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -309,7 +304,7 @@ async fn test_put_request_with_json_body() {
         .update_context_name("ctx-123", "Updated Context")
         .await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -325,7 +320,7 @@ async fn test_put_request_404_not_found() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.update_context_name("nonexistent", "Name").await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -345,7 +340,7 @@ async fn test_delete_request_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.delete_context("ctx-to-delete").await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -365,7 +360,7 @@ async fn test_delete_request_with_auth() {
         .with_token(token);
 
     let result = client.delete_context("ctx-123").await;
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -381,7 +376,6 @@ async fn test_delete_request_403_forbidden() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.delete_context("protected").await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("403"));
 }
@@ -409,7 +403,6 @@ async fn test_error_response_json_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     // The error should contain the status code
     assert!(err.to_string().contains("400"));
@@ -428,7 +421,6 @@ async fn test_error_response_plain_text_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("503"));
 }
@@ -446,7 +438,7 @@ async fn test_error_response_empty_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -459,7 +451,6 @@ async fn test_connection_refused() {
     let client = SystempromptClient::new("http://127.0.0.1:59998").unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     // Should be an HTTP error (connection refused)
     assert!(err.to_string().contains("HTTP request failed"));
@@ -491,5 +482,5 @@ async fn test_request_timeout() {
     let result = client.list_agents().await;
 
     // Should fail due to timeout
-    assert!(result.is_err());
+    result.unwrap_err();
 }

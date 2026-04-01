@@ -17,23 +17,22 @@ use systemprompt_agent::services::shared::auth::{
 fn test_extract_bearer_token_valid() {
     let header = "Bearer abc123xyz";
     let result = extract_bearer_token(header);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "abc123xyz");
+    let val = result.expect("expected success");
+    assert_eq!(val, "abc123xyz");
 }
 
 #[test]
 fn test_extract_bearer_token_with_spaces() {
     let header = "Bearer token with spaces";
     let result = extract_bearer_token(header);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "token with spaces");
+    let val = result.expect("expected success");
+    assert_eq!(val, "token with spaces");
 }
 
 #[test]
 fn test_extract_bearer_token_missing_prefix() {
     let header = "abc123xyz";
     let result = extract_bearer_token(header);
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("invalid authorization header"));
 }
@@ -42,29 +41,29 @@ fn test_extract_bearer_token_missing_prefix() {
 fn test_extract_bearer_token_lowercase_bearer() {
     let header = "bearer abc123xyz";
     let result = extract_bearer_token(header);
-    assert!(result.is_err()); // "Bearer" is case-sensitive
+    result.unwrap_err(); // "Bearer" is case-sensitive
 }
 
 #[test]
 fn test_extract_bearer_token_basic_auth() {
     let header = "Basic dXNlcjpwYXNz";
     let result = extract_bearer_token(header);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_extract_bearer_token_empty_token() {
     let header = "Bearer ";
     let result = extract_bearer_token(header);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "");
+    let val = result.expect("expected success");
+    assert_eq!(val, "");
 }
 
 #[test]
 fn test_extract_bearer_token_empty_header() {
     let header = "";
     let result = extract_bearer_token(header);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -94,7 +93,6 @@ fn test_jwt_validator_validate_invalid_token() {
     let validator = JwtValidator::new("secret");
     let result = validator.validate_token("invalid_token");
 
-    assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("invalid token"));
 }
@@ -104,7 +102,7 @@ fn test_jwt_validator_validate_malformed_token() {
     let validator = JwtValidator::new("secret");
     let result = validator.validate_token("not.a.valid.jwt.token.at.all");
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -112,7 +110,7 @@ fn test_jwt_validator_validate_empty_token() {
     let validator = JwtValidator::new("secret");
     let result = validator.validate_token("");
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================

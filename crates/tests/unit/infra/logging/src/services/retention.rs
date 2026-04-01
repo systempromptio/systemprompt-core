@@ -169,28 +169,28 @@ fn test_retention_config_default_policies() {
 
     // Check debug logs policy
     let debug_policy = config.policies.iter().find(|p| p.name == "debug_logs");
-    assert!(debug_policy.is_some());
+    debug_policy.as_ref().expect("debug_policy should be present");
     let debug_policy = debug_policy.unwrap();
     assert_eq!(debug_policy.retention_days, 1);
     assert_eq!(debug_policy.level, Some(LogLevel::Debug));
 
     // Check info logs policy
     let info_policy = config.policies.iter().find(|p| p.name == "info_logs");
-    assert!(info_policy.is_some());
+    info_policy.as_ref().expect("info_policy should be present");
     let info_policy = info_policy.unwrap();
     assert_eq!(info_policy.retention_days, 7);
     assert_eq!(info_policy.level, Some(LogLevel::Info));
 
     // Check warnings policy
     let warn_policy = config.policies.iter().find(|p| p.name == "warnings");
-    assert!(warn_policy.is_some());
+    warn_policy.as_ref().expect("warn_policy should be present");
     let warn_policy = warn_policy.unwrap();
     assert_eq!(warn_policy.retention_days, 30);
     assert_eq!(warn_policy.level, Some(LogLevel::Warn));
 
     // Check errors policy
     let error_policy = config.policies.iter().find(|p| p.name == "errors");
-    assert!(error_policy.is_some());
+    error_policy.as_ref().expect("error_policy should be present");
     let error_policy = error_policy.unwrap();
     assert_eq!(error_policy.retention_days, 90);
     assert_eq!(error_policy.level, Some(LogLevel::Error));

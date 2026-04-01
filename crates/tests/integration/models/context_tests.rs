@@ -131,13 +131,13 @@ fn test_validation_methods() {
         AgentName::new("test-agent".to_string()),
     );
 
-    assert!(ctx_without_task.validate_task_execution().is_err());
+    ctx_without_task.validate_task_execution().unwrap_err();
 
     let ctx_with_task = ctx_without_task
         .clone()
         .with_task_id(TaskId::new("task_123".to_string()));
 
-    assert!(ctx_with_task.validate_task_execution().is_ok());
+    ctx_with_task.validate_task_execution().expect("ctx_with_task.validate_task_execution() should succeed");
 }
 
 #[test]

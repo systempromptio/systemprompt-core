@@ -33,7 +33,7 @@ fn test_permission_serialization() {
         Permission::from_str("anonymous").unwrap(),
         Permission::Anonymous
     );
-    assert!(Permission::from_str("anon").is_err());
+    Permission::from_str("anon").unwrap_err();
 }
 
 #[test]

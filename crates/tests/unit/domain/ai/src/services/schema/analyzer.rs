@@ -73,9 +73,7 @@ mod discriminated_union_tests {
         });
 
         let result = DiscriminatedUnion::detect(&schema);
-        assert!(result.is_some());
-
-        let union = result.unwrap();
+        let union = result.expect("result should be present");
         assert_eq!(union.discriminator_field, "action");
         assert_eq!(union.discriminator_values.len(), 2);
         assert!(union.discriminator_values.contains(&"create".to_string()));
@@ -187,9 +185,7 @@ mod discriminated_union_tests {
         });
 
         let result = DiscriminatedUnion::detect(&schema);
-        assert!(result.is_some());
-
-        let union = result.unwrap();
+        let union = result.expect("result should be present");
         let base = union.base_properties.as_object().unwrap();
         assert!(base.contains_key("commonField"));
         assert!(base.contains_key("anotherField"));
@@ -257,9 +253,7 @@ mod discriminated_union_tests {
         });
 
         let result = DiscriminatedUnion::detect(&schema);
-        assert!(result.is_some());
-
-        let union = result.unwrap();
+        let union = result.expect("result should be present");
         assert_eq!(union.discriminator_values.len(), 1);
         assert_eq!(union.discriminator_values[0], "only_option");
     }

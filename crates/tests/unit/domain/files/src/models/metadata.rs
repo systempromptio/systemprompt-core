@@ -28,7 +28,7 @@ fn test_file_metadata_with_image() {
     let image = ImageMetadata::new().with_dimensions(800, 600);
     let metadata = FileMetadata::new().with_image(image);
 
-    assert!(metadata.type_specific.is_some());
+    metadata.type_specific.as_ref().expect("type_specific should be present");
     match &metadata.type_specific {
         Some(TypeSpecificMetadata::Image(img)) => {
             assert_eq!(img.width, Some(800));
@@ -47,7 +47,7 @@ fn test_file_metadata_with_document() {
 
     let metadata = FileMetadata::new().with_document(doc);
 
-    assert!(metadata.type_specific.is_some());
+    metadata.type_specific.as_ref().expect("type_specific should be present");
     match &metadata.type_specific {
         Some(TypeSpecificMetadata::Document(d)) => {
             assert_eq!(d.title, Some("Test Document".to_string()));
@@ -67,7 +67,7 @@ fn test_file_metadata_with_audio() {
 
     let metadata = FileMetadata::new().with_audio(audio);
 
-    assert!(metadata.type_specific.is_some());
+    metadata.type_specific.as_ref().expect("type_specific should be present");
     match &metadata.type_specific {
         Some(TypeSpecificMetadata::Audio(a)) => {
             assert_eq!(a.duration_seconds, Some(180.5));
@@ -87,7 +87,7 @@ fn test_file_metadata_with_video() {
 
     let metadata = FileMetadata::new().with_video(video);
 
-    assert!(metadata.type_specific.is_some());
+    metadata.type_specific.as_ref().expect("type_specific should be present");
     match &metadata.type_specific {
         Some(TypeSpecificMetadata::Video(v)) => {
             assert_eq!(v.width, Some(1920));
@@ -107,7 +107,7 @@ fn test_file_metadata_with_checksums() {
 
     let metadata = FileMetadata::new().with_checksums(checksums);
 
-    assert!(metadata.checksums.is_some());
+    metadata.checksums.as_ref().expect("checksums should be present");
     let cs = metadata.checksums.unwrap();
     assert_eq!(cs.md5, Some("abc123".to_string()));
     assert_eq!(cs.sha256, Some("def456".to_string()));
@@ -122,8 +122,8 @@ fn test_file_metadata_builder_chain() {
         .with_checksums(checksums)
         .with_image(image);
 
-    assert!(metadata.checksums.is_some());
-    assert!(metadata.type_specific.is_some());
+    metadata.checksums.as_ref().expect("checksums should be present");
+    metadata.type_specific.as_ref().expect("type_specific should be present");
 }
 
 // ============================================================================
@@ -168,8 +168,8 @@ fn test_file_metadata_roundtrip() {
     let json = serde_json::to_string(&metadata).unwrap();
     let deserialized: FileMetadata = serde_json::from_str(&json).unwrap();
 
-    assert!(deserialized.checksums.is_some());
-    assert!(deserialized.type_specific.is_some());
+    deserialized.checksums.as_ref().expect("checksums should be present");
+    deserialized.type_specific.as_ref().expect("type_specific should be present");
 }
 
 // ============================================================================

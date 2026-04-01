@@ -202,7 +202,7 @@ rate_limits:
 fn test_load_from_path_nonexistent() {
     let path = Path::new("/nonexistent/profile.yaml");
     let result = ProfileLoader::load_from_path(path);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("Failed to read"));
 }
 
@@ -214,7 +214,7 @@ fn test_load_from_path_invalid_yaml() {
     std::fs::write(&profile_path, "invalid: yaml: : syntax").expect("Failed to write file");
 
     let result = ProfileLoader::load_from_path(&profile_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -231,7 +231,7 @@ display_name: Incomplete
     std::fs::write(&profile_path, content).expect("Failed to write file");
 
     let result = ProfileLoader::load_from_path(&profile_path);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -303,7 +303,7 @@ rate_limits:
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
     let result = ProfileLoader::load(temp_dir.path(), "dev");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let profile = result.expect("Should load profile");
     assert_eq!(profile.name, "dev");
@@ -316,7 +316,7 @@ fn test_load_by_name_not_found() {
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
     let result = ProfileLoader::load(temp_dir.path(), "nonexistent");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -462,7 +462,7 @@ rate_limits:
 
     // Save to a different location
     let save_result = ProfileLoader::save(&profile, temp_dir.path());
-    assert!(save_result.is_ok());
+    save_result.expect("save_result should succeed");
 
     // Verify the saved file exists
     let saved_path = temp_dir
@@ -544,7 +544,7 @@ rate_limits:
     assert!(!temp_dir.path().join("profiles").exists());
 
     let save_result = ProfileLoader::save(&profile, temp_dir.path());
-    assert!(save_result.is_ok());
+    save_result.expect("save_result should succeed");
 
     // Now it should exist
     assert!(temp_dir.path().join("profiles").exists());
@@ -617,7 +617,7 @@ rate_limits:
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
     let result = ProfileLoader::load_from_path_and_validate(&profile_path);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 }
 
 #[test]
@@ -683,7 +683,7 @@ rate_limits:
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
     let result = ProfileLoader::load_from_path_and_validate(&profile_path);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("port"));
 }
 
@@ -758,7 +758,7 @@ rate_limits:
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
     let result = ProfileLoader::load_from_path(&profile_path);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
 
     let profile = result.expect("Should load profile");
     assert_eq!(profile.server.host, "env-host.example.com");

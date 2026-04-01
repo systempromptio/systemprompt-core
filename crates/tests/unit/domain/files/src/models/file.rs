@@ -111,7 +111,7 @@ fn test_file_metadata_with_image() {
     let file = create_test_file_with_metadata(file_meta);
 
     let metadata = file.metadata().unwrap();
-    assert!(metadata.type_specific.is_some());
+    metadata.type_specific.as_ref().expect("type_specific should be present");
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn test_file_metadata_with_checksums() {
     let file = create_test_file_with_metadata(file_meta);
 
     let metadata = file.metadata().unwrap();
-    assert!(metadata.checksums.is_some());
+    metadata.checksums.as_ref().expect("checksums should be present");
     let cs = metadata.checksums.unwrap();
     assert_eq!(cs.md5, Some("d41d8cd98f00b204e9800998ecf8427e".to_string()));
     assert_eq!(
@@ -156,7 +156,7 @@ fn test_file_metadata_invalid_json() {
     };
 
     let result = file.metadata();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -183,9 +183,9 @@ fn test_file_with_all_optional_ids() {
         deleted_at: None,
     };
 
-    assert!(file.user_id.is_some());
-    assert!(file.session_id.is_some());
-    assert!(file.trace_id.is_some());
+    file.user_id.as_ref().expect("user_id should be present");
+    file.session_id.as_ref().expect("session_id should be present");
+    file.trace_id.as_ref().expect("trace_id should be present");
     assert_eq!(file.user_id.as_ref().unwrap().as_str(), "user_abc");
     assert_eq!(file.session_id.as_ref().unwrap().as_str(), "session_def");
     assert_eq!(file.trace_id.as_ref().unwrap().as_str(), "trace_ghi");
@@ -281,7 +281,7 @@ fn test_file_deleted_at() {
         deleted_at: Some(now),
     };
 
-    assert!(deleted_file.deleted_at.is_some());
+    deleted_file.deleted_at.as_ref().expect("deleted_at should be present");
 }
 
 // ============================================================================

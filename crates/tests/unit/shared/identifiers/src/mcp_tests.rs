@@ -269,13 +269,9 @@ fn test_mcp_server_id_empty_panics() {
 #[test]
 fn test_mcp_server_id_from_env_missing() {
     unsafe { std::env::remove_var("MCP_SERVICE_ID") };
-    let err = McpServerId::from_env()
-        .expect_err("from_env should fail when MCP_SERVICE_ID is not set");
-    assert!(
-        err.to_string().contains("not set"),
-        "error should mention 'not set', got: {}",
-        err
-    );
+    let result = McpServerId::from_env();
+    result.as_ref().expect_err("result should fail");
+    assert!(result.unwrap_err().to_string().contains("not set"));
 }
 
 #[test]
@@ -283,13 +279,9 @@ fn test_mcp_server_id_from_env_missing() {
 fn test_mcp_server_id_from_env_empty() {
     // SAFETY: test runs in isolation, no concurrent env access
     unsafe { std::env::set_var("MCP_SERVICE_ID", "") };
-    let err = McpServerId::from_env()
-        .expect_err("from_env should fail when MCP_SERVICE_ID is empty");
-    assert!(
-        err.to_string().contains("empty"),
-        "error should mention 'empty', got: {}",
-        err
-    );
+    let result = McpServerId::from_env();
+    result.as_ref().expect_err("result should fail");
+    assert!(result.unwrap_err().to_string().contains("empty"));
     unsafe { std::env::remove_var("MCP_SERVICE_ID") };
 }
 
@@ -298,9 +290,9 @@ fn test_mcp_server_id_from_env_empty() {
 fn test_mcp_server_id_from_env_valid() {
     // SAFETY: test runs in isolation, no concurrent env access
     unsafe { std::env::set_var("MCP_SERVICE_ID", "test-mcp-server") };
-    let server_id = McpServerId::from_env()
-        .expect("from_env should succeed when MCP_SERVICE_ID is set");
-    assert_eq!(server_id.as_str(), "test-mcp-server");
+    let result = McpServerId::from_env();
+    result.as_ref().expect("result should succeed");
+    assert_eq!(result.unwrap().as_str(), "test-mcp-server");
     unsafe { std::env::remove_var("MCP_SERVICE_ID") };
 }
 

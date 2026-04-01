@@ -38,42 +38,42 @@ fn test_deploy_environment_production_as_str() {
 #[test]
 fn test_deploy_environment_parse_local() {
     let result = DeployEnvironment::parse("local");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), DeployEnvironment::Local);
 }
 
 #[test]
 fn test_deploy_environment_parse_docker() {
     let result = DeployEnvironment::parse("docker");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), DeployEnvironment::DockerDev);
 }
 
 #[test]
 fn test_deploy_environment_parse_docker_dev() {
     let result = DeployEnvironment::parse("docker-dev");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), DeployEnvironment::DockerDev);
 }
 
 #[test]
 fn test_deploy_environment_parse_production() {
     let result = DeployEnvironment::parse("production");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), DeployEnvironment::Production);
 }
 
 #[test]
 fn test_deploy_environment_parse_prod() {
     let result = DeployEnvironment::parse("prod");
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), DeployEnvironment::Production);
 }
 
 #[test]
 fn test_deploy_environment_parse_invalid() {
     let result = DeployEnvironment::parse("invalid");
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     let err = result.unwrap_err();
     assert!(err.to_string().contains("Invalid environment"));
 }
@@ -81,13 +81,13 @@ fn test_deploy_environment_parse_invalid() {
 #[test]
 fn test_deploy_environment_parse_empty() {
     let result = DeployEnvironment::parse("");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_deploy_environment_parse_case_sensitive() {
     let result = DeployEnvironment::parse("LOCAL");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -175,7 +175,7 @@ fn test_deployment_config_serialize() {
     vars.insert("DATABASE_URL".to_string(), serde_yaml::Value::String("postgres://localhost".to_string()));
     let config = DeploymentConfig { vars };
     let yaml = serde_yaml::to_string(&config);
-    assert!(yaml.is_ok());
+    yaml.as_ref().expect("yaml should succeed");
     let yaml_str = yaml.unwrap();
     assert!(yaml_str.contains("DATABASE_URL"));
 }
@@ -184,7 +184,7 @@ fn test_deployment_config_serialize() {
 fn test_deployment_config_deserialize() {
     let yaml = "DATABASE_URL: postgres://localhost\nPORT: 8080";
     let config: Result<DeploymentConfig, _> = serde_yaml::from_str(yaml);
-    assert!(config.is_ok());
+    config.as_ref().expect("config should succeed");
     let config = config.unwrap();
     assert_eq!(config.vars.len(), 2);
 }

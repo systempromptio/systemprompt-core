@@ -32,7 +32,7 @@ fn response_meta() -> serde_json::Value {
 #[test]
 fn test_client_new_success() {
     let client = SystempromptClient::new("https://api.example.com");
-    assert!(client.is_ok());
+    client.expect("client construction should succeed");
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn test_client_new_no_trailing_slash() {
 #[test]
 fn test_client_with_timeout_success() {
     let client = SystempromptClient::with_timeout("https://api.example.com", 60);
-    assert!(client.is_ok());
+    client.expect("client construction should succeed");
 }
 
 #[test]
@@ -69,13 +69,13 @@ fn test_client_with_timeout_trims_trailing_slash() {
 #[test]
 fn test_client_with_zero_timeout() {
     let client = SystempromptClient::with_timeout("https://api.example.com", 0);
-    assert!(client.is_ok());
+    client.expect("client construction should succeed");
 }
 
 #[test]
 fn test_client_with_large_timeout() {
     let client = SystempromptClient::with_timeout("https://api.example.com", 3600);
-    assert!(client.is_ok());
+    client.expect("client construction should succeed");
 }
 
 // ============================================================================
@@ -95,7 +95,7 @@ fn test_client_with_token() {
         .unwrap()
         .with_token(token);
 
-    assert!(client.token().is_some());
+    client.token().expect("token should be set");
     assert_eq!(client.token().unwrap().as_str(), "test-token-12345");
 }
 
@@ -107,7 +107,7 @@ fn test_client_set_token() {
     let token = JwtToken::new("new-token");
     client.set_token(token);
 
-    assert!(client.token().is_some());
+    client.token().expect("token should be set");
     assert_eq!(client.token().unwrap().as_str(), "new-token");
 }
 
@@ -254,8 +254,7 @@ async fn test_list_agents_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let agents = client.list_agents().await;
 
-    assert!(agents.is_ok());
-    let agents = agents.unwrap();
+    let agents = agents.expect("list_agents should succeed");
     assert_eq!(agents.len(), 1);
     assert_eq!(agents[0].name, "test-agent");
 }
@@ -278,8 +277,7 @@ async fn test_list_agents_empty() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let agents = client.list_agents().await;
 
-    assert!(agents.is_ok());
-    assert!(agents.unwrap().is_empty());
+    assert!(agents.expect("list_agents should succeed").is_empty());
 }
 
 #[tokio::test]
@@ -295,7 +293,7 @@ async fn test_list_agents_unauthorized() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -319,8 +317,7 @@ async fn test_verify_token_success() {
         .with_token(token);
 
     let is_valid = client.verify_token().await;
-    assert!(is_valid.is_ok());
-    assert!(is_valid.unwrap());
+    assert!(is_valid.expect("verify_token should succeed"));
 }
 
 #[tokio::test]
@@ -339,8 +336,7 @@ async fn test_verify_token_invalid() {
         .with_token(token);
 
     let is_valid = client.verify_token().await;
-    assert!(is_valid.is_ok());
-    assert!(!is_valid.unwrap());
+    assert!(!is_valid.expect("verify_token should succeed"));
 }
 
 #[tokio::test]
@@ -348,7 +344,7 @@ async fn test_verify_token_no_token_configured() {
     let client = SystempromptClient::new("https://api.example.com").unwrap();
     let result = client.verify_token().await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -385,8 +381,7 @@ async fn test_list_contexts_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let contexts = client.list_contexts().await;
 
-    assert!(contexts.is_ok());
-    let contexts = contexts.unwrap();
+    let contexts = contexts.expect("list_contexts should succeed");
     assert_eq!(contexts.len(), 1);
 }
 
@@ -407,7 +402,7 @@ async fn test_delete_context_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.delete_context("ctx-123").await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -423,7 +418,7 @@ async fn test_delete_context_not_found() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.delete_context("nonexistent").await;
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -443,7 +438,7 @@ async fn test_delete_task_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.delete_task("task-456").await;
 
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 // ============================================================================
@@ -470,7 +465,7 @@ async fn test_request_includes_auth_header() {
         .with_token(token);
 
     let result = client.list_agents().await;
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 #[tokio::test]
@@ -491,7 +486,7 @@ async fn test_request_without_token_no_auth_header() {
     // No token set
 
     let result = client.list_agents().await;
-    assert!(result.is_ok());
+    result.expect("request should succeed");
 }
 
 // ============================================================================
@@ -521,7 +516,7 @@ async fn test_list_logs_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let logs = client.list_logs(None).await;
 
-    assert!(logs.is_ok());
+    logs.expect("list_logs should succeed");
 }
 
 #[tokio::test]
@@ -537,7 +532,7 @@ async fn test_list_logs_with_limit() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let logs = client.list_logs(Some(10)).await;
 
-    assert!(logs.is_ok());
+    logs.expect("list_logs should succeed");
 }
 
 #[tokio::test]
@@ -565,7 +560,7 @@ async fn test_list_users_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let users = client.list_users(None).await;
 
-    assert!(users.is_ok());
+    users.expect("list_users should succeed");
 }
 
 #[tokio::test]
@@ -590,5 +585,5 @@ async fn test_get_analytics_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let analytics = client.get_analytics().await;
 
-    assert!(analytics.is_ok());
+    analytics.expect("get_analytics should succeed");
 }

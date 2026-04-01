@@ -25,7 +25,7 @@ fn test_task_info_creation() {
     assert_eq!(task.context_id, "ctx-456");
     assert_eq!(task.agent_name, Some("test-agent".to_string()));
     assert_eq!(task.status, "completed");
-    assert!(task.execution_time_ms.is_some());
+    task.execution_time_ms.expect("task.execution_time_ms should be present");
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn test_task_info_with_error() {
     };
 
     assert_eq!(task.status, "failed");
-    assert!(task.error_message.is_some());
+    task.error_message.as_ref().expect("task.error_message should be present");
     assert!(task.error_message.as_ref().unwrap().contains("timeout"));
 }
 
@@ -154,7 +154,7 @@ fn test_execution_step_with_error() {
     };
 
     assert_eq!(step.status, "failed");
-    assert!(step.error_message.is_some());
+    step.error_message.expect("step.error_message should be present");
 }
 
 #[test]
@@ -288,7 +288,7 @@ fn test_mcp_tool_execution_creation() {
     assert_eq!(exec.tool_name, "file_reader");
     assert_eq!(exec.server_name, "filesystem");
     assert_eq!(exec.status, "success");
-    assert!(exec.output.is_some());
+    exec.output.expect("exec.output should be present");
 }
 
 #[test]
@@ -305,7 +305,7 @@ fn test_mcp_tool_execution_with_error() {
     };
 
     assert_eq!(exec.status, "error");
-    assert!(exec.error_message.is_some());
+    exec.error_message.expect("exec.error_message should be present");
     assert!(exec.output.is_none());
 }
 

@@ -34,8 +34,8 @@ fn test_parse_message_send_request() {
     };
 
     let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let val = result.expect("expected success");
+    match val {
         A2aRequestParams::SendMessage(_) => {}
         _ => panic!("Expected SendMessage variant"),
     }
@@ -53,8 +53,8 @@ fn test_parse_tasks_get_request() {
     };
 
     let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let val = result.expect("expected success");
+    match val {
         A2aRequestParams::GetTask(params) => {
             assert_eq!(params.id, "task-123");
         }
@@ -74,8 +74,8 @@ fn test_parse_tasks_cancel_request() {
     };
 
     let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let val = result.expect("expected success");
+    match val {
         A2aRequestParams::CancelTask(params) => {
             assert_eq!(params.id, "task-456");
         }
@@ -101,8 +101,8 @@ fn test_parse_message_stream_request() {
     };
 
     let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let val = result.expect("expected success");
+    match val {
         A2aRequestParams::SendStreamingMessage(_) => {}
         _ => panic!("Expected SendStreamingMessage variant"),
     }
@@ -118,7 +118,6 @@ fn test_parse_unsupported_method() {
     };
 
     let result = request.parse_request();
-    assert!(result.is_err());
     let error = result.unwrap_err();
     assert!(error.to_string().contains("Unsupported method"));
 }
@@ -133,7 +132,6 @@ fn test_parse_invalid_params() {
     };
 
     let result = request.parse_request();
-    assert!(result.is_err());
     let error = result.unwrap_err();
     assert!(error.to_string().contains("Invalid parameters"));
 }
@@ -221,7 +219,7 @@ fn test_a2a_response_send_message() {
     match response {
         A2aResponse::SendMessage(res) => {
             assert_eq!(res.jsonrpc, "2.0");
-            assert!(res.result.is_some());
+            res.result.expect("expected Some value");
             assert!(res.error.is_none());
         }
         _ => panic!("Expected SendMessage variant"),
@@ -239,7 +237,7 @@ fn test_a2a_response_get_task() {
     match response {
         A2aResponse::GetTask(res) => {
             assert_eq!(res.jsonrpc, "2.0");
-            assert!(res.result.is_some());
+            res.result.expect("expected Some value");
             assert!(res.error.is_none());
         }
         _ => panic!("Expected GetTask variant"),
@@ -257,7 +255,7 @@ fn test_a2a_response_cancel_task() {
     match response {
         A2aResponse::CancelTask(res) => {
             assert_eq!(res.jsonrpc, "2.0");
-            assert!(res.result.is_some());
+            res.result.expect("expected Some value");
         }
         _ => panic!("Expected CancelTask variant"),
     }
@@ -314,8 +312,8 @@ fn test_task_state_parsing() {
 #[test]
 fn test_task_state_invalid_parsing() {
     let result: Result<TaskState, String> = "completely_invalid_state".parse();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid task state"));
+    let err = result.unwrap_err();
+    assert!(err.contains("Invalid task state"));
 }
 
 #[test]
@@ -408,8 +406,8 @@ fn test_jsonrpc_error_with_data() {
     let error = JsonRpcError::with_data(-32000, "Custom error", serde_json::json!({"details": "test"}));
     assert_eq!(error.code, -32000);
     assert_eq!(error.message, "Custom error");
-    assert!(error.data.is_some());
-    assert_eq!(error.data.unwrap()["details"], "test");
+    let data = error.data.expect("expected Some value");
+    assert_eq!(data["details"], "test");
 }
 
 #[test]
@@ -512,7 +510,7 @@ fn test_jsonrpc_response_with_result() {
     };
 
     assert_eq!(response.jsonrpc, "2.0");
-    assert!(response.result.is_some());
+    response.result.expect("expected Some value");
     assert!(response.error.is_none());
 }
 
@@ -528,8 +526,8 @@ fn test_jsonrpc_response_with_error() {
     };
 
     assert!(response.result.is_none());
-    assert!(response.error.is_some());
-    assert_eq!(response.error.as_ref().unwrap().code, -32600);
+    let err = response.error.expect("expected Some value");
+    assert_eq!(err.code, -32600);
 }
 
 #[test]

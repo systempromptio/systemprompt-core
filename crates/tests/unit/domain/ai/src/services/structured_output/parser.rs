@@ -91,13 +91,13 @@ That's all!"#;
     fn returns_error_for_invalid_json() {
         let content = "This is not JSON at all";
         let result = JsonParser::extract_json(content, None);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
     fn returns_error_for_empty_content() {
         let result = JsonParser::extract_json("", None);
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[test]
@@ -119,7 +119,10 @@ That's all!"#;
         let content = r#"{"first": true} some text {"second": true}"#;
         let result = JsonParser::extract_json(content, None).unwrap();
         // Should get the first one
-        assert!(result.get("first").is_some() || result.get("second").is_some());
+        assert!(
+            result.get("first").is_some() || result.get("second").is_some(),
+            "expected at least one of 'first' or 'second' keys in result"
+        );
     }
 }
 

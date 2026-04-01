@@ -222,9 +222,9 @@ mod initialization_tests {
 
         let result = registry.initialize().await;
 
-        assert!(result.is_err());
+        let err = result.unwrap_err();
         assert!(matches!(
-            result.unwrap_err(),
+            err,
             TemplateError::NotInitialized
         ));
     }
@@ -236,7 +236,7 @@ mod initialization_tests {
 
         let result = registry.initialize().await;
 
-        assert!(result.is_ok());
+        result.expect("expected success");
         assert_eq!(registry.stats().templates, 0);
     }
 
@@ -253,7 +253,7 @@ mod initialization_tests {
 
         let result = registry.initialize().await;
 
-        assert!(result.is_ok());
+        result.expect("expected success");
         assert_eq!(registry.stats().templates, 2);
         assert!(registry.has_template("template-1"));
         assert!(registry.has_template("template-2"));
@@ -381,8 +381,7 @@ mod template_lookup_tests {
         registry.initialize().await.expect("should initialize");
 
         let found = registry.find_template("my-template");
-        assert!(found.is_some());
-        let def = found.unwrap();
+        let def = found.expect("expected Some value");
         assert_eq!(def.name, "my-template");
         assert!(def.content_types.contains(&"article".to_string()));
     }
@@ -651,7 +650,7 @@ mod render_tests {
 
         let result = registry.render("nonexistent", &data);
 
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
@@ -666,8 +665,7 @@ mod render_tests {
         let data = serde_json::json!({"name": "World"});
         let result = registry.render("greeting", &data);
 
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("expected success");
         assert!(rendered.contains("Hello, World!"));
     }
 
@@ -683,8 +681,7 @@ mod render_tests {
         let data = serde_json::json!({});
         let result = registry.render("optional", &data);
 
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("expected success");
         assert!(rendered.contains("Value:"));
     }
 
@@ -706,8 +703,7 @@ mod render_tests {
         });
         let result = registry.render("nested", &data);
 
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("expected success");
         assert!(rendered.contains("Alice"));
         assert!(rendered.contains("alice@example.com"));
     }
@@ -729,8 +725,7 @@ mod render_tests {
         });
         let result = registry.render("list", &data);
 
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("expected success");
         assert!(rendered.contains("<li>one</li>"));
         assert!(rendered.contains("<li>two</li>"));
         assert!(rendered.contains("<li>three</li>"));
@@ -747,14 +742,12 @@ mod render_tests {
         registry.initialize().await.expect("should initialize");
 
         let data_visible = serde_json::json!({"show": true});
-        let result = registry.render("cond", &data_visible);
-        assert!(result.is_ok());
-        assert!(result.unwrap().contains("Visible"));
+        let rendered = registry.render("cond", &data_visible).expect("expected success");
+        assert!(rendered.contains("Visible"));
 
         let data_hidden = serde_json::json!({"show": false});
-        let result = registry.render("cond", &data_hidden);
-        assert!(result.is_ok());
-        assert!(!result.unwrap().contains("Visible"));
+        let rendered = registry.render("cond", &data_hidden).expect("expected success");
+        assert!(!rendered.contains("Visible"));
     }
 }
 

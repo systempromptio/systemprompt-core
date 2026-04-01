@@ -46,8 +46,8 @@ fn test_agent_card_builder_with_provider() {
     .with_provider("systemprompt.io".to_string(), "https://systemprompt.io".to_string())
     .build();
 
-    assert!(card.provider.is_some());
-    let provider = card.provider.unwrap();
+    card.provider.as_ref().expect("card.provider should be present");
+    let provider = card.provider.as_ref().unwrap();
     assert_eq!(provider.organization, "systemprompt.io");
     assert_eq!(provider.url, "https://systemprompt.io");
 }
@@ -215,9 +215,9 @@ fn test_agent_extension_mcp_tools() {
     let ext = AgentExtension::mcp_tools_extension();
 
     assert_eq!(ext.uri, "systemprompt:mcp-tools");
-    assert!(ext.description.is_some());
+    ext.description.expect("ext.description should be present");
     assert_eq!(ext.required, Some(false));
-    assert!(ext.params.is_some());
+    ext.params.expect("ext.params should be present");
 }
 
 #[test]
@@ -227,7 +227,7 @@ fn test_agent_extension_mcp_tools_with_servers() {
 
     assert_eq!(ext.uri, "systemprompt:mcp-tools");
     let params = ext.params.unwrap();
-    assert!(params.get("servers").is_some());
+    params.get("servers").expect("params.get(\"servers\") should be present");
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn test_agent_extension_opencode_integration() {
     let ext = AgentExtension::opencode_integration_extension();
 
     assert_eq!(ext.uri, "systemprompt:opencode-integration");
-    assert!(ext.description.is_some());
+    ext.description.expect("ext.description should be present");
 }
 
 #[test]
@@ -244,7 +244,7 @@ fn test_agent_extension_artifact_rendering() {
 
     assert!(ext.uri.contains("artifact-rendering"));
     let params = ext.params.unwrap();
-    assert!(params.get("supported_types").is_some());
+    params.get("supported_types").expect("params.get(\"supported_types\") should be present");
 }
 
 #[test]
@@ -270,7 +270,7 @@ fn test_agent_extension_system_instructions() {
 #[test]
 fn test_agent_extension_system_instructions_opt_some() {
     let ext = AgentExtension::system_instructions_opt(Some("test prompt"));
-    assert!(ext.is_some());
+    ext.expect("ext should be present");
 }
 
 #[test]
@@ -441,7 +441,7 @@ fn test_task_state_unknown() {
 #[test]
 fn test_task_state_invalid() {
     let result: Result<TaskState, String> = "invalid-state".parse();
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().contains("Invalid task state"));
 }
 

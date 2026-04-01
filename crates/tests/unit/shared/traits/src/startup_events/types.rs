@@ -142,7 +142,7 @@ mod service_info_tests {
         assert_eq!(info.service_type, ServiceType::Mcp);
         assert_eq!(info.port, Some(5000));
         assert_eq!(info.state, ServiceState::Running);
-        assert!(info.startup_time.is_some());
+        info.startup_time.expect("startup_time should be set");
     }
 
     #[test]

@@ -248,8 +248,8 @@ fn test_validation_result_pattern() {
     type TestResult = Result<String, String>;
 
     let success: TestResult = Ok("validated config".to_string());
-    assert!(success.is_ok());
+    success.expect("expected success");
 
     let failure: TestResult = Err("validation error".to_string());
-    assert!(failure.is_err());
+    failure.unwrap_err();
 }

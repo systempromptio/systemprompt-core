@@ -355,7 +355,7 @@ name: test
 
     let result = manager.write_web_env_file(&config);
 
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 
     let web_env_path = temp_dir.path().join("web/.env.local");
     assert!(!web_env_path.exists());

@@ -145,7 +145,7 @@ fn test_extension_context_get_extension_exists() {
     };
 
     let found = ctx.get_extension("test-ext");
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.expect("extension exists").id(), "test-ext");
 }
 
@@ -314,7 +314,7 @@ fn test_extension_default_config_schema() {
 fn test_extension_default_validate_config() {
     let ext = TestExtension { id: "test" };
     let config = serde_json::json!({});
-    assert!(ext.validate_config(&config).is_ok());
+    ext.validate_config(&config).expect("ext.validate_config(&config) should succeed");
 }
 
 #[test]

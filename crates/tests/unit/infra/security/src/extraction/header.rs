@@ -39,7 +39,7 @@ fn test_inject_session_id_success() {
     let session_id = SessionId::new("session_123".to_string());
 
     let result = HeaderInjector::inject_session_id(&mut headers, &session_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-session-id").unwrap().to_str().unwrap(),
         "session_123"
@@ -52,7 +52,7 @@ fn test_inject_user_id_success() {
     let user_id = UserId::new("user_456".to_string());
 
     let result = HeaderInjector::inject_user_id(&mut headers, &user_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
         "user_456"
@@ -65,7 +65,7 @@ fn test_inject_trace_id_success() {
     let trace_id = TraceId::new("trace_789".to_string());
 
     let result = HeaderInjector::inject_trace_id(&mut headers, &trace_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-trace-id").unwrap().to_str().unwrap(),
         "trace_789"
@@ -78,7 +78,7 @@ fn test_inject_context_id_success() {
     let context_id = ContextId::new("context_abc".to_string());
 
     let result = HeaderInjector::inject_context_id(&mut headers, &context_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-context-id").unwrap().to_str().unwrap(),
         "context_abc"
@@ -91,7 +91,7 @@ fn test_inject_context_id_empty_skips() {
     let context_id = ContextId::new(String::new());
 
     let result = HeaderInjector::inject_context_id(&mut headers, &context_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert!(headers.get("x-context-id").is_none());
 }
 
@@ -100,7 +100,7 @@ fn test_inject_agent_name_success() {
     let mut headers = HeaderMap::new();
 
     let result = HeaderInjector::inject_agent_name(&mut headers, "test-agent");
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-agent-name").unwrap().to_str().unwrap(),
         "test-agent"
@@ -144,7 +144,7 @@ fn test_inject_from_request_context_success() {
     .with_user_type(UserType::User);
 
     let result = HeaderInjector::inject_from_request_context(&mut headers, &ctx);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 
     assert_eq!(
         headers.get("x-session-id").unwrap().to_str().unwrap(),
@@ -182,13 +182,13 @@ fn test_inject_from_request_context_empty_context_id() {
     .with_user_type(UserType::User);
 
     let result = HeaderInjector::inject_from_request_context(&mut headers, &ctx);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
 
-    assert!(headers.get("x-session-id").is_some());
-    assert!(headers.get("x-user-id").is_some());
-    assert!(headers.get("x-trace-id").is_some());
+    headers.get("x-session-id").expect("headers.get(\"x-session-id\") should be present");
+    headers.get("x-user-id").expect("headers.get(\"x-user-id\") should be present");
+    headers.get("x-trace-id").expect("headers.get(\"x-trace-id\") should be present");
     assert!(headers.get("x-context-id").is_none());
-    assert!(headers.get("x-agent-name").is_some());
+    headers.get("x-agent-name").expect("headers.get(\"x-agent-name\") should be present");
 }
 
 // ============================================================================
@@ -201,7 +201,7 @@ fn test_inject_uuid_format() {
     let session_id = SessionId::new("550e8400-e29b-41d4-a716-446655440000".to_string());
 
     let result = HeaderInjector::inject_session_id(&mut headers, &session_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-session-id").unwrap().to_str().unwrap(),
         "550e8400-e29b-41d4-a716-446655440000"
@@ -214,7 +214,7 @@ fn test_inject_alphanumeric_id() {
     let user_id = UserId::new("user_abc123XYZ".to_string());
 
     let result = HeaderInjector::inject_user_id(&mut headers, &user_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
         "user_abc123XYZ"
@@ -227,7 +227,7 @@ fn test_inject_underscore_id() {
     let trace_id = TraceId::new("trace_with_underscores_123".to_string());
 
     let result = HeaderInjector::inject_trace_id(&mut headers, &trace_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-trace-id").unwrap().to_str().unwrap(),
         "trace_with_underscores_123"
@@ -240,7 +240,7 @@ fn test_inject_hyphenated_id() {
     let context_id = ContextId::new("context-with-hyphens-456".to_string());
 
     let result = HeaderInjector::inject_context_id(&mut headers, &context_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-context-id").unwrap().to_str().unwrap(),
         "context-with-hyphens-456"
@@ -325,7 +325,7 @@ fn test_header_extractor_extract_task_id_present() {
     headers.insert("x-task-id", HeaderValue::from_static("task-12345"));
 
     let task_id = HeaderExtractor::extract_task_id(&headers);
-    assert!(task_id.is_some());
+    task_id.as_ref().expect("task_id should be present");
     assert_eq!(task_id.unwrap().as_str(), "task-12345");
 }
 
@@ -465,7 +465,7 @@ fn test_inject_task_id_success() {
     let task_id = TaskId::new("task_123".to_string());
 
     let result = HeaderInjector::inject_task_id(&mut headers, &task_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-task-id").unwrap().to_str().unwrap(),
         "task_123"
@@ -478,7 +478,7 @@ fn test_inject_task_id_uuid_format() {
     let task_id = TaskId::new("550e8400-e29b-41d4-a716-446655440000".to_string());
 
     let result = HeaderInjector::inject_task_id(&mut headers, &task_id);
-    assert!(result.is_ok());
+    result.expect("result should succeed");
     assert_eq!(
         headers.get("x-task-id").unwrap().to_str().unwrap(),
         "550e8400-e29b-41d4-a716-446655440000"

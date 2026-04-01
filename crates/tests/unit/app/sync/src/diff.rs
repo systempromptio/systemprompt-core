@@ -61,7 +61,7 @@ mod content_diff_item_tests {
             title: Some("New Article".to_string()),
         };
         assert_eq!(item.status, DiffStatus::Added);
-        assert!(item.disk_hash.is_some());
+        item.disk_hash.expect("item.disk_hash should be present");
         assert!(item.db_hash.is_none());
     }
 
@@ -79,7 +79,7 @@ mod content_diff_item_tests {
             title: Some("Old Article".to_string()),
         };
         assert_eq!(item.status, DiffStatus::Removed);
-        assert!(item.db_hash.is_some());
+        item.db_hash.expect("item.db_hash should be present");
     }
 
     #[test]

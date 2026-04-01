@@ -323,7 +323,7 @@ mod tool_call_result_tests {
     fn with_structured_content() {
         let result =
             ToolCallResult::success("ok").with_structured_content(serde_json::json!({"key": 1}));
-        assert!(result.structured_content.is_some());
+        result.structured_content.as_ref().expect("structured_content should be present");
         assert_eq!(result.structured_content.unwrap()["key"], 1);
     }
 

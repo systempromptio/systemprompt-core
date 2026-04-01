@@ -33,8 +33,8 @@ fn test_tool_execution_fields() {
     assert_eq!(exec.tool_name, "test-tool");
     assert_eq!(exec.server_name, "test-server");
     assert_eq!(exec.status, "success");
-    assert!(exec.context_id.is_some());
-    assert!(exec.ai_tool_call_id.is_some());
+    exec.context_id.expect("expected Some value");
+    exec.ai_tool_call_id.expect("expected Some value");
     assert_eq!(exec.execution_time_ms, Some(150));
 }
 

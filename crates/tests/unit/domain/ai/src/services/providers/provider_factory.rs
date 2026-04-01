@@ -13,10 +13,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ProviderFactory::create("openai", &config, None);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ProviderFactory::create("openai", &config, None)
+            .expect("should succeed");
         assert_eq!(provider.name(), "openai");
     }
 
@@ -28,10 +26,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ProviderFactory::create("anthropic", &config, None);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ProviderFactory::create("anthropic", &config, None)
+            .expect("should succeed");
         assert_eq!(provider.name(), "anthropic");
     }
 
@@ -43,10 +39,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ProviderFactory::create("gemini", &config, None);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ProviderFactory::create("gemini", &config, None)
+            .expect("should succeed");
         assert_eq!(provider.name(), "gemini");
     }
 
@@ -58,10 +52,9 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ProviderFactory::create("openai", &config, None);
-        assert!(result.is_err());
-
-        let error = result.err().unwrap();
+        let error = ProviderFactory::create("openai", &config, None)
+            .err()
+            .expect("should be an error");
         assert!(error.to_string().contains("disabled"));
     }
 
@@ -73,10 +66,9 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ProviderFactory::create("unknown-provider", &config, None);
-        assert!(result.is_err());
-
-        let error = result.err().unwrap();
+        let error = ProviderFactory::create("unknown-provider", &config, None)
+            .err()
+            .expect("should be an error");
         assert!(error.to_string().contains("Unknown provider"));
     }
 
@@ -90,7 +82,7 @@ mod create_tests {
         };
 
         let result = ProviderFactory::create("openai", &config, None);
-        assert!(result.is_ok());
+        result.expect("should succeed");
     }
 
     #[test]
@@ -103,7 +95,7 @@ mod create_tests {
         };
 
         let result = ProviderFactory::create("anthropic", &config, None);
-        assert!(result.is_ok());
+        result.expect("should succeed");
     }
 
     #[test]
@@ -115,10 +107,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ProviderFactory::create("gemini", &config, None);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ProviderFactory::create("gemini", &config, None)
+            .expect("should succeed");
         assert!(provider.supports_google_search());
     }
 
@@ -131,10 +121,8 @@ mod create_tests {
             ..Default::default()
         };
 
-        let result = ProviderFactory::create("gemini", &config, None);
-        assert!(result.is_ok());
-
-        let provider = result.unwrap();
+        let provider = ProviderFactory::create("gemini", &config, None)
+            .expect("should succeed");
         assert!(!provider.supports_google_search());
     }
 }
@@ -164,10 +152,8 @@ mod create_all_tests {
             },
         );
 
-        let result = ProviderFactory::create_all(configs, None);
-        assert!(result.is_ok());
-
-        let providers = result.unwrap();
+        let providers = ProviderFactory::create_all(configs, None)
+            .expect("should succeed");
         assert_eq!(providers.len(), 2);
         assert!(providers.contains_key("openai"));
         assert!(providers.contains_key("anthropic"));
@@ -195,10 +181,8 @@ mod create_all_tests {
             },
         );
 
-        let result = ProviderFactory::create_all(configs, None);
-        assert!(result.is_ok());
-
-        let providers = result.unwrap();
+        let providers = ProviderFactory::create_all(configs, None)
+            .expect("should succeed");
         assert_eq!(providers.len(), 1);
         assert!(providers.contains_key("openai"));
         assert!(!providers.contains_key("anthropic"));
@@ -217,10 +201,9 @@ mod create_all_tests {
             },
         );
 
-        let result = ProviderFactory::create_all(configs, None);
-        assert!(result.is_err());
-
-        let error = result.err().unwrap();
+        let error = ProviderFactory::create_all(configs, None)
+            .err()
+            .expect("should be an error");
         assert!(error.to_string().contains("No providers"));
     }
 
@@ -228,8 +211,9 @@ mod create_all_tests {
     fn create_all_fails_when_empty_config() {
         let configs = HashMap::new();
 
-        let result = ProviderFactory::create_all(configs, None);
-        assert!(result.is_err());
+        ProviderFactory::create_all(configs, None)
+            .err()
+            .expect("should be an error");
     }
 
     #[test]
@@ -263,10 +247,8 @@ mod create_all_tests {
             },
         );
 
-        let result = ProviderFactory::create_all(configs, None);
-        assert!(result.is_ok());
-
-        let providers = result.unwrap();
+        let providers = ProviderFactory::create_all(configs, None)
+            .expect("should succeed");
         assert_eq!(providers.len(), 3);
     }
 }

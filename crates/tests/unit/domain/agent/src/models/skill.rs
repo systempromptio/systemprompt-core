@@ -162,8 +162,8 @@ fn test_skill_from_json_row_missing_skill_id() {
     );
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("skill_id"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("skill_id"));
 }
 
 #[test]
@@ -175,8 +175,8 @@ fn test_skill_from_json_row_missing_file_path() {
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("file_path"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("file_path"));
 }
 
 #[test]
@@ -189,8 +189,8 @@ fn test_skill_from_json_row_missing_name() {
     row.insert("file_path".to_string(), serde_json::json!("/test.md"));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("name"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("name"));
 }
 
 #[test]
@@ -204,8 +204,8 @@ fn test_skill_from_json_row_missing_description() {
     row.insert("name".to_string(), serde_json::json!("Test"));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("description"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("description"));
 }
 
 #[test]
@@ -220,8 +220,8 @@ fn test_skill_from_json_row_missing_instructions() {
     row.insert("description".to_string(), serde_json::json!("Desc"));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("instructions"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("instructions"));
 }
 
 #[test]
@@ -237,8 +237,8 @@ fn test_skill_from_json_row_missing_enabled() {
     row.insert("instructions".to_string(), serde_json::json!("Instr"));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("enabled"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("enabled"));
 }
 
 #[test]
@@ -256,8 +256,8 @@ fn test_skill_from_json_row_missing_source_id() {
     row.insert("tags".to_string(), serde_json::json!([]));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("source_id"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("source_id"));
 }
 
 #[test]
@@ -278,8 +278,7 @@ fn test_skill_from_json_row_default_tags() {
     row.insert("updated_at".to_string(), serde_json::json!("2024-01-01T00:00:00Z"));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_ok());
-    let skill = result.unwrap();
+    let skill = result.expect("expected success");
     assert!(skill.tags.is_empty());
 }
 
@@ -302,9 +301,8 @@ fn test_skill_from_json_row_complete() {
     row.insert("updated_at".to_string(), serde_json::json!("2024-01-02T00:00:00Z"));
 
     let result = Skill::from_json_row(&row);
-    assert!(result.is_ok());
-    let skill = result.unwrap();
+    let skill = result.expect("expected success");
     assert_eq!(skill.name, "Complete Skill");
     assert_eq!(skill.tags.len(), 2);
-    assert!(skill.category_id.is_some());
+    skill.category_id.expect("expected Some value");
 }

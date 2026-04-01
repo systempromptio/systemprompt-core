@@ -83,7 +83,7 @@ fn test_token_extractor_with_cookie_name() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "my_token_value");
 }
 
@@ -99,7 +99,7 @@ fn test_token_extractor_with_mcp_header_name() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "custom_token");
 }
 
@@ -116,7 +116,7 @@ fn test_extract_from_authorization_header_success() {
     );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "test_token_123");
 }
 
@@ -125,7 +125,7 @@ fn test_extract_from_authorization_header_missing() {
     let headers = HeaderMap::new();
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::MissingAuthorizationHeader
@@ -141,7 +141,7 @@ fn test_extract_from_authorization_header_invalid_format_no_bearer() {
     );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::InvalidAuthorizationFormat
@@ -154,7 +154,7 @@ fn test_extract_from_authorization_header_empty_token() {
     headers.insert("authorization", HeaderValue::from_static("Bearer "));
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::InvalidAuthorizationFormat
@@ -167,7 +167,7 @@ fn test_extract_from_authorization_header_whitespace_token() {
     headers.insert("authorization", HeaderValue::from_static("Bearer    "));
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::InvalidAuthorizationFormat
@@ -183,7 +183,7 @@ fn test_extract_from_authorization_header_case_sensitive_bearer() {
     );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::InvalidAuthorizationFormat
@@ -203,7 +203,7 @@ fn test_extract_from_authorization_multiple_headers_first_valid() {
     );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "first_token");
 }
 
@@ -217,7 +217,7 @@ fn test_extract_from_authorization_multiple_headers_skip_invalid() {
     );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "valid_token");
 }
 
@@ -235,7 +235,7 @@ fn test_extract_from_mcp_proxy_success() {
     );
 
     let result = extractor.extract_from_mcp_proxy(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "mcp_token");
 }
 
@@ -245,7 +245,7 @@ fn test_extract_from_mcp_proxy_missing() {
     let headers = HeaderMap::new();
 
     let result = extractor.extract_from_mcp_proxy(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::MissingMcpProxyHeader
@@ -262,7 +262,7 @@ fn test_extract_from_mcp_proxy_invalid_format() {
     );
 
     let result = extractor.extract_from_mcp_proxy(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::InvalidMcpProxyFormat
@@ -283,7 +283,7 @@ fn test_extract_from_cookie_success() {
     );
 
     let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "cookie_token_value");
 }
 
@@ -297,7 +297,7 @@ fn test_extract_from_cookie_multiple_cookies() {
     );
 
     let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "the_token");
 }
 
@@ -307,7 +307,7 @@ fn test_extract_from_cookie_missing() {
     let headers = HeaderMap::new();
 
     let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(result.unwrap_err(), TokenExtractionError::MissingCookie);
 }
 
@@ -318,7 +318,7 @@ fn test_extract_from_cookie_token_not_found() {
     headers.insert("cookie", HeaderValue::from_static("other_cookie=value"));
 
     let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::TokenNotFoundInCookie
@@ -332,7 +332,7 @@ fn test_extract_from_cookie_empty_value() {
     headers.insert("cookie", HeaderValue::from_static("access_token="));
 
     let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(
         result.unwrap_err(),
         TokenExtractionError::TokenNotFoundInCookie
@@ -349,7 +349,7 @@ fn test_extract_from_cookie_with_spaces() {
     );
 
     let result = extractor.extract_from_cookie(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     // Cookie parsing extracts value up to the next semicolon (trimmed)
     assert_eq!(result.unwrap(), "spaced_token");
 }
@@ -376,7 +376,7 @@ fn test_extract_fallback_authorization_first() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "auth_token");
 }
 
@@ -394,7 +394,7 @@ fn test_extract_fallback_to_mcp_proxy() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "mcp_token");
 }
 
@@ -408,7 +408,7 @@ fn test_extract_fallback_to_cookie() {
     );
 
     let result = extractor.extract(&headers);
-    assert!(result.is_ok());
+    result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "cookie_token");
 }
 
@@ -418,7 +418,7 @@ fn test_extract_no_token_found() {
     let headers = HeaderMap::new();
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(result.unwrap_err(), TokenExtractionError::NoTokenFound);
 }
 
@@ -429,7 +429,7 @@ fn test_extract_empty_chain() {
     headers.insert("authorization", HeaderValue::from_static("Bearer token"));
 
     let result = extractor.extract(&headers);
-    assert!(result.is_err());
+    result.as_ref().expect_err("result should fail");
     assert_eq!(result.unwrap_err(), TokenExtractionError::NoTokenFound);
 }
 

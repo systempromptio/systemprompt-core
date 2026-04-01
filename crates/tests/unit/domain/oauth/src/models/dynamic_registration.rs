@@ -27,8 +27,8 @@ fn create_valid_request() -> DynamicRegistrationRequest {
 fn test_dynamic_registration_request_deserialization() {
     let request = create_valid_request();
     assert_eq!(request.client_name, Some("Test Client".to_string()));
-    assert!(request.redirect_uris.is_some());
-    assert!(request.grant_types.is_some());
+    request.redirect_uris.expect("expected Some value");
+    request.grant_types.expect("expected Some value");
 }
 
 #[test]
@@ -48,15 +48,15 @@ fn test_dynamic_registration_request_with_software_statement() {
         "software_statement": "eyJhbGciOiJSUzI1NiJ9..."
     }"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    assert!(request.software_statement.is_some());
+    request.software_statement.expect("expected Some value");
 }
 
 #[test]
 fn test_get_client_name_success() {
     let request = create_valid_request();
     let result = request.get_client_name();
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "Test Client");
+    let val = result.expect("expected success");
+    assert_eq!(val, "Test Client");
 }
 
 #[test]
@@ -64,8 +64,8 @@ fn test_get_client_name_missing() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_client_name();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("client_name is required"));
+    let err = result.unwrap_err();
+    assert!(err.contains("client_name is required"));
 }
 
 #[test]
@@ -73,15 +73,15 @@ fn test_get_client_name_empty() {
     let json = r#"{"client_name": ""}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_client_name();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_get_redirect_uris_success() {
     let request = create_valid_request();
     let result = request.get_redirect_uris();
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap().len(), 1);
+    let val = result.expect("expected success");
+    assert_eq!(val.len(), 1);
 }
 
 #[test]
@@ -89,8 +89,8 @@ fn test_get_redirect_uris_missing() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_redirect_uris();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("redirect_uris are required"));
+    let err = result.unwrap_err();
+    assert!(err.contains("redirect_uris are required"));
 }
 
 #[test]
@@ -98,15 +98,15 @@ fn test_get_redirect_uris_empty() {
     let json = r#"{"redirect_uris": []}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_redirect_uris();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_get_grant_types_success() {
     let request = create_valid_request();
     let result = request.get_grant_types();
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec!["authorization_code"]);
+    let val = result.expect("expected success");
+    assert_eq!(val, vec!["authorization_code"]);
 }
 
 #[test]
@@ -114,8 +114,8 @@ fn test_get_grant_types_missing() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_grant_types();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("grant_types are required"));
+    let err = result.unwrap_err();
+    assert!(err.contains("grant_types are required"));
 }
 
 #[test]
@@ -123,15 +123,15 @@ fn test_get_grant_types_empty() {
     let json = r#"{"grant_types": []}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_grant_types();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_get_response_types_success() {
     let request = create_valid_request();
     let result = request.get_response_types();
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec!["code"]);
+    let val = result.expect("expected success");
+    assert_eq!(val, vec!["code"]);
 }
 
 #[test]
@@ -139,8 +139,8 @@ fn test_get_response_types_missing() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_response_types();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("response_types are required"));
+    let err = result.unwrap_err();
+    assert!(err.contains("response_types are required"));
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn test_get_response_types_empty() {
     let json = r#"{"response_types": []}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_response_types();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -188,8 +188,8 @@ fn test_get_scopes_missing() {
 fn test_get_token_endpoint_auth_method_success() {
     let request = create_valid_request();
     let result = request.get_token_endpoint_auth_method();
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "client_secret_post");
+    let val = result.expect("expected success");
+    assert_eq!(val, "client_secret_post");
 }
 
 #[test]
@@ -197,8 +197,8 @@ fn test_get_token_endpoint_auth_method_missing() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_token_endpoint_auth_method();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("token_endpoint_auth_method is required"));
+    let err = result.unwrap_err();
+    assert!(err.contains("token_endpoint_auth_method is required"));
 }
 
 #[test]
@@ -206,7 +206,7 @@ fn test_get_token_endpoint_auth_method_empty() {
     let json = r#"{"token_endpoint_auth_method": ""}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_token_endpoint_auth_method();
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

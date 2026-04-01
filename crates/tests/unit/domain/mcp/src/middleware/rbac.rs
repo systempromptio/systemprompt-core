@@ -77,8 +77,8 @@ fn test_auth_result_expect_authenticated_success() {
     let auth_result = AuthResult::Authenticated(auth_ctx);
 
     let result = auth_result.expect_authenticated("should be authenticated");
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap().token(), "test_token");
+    let val = result.expect("expected success");
+    assert_eq!(val.token(), "test_token");
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_auth_result_expect_authenticated_failure() {
     let auth_result = AuthResult::Anonymous(context);
 
     let result = auth_result.expect_authenticated("authentication required");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

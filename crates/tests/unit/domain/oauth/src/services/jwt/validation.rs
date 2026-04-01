@@ -61,8 +61,7 @@ fn test_validate_jwt_token_success() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_ok());
-    let validated_claims = result.unwrap();
+    let validated_claims = result.expect("expected success");
     assert_eq!(validated_claims.sub, "550e8400-e29b-41d4-a716-446655440000");
     assert_eq!(validated_claims.username, "testuser");
     assert_eq!(validated_claims.email, "test@example.com");
@@ -80,7 +79,7 @@ fn test_validate_jwt_token_multiple_audiences() {
         &[JwtAudience::Api, JwtAudience::Web],
     );
 
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -90,7 +89,7 @@ fn test_validate_jwt_token_with_mcp_audience() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Mcp]);
 
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 #[test]
@@ -100,7 +99,7 @@ fn test_validate_jwt_token_with_a2a_audience() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::A2a]);
 
-    assert!(result.is_ok());
+    result.expect("expected success");
 }
 
 // ============================================================================
@@ -114,9 +113,7 @@ fn test_validate_jwt_token_expired() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string().to_lowercase();
-    assert!(err_msg.contains("expired") || err_msg.contains("exp"));
+    let err_msg = result.unwrap_err().to_string().to_lowercase();    assert!(err_msg.contains("expired") || err_msg.contains("exp"));
 }
 
 #[test]
@@ -126,7 +123,7 @@ fn test_validate_jwt_token_just_expired() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -140,8 +137,8 @@ fn test_validate_jwt_token_wrong_secret() {
 
     let result = validate_jwt_token(&token, "wrong_secret", TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("validation failed"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("validation failed"));
 }
 
 // ============================================================================
@@ -155,8 +152,8 @@ fn test_validate_jwt_token_wrong_issuer() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("validation failed"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("validation failed"));
 }
 
 // ============================================================================
@@ -170,8 +167,8 @@ fn test_validate_jwt_token_wrong_audience() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("validation failed"));
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("validation failed"));
 }
 
 #[test]
@@ -181,7 +178,7 @@ fn test_validate_jwt_token_missing_required_audience() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -197,14 +194,14 @@ fn test_validate_jwt_token_malformed() {
         &[JwtAudience::Api],
     );
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
 fn test_validate_jwt_token_empty() {
     let result = validate_jwt_token("", TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -216,7 +213,7 @@ fn test_validate_jwt_token_random_string() {
         &[JwtAudience::Api],
     );
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -228,7 +225,7 @@ fn test_validate_jwt_token_base64_but_not_jwt() {
         &[JwtAudience::Api],
     );
 
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================
@@ -243,8 +240,8 @@ fn test_validate_jwt_token_extracts_correct_subject() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap().sub, "user-id-12345");
+    let val = result.expect("expected success");
+    assert_eq!(val.sub, "user-id-12345");
 }
 
 #[test]
@@ -256,8 +253,7 @@ fn test_validate_jwt_token_extracts_username_and_email() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    assert!(result.is_ok());
-    let validated = result.unwrap();
+    let validated = result.expect("expected success");
     assert_eq!(validated.username, "john_doe");
     assert_eq!(validated.email, "john@example.com");
 }

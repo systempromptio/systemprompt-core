@@ -41,7 +41,7 @@ fn test_event_bus_sender() {
         agent_id: "test".to_string(),
     };
     let result = sender.send(event);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[tokio::test]

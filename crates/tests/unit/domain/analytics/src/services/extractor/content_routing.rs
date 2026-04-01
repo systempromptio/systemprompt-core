@@ -53,8 +53,8 @@ fn html_page_sets_entry_url() {
     let routing = MockHtmlRouting;
     let analytics =
         SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, Some(&routing));
-    assert!(analytics.entry_url.is_some());
-    assert!(analytics.entry_url.unwrap().contains("/about"));
+    let entry_url = analytics.entry_url.expect("expected Some value");
+    assert!(entry_url.contains("/about"));
 }
 
 #[test]

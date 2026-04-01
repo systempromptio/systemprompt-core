@@ -70,7 +70,7 @@ fn test_project_error_path_resolution_source() {
     // Check that error chain is preserved
     use std::error::Error;
     let source = error.source();
-    assert!(source.is_some());
+    source.expect("source should be present");
 }
 
 // ============================================================================

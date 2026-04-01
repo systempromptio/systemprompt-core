@@ -101,10 +101,10 @@ fn test_log_level_from_str_trace() {
 
 #[test]
 fn test_log_level_from_str_invalid() {
-    assert!("INVALID".parse::<LogLevel>().is_err());
-    assert!("".parse::<LogLevel>().is_err());
-    assert!("warning".parse::<LogLevel>().is_err());
-    assert!("err".parse::<LogLevel>().is_err());
+    "INVALID".parse::<LogLevel>().unwrap_err();
+    "".parse::<LogLevel>().unwrap_err();
+    "warning".parse::<LogLevel>().unwrap_err();
+    "err".parse::<LogLevel>().unwrap_err();
 }
 
 // ============================================================================

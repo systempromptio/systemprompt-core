@@ -281,7 +281,7 @@ fn test_track_click_params_with_context() {
         country: Some("UK".to_string()),
     };
 
-    assert!(params.user_id.is_some());
-    assert!(params.context_id.is_some());
+    params.user_id.expect("expected Some value");
+    params.context_id.expect("expected Some value");
     assert_eq!(params.device_type, Some("tablet".to_string()));
 }

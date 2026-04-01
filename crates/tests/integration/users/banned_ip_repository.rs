@@ -136,7 +136,7 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
     repo.ban_ip(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    assert!(ban.is_some());
+    ban.as_ref().expect("ban should be present");
 
     let ban = ban.expect("Ban should exist");
     assert_eq!(ban.ip_address, test_ip);
@@ -168,7 +168,7 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
     repo.ban_ip(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    assert!(ban.is_some());
+    ban.as_ref().expect("ban should be present");
 
     let ban = ban.expect("Ban should exist");
     assert_eq!(ban.source_fingerprint.as_deref(), Some(fingerprint));
@@ -201,7 +201,7 @@ async fn ban_ip_permanent() -> Result<()> {
     repo.ban_ip(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    assert!(ban.is_some());
+    ban.as_ref().expect("ban should be present");
 
     let ban = ban.expect("Ban should exist");
     assert!(ban.is_permanent);
@@ -280,13 +280,13 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
     repo.ban_ip_with_metadata(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    assert!(ban.is_some());
+    ban.as_ref().expect("ban should be present");
 
     let ban = ban.expect("Ban should exist");
     assert_eq!(ban.source_fingerprint.as_deref(), Some("fp-123"));
     assert_eq!(ban.last_offense_path.as_deref(), Some("/api/v1/malicious"));
     assert_eq!(ban.last_user_agent.as_deref(), Some("TestBot/1.0"));
-    assert!(ban.associated_session_ids.is_some());
+    ban.associated_session_ids.expect("ban.associated_session_ids should be present");
 
     // Cleanup
     cleanup_test_ip(&repo, test_ip).await;

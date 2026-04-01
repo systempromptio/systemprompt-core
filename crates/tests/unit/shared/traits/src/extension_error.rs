@@ -64,8 +64,7 @@ mod mcp_error_data_tests {
         let err = McpErrorData::new(400, "Bad request")
             .with_data(serde_json::json!({"field": "email", "reason": "invalid format"}));
 
-        assert!(err.data.is_some());
-        let data = err.data.unwrap();
+        let data = err.data.expect("data should be present");
         assert_eq!(data["field"], "email");
         assert_eq!(data["reason"], "invalid format");
     }
@@ -77,7 +76,7 @@ mod mcp_error_data_tests {
 
         assert_eq!(err.code, 500);
         assert_eq!(err.message, "Internal error");
-        assert!(err.data.is_some());
+        err.data.as_ref().expect("data should be present");
     }
 
     #[test]
@@ -215,9 +214,7 @@ mod extension_error_trait_tests {
 
         assert_eq!(mcp_err.code, 400); // BAD_REQUEST
         assert_eq!(mcp_err.message, "test error: mcp test");
-        assert!(mcp_err.data.is_some());
-
-        let data = mcp_err.data.unwrap();
+        let data = mcp_err.data.expect("mcp error data should be present");
         assert_eq!(data["code"], "TEST_ERROR");
         assert_eq!(data["retryable"], true);
     }

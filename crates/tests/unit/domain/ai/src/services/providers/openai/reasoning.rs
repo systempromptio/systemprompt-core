@@ -9,7 +9,6 @@ mod build_reasoning_config_tests {
     #[test]
     fn returns_config_for_o1_model() {
         let config = build_reasoning_config("o1");
-        assert!(config.is_some());
         let config = config.expect("config should exist");
         assert!(matches!(config, OpenAiReasoningEffort::Medium));
     }
@@ -17,25 +16,25 @@ mod build_reasoning_config_tests {
     #[test]
     fn returns_config_for_o1_mini() {
         let config = build_reasoning_config("o1-mini");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]
     fn returns_config_for_o1_preview() {
         let config = build_reasoning_config("o1-preview");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]
     fn returns_config_for_o3_model() {
         let config = build_reasoning_config("o3");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]
     fn returns_config_for_o3_mini() {
         let config = build_reasoning_config("o3-mini");
-        assert!(config.is_some());
+        config.as_ref().expect("config should be present");
     }
 
     #[test]

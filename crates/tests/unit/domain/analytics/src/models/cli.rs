@@ -177,7 +177,7 @@ mod session_row_tests {
         };
 
         assert_eq!(row.started_at, now);
-        assert!(row.user_id.is_some());
+        row.user_id.expect("expected Some value");
         assert_eq!(row.duration_seconds, Some(180));
     }
 

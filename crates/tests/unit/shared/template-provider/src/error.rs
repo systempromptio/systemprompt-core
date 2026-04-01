@@ -113,7 +113,7 @@ mod error_traits_tests {
         let path = PathBuf::from("/test");
         let io_err = std::io::Error::new(ErrorKind::NotFound, "not found");
         let err = TemplateLoaderError::io(path, io_err);
-        assert!(err.source().is_some());
+        err.source().expect("err.source() should be present");
     }
 
     #[test]

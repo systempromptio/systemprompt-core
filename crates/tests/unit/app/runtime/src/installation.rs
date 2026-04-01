@@ -78,8 +78,8 @@ fn test_module_with_description() {
         path: PathBuf::from("/tmp"),
     };
 
-    assert!(module.description.is_some());
-    assert!(module.description.unwrap().contains("detailed"));
+    module.description.as_ref().expect("module.description should be present");
+    assert!(module.description.as_ref().unwrap().contains("detailed"));
 }
 
 #[test]
@@ -314,7 +314,7 @@ fn test_module_with_schemas() {
         path: PathBuf::from("/tmp"),
     };
 
-    assert!(module.schemas.is_some());
+    module.schemas.as_ref().expect("module.schemas should be present");
     assert_eq!(module.schemas.as_ref().unwrap().len(), 2);
 }
 
@@ -352,7 +352,7 @@ fn test_module_with_seeds() {
         path: PathBuf::from("/tmp"),
     };
 
-    assert!(module.seeds.is_some());
+    module.seeds.as_ref().expect("module.seeds should be present");
     assert_eq!(module.seeds.as_ref().unwrap().len(), 2);
 }
 
@@ -388,10 +388,10 @@ fn test_module_complete_configuration() {
         path: PathBuf::from("/var/modules/complete"),
     };
 
-    assert!(module.schemas.is_some());
-    assert!(module.seeds.is_some());
-    assert!(module.description.is_some());
-    assert!(module.weight.is_some());
+    module.schemas.expect("module.schemas should be present");
+    module.seeds.expect("module.seeds should be present");
+    module.description.expect("module.description should be present");
+    module.weight.expect("module.weight should be present");
     assert!(!module.dependencies.is_empty());
     assert!(!module.audience.is_empty());
 }

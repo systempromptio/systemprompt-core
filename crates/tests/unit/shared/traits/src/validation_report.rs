@@ -28,7 +28,7 @@ mod validation_error_tests {
         let err = ValidationError::new("database", "Connection failed")
             .with_path("/etc/config.yaml");
 
-        assert!(err.path.is_some());
+        err.path.as_ref().expect("path should be set");
         assert_eq!(err.path.unwrap(), PathBuf::from("/etc/config.yaml"));
     }
 
@@ -37,7 +37,7 @@ mod validation_error_tests {
         let err = ValidationError::new("api_key", "Missing API key")
             .with_suggestion("Set the API_KEY environment variable");
 
-        assert!(err.suggestion.is_some());
+        err.suggestion.as_ref().expect("suggestion should be set");
         assert_eq!(err.suggestion.unwrap(), "Set the API_KEY environment variable");
     }
 
@@ -49,8 +49,8 @@ mod validation_error_tests {
 
         assert_eq!(err.field, "field");
         assert_eq!(err.message, "message");
-        assert!(err.path.is_some());
-        assert!(err.suggestion.is_some());
+        err.path.as_ref().expect("path should be set");
+        err.suggestion.as_ref().expect("suggestion should be set");
     }
 
     #[test]
@@ -100,7 +100,7 @@ mod validation_warning_tests {
         let warning = ValidationWarning::new("old_format", "Format is outdated")
             .with_suggestion("Use the new YAML format");
 
-        assert!(warning.suggestion.is_some());
+        warning.suggestion.as_ref().expect("suggestion should be set");
         assert_eq!(warning.suggestion.unwrap(), "Use the new YAML format");
     }
 
@@ -225,7 +225,7 @@ mod startup_validation_report_tests {
         let report = StartupValidationReport::new()
             .with_profile_path("/etc/profile.yaml");
 
-        assert!(report.profile_path.is_some());
+        report.profile_path.as_ref().expect("profile_path should be set");
         assert_eq!(report.profile_path.unwrap(), PathBuf::from("/etc/profile.yaml"));
     }
 

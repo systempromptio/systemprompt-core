@@ -248,5 +248,5 @@ fn test_utm_params_deserialize_empty() {
 fn test_utm_params_deserialize_invalid() {
     let json = "not valid json";
     let result: Result<UtmParams, _> = serde_json::from_str(json);
-    assert!(result.is_err());
+    result.unwrap_err();
 }

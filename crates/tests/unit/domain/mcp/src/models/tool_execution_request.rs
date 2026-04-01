@@ -51,7 +51,7 @@ fn test_tool_execution_request_creation() {
     assert_eq!(request.server_name, "test-server");
     assert_eq!(request.request_method, Some("POST".to_string()));
     assert_eq!(request.request_source, Some("api".to_string()));
-    assert!(request.ai_tool_call_id.is_some());
+    request.ai_tool_call_id.expect("expected Some value");
 }
 
 #[test]
@@ -157,8 +157,8 @@ fn test_tool_execution_request_timestamps() {
 fn test_tool_execution_result_success() {
     let result = create_test_result();
 
-    assert!(result.output.is_some());
-    assert!(result.output_schema.is_some());
+    result.output.expect("expected Some value");
+    result.output_schema.expect("expected Some value");
     assert_eq!(result.status, "success");
     assert!(result.error_message.is_none());
 }

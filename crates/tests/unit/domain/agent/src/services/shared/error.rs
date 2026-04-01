@@ -186,7 +186,7 @@ fn test_result_ok() {
 fn test_result_err() {
     let result: systemprompt_agent::services::shared::error::Result<i32> =
         Err(AgentServiceError::NotFound("item".to_string()));
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 // ============================================================================

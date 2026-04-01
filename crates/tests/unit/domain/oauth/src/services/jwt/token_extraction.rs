@@ -16,8 +16,8 @@ fn test_extract_bearer_token_success() {
     );
 
     let result = extract_bearer_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "my_test_token_12345");
+    let val = result.expect("expected success");
+    assert_eq!(val, "my_test_token_12345");
 }
 
 #[test]
@@ -25,7 +25,7 @@ fn test_extract_bearer_token_missing_header() {
     let headers = HeaderMap::new();
 
     let result = extract_bearer_token(&headers);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn test_extract_bearer_token_invalid_format_no_bearer_prefix() {
     headers.insert("authorization", "my_test_token".parse().unwrap());
 
     let result = extract_bearer_token(&headers);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn test_extract_bearer_token_empty_token() {
     headers.insert("authorization", "Bearer ".parse().unwrap());
 
     let result = extract_bearer_token(&headers);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_extract_bearer_token_basic_auth_rejected() {
     );
 
     let result = extract_bearer_token(&headers);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn test_extract_bearer_token_lowercase_bearer_rejected() {
     headers.insert("authorization", "bearer my_token_123".parse().unwrap());
 
     let result = extract_bearer_token(&headers);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -74,8 +74,8 @@ fn test_extract_bearer_token_with_jwt_format() {
     headers.insert("authorization", format!("Bearer {}", jwt).parse().unwrap());
 
     let result = extract_bearer_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), jwt);
+    let val = result.expect("expected success");
+    assert_eq!(val, jwt);
 }
 
 // ============================================================================
@@ -88,8 +88,8 @@ fn test_extract_cookie_token_success() {
     headers.insert("cookie", "access_token=my_token_value".parse().unwrap());
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "my_token_value");
+    let val = result.expect("expected success");
+    assert_eq!(val, "my_token_value");
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn test_extract_cookie_token_missing_header() {
     let headers = HeaderMap::new();
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn test_extract_cookie_token_no_access_token_cookie() {
     headers.insert("cookie", "session_id=abc123".parse().unwrap());
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]
@@ -120,8 +120,8 @@ fn test_extract_cookie_token_multiple_cookies() {
     );
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "my_jwt_token");
+    let val = result.expect("expected success");
+    assert_eq!(val, "my_jwt_token");
 }
 
 #[test]
@@ -135,8 +135,8 @@ fn test_extract_cookie_token_with_spaces() {
     );
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "my_token");
+    let val = result.expect("expected success");
+    assert_eq!(val, "my_token");
 }
 
 #[test]
@@ -148,8 +148,8 @@ fn test_extract_cookie_token_at_start() {
     );
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "first_token");
+    let val = result.expect("expected success");
+    assert_eq!(val, "first_token");
 }
 
 #[test]
@@ -158,8 +158,8 @@ fn test_extract_cookie_token_empty_value() {
     headers.insert("cookie", "access_token=".parse().unwrap());
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "");
+    let val = result.expect("expected success");
+    assert_eq!(val, "");
 }
 
 #[test]
@@ -169,8 +169,8 @@ fn test_extract_cookie_token_jwt_format() {
     headers.insert("cookie", format!("access_token={}", jwt).parse().unwrap());
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), jwt);
+    let val = result.expect("expected success");
+    assert_eq!(val, jwt);
 }
 
 #[test]
@@ -182,6 +182,6 @@ fn test_extract_cookie_token_similar_cookie_name() {
     );
 
     let result = extract_cookie_token(&headers);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "correct");
+    let val = result.expect("expected success");
+    assert_eq!(val, "correct");
 }

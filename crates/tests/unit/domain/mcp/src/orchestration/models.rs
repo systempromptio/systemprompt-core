@@ -114,7 +114,7 @@ fn test_server_status_running_healthy() {
     assert!(status.running);
     assert!(status.healthy);
     assert_eq!(status.tool_count, 10);
-    assert!(status.last_check.is_some());
+    status.last_check.expect("expected Some value");
 }
 
 #[test]

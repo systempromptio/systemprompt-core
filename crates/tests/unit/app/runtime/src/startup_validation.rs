@@ -90,7 +90,7 @@ fn test_validator_in_option() {
     assert!(maybe_validator.is_none());
 
     maybe_validator = Some(StartupValidator::new());
-    assert!(maybe_validator.is_some());
+    maybe_validator.as_ref().expect("maybe_validator should be present");
 
     maybe_validator = None;
     assert!(maybe_validator.is_none());
@@ -164,13 +164,13 @@ fn test_validation_error_has_message() {
 #[test]
 fn test_validation_error_optional_path() {
     let path: Option<&str> = Some("/path/to/config.yaml");
-    assert!(path.is_some());
+    path.expect("path should be present");
 }
 
 #[test]
 fn test_validation_error_optional_suggestion() {
     let suggestion: Option<&str> = Some("Check your configuration file");
-    assert!(suggestion.is_some());
+    suggestion.expect("suggestion should be present");
 }
 
 // ============================================================================
@@ -318,7 +318,7 @@ fn test_startup_validation_report_with_profile_path() {
 
     let report = StartupValidationReport::new()
         .with_profile_path(PathBuf::from("/etc/config/profile.yaml"));
-    assert!(report.profile_path.is_some());
+    report.profile_path.expect("report.profile_path should be present");
 }
 
 #[test]
@@ -437,7 +437,7 @@ fn test_validation_error_with_path() {
 
     let error = ValidationError::new("field", "message")
         .with_path(PathBuf::from("/path/to/file"));
-    assert!(error.path.is_some());
+    error.path.expect("error.path should be present");
 }
 
 #[test]
@@ -446,8 +446,8 @@ fn test_validation_error_with_suggestion() {
 
     let error = ValidationError::new("field", "message")
         .with_suggestion("Try this fix");
-    assert!(error.suggestion.is_some());
-    assert_eq!(error.suggestion.unwrap(), "Try this fix");
+    error.suggestion.as_ref().expect("error.suggestion should be present");
+    assert_eq!(error.suggestion.as_ref().unwrap(), "Try this fix");
 }
 
 #[test]
@@ -460,8 +460,8 @@ fn test_validation_error_full_chain() {
         .with_suggestion("Check your database credentials");
     assert_eq!(error.field, "database_url");
     assert_eq!(error.message, "Connection failed");
-    assert!(error.path.is_some());
-    assert!(error.suggestion.is_some());
+    error.path.expect("error.path should be present");
+    error.suggestion.expect("error.suggestion should be present");
 }
 
 // ============================================================================
@@ -483,7 +483,7 @@ fn test_validation_warning_with_suggestion() {
 
     let warning = ValidationWarning::new("field", "message")
         .with_suggestion("Consider this");
-    assert!(warning.suggestion.is_some());
+    warning.suggestion.expect("warning.suggestion should be present");
 }
 
 // ============================================================================

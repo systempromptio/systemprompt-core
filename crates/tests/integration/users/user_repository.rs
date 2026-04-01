@@ -145,7 +145,7 @@ async fn find_by_id_returns_user() -> Result<()> {
 
     // Find by ID
     let found = repo.find_by_id(&created.id).await?;
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.as_ref().map(|u| u.id.to_string()), Some(created.id.to_string()));
 
     // Cleanup
@@ -194,7 +194,7 @@ async fn find_by_email_returns_user() -> Result<()> {
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
     let found = repo.find_by_email(&unique_email).await?;
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.as_ref().map(|u| &u.email), Some(&unique_email));
 
     // Cleanup
@@ -242,7 +242,7 @@ async fn find_by_name_returns_user() -> Result<()> {
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
     let found = repo.find_by_name(&unique_name).await?;
-    assert!(found.is_some());
+    found.as_ref().expect("found should be present");
     assert_eq!(found.as_ref().map(|u| &u.name), Some(&unique_name));
 
     // Cleanup
@@ -556,7 +556,7 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
 
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
     let result = repo.delete(&fake_id).await;
-    assert!(result.is_err());
+    result.unwrap_err();
 
     Ok(())
 }
@@ -602,7 +602,7 @@ async fn get_authenticated_user_returns_active_user() -> Result<()> {
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
     let auth_user = repo.get_authenticated_user(&created.id).await?;
-    assert!(auth_user.is_some());
+    auth_user.expect("auth_user should be present");
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")

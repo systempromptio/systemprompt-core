@@ -140,8 +140,7 @@ mod analytics_session_tests {
     #[test]
     fn session_stores_user_id() {
         let session = create_session();
-        assert!(session.user_id.is_some());
-        assert_eq!(session.user_id.unwrap().as_str(), "user_456");
+        assert_eq!(session.user_id.expect("should have user_id").as_str(), "user_456");
     }
 
     #[test]
@@ -302,8 +301,7 @@ mod analytics_event_tests {
     #[test]
     fn event_stores_session_id() {
         let event = create_event();
-        assert!(event.session_id.is_some());
-        assert_eq!(event.session_id.unwrap().as_str(), "sess_789");
+        assert_eq!(event.session_id.expect("should have session_id").as_str(), "sess_789");
     }
 
     #[test]
@@ -315,8 +313,7 @@ mod analytics_event_tests {
     #[test]
     fn event_stores_metadata() {
         let event = create_event();
-        assert!(event.metadata.is_some());
-        assert!(event.metadata.unwrap().contains("page"));
+        assert!(event.metadata.expect("should have metadata").contains("page"));
     }
 
     #[test]
