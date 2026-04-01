@@ -10,6 +10,10 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod jobs;
+#[cfg(test)]
 mod models;
 #[cfg(test)]
 mod orchestration;
+#[cfg(test)]
+mod state_transitions;
