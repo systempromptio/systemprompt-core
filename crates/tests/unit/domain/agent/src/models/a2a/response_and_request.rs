@@ -13,7 +13,7 @@ fn test_jsonrpc_response_with_result() {
     };
 
     assert_eq!(response.jsonrpc, "2.0");
-    assert!(response.result.is_some());
+    response.result.expect("response with result should have result");
     assert!(response.error.is_none());
 }
 
@@ -27,8 +27,8 @@ fn test_jsonrpc_response_with_error() {
     };
 
     assert!(response.result.is_none());
-    assert!(response.error.is_some());
-    assert_eq!(response.error.as_ref().unwrap().code, -32600);
+    let error = response.error.expect("response with error should have error");
+    assert_eq!(error.code, -32600);
 }
 
 #[test]

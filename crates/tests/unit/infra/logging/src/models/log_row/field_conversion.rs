@@ -24,8 +24,7 @@ fn test_log_row_to_log_entry_with_valid_metadata() {
 
     let entry: LogEntry = row.into();
 
-    assert!(entry.metadata.is_some());
-    let meta = entry.metadata.unwrap();
+    let meta = entry.metadata.expect("valid JSON metadata should be preserved");
     assert_eq!(meta["key"], "value");
     assert_eq!(meta["number"], 42);
 }
@@ -111,8 +110,8 @@ fn test_log_row_to_log_entry_with_task_id() {
     };
 
     let entry: LogEntry = row.into();
-    assert!(entry.task_id.is_some());
-    assert_eq!(entry.task_id.as_ref().unwrap().as_str(), "task-abcde");
+    let task_id = entry.task_id.expect("task_id should be set");
+    assert_eq!(task_id.as_str(), "task-abcde");
 }
 
 #[test]
@@ -154,8 +153,8 @@ fn test_log_row_to_log_entry_with_context_id() {
     };
 
     let entry: LogEntry = row.into();
-    assert!(entry.context_id.is_some());
-    assert_eq!(entry.context_id.as_ref().unwrap().as_str(), "context-klmno");
+    let context_id = entry.context_id.expect("context_id should be set");
+    assert_eq!(context_id.as_str(), "context-klmno");
 }
 
 #[test]
@@ -176,8 +175,8 @@ fn test_log_row_to_log_entry_with_client_id() {
     };
 
     let entry: LogEntry = row.into();
-    assert!(entry.client_id.is_some());
-    assert_eq!(entry.client_id.as_ref().unwrap().as_str(), "client-pqrst");
+    let client_id = entry.client_id.expect("client_id should be set");
+    assert_eq!(client_id.as_str(), "client-pqrst");
 }
 
 #[test]
@@ -246,11 +245,11 @@ fn test_log_row_to_log_entry_full_conversion() {
     assert_eq!(entry.level, LogLevel::Warn);
     assert_eq!(entry.module, "full::conversion");
     assert_eq!(entry.message, "Full conversion test");
-    assert!(entry.metadata.is_some());
+    entry.metadata.as_ref().expect("full conversion should preserve metadata");
     assert_eq!(entry.user_id.as_str(), "user-full");
     assert_eq!(entry.session_id.as_str(), "session-full");
-    assert!(entry.task_id.is_some());
+    entry.task_id.as_ref().expect("full conversion should preserve task_id");
     assert_eq!(entry.trace_id.as_str(), "trace-full");
-    assert!(entry.context_id.is_some());
-    assert!(entry.client_id.is_some());
+    entry.context_id.as_ref().expect("full conversion should preserve context_id");
+    entry.client_id.as_ref().expect("full conversion should preserve client_id");
 }

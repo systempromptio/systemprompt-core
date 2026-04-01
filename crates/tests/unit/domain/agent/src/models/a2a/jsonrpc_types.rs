@@ -54,8 +54,8 @@ fn test_jsonrpc_error_with_data() {
     let error = JsonRpcError::with_data(-32000, "Custom error", serde_json::json!({"details": "test"}));
     assert_eq!(error.code, -32000);
     assert_eq!(error.message, "Custom error");
-    assert!(error.data.is_some());
-    assert_eq!(error.data.unwrap()["details"], "test");
+    let data = error.data.expect("error with_data should have data field");
+    assert_eq!(data["details"], "test");
 }
 
 #[test]

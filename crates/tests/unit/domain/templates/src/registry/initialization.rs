@@ -13,11 +13,8 @@ mod initialization_tests {
 
         let result = registry.initialize().await;
 
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            TemplateError::NotInitialized
-        ));
+        let err = result.unwrap_err();
+        assert!(matches!(err, TemplateError::NotInitialized));
     }
 
     #[tokio::test]
@@ -25,9 +22,7 @@ mod initialization_tests {
         let mut registry = TemplateRegistry::new();
         registry.register_loader(loader(MockLoader::new()));
 
-        let result = registry.initialize().await;
-
-        assert!(result.is_ok());
+        registry.initialize().await.expect("should initialize with loader and no templates");
         assert_eq!(registry.stats().templates, 0);
     }
 
@@ -42,9 +37,7 @@ mod initialization_tests {
         registry.register_provider(provider(MockProvider::with_templates("test", templates)));
         registry.register_loader(loader(MockLoader::new()));
 
-        let result = registry.initialize().await;
-
-        assert!(result.is_ok());
+        registry.initialize().await.expect("should initialize with templates");
         assert_eq!(registry.stats().templates, 2);
         assert!(registry.has_template("template-1"));
         assert!(registry.has_template("template-2"));

@@ -203,8 +203,8 @@ rate_limits:
     let profile = ProfileLoader::load_from_path(&profile_path).expect("Failed to load profile");
 
     // Save to a different location
-    let save_result = ProfileLoader::save(&profile, temp_dir.path());
-    assert!(save_result.is_ok());
+    ProfileLoader::save(&profile, temp_dir.path())
+        .expect("should save profile");
 
     // Verify the saved file exists
     let saved_path = temp_dir
@@ -285,8 +285,8 @@ rate_limits:
     // profiles directory doesn't exist yet
     assert!(!temp_dir.path().join("profiles").exists());
 
-    let save_result = ProfileLoader::save(&profile, temp_dir.path());
-    assert!(save_result.is_ok());
+    ProfileLoader::save(&profile, temp_dir.path())
+        .expect("should save profile and create directory");
 
     // Now it should exist
     assert!(temp_dir.path().join("profiles").exists());

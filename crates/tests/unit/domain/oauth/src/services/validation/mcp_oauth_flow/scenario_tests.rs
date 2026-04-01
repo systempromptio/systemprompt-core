@@ -107,9 +107,8 @@ fn scenario_authorize_with_resource_bypasses_client_scope_check() {
     let requested_scopes = vec!["user".to_string(), "admin".to_string()];
     let resource_scopes = Some("user admin");
 
-    let result =
-        simulate_authorize_scope_check(&client_scopes, &requested_scopes, resource_scopes);
-    assert!(result.is_ok());
+    simulate_authorize_scope_check(&client_scopes, &requested_scopes, resource_scopes)
+        .expect("authorization with resource should pass");
 }
 
 #[test]
@@ -117,11 +116,8 @@ fn scenario_authorize_without_resource_no_client_scope_check() {
     let client_scopes = vec!["user".to_string()];
     let requested_scopes = vec!["user".to_string(), "admin".to_string()];
 
-    let result = simulate_authorize_scope_check(&client_scopes, &requested_scopes, None);
-    assert!(
-        result.is_ok(),
-        "Authorization no longer checks client scopes — user permissions are the security boundary"
-    );
+    simulate_authorize_scope_check(&client_scopes, &requested_scopes, None)
+        .expect("authorization no longer checks client scopes — user permissions are the security boundary");
 }
 
 #[test]
@@ -129,8 +125,8 @@ fn scenario_authorize_broad_client_scopes_no_resource_needed() {
     let client_scopes = vec!["user".to_string(), "admin".to_string()];
     let requested_scopes = vec!["user".to_string(), "admin".to_string()];
 
-    let result = simulate_authorize_scope_check(&client_scopes, &requested_scopes, None);
-    assert!(result.is_ok());
+    simulate_authorize_scope_check(&client_scopes, &requested_scopes, None)
+        .expect("broad client scopes should pass without resource");
 }
 
 #[test]
@@ -138,8 +134,8 @@ fn scenario_authorize_subset_of_client_scopes() {
     let client_scopes = vec!["user".to_string(), "admin".to_string()];
     let requested_scopes = vec!["user".to_string()];
 
-    let result = simulate_authorize_scope_check(&client_scopes, &requested_scopes, None);
-    assert!(result.is_ok());
+    simulate_authorize_scope_check(&client_scopes, &requested_scopes, None)
+        .expect("subset of client scopes should pass");
 }
 
 #[test]
@@ -215,9 +211,8 @@ fn scenario_full_claude_code_flow() {
     let mcp_server_scopes = "user admin";
     let requested = OAuthRepository::parse_scopes(mcp_server_scopes);
 
-    let auth_result =
-        simulate_authorize_scope_check(&client_scopes, &requested, Some(mcp_server_scopes));
-    assert!(auth_result.is_ok(), "Authorization passes — only validates scopes are legitimate");
+    simulate_authorize_scope_check(&client_scopes, &requested, Some(mcp_server_scopes))
+        .expect("authorization passes — only validates scopes are legitimate");
 
     let admin_user_perms = vec![Permission::Admin, Permission::User];
     let token_perms = simulate_token_permission_resolution(
@@ -255,8 +250,8 @@ fn scenario_full_mcp_inspector_flow() {
     assert_eq!(client_scopes, vec!["user", "admin"]);
 
     let requested = vec!["user".to_string(), "admin".to_string()];
-    let auth_result = simulate_authorize_scope_check(&client_scopes, &requested, None);
-    assert!(auth_result.is_ok());
+    simulate_authorize_scope_check(&client_scopes, &requested, None)
+        .expect("MCP inspector authorization should pass");
 }
 
 #[test]
@@ -274,8 +269,8 @@ fn scenario_full_generic_client_no_resource_no_scope() {
     assert!(client_scopes.contains(&"user".to_string()));
 
     let requested = vec!["user".to_string(), "admin".to_string()];
-    let auth_result = simulate_authorize_scope_check(&client_scopes, &requested, None);
-    assert!(auth_result.is_ok(), "Authorization passes — scopes are valid system scopes");
+    simulate_authorize_scope_check(&client_scopes, &requested, None)
+        .expect("authorization passes — scopes are valid system scopes");
 }
 
 #[test]
@@ -292,9 +287,6 @@ fn scenario_client_requests_scope_from_protected_resource_metadata() {
 
     let scopes_from_protected_resource = "user admin";
     let requested = OAuthRepository::parse_scopes(scopes_from_protected_resource);
-    let auth_result = simulate_authorize_scope_check(&[], &requested, None);
-    assert!(
-        auth_result.is_ok(),
-        "Any client can request scopes — authorization only validates they're legitimate"
-    );
+    simulate_authorize_scope_check(&[], &requested, None)
+        .expect("any client can request scopes — authorization only validates they're legitimate");
 }

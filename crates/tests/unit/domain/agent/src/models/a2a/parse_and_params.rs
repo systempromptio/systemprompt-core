@@ -20,9 +20,8 @@ fn test_parse_message_send_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("1".to_string()),
     };
 
-    let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let parsed = request.parse_request().expect("should parse message/send request");
+    match parsed {
         A2aRequestParams::SendMessage(_) => {}
         _ => panic!("Expected SendMessage variant"),
     }
@@ -39,9 +38,8 @@ fn test_parse_tasks_get_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("2".to_string()),
     };
 
-    let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let parsed = request.parse_request().expect("should parse tasks/get request");
+    match parsed {
         A2aRequestParams::GetTask(params) => {
             assert_eq!(params.id, "task-123");
         }
@@ -60,9 +58,8 @@ fn test_parse_tasks_cancel_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::Number(3),
     };
 
-    let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let parsed = request.parse_request().expect("should parse tasks/cancel request");
+    match parsed {
         A2aRequestParams::CancelTask(params) => {
             assert_eq!(params.id, "task-456");
         }
@@ -87,9 +84,8 @@ fn test_parse_message_stream_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("4".to_string()),
     };
 
-    let result = request.parse_request();
-    assert!(result.is_ok());
-    match result.unwrap() {
+    let parsed = request.parse_request().expect("should parse message/stream request");
+    match parsed {
         A2aRequestParams::SendStreamingMessage(_) => {}
         _ => panic!("Expected SendStreamingMessage variant"),
     }
@@ -104,9 +100,7 @@ fn test_parse_unsupported_method() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("5".to_string()),
     };
 
-    let result = request.parse_request();
-    assert!(result.is_err());
-    let error = result.unwrap_err();
+    let error = request.parse_request().unwrap_err();
     assert!(error.to_string().contains("Unsupported method"));
 }
 
@@ -119,9 +113,7 @@ fn test_parse_invalid_params() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("6".to_string()),
     };
 
-    let result = request.parse_request();
-    assert!(result.is_err());
-    let error = result.unwrap_err();
+    let error = request.parse_request().unwrap_err();
     assert!(error.to_string().contains("Invalid parameters"));
 }
 
@@ -196,7 +188,7 @@ fn test_a2a_response_send_message() {
     match response {
         A2aResponse::SendMessage(res) => {
             assert_eq!(res.jsonrpc, "2.0");
-            assert!(res.result.is_some());
+            res.result.expect("send_message response should have result");
             assert!(res.error.is_none());
         }
         _ => panic!("Expected SendMessage variant"),
@@ -214,7 +206,7 @@ fn test_a2a_response_get_task() {
     match response {
         A2aResponse::GetTask(res) => {
             assert_eq!(res.jsonrpc, "2.0");
-            assert!(res.result.is_some());
+            res.result.expect("get_task response should have result");
             assert!(res.error.is_none());
         }
         _ => panic!("Expected GetTask variant"),
@@ -232,7 +224,7 @@ fn test_a2a_response_cancel_task() {
     match response {
         A2aResponse::CancelTask(res) => {
             assert_eq!(res.jsonrpc, "2.0");
-            assert!(res.result.is_some());
+            res.result.expect("cancel_task response should have result");
         }
         _ => panic!("Expected CancelTask variant"),
     }
@@ -285,7 +277,7 @@ fn test_task_state_parsing() {
 #[test]
 fn test_task_state_invalid_parsing() {
     let result: Result<TaskState, String> = "completely_invalid_state".parse();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid task state"));
+    let error = result.unwrap_err();
+    assert!(error.contains("Invalid task state"));
 }
 

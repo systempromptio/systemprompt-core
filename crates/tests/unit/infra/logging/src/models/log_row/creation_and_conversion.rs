@@ -29,13 +29,13 @@ fn test_log_row_creation() {
     assert_eq!(row.level, "info");
     assert_eq!(row.module, "test::module");
     assert_eq!(row.message, "Test message");
-    assert!(row.metadata.is_some());
-    assert!(row.user_id.is_some());
-    assert!(row.session_id.is_some());
-    assert!(row.task_id.is_some());
-    assert!(row.trace_id.is_some());
-    assert!(row.context_id.is_some());
-    assert!(row.client_id.is_some());
+    row.metadata.as_ref().expect("metadata should be set");
+    row.user_id.as_ref().expect("user_id should be set");
+    row.session_id.as_ref().expect("session_id should be set");
+    row.task_id.as_ref().expect("task_id should be set");
+    row.trace_id.as_ref().expect("trace_id should be set");
+    row.context_id.as_ref().expect("context_id should be set");
+    row.client_id.as_ref().expect("client_id should be set");
 }
 
 #[test]

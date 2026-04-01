@@ -47,11 +47,8 @@ fn test_command_result_copy_paste() {
 fn test_command_result_chart() {
     let result: CommandResult<Vec<i32>> = CommandResult::chart(vec![10, 20, 30], ChartType::Bar);
     assert!(matches!(result.artifact_type, ArtifactType::Chart));
-    assert!(result.hints.is_some());
-    assert!(matches!(
-        result.hints.as_ref().unwrap().chart_type,
-        Some(ChartType::Bar)
-    ));
+    let hints = result.hints.expect("chart should have hints");
+    assert!(matches!(hints.chart_type, Some(ChartType::Bar)));
 }
 
 #[test]
@@ -88,16 +85,16 @@ fn test_command_result_with_hints() {
     };
     let result = CommandResult::table("data")
         .with_hints(hints);
-    assert!(result.hints.is_some());
-    assert_eq!(result.hints.as_ref().unwrap().theme.as_ref().unwrap(), "dark");
+    let result_hints = result.hints.expect("should have hints after with_hints");
+    assert_eq!(result_hints.theme.as_ref().unwrap(), "dark");
 }
 
 #[test]
 fn test_command_result_with_columns() {
     let result = CommandResult::table("data")
         .with_columns(vec!["col1".to_string(), "col2".to_string()]);
-    assert!(result.hints.is_some());
-    let columns = result.hints.as_ref().unwrap().columns.as_ref().unwrap();
+    let result_hints = result.hints.expect("should have hints after with_columns");
+    let columns = result_hints.columns.as_ref().unwrap();
     assert_eq!(columns.len(), 2);
     assert_eq!(columns[0], "col1");
     assert_eq!(columns[1], "col2");
@@ -113,9 +110,9 @@ fn test_command_result_with_columns_preserves_existing_hints() {
         .with_hints(hints)
         .with_columns(vec!["col1".to_string()]);
 
-    let final_hints = result.hints.as_ref().unwrap();
+    let final_hints = result.hints.expect("should have hints after chaining");
     assert_eq!(final_hints.theme.as_ref().unwrap(), "dark");
-    assert!(final_hints.columns.is_some());
+    final_hints.columns.expect("should have columns after with_columns");
 }
 
 #[test]
@@ -135,7 +132,7 @@ fn test_command_result_builder_chain() {
 
     assert!(matches!(result.artifact_type, ArtifactType::Chart));
     assert_eq!(result.title.as_ref().unwrap(), "Sales Data");
-    assert!(result.hints.is_some());
+    result.hints.expect("chart with builder chain should have hints");
 }
 
 #[test]

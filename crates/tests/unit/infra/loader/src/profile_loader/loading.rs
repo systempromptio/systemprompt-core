@@ -70,13 +70,8 @@ rate_limits:
     let profile_path = temp_dir.path().join("test.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let result = ProfileLoader::load_from_path(&profile_path);
-    if let Err(ref e) = result {
-        eprintln!("Profile load error: {}", e);
-    }
-    assert!(result.is_ok(), "Profile load failed: {:?}", result.err());
-
-    let profile = result.expect("Should load profile");
+    let profile = ProfileLoader::load_from_path(&profile_path)
+        .expect("should load valid profile from path");
     assert_eq!(profile.name, "test");
     assert_eq!(profile.display_name, "Test Profile");
 }
@@ -84,9 +79,8 @@ rate_limits:
 #[test]
 fn test_load_from_path_nonexistent() {
     let path = Path::new("/nonexistent/profile.yaml");
-    let result = ProfileLoader::load_from_path(path);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Failed to read"));
+    let err = ProfileLoader::load_from_path(path).unwrap_err();
+    assert!(err.to_string().contains("Failed to read"));
 }
 
 #[test]
@@ -96,8 +90,7 @@ fn test_load_from_path_invalid_yaml() {
 
     std::fs::write(&profile_path, "invalid: yaml: : syntax").expect("Failed to write file");
 
-    let result = ProfileLoader::load_from_path(&profile_path);
-    assert!(result.is_err());
+    ProfileLoader::load_from_path(&profile_path).unwrap_err();
 }
 
 #[test]
@@ -105,7 +98,6 @@ fn test_load_from_path_missing_required_fields() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let profile_path = temp_dir.path().join("incomplete.yaml");
 
-    // Missing most required fields
     let content = r#"
 name: incomplete
 display_name: Incomplete
@@ -113,8 +105,7 @@ display_name: Incomplete
 
     std::fs::write(&profile_path, content).expect("Failed to write file");
 
-    let result = ProfileLoader::load_from_path(&profile_path);
-    assert!(result.is_err());
+    ProfileLoader::load_from_path(&profile_path).unwrap_err();
 }
 
 // ============================================================================
@@ -185,10 +176,8 @@ rate_limits:
     let profile_path = profiles_dir.join("dev.secrets.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let result = ProfileLoader::load(temp_dir.path(), "dev");
-    assert!(result.is_ok());
-
-    let profile = result.expect("Should load profile");
+    let profile = ProfileLoader::load(temp_dir.path(), "dev")
+        .expect("should load profile by name");
     assert_eq!(profile.name, "dev");
 }
 
@@ -198,6 +187,5 @@ fn test_load_by_name_not_found() {
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
-    let result = ProfileLoader::load(temp_dir.path(), "nonexistent");
-    assert!(result.is_err());
+    ProfileLoader::load(temp_dir.path(), "nonexistent").unwrap_err();
 }

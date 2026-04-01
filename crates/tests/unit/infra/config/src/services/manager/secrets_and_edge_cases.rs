@@ -142,9 +142,7 @@ fn test_generate_config_invalid_yaml() {
     fs::write(env_dir.join("config.yaml"), "name: test").expect("Failed to write config.yaml");
 
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
-    let result = manager.generate_config(DeployEnvironment::Local);
-
-    assert!(result.is_err());
+    manager.generate_config(DeployEnvironment::Local).unwrap_err();
 }
 
 #[test]

@@ -69,8 +69,8 @@ rate_limits:
     let profile_path = temp_dir.path().join("valid.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let result = ProfileLoader::load_from_path_and_validate(&profile_path);
-    assert!(result.is_ok());
+    ProfileLoader::load_from_path_and_validate(&profile_path)
+        .expect("valid profile should pass validation");
 }
 
 #[test]
@@ -135,9 +135,8 @@ rate_limits:
     let profile_path = temp_dir.path().join("invalid.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let result = ProfileLoader::load_from_path_and_validate(&profile_path);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("port"));
+    let err = ProfileLoader::load_from_path_and_validate(&profile_path).unwrap_err();
+    assert!(err.to_string().contains("port"));
 }
 
 // ============================================================================
@@ -210,10 +209,8 @@ rate_limits:
     let profile_path = temp_dir.path().join("env-test.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let result = ProfileLoader::load_from_path(&profile_path);
-    assert!(result.is_ok());
-
-    let profile = result.expect("Should load profile");
+    let profile = ProfileLoader::load_from_path(&profile_path)
+        .expect("should load profile with env var substitution");
     assert_eq!(profile.server.host, "env-host.example.com");
 
     // Clean up

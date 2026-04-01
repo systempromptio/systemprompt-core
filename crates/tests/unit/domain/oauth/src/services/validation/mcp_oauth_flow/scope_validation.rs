@@ -12,45 +12,42 @@ fn test_valid_scopes_include_user_and_admin() {
 
 #[test]
 fn test_validate_scopes_accepts_user() {
-    let result = OAuthRepository::validate_scopes(&["user".to_string()]);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec!["user"]);
+    let scopes = OAuthRepository::validate_scopes(&["user".to_string()])
+        .expect("user scope should be valid");
+    assert_eq!(scopes, vec!["user"]);
 }
 
 #[test]
 fn test_validate_scopes_accepts_admin() {
-    let result = OAuthRepository::validate_scopes(&["admin".to_string()]);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec!["admin"]);
+    let scopes = OAuthRepository::validate_scopes(&["admin".to_string()])
+        .expect("admin scope should be valid");
+    assert_eq!(scopes, vec!["admin"]);
 }
 
 #[test]
 fn test_validate_scopes_accepts_user_and_admin() {
-    let result =
-        OAuthRepository::validate_scopes(&["user".to_string(), "admin".to_string()]);
-    assert!(result.is_ok());
-    let scopes = result.unwrap();
+    let scopes =
+        OAuthRepository::validate_scopes(&["user".to_string(), "admin".to_string()])
+            .expect("user and admin scopes should be valid");
     assert!(scopes.contains(&"user".to_string()));
     assert!(scopes.contains(&"admin".to_string()));
 }
 
 #[test]
 fn test_validate_scopes_rejects_unknown() {
-    let result = OAuthRepository::validate_scopes(&["unknown_scope".to_string()]);
-    assert!(result.is_err());
+    OAuthRepository::validate_scopes(&["unknown_scope".to_string()]).unwrap_err();
 }
 
 #[test]
 fn test_validate_scopes_rejects_openid() {
-    let result = OAuthRepository::validate_scopes(&["openid".to_string()]);
-    assert!(result.is_err());
+    OAuthRepository::validate_scopes(&["openid".to_string()]).unwrap_err();
 }
 
 #[test]
 fn test_validate_scopes_empty_returns_empty() {
-    let result = OAuthRepository::validate_scopes(&[]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_empty());
+    let scopes = OAuthRepository::validate_scopes(&[])
+        .expect("empty scopes should be valid");
+    assert!(scopes.is_empty());
 }
 
 #[test]
@@ -266,8 +263,8 @@ fn test_scope_validation_consistent_with_permission_enum() {
 #[test]
 fn test_mcp_server_scope_user_admin_both_valid() {
     let mcp_scopes = vec!["user".to_string(), "admin".to_string()];
-    let result = OAuthRepository::validate_scopes(&mcp_scopes);
-    assert!(result.is_ok());
+    OAuthRepository::validate_scopes(&mcp_scopes)
+        .expect("user and admin MCP scopes should be valid");
 }
 
 #[test]

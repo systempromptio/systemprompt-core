@@ -43,9 +43,8 @@ mod template_lookup_tests {
         registry.register_loader(loader(MockLoader::new()));
         registry.initialize().await.expect("should initialize");
 
-        let found = registry.find_template("my-template");
-        assert!(found.is_some());
-        let def = found.unwrap();
+        let def = registry.find_template("my-template")
+            .expect("should find registered template");
         assert_eq!(def.name, "my-template");
         assert!(def.content_types.contains(&"article".to_string()));
     }

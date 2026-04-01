@@ -33,9 +33,7 @@ fn test_generate_config_missing_base_config() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
-    let result = manager.generate_config(DeployEnvironment::Local);
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
+    let err_msg = manager.generate_config(DeployEnvironment::Local).unwrap_err().to_string();
     assert!(err_msg.contains("Base config not found"));
 }
 
@@ -47,10 +45,7 @@ fn test_generate_config_missing_env_config() {
     fs::write(env_dir.join("base.yaml"), "service_name: test").expect("Failed to write base.yaml");
 
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
-    let result = manager.generate_config(DeployEnvironment::Local);
-
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
+    let err_msg = manager.generate_config(DeployEnvironment::Local).unwrap_err().to_string();
     assert!(err_msg.contains("Environment config not found"));
 }
 
@@ -69,10 +64,8 @@ port: 8080
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
-    let result = manager.generate_config(DeployEnvironment::Local);
-    assert!(result.is_ok());
-
-    let config = result.unwrap();
+    let config = manager.generate_config(DeployEnvironment::Local)
+        .expect("should generate simple config");
     assert_eq!(config.environment, DeployEnvironment::Local);
     assert_eq!(
         config.variables.get("SERVICE_NAME"),

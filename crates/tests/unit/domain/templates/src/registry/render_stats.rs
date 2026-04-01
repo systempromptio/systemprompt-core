@@ -16,7 +16,7 @@ mod render_tests {
 
         let result = registry.render("nonexistent", &data);
 
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 
     #[tokio::test]
@@ -29,10 +29,8 @@ mod render_tests {
         registry.initialize().await.expect("should initialize");
 
         let data = serde_json::json!({"name": "World"});
-        let result = registry.render("greeting", &data);
-
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = registry.render("greeting", &data)
+            .expect("should render greeting template");
         assert!(rendered.contains("Hello, World!"));
     }
 
@@ -46,10 +44,8 @@ mod render_tests {
         registry.initialize().await.expect("should initialize");
 
         let data = serde_json::json!({});
-        let result = registry.render("optional", &data);
-
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = registry.render("optional", &data)
+            .expect("should render optional template");
         assert!(rendered.contains("Value:"));
     }
 
@@ -69,10 +65,8 @@ mod render_tests {
                 "email": "alice@example.com"
             }
         });
-        let result = registry.render("nested", &data);
-
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = registry.render("nested", &data)
+            .expect("should render nested template");
         assert!(rendered.contains("Alice"));
         assert!(rendered.contains("alice@example.com"));
     }
@@ -92,10 +86,8 @@ mod render_tests {
         let data = serde_json::json!({
             "items": ["one", "two", "three"]
         });
-        let result = registry.render("list", &data);
-
-        assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = registry.render("list", &data)
+            .expect("should render list template");
         assert!(rendered.contains("<li>one</li>"));
         assert!(rendered.contains("<li>two</li>"));
         assert!(rendered.contains("<li>three</li>"));
@@ -112,14 +104,14 @@ mod render_tests {
         registry.initialize().await.expect("should initialize");
 
         let data_visible = serde_json::json!({"show": true});
-        let result = registry.render("cond", &data_visible);
-        assert!(result.is_ok());
-        assert!(result.unwrap().contains("Visible"));
+        let rendered_visible = registry.render("cond", &data_visible)
+            .expect("should render conditional with show=true");
+        assert!(rendered_visible.contains("Visible"));
 
         let data_hidden = serde_json::json!({"show": false});
-        let result = registry.render("cond", &data_hidden);
-        assert!(result.is_ok());
-        assert!(!result.unwrap().contains("Visible"));
+        let rendered_hidden = registry.render("cond", &data_hidden)
+            .expect("should render conditional with show=false");
+        assert!(!rendered_hidden.contains("Visible"));
     }
 }
 
