@@ -6,7 +6,7 @@ pub use builders::{
     build_submitted_task,
 };
 
-use crate::models::a2a::{Artifact, Message, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::TaskMetadata;
 
@@ -73,14 +73,13 @@ impl TaskBuilder {
 
     pub fn build(self) -> Task {
         let agent_message = Message {
-            role: "agent".to_string(),
+            role: MessageRole::Agent,
             parts: vec![Part::Text(TextPart {
                 text: self.response_text.clone(),
             })],
-            id: self.id.clone(),
+            message_id: self.id.clone(),
             task_id: Some(self.task_id.clone()),
             context_id: self.context_id.clone(),
-            kind: "message".to_string(),
             metadata: None,
             extensions: None,
             reference_task_ids: None,
@@ -90,14 +89,13 @@ impl TaskBuilder {
             Some(vec![
                 user_msg,
                 Message {
-                    role: "agent".to_string(),
+                    role: MessageRole::Agent,
                     parts: vec![Part::Text(TextPart {
                         text: self.response_text.clone(),
                     })],
-                    id: MessageId::generate(),
+                    message_id: MessageId::generate(),
                     task_id: Some(self.task_id.clone()),
                     context_id: self.context_id.clone(),
-                    kind: "message".to_string(),
                     metadata: None,
                     extensions: None,
                     reference_task_ids: None,
@@ -110,7 +108,6 @@ impl TaskBuilder {
         Task {
             id: self.task_id.clone(),
             context_id: self.context_id.clone(),
-            kind: "task".to_string(),
             status: TaskStatus {
                 state: self.state,
                 message: Some(agent_message),
@@ -123,6 +120,8 @@ impl TaskBuilder {
                 Some(self.artifacts)
             },
             metadata: self.metadata,
+            created_at: Some(chrono::Utc::now()),
+            last_modified: Some(chrono::Utc::now()),
         }
     }
 }

@@ -5,9 +5,9 @@ mod service_status;
 pub use systemprompt_models::a2a::{
     AgentAuthentication, AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature,
     AgentExtension, AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation, Artifact,
-    ArtifactMetadata, DataPart, FilePart, FileWithBytes, McpServerMetadata, McpToolsParams,
-    Message, MessageMetadata, MessageRole, OAuth2Flow, OAuth2Flows, Part, SecurityScheme, Task,
-    TaskState, TaskStatus, TextPart, TransportProtocol,
+    ArtifactMetadata, DataPart, FileContent, FilePart, McpServerMetadata, McpToolsParams, Message,
+    MessageMetadata, MessageRole, OAuth2Flow, OAuth2Flows, Part, SecurityScheme, Task, TaskState,
+    TaskStatus, TextPart, TransportProtocol,
 };
 
 pub use protocol::{

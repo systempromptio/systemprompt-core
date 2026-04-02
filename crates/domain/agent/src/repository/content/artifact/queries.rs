@@ -235,7 +235,7 @@ async fn row_to_artifact(
 
     Ok(Artifact {
         id: row.artifact_id,
-        name: row.name,
+        title: row.name,
         description: row.description,
         parts,
         extensions: vec![],

@@ -48,7 +48,7 @@ impl ArtifactRepository {
             task_id.as_str(),
             context_id.as_str(),
             artifact.id.as_str(),
-            artifact.name.as_deref(),
+            artifact.title.as_deref(),
             artifact.description.as_deref(),
             &artifact.metadata.artifact_type,
             artifact.metadata.source.as_deref(),

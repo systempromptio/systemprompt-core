@@ -33,10 +33,10 @@ pub mod validators;
 pub use a2a::{
     AgentAuthentication, AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature,
     AgentExtension, AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation,
-    Artifact as A2aArtifact, ArtifactMetadata, DataPart, FilePart, FileWithBytes,
+    Artifact as A2aArtifact, ArtifactMetadata, DataPart, FileContent, FilePart,
     McpServerMetadata, McpToolsParams, Message, MessageMetadata as A2aMessageMetadata,
-    MessageRole as A2aMessageRole, OAuth2Flow, OAuth2Flows, Part, SecurityScheme, Task,
-    TaskMetadata, TaskState, TaskStatus, TextPart, TransportProtocol,
+    MessageRole as A2aMessageRole, OAuth2Flow, OAuth2Flows, Part, ProtocolBinding, SecurityScheme,
+    Task, TaskMetadata, TaskState, TaskStatus, TextPart, TransportProtocol,
 };
 pub use admin::{
     ActivityTrend, AnalyticsData as AdminAnalyticsData, BotTrafficStats, BrowserBreakdown,

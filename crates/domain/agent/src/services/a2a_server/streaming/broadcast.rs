@@ -137,7 +137,8 @@ fn build_event_task(
         history: Some(vec![user_message.clone()]),
         artifacts: None,
         metadata: Some(TaskMetadata::new_agent_message(agent_name.to_string())),
-        kind: "task".to_string(),
+        created_at: Some(chrono::Utc::now()),
+        last_modified: Some(chrono::Utc::now()),
     }
 }
 

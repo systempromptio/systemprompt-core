@@ -11,7 +11,7 @@ use systemprompt_agent::models::a2a::protocol::{
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_logging::CliService;
-use systemprompt_models::a2a::{Message, Part, Task, TextPart};
+use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart};
 
 use super::types::MessageOutput;
 use crate::CliConfig;
@@ -108,14 +108,13 @@ pub async fn execute(
         method: method.to_string(),
         params: MessageSendParams {
             message: Message {
-                role: "user".to_string(),
+                role: MessageRole::User,
                 parts: vec![Part::Text(TextPart {
                     text: message_text.clone(),
                 })],
-                id: message_id,
+                message_id,
                 task_id,
                 context_id: context_id.clone(),
-                kind: "message".to_string(),
                 metadata: None,
                 extensions: None,
                 reference_task_ids: None,
@@ -216,11 +215,12 @@ async fn execute_streaming(
                                 final_task = Some(Task {
                                     id: event.task_id.into(),
                                     context_id: event.context_id.into(),
-                                    kind: "task".to_string(),
                                     status: event.status,
                                     history: None,
                                     artifacts: None,
                                     metadata: None,
+                                    created_at: None,
+                                    last_modified: None,
                                 });
                                 break;
                             }

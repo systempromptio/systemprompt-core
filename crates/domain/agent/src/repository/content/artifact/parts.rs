@@ -1,5 +1,5 @@
 use crate::models::ArtifactPartRow;
-use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TextPart};
+use crate::models::a2a::{DataPart, FileContent, FilePart, Part, TextPart};
 use sqlx::PgPool;
 use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_traits::RepositoryError;
@@ -45,14 +45,12 @@ pub async fn get_artifact_parts(
                 Part::Text(TextPart { text })
             },
             "file" => {
-                let bytes = row
-                    .file_bytes
-                    .ok_or_else(|| RepositoryError::InvalidData("Missing file_bytes".into()))?;
                 Part::File(FilePart {
-                    file: FileWithBytes {
+                    file: FileContent {
                         name: row.file_name,
                         mime_type: row.file_mime_type,
-                        bytes,
+                        bytes: row.file_bytes,
+                        url: row.file_uri,
                     },
                 })
             },
@@ -113,7 +111,7 @@ pub async fn persist_artifact_part(
                 file_part.file.name,
                 file_part.file.mime_type,
                 file_uri,
-                file_part.file.bytes
+                file_part.file.bytes.as_deref()
             )
             .execute(pool)
             .await

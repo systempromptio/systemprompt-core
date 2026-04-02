@@ -83,7 +83,7 @@ impl UiRenderer for ImageRenderer {
 
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
         let image_data = Self::extract_image_data(artifact);
-        let title = artifact.name.as_deref().unwrap_or("Image");
+        let title = artifact.title.as_deref().unwrap_or("Image");
 
         let alt_text = image_data.alt.as_deref().unwrap_or(title);
 

@@ -25,7 +25,7 @@ fn make_artifact(
     }
     Artifact {
         id: systemprompt_identifiers::ArtifactId::generate(),
-        name: name.map(String::from),
+        title: name.map(String::from),
         description: description.map(String::from),
         parts,
         extensions: vec![],

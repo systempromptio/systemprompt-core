@@ -103,7 +103,6 @@ fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErr
         tasks.push(Task {
             id: row.task_id.clone(),
             context_id: row.context_id.clone(),
-            kind: "task".to_string(),
             status: TaskStatus {
                 state: task_state,
                 message: None,
@@ -112,6 +111,8 @@ fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErr
             history,
             artifacts,
             metadata: Some(metadata),
+            created_at: Some(row.created_at),
+            last_modified: Some(row.updated_at),
         });
     }
 

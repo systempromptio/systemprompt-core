@@ -65,7 +65,7 @@ pub async fn execute_with_pool(
                 text: file_part.file.name.clone(),
                 data: Some(serde_json::json!({
                     "mimeType": file_part.file.mime_type,
-                    "bytes": format!("[{} bytes]", file_part.file.bytes.len()),
+                    "bytes": format!("[{} bytes]", file_part.file.bytes.as_deref().unwrap_or("").len()),
                 })),
             },
         })
@@ -73,7 +73,7 @@ pub async fn execute_with_pool(
 
     let output = ArtifactDetailOutput {
         id: artifact.id.as_str().to_string(),
-        name: artifact.name.clone(),
+        name: artifact.title.clone(),
         description: artifact.description.clone(),
         artifact_type: artifact.metadata.artifact_type.clone(),
         tool_name: artifact.metadata.tool_name.clone(),
@@ -93,7 +93,7 @@ pub async fn execute_with_pool(
         CliService::section("Artifact Details");
         CliService::key_value("ID", artifact.id.as_str());
 
-        if let Some(ref name) = artifact.name {
+        if let Some(ref name) = artifact.title {
             CliService::key_value("Name", name);
         }
 

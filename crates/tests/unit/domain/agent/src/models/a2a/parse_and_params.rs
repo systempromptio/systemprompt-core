@@ -7,14 +7,13 @@ use systemprompt_agent::{
 fn test_parse_message_send_request() {
     let request = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),
-        method: "message/send".to_string(),
+        method: "SendMessage".to_string(),
         params: serde_json::json!({
             "message": {
-                "role": "user",
-                "parts": [{"kind": "text", "text": "Hello"}],
+                "role": "ROLE_USER",
+                "parts": [{"text": "Hello"}],
                 "messageId": "msg-1",
-                "contextId": "ctx-1",
-                "kind": "message"
+                "contextId": "ctx-1"
             }
         }),
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("1".to_string()),
@@ -31,7 +30,7 @@ fn test_parse_message_send_request() {
 fn test_parse_tasks_get_request() {
     let request = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),
-        method: "tasks/get".to_string(),
+        method: "GetTask".to_string(),
         params: serde_json::json!({
             "id": "task-123"
         }),
@@ -51,7 +50,7 @@ fn test_parse_tasks_get_request() {
 fn test_parse_tasks_cancel_request() {
     let request = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),
-        method: "tasks/cancel".to_string(),
+        method: "CancelTask".to_string(),
         params: serde_json::json!({
             "id": "task-456"
         }),
@@ -71,14 +70,13 @@ fn test_parse_tasks_cancel_request() {
 fn test_parse_message_stream_request() {
     let request = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),
-        method: "message/stream".to_string(),
+        method: "SendStreamingMessage".to_string(),
         params: serde_json::json!({
             "message": {
-                "role": "user",
-                "parts": [{"kind": "text", "text": "Stream this"}],
+                "role": "ROLE_USER",
+                "parts": [{"text": "Stream this"}],
                 "messageId": "msg-2",
-                "contextId": "ctx-2",
-                "kind": "message"
+                "contextId": "ctx-2"
             }
         }),
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("4".to_string()),
@@ -108,7 +106,7 @@ fn test_parse_unsupported_method() {
 fn test_parse_invalid_params() {
     let request = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),
-        method: "tasks/get".to_string(),
+        method: "GetTask".to_string(),
         params: serde_json::json!({"wrong": "params"}),
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("6".to_string()),
     };
@@ -205,7 +203,6 @@ fn test_a2a_response_cancel_task() {
 fn test_task_default_values() {
     let task = Task::default();
 
-    assert_eq!(task.kind, "task");
     assert!(task.history.is_none());
     assert!(task.artifacts.is_none());
     assert!(task.metadata.is_none());

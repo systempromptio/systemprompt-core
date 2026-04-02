@@ -6,7 +6,7 @@ use uuid::Uuid;
 use super::persistence::{broadcast_completion, persist_completed_task};
 use super::stream_processor::StreamProcessor;
 use super::{MessageProcessor, StreamEvent};
-use crate::models::a2a::{Message, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
 use crate::services::a2a_server::processing::task_builder::build_completed_task;
 use crate::services::a2a_server::streaming::broadcast::{
     BroadcastTaskCreatedParams, broadcast_task_created,
@@ -69,7 +69,8 @@ impl MessageProcessor {
             history: None,
             artifacts: None,
             metadata: Some(metadata),
-            kind: "task".to_string(),
+            created_at: Some(chrono::Utc::now()),
+            last_modified: Some(chrono::Utc::now()),
         };
 
         if let Err(e) = self
@@ -177,14 +178,13 @@ impl MessageProcessor {
             let metadata = client_message_id.map(|id| serde_json::json!({"clientMessageId": id}));
 
             Message {
-                role: "agent".to_string(),
+                role: MessageRole::Agent,
                 parts: vec![Part::Text(TextPart {
                     text: response_text.clone(),
                 })],
-                id: MessageId::generate(),
+                message_id: MessageId::generate(),
                 task_id: Some(task.id.clone()),
                 context_id: task.context_id.clone(),
-                kind: "message".to_string(),
                 metadata,
                 extensions: None,
                 reference_task_ids: None,
@@ -231,7 +231,7 @@ impl MessageProcessor {
         let auth_token = context.auth_token().as_str();
         let context_id = task.context_id.clone();
         let task_id = task.id.clone();
-        let message_id = agent_message.id.clone();
+        let message_id = agent_message.message_id.clone();
 
         let start_event = AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
         if let Err(e) = broadcast_agui_event(user_id, start_event, auth_token).await {

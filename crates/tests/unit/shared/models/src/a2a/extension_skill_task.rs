@@ -139,7 +139,6 @@ fn test_agent_skill_mcp_server_name() {
 fn test_task_default() {
     let task = Task::default();
 
-    assert_eq!(task.kind, "task");
     assert!(task.history.is_none());
     assert!(task.artifacts.is_none());
     assert!(task.metadata.is_none());

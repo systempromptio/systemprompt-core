@@ -1,5 +1,5 @@
 use crate::error::TaskError;
-use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TaskState, TextPart};
+use crate::models::a2a::{DataPart, FileContent, FilePart, Part, TaskState, TextPart};
 use crate::models::{MessagePart, TaskRow};
 use systemprompt_models::a2a::TaskMetadata;
 use systemprompt_traits::RepositoryError;
@@ -30,15 +30,16 @@ pub fn construct_metadata(row: &TaskRow) -> TaskMetadata {
 
 pub fn parse_task_state(state_str: &str) -> Result<TaskState, TaskError> {
     match state_str {
-        "submitted" => Ok(TaskState::Submitted),
-        "working" => Ok(TaskState::Working),
-        "input-required" => Ok(TaskState::InputRequired),
-        "completed" => Ok(TaskState::Completed),
-        "canceled" | "cancelled" => Ok(TaskState::Canceled),
-        "failed" => Ok(TaskState::Failed),
-        "rejected" => Ok(TaskState::Rejected),
-        "auth-required" => Ok(TaskState::AuthRequired),
-        "unknown" => Ok(TaskState::Unknown),
+        "TASK_STATE_SUBMITTED" | "submitted" => Ok(TaskState::Submitted),
+        "TASK_STATE_WORKING" | "working" => Ok(TaskState::Working),
+        "TASK_STATE_INPUT_REQUIRED" | "input-required" => Ok(TaskState::InputRequired),
+        "TASK_STATE_COMPLETED" | "completed" => Ok(TaskState::Completed),
+        "TASK_STATE_CANCELED" | "canceled" | "cancelled" => Ok(TaskState::Canceled),
+        "TASK_STATE_FAILED" | "failed" => Ok(TaskState::Failed),
+        "TASK_STATE_REJECTED" | "rejected" => Ok(TaskState::Rejected),
+        "TASK_STATE_AUTH_REQUIRED" | "auth-required" => Ok(TaskState::AuthRequired),
+        "TASK_STATE_PENDING" => Ok(TaskState::Pending),
+        "TASK_STATE_UNKNOWN" | "unknown" => Ok(TaskState::Unknown),
         _ => Err(TaskError::InvalidTaskState {
             state: state_str.to_string(),
         }),
@@ -57,10 +58,11 @@ pub fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
             Some(Part::Data(DataPart { data: data.clone() }))
         },
         "file" => Some(Part::File(FilePart {
-            file: FileWithBytes {
+            file: FileContent {
                 name: part_row.file_name.clone(),
                 mime_type: part_row.file_mime_type.clone(),
-                bytes: part_row.file_bytes.clone().unwrap_or_else(String::new),
+                bytes: part_row.file_bytes.clone(),
+                url: None,
             },
         })),
         _ => None,
@@ -92,10 +94,11 @@ pub fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, Rep
                 Part::Data(DataPart { data })
             },
             "file" => Part::File(FilePart {
-                file: FileWithBytes {
+                file: FileContent {
                     name: part_row.file_name.clone(),
                     mime_type: part_row.file_mime_type.clone(),
-                    bytes: part_row.file_bytes.clone().unwrap_or_else(String::new),
+                    bytes: part_row.file_bytes.clone(),
+                    url: None,
                 },
             }),
             _ => continue,

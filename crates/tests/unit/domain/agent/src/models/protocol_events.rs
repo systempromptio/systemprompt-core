@@ -14,7 +14,7 @@ use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 fn create_test_artifact(id: &str) -> Artifact {
     Artifact {
         id: ArtifactId::from(id),
-        name: Some("test-artifact".to_string()),
+        title: Some("test-artifact".to_string()),
         description: Some("Test artifact description".to_string()),
         parts: vec![],
         extensions: vec![],
@@ -77,7 +77,7 @@ fn test_task_status_update_event_serialize() {
     assert!(json.contains("status-update"));
     assert!(json.contains("task-1"));
     assert!(json.contains("ctx-1"));
-    assert!(json.contains("failed"));
+    assert!(json.contains("TASK_STATE_FAILED"));
 }
 
 #[test]

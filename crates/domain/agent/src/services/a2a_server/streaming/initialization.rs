@@ -168,7 +168,8 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
         history: None,
         artifacts: None,
         metadata: Some(metadata),
-        kind: "task".to_string(),
+        created_at: Some(chrono::Utc::now()),
+        last_modified: Some(chrono::Utc::now()),
     };
 
     task_repo

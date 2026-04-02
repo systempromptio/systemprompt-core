@@ -1,7 +1,7 @@
 use super::TaskBuilder;
 use super::helpers::{content_to_json, extract_text_from_content};
 use crate::models::a2a::{
-    Artifact, DataPart, Message, Part, Task, TaskState, TaskStatus, TextPart,
+    Artifact, DataPart, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
 };
 use crate::services::mcp::parse_tool_response;
 use serde_json::json;
@@ -51,7 +51,6 @@ pub fn build_submitted_task(
     Task {
         id: task_id,
         context_id,
-        kind: "task".to_string(),
         status: TaskStatus {
             state: TaskState::Submitted,
             message: None,
@@ -60,6 +59,8 @@ pub fn build_submitted_task(
         history: Some(vec![user_message]),
         artifacts: None,
         metadata: Some(TaskMetadata::new_agent_message(agent_name.to_string())),
+        created_at: Some(chrono::Utc::now()),
+        last_modified: Some(chrono::Utc::now()),
     }
 }
 
@@ -100,18 +101,16 @@ pub fn build_multiturn_task(params: BuildMultiturnTaskParams) -> Task {
     Task {
         id: task_id.clone(),
         context_id: ctx_id.clone(),
-        kind: "task".to_string(),
         status: TaskStatus {
             state: TaskState::Completed,
             message: Some(Message {
-                role: "agent".to_string(),
+                role: MessageRole::Agent,
                 parts: vec![Part::Text(TextPart {
                     text: final_response,
                 })],
-                id: MessageId::generate(),
+                message_id: MessageId::generate(),
                 task_id: Some(task_id),
                 context_id: ctx_id,
-                kind: "message".to_string(),
                 metadata: None,
                 extensions: None,
                 reference_task_ids: None,
@@ -129,6 +128,8 @@ pub fn build_multiturn_task(params: BuildMultiturnTaskParams) -> Task {
                 .with_extension("total_iterations".to_string(), json!(total_iterations))
                 .with_extension("total_tools_called".to_string(), json!(tool_calls.len())),
         ),
+        created_at: Some(chrono::Utc::now()),
+        last_modified: Some(chrono::Utc::now()),
     }
 }
 
@@ -169,14 +170,13 @@ fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
         }
 
         history.push(Message {
-            role: "agent".to_string(),
+            role: MessageRole::Agent,
             parts: vec![Part::Text(TextPart {
                 text: format!("Executing {} tool(s)...", iteration_calls.len()),
             })],
-            id: MessageId::generate(),
+            message_id: MessageId::generate(),
             task_id: Some(task_id.clone()),
             context_id: ctx_id.clone(),
-            kind: "message".to_string(),
             metadata: Some(json!({
                 "iteration": iteration,
                 "tool_calls": iteration_calls.iter().map(|tc| {
@@ -201,12 +201,11 @@ fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
             .join("\n");
 
         history.push(Message {
-            role: "user".to_string(),
+            role: MessageRole::User,
             parts: vec![Part::Text(TextPart { text: results_text })],
-            id: MessageId::generate(),
+            message_id: MessageId::generate(),
             task_id: Some(task_id.clone()),
             context_id: ctx_id.clone(),
-            kind: "message".to_string(),
             metadata: Some(json!({
                 "iteration": iteration,
                 "tool_results": true
@@ -220,14 +219,13 @@ fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
     }
 
     history.push(Message {
-        role: "agent".to_string(),
+        role: MessageRole::Agent,
         parts: vec![Part::Text(TextPart {
             text: final_response.to_string(),
         })],
-        id: MessageId::generate(),
+        message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: ctx_id.clone(),
-        kind: "message".to_string(),
         metadata: Some(json!({
             "iteration": iteration,
             "final_synthesis": true
@@ -273,7 +271,7 @@ fn build_artifacts(
 
             Some(Artifact {
                 id: parsed.artifact_id,
-                name: Some(format!("tool_execution_{}", idx + 1)),
+                title: Some(format!("tool_execution_{}", idx + 1)),
                 description: Some(format!("Result from tool: {tool_name}")),
                 parts: vec![Part::Data(DataPart { data: data_map })],
                 extensions: vec![],

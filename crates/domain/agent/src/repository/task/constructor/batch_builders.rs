@@ -1,4 +1,4 @@
-use crate::models::a2a::{Artifact, DataPart, FilePart, FileWithBytes, Message, Part, TextPart};
+use crate::models::a2a::{Artifact, DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart};
 use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
 };
@@ -86,13 +86,17 @@ pub fn build_messages(
             }
         }
 
+        let role = match msg_row.role.as_str() {
+            "user" | "ROLE_USER" => MessageRole::User,
+            _ => MessageRole::Agent,
+        };
+
         result.push(Message {
-            role: msg_row.role.clone(),
+            role,
             parts,
-            id: msg_row.message_id.clone(),
+            message_id: msg_row.message_id.clone(),
             task_id: Some(msg_row.task_id.clone()),
             context_id: msg_row.context_id.clone().unwrap_or_else(ContextId::empty),
-            kind: "message".to_string(),
             metadata: if final_metadata == serde_json::json!({}) {
                 None
             } else {
@@ -180,7 +184,7 @@ fn build_artifact(
 
     Artifact {
         id: row.artifact_id.clone(),
-        name: row.name.clone(),
+        title: row.name.clone(),
         description: row.description.clone(),
         parts,
         extensions,
@@ -201,16 +205,12 @@ fn build_artifact_parts(parts: Option<&Vec<&ArtifactPartRow>>) -> Vec<Part> {
                 Part::Text(TextPart { text })
             },
             "file" => {
-                let bytes = row
-                    .file_bytes
-                    .clone()
-                    .or_else(|| row.file_uri.clone())
-                    .unwrap_or_else(String::new);
                 Part::File(FilePart {
-                    file: FileWithBytes {
+                    file: FileContent {
                         name: row.file_name.clone(),
                         mime_type: row.file_mime_type.clone(),
-                        bytes,
+                        bytes: row.file_bytes.clone(),
+                        url: row.file_uri.clone(),
                     },
                 })
             },

@@ -1,5 +1,5 @@
 use crate::error::ArtifactError;
-use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TextPart};
+use crate::models::a2a::{DataPart, FileContent, FilePart, Part, TextPart};
 use serde_json::Value as JsonValue;
 
 pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
@@ -30,10 +30,11 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
                                     .map(ToString::to_string);
 
                                 parts.push(Part::File(FilePart {
-                                    file: FileWithBytes {
-                                        bytes: data.to_string(),
+                                    file: FileContent {
+                                        bytes: Some(data.to_string()),
                                         mime_type,
                                         name: None,
+                                        url: None,
                                     },
                                 }));
                             }
@@ -46,10 +47,11 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
                                     .map(ToString::to_string);
 
                                 parts.push(Part::File(FilePart {
-                                    file: FileWithBytes {
+                                    file: FileContent {
                                         name: Some(uri.to_string()),
                                         mime_type,
-                                        bytes: String::new(),
+                                        bytes: None,
+                                        url: None,
                                     },
                                 }));
                             }

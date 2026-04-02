@@ -121,7 +121,7 @@ impl UiRenderer for TableRenderer {
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
         let (columns, rows) = Self::extract_table_data(artifact);
         let hints = Self::extract_hints(artifact);
-        let title = artifact.name.as_deref().unwrap_or("Table");
+        let title = artifact.title.as_deref().unwrap_or("Table");
 
         let body = format!(
             r#"<div class="container">

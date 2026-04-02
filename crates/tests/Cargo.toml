@@ -48,6 +48,10 @@ members = [
     "unit/entry/cli",
     # Common test utilities
     "common/mocks",
+    # Advanced testing - Phase 6
+    "property",
+    "contract",
+    "concurrency",
 ]
 resolver = "2"
 
@@ -133,6 +137,10 @@ sha2 = "0.10"
 
 # Testing utilities
 wiremock = "0.6"
+
+# Property-based testing
+proptest = "1.6"
+proptest-derive = "0.5"
 
 # Path dependencies to main crates (relative to crates/tests/)
 systemprompt-identifiers = { path = "../shared/identifiers" }

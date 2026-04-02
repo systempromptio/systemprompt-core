@@ -63,14 +63,12 @@ pub async fn get_message_parts(
                 Part::Text(crate::models::a2a::TextPart { text })
             },
             "file" => {
-                let bytes = row
-                    .file_bytes
-                    .ok_or_else(|| RepositoryError::InvalidData("Missing file_bytes".into()))?;
                 Part::File(crate::models::a2a::FilePart {
-                    file: crate::models::a2a::FileWithBytes {
+                    file: crate::models::a2a::FileContent {
                         name: row.file_name,
                         mime_type: row.file_mime_type,
-                        bytes,
+                        bytes: row.file_bytes,
+                        url: row.file_uri,
                     },
                 })
             },
@@ -149,7 +147,7 @@ pub async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> Result<(), 
                 file_part.file.name,
                 file_part.file.mime_type,
                 file_uri,
-                file_part.file.bytes,
+                file_part.file.bytes.as_deref(),
                 file_id
             )
             .execute(&mut **tx)
@@ -192,7 +190,8 @@ async fn try_upload_file(
         .as_deref()
         .unwrap_or("application/octet-stream");
 
-    let mut input = FileUploadInput::new(mime_type, &file_part.file.bytes, ctx.context_id.clone());
+    let bytes = file_part.file.bytes.as_deref()?;
+    let mut input = FileUploadInput::new(mime_type, bytes, ctx.context_id.clone());
 
     if let Some(name) = &file_part.file.name {
         input = input.with_name(name);
@@ -265,7 +264,7 @@ pub async fn persist_part_with_tx(
                     &file_part.file.name,
                     &file_part.file.mime_type,
                     &uri_opt,
-                    &file_part.file.bytes,
+                    &file_part.file.bytes.as_deref(),
                 ],
             )
             .await?;

@@ -34,7 +34,7 @@ impl UiRenderer for TextRenderer {
 
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
         let text = Self::extract_text(artifact);
-        let title = artifact.name.as_deref().unwrap_or("Text");
+        let title = artifact.title.as_deref().unwrap_or("Text");
 
         let formatted_text = format_text_content(&text);
 

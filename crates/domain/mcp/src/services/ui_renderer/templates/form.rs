@@ -246,7 +246,7 @@ impl UiRenderer for FormRenderer {
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
         let fields = Self::extract_fields(artifact);
         let submit_tool = Self::extract_submit_tool(artifact);
-        let title = artifact.name.as_deref().unwrap_or("Form");
+        let title = artifact.title.as_deref().unwrap_or("Form");
 
         let fields_html: String = fields.iter().map(FormField::render_html).collect();
 

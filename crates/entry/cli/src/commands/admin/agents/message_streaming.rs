@@ -71,11 +71,12 @@ pub async fn execute_streaming(
                                 final_task = Some(Task {
                                     id: event.task_id.into(),
                                     context_id: event.context_id.into(),
-                                    kind: "task".to_string(),
                                     status: event.status,
                                     history: None,
                                     artifacts: None,
                                     metadata: None,
+                                    created_at: None,
+                                    last_modified: None,
                                 });
                                 break;
                             }

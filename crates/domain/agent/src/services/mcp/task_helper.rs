@@ -1,4 +1,4 @@
-use crate::models::a2a::{Artifact, Message, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
 use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
 use crate::services::MessageService;
@@ -128,7 +128,8 @@ pub async fn ensure_task_exists(
         history: None,
         artifacts: None,
         metadata: Some(metadata),
-        kind: "task".to_string(),
+        created_at: Some(chrono::Utc::now()),
+        last_modified: Some(chrono::Utc::now()),
     };
 
     task_repo
@@ -277,14 +278,13 @@ pub async fn save_messages_for_tool_execution(
     })?;
 
     let user_message = Message {
-        role: "user".to_string(),
+        role: MessageRole::User,
         parts: vec![Part::Text(TextPart {
             text: format!("Execute tool: {tool_name}"),
         })],
-        id: MessageId::generate(),
+        message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: context_id.clone(),
-        kind: "message".to_string(),
         metadata: None,
         extensions: None,
         reference_task_ids: None,
@@ -301,12 +301,11 @@ pub async fn save_messages_for_tool_execution(
     );
 
     let agent_message = Message {
-        role: "agent".to_string(),
+        role: MessageRole::Agent,
         parts: vec![Part::Text(TextPart { text: agent_text })],
-        id: MessageId::generate(),
+        message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: context_id.clone(),
-        kind: "message".to_string(),
         metadata: None,
         extensions: None,
         reference_task_ids: None,

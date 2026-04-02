@@ -1,4 +1,4 @@
-use crate::models::a2a::AgentCard;
+use crate::models::a2a::{AgentCard, AgentInterface, TransportProtocol};
 use serde::{Deserialize, Serialize};
 
 use super::card_input::AgentCardInput;
@@ -33,13 +33,17 @@ impl<'de> Deserialize<'de> for UpdateAgentRequest {
             .unwrap_or_else(|| format!("http://placeholder/api/v1/agents/{}", raw.card.name));
 
         let card = AgentCard {
-            protocol_version: raw.card.protocol_version,
             name: raw.card.name,
             description: raw.card.description,
-            url,
+            supported_interfaces: vec![AgentInterface {
+                url,
+                protocol_binding: raw
+                    .card
+                    .preferred_transport
+                    .unwrap_or(TransportProtocol::JsonRpc),
+                protocol_version: raw.card.protocol_version,
+            }],
             version: raw.card.version,
-            preferred_transport: raw.card.preferred_transport,
-            additional_interfaces: None,
             icon_url: None,
             provider: None,
             documentation_url: None,
@@ -78,13 +82,17 @@ impl UpdateAgentRequest {
             .unwrap_or_else(|| format!("{}/api/v1/agents/{}", api_server_url, raw.card.name));
 
         let card = AgentCard {
-            protocol_version: raw.card.protocol_version,
             name: raw.card.name,
             description: raw.card.description,
-            url,
+            supported_interfaces: vec![AgentInterface {
+                url,
+                protocol_binding: raw
+                    .card
+                    .preferred_transport
+                    .unwrap_or(TransportProtocol::JsonRpc),
+                protocol_version: raw.card.protocol_version,
+            }],
             version: raw.card.version,
-            preferred_transport: raw.card.preferred_transport,
-            additional_interfaces: None,
             icon_url: None,
             provider: None,
             documentation_url: None,
@@ -119,11 +127,12 @@ impl UpdateAgentRequest {
             return Err("Name is required".to_string());
         }
 
-        if self.card.url.trim().is_empty() {
+        let card_url = self.card.url().unwrap_or("");
+        if card_url.trim().is_empty() {
             return Err("Endpoint is required".to_string());
         }
 
-        if !self.card.url.starts_with("http://") && !self.card.url.starts_with("https://") {
+        if !card_url.starts_with("http://") && !card_url.starts_with("https://") {
             return Err("Endpoint must be a valid HTTP or HTTPS URL".to_string());
         }
 
@@ -164,6 +173,9 @@ impl UpdateAgentRequest {
     }
 
     pub fn extract_port(&self) -> u16 {
-        extract_port_from_url(&self.card.url).unwrap_or(80)
+        self.card
+            .url()
+            .and_then(|u| extract_port_from_url(u))
+            .unwrap_or(80)
     }
 }

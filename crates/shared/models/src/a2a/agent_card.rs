@@ -1,12 +1,15 @@
 use super::security::{OAuth2Flow, OAuth2Flows, SecurityScheme};
-use super::transport::TransportProtocol;
+use super::transport::ProtocolBinding;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct AgentInterface {
     pub url: String,
-    pub transport: TransportProtocol,
+    pub protocol_binding: ProtocolBinding,
+    #[serde(default = "default_protocol_version")]
+    pub protocol_version: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -221,16 +224,10 @@ pub struct AgentCardSignature {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentCard {
-    #[serde(default = "default_protocol_version")]
-    pub protocol_version: String,
     pub name: String,
     pub description: String,
-    pub url: String,
+    pub supported_interfaces: Vec<AgentInterface>,
     pub version: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preferred_transport: Option<TransportProtocol>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional_interfaces: Option<Vec<AgentInterface>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -253,7 +250,7 @@ pub struct AgentCard {
 }
 
 fn default_protocol_version() -> String {
-    "0.3.0".to_string()
+    "1.0.0".to_string()
 }
 
 impl AgentCard {
@@ -264,6 +261,10 @@ impl AgentCard {
         version: String,
     ) -> AgentCardBuilder {
         AgentCardBuilder::new(name, description, url, version)
+    }
+
+    pub fn url(&self) -> Option<&str> {
+        self.supported_interfaces.first().map(|i| i.url.as_str())
     }
 
     pub fn has_mcp_extension(&self) -> bool {
@@ -294,13 +295,14 @@ impl AgentCardBuilder {
     pub fn new(name: String, description: String, url: String, version: String) -> Self {
         Self {
             agent_card: AgentCard {
-                protocol_version: "0.3.0".to_string(),
                 name,
                 description,
-                url,
+                supported_interfaces: vec![AgentInterface {
+                    url,
+                    protocol_binding: ProtocolBinding::JsonRpc,
+                    protocol_version: "1.0.0".to_string(),
+                }],
                 version,
-                preferred_transport: Some(TransportProtocol::JsonRpc),
-                additional_interfaces: None,
                 icon_url: None,
                 provider: None,
                 documentation_url: None,

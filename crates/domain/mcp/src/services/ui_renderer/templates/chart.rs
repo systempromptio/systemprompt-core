@@ -50,7 +50,7 @@ impl ChartRenderer {
                 if let Some(data_arr) = data.get("data").and_then(JsonValue::as_array) {
                     if config.datasets.is_empty() {
                         config.datasets = vec![serde_json::json!({
-                            "label": artifact.name.as_deref().unwrap_or("Data"),
+                            "label": artifact.title.as_deref().unwrap_or("Data"),
                             "data": data_arr
                         })];
                     }
@@ -148,7 +148,7 @@ impl UiRenderer for ChartRenderer {
 
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
         let config = Self::extract_chart_config(artifact);
-        let title = artifact.name.as_deref().unwrap_or("Chart");
+        let title = artifact.title.as_deref().unwrap_or("Chart");
         let chartjs_config = config.to_chartjs_config();
 
         let body = format!(

@@ -7,18 +7,20 @@
 //! - Count methods (skills_count, mcp_count)
 
 use systemprompt_agent::models::agent_info::AgentInfo;
-use systemprompt_agent::models::a2a::AgentCard;
+use systemprompt_agent::models::a2a::{AgentCard, AgentInterface};
 use systemprompt_identifiers::AgentId;
+use systemprompt_models::a2a::ProtocolBinding;
 
 fn create_test_card() -> AgentCard {
     AgentCard {
-        protocol_version: "0.3.0".to_string(),
         name: "Test Agent".to_string(),
         description: "A test agent".to_string(),
-        url: "/api/v1/agents/test".to_string(),
+        supported_interfaces: vec![AgentInterface {
+            url: "/api/v1/agents/test".to_string(),
+            protocol_binding: ProtocolBinding::JsonRpc,
+            protocol_version: "1.0.0".to_string(),
+        }],
         version: "1.0.0".to_string(),
-        preferred_transport: None,
-        additional_interfaces: None,
         icon_url: None,
         provider: None,
         documentation_url: None,
@@ -266,10 +268,9 @@ fn test_agent_info_deserialize() {
     let json = r#"{
         "agent_id": "agent-test",
         "card": {
-            "protocolVersion": "0.3.0",
             "name": "Deserialized Agent",
             "description": "Test",
-            "url": "/api/test",
+            "supportedInterfaces": [{"url": "/api/test", "protocolBinding": "JSONRPC", "protocolVersion": "1.0.0"}],
             "version": "2.0.0",
             "capabilities": {},
             "defaultInputModes": ["text/plain"],

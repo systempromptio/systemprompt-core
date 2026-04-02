@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::models::a2a::{Message, Part, TextPart};
+use crate::models::a2a::{Message, MessageRole, Part, TextPart};
 use crate::repository::context::message::PersistMessageWithTxParams;
 use crate::repository::task::TaskRepository;
 use systemprompt_database::{DatabaseProvider, DatabaseTransaction, DbPool};
@@ -98,7 +98,7 @@ impl MessageService {
             .map_err(|e| anyhow!("Failed to persist message: {}", e))?;
 
         tracing::info!(
-            message_id = %message.id,
+            message_id = %message.message_id,
             task_id = %task_id,
             sequence_number = sequence_number,
             "Message persisted"
@@ -180,11 +180,10 @@ impl MessageService {
         let timestamp = chrono::Utc::now().to_rfc3339();
 
         let message = Message {
-            role: "user".to_string(),
-            id: message_id.clone().into(),
+            role: MessageRole::User,
+            message_id: message_id.clone().into(),
             task_id: Some(task_id.clone()),
             context_id: context_id.clone(),
-            kind: "message".to_string(),
             parts: vec![Part::Text(TextPart {
                 text: format!(
                     "Executed MCP tool: {} with arguments:\n{}\n\nExecution ID: {} at {}",

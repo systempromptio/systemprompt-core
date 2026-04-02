@@ -67,7 +67,7 @@ pub struct A2aJsonRpcRequest {
 impl A2aJsonRpcRequest {
     pub fn parse_request(&self) -> Result<A2aRequestParams, A2aParseError> {
         match self.method.as_str() {
-            "message/send" => {
+            "SendMessage" => {
                 let params: MessageSendParams = serde_json::from_value(self.params.clone())
                     .map_err(|e| A2aParseError::InvalidParams {
                         method: self.method.clone(),
@@ -75,7 +75,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::SendMessage(params))
             },
-            "tasks/get" => {
+            "GetTask" => {
                 let params: TaskQueryParams =
                     serde_json::from_value(self.params.clone()).map_err(|e| {
                         A2aParseError::InvalidParams {
@@ -85,7 +85,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::GetTask(params))
             },
-            "tasks/cancel" => {
+            "CancelTask" => {
                 let params: TaskIdParams =
                     serde_json::from_value(self.params.clone()).map_err(|e| {
                         A2aParseError::InvalidParams {
@@ -95,7 +95,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::CancelTask(params))
             },
-            "agent/getAuthenticatedExtendedCard" => {
+            "GetExtendedAgentCard" => {
                 let params: serde_json::Value = serde_json::from_value(self.params.clone())
                     .map_err(|e| A2aParseError::InvalidParams {
                         method: self.method.clone(),
@@ -103,7 +103,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::GetAuthenticatedExtendedCard(params))
             },
-            "message/stream" => {
+            "SendStreamingMessage" => {
                 let params: MessageSendParams = serde_json::from_value(self.params.clone())
                     .map_err(|e| A2aParseError::InvalidParams {
                         method: self.method.clone(),
@@ -111,7 +111,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::SendStreamingMessage(params))
             },
-            "tasks/resubscribe" => {
+            "SubscribeToTask" => {
                 let params: TaskResubscriptionRequest = serde_json::from_value(self.params.clone())
                     .map_err(|e| A2aParseError::InvalidParams {
                         method: self.method.clone(),
@@ -119,7 +119,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::TaskResubscription(params))
             },
-            "tasks/pushNotificationConfig/set" => {
+            "CreateTaskPushNotificationConfig" => {
                 let params: SetTaskPushNotificationConfigRequest =
                     serde_json::from_value(self.params.clone()).map_err(|e| {
                         A2aParseError::InvalidParams {
@@ -129,7 +129,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::SetTaskPushNotificationConfig(params))
             },
-            "tasks/pushNotificationConfig/get" => {
+            "GetTaskPushNotificationConfig" => {
                 let params: GetTaskPushNotificationConfigRequest =
                     serde_json::from_value(self.params.clone()).map_err(|e| {
                         A2aParseError::InvalidParams {
@@ -139,7 +139,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::GetTaskPushNotificationConfig(params))
             },
-            "tasks/pushNotificationConfig/list" => {
+            "ListTaskPushNotificationConfigs" => {
                 let params: ListTaskPushNotificationConfigRequest =
                     serde_json::from_value(self.params.clone()).map_err(|e| {
                         A2aParseError::InvalidParams {
@@ -149,7 +149,7 @@ impl A2aJsonRpcRequest {
                     })?;
                 Ok(A2aRequestParams::ListTaskPushNotificationConfig(params))
             },
-            "tasks/pushNotificationConfig/delete" => {
+            "DeleteTaskPushNotificationConfig" => {
                 let params: DeleteTaskPushNotificationConfigRequest =
                     serde_json::from_value(self.params.clone()).map_err(|e| {
                         A2aParseError::InvalidParams {

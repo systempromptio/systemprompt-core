@@ -15,8 +15,8 @@ pub use agent_card::{
 pub use artifact::Artifact;
 pub use artifact_metadata::ArtifactMetadata;
 pub use mcp_extension::{McpServerMetadata, McpToolsParams, MessageMetadata};
-pub use message::{DataPart, FilePart, FileWithBytes, Message, MessageRole, Part, TextPart};
+pub use message::{DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart};
 pub use security::{AgentAuthentication, ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityScheme};
 pub use task::{Task, TaskState, TaskStatus};
 pub use task_metadata::{TaskMetadata, TaskType, agent_names};
-pub use transport::TransportProtocol;
+pub use transport::{ProtocolBinding, TransportProtocol};

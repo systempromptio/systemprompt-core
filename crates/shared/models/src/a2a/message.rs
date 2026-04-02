@@ -2,39 +2,34 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Message {
-    pub role: String,
+    pub role: MessageRole,
     pub parts: Vec<Part>,
-    #[serde(rename = "messageId")]
-    pub id: MessageId,
-    #[serde(rename = "taskId")]
+    pub message_id: MessageId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<TaskId>,
-    #[serde(rename = "contextId")]
     pub context_id: ContextId,
-    #[serde(rename = "kind")]
-    pub kind: String,
     pub metadata: Option<serde_json::Value>,
     pub extensions: Option<Vec<String>>,
-    #[serde(rename = "referenceTaskIds")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_task_ids: Option<Vec<TaskId>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
 pub enum MessageRole {
+    #[serde(rename = "ROLE_USER")]
     User,
+    #[serde(rename = "ROLE_AGENT")]
     Agent,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(tag = "kind")]
+#[serde(untagged)]
 pub enum Part {
-    #[serde(rename = "text")]
     Text(TextPart),
-    #[serde(rename = "data")]
-    Data(DataPart),
-    #[serde(rename = "file")]
     File(FilePart),
+    Data(DataPart),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -49,15 +44,18 @@ pub struct DataPart {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct FilePart {
-    pub file: FileWithBytes,
+    pub file: FileContent,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct FileWithBytes {
+#[serde(rename_all = "camelCase")]
+pub struct FileContent {
     pub name: Option<String>,
-    #[serde(rename = "mimeType")]
     pub mime_type: Option<String>,
-    pub bytes: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 impl Part {

@@ -6,15 +6,16 @@ use crate::models::a2a::{Task, TaskState};
 
 pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
     match state {
-        TaskState::Pending | TaskState::Submitted => "submitted",
-        TaskState::Working => "working",
-        TaskState::InputRequired => "input-required",
-        TaskState::Completed => "completed",
-        TaskState::Canceled => "canceled",
-        TaskState::Failed => "failed",
-        TaskState::Rejected => "rejected",
-        TaskState::AuthRequired => "auth-required",
-        TaskState::Unknown => "unknown",
+        TaskState::Pending => "TASK_STATE_PENDING",
+        TaskState::Submitted => "TASK_STATE_SUBMITTED",
+        TaskState::Working => "TASK_STATE_WORKING",
+        TaskState::InputRequired => "TASK_STATE_INPUT_REQUIRED",
+        TaskState::Completed => "TASK_STATE_COMPLETED",
+        TaskState::Canceled => "TASK_STATE_CANCELED",
+        TaskState::Failed => "TASK_STATE_FAILED",
+        TaskState::Rejected => "TASK_STATE_REJECTED",
+        TaskState::AuthRequired => "TASK_STATE_AUTH_REQUIRED",
+        TaskState::Unknown => "TASK_STATE_UNKNOWN",
     }
 }
 
@@ -153,7 +154,7 @@ pub async fn update_task_failed_with_error(
 
     sqlx::query!(
         r#"UPDATE agent_tasks SET
-            status = 'failed',
+            status = 'TASK_STATE_FAILED',
             status_timestamp = $1,
             error_message = $2,
             updated_at = CURRENT_TIMESTAMP,

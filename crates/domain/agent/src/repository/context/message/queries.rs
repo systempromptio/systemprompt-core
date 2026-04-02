@@ -3,7 +3,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
-use crate::models::a2a::Message;
+use crate::models::a2a::{Message, MessageRole};
 
 use super::parts::get_message_parts;
 
@@ -44,12 +44,16 @@ pub async fn get_messages_by_task(
             .reference_task_ids
             .map(|ids| ids.into_iter().map(TaskId::new).collect());
 
+        let role = match row.role.as_str() {
+            "user" | "ROLE_USER" => MessageRole::User,
+            _ => MessageRole::Agent,
+        };
+
         messages.push(Message {
-            role: row.role,
-            id: row.message_id,
+            role,
+            message_id: row.message_id,
             task_id: Some(row.task_id),
             context_id: row.context_id.unwrap_or_else(ContextId::empty),
-            kind: "message".to_string(),
             parts,
             metadata: row.metadata,
             extensions: None,
@@ -96,12 +100,16 @@ pub async fn get_messages_by_context(
     for row in message_rows {
         let parts = get_message_parts(pool, &row.message_id).await?;
 
+        let role = match row.role.as_str() {
+            "user" | "ROLE_USER" => MessageRole::User,
+            _ => MessageRole::Agent,
+        };
+
         messages.push(Message {
-            role: row.role,
-            id: row.message_id,
+            role,
+            message_id: row.message_id,
             task_id: Some(row.task_id),
             context_id: row.context_id.unwrap_or_else(|| context_id.clone()),
-            kind: "message".to_string(),
             parts,
             metadata: row.metadata,
             extensions: None,

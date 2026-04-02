@@ -73,7 +73,7 @@ pub async fn execute_with_pool(
         .take(args.limit as usize)
         .map(|a| ArtifactSummary {
             id: a.id.as_str().to_string(),
-            name: a.name.clone(),
+            name: a.title.clone(),
             artifact_type: a.metadata.artifact_type.clone(),
             tool_name: a.metadata.tool_name.clone(),
             task_id: a.metadata.task_id.as_str().to_string(),

@@ -171,7 +171,7 @@ impl UiRenderer for ListRenderer {
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
         let items = Self::extract_items(artifact);
         let style = Self::extract_list_style(artifact);
-        let title = artifact.name.as_deref().unwrap_or("List");
+        let title = artifact.title.as_deref().unwrap_or("List");
 
         let items_html: String = items
             .iter()

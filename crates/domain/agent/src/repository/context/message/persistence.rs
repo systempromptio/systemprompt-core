@@ -1,11 +1,18 @@
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
-use crate::models::a2a::Message;
+use crate::models::a2a::{Message, MessageRole};
 
 use super::parts::{
     FileUploadContext, PersistPartSqlxParams, persist_part_sqlx, persist_part_with_tx,
 };
+
+fn role_to_str(role: &MessageRole) -> &'static str {
+    match role {
+        MessageRole::User => "user",
+        MessageRole::Agent => "agent",
+    }
+}
 
 #[allow(missing_debug_implementations)]
 pub struct PersistMessageSqlxParams<'a> {
@@ -39,7 +46,7 @@ pub async fn persist_message_sqlx(
 
     sqlx::query!(
         "DELETE FROM message_parts WHERE message_id = $1",
-        message.id.as_str()
+        message.message_id.as_str()
     )
     .execute(&mut **tx)
     .await
@@ -47,7 +54,7 @@ pub async fn persist_message_sqlx(
 
     sqlx::query!(
         "DELETE FROM task_messages WHERE message_id = $1",
-        message.id.as_str()
+        message.message_id.as_str()
     )
     .execute(&mut **tx)
     .await
@@ -69,9 +76,9 @@ pub async fn persist_message_sqlx(
         user_id, session_id, trace_id, sequence_number, metadata, reference_task_ids)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"#,
         task_id.as_str(),
-        message.id.as_str(),
+        message.message_id.as_str(),
         client_message_id,
-        message.role,
+        role_to_str(&message.role),
         context_id.as_str(),
         user_id.map(UserId::as_str),
         session_id.as_str(),
@@ -88,7 +95,7 @@ pub async fn persist_message_sqlx(
         persist_part_sqlx(PersistPartSqlxParams {
             tx,
             part,
-            message_id: &message.id,
+            message_id: &message.message_id,
             task_id,
             sequence_number: idx as i32,
             upload_ctx,
@@ -127,11 +134,11 @@ pub async fn persist_message_with_tx(
     let metadata_json = serde_json::to_string(&message.metadata)?;
 
     let delete_parts_query: &str = "DELETE FROM message_parts WHERE message_id = $1";
-    tx.execute(&delete_parts_query, &[&message.id.as_str()])
+    tx.execute(&delete_parts_query, &[&message.message_id.as_str()])
         .await?;
 
     let delete_messages_query: &str = "DELETE FROM task_messages WHERE message_id = $1";
-    tx.execute(&delete_messages_query, &[&message.id.as_str()])
+    tx.execute(&delete_messages_query, &[&message.message_id.as_str()])
         .await?;
 
     let client_message_id = message
@@ -159,9 +166,9 @@ pub async fn persist_message_with_tx(
         &insert_query,
         &[
             &task_id_str,
-            &message.id.as_str(),
+            &message.message_id.as_str(),
             &client_message_id,
-            &message.role,
+            &role_to_str(&message.role),
             &context_id_str,
             &user_id_str,
             &session_id_str,
@@ -174,7 +181,7 @@ pub async fn persist_message_with_tx(
     .await?;
 
     for (idx, part) in message.parts.iter().enumerate() {
-        persist_part_with_tx(tx, part, &message.id, task_id, idx as i32).await?;
+        persist_part_with_tx(tx, part, &message.message_id, task_id, idx as i32).await?;
     }
 
     Ok(())

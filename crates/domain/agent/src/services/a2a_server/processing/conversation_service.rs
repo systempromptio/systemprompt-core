@@ -7,7 +7,7 @@ use systemprompt_models::{
     is_supported_text, is_supported_video,
 };
 
-use crate::models::a2a::{FilePart, Part};
+use crate::models::a2a::{FilePart, MessageRole as A2aMessageRole, Part};
 use crate::models::{Artifact, Message};
 use crate::repository::task::TaskRepository;
 
@@ -41,10 +41,9 @@ impl ConversationService {
                         continue;
                     }
 
-                    let role = match msg.role.as_str() {
-                        "user" => MessageRole::User,
-                        "agent" => MessageRole::Assistant,
-                        _ => continue,
+                    let role = match msg.role {
+                        A2aMessageRole::User => MessageRole::User,
+                        A2aMessageRole::Agent => MessageRole::Assistant,
                     };
 
                     history_messages.push(AiMessage {
@@ -98,20 +97,22 @@ impl ConversationService {
         let mime_type = file_part.file.mime_type.as_deref()?;
         let file_name = file_part.file.name.as_deref().unwrap_or("unnamed");
 
+        let bytes = file_part.file.bytes.as_deref()?;
+
         if is_supported_image(mime_type) {
-            return Some(AiContentPart::image(mime_type, &file_part.file.bytes));
+            return Some(AiContentPart::image(mime_type, bytes));
         }
 
         if is_supported_audio(mime_type) {
-            return Some(AiContentPart::audio(mime_type, &file_part.file.bytes));
+            return Some(AiContentPart::audio(mime_type, bytes));
         }
 
         if is_supported_video(mime_type) {
-            return Some(AiContentPart::video(mime_type, &file_part.file.bytes));
+            return Some(AiContentPart::video(mime_type, bytes));
         }
 
         if is_supported_text(mime_type) {
-            return Self::decode_text_file(file_part, file_name, mime_type);
+            return Self::decode_text_file(bytes, file_name, mime_type);
         }
 
         tracing::warn!(
@@ -123,12 +124,12 @@ impl ConversationService {
     }
 
     fn decode_text_file(
-        file_part: &FilePart,
+        bytes: &str,
         file_name: &str,
         mime_type: &str,
     ) -> Option<AiContentPart> {
         let decoded = base64::engine::general_purpose::STANDARD
-            .decode(&file_part.file.bytes)
+            .decode(bytes)
             .map_err(|e| {
                 tracing::warn!(
                     file_name = %file_name,
@@ -158,7 +159,7 @@ impl ConversationService {
 
     fn serialize_artifact_for_context(artifact: &Artifact) -> String {
         let artifact_name = artifact
-            .name
+            .title
             .clone()
             .unwrap_or_else(|| "unnamed".to_string());
 

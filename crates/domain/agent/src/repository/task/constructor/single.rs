@@ -1,4 +1,4 @@
-use crate::models::a2a::{Artifact, Message, Part, Task, TaskStatus};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskStatus};
 use crate::models::{MessagePart, TaskMessage, TaskRow};
 use crate::repository::execution::ExecutionStepRepository;
 use systemprompt_identifiers::{
@@ -76,7 +76,6 @@ async fn construct_task_from_row(
     Ok(Task {
         id: task_id,
         context_id: row.context_id.clone(),
-        kind: "task".to_string(),
         status: TaskStatus {
             state: task_state,
             message: None,
@@ -85,6 +84,8 @@ async fn construct_task_from_row(
         history,
         artifacts,
         metadata: Some(metadata),
+        created_at: Some(row.created_at),
+        last_modified: Some(row.updated_at),
     })
 }
 
@@ -217,13 +218,17 @@ fn build_message_from_row(msg_row: TaskMessage, parts: Vec<Part>) -> Message {
         }
     }
 
+    let role = match msg_row.role.as_str() {
+        "user" | "ROLE_USER" => MessageRole::User,
+        _ => MessageRole::Agent,
+    };
+
     Message {
-        role: msg_row.role,
+        role,
         parts,
-        id: msg_row.message_id,
+        message_id: msg_row.message_id,
         task_id: Some(msg_row.task_id),
         context_id: msg_row.context_id.unwrap_or_else(ContextId::empty),
-        kind: "message".to_string(),
         metadata: if final_metadata == serde_json::json!({}) {
             None
         } else {

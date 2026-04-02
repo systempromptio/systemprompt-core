@@ -9,7 +9,7 @@ use systemprompt_models::{AgentConfig, ServicesConfig};
 use tokio::sync::RwLock;
 
 use crate::models::a2a::{
-    AgentCapabilities, AgentCard, AgentExtension, AgentProvider, TransportProtocol,
+    AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, TransportProtocol,
 };
 use security::{convert_json_security_to_struct, oauth_to_security_config, override_oauth_urls};
 use skills::load_skill_from_disk;
@@ -92,18 +92,21 @@ impl AgentRegistry {
 
         let all_skills = load_agent_skills(&agent);
 
+        let protocol_binding = match agent.card.preferred_transport.as_str() {
+            "GRPC" => TransportProtocol::Grpc,
+            "HTTP+JSON" => TransportProtocol::HttpJson,
+            _ => TransportProtocol::JsonRpc,
+        };
+
         Ok(AgentCard {
-            protocol_version: agent.card.protocol_version.clone(),
             name: agent.name.clone(),
             description: agent.card.description.clone(),
-            url,
+            supported_interfaces: vec![AgentInterface {
+                url,
+                protocol_binding,
+                protocol_version: agent.card.protocol_version.clone(),
+            }],
             version: agent.card.version.clone(),
-            preferred_transport: Some(match agent.card.preferred_transport.as_str() {
-                "GRPC" => TransportProtocol::Grpc,
-                "HTTP+JSON" => TransportProtocol::HttpJson,
-                _ => TransportProtocol::JsonRpc,
-            }),
-            additional_interfaces: None,
             icon_url: agent.card.icon_url.clone(),
             documentation_url: agent.card.documentation_url.clone(),
             provider: agent.card.provider.as_ref().map(|p| AgentProvider {

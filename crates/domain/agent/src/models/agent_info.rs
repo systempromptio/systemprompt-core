@@ -42,11 +42,11 @@ impl AgentInfo {
     }
 
     pub fn endpoint(&self) -> &str {
-        &self.card.url
+        self.card.url().unwrap_or("")
     }
 
     pub fn full_endpoint(&self) -> String {
-        let endpoint = &self.card.url;
+        let endpoint = self.card.url().unwrap_or("");
         if endpoint.starts_with('/') {
             let base_url = Config::get().map_or_else(
                 |_| "http://localhost:3000".to_string(),
@@ -54,7 +54,7 @@ impl AgentInfo {
             );
             format!("{}{}", base_url, endpoint)
         } else {
-            endpoint.clone()
+            endpoint.to_string()
         }
     }
 

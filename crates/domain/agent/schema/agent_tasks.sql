@@ -3,10 +3,12 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
 
     context_id TEXT NOT NULL,
 
-    status TEXT NOT NULL DEFAULT 'submitted' CHECK (
+    status TEXT NOT NULL DEFAULT 'TASK_STATE_SUBMITTED' CHECK (
         status IN (
-            'submitted', 'working', 'input-required', 'completed',
-            'canceled', 'failed', 'rejected', 'auth-required', 'unknown'
+            'TASK_STATE_PENDING', 'TASK_STATE_SUBMITTED', 'TASK_STATE_WORKING',
+            'TASK_STATE_INPUT_REQUIRED', 'TASK_STATE_COMPLETED', 'TASK_STATE_CANCELED',
+            'TASK_STATE_FAILED', 'TASK_STATE_REJECTED', 'TASK_STATE_AUTH_REQUIRED',
+            'TASK_STATE_UNKNOWN'
         )
     ),
     status_timestamp TIMESTAMPTZ,

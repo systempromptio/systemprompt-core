@@ -80,7 +80,7 @@ impl UiRenderer for DashboardRenderer {
 
         let sections = Self::extract_sections(artifact);
         let layout = Self::extract_layout(artifact);
-        let title = artifact.name.as_deref().unwrap_or("Dashboard");
+        let title = artifact.title.as_deref().unwrap_or("Dashboard");
 
         let layout_class = match layout {
             DashboardLayout::Vertical => "layout-vertical",

@@ -145,7 +145,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
 
     Ok(Artifact {
         id: parsed.artifact_id,
-        name: Some(tool_name.to_string()),
+        title: Some(tool_name.to_string()),
         description: None,
         parts,
         metadata,

@@ -1,4 +1,4 @@
-use systemprompt_agent::models::a2a::{Message, Part, Task, TaskState, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, Task, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
     TaskBuilder, build_canceled_task, build_completed_task, build_mock_task,
 };
@@ -7,14 +7,13 @@ use systemprompt_models::a2a::TaskMetadata;
 
 fn make_user_message(context_id: &ContextId, task_id: &TaskId) -> Message {
     Message {
-        role: "user".to_string(),
+        role: MessageRole::User,
         parts: vec![Part::Text(TextPart {
             text: "Hello agent".to_string(),
         })],
-        id: MessageId::generate(),
+        message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: context_id.clone(),
-        kind: "message".to_string(),
         metadata: None,
         extensions: None,
         reference_task_ids: None,
@@ -90,7 +89,7 @@ fn task_builder_with_message_id() {
         .with_message_id(mid.clone())
         .build();
     let status_msg = task.status.message.unwrap();
-    assert_eq!(status_msg.id, mid);
+    assert_eq!(status_msg.message_id, mid);
 }
 
 #[test]
@@ -111,8 +110,8 @@ fn task_builder_with_user_message_creates_history() {
         .build();
     let history = task.history.unwrap();
     assert_eq!(history.len(), 2);
-    assert_eq!(history[0].role, "user");
-    assert_eq!(history[1].role, "agent");
+    assert_eq!(history[0].role, MessageRole::User);
+    assert_eq!(history[1].role, MessageRole::Agent);
 }
 
 #[test]
@@ -162,18 +161,11 @@ fn task_builder_without_metadata_sets_none() {
 }
 
 #[test]
-fn task_builder_kind_is_task() {
-    let ctx = ContextId::generate();
-    let task = TaskBuilder::new(ctx).build();
-    assert_eq!(task.kind, "task");
-}
-
-#[test]
 fn task_builder_status_message_role_is_agent() {
     let ctx = ContextId::generate();
     let task = TaskBuilder::new(ctx).build();
     let msg = task.status.message.unwrap();
-    assert_eq!(msg.role, "agent");
+    assert_eq!(msg.role, MessageRole::Agent);
 }
 
 #[test]
@@ -240,8 +232,8 @@ fn build_completed_task_has_history_with_user_and_agent() {
     let task = build_completed_task(tid, ctx, "response".to_string(), user_msg, vec![]);
     let history = task.history.unwrap();
     assert_eq!(history.len(), 2);
-    assert_eq!(history[0].role, "user");
-    assert_eq!(history[1].role, "agent");
+    assert_eq!(history[0].role, MessageRole::User);
+    assert_eq!(history[1].role, MessageRole::Agent);
 }
 
 #[test]

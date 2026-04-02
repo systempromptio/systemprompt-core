@@ -255,7 +255,7 @@ fn build_artifact_references(artifacts: &[Artifact]) -> String {
         .map(|artifact| {
             let artifact_type = &artifact.metadata.artifact_type;
             let artifact_name = artifact
-                .name
+                .title
                 .clone()
                 .unwrap_or_else(|| artifact.id.to_string());
 

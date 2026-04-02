@@ -68,11 +68,10 @@ async fn test_list_agents_success() {
     let response_body = serde_json::json!({
         "data": [
             {
-                "protocolVersion": "0.3.0",
                 "name": "test-agent",
                 "description": "A test agent",
                 "version": "1.0.0",
-                "url": "https://example.com/agent",
+                "supportedInterfaces": [{"url": "https://example.com/agent", "protocolBinding": "JSONRPC", "protocolVersion": "1.0.0"}],
                 "capabilities": {
                     "streaming": true,
                     "pushNotifications": false,

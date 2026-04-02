@@ -18,9 +18,8 @@ fn test_agent_card_builder_creates_valid_card() {
 
     assert_eq!(card.name, "Test Agent");
     assert_eq!(card.description, "A test agent");
-    assert_eq!(card.url, "https://example.com");
+    assert_eq!(card.url(), Some("https://example.com"));
     assert_eq!(card.version, "1.0.0");
-    assert_eq!(card.protocol_version, "0.3.0");
 }
 
 #[test]

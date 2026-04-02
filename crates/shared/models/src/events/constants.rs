@@ -39,16 +39,16 @@ pub mod system {
 }
 
 pub mod jsonrpc {
-    pub const MESSAGE_SEND: &str = "message/send";
-    pub const MESSAGE_STREAM: &str = "message/stream";
-    pub const TASKS_GET: &str = "tasks/get";
-    pub const TASKS_CANCEL: &str = "tasks/cancel";
-    pub const TASKS_RESUBSCRIBE: &str = "tasks/resubscribe";
-    pub const AGENT_GET_CARD: &str = "agent/getAuthenticatedExtendedCard";
-    pub const PUSH_CONFIG_SET: &str = "tasks/pushNotificationConfig/set";
-    pub const PUSH_CONFIG_GET: &str = "tasks/pushNotificationConfig/get";
-    pub const PUSH_CONFIG_LIST: &str = "tasks/pushNotificationConfig/list";
-    pub const PUSH_CONFIG_DELETE: &str = "tasks/pushNotificationConfig/delete";
+    pub const MESSAGE_SEND: &str = "SendMessage";
+    pub const MESSAGE_STREAM: &str = "SendStreamingMessage";
+    pub const TASKS_GET: &str = "GetTask";
+    pub const TASKS_CANCEL: &str = "CancelTask";
+    pub const TASKS_RESUBSCRIBE: &str = "SubscribeToTask";
+    pub const AGENT_GET_CARD: &str = "GetExtendedAgentCard";
+    pub const PUSH_CONFIG_SET: &str = "CreateTaskPushNotificationConfig";
+    pub const PUSH_CONFIG_GET: &str = "GetTaskPushNotificationConfig";
+    pub const PUSH_CONFIG_LIST: &str = "ListTaskPushNotificationConfigs";
+    pub const PUSH_CONFIG_DELETE: &str = "DeleteTaskPushNotificationConfig";
 }
 
 pub mod protocol {

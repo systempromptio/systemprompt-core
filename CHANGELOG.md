@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **A2A Protocol v1.0.0 Migration** — upgrade from v0.3.0 to the first stable release (Linux Foundation, March 2026)
+  - TaskState: kebab-case to `TASK_STATE_*` SCREAMING_SNAKE_CASE (`"submitted"` -> `"TASK_STATE_SUBMITTED"`)
+  - MessageRole: `"user"`/`"agent"` to `"ROLE_USER"`/`"ROLE_AGENT"`, now a typed enum
+  - Part: tagged enum (`kind` discriminator) to untagged (field-presence discrimination)
+  - FileWithBytes renamed to FileContent; `bytes` now optional, added `url` field for URL-referenced files
+  - Message: removed `kind` field, `id` renamed to `message_id`
+  - Task: removed `kind` field, added `created_at`/`last_modified` timestamps
+  - Artifact: `name` renamed to `title`
+  - AgentCard: collapsed `url`/`preferred_transport`/`additional_interfaces` into `supported_interfaces` array with per-interface protocol version
+  - TransportProtocol renamed to ProtocolBinding (type alias kept)
+  - JSON-RPC methods: PascalCase (`"message/send"` -> `"SendMessage"`, `"tasks/get"` -> `"GetTask"`, etc.)
+
+### Added
+- Database migration `003_a2a_v1_task_states.sql` for task status value migration
+- TaskState `is_terminal()` and `can_transition_to()` methods for state machine validation
+- Backward-compatible task state parsing (accepts both old and new format strings)
+
 ## [0.1.21] - 2026-04-01
 
 ### Fixed

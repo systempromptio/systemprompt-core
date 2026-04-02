@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use serde_json::json;
 use std::sync::Arc;
 
-use crate::models::a2a::{Artifact, Message, Part, TextPart};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
 use crate::repository::content::{ArtifactRepository, SkillRepository};
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::MessageService;
@@ -190,11 +190,10 @@ impl ArtifactPublishingService {
             );
 
             let agent_message = Message {
-                role: "agent".to_string(),
-                id: MessageId::generate(),
+                role: MessageRole::Agent,
+                message_id: MessageId::generate(),
                 task_id: Some(task_id.clone()),
                 context_id: context_id.clone(),
-                kind: "message".to_string(),
                 parts: vec![Part::Text(TextPart {
                     text: format!(
                         "Tool execution completed successfully.\n\nCreated artifact: {} (type: {})",
