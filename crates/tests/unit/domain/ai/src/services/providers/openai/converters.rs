@@ -126,6 +126,93 @@ mod convert_tools_tests {
 
         assert_eq!(result[0].function.parameters, complex_schema);
     }
+
+    #[test]
+    fn all_tools_have_function_type() {
+        let tools = vec![
+            create_mcp_tool("a", Some("A"), Some(json!({"type": "object"}))),
+            create_mcp_tool("b", Some("B"), Some(json!({"type": "object"}))),
+            create_mcp_tool("c", Some("C"), Some(json!({"type": "object"}))),
+        ];
+
+        let result = convert_tools(tools).unwrap();
+
+        for tool in &result {
+            assert_eq!(tool.r#type, "function");
+        }
+    }
+
+    #[test]
+    fn first_tool_missing_schema_fails_entire_batch() {
+        let tools = vec![
+            create_mcp_tool("bad_tool", Some("No schema"), None),
+            create_mcp_tool("good_tool", Some("Has schema"), Some(json!({"type": "object"}))),
+        ];
+
+        let result = convert_tools(tools);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn second_tool_missing_schema_fails_entire_batch() {
+        let tools = vec![
+            create_mcp_tool("good_tool", Some("Has schema"), Some(json!({"type": "object"}))),
+            create_mcp_tool("bad_tool", Some("No schema"), None),
+        ];
+
+        let result = convert_tools(tools);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn preserves_tool_order() {
+        let tools: Vec<McpTool> = (0..5)
+            .map(|i| {
+                create_mcp_tool(
+                    &format!("tool_{i}"),
+                    Some(&format!("Tool {i}")),
+                    Some(json!({"type": "object"})),
+                )
+            })
+            .collect();
+
+        let result = convert_tools(tools).unwrap();
+
+        for (i, tool) in result.iter().enumerate() {
+            assert_eq!(tool.function.name, format!("tool_{i}"));
+        }
+    }
+
+    #[test]
+    fn preserves_schema_with_enum_values() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["active", "inactive", "pending"]
+                }
+            }
+        });
+
+        let tool = create_mcp_tool("enum_tool", Some("Enum test"), Some(schema.clone()));
+
+        let result = convert_tools(vec![tool]).unwrap();
+
+        assert_eq!(result[0].function.parameters, schema);
+    }
+
+    #[test]
+    fn error_message_contains_tool_name() {
+        let tool = create_mcp_tool("specific_tool_name", None, None);
+
+        let result = convert_tools(vec![tool]);
+
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("specific_tool_name"));
+    }
 }
 
 mod convert_response_format_tests {
@@ -144,7 +231,6 @@ mod convert_response_format_tests {
         let result = convert_response_format(&format).unwrap();
 
         result.as_ref().expect("result should be present");
-        // Check it serializes correctly
         let serialized = serde_json::to_value(&result.unwrap()).unwrap();
         assert_eq!(serialized["type"], "json_object");
     }
@@ -212,7 +298,6 @@ mod convert_response_format_tests {
         let result = convert_response_format(&format).unwrap();
 
         let serialized = serde_json::to_value(&result.unwrap()).unwrap();
-        // None should be serialized as null or omitted
         assert!(
             serialized["json_schema"]["strict"].is_null()
                 || !serialized["json_schema"]
@@ -220,5 +305,94 @@ mod convert_response_format_tests {
                     .unwrap()
                     .contains_key("strict")
         );
+    }
+
+    #[test]
+    fn json_schema_preserves_complex_schema() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "value": {"type": "number"}
+                        },
+                        "required": ["name"]
+                    }
+                }
+            }
+        });
+
+        let format = ResponseFormat::JsonSchema {
+            schema: schema.clone(),
+            name: Some("complex".to_string()),
+            strict: Some(true),
+        };
+
+        let result = convert_response_format(&format).unwrap();
+
+        let serialized = serde_json::to_value(&result.unwrap()).unwrap();
+        assert_eq!(serialized["json_schema"]["schema"], schema);
+    }
+
+    #[test]
+    fn json_schema_preserves_name_exactly() {
+        let format = ResponseFormat::JsonSchema {
+            schema: json!({"type": "object"}),
+            name: Some("my_custom_schema_v2".to_string()),
+            strict: Some(true),
+        };
+
+        let result = convert_response_format(&format).unwrap();
+
+        let serialized = serde_json::to_value(&result.unwrap()).unwrap();
+        assert_eq!(serialized["json_schema"]["name"], "my_custom_schema_v2");
+    }
+
+    #[test]
+    fn json_object_serializes_with_correct_type() {
+        let format = ResponseFormat::JsonObject;
+        let result = convert_response_format(&format).unwrap().unwrap();
+
+        let serialized = serde_json::to_value(&result).unwrap();
+        assert_eq!(serialized["type"], "json_object");
+        assert!(!serialized.as_object().unwrap().contains_key("json_schema"));
+    }
+
+    #[test]
+    fn json_schema_with_empty_schema_object() {
+        let format = ResponseFormat::JsonSchema {
+            schema: json!({}),
+            name: Some("empty".to_string()),
+            strict: Some(true),
+        };
+
+        let result = convert_response_format(&format).unwrap();
+
+        let serialized = serde_json::to_value(&result.unwrap()).unwrap();
+        assert_eq!(serialized["json_schema"]["schema"], json!({}));
+    }
+
+    #[test]
+    fn json_schema_with_empty_name() {
+        let format = ResponseFormat::JsonSchema {
+            schema: json!({"type": "object"}),
+            name: Some("".to_string()),
+            strict: Some(true),
+        };
+
+        let result = convert_response_format(&format).unwrap();
+
+        let serialized = serde_json::to_value(&result.unwrap()).unwrap();
+        assert_eq!(serialized["json_schema"]["name"], "");
+    }
+
+    #[test]
+    fn text_format_returns_ok() {
+        let format = ResponseFormat::Text;
+        assert!(convert_response_format(&format).is_ok());
     }
 }

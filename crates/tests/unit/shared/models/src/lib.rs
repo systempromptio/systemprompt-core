@@ -41,3 +41,9 @@ mod execution;
 
 #[cfg(test)]
 mod validators;
+
+#[cfg(test)]
+mod profile;
+
+#[cfg(test)]
+mod agui;

@@ -4933,6 +4933,7 @@ dependencies = [
  "chrono",
  "indexmap",
  "serde_json",
+ "serde_yaml",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-traits",
