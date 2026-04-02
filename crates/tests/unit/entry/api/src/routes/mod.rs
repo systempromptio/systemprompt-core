@@ -5,4 +5,5 @@
 //! - Type serialization and deserialization
 //! - Default implementations
 
+mod oauth;
 mod sync_types;

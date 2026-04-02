@@ -4,15 +4,26 @@
 
 The API crate is the largest entry point in the project with 152 source files comprising approximately 4,400 lines of code in services alone. It defines 69 route handler files across 12 modules, 17 middleware files, and service implementations for server, proxy, static content, and health.
 
-Test coverage stands at 6.6% of source files (10 out of 152), with all 83 tests running synchronously in `crates/tests/unit/entry/api/src/`.
+Test coverage includes 149 tests in `crates/tests/unit/entry/api/src/` (up from 83).
+
+### Phase 3 Completion (2026-04-02)
+
+Added 74 new tests across 4 new test files covering OAuth endpoint types:
+
+| New Test File | Tests | What's Covered |
+|--------------|-------|----------------|
+| `routes/oauth/authorize.rs` | 30 | AuthorizeQuery, AuthorizeRequest, AuthorizeResponse — deserialization, serialization, field mapping, edge cases |
+| `routes/oauth/token.rs` | 26 | TokenError display/conversion, TokenErrorResponse, TokenRequest deserialization, TokenResponse serialization, WellKnownResponse |
+| `routes/oauth/client_config.rs` | 8 | Registration token validation contract — header parsing patterns |
+| `routes/oauth/responses.rs` | 10 | WellKnownResponse, OAuthProtectedResourceResponse serialization |
 
 ### What IS Tested
 
-- **Routes**: 1 of 69 route files (`sync_types.rs`) has tests.
-- **Middleware**: `trailing_slash` and `bot_detector` have 3 tests total. The remaining 15 middleware files (auth, JWT, CORS, rate limiting, analytics, context extraction, session, site auth, throttle, trace) have zero coverage.
-- **Services**: Only `health.rs` is tested.
-- **Models**: 1 test file covers model logic.
-- **Static content**: 1 test file exists.
+- **Routes**: `sync_types.rs` + 4 new OAuth type/validation test files
+- **Middleware**: `trailing_slash` and `bot_detector`
+- **Services**: `health.rs`
+- **Models**: 1 test file
+- **Static content**: 1 test file
 
 ### What is NOT Tested
 
@@ -27,7 +38,7 @@ Every route module has zero test coverage:
 | engagement | handlers (1 file) |
 | marketplace | 1 file |
 | mcp | registry (1 file) |
-| oauth | ALL 21+ endpoints: token, authorize, callback, webauthn, client config, consent, introspect, revoke, register, register/dynamic, userinfo, anonymous session, discovery, wellknown, health |
+| oauth | Route handlers (authorize, callback, token, consent, introspect, revoke, register, anonymous, webauthn) — handlers use private functions not accessible from external test crates. Public types (AuthorizeQuery, TokenError, etc.) now tested. |
 | proxy | agents, mcp (2 files) |
 | stream | contexts (1 file) |
 | sync | auth, files (2 files) |

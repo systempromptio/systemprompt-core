@@ -4997,6 +4997,7 @@ dependencies = [
 name = "systemprompt-oauth-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
  "axum",
  "chrono",
  "http",
@@ -5008,6 +5009,7 @@ dependencies = [
  "systemprompt-oauth",
  "systemprompt-traits",
  "tokio",
+ "url",
  "uuid",
 ]
 
