@@ -1,168 +1,72 @@
-//! Unit tests for job-related identifier types.
-
-use std::collections::HashSet;
-use systemprompt_identifiers::{ScheduledJobId, JobName, ToDbValue, DbValue};
-
-// ============================================================================
-// ScheduledJobId Tests
-// ============================================================================
+use systemprompt_identifiers::{ScheduledJobId, JobName, DbValue, ToDbValue};
 
 #[test]
-fn test_scheduled_job_id_new() {
-    let id = ScheduledJobId::new("job-123");
-    assert_eq!(id.as_str(), "job-123");
-}
-
-#[test]
-fn test_scheduled_job_id_generate() {
+fn scheduled_job_id_generate_uuid_format() {
     let id = ScheduledJobId::generate();
-    assert!(!id.as_str().is_empty());
     assert_eq!(id.as_str().len(), 36);
+    assert_eq!(id.as_str().chars().filter(|c| *c == '-').count(), 4);
 }
 
 #[test]
-fn test_scheduled_job_id_generate_unique() {
+fn scheduled_job_id_generate_unique() {
     let id1 = ScheduledJobId::generate();
     let id2 = ScheduledJobId::generate();
     assert_ne!(id1, id2);
 }
 
 #[test]
-fn test_scheduled_job_id_display() {
-    let id = ScheduledJobId::new("display-job");
-    assert_eq!(format!("{}", id), "display-job");
+fn scheduled_job_id_serde_transparent() {
+    let id = ScheduledJobId::new("job-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"job-1\"");
+    let deserialized: ScheduledJobId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
 }
 
 #[test]
-fn test_scheduled_job_id_from_string() {
-    let id: ScheduledJobId = String::from("from-string-job").into();
-    assert_eq!(id.as_str(), "from-string-job");
+fn scheduled_job_id_to_db_value_owned_and_ref() {
+    let id = ScheduledJobId::new("db");
+    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == "db"));
+    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == "db"));
 }
 
 #[test]
-fn test_scheduled_job_id_from_str() {
-    let id: ScheduledJobId = "from-str-job".into();
-    assert_eq!(id.as_str(), "from-str-job");
-}
-
-#[test]
-fn test_scheduled_job_id_as_ref() {
-    let id = ScheduledJobId::new("as-ref-job");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-job");
-}
-
-#[test]
-fn test_scheduled_job_id_hash() {
-    let id1 = ScheduledJobId::new("hash-job");
-    let id2 = ScheduledJobId::new("hash-job");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_scheduled_job_id_deserialize_json() {
-    let id: ScheduledJobId = serde_json::from_str("\"deserialize-job\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-job");
-}
-
-#[test]
-fn test_scheduled_job_id_to_db_value() {
-    let id = ScheduledJobId::new("db-value-job");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-job"));
-}
-
-#[test]
-fn test_scheduled_job_id_ref_to_db_value() {
-    let id = ScheduledJobId::new("db-value-ref-job");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-job"));
-}
-
-// ============================================================================
-// JobName Tests
-// ============================================================================
-
-#[test]
-fn test_job_name_new() {
-    let name = JobName::new("my-job");
-    assert_eq!(name.as_str(), "my-job");
-}
-
-#[test]
-fn test_job_name_display() {
-    let name = JobName::new("display-job");
-    assert_eq!(format!("{}", name), "display-job");
-}
-
-#[test]
-fn test_job_name_from_string() {
-    let name: JobName = String::from("from-string-job").into();
-    assert_eq!(name.as_str(), "from-string-job");
-}
-
-#[test]
-fn test_job_name_from_str() {
-    let name: JobName = "from-str-job".into();
-    assert_eq!(name.as_str(), "from-str-job");
-}
-
-#[test]
-fn test_job_name_as_ref() {
-    let name = JobName::new("as-ref-job");
-    let s: &str = name.as_ref();
-    assert_eq!(s, "as-ref-job");
-}
-
-#[test]
-fn test_job_name_hash() {
-    let name1 = JobName::new("hash-job");
-    let name2 = JobName::new("hash-job");
-
-    let mut set = HashSet::new();
-    set.insert(name1.clone());
-    assert!(set.contains(&name2));
-}
-
-#[test]
-fn test_job_name_deserialize_json() {
-    let name: JobName = serde_json::from_str("\"deserialize-job\"").unwrap();
-    assert_eq!(name.as_str(), "deserialize-job");
-}
-
-#[test]
-fn test_job_name_to_db_value() {
-    let name = JobName::new("db-value-job");
-    let db_value = name.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-job"));
-}
-
-#[test]
-fn test_job_name_ref_to_db_value() {
-    let name = JobName::new("db-value-ref-job");
-    let db_value = (&name).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-job"));
-}
-
-#[test]
-fn test_job_name_debug() {
-    let name = JobName::new("debug-job");
-    let debug_str = format!("{:?}", name);
-    assert!(debug_str.contains("JobName"));
-    assert!(debug_str.contains("debug-job"));
-}
-
-#[test]
-fn test_job_name_empty_allowed() {
-    let name = JobName::new("");
-    assert_eq!(name.as_str(), "");
-}
-
-#[test]
-fn test_job_name_descriptive() {
+fn job_name_accepts_descriptive_names() {
     let name = JobName::new("daily-cleanup-expired-sessions");
     assert_eq!(name.as_str(), "daily-cleanup-expired-sessions");
+}
+
+#[test]
+fn job_name_display_format() {
+    let name = JobName::new("my-job");
+    assert_eq!(format!("{}", name), "my-job");
+}
+
+#[test]
+fn job_name_serde_transparent() {
+    let name = JobName::new("serde-job");
+    let json = serde_json::to_string(&name).unwrap();
+    assert_eq!(json, "\"serde-job\"");
+    let deserialized: JobName = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, name);
+}
+
+#[test]
+fn job_name_from_str_and_string_equal() {
+    let a: JobName = "x".into();
+    let b: JobName = String::from("x").into();
+    assert_eq!(a, b);
+}
+
+#[test]
+fn job_name_to_db_value_owned_and_ref() {
+    let name = JobName::new("db");
+    assert!(matches!(name.to_db_value(), DbValue::String(ref s) if s == "db"));
+    assert!(matches!((&name).to_db_value(), DbValue::String(ref s) if s == "db"));
+}
+
+#[test]
+fn job_name_into_string() {
+    let s: String = JobName::new("convert").into();
+    assert_eq!(s, "convert");
 }

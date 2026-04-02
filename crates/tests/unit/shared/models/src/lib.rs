@@ -53,3 +53,9 @@ mod ai_tool_model_config;
 
 #[cfg(test)]
 mod text_utils;
+
+#[cfg(test)]
+mod routing;
+
+#[cfg(test)]
+mod modules;

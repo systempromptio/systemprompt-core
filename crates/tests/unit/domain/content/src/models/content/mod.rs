@@ -1,3 +1,4 @@
+mod content_and_tags;
 mod kind_and_ingestion;
 mod metadata_and_links;
-mod content_and_tags;
+mod serde_extras;

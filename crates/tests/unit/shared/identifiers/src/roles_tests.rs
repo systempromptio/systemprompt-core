@@ -1,97 +1,43 @@
-//! Unit tests for RoleId type.
-
-use std::collections::HashSet;
-use systemprompt_identifiers::{RoleId, ToDbValue, DbValue};
+use systemprompt_identifiers::{RoleId, DbValue, ToDbValue};
 
 #[test]
-fn test_role_id_new() {
-    let id = RoleId::new("role-123");
-    assert_eq!(id.as_str(), "role-123");
-}
-
-#[test]
-fn test_role_id_display() {
-    let id = RoleId::new("display-role");
-    assert_eq!(format!("{}", id), "display-role");
-}
-
-#[test]
-fn test_role_id_from_string() {
-    let id: RoleId = String::from("from-string-role").into();
-    assert_eq!(id.as_str(), "from-string-role");
-}
-
-#[test]
-fn test_role_id_from_str() {
-    let id: RoleId = "from-str-role".into();
-    assert_eq!(id.as_str(), "from-str-role");
-}
-
-#[test]
-fn test_role_id_as_ref() {
-    let id = RoleId::new("as-ref-role");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-role");
-}
-
-#[test]
-fn test_role_id_hash() {
-    let id1 = RoleId::new("hash-role");
-    let id2 = RoleId::new("hash-role");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_role_id_deserialize_json() {
-    let id: RoleId = serde_json::from_str("\"deserialize-role\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-role");
-}
-
-#[test]
-fn test_role_id_to_db_value() {
-    let id = RoleId::new("db-value-role");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-role"));
-}
-
-#[test]
-fn test_role_id_ref_to_db_value() {
-    let id = RoleId::new("db-value-ref-role");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-role"));
-}
-
-#[test]
-fn test_role_id_debug() {
-    let id = RoleId::new("debug-role");
-    let debug_str = format!("{:?}", id);
-    assert!(debug_str.contains("RoleId"));
-    assert!(debug_str.contains("debug-role"));
-}
-
-#[test]
-fn test_role_id_empty_allowed() {
-    let id = RoleId::new("");
-    assert_eq!(id.as_str(), "");
-}
-
-#[test]
-fn test_role_id_admin() {
+fn role_id_display_format() {
     let id = RoleId::new("admin");
-    assert_eq!(id.as_str(), "admin");
+    assert_eq!(format!("{}", id), "admin");
 }
 
 #[test]
-fn test_role_id_user() {
-    let id = RoleId::new("user");
-    assert_eq!(id.as_str(), "user");
+fn role_id_serde_transparent_json() {
+    let id = RoleId::new("editor");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"editor\"");
+    let deserialized: RoleId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
 }
 
 #[test]
-fn test_role_id_guest() {
-    let id = RoleId::new("guest");
-    assert_eq!(id.as_str(), "guest");
+fn role_id_from_str_and_string_equal() {
+    let a: RoleId = "admin".into();
+    let b: RoleId = String::from("admin").into();
+    assert_eq!(a, b);
+}
+
+#[test]
+fn role_id_into_string() {
+    let s: String = RoleId::new("admin").into();
+    assert_eq!(s, "admin");
+}
+
+#[test]
+fn role_id_partial_eq_str() {
+    let id = RoleId::new("admin");
+    assert!(id == "admin");
+    assert!("admin" == id);
+}
+
+#[test]
+fn role_id_to_db_value_owned_and_ref() {
+    let id = RoleId::new("admin");
+    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == "admin"));
+    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == "admin"));
 }

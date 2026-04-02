@@ -149,6 +149,33 @@ fn test_create_content_params_with_version_hash() {
 }
 
 #[test]
+fn test_create_content_params_with_public_false() {
+    let params = CreateContentParams::new(
+        "slug".to_string(),
+        "Title".to_string(),
+        "Desc".to_string(),
+        "Body".to_string(),
+        SourceId::new("src"),
+    )
+    .with_public(false);
+
+    assert!(!params.public);
+}
+
+#[test]
+fn test_create_content_params_default_public_is_true() {
+    let params = CreateContentParams::new(
+        "slug".to_string(),
+        "Title".to_string(),
+        "Desc".to_string(),
+        "Body".to_string(),
+        SourceId::new("src"),
+    );
+
+    assert!(params.public);
+}
+
+#[test]
 fn test_create_content_params_with_links() {
     let links = serde_json::json!([
         {"title": "Link 1", "url": "https://example.com/1"},

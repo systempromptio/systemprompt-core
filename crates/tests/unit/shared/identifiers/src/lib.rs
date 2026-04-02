@@ -22,6 +22,9 @@ mod content_tests;
 mod context_tests;
 
 #[cfg(test)]
+mod email_tests;
+
+#[cfg(test)]
 mod execution_tests;
 
 #[cfg(test)]
@@ -34,6 +37,12 @@ mod links_tests;
 mod mcp_tests;
 
 #[cfg(test)]
+mod path_tests;
+
+#[cfg(test)]
+mod profile_tests;
+
+#[cfg(test)]
 mod roles_tests;
 
 #[cfg(test)]
@@ -44,6 +53,9 @@ mod task_tests;
 
 #[cfg(test)]
 mod trace_tests;
+
+#[cfg(test)]
+mod url_tests;
 
 #[cfg(test)]
 mod user_tests;

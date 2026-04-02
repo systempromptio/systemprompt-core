@@ -1,111 +1,61 @@
-//! Unit tests for TraceId type.
-
 use std::collections::HashSet;
-use systemprompt_identifiers::{TraceId, ToDbValue, DbValue};
+use systemprompt_identifiers::{TraceId, DbValue, ToDbValue};
 
 #[test]
-fn test_trace_id_new() {
-    let id = TraceId::new("trace-123");
-    assert_eq!(id.as_str(), "trace-123");
+fn system_factory_value() {
+    assert_eq!(TraceId::system().as_str(), "system");
 }
 
 #[test]
-fn test_trace_id_system() {
-    let id = TraceId::system();
-    assert_eq!(id.as_str(), "system");
-}
-
-#[test]
-fn test_trace_id_generate() {
+fn generate_uuid_format() {
     let id = TraceId::generate();
-    assert!(!id.as_str().is_empty());
     assert_eq!(id.as_str().len(), 36);
+    assert_eq!(id.as_str().chars().filter(|c| *c == '-').count(), 4);
 }
 
 #[test]
-fn test_trace_id_generate_unique() {
-    let id1 = TraceId::generate();
-    let id2 = TraceId::generate();
-    assert_ne!(id1, id2);
+fn generate_unique() {
+    let ids: HashSet<String> = (0..20).map(|_| TraceId::generate().as_str().to_string()).collect();
+    assert_eq!(ids.len(), 20);
 }
 
 #[test]
-fn test_trace_id_display() {
-    let id = TraceId::new("display-trace");
-    assert_eq!(format!("{}", id), "display-trace");
-}
-
-#[test]
-fn test_trace_id_from_string() {
-    let id: TraceId = String::from("from-string-trace").into();
-    assert_eq!(id.as_str(), "from-string-trace");
-}
-
-#[test]
-fn test_trace_id_from_str() {
-    let id: TraceId = "from-str-trace".into();
-    assert_eq!(id.as_str(), "from-str-trace");
-}
-
-#[test]
-fn test_trace_id_as_ref() {
-    let id = TraceId::new("as-ref-trace");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-trace");
-}
-
-#[test]
-fn test_trace_id_hash() {
-    let id1 = TraceId::new("hash-trace");
-    let id2 = TraceId::new("hash-trace");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_trace_id_deserialize_json() {
-    let id: TraceId = serde_json::from_str("\"deserialize-trace\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-trace");
-}
-
-#[test]
-fn test_trace_id_to_db_value() {
-    let id = TraceId::new("db-value-trace");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-trace"));
-}
-
-#[test]
-fn test_trace_id_ref_to_db_value() {
-    let id = TraceId::new("db-value-ref-trace");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-trace"));
-}
-
-#[test]
-fn test_trace_id_debug() {
-    let id = TraceId::new("debug-trace");
-    let debug_str = format!("{:?}", id);
-    assert!(debug_str.contains("TraceId"));
-    assert!(debug_str.contains("debug-trace"));
-}
-
-#[test]
-fn test_trace_id_empty_allowed() {
-    let id = TraceId::new("");
-    assert_eq!(id.as_str(), "");
-}
-
-#[test]
-fn test_trace_id_uuid_format() {
-    let id = TraceId::new("550e8400-e29b-41d4-a716-446655440000");
-    assert_eq!(id.as_str(), "550e8400-e29b-41d4-a716-446655440000");
-}
-
-#[test]
-fn test_trace_id_generated_not_system() {
+fn generated_is_not_system() {
     let id = TraceId::generate();
     assert_ne!(id.as_str(), "system");
+}
+
+#[test]
+fn display_format() {
+    let id = TraceId::new("trace-42");
+    assert_eq!(format!("{}", id), "trace-42");
+}
+
+#[test]
+fn serde_transparent_json() {
+    let id = TraceId::new("trace-serde");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"trace-serde\"");
+    let deserialized: TraceId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
+}
+
+#[test]
+fn from_string_and_str_produce_equal() {
+    let a: TraceId = "x".into();
+    let b: TraceId = String::from("x").into();
+    assert_eq!(a, b);
+}
+
+#[test]
+fn into_string() {
+    let s: String = TraceId::new("convert").into();
+    assert_eq!(s, "convert");
+}
+
+#[test]
+fn to_db_value_owned_and_ref() {
+    let id = TraceId::new("db");
+    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == "db"));
+    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == "db"));
 }

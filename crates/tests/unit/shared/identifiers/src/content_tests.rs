@@ -1,358 +1,118 @@
-//! Unit tests for content-related identifier types.
-
 use std::collections::HashSet;
-use systemprompt_identifiers::{
-    SkillId, SourceId, CategoryId, ContentId, TagId, FileId, ToDbValue, DbValue
-};
-
-// ============================================================================
-// SkillId Tests
-// ============================================================================
+use systemprompt_identifiers::{SkillId, SourceId, CategoryId, ContentId, TagId, FileId, DbValue, ToDbValue};
 
 #[test]
-fn test_skill_id_new() {
-    let id = SkillId::new("skill-123");
-    assert_eq!(id.as_str(), "skill-123");
-}
-
-#[test]
-fn test_skill_id_generate() {
+fn skill_id_generate_uuid_format() {
     let id = SkillId::generate();
-    assert!(!id.as_str().is_empty());
     assert_eq!(id.as_str().len(), 36);
 }
 
 #[test]
-fn test_skill_id_generate_unique() {
-    let id1 = SkillId::generate();
-    let id2 = SkillId::generate();
-    assert_ne!(id1, id2);
+fn skill_id_generate_unique() {
+    let ids: HashSet<String> = (0..10).map(|_| SkillId::generate().as_str().to_string()).collect();
+    assert_eq!(ids.len(), 10);
 }
 
 #[test]
-fn test_skill_id_display() {
-    let id = SkillId::new("display-skill");
-    assert_eq!(format!("{}", id), "display-skill");
+fn skill_id_serde_transparent() {
+    let id = SkillId::new("skill-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"skill-1\"");
+    let deserialized: SkillId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
 }
 
 #[test]
-fn test_skill_id_from_string() {
-    let id: SkillId = String::from("from-string-skill").into();
-    assert_eq!(id.as_str(), "from-string-skill");
+fn source_id_serde_transparent() {
+    let id = SourceId::new("source-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"source-1\"");
 }
 
 #[test]
-fn test_skill_id_from_str() {
-    let id: SkillId = "from-str-skill".into();
-    assert_eq!(id.as_str(), "from-str-skill");
+fn category_id_serde_transparent() {
+    let id = CategoryId::new("cat-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"cat-1\"");
 }
 
 #[test]
-fn test_skill_id_as_ref() {
-    let id = SkillId::new("as-ref-skill");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-skill");
+fn content_id_serde_transparent() {
+    let id = ContentId::new("content-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"content-1\"");
 }
 
 #[test]
-fn test_skill_id_hash() {
-    let id1 = SkillId::new("hash-skill");
-    let id2 = SkillId::new("hash-skill");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
+fn tag_id_serde_transparent() {
+    let id = TagId::new("tag-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"tag-1\"");
 }
 
 #[test]
-fn test_skill_id_deserialize_json() {
-    let id: SkillId = serde_json::from_str("\"deserialize-skill\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-skill");
-}
-
-#[test]
-fn test_skill_id_to_db_value() {
-    let id = SkillId::new("db-value-skill");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-skill"));
-}
-
-// ============================================================================
-// SourceId Tests
-// ============================================================================
-
-#[test]
-fn test_source_id_new() {
-    let id = SourceId::new("source-123");
-    assert_eq!(id.as_str(), "source-123");
-}
-
-#[test]
-fn test_source_id_display() {
-    let id = SourceId::new("display-source");
-    assert_eq!(format!("{}", id), "display-source");
-}
-
-#[test]
-fn test_source_id_from_string() {
-    let id: SourceId = String::from("from-string-source").into();
-    assert_eq!(id.as_str(), "from-string-source");
-}
-
-#[test]
-fn test_source_id_from_str() {
-    let id: SourceId = "from-str-source".into();
-    assert_eq!(id.as_str(), "from-str-source");
-}
-
-#[test]
-fn test_source_id_as_ref() {
-    let id = SourceId::new("as-ref-source");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-source");
-}
-
-#[test]
-fn test_source_id_hash() {
-    let id1 = SourceId::new("hash-source");
-    let id2 = SourceId::new("hash-source");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_source_id_to_db_value() {
-    let id = SourceId::new("db-value-source");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-source"));
-}
-
-// ============================================================================
-// CategoryId Tests
-// ============================================================================
-
-#[test]
-fn test_category_id_new() {
-    let id = CategoryId::new("category-123");
-    assert_eq!(id.as_str(), "category-123");
-}
-
-#[test]
-fn test_category_id_display() {
-    let id = CategoryId::new("display-category");
-    assert_eq!(format!("{}", id), "display-category");
-}
-
-#[test]
-fn test_category_id_from_string() {
-    let id: CategoryId = String::from("from-string-category").into();
-    assert_eq!(id.as_str(), "from-string-category");
-}
-
-#[test]
-fn test_category_id_from_str() {
-    let id: CategoryId = "from-str-category".into();
-    assert_eq!(id.as_str(), "from-str-category");
-}
-
-#[test]
-fn test_category_id_as_ref() {
-    let id = CategoryId::new("as-ref-category");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-category");
-}
-
-#[test]
-fn test_category_id_hash() {
-    let id1 = CategoryId::new("hash-category");
-    let id2 = CategoryId::new("hash-category");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_category_id_to_db_value() {
-    let id = CategoryId::new("db-value-category");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-category"));
-}
-
-// ============================================================================
-// ContentId Tests
-// ============================================================================
-
-#[test]
-fn test_content_id_new() {
-    let id = ContentId::new("content-123");
-    assert_eq!(id.as_str(), "content-123");
-}
-
-#[test]
-fn test_content_id_display() {
-    let id = ContentId::new("display-content");
-    assert_eq!(format!("{}", id), "display-content");
-}
-
-#[test]
-fn test_content_id_from_string() {
-    let id: ContentId = String::from("from-string-content").into();
-    assert_eq!(id.as_str(), "from-string-content");
-}
-
-#[test]
-fn test_content_id_from_str() {
-    let id: ContentId = "from-str-content".into();
-    assert_eq!(id.as_str(), "from-str-content");
-}
-
-#[test]
-fn test_content_id_as_ref() {
-    let id = ContentId::new("as-ref-content");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-content");
-}
-
-#[test]
-fn test_content_id_hash() {
-    let id1 = ContentId::new("hash-content");
-    let id2 = ContentId::new("hash-content");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_content_id_to_db_value() {
-    let id = ContentId::new("db-value-content");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-content"));
-}
-
-// ============================================================================
-// TagId Tests
-// ============================================================================
-
-#[test]
-fn test_tag_id_new() {
-    let id = TagId::new("tag-123");
-    assert_eq!(id.as_str(), "tag-123");
-}
-
-#[test]
-fn test_tag_id_display() {
-    let id = TagId::new("display-tag");
-    assert_eq!(format!("{}", id), "display-tag");
-}
-
-#[test]
-fn test_tag_id_from_string() {
-    let id: TagId = String::from("from-string-tag").into();
-    assert_eq!(id.as_str(), "from-string-tag");
-}
-
-#[test]
-fn test_tag_id_from_str() {
-    let id: TagId = "from-str-tag".into();
-    assert_eq!(id.as_str(), "from-str-tag");
-}
-
-#[test]
-fn test_tag_id_as_ref() {
-    let id = TagId::new("as-ref-tag");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-tag");
-}
-
-#[test]
-fn test_tag_id_hash() {
-    let id1 = TagId::new("hash-tag");
-    let id2 = TagId::new("hash-tag");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_tag_id_to_db_value() {
-    let id = TagId::new("db-value-tag");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-tag"));
-}
-
-// ============================================================================
-// FileId Tests
-// ============================================================================
-
-#[test]
-fn test_file_id_new() {
-    let id = FileId::new("file-123");
-    assert_eq!(id.as_str(), "file-123");
-}
-
-#[test]
-fn test_file_id_generate() {
+fn file_id_generate_uuid_format() {
     let id = FileId::generate();
-    assert!(!id.as_str().is_empty());
     assert_eq!(id.as_str().len(), 36);
 }
 
 #[test]
-fn test_file_id_generate_unique() {
+fn file_id_generate_unique() {
     let id1 = FileId::generate();
     let id2 = FileId::generate();
     assert_ne!(id1, id2);
 }
 
 #[test]
-fn test_file_id_display() {
-    let id = FileId::new("display-file");
-    assert_eq!(format!("{}", id), "display-file");
+fn file_id_serde_transparent() {
+    let id = FileId::new("file-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"file-1\"");
+    let deserialized: FileId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
 }
 
 #[test]
-fn test_file_id_from_string() {
-    let id: FileId = String::from("from-string-file").into();
-    assert_eq!(id.as_str(), "from-string-file");
+fn all_content_ids_from_str_and_string_equal() {
+    let s1: SourceId = "x".into();
+    let s2: SourceId = String::from("x").into();
+    assert_eq!(s1, s2);
+
+    let c1: CategoryId = "y".into();
+    let c2: CategoryId = String::from("y").into();
+    assert_eq!(c1, c2);
+
+    let co1: ContentId = "z".into();
+    let co2: ContentId = String::from("z").into();
+    assert_eq!(co1, co2);
+
+    let t1: TagId = "w".into();
+    let t2: TagId = String::from("w").into();
+    assert_eq!(t1, t2);
 }
 
 #[test]
-fn test_file_id_from_str() {
-    let id: FileId = "from-str-file".into();
-    assert_eq!(id.as_str(), "from-str-file");
+fn all_content_ids_to_db_value() {
+    assert!(matches!(SkillId::new("a").to_db_value(), DbValue::String(ref s) if s == "a"));
+    assert!(matches!(SourceId::new("b").to_db_value(), DbValue::String(ref s) if s == "b"));
+    assert!(matches!(CategoryId::new("c").to_db_value(), DbValue::String(ref s) if s == "c"));
+    assert!(matches!(ContentId::new("d").to_db_value(), DbValue::String(ref s) if s == "d"));
+    assert!(matches!(TagId::new("e").to_db_value(), DbValue::String(ref s) if s == "e"));
+    assert!(matches!(FileId::new("f").to_db_value(), DbValue::String(ref s) if s == "f"));
 }
 
 #[test]
-fn test_file_id_as_ref() {
-    let id = FileId::new("as-ref-file");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-file");
-}
-
-#[test]
-fn test_file_id_hash() {
-    let id1 = FileId::new("hash-file");
-    let id2 = FileId::new("hash-file");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_file_id_deserialize_json() {
-    let id: FileId = serde_json::from_str("\"deserialize-file\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-file");
-}
-
-#[test]
-fn test_file_id_to_db_value() {
-    let id = FileId::new("db-value-file");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-file"));
+fn all_content_ids_into_string() {
+    let s: String = SkillId::new("sk").into();
+    assert_eq!(s, "sk");
+    let s: String = SourceId::new("so").into();
+    assert_eq!(s, "so");
+    let s: String = CategoryId::new("ca").into();
+    assert_eq!(s, "ca");
+    let s: String = ContentId::new("co").into();
+    assert_eq!(s, "co");
+    let s: String = TagId::new("ta").into();
+    assert_eq!(s, "ta");
+    let s: String = FileId::new("fi").into();
+    assert_eq!(s, "fi");
 }

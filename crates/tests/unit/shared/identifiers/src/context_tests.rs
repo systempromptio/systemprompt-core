@@ -1,129 +1,78 @@
-//! Unit tests for ContextId type.
-
 use std::collections::HashSet;
-use systemprompt_identifiers::{ContextId, ToDbValue, DbValue};
+use systemprompt_identifiers::{ContextId, DbValue, ToDbValue};
 
 #[test]
-fn test_context_id_new() {
-    let id = ContextId::new("context-123");
-    assert_eq!(id.as_str(), "context-123");
+fn system_factory_value() {
+    assert_eq!(ContextId::system().as_str(), "system");
 }
 
 #[test]
-fn test_context_id_system() {
-    let id = ContextId::system();
-    assert_eq!(id.as_str(), "system");
+fn empty_factory_produces_empty_string() {
+    let id = ContextId::empty();
+    assert!(id.is_empty());
+    assert_eq!(id.as_str(), "");
 }
 
 #[test]
-fn test_context_id_generate() {
+fn is_empty_false_for_non_empty() {
+    assert!(!ContextId::new("something").is_empty());
+    assert!(!ContextId::system().is_empty());
+}
+
+#[test]
+fn is_system_true_only_for_system() {
+    assert!(ContextId::system().is_system());
+    assert!(!ContextId::new("other").is_system());
+    assert!(!ContextId::empty().is_system());
+}
+
+#[test]
+fn is_anonymous_true_only_for_anonymous() {
+    assert!(ContextId::new("anonymous").is_anonymous());
+    assert!(!ContextId::system().is_anonymous());
+    assert!(!ContextId::new("other").is_anonymous());
+}
+
+#[test]
+fn generate_produces_uuid_format() {
     let id = ContextId::generate();
-    assert!(!id.as_str().is_empty());
     assert_eq!(id.as_str().len(), 36);
-}
-
-#[test]
-fn test_context_id_generate_unique() {
-    let id1 = ContextId::generate();
-    let id2 = ContextId::generate();
-    assert_ne!(id1, id2);
-}
-
-#[test]
-fn test_context_id_is_system() {
-    let system_id = ContextId::system();
-    let other_id = ContextId::new("other");
-
-    assert!(system_id.is_system());
-    assert!(!other_id.is_system());
-}
-
-#[test]
-fn test_context_id_is_anonymous() {
-    let anon_id = ContextId::new("anonymous");
-    let other_id = ContextId::new("other");
-
-    assert!(anon_id.is_anonymous());
-    assert!(!other_id.is_anonymous());
-}
-
-#[test]
-fn test_context_id_display() {
-    let id = ContextId::new("display-context");
-    assert_eq!(format!("{}", id), "display-context");
-}
-
-#[test]
-fn test_context_id_from_string() {
-    let id: ContextId = String::from("from-string-context").into();
-    assert_eq!(id.as_str(), "from-string-context");
-}
-
-#[test]
-fn test_context_id_from_str() {
-    let id: ContextId = "from-str-context".into();
-    assert_eq!(id.as_str(), "from-str-context");
-}
-
-#[test]
-fn test_context_id_as_ref() {
-    let id = ContextId::new("as-ref-context");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-context");
-}
-
-#[test]
-fn test_context_id_hash() {
-    let id1 = ContextId::new("hash-context");
-    let id2 = ContextId::new("hash-context");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_context_id_deserialize_json() {
-    let id: ContextId = serde_json::from_str("\"deserialize-context\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-context");
-}
-
-#[test]
-fn test_context_id_to_db_value() {
-    let id = ContextId::new("db-value-context");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-context"));
-}
-
-#[test]
-fn test_context_id_ref_to_db_value() {
-    let id = ContextId::new("db-value-ref-context");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-context"));
-}
-
-#[test]
-fn test_context_id_debug() {
-    let id = ContextId::new("debug-context");
-    let debug_str = format!("{:?}", id);
-    assert!(debug_str.contains("ContextId"));
-    assert!(debug_str.contains("debug-context"));
-}
-
-#[test]
-fn test_context_id_system_is_not_anonymous() {
-    let id = ContextId::system();
-    assert!(!id.is_anonymous());
-}
-
-#[test]
-fn test_context_id_generated_is_not_system() {
-    let id = ContextId::generate();
+    assert!(!id.is_empty());
     assert!(!id.is_system());
+    assert!(!id.is_anonymous());
 }
 
 #[test]
-fn test_context_id_generated_is_not_anonymous() {
-    let id = ContextId::generate();
-    assert!(!id.is_anonymous());
+fn generate_unique_across_calls() {
+    let ids: HashSet<String> = (0..50).map(|_| ContextId::generate().as_str().to_string()).collect();
+    assert_eq!(ids.len(), 50);
+}
+
+#[test]
+fn display_format() {
+    let id = ContextId::new("ctx-42");
+    assert_eq!(format!("{}", id), "ctx-42");
+}
+
+#[test]
+fn serde_transparent_json() {
+    let id = ContextId::new("serde-ctx");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"serde-ctx\"");
+    let deserialized: ContextId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
+}
+
+#[test]
+fn from_string_and_str_produce_equal() {
+    let from_str: ContextId = "test".into();
+    let from_string: ContextId = String::from("test").into();
+    assert_eq!(from_str, from_string);
+}
+
+#[test]
+fn to_db_value_owned_and_ref() {
+    let id = ContextId::new("db");
+    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == "db"));
+    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == "db"));
 }

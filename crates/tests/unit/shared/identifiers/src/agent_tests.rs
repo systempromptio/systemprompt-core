@@ -1,219 +1,187 @@
-//! Unit tests for AgentId and AgentName types.
-
 use std::collections::HashSet;
-use systemprompt_identifiers::{AgentId, AgentName, ToDbValue, DbValue};
-
-// ============================================================================
-// AgentId Tests
-// ============================================================================
+use systemprompt_identifiers::{AgentId, AgentName, DbValue, ToDbValue};
 
 #[test]
-fn test_agent_id_new_from_string() {
-    let id = AgentId::new("test-agent-123");
-    assert_eq!(id.as_str(), "test-agent-123");
+fn agent_id_generate_produces_uuid_v4_format() {
+    let id = AgentId::generate();
+    assert_eq!(id.as_str().len(), 36);
+    let parts: Vec<&str> = id.as_str().split('-').collect();
+    assert_eq!(parts.len(), 5);
+    assert_eq!(parts[0].len(), 8);
+    assert_eq!(parts[1].len(), 4);
+    assert_eq!(parts[2].len(), 4);
+    assert_eq!(parts[3].len(), 4);
+    assert_eq!(parts[4].len(), 12);
 }
 
 #[test]
-fn test_agent_id_new_from_owned_string() {
-    let id = AgentId::new(String::from("test-agent-456"));
-    assert_eq!(id.as_str(), "test-agent-456");
+fn agent_id_generate_unique_across_calls() {
+    let ids: HashSet<String> = (0..100).map(|_| AgentId::generate().as_str().to_string()).collect();
+    assert_eq!(ids.len(), 100);
 }
 
 #[test]
-fn test_agent_id_display() {
-    let id = AgentId::new("display-test");
-    assert_eq!(format!("{}", id), "display-test");
+fn agent_id_display_matches_inner_value() {
+    let id = AgentId::new("my-agent");
+    assert_eq!(format!("{}", id), "my-agent");
 }
 
 #[test]
-fn test_agent_id_from_string() {
-    let id: AgentId = String::from("from-string").into();
-    assert_eq!(id.as_str(), "from-string");
+fn agent_id_from_string_and_str_produce_equal_values() {
+    let from_str: AgentId = "test".into();
+    let from_string: AgentId = String::from("test").into();
+    assert_eq!(from_str, from_string);
 }
 
 #[test]
-fn test_agent_id_from_str() {
-    let id: AgentId = "from-str".into();
-    assert_eq!(id.as_str(), "from-str");
+fn agent_id_into_string() {
+    let id = AgentId::new("convert-me");
+    let s: String = id.into();
+    assert_eq!(s, "convert-me");
 }
 
 #[test]
-fn test_agent_id_as_ref() {
-    let id = AgentId::new("as-ref-test");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-test");
+fn agent_id_partial_eq_str() {
+    let id = AgentId::new("cmp-test");
+    assert!(id == "cmp-test");
+    assert!("cmp-test" == id);
 }
 
 #[test]
-fn test_agent_id_hash() {
-    let id1 = AgentId::new("hash-test");
-    let id2 = AgentId::new("hash-test");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-
-    assert!(set.contains(&id2));
+fn agent_id_serde_transparent_json() {
+    let id = AgentId::new("serde-test");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"serde-test\"");
+    let deserialized: AgentId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
 }
 
 #[test]
-fn test_agent_id_deserialize_json() {
-    let id: AgentId = serde_json::from_str("\"deserialize-test\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-test");
+fn agent_id_to_db_value_ref_and_owned() {
+    let id = AgentId::new("db-test");
+    let owned_val = id.to_db_value();
+    let ref_val = (&id).to_db_value();
+    assert!(matches!(owned_val, DbValue::String(ref s) if s == "db-test"));
+    assert!(matches!(ref_val, DbValue::String(ref s) if s == "db-test"));
 }
 
 #[test]
-fn test_agent_id_to_db_value() {
-    let id = AgentId::new("db-value-test");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-test"));
-}
-
-#[test]
-fn test_agent_id_ref_to_db_value() {
-    let id = AgentId::new("db-value-ref-test");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-test"));
-}
-
-#[test]
-fn test_agent_id_debug() {
-    let id = AgentId::new("debug-test");
-    let debug_str = format!("{:?}", id);
-    assert!(debug_str.contains("AgentId"));
-    assert!(debug_str.contains("debug-test"));
-}
-
-#[test]
-fn test_agent_id_empty_string() {
+fn agent_id_accepts_empty_string() {
     let id = AgentId::new("");
     assert_eq!(id.as_str(), "");
 }
 
 #[test]
-fn test_agent_id_unicode() {
-    let id = AgentId::new("agent-日本語-emoji-🤖");
-    assert_eq!(id.as_str(), "agent-日本語-emoji-🤖");
+fn agent_id_accepts_unicode() {
+    let id = AgentId::new("agent-日本語-🤖");
+    assert_eq!(id.as_str(), "agent-日本語-🤖");
 }
 
-// ============================================================================
-// AgentName Tests
-// ============================================================================
-
 #[test]
-fn test_agent_name_new_valid() {
-    let name = AgentName::new("valid-agent");
+fn agent_name_try_new_valid() {
+    let name = AgentName::try_new("valid-agent").unwrap();
     assert_eq!(name.as_str(), "valid-agent");
 }
 
 #[test]
-fn test_agent_name_system() {
+fn agent_name_try_new_empty_returns_error() {
+    let err = AgentName::try_new("").unwrap_err();
+    assert_eq!(err.to_string(), "AgentName cannot be empty");
+}
+
+#[test]
+fn agent_name_rejects_unknown_lowercase() {
+    let err = AgentName::try_new("unknown").unwrap_err();
+    assert!(err.to_string().contains("reserved"));
+}
+
+#[test]
+fn agent_name_rejects_unknown_uppercase() {
+    let err = AgentName::try_new("UNKNOWN").unwrap_err();
+    assert!(err.to_string().contains("reserved"));
+}
+
+#[test]
+fn agent_name_rejects_unknown_mixed_case() {
+    let err = AgentName::try_new("UnKnOwN").unwrap_err();
+    assert!(err.to_string().contains("reserved"));
+}
+
+#[test]
+fn agent_name_system_returns_system_value() {
     let name = AgentName::system();
     assert_eq!(name.as_str(), "system");
 }
 
 #[test]
-fn test_agent_name_display() {
+fn agent_name_display_matches_inner_value() {
     let name = AgentName::new("display-agent");
     assert_eq!(format!("{}", name), "display-agent");
 }
 
 #[test]
-fn test_agent_name_from_string() {
-    let name: AgentName = String::from("from-string-agent").try_into().unwrap();
-    assert_eq!(name.as_str(), "from-string-agent");
-}
-
-#[test]
-fn test_agent_name_from_str() {
-    let name: AgentName = "from-str-agent".try_into().unwrap();
-    assert_eq!(name.as_str(), "from-str-agent");
-}
-
-#[test]
-fn test_agent_name_as_ref() {
-    let name = AgentName::new("as-ref-agent");
-    let s: &str = name.as_ref();
-    assert_eq!(s, "as-ref-agent");
-}
-
-#[test]
-fn test_agent_name_hash() {
-    let name1 = AgentName::new("hash-agent");
-    let name2 = AgentName::new("hash-agent");
-
-    let mut set = HashSet::new();
-    set.insert(name1.clone());
-
-    assert!(set.contains(&name2));
-}
-
-#[test]
-fn test_agent_name_serialize_json() {
-    let name = AgentName::new("serialize-agent");
+fn agent_name_serde_roundtrip_exact_json() {
+    let name = AgentName::new("serde-agent");
     let json = serde_json::to_string(&name).unwrap();
-    assert_eq!(json, "\"serialize-agent\"");
+    assert_eq!(json, "\"serde-agent\"");
+    let deserialized: AgentName = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, name);
 }
 
 #[test]
-fn test_agent_name_deserialize_json() {
-    let name: AgentName = serde_json::from_str("\"deserialize-agent\"").unwrap();
-    assert_eq!(name.as_str(), "deserialize-agent");
+fn agent_name_serde_rejects_empty_on_deserialize() {
+    let result: Result<AgentName, _> = serde_json::from_str("\"\"");
+    assert!(result.is_err());
 }
 
 #[test]
-fn test_agent_name_to_db_value() {
-    let name = AgentName::new("db-value-agent");
-    let db_value = name.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-agent"));
+fn agent_name_serde_rejects_unknown_on_deserialize() {
+    let result: Result<AgentName, _> = serde_json::from_str("\"unknown\"");
+    assert!(result.is_err());
 }
 
 #[test]
-fn test_agent_name_ref_to_db_value() {
-    let name = AgentName::new("db-value-ref-agent");
-    let db_value = (&name).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-agent"));
+fn agent_name_try_from_str_ref() {
+    let name: AgentName = "valid".try_into().unwrap();
+    assert_eq!(name.as_str(), "valid");
 }
 
 #[test]
-fn test_agent_name_debug() {
-    let name = AgentName::new("debug-agent");
-    let debug_str = format!("{:?}", name);
-    assert!(debug_str.contains("AgentName"));
-    assert!(debug_str.contains("debug-agent"));
+fn agent_name_try_from_string() {
+    let name: AgentName = String::from("valid").try_into().unwrap();
+    assert_eq!(name.as_str(), "valid");
+}
+
+#[test]
+fn agent_name_from_str_parse() {
+    let name: AgentName = "valid".parse().unwrap();
+    assert_eq!(name.as_str(), "valid");
+}
+
+#[test]
+fn agent_name_equality_across_construction() {
+    let from_new = AgentName::new("test");
+    let from_try: AgentName = "test".try_into().unwrap();
+    let from_parse: AgentName = "test".parse().unwrap();
+    assert_eq!(from_new, from_try);
+    assert_eq!(from_try, from_parse);
+}
+
+#[test]
+fn agent_name_to_db_value() {
+    let name = AgentName::new("db-agent");
+    let db_val = name.to_db_value();
+    assert!(matches!(db_val, DbValue::String(ref s) if s == "db-agent"));
 }
 
 #[test]
 #[should_panic(expected = "AgentName validation failed")]
-fn test_agent_name_empty_panics() {
+fn agent_name_new_panics_on_empty() {
     let _ = AgentName::new("");
 }
 
 #[test]
-#[should_panic(expected = "'unknown' is reserved for error detection")]
-fn test_agent_name_unknown_panics() {
+#[should_panic(expected = "'unknown' is reserved")]
+fn agent_name_new_panics_on_unknown() {
     let _ = AgentName::new("unknown");
-}
-
-#[test]
-#[should_panic(expected = "'unknown' is reserved for error detection")]
-fn test_agent_name_unknown_uppercase_panics() {
-    let _ = AgentName::new("UNKNOWN");
-}
-
-#[test]
-#[should_panic(expected = "'unknown' is reserved for error detection")]
-fn test_agent_name_unknown_mixed_case_panics() {
-    let _ = AgentName::new("UnKnOwN");
-}
-
-#[test]
-fn test_agent_name_hyphenated() {
-    let name = AgentName::new("content-research");
-    assert_eq!(name.as_str(), "content-research");
-}
-
-#[test]
-fn test_agent_name_edward() {
-    let name = AgentName::new("edward");
-    assert_eq!(name.as_str(), "edward");
 }

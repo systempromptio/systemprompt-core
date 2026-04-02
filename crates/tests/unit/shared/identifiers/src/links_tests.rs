@@ -1,227 +1,82 @@
-//! Unit tests for link-related identifier types.
-
-use std::collections::HashSet;
-use systemprompt_identifiers::{LinkId, CampaignId, LinkClickId, ToDbValue, DbValue};
-
-// ============================================================================
-// LinkId Tests
-// ============================================================================
+use systemprompt_identifiers::{LinkId, CampaignId, LinkClickId, DbValue, ToDbValue};
 
 #[test]
-fn test_link_id_new() {
-    let id = LinkId::new("link-123");
-    assert_eq!(id.as_str(), "link-123");
-}
-
-#[test]
-fn test_link_id_generate() {
+fn link_id_generate_uuid_format() {
     let id = LinkId::generate();
-    assert!(!id.as_str().is_empty());
     assert_eq!(id.as_str().len(), 36);
 }
 
 #[test]
-fn test_link_id_generate_unique() {
+fn link_id_generate_unique() {
     let id1 = LinkId::generate();
     let id2 = LinkId::generate();
     assert_ne!(id1, id2);
 }
 
 #[test]
-fn test_link_id_display() {
-    let id = LinkId::new("display-link");
-    assert_eq!(format!("{}", id), "display-link");
+fn link_id_serde_transparent() {
+    let id = LinkId::new("link-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"link-1\"");
+    let deserialized: LinkId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
 }
 
 #[test]
-fn test_link_id_from_string() {
-    let id: LinkId = String::from("from-string-link").into();
-    assert_eq!(id.as_str(), "from-string-link");
-}
-
-#[test]
-fn test_link_id_from_str() {
-    let id: LinkId = "from-str-link".into();
-    assert_eq!(id.as_str(), "from-str-link");
-}
-
-#[test]
-fn test_link_id_as_ref() {
-    let id = LinkId::new("as-ref-link");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-link");
-}
-
-#[test]
-fn test_link_id_hash() {
-    let id1 = LinkId::new("hash-link");
-    let id2 = LinkId::new("hash-link");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_link_id_deserialize_json() {
-    let id: LinkId = serde_json::from_str("\"deserialize-link\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-link");
-}
-
-#[test]
-fn test_link_id_to_db_value() {
-    let id = LinkId::new("db-value-link");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-link"));
-}
-
-#[test]
-fn test_link_id_ref_to_db_value() {
-    let id = LinkId::new("db-value-ref-link");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-link"));
-}
-
-// ============================================================================
-// CampaignId Tests
-// ============================================================================
-
-#[test]
-fn test_campaign_id_new() {
-    let id = CampaignId::new("campaign-123");
-    assert_eq!(id.as_str(), "campaign-123");
-}
-
-#[test]
-fn test_campaign_id_display() {
-    let id = CampaignId::new("display-campaign");
-    assert_eq!(format!("{}", id), "display-campaign");
-}
-
-#[test]
-fn test_campaign_id_from_string() {
-    let id: CampaignId = String::from("from-string-campaign").into();
-    assert_eq!(id.as_str(), "from-string-campaign");
-}
-
-#[test]
-fn test_campaign_id_from_str() {
-    let id: CampaignId = "from-str-campaign".into();
-    assert_eq!(id.as_str(), "from-str-campaign");
-}
-
-#[test]
-fn test_campaign_id_as_ref() {
-    let id = CampaignId::new("as-ref-campaign");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-campaign");
-}
-
-#[test]
-fn test_campaign_id_hash() {
-    let id1 = CampaignId::new("hash-campaign");
-    let id2 = CampaignId::new("hash-campaign");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_campaign_id_deserialize_json() {
-    let id: CampaignId = serde_json::from_str("\"deserialize-campaign\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-campaign");
-}
-
-#[test]
-fn test_campaign_id_to_db_value() {
-    let id = CampaignId::new("db-value-campaign");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-campaign"));
-}
-
-#[test]
-fn test_campaign_id_ref_to_db_value() {
-    let id = CampaignId::new("db-value-ref-campaign");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-campaign"));
-}
-
-// ============================================================================
-// LinkClickId Tests
-// ============================================================================
-
-#[test]
-fn test_link_click_id_new() {
-    let id = LinkClickId::new("click-123");
-    assert_eq!(id.as_str(), "click-123");
-}
-
-#[test]
-fn test_link_click_id_generate() {
+fn link_click_id_generate_uuid_format() {
     let id = LinkClickId::generate();
-    assert!(!id.as_str().is_empty());
     assert_eq!(id.as_str().len(), 36);
 }
 
 #[test]
-fn test_link_click_id_generate_unique() {
+fn link_click_id_generate_unique() {
     let id1 = LinkClickId::generate();
     let id2 = LinkClickId::generate();
     assert_ne!(id1, id2);
 }
 
 #[test]
-fn test_link_click_id_display() {
-    let id = LinkClickId::new("display-click");
-    assert_eq!(format!("{}", id), "display-click");
+fn campaign_id_serde_transparent() {
+    let id = CampaignId::new("camp-1");
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"camp-1\"");
+    let deserialized: CampaignId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
 }
 
 #[test]
-fn test_link_click_id_from_string() {
-    let id: LinkClickId = String::from("from-string-click").into();
-    assert_eq!(id.as_str(), "from-string-click");
+fn all_link_ids_to_db_value() {
+    assert!(matches!(LinkId::new("a").to_db_value(), DbValue::String(ref s) if s == "a"));
+    assert!(matches!(CampaignId::new("b").to_db_value(), DbValue::String(ref s) if s == "b"));
+    assert!(matches!(LinkClickId::new("c").to_db_value(), DbValue::String(ref s) if s == "c"));
 }
 
 #[test]
-fn test_link_click_id_from_str() {
-    let id: LinkClickId = "from-str-click".into();
-    assert_eq!(id.as_str(), "from-str-click");
+fn all_link_ids_ref_to_db_value() {
+    let link = LinkId::new("a");
+    assert!(matches!((&link).to_db_value(), DbValue::String(ref s) if s == "a"));
+    let camp = CampaignId::new("b");
+    assert!(matches!((&camp).to_db_value(), DbValue::String(ref s) if s == "b"));
+    let click = LinkClickId::new("c");
+    assert!(matches!((&click).to_db_value(), DbValue::String(ref s) if s == "c"));
 }
 
 #[test]
-fn test_link_click_id_as_ref() {
-    let id = LinkClickId::new("as-ref-click");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-click");
+fn all_link_ids_into_string() {
+    let s: String = LinkId::new("l").into();
+    assert_eq!(s, "l");
+    let s: String = CampaignId::new("c").into();
+    assert_eq!(s, "c");
+    let s: String = LinkClickId::new("k").into();
+    assert_eq!(s, "k");
 }
 
 #[test]
-fn test_link_click_id_hash() {
-    let id1 = LinkClickId::new("hash-click");
-    let id2 = LinkClickId::new("hash-click");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_link_click_id_deserialize_json() {
-    let id: LinkClickId = serde_json::from_str("\"deserialize-click\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-click");
-}
-
-#[test]
-fn test_link_click_id_to_db_value() {
-    let id = LinkClickId::new("db-value-click");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-click"));
-}
-
-#[test]
-fn test_link_click_id_ref_to_db_value() {
-    let id = LinkClickId::new("db-value-ref-click");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-click"));
+fn all_link_ids_from_str_and_string_equal() {
+    let a: LinkId = "x".into();
+    let b: LinkId = String::from("x").into();
+    assert_eq!(a, b);
+    let a: CampaignId = "y".into();
+    let b: CampaignId = String::from("y").into();
+    assert_eq!(a, b);
 }

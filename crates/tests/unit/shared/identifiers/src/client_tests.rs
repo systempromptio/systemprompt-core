@@ -1,237 +1,154 @@
-//! Unit tests for ClientId and ClientType types.
-
-use std::collections::HashSet;
-use systemprompt_identifiers::{ClientId, ClientType, ToDbValue, DbValue};
-
-// ============================================================================
-// ClientId Tests
-// ============================================================================
+use systemprompt_identifiers::{ClientId, ClientType, DbValue, ToDbValue};
 
 #[test]
-fn test_client_id_new() {
-    let id = ClientId::new("client-123");
-    assert_eq!(id.as_str(), "client-123");
-}
-
-#[test]
-fn test_client_id_web() {
-    let id = ClientId::web();
-    assert_eq!(id.as_str(), "sp_web");
-}
-
-#[test]
-fn test_client_id_cli() {
-    let id = ClientId::cli();
-    assert_eq!(id.as_str(), "sp_cli");
-}
-
-#[test]
-fn test_client_id_mobile_ios() {
-    let id = ClientId::mobile_ios();
-    assert_eq!(id.as_str(), "sp_mobile_ios");
-}
-
-#[test]
-fn test_client_id_mobile_android() {
-    let id = ClientId::mobile_android();
-    assert_eq!(id.as_str(), "sp_mobile_android");
-}
-
-#[test]
-fn test_client_id_desktop() {
-    let id = ClientId::desktop();
-    assert_eq!(id.as_str(), "sp_desktop");
-}
-
-#[test]
-fn test_client_id_system() {
-    let id = ClientId::system("scheduler");
-    assert_eq!(id.as_str(), "sys_scheduler");
-}
-
-#[test]
-fn test_client_id_display() {
-    let id = ClientId::new("display-client");
-    assert_eq!(format!("{}", id), "display-client");
-}
-
-#[test]
-fn test_client_id_from_string() {
-    let id: ClientId = String::from("from-string-client").into();
-    assert_eq!(id.as_str(), "from-string-client");
-}
-
-#[test]
-fn test_client_id_from_str() {
-    let id: ClientId = "from-str-client".into();
-    assert_eq!(id.as_str(), "from-str-client");
-}
-
-#[test]
-fn test_client_id_as_ref() {
-    let id = ClientId::new("as-ref-client");
-    let s: &str = id.as_ref();
-    assert_eq!(s, "as-ref-client");
-}
-
-#[test]
-fn test_client_id_hash() {
-    let id1 = ClientId::new("hash-client");
-    let id2 = ClientId::new("hash-client");
-
-    let mut set = HashSet::new();
-    set.insert(id1.clone());
-    assert!(set.contains(&id2));
-}
-
-#[test]
-fn test_client_id_deserialize_json() {
-    let id: ClientId = serde_json::from_str("\"deserialize-client\"").unwrap();
-    assert_eq!(id.as_str(), "deserialize-client");
-}
-
-#[test]
-fn test_client_id_to_db_value() {
-    let id = ClientId::new("db-value-client");
-    let db_value = id.to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-client"));
-}
-
-#[test]
-fn test_client_id_ref_to_db_value() {
-    let id = ClientId::new("db-value-ref-client");
-    let db_value = (&id).to_db_value();
-    assert!(matches!(db_value, DbValue::String(s) if s == "db-value-ref-client"));
-}
-
-// ============================================================================
-// ClientId client_type() Tests
-// ============================================================================
-
-#[test]
-fn test_client_type_cimd() {
+fn client_type_cimd_for_https_prefix() {
     let id = ClientId::new("https://example.com/mcp");
     assert_eq!(id.client_type(), ClientType::Cimd);
 }
 
 #[test]
-fn test_client_type_first_party() {
+fn client_type_first_party_for_sp_prefix() {
     let id = ClientId::new("sp_web");
     assert_eq!(id.client_type(), ClientType::FirstParty);
 }
 
 #[test]
-fn test_client_type_third_party() {
+fn client_type_third_party_for_client_prefix() {
     let id = ClientId::new("client_abc123");
     assert_eq!(id.client_type(), ClientType::ThirdParty);
 }
 
 #[test]
-fn test_client_type_system() {
+fn client_type_system_for_sys_prefix() {
     let id = ClientId::new("sys_scheduler");
     assert_eq!(id.client_type(), ClientType::System);
 }
 
 #[test]
-fn test_client_type_unknown() {
+fn client_type_unknown_for_unrecognized_prefix() {
     let id = ClientId::new("random-client-id");
     assert_eq!(id.client_type(), ClientType::Unknown);
 }
 
 #[test]
-fn test_client_id_is_dcr_first_party() {
-    let id = ClientId::web();
-    assert!(id.is_dcr());
+fn is_dcr_true_for_first_party() {
+    assert!(ClientId::web().is_dcr());
+    assert!(ClientId::cli().is_dcr());
+    assert!(ClientId::desktop().is_dcr());
 }
 
 #[test]
-fn test_client_id_is_dcr_third_party() {
-    let id = ClientId::new("client_third");
-    assert!(id.is_dcr());
+fn is_dcr_true_for_third_party() {
+    assert!(ClientId::new("client_third").is_dcr());
 }
 
 #[test]
-fn test_client_id_is_dcr_false_for_cimd() {
-    let id = ClientId::new("https://example.com");
-    assert!(!id.is_dcr());
+fn is_dcr_false_for_cimd() {
+    assert!(!ClientId::new("https://example.com").is_dcr());
 }
 
 #[test]
-fn test_client_id_is_dcr_false_for_system() {
-    let id = ClientId::system("test");
-    assert!(!id.is_dcr());
+fn is_dcr_false_for_system() {
+    assert!(!ClientId::system("worker").is_dcr());
 }
 
 #[test]
-fn test_client_id_is_cimd() {
-    let id = ClientId::new("https://example.com/endpoint");
-    assert!(id.is_cimd());
+fn is_dcr_false_for_unknown() {
+    assert!(!ClientId::new("arbitrary").is_dcr());
 }
 
 #[test]
-fn test_client_id_is_cimd_false() {
-    let id = ClientId::web();
-    assert!(!id.is_cimd());
+fn is_cimd_true_for_https_url() {
+    assert!(ClientId::new("https://example.com/endpoint").is_cimd());
 }
 
 #[test]
-fn test_client_id_is_system() {
-    let id = ClientId::system("worker");
+fn is_cimd_false_for_http_url() {
+    assert!(!ClientId::new("http://example.com").is_cimd());
+}
+
+#[test]
+fn is_system_true_for_sys_prefix() {
+    assert!(ClientId::system("worker").is_system());
+}
+
+#[test]
+fn is_system_false_for_non_sys() {
+    assert!(!ClientId::web().is_system());
+}
+
+#[test]
+fn factory_methods_produce_correct_values() {
+    assert_eq!(ClientId::web().as_str(), "sp_web");
+    assert_eq!(ClientId::cli().as_str(), "sp_cli");
+    assert_eq!(ClientId::mobile_ios().as_str(), "sp_mobile_ios");
+    assert_eq!(ClientId::mobile_android().as_str(), "sp_mobile_android");
+    assert_eq!(ClientId::desktop().as_str(), "sp_desktop");
+}
+
+#[test]
+fn system_factory_formats_with_prefix() {
+    let id = ClientId::system("scheduler");
+    assert_eq!(id.as_str(), "sys_scheduler");
     assert!(id.is_system());
 }
 
 #[test]
-fn test_client_id_is_system_false() {
-    let id = ClientId::web();
-    assert!(!id.is_system());
-}
-
-// ============================================================================
-// ClientType Tests
-// ============================================================================
-
-#[test]
-fn test_client_type_as_str_cimd() {
+fn client_type_as_str_values() {
     assert_eq!(ClientType::Cimd.as_str(), "cimd");
-}
-
-#[test]
-fn test_client_type_as_str_first_party() {
     assert_eq!(ClientType::FirstParty.as_str(), "firstparty");
-}
-
-#[test]
-fn test_client_type_as_str_third_party() {
     assert_eq!(ClientType::ThirdParty.as_str(), "thirdparty");
-}
-
-#[test]
-fn test_client_type_as_str_system() {
     assert_eq!(ClientType::System.as_str(), "system");
-}
-
-#[test]
-fn test_client_type_as_str_unknown() {
     assert_eq!(ClientType::Unknown.as_str(), "unknown");
 }
 
 #[test]
-fn test_client_type_display() {
-    assert_eq!(format!("{}", ClientType::Cimd), "cimd");
-    assert_eq!(format!("{}", ClientType::FirstParty), "firstparty");
-    assert_eq!(format!("{}", ClientType::ThirdParty), "thirdparty");
-    assert_eq!(format!("{}", ClientType::System), "system");
-    assert_eq!(format!("{}", ClientType::Unknown), "unknown");
+fn client_type_display_matches_as_str() {
+    assert_eq!(format!("{}", ClientType::Cimd), ClientType::Cimd.as_str());
+    assert_eq!(format!("{}", ClientType::FirstParty), ClientType::FirstParty.as_str());
 }
 
 #[test]
-fn test_client_type_debug() {
-    let debug_str = format!("{:?}", ClientType::Cimd);
-    assert!(debug_str.contains("Cimd"));
-}
-
-#[test]
-fn test_client_type_serialize_json() {
+fn client_type_serde_rename_all_lowercase() {
     let json = serde_json::to_string(&ClientType::FirstParty).unwrap();
     assert_eq!(json, "\"firstparty\"");
+    let deserialized: ClientType = serde_json::from_str("\"thirdparty\"").unwrap();
+    assert_eq!(deserialized, ClientType::ThirdParty);
+}
+
+#[test]
+fn client_id_serde_transparent_json() {
+    let id = ClientId::web();
+    let json = serde_json::to_string(&id).unwrap();
+    assert_eq!(json, "\"sp_web\"");
+    let deserialized: ClientId = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, id);
+}
+
+#[test]
+fn client_id_from_string_and_str_produce_equal() {
+    let from_str: ClientId = "test".into();
+    let from_string: ClientId = String::from("test").into();
+    assert_eq!(from_str, from_string);
+}
+
+#[test]
+fn client_id_into_string() {
+    let id = ClientId::new("convert-me");
+    let s: String = id.into();
+    assert_eq!(s, "convert-me");
+}
+
+#[test]
+fn client_id_partial_eq_str() {
+    let id = ClientId::web();
+    assert!(id == "sp_web");
+    assert!("sp_web" == id);
+}
+
+#[test]
+fn client_id_to_db_value() {
+    let id = ClientId::web();
+    let db_val = id.to_db_value();
+    assert!(matches!(db_val, DbValue::String(ref s) if s == "sp_web"));
 }

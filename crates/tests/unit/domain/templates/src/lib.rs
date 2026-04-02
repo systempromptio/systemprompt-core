@@ -1,4 +1,7 @@
 #[cfg(test)]
+mod embedded_defaults;
+
+#[cfg(test)]
 mod error;
 
 #[cfg(test)]
