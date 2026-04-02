@@ -1,8 +1,10 @@
 # Integration Test Strategy
 
+> **Last updated**: 2026-04-02. Phase 2 COMPLETE.
+
 ## Current State
 
-The project has 14 integration test crates in `crates/tests/integration/` with 549 total tests (279 sync, 270 async). Tests use real PostgreSQL database connections and benefit from well-designed test infrastructure including TestContext, SessionFactory, and TestCleanup with automatic fingerprint-based teardown.
+Integration tests strengthened with field-level assertions. The original report overcounted hollow tests — most already had assertions. ~40 new assertions added across users, files, scheduler, and models test directories.
 
 ### Integration Test Crates
 

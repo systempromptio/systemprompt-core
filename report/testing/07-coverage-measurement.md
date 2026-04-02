@@ -1,8 +1,10 @@
 # 07 — Coverage Measurement & CI Integration
 
-**Grade: F**
+**Grade: B** (up from F)
 
-No coverage measurement exists. The Cranelift codegen backend blocks `cargo-llvm-cov`, and no alternative is configured. There is no way to know what percentage of code is tested, whether coverage is improving or declining, or which modules have zero coverage.
+> **Last updated**: 2026-04-02. Phase 2 COMPLETE.
+
+Coverage measurement is operational. Baseline: **25.97% line coverage** across 30,067 production lines. Per-crate numbers documented in `report/testing/07-coverage-baseline.md`. Three `just` recipes provide text, HTML, and LCOV output formats.
 
 **Unlocks:** All coverage-target reports (09-18) benefit from measurable baselines. Without measurement, improvement is guesswork.
 

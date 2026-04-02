@@ -1,8 +1,10 @@
 # Mock Infrastructure & Test Isolation
 
+> **Last updated**: 2026-04-02. Phase 2 COMPLETE.
+
 ## Current State
 
-The project lacks mock implementations for most external dependencies. Tests either use real database connections or skip database-dependent code entirely. The `wiremock` crate is available as a dependency but is rarely used. Test isolation is poor: unit tests cannot run without a database, error paths are largely untestable, and failure simulation is not possible.
+Mock infrastructure is in place at `crates/tests/common/mocks/` (crate: `systemprompt-test-mocks`). Five mock implementations cover all major external dependency traits. `wiremock` is available for HTTP-level mocking (no trait boundary needed).
 
 ### What Exists
 
@@ -16,17 +18,17 @@ The project lacks mock implementations for most external dependencies. Tests eit
 | TestCleanup | Integration test infrastructure | Automatic teardown via fingerprint |
 | wiremock dependency | Available in Cargo.toml | Rarely used |
 
-### What Is Missing
+### Mock Implementations (Phase 2 deliverables)
 
-| Mock | Impact |
-|------|--------|
-| MockDbPool | Cannot test service logic without a real database. Every service test requires PostgreSQL. |
-| MockAiProvider | Cannot test AI service error paths, rate limiting, malformed responses, timeout handling. |
-| MockHttpClient | Cannot test HTTP client failures in MCP, A2A, and OAuth client code. |
-| MockFileSystem | Cannot test disk failures, permission errors, storage quota exhaustion. |
-| MockEventBus | Cannot test event-driven flows in isolation. Cannot verify events were emitted correctly. |
-| MockScheduler | Cannot test job scheduling logic without running the full scheduler. |
-| MockMcpServer | Cannot test MCP client behavior against controlled server responses. |
+| Mock | Trait | Location | Features |
+|------|-------|----------|----------|
+| MockDatabaseProvider | `DatabaseProvider` | `common/mocks/src/database.rs` | Response queue, call tracking, builder API, error injection |
+| MockAiProvider | `AiProvider` | `common/mocks/src/ai_provider.rs` | Configurable generate/stream responses, call recording |
+| MockBroadcaster | `Broadcaster` | `common/mocks/src/broadcaster.rs` | Event recording, connection count stubbing |
+| MockFileStorage | `FileStorage` | `common/mocks/src/file_storage.rs` | In-memory HashMap storage, error injection |
+| MockJobTrigger | `JobTrigger` | `common/mocks/src/scheduler.rs` | Per-job configurable responses, trigger call recording |
+
+HTTP mocking uses `wiremock` (already a workspace dependency) — no trait boundary needed since it intercepts at the network level.
 
 ### Impact of Missing Mocks
 
