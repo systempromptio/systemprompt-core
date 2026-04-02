@@ -14,14 +14,24 @@ pub async fn validate_client_credentials(
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 
-    let auth_method = client.token_endpoint_auth_method.as_str();
+    verify_client_authentication(
+        client.token_endpoint_auth_method.as_str(),
+        client.client_secret_hash.as_deref(),
+        client_secret,
+    )
+}
 
+pub fn verify_client_authentication(
+    auth_method: &str,
+    secret_hash: Option<&str>,
+    client_secret: Option<&str>,
+) -> Result<()> {
     if auth_method == "none" {
         return Ok(());
     }
 
-    let (hash_to_verify, secret_to_verify) = match (&client.client_secret_hash, client_secret) {
-        (Some(hash), Some(secret)) => (hash.as_str(), secret),
+    let (hash_to_verify, secret_to_verify) = match (secret_hash, client_secret) {
+        (Some(hash), Some(secret)) => (hash, secret),
         (Some(_hash), None) => {
             perform_timing_safe_dummy_verification();
             return Err(anyhow::anyhow!("Client secret required"));

@@ -284,3 +284,194 @@ fn test_jwt_config_deserialize() {
     assert_eq!(config.audience, vec![JwtAudience::Api]);
     assert_eq!(config.expires_in_hours, Some(72));
 }
+
+// ============================================================================
+// generate_anonymous_jwt_with_expiry Tests
+// ============================================================================
+
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use systemprompt_identifiers::ClientId;
+use systemprompt_models::auth::{JwtClaims, UserType};
+use systemprompt_oauth::services::{generate_anonymous_jwt_with_expiry, generate_admin_jwt_with_expiry, JwtSigningParams};
+
+fn test_signing_params() -> JwtSigningParams<'static> {
+    JwtSigningParams {
+        secret: "test-secret-key-for-unit-tests-only",
+        issuer: "test-issuer",
+    }
+}
+
+fn decode_token(token: &str, secret: &str) -> JwtClaims {
+    let mut validation = Validation::new(Algorithm::HS256);
+    validation.validate_exp = false;
+    validation.validate_aud = false;
+    validation.set_required_spec_claims::<String>(&[]);
+    decode::<JwtClaims>(
+        token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &validation,
+    )
+    .expect("expected successful decode")
+    .claims
+}
+
+#[test]
+fn test_generate_anonymous_jwt_with_expiry_produces_valid_jwt() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("test-client-id");
+    let token = generate_anonymous_jwt_with_expiry(
+        "anon-user-1",
+        "session-1",
+        &client_id,
+        &signing,
+        3600,
+    )
+    .unwrap();
+
+    let parts: Vec<&str> = token.split('.').collect();
+    assert_eq!(parts.len(), 3);
+    assert!(!parts[0].is_empty());
+    assert!(!parts[1].is_empty());
+    assert!(!parts[2].is_empty());
+}
+
+#[test]
+fn test_generate_anonymous_jwt_with_expiry_standard_duration() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("client-abc");
+    let token = generate_anonymous_jwt_with_expiry(
+        "anon-user-2",
+        "session-2",
+        &client_id,
+        &signing,
+        7200,
+    )
+    .unwrap();
+
+    let claims = decode_token(&token, signing.secret);
+    assert_eq!(claims.sub, "anon-user-2");
+    assert_eq!(claims.iss, "test-issuer");
+    assert_eq!(claims.user_type, UserType::Anon);
+    assert_eq!(claims.scope, vec![Permission::Anonymous]);
+}
+
+#[test]
+fn test_generate_anonymous_jwt_with_expiry_zero_seconds() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("client-zero");
+    let result = generate_anonymous_jwt_with_expiry(
+        "anon-user-3",
+        "session-3",
+        &client_id,
+        &signing,
+        0,
+    );
+
+    let token = result.expect("expected success with zero seconds");
+    let claims = decode_token(&token, signing.secret);
+    assert!(claims.exp <= claims.iat);
+}
+
+#[test]
+fn test_generate_anonymous_jwt_with_expiry_claims_contain_client_id() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("my-client-123");
+    let token = generate_anonymous_jwt_with_expiry(
+        "anon-user-4",
+        "session-4",
+        &client_id,
+        &signing,
+        3600,
+    )
+    .unwrap();
+
+    let claims = decode_token(&token, signing.secret);
+    assert_eq!(claims.client_id, Some("my-client-123".to_string()));
+    assert_eq!(claims.session_id, Some("session-4".to_string()));
+    assert_eq!(claims.username, "anon-user-4");
+    assert_eq!(claims.email, "anon-user-4");
+}
+
+// ============================================================================
+// generate_admin_jwt_with_expiry Tests
+// ============================================================================
+
+#[test]
+fn test_generate_admin_jwt_with_expiry_produces_valid_jwt() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("admin-client");
+    let token = generate_admin_jwt_with_expiry(
+        "admin-user-1",
+        "admin-session-1",
+        "admin@example.com",
+        &client_id,
+        &signing,
+        3600,
+    )
+    .unwrap();
+
+    let parts: Vec<&str> = token.split('.').collect();
+    assert_eq!(parts.len(), 3);
+}
+
+#[test]
+fn test_generate_admin_jwt_with_expiry_standard_duration() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("admin-client-2");
+    let token = generate_admin_jwt_with_expiry(
+        "admin-user-2",
+        "admin-session-2",
+        "admin2@example.com",
+        &client_id,
+        &signing,
+        7200,
+    )
+    .unwrap();
+
+    let claims = decode_token(&token, signing.secret);
+    assert_eq!(claims.sub, "admin-user-2");
+    assert_eq!(claims.iss, "test-issuer");
+    assert_eq!(claims.user_type, UserType::Admin);
+    assert_eq!(claims.scope, vec![Permission::Admin]);
+}
+
+#[test]
+fn test_generate_admin_jwt_with_expiry_claims_contain_email_and_roles() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("admin-client-3");
+    let token = generate_admin_jwt_with_expiry(
+        "admin-user-3",
+        "admin-session-3",
+        "super@example.com",
+        &client_id,
+        &signing,
+        3600,
+    )
+    .unwrap();
+
+    let claims = decode_token(&token, signing.secret);
+    assert_eq!(claims.email, "super@example.com");
+    assert_eq!(claims.username, "super@example.com");
+    assert_eq!(claims.client_id, Some("admin-client-3".to_string()));
+    assert_eq!(claims.session_id, Some("admin-session-3".to_string()));
+    assert!(claims.roles.contains(&"admin".to_string()));
+    assert!(claims.roles.contains(&"user".to_string()));
+}
+
+#[test]
+fn test_generate_admin_jwt_with_expiry_zero_seconds() {
+    let signing = test_signing_params();
+    let client_id = ClientId::new("admin-client-zero");
+    let result = generate_admin_jwt_with_expiry(
+        "admin-user-4",
+        "admin-session-4",
+        "admin4@example.com",
+        &client_id,
+        &signing,
+        0,
+    );
+
+    let token = result.expect("expected success with zero seconds");
+    let claims = decode_token(&token, signing.secret);
+    assert!(claims.exp <= claims.iat);
+}

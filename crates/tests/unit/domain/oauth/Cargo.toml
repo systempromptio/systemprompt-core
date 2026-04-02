@@ -27,3 +27,4 @@ http = { workspace = true }
 jsonwebtoken = { workspace = true }
 async-trait = { workspace = true }
 url = { workspace = true }
+bcrypt = { workspace = true }

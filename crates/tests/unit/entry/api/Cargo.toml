@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-api = { workspace = true }
+systemprompt-oauth = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 axum = { workspace = true }

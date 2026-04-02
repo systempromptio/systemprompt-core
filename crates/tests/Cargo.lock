@@ -4313,6 +4313,7 @@ dependencies = [
  "systemprompt-api",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-oauth",
  "tokio",
 ]
 
@@ -4999,6 +5000,7 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "axum",
+ "bcrypt",
  "chrono",
  "http",
  "jsonwebtoken",

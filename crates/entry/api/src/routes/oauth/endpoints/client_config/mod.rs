@@ -1,7 +1,7 @@
 mod delete;
 mod get;
 mod update;
-mod validation;
+pub mod validation;
 
 pub use delete::delete_client_configuration;
 pub use get::get_client_configuration;

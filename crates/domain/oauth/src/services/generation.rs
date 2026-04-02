@@ -135,7 +135,18 @@ pub fn generate_anonymous_jwt(
     client_id: &systemprompt_identifiers::ClientId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
-    let expires_in_hours = Config::get()?.jwt_access_token_expiration / 3600;
+    let expires_in_seconds = Config::get()?.jwt_access_token_expiration;
+    generate_anonymous_jwt_with_expiry(user_id, session_id, client_id, signing, expires_in_seconds)
+}
+
+pub fn generate_anonymous_jwt_with_expiry(
+    user_id: &str,
+    session_id: &str,
+    client_id: &systemprompt_identifiers::ClientId,
+    signing: &JwtSigningParams<'_>,
+    expires_in_seconds: i64,
+) -> Result<String> {
+    let expires_in_hours = expires_in_seconds / 3600;
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| anyhow!("Failed to calculate token expiration"))?
@@ -179,7 +190,26 @@ pub fn generate_admin_jwt(
     client_id: &systemprompt_identifiers::ClientId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
-    let expires_in_hours = Config::get()?.jwt_access_token_expiration / 3600;
+    let expires_in_seconds = Config::get()?.jwt_access_token_expiration;
+    generate_admin_jwt_with_expiry(
+        user_id,
+        session_id,
+        email,
+        client_id,
+        signing,
+        expires_in_seconds,
+    )
+}
+
+pub fn generate_admin_jwt_with_expiry(
+    user_id: &str,
+    session_id: &str,
+    email: &str,
+    client_id: &systemprompt_identifiers::ClientId,
+    signing: &JwtSigningParams<'_>,
+    expires_in_seconds: i64,
+) -> Result<String> {
+    let expires_in_hours = expires_in_seconds / 3600;
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| anyhow!("Failed to calculate token expiration"))?

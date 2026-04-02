@@ -1,6 +1,6 @@
-mod generation;
+pub mod generation;
 mod handler;
-mod validation;
+pub mod validation;
 
 pub use handler::handle_token;
 

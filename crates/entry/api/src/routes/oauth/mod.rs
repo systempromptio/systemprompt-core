@@ -5,7 +5,7 @@ pub mod discovery;
 pub mod endpoints;
 pub mod extractors;
 pub mod health;
-pub(crate) mod responses;
+pub mod responses;
 pub mod webauthn;
 pub mod wellknown;
 
