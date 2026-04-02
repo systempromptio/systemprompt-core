@@ -1,0 +1,20 @@
+[package]
+name = "systemprompt-test-mocks"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+async-trait = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+futures = { workspace = true }
+sqlx = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-events = { workspace = true }

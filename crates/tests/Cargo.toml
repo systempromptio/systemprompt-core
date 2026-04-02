@@ -45,6 +45,8 @@ members = [
     # Unit tests - entry layer
     "unit/entry/api",
     "unit/entry/cli",
+    # Common test utilities
+    "common/mocks",
 ]
 resolver = "2"
 
@@ -164,3 +166,4 @@ systemprompt-cli = { path = "../entry/cli" }
 
 # Testing utility
 trybuild = "1.0"
+systemprompt-test-mocks = { path = "common/mocks" }
