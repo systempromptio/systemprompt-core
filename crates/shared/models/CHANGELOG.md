@@ -1,11 +1,16 @@
 # Changelog
 
-## [0.1.21] - 2026-03-25
+## [0.1.21] - 2026-04-02
 
 ### Added
+- `ApiPaths::SYNC_BASE` and `ApiPaths::ANALYTICS_BASE` constants
 - `CloudEnterpriseLicenseInfo` struct for domain-based enterprise licensing
 - `enterprise` field on `UserMeResponse` (optional, backward-compatible with `#[serde(default)]`)
 - `EnterpriseLicenseInfo` type alias
+
+### Changed
+- `ServiceCategory::base_path()` uses `ApiPaths` constants instead of hardcoded strings
+- `ServiceCategory::matches_path()` uses `ApiPaths::META_BASE` constant
 
 ## [0.1.20] - 2026-03-20
 

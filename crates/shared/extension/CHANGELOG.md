@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.21] - 2026-04-02
+
+### Changed
+- Move `RESERVED_PATHS` definition to `registry` module and re-export from `typed_registry`
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

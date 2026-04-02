@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.21] - 2026-04-02
+
+### Changed
+- Make `models` module public for external access
+
 ## [0.1.18] - 2026-03-27
 
 ### Fixed

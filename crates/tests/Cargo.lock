@@ -5251,6 +5251,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-test-mocks"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures",
+ "serde_json",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-traits"
 version = "0.1.20"
 dependencies = [

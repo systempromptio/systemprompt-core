@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.21] - 2026-04-02
+
+### Changed
+- Use `ApiPaths` constants for sync, analytics, and admin route paths instead of hardcoded strings
+- Use `ApiPaths::mcp_server_endpoint()` for MCP registry endpoint URLs
+
 ## [0.1.17] - 2026-03-20
 
 ### Fixed

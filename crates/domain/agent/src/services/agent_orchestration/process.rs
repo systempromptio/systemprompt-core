@@ -123,6 +123,10 @@ fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
 
+    if let Ok(fly_app) = std::env::var("FLY_APP_NAME") {
+        command.env("FLY_APP_NAME", fly_app);
+    }
+
     configure_secrets_env(&mut command, secrets);
     command
 }

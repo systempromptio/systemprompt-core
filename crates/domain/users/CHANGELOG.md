@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.21] - 2026-04-02
+
+### Added
+- `UserRepository::session_exists()` to check if a session is active in the database
+- `UserService::session_exists()` service method
+- Re-export `CleanupAnonymousUsersJob` from `jobs` module
+
+### Changed
+- Make `jobs` module public for external access
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

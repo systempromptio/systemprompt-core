@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.21] - 2026-04-02
+
+### Fixed
+- Validate cached CLI sessions against the database before reuse — stale sessions are now detected and removed
+- Use `ApiPaths` constant for default agent endpoint in `agents create`
+
+### Changed
+- Session login now connects to database before checking cached session, enabling DB validation
+
 ## [0.1.18] - 2026-03-27
 
 ### Added

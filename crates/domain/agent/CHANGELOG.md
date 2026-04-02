@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.21] - 2026-04-02
+
+### Added
+- Forward `FLY_APP_NAME` environment variable to agent subprocesses when present
+
 ## [0.1.6] - 2026-03-20
 
 ### Changed
