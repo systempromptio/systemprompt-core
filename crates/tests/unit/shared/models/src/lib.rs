@@ -47,3 +47,9 @@ mod profile;
 
 #[cfg(test)]
 mod agui;
+
+#[cfg(test)]
+mod ai_tool_model_config;
+
+#[cfg(test)]
+mod text_utils;

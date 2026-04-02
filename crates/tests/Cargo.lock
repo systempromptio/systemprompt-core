@@ -4128,6 +4128,7 @@ dependencies = [
 name = "systemprompt-agent-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
  "chrono",
  "rmcp",
  "serde_json",
