@@ -1,5 +1,5 @@
-mod security;
-mod skills;
+pub mod security;
+pub mod skills;
 
 use anyhow::{Result, anyhow};
 use std::sync::Arc;

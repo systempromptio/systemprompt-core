@@ -6,5 +6,6 @@ mod image_provider_factory;
 mod image_provider_trait;
 mod openai;
 mod provider_factory;
+mod provider_factory_extended;
 mod provider_trait;
 mod shared;

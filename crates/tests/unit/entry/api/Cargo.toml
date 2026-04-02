@@ -15,6 +15,7 @@ systemprompt-api = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-agent = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
 serde_json = { workspace = true }

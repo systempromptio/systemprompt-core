@@ -104,7 +104,7 @@ pub async fn handle_agent_registry(
     }
 }
 
-fn create_mcp_extensions_from_config(
+pub fn create_mcp_extensions_from_config(
     server_names: &[String],
     base_url: &str,
 ) -> Vec<AgentExtension> {

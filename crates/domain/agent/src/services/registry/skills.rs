@@ -8,7 +8,7 @@ const SKILL_FILENAME: &str = "SKILL.md";
 const CONFIG_FILENAME: &str = "config.yaml";
 
 #[derive(Debug, serde::Deserialize)]
-struct SkillConfig {
+pub struct SkillConfig {
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
@@ -69,7 +69,7 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &str) -> Result<AgentS
     })
 }
 
-fn extract_description(content: &str) -> Option<String> {
+pub fn extract_description(content: &str) -> Option<String> {
     if !content.starts_with("---") {
         return None;
     }

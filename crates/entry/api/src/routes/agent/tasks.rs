@@ -13,8 +13,8 @@ use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Deserialize)]
 pub struct TaskFilterParams {
-    status: Option<String>,
-    limit: Option<u32>,
+    pub status: Option<String>,
+    pub limit: Option<u32>,
 }
 
 pub async fn list_tasks_by_context(

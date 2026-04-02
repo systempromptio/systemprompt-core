@@ -14,7 +14,7 @@ use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct ArtifactQueryParams {
-    limit: Option<u32>,
+    pub limit: Option<u32>,
 }
 
 pub async fn list_artifacts_by_context(
