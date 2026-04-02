@@ -145,8 +145,10 @@ async fn find_by_id_returns_user() -> Result<()> {
 
     // Find by ID
     let found = repo.find_by_id(&created.id).await?;
-    found.as_ref().expect("found should be present");
-    assert_eq!(found.as_ref().map(|u| u.id.to_string()), Some(created.id.to_string()));
+    let found = found.expect("find_by_id should return the created user");
+    assert_eq!(found.id.to_string(), created.id.to_string());
+    assert_eq!(found.name, unique_name);
+    assert_eq!(found.email, unique_email);
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -194,8 +196,9 @@ async fn find_by_email_returns_user() -> Result<()> {
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
     let found = repo.find_by_email(&unique_email).await?;
-    found.as_ref().expect("found should be present");
-    assert_eq!(found.as_ref().map(|u| &u.email), Some(&unique_email));
+    let found = found.expect("find_by_email should return the created user");
+    assert_eq!(found.email, unique_email);
+    assert_eq!(found.id.to_string(), created.id.to_string());
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -242,8 +245,9 @@ async fn find_by_name_returns_user() -> Result<()> {
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
     let found = repo.find_by_name(&unique_name).await?;
-    found.as_ref().expect("found should be present");
-    assert_eq!(found.as_ref().map(|u| &u.name), Some(&unique_name));
+    let found = found.expect("find_by_name should return the created user");
+    assert_eq!(found.name, unique_name);
+    assert_eq!(found.id.to_string(), created.id.to_string());
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -556,7 +560,8 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
 
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
     let result = repo.delete(&fake_id).await;
-    result.unwrap_err();
+    let err = result.expect_err("deleting nonexistent user should return an error");
+    assert!(!err.to_string().is_empty(), "error message should not be empty");
 
     Ok(())
 }
@@ -583,11 +588,11 @@ async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
 }
 
 // ============================================================================
-// UserRepository::get_authenticated_user Tests
+// UserRepository::find_authenticated_user Tests
 // ============================================================================
 
 #[tokio::test]
-async fn get_authenticated_user_returns_active_user() -> Result<()> {
+async fn find_authenticated_user_returns_active_user() -> Result<()> {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return Ok(());
@@ -601,8 +606,11 @@ async fn get_authenticated_user_returns_active_user() -> Result<()> {
     let unique_name = format!("authuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    let auth_user = repo.get_authenticated_user(&created.id).await?;
-    auth_user.expect("auth_user should be present");
+    let auth_user = repo.find_authenticated_user(&created.id).await?;
+    let auth_user = auth_user.expect("find_authenticated_user should return active user");
+    assert_eq!(auth_user.id.to_string(), created.id.to_string());
+    assert_eq!(auth_user.email, unique_email);
+    assert_eq!(auth_user.status, Some("active".to_string()));
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -614,7 +622,7 @@ async fn get_authenticated_user_returns_active_user() -> Result<()> {
 }
 
 #[tokio::test]
-async fn get_authenticated_user_returns_none_for_inactive() -> Result<()> {
+async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return Ok(());
@@ -631,7 +639,7 @@ async fn get_authenticated_user_returns_none_for_inactive() -> Result<()> {
     // Suspend the user
     repo.update_status(&created.id, UserStatus::Suspended).await?;
 
-    let auth_user = repo.get_authenticated_user(&created.id).await?;
+    let auth_user = repo.find_authenticated_user(&created.id).await?;
     assert!(auth_user.is_none());
 
     // Cleanup

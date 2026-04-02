@@ -38,17 +38,23 @@ async fn service_create_and_find_user() -> Result<()> {
     assert_eq!(created.name, unique_name);
     assert_eq!(created.email, unique_email);
 
+    assert!(!created.id.as_str().is_empty(), "created user should have a non-empty id");
+
     // Find by ID
     let found = service.find_by_id(&created.id).await?;
-    found.expect("found should be present");
+    let found = found.expect("find_by_id should return the created user");
+    assert_eq!(found.id.to_string(), created.id.to_string());
+    assert_eq!(found.email, unique_email);
 
     // Find by email
     let found_email = service.find_by_email(&unique_email).await?;
-    found_email.expect("found_email should be present");
+    let found_email = found_email.expect("find_by_email should return the created user");
+    assert_eq!(found_email.id.to_string(), created.id.to_string());
 
     // Find by name
     let found_name = service.find_by_name(&unique_name).await?;
-    found_name.expect("found_name should be present");
+    let found_name = found_name.expect("find_by_name should return the created user");
+    assert_eq!(found_name.id.to_string(), created.id.to_string());
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -72,7 +78,9 @@ async fn service_create_anonymous_user() -> Result<()> {
     let fingerprint = format!("svc_anon_{}", uuid::Uuid::new_v4());
     let created = service.create_anonymous(&fingerprint).await?;
 
+    assert!(!created.id.as_str().is_empty(), "anonymous user should have an id");
     assert!(created.name.starts_with("anonymous_"));
+    assert!(created.email.contains(&fingerprint));
     assert!(created.roles.contains(&"anonymous".to_string()));
 
     // Cleanup
@@ -188,6 +196,7 @@ async fn service_update_email() -> Result<()> {
     let updated = service.update_email(&created.id, &new_email).await?;
 
     assert_eq!(updated.email, new_email);
+    assert_eq!(updated.id.to_string(), created.id.to_string());
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -214,6 +223,7 @@ async fn service_update_status() -> Result<()> {
 
     let updated = service.update_status(&created.id, UserStatus::Suspended).await?;
     assert_eq!(updated.status, Some("suspended".to_string()));
+    assert_eq!(updated.id.to_string(), created.id.to_string());
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -358,8 +368,10 @@ async fn service_get_authenticated_user() -> Result<()> {
     let unique_name = format!("svcauth_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = service.create(&unique_name, &unique_email, None, None).await?;
 
-    let auth = service.get_authenticated_user(&created.id).await?;
-    auth.expect("auth should be present");
+    let auth = service.find_authenticated_user(&created.id).await?;
+    let auth = auth.expect("get_authenticated_user should return the active user");
+    assert_eq!(auth.id.to_string(), created.id.to_string());
+    assert_eq!(auth.email, unique_email);
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")
@@ -512,8 +524,11 @@ async fn service_get_with_sessions() -> Result<()> {
     let unique_name = format!("svcwithsess_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = service.create(&unique_name, &unique_email, None, None).await?;
 
-    let user_with_sessions = service.get_with_sessions(&created.id).await?;
-    user_with_sessions.expect("user_with_sessions should be present");
+    let user_with_sessions = service.find_with_sessions(&created.id).await?;
+    let user_with_sessions = user_with_sessions.expect("get_with_sessions should return the user");
+    assert_eq!(user_with_sessions.id.to_string(), created.id.to_string());
+    assert_eq!(user_with_sessions.email, unique_email);
+    assert_eq!(user_with_sessions.active_sessions, 0);
 
     // Cleanup
     let _ = sqlx::query("DELETE FROM users WHERE id = $1")

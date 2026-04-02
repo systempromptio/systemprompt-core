@@ -57,6 +57,12 @@ async fn test_file_repository_insert_success() {
     let result = repo.insert(request.clone()).await;
     assert!(result.is_ok(), "Should insert file successfully");
 
+    let file = repo.find_by_id(&request.id).await.expect("should query inserted file").expect("inserted file should exist");
+    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match request");
+    assert_eq!(file.mime_type, "image/png", "mime type should match");
+    assert_eq!(file.size_bytes, Some(1024), "size should match");
+    assert!(!file.ai_content, "ai_content should be false");
+
     // Cleanup
     let _ = repo.delete(&request.id).await;
 }
@@ -141,6 +147,11 @@ async fn test_file_repository_insert_upsert_on_conflict() {
     let result = repo.insert(request2).await;
     assert!(result.is_ok(), "Upsert should succeed");
 
+    let file = repo.find_by_path(&unique_path).await.expect("should query by path").expect("upserted file should exist");
+    assert_eq!(file.path, unique_path, "path should match after upsert");
+    assert_eq!(file.mime_type, "image/jpeg", "mime type should be updated after upsert");
+    assert_eq!(file.size_bytes, Some(2048), "size should be updated after upsert");
+
     // Cleanup
     let _ = repo.delete(&file_id1).await;
     let _ = repo.delete(&file_id2).await;
@@ -166,6 +177,9 @@ async fn test_file_repository_find_by_id_exists() {
     assert!(file.is_some(), "File should be found");
     let file = file.expect("File should be Some");
     assert_eq!(file.id.to_string(), request.id.as_str());
+    assert_eq!(file.mime_type, "image/png", "mime type should match");
+    assert!(file.path.contains("find_by_id"), "path should contain test suffix");
+    assert!(file.deleted_at.is_none(), "file should not be soft-deleted");
 
     // Cleanup
     let _ = repo.delete(&request.id).await;
@@ -275,6 +289,10 @@ async fn test_file_repository_list_by_user() {
 
     let files = repo.list_by_user(&user_id, 10, 0).await.expect("List should succeed");
     assert_eq!(files.len(), 3, "Should return 3 files for user");
+    for file in &files {
+        assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all files should belong to the test user");
+        assert_eq!(file.mime_type, "image/png", "mime type should match");
+    }
 
     // Cleanup
     for id in file_ids {
@@ -316,6 +334,11 @@ async fn test_file_repository_list_by_user_with_pagination() {
 
     let page3 = repo.list_by_user(&user_id, 2, 4).await.expect("List should succeed");
     assert_eq!(page3.len(), 1, "Third page should have 1 file");
+
+    let all_ids: Vec<_> = page1.iter().chain(page2.iter()).chain(page3.iter()).map(|f| f.id).collect();
+    assert_eq!(all_ids.len(), 5, "all pages combined should have 5 files");
+    let unique_ids: std::collections::HashSet<_> = all_ids.iter().collect();
+    assert_eq!(unique_ids.len(), 5, "all file ids across pages should be unique");
 
     // Cleanup
     for id in file_ids {
@@ -394,7 +417,9 @@ async fn test_file_repository_update_metadata() {
 
     // Verify update
     let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
-    assert!(file.is_some(), "File should exist");
+    let file = file.expect("File should exist after metadata update");
+    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should be unchanged");
+    assert!(file.metadata.is_object(), "metadata should be a JSON object");
 
     // Cleanup
     let _ = repo.delete(&request.id).await;
@@ -434,6 +459,13 @@ async fn test_file_repository_insert_file() {
     let result = repo.insert_file(&file).await;
     assert!(result.is_ok(), "insert_file should succeed");
 
+    let fetched = repo.find_by_id(&FileId::new(file_id.to_string())).await.expect("should query inserted file").expect("inserted file should exist");
+    assert_eq!(fetched.id, file_id, "file id should match");
+    assert_eq!(fetched.mime_type, "image/png", "mime type should match");
+    assert_eq!(fetched.size_bytes, Some(2048), "size should match");
+    assert!(fetched.ai_content, "ai_content should be true");
+    assert_eq!(fetched.user_id.as_ref().map(|u| u.as_str()), Some("user_insert_file"), "user_id should match");
+
     // Cleanup
     let _ = repo.delete(&FileId::new(file_id.to_string())).await;
 }
@@ -464,11 +496,13 @@ async fn test_file_repository_list_ai_images() {
 
     // List AI images
     let files = repo.list_ai_images(10, 0).await.expect("List AI images should succeed");
-    assert!(!files.is_empty() || files.is_empty(), "Should return AI images (may be empty in fresh db)");
+    assert!(!files.is_empty(), "should return at least the AI image we inserted");
+    assert!(files.len() <= 10, "should respect the limit parameter");
 
     // All returned files should have ai_content = true
     for file in &files {
         assert!(file.ai_content, "All returned files should have ai_content = true");
+        assert!(!file.mime_type.is_empty(), "returned files should have a mime type");
     }
 
     // Cleanup
@@ -502,9 +536,10 @@ async fn test_file_repository_list_ai_images_by_user() {
     let files = repo.list_ai_images_by_user(&user_id, 10, 0).await.expect("List should succeed");
     assert!(!files.is_empty(), "Should return at least one AI image for user");
 
-    // All returned files should have ai_content = true
+    // All returned files should have ai_content = true and belong to the user
     for file in &files {
         assert!(file.ai_content, "All returned files should have ai_content = true");
+        assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all files should belong to the test user");
     }
 
     // Cleanup

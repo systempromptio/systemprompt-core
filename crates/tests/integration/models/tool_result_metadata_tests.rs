@@ -4,8 +4,12 @@ use systemprompt_models::mcp::McpToolResultMetadata;
 #[test]
 fn test_create_and_validate() {
     let mcp_execution_id = McpExecutionId::generate();
-    let metadata = McpToolResultMetadata::new(mcp_execution_id);
+    let metadata = McpToolResultMetadata::new(mcp_execution_id.clone());
     metadata.validate().expect("metadata.validate() should succeed");
+    assert_eq!(
+        metadata.mcp_execution_id, mcp_execution_id,
+        "metadata should preserve the execution id it was created with"
+    );
 }
 
 #[test]
@@ -30,5 +34,11 @@ fn test_missing_meta_fails() {
         meta: None,
     };
 
-    McpToolResultMetadata::from_call_tool_result(&result).unwrap_err();
+    let err = McpToolResultMetadata::from_call_tool_result(&result)
+        .expect_err("missing meta should produce an error");
+    let err_msg = err.to_string();
+    assert!(
+        err_msg.contains("_meta is missing"),
+        "error should mention missing _meta, got: {err_msg}"
+    );
 }

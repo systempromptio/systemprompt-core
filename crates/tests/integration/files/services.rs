@@ -53,6 +53,11 @@ async fn test_file_service_insert() {
     let result = service.insert(request.clone()).await;
     assert!(result.is_ok(), "FileService::insert should succeed");
 
+    let file = service.find_by_id(&request.id).await.expect("should query inserted file").expect("inserted file should exist");
+    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match");
+    assert_eq!(file.mime_type, "image/png", "mime type should match");
+    assert_eq!(file.size_bytes, Some(1024), "size should match");
+
     // Cleanup
     let _ = service.delete(&request.id).await;
 }
@@ -71,6 +76,10 @@ async fn test_file_service_find_by_id() {
 
     let file = service.find_by_id(&request.id).await.expect("Find should succeed");
     assert!(file.is_some(), "File should be found");
+    let file = file.expect("file should be Some");
+    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match request");
+    assert_eq!(file.mime_type, "image/png", "mime type should match");
+    assert!(file.deleted_at.is_none(), "file should not be soft-deleted");
 
     // Cleanup
     let _ = service.delete(&request.id).await;
@@ -92,6 +101,9 @@ async fn test_file_service_find_by_path() {
 
     let file = service.find_by_path(&path).await.expect("Find should succeed");
     assert!(file.is_some(), "File should be found by path");
+    let file = file.expect("file should be Some");
+    assert_eq!(file.path, path, "returned file path should match query path");
+    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match");
 
     // Cleanup
     let _ = service.delete(&request.id).await;
@@ -119,6 +131,9 @@ async fn test_file_service_list_by_user() {
 
     let files = service.list_by_user(&user_id, 10, 0).await.expect("List should succeed");
     assert_eq!(files.len(), 2, "Should return 2 files for user");
+    for file in &files {
+        assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all files should belong to the test user");
+    }
 
     // Cleanup
     for id in file_ids {
@@ -192,9 +207,11 @@ async fn test_ai_service_list_ai_images() {
 
     // List AI images
     let images = ai_service.list_ai_images(10, 0).await.expect("List should succeed");
-    // All should be AI content
+    assert!(!images.is_empty(), "should return at least the AI image we inserted");
+    assert!(images.len() <= 10, "should respect the limit parameter");
     for img in &images {
         assert!(img.ai_content, "All returned images should be AI content");
+        assert!(!img.mime_type.is_empty(), "returned images should have a mime type");
     }
 
     // Cleanup
@@ -222,6 +239,10 @@ async fn test_ai_service_list_ai_images_by_user() {
     // List AI images for user
     let images = ai_service.list_ai_images_by_user(&user_id, 10, 0).await.expect("List should succeed");
     assert!(!images.is_empty(), "Should have at least one AI image");
+    for img in &images {
+        assert!(img.ai_content, "all returned images should be AI content");
+        assert_eq!(img.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all images should belong to the test user");
+    }
 
     // Cleanup
     let _ = file_service.delete(&request.id).await;

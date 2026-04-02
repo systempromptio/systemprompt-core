@@ -136,12 +136,12 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
     repo.ban_ip(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    ban.as_ref().expect("ban should be present");
-
-    let ban = ban.expect("Ban should exist");
+    let ban = ban.expect("get_ban should return the newly created ban");
     assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.reason, "Test ban creation");
+    assert_eq!(ban.ban_source.as_deref(), Some("integration_test"));
     assert!(!ban.is_permanent);
+    assert!(ban.expires_at.is_some(), "non-permanent ban should have an expiry");
 
     // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
@@ -168,9 +168,8 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
     repo.ban_ip(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    ban.as_ref().expect("ban should be present");
-
-    let ban = ban.expect("Ban should exist");
+    let ban = ban.expect("get_ban should return the ban with fingerprint");
+    assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.source_fingerprint.as_deref(), Some(fingerprint));
 
     // Cleanup
@@ -201,11 +200,11 @@ async fn ban_ip_permanent() -> Result<()> {
     repo.ban_ip(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    ban.as_ref().expect("ban should be present");
-
-    let ban = ban.expect("Ban should exist");
+    let ban = ban.expect("get_ban should return the permanent ban");
+    assert_eq!(ban.ip_address, test_ip);
+    assert_eq!(ban.reason, "Permanent ban test");
     assert!(ban.is_permanent);
-    assert!(ban.expires_at.is_none());
+    assert!(ban.expires_at.is_none(), "permanent ban should have no expiry");
 
     // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
@@ -280,13 +279,14 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
     repo.ban_ip_with_metadata(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
-    ban.as_ref().expect("ban should be present");
-
-    let ban = ban.expect("Ban should exist");
+    let ban = ban.expect("get_ban should return the ban with metadata");
+    assert_eq!(ban.ip_address, test_ip);
+    assert_eq!(ban.reason, "Metadata ban test");
     assert_eq!(ban.source_fingerprint.as_deref(), Some("fp-123"));
     assert_eq!(ban.last_offense_path.as_deref(), Some("/api/v1/malicious"));
     assert_eq!(ban.last_user_agent.as_deref(), Some("TestBot/1.0"));
-    ban.associated_session_ids.expect("ban.associated_session_ids should be present");
+    let session_ids = ban.associated_session_ids.expect("ban should have associated session ids");
+    assert!(!session_ids.is_empty(), "associated session ids should contain the session id");
 
     // Cleanup
     cleanup_test_ip(&repo, test_ip).await;

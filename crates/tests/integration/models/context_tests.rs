@@ -131,13 +131,25 @@ fn test_validation_methods() {
         AgentName::new("test-agent".to_string()),
     );
 
-    ctx_without_task.validate_task_execution().unwrap_err();
+    let err = ctx_without_task
+        .validate_task_execution()
+        .expect_err("context without task_id should fail validation");
+    assert!(
+        err.contains("task_id"),
+        "validation error should mention task_id, got: {err}"
+    );
 
     let ctx_with_task = ctx_without_task
         .clone()
         .with_task_id(TaskId::new("task_123".to_string()));
 
-    ctx_with_task.validate_task_execution().expect("ctx_with_task.validate_task_execution() should succeed");
+    ctx_with_task
+        .validate_task_execution()
+        .expect("ctx_with_task.validate_task_execution() should succeed");
+    assert_eq!(
+        ctx_with_task.execution.task_id.as_ref().expect("task_id should be set").as_str(),
+        "task_123"
+    );
 }
 
 #[test]

@@ -280,7 +280,12 @@ mod api_tests {
     async fn test_fetch_content_invalid_url() {
         let result =
             fetch_content_from_api("http://invalid.local.test.nonexistent:9999", "blog").await;
-        result.unwrap_err();
+        let err = result.expect_err("request to invalid URL should fail");
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("Failed to connect"),
+            "error should indicate connection failure, got: {err_msg}"
+        );
     }
 
     async fn fetch_content_from_api(
