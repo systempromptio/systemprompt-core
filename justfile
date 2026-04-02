@@ -106,6 +106,100 @@ style-check:
     echo ""
     echo "✅ All style checks passed!"
 
+# Run unit tests (separate test workspace, no database required)
+unit-test *ARGS:
+    cargo test --manifest-path crates/tests/Cargo.toml --workspace {{ARGS}}
+
+# Check unit test compilation without running
+unit-check:
+    cargo check --manifest-path crates/tests/Cargo.toml --workspace --tests
+
+# Run unit tests for a specific crate (e.g., just unit-test-crate systemprompt-agent-tests)
+unit-test-crate CRATE *ARGS:
+    cargo test --manifest-path crates/tests/Cargo.toml -p {{CRATE}} {{ARGS}}
+
+# Generate coverage report (text summary)
+#
+# Architecture: The test workspace (crates/tests/) has its own .cargo/config.toml
+# that overrides cranelift→llvm and removes sccache, enabling LLVM coverage
+# instrumentation. We cd into the test workspace so Cargo picks up that config.
+#
+# cargo-llvm-cov has a known issue with profraw file paths in multi-workspace
+# setups, so we use grcov for report generation as the more reliable tool.
+coverage:
+    #!/usr/bin/env bash
+    set -e
+    ROOT="$(pwd)"
+    PROFDIR="$ROOT/coverage-report/profraw"
+    rm -rf "$PROFDIR"
+    mkdir -p "$PROFDIR"
+    echo "Building and testing with coverage instrumentation..."
+    cd crates/tests
+    LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
+    RUSTFLAGS="-C instrument-coverage" \
+    cargo test --workspace --lib 2>&1 | tail -3
+    echo ""
+    PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
+    echo "Generated $PROFRAW_COUNT profraw files"
+    echo ""
+    echo "Merging profile data..."
+    LLVM_PROFDATA=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata
+    LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
+    "$LLVM_PROFDATA" merge -sparse "$PROFDIR"/*.profraw -o "$ROOT/coverage-report/tests.profdata"
+    echo "Generating report..."
+    TEST_BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f -name "systemprompt_*" ! -name "*.d" | head -30)
+    OBJECT_ARGS=""
+    FIRST=true
+    for bin in $TEST_BINS; do
+        if $FIRST; then
+            OBJECT_ARGS="$bin"
+            FIRST=false
+        else
+            OBJECT_ARGS="$OBJECT_ARGS --object $bin"
+        fi
+    done
+    "$LLVM_COV" report \
+        --instr-profile="$ROOT/coverage-report/tests.profdata" \
+        $OBJECT_ARGS \
+        --ignore-filename-regex='(\.cargo|rustc|crates/tests)' \
+        --summary-only 2>/dev/null || echo "(Some binaries may not match profdata — this is normal for incremental builds)"
+    echo ""
+    echo "For HTML report: just coverage-html"
+
+# Generate coverage HTML report
+coverage-html:
+    #!/usr/bin/env bash
+    set -e
+    ROOT="$(pwd)"
+    if [ ! -f "$ROOT/coverage-report/tests.profdata" ]; then
+        echo "Run 'just coverage' first to generate profdata"
+        exit 1
+    fi
+    LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
+    TEST_BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f -name "systemprompt_*" ! -name "*.d" | head -30)
+    OBJECT_ARGS=""
+    FIRST=true
+    for bin in $TEST_BINS; do
+        if $FIRST; then
+            OBJECT_ARGS="$bin"
+            FIRST=false
+        else
+            OBJECT_ARGS="$OBJECT_ARGS --object $bin"
+        fi
+    done
+    mkdir -p "$ROOT/coverage-report/html"
+    "$LLVM_COV" show \
+        --instr-profile="$ROOT/coverage-report/tests.profdata" \
+        $OBJECT_ARGS \
+        --ignore-filename-regex='(\.cargo|rustc|crates/tests)' \
+        --format=html \
+        --output-dir="$ROOT/coverage-report/html" 2>/dev/null || true
+    echo "Coverage report: coverage-report/html/index.html"
+
+# Clean coverage artifacts
+coverage-clean:
+    rm -rf coverage-report/
+
 # Clean build artifacts
 clean:
     cargo clean

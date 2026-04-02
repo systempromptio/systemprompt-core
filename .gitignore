@@ -94,3 +94,6 @@ instructions/
 
 # Report files
 report/
+
+# Coverage reports
+coverage-report/
