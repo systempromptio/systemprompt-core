@@ -112,6 +112,20 @@ fn test_log_filter_builder_chaining() {
 }
 
 #[test]
+fn test_log_filter_with_since() {
+    let since = chrono::Utc::now();
+    let filter = LogFilter::new(1, 10).with_since(since);
+
+    assert_eq!(filter.since(), Some(since));
+}
+
+#[test]
+fn test_log_filter_since_default_is_none() {
+    let filter = LogFilter::new(1, 10);
+    assert!(filter.since().is_none());
+}
+
+#[test]
 fn test_log_filter_builder_partial_chain() {
     let filter = LogFilter::new(1, 10).with_level("INFO").with_module("api");
 
@@ -189,6 +203,15 @@ fn test_log_filter_clone() {
     assert_eq!(filter.level(), cloned.level());
     assert_eq!(filter.module(), cloned.module());
     assert_eq!(filter.message(), cloned.message());
+}
+
+#[test]
+fn test_log_filter_debug() {
+    let filter = LogFilter::new(1, 10).with_level("ERROR");
+    let debug = format!("{:?}", filter);
+
+    assert!(debug.contains("LogFilter"));
+    assert!(debug.contains("ERROR"));
 }
 
 // ============================================================================

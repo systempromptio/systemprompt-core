@@ -238,3 +238,81 @@ fn test_task_artifact_serialize() {
 // ============================================================================
 // Roundtrip Serialization Tests
 // ============================================================================
+
+#[test]
+fn test_conversation_message_roundtrip() {
+    let msg = ConversationMessage {
+        role: "user".to_string(),
+        content: "Roundtrip test".to_string(),
+        sequence_number: 42,
+    };
+
+    let json = serde_json::to_string(&msg).unwrap();
+    let parsed: ConversationMessage = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(parsed.role, "user");
+    assert_eq!(parsed.content, "Roundtrip test");
+    assert_eq!(parsed.sequence_number, 42);
+}
+
+#[test]
+fn test_tool_log_entry_roundtrip() {
+    let entry = ToolLogEntry {
+        timestamp: Utc::now(),
+        level: "warn".to_string(),
+        module: "roundtrip::test".to_string(),
+        message: "Roundtrip entry".to_string(),
+    };
+
+    let json = serde_json::to_string(&entry).unwrap();
+    let parsed: ToolLogEntry = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(parsed.level, "warn");
+    assert_eq!(parsed.module, "roundtrip::test");
+    assert_eq!(parsed.message, "Roundtrip entry");
+    assert_eq!(parsed.timestamp, entry.timestamp);
+}
+
+#[test]
+fn test_task_artifact_roundtrip_with_data() {
+    let artifact = TaskArtifact {
+        artifact_id: "rt-art".to_string().into(),
+        artifact_type: "json".to_string(),
+        name: Some("data.json".to_string()),
+        source: Some("test".to_string()),
+        tool_name: Some("tool".to_string()),
+        part_kind: Some("data".to_string()),
+        text_content: None,
+        data_content: Some(json!({"nested": {"key": "value"}})),
+    };
+
+    let json = serde_json::to_string(&artifact).unwrap();
+    let parsed: TaskArtifact = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(parsed.artifact_id, "rt-art");
+    assert_eq!(parsed.name, Some("data.json".to_string()));
+    let data = parsed.data_content.expect("data_content should roundtrip");
+    assert_eq!(data["nested"]["key"], "value");
+}
+
+#[test]
+fn test_task_artifact_roundtrip_minimal() {
+    let artifact = TaskArtifact {
+        artifact_id: "rt-min".to_string().into(),
+        artifact_type: "unknown".to_string(),
+        name: None,
+        source: None,
+        tool_name: None,
+        part_kind: None,
+        text_content: None,
+        data_content: None,
+    };
+
+    let json = serde_json::to_string(&artifact).unwrap();
+    let parsed: TaskArtifact = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(parsed.artifact_id, "rt-min");
+    assert!(parsed.name.is_none());
+    assert!(parsed.text_content.is_none());
+    assert!(parsed.data_content.is_none());
+}

@@ -4931,12 +4931,14 @@ name = "systemprompt-models-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "indexmap",
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-traits",
  "tempfile",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

@@ -259,6 +259,17 @@ fn test_log_entry_clone() {
     assert_eq!(entry.metadata, cloned.metadata);
 }
 
+#[test]
+fn test_log_entry_debug() {
+    let entry = LogEntry::new(LogLevel::Error, "debug_module", "debug_message");
+    let debug = format!("{:?}", entry);
+
+    assert!(debug.contains("LogEntry"));
+    assert!(debug.contains("Error"));
+    assert!(debug.contains("debug_module"));
+    assert!(debug.contains("debug_message"));
+}
+
 // ============================================================================
 // LogEntry Serialization Tests
 // ============================================================================

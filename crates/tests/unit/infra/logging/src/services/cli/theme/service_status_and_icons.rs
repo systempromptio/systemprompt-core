@@ -10,66 +10,56 @@ use systemprompt_logging::services::cli::theme::{
 
 #[test]
 fn test_service_status_running_symbol() {
-    let status = ServiceStatus::Running;
-    assert_eq!(status.symbol(), "●");
+    assert_eq!(ServiceStatus::Running.symbol(), "\u{25cf}");
 }
 
 #[test]
 fn test_service_status_stopped_symbol() {
-    let status = ServiceStatus::Stopped;
-    assert_eq!(status.symbol(), "○");
+    assert_eq!(ServiceStatus::Stopped.symbol(), "\u{25cb}");
 }
 
 #[test]
 fn test_service_status_starting_symbol() {
-    let status = ServiceStatus::Starting;
-    assert_eq!(status.symbol(), "◐");
+    assert_eq!(ServiceStatus::Starting.symbol(), "\u{25d0}");
 }
 
 #[test]
 fn test_service_status_failed_symbol() {
-    let status = ServiceStatus::Failed;
-    assert_eq!(status.symbol(), "✗");
+    assert_eq!(ServiceStatus::Failed.symbol(), "\u{2717}");
 }
 
 #[test]
 fn test_service_status_unknown_symbol() {
-    let status = ServiceStatus::Unknown;
-    assert_eq!(status.symbol(), "?");
+    assert_eq!(ServiceStatus::Unknown.symbol(), "?");
 }
 
 #[test]
 fn test_service_status_running_text() {
-    let status = ServiceStatus::Running;
-    assert_eq!(status.text(), "Running");
+    assert_eq!(ServiceStatus::Running.text(), "Running");
 }
 
 #[test]
 fn test_service_status_stopped_text() {
-    let status = ServiceStatus::Stopped;
-    assert_eq!(status.text(), "Stopped");
+    assert_eq!(ServiceStatus::Stopped.text(), "Stopped");
 }
 
 #[test]
 fn test_service_status_starting_text() {
-    let status = ServiceStatus::Starting;
-    assert_eq!(status.text(), "Starting");
+    assert_eq!(ServiceStatus::Starting.text(), "Starting");
 }
 
 #[test]
 fn test_service_status_failed_text() {
-    let status = ServiceStatus::Failed;
-    assert_eq!(status.text(), "Failed");
+    assert_eq!(ServiceStatus::Failed.text(), "Failed");
 }
 
 #[test]
 fn test_service_status_unknown_text() {
-    let status = ServiceStatus::Unknown;
-    assert_eq!(status.text(), "Unknown");
+    assert_eq!(ServiceStatus::Unknown.text(), "Unknown");
 }
 
 #[test]
-fn test_service_status_all_variants_have_symbol() {
+fn test_service_status_all_variants_have_unique_symbols() {
     let variants = [
         ServiceStatus::Running,
         ServiceStatus::Stopped,
@@ -78,13 +68,21 @@ fn test_service_status_all_variants_have_symbol() {
         ServiceStatus::Unknown,
     ];
 
-    for status in variants {
-        assert!(!status.symbol().is_empty());
+    for i in 0..variants.len() {
+        for j in (i + 1)..variants.len() {
+            assert_ne!(
+                variants[i].symbol(),
+                variants[j].symbol(),
+                "{:?} and {:?} should have different symbols",
+                variants[i],
+                variants[j]
+            );
+        }
     }
 }
 
 #[test]
-fn test_service_status_all_variants_have_text() {
+fn test_service_status_all_variants_have_unique_text() {
     let variants = [
         ServiceStatus::Running,
         ServiceStatus::Stopped,
@@ -93,167 +91,161 @@ fn test_service_status_all_variants_have_text() {
         ServiceStatus::Unknown,
     ];
 
-    for status in variants {
-        assert!(!status.text().is_empty());
+    for i in 0..variants.len() {
+        for j in (i + 1)..variants.len() {
+            assert_ne!(
+                variants[i].text(),
+                variants[j].text(),
+                "{:?} and {:?} should have different text",
+                variants[i],
+                variants[j]
+            );
+        }
     }
 }
 
+#[test]
+fn test_service_status_equality() {
+    assert_eq!(ServiceStatus::Running, ServiceStatus::Running);
+    assert_ne!(ServiceStatus::Running, ServiceStatus::Stopped);
+}
+
+#[test]
+fn test_service_status_debug() {
+    assert_eq!(format!("{:?}", ServiceStatus::Running), "Running");
+    assert_eq!(format!("{:?}", ServiceStatus::Failed), "Failed");
+}
+
 // ============================================================================
-// Icons Tests
+// Icons Constants Tests
 // ============================================================================
 
 #[test]
-fn test_icons_checkmark() {
-    let emoji = Icons::CHECKMARK;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_checkmark_value() {
+    let s = Icons::CHECKMARK.to_string();
+    assert!(s.contains('\u{2713}') || s.contains('\u{2713}'));
 }
 
 #[test]
-fn test_icons_warning() {
-    let emoji = Icons::WARNING;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_warning_value() {
+    let s = Icons::WARNING.to_string();
+    assert!(s.contains('\u{26a0}') || s.contains('!'));
 }
 
 #[test]
-fn test_icons_error() {
-    let emoji = Icons::ERROR;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_error_value() {
+    let s = Icons::ERROR.to_string();
+    assert!(s.contains('\u{2717}') || s.contains('X'));
 }
 
 #[test]
-fn test_icons_info() {
-    let emoji = Icons::INFO;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_info_value() {
+    let s = Icons::INFO.to_string();
+    assert!(s.contains('\u{2139}') || s.contains('i'));
 }
 
 #[test]
-fn test_icons_package() {
-    let emoji = Icons::PACKAGE;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_arrow_value() {
+    let s = Icons::ARROW.to_string();
+    assert!(s.contains('\u{2192}') || s.contains("->"));
+}
+
+// ============================================================================
+// Icons for_module_type Tests
+// ============================================================================
+
+#[test]
+fn test_icons_for_module_type_schema_matches_constant() {
+    let from_method = Icons::for_module_type(ModuleType::Schema).to_string();
+    let from_constant = Icons::SCHEMA.to_string();
+    assert_eq!(from_method, from_constant);
 }
 
 #[test]
-fn test_icons_schema() {
-    let emoji = Icons::SCHEMA;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_module_type_seed_matches_constant() {
+    let from_method = Icons::for_module_type(ModuleType::Seed).to_string();
+    let from_constant = Icons::SEED.to_string();
+    assert_eq!(from_method, from_constant);
 }
 
 #[test]
-fn test_icons_seed() {
-    let emoji = Icons::SEED;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_module_type_module_matches_constant() {
+    let from_method = Icons::for_module_type(ModuleType::Module).to_string();
+    let from_constant = Icons::PACKAGE.to_string();
+    assert_eq!(from_method, from_constant);
 }
 
 #[test]
-fn test_icons_config() {
-    let emoji = Icons::CONFIG;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_module_type_configuration_matches_constant() {
+    let from_method = Icons::for_module_type(ModuleType::Configuration).to_string();
+    let from_constant = Icons::CONFIG.to_string();
+    assert_eq!(from_method, from_constant);
+}
+
+// ============================================================================
+// Icons for_status Tests
+// ============================================================================
+
+#[test]
+fn test_icons_for_status_valid_is_checkmark() {
+    let icon = Icons::for_status(ItemStatus::Valid).to_string();
+    assert_eq!(icon, Icons::CHECKMARK.to_string());
 }
 
 #[test]
-fn test_icons_arrow() {
-    let emoji = Icons::ARROW;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_status_applied_is_checkmark() {
+    let icon = Icons::for_status(ItemStatus::Applied).to_string();
+    assert_eq!(icon, Icons::CHECKMARK.to_string());
 }
 
 #[test]
-fn test_icons_update() {
-    let emoji = Icons::UPDATE;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_status_missing_is_warning() {
+    let icon = Icons::for_status(ItemStatus::Missing).to_string();
+    assert_eq!(icon, Icons::WARNING.to_string());
 }
 
 #[test]
-fn test_icons_install() {
-    let emoji = Icons::INSTALL;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_status_pending_is_warning() {
+    let icon = Icons::for_status(ItemStatus::Pending).to_string();
+    assert_eq!(icon, Icons::WARNING.to_string());
 }
 
 #[test]
-fn test_icons_pause() {
-    let emoji = Icons::PAUSE;
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_status_failed_is_error() {
+    let icon = Icons::for_status(ItemStatus::Failed).to_string();
+    assert_eq!(icon, Icons::ERROR.to_string());
 }
 
 #[test]
-fn test_icons_for_module_type_schema() {
-    let emoji = Icons::for_module_type(ModuleType::Schema);
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_status_disabled_is_pause() {
+    let icon = Icons::for_status(ItemStatus::Disabled).to_string();
+    assert_eq!(icon, Icons::PAUSE.to_string());
+}
+
+// ============================================================================
+// Icons for_message_level Tests
+// ============================================================================
+
+#[test]
+fn test_icons_for_message_level_success_is_checkmark() {
+    let icon = Icons::for_message_level(MessageLevel::Success).to_string();
+    assert_eq!(icon, Icons::CHECKMARK.to_string());
 }
 
 #[test]
-fn test_icons_for_module_type_seed() {
-    let emoji = Icons::for_module_type(ModuleType::Seed);
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_message_level_warning_is_warning() {
+    let icon = Icons::for_message_level(MessageLevel::Warning).to_string();
+    assert_eq!(icon, Icons::WARNING.to_string());
 }
 
 #[test]
-fn test_icons_for_module_type_module() {
-    let emoji = Icons::for_module_type(ModuleType::Module);
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_message_level_error_is_error() {
+    let icon = Icons::for_message_level(MessageLevel::Error).to_string();
+    assert_eq!(icon, Icons::ERROR.to_string());
 }
 
 #[test]
-fn test_icons_for_module_type_configuration() {
-    let emoji = Icons::for_module_type(ModuleType::Configuration);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_status_valid() {
-    let emoji = Icons::for_status(ItemStatus::Valid);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_status_applied() {
-    let emoji = Icons::for_status(ItemStatus::Applied);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_status_missing() {
-    let emoji = Icons::for_status(ItemStatus::Missing);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_status_pending() {
-    let emoji = Icons::for_status(ItemStatus::Pending);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_status_failed() {
-    let emoji = Icons::for_status(ItemStatus::Failed);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_status_disabled() {
-    let emoji = Icons::for_status(ItemStatus::Disabled);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_message_level_success() {
-    let emoji = Icons::for_message_level(MessageLevel::Success);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_message_level_warning() {
-    let emoji = Icons::for_message_level(MessageLevel::Warning);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_message_level_error() {
-    let emoji = Icons::for_message_level(MessageLevel::Error);
-    assert!(!emoji.to_string().is_empty());
-}
-
-#[test]
-fn test_icons_for_message_level_info() {
-    let emoji = Icons::for_message_level(MessageLevel::Info);
-    assert!(!emoji.to_string().is_empty());
+fn test_icons_for_message_level_info_is_info() {
+    let icon = Icons::for_message_level(MessageLevel::Info).to_string();
+    assert_eq!(icon, Icons::INFO.to_string());
 }

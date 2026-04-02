@@ -14,7 +14,6 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
-#[cfg(test)]
 mod models;
 #[cfg(test)]
 mod services;
