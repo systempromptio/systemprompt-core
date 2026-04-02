@@ -4651,6 +4651,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-extension-unit-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-extension",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+]
+
+[[package]]
 name = "systemprompt-files"
 version = "0.1.21"
 dependencies = [

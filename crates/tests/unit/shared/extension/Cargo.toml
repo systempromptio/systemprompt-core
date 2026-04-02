@@ -1,0 +1,19 @@
+[package]
+name = "systemprompt-extension-unit-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-extension crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-extension = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

@@ -17,4 +17,6 @@ mod paths;
 #[cfg(test)]
 mod session_key;
 #[cfg(test)]
+mod session_store;
+#[cfg(test)]
 mod tenants;

@@ -14,7 +14,7 @@ async fn validate_database(ctx: &AppContext) -> Result<()> {
     Ok(())
 }
 
-fn validate_database_path(db_path: &str) -> Result<()> {
+pub fn validate_database_path(db_path: &str) -> Result<()> {
     if db_path.is_empty() {
         bail!("DATABASE_URL is empty");
     }

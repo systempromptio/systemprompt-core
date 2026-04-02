@@ -13,6 +13,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod config_validation;
+#[cfg(test)]
 mod context;
 #[cfg(test)]
 mod database_context;
@@ -21,9 +23,12 @@ mod installation;
 #[cfg(test)]
 mod registry;
 #[cfg(test)]
-#[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
+mod validate_database_path;
+#[cfg(test)]
 mod validation;
+#[cfg(test)]
+mod validation_report_extended;
 #[cfg(test)]
 mod wellknown;

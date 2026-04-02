@@ -17,7 +17,7 @@ pub use span::create_request_span;
 pub use startup_validation::{
     FilesConfigValidator, StartupValidator, display_validation_report, display_validation_warnings,
 };
-pub use validation::validate_system;
+pub use validation::{validate_database_path, validate_system};
 pub use wellknown::{WellKnownMetadata, get_wellknown_metadata};
 
 pub use systemprompt_models::modules::{
