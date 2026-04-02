@@ -1,7 +1,7 @@
 mod chart;
 mod dashboard;
 mod form;
-mod html;
+pub mod html;
 mod image;
 mod list;
 mod table;

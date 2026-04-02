@@ -4129,10 +4129,13 @@ name = "systemprompt-agent-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "rmcp",
  "serde_json",
+ "serde_yaml",
  "systemprompt-agent",
  "systemprompt-database",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-traits",
  "tempfile",

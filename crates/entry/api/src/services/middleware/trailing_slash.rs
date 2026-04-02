@@ -21,7 +21,7 @@ pub async fn remove_trailing_slash(request: Request, next: Next) -> Response {
     next.run(request).await
 }
 
-fn should_redirect(path: &str) -> bool {
+pub fn should_redirect(path: &str) -> bool {
     if path.len() <= 1 {
         return false;
     }

@@ -107,7 +107,7 @@ fn extract_ip_address(req: &Request) -> Option<String> {
         })
 }
 
-fn is_datacenter_ip(ip: Option<&str>) -> bool {
+pub fn is_datacenter_ip(ip: Option<&str>) -> bool {
     ip.is_some_and(|ip_addr| {
         DATACENTER_IP_PREFIXES
             .iter()
@@ -115,11 +115,11 @@ fn is_datacenter_ip(ip: Option<&str>) -> bool {
     })
 }
 
-fn is_known_bot(user_agent: &str) -> bool {
+pub fn is_known_bot(user_agent: &str) -> bool {
     matches_bot_pattern(user_agent)
 }
 
-fn is_outdated_browser(user_agent: &str) -> bool {
+pub fn is_outdated_browser(user_agent: &str) -> bool {
     let ua_lower = user_agent.to_lowercase();
 
     if let Some(pos) = ua_lower.find("chrome/") {
@@ -134,7 +134,7 @@ fn is_outdated_browser(user_agent: &str) -> bool {
     false
 }
 
-fn is_scanner_request(path: &str, user_agent: &str) -> bool {
+pub fn is_scanner_request(path: &str, user_agent: &str) -> bool {
     let scanner_paths = [
         ".env",
         ".git",

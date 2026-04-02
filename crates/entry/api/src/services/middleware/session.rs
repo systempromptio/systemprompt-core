@@ -287,7 +287,7 @@ impl SessionMiddleware {
         Ok((session_id, user_id.clone(), token, true, fingerprint))
     }
 
-    fn should_skip_session_tracking(path: &str) -> bool {
+    pub fn should_skip_session_tracking(path: &str) -> bool {
         if path.starts_with(ApiPaths::TRACK_BASE) {
             return false;
         }

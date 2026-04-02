@@ -48,7 +48,7 @@ struct MediaTypeEntry {
     quality: f32,
 }
 
-fn parse_accept_header(header_value: &str) -> AcceptedFormat {
+pub fn parse_accept_header(header_value: &str) -> AcceptedFormat {
     let mut entries = Vec::new();
 
     for part in header_value.split(',') {
