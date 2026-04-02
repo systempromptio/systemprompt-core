@@ -6,3 +6,6 @@
 
 mod shared;
 mod agent_orchestration;
+mod a2a_server;
+mod mcp;
+mod skills;

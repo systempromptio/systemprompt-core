@@ -1,5 +1,5 @@
-mod metadata_builder;
-mod parts_builder;
+pub mod metadata_builder;
+pub mod parts_builder;
 mod type_inference;
 
 use crate::error::{ArtifactError, RowParseError};
@@ -10,8 +10,8 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::{ArtifactId, McpExecutionId};
 use systemprompt_models::artifacts::types::ArtifactType;
 
-use metadata_builder::{BuildMetadataParams, build_metadata};
-use parts_builder::build_parts;
+pub use metadata_builder::{BuildMetadataParams, build_metadata};
+pub use parts_builder::build_parts;
 
 pub use type_inference::infer_type;
 
