@@ -2,6 +2,7 @@
 target/
 **/target/
 **/*.rs.bk
+**/*.profraw
 docs
 docs/
 docs/*
