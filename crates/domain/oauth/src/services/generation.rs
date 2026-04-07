@@ -201,6 +201,7 @@ pub fn generate_admin_jwt(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_admin_jwt_with_expiry(
     user_id: &str,
     session_id: &str,

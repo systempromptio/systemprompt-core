@@ -5,6 +5,7 @@ use systemprompt_models::artifacts::types::ArtifactType;
 
 use super::artifact_type_to_string;
 
+#[derive(Debug)]
 pub struct BuildMetadataParams<'a> {
     pub artifact_type: &'a ArtifactType,
     pub schema: Option<&'a JsonValue>,

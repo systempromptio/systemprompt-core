@@ -177,7 +177,7 @@ impl CreateAgentRequest {
     pub fn extract_port(&self) -> u16 {
         self.card
             .url()
-            .and_then(|u| super::validation::extract_port_from_url(u))
+            .and_then(super::validation::extract_port_from_url)
             .unwrap_or(80)
     }
 

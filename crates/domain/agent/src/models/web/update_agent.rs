@@ -175,7 +175,7 @@ impl UpdateAgentRequest {
     pub fn extract_port(&self) -> u16 {
         self.card
             .url()
-            .and_then(|u| extract_port_from_url(u))
+            .and_then(extract_port_from_url)
             .unwrap_or(80)
     }
 }

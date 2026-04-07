@@ -14,6 +14,7 @@ use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_traits::CreateSessionInput;
 
+#[derive(Debug)]
 pub struct TokenGenerationParams<'a> {
     pub client_id: &'a ClientId,
     pub user_id: &'a UserId,

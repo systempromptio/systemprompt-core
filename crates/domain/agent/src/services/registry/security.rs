@@ -81,6 +81,7 @@ pub fn oauth_to_security_config(
     (Some(schemes), Some(requirements))
 }
 
+#[allow(clippy::implicit_hasher)]
 pub fn override_oauth_urls(schemes: &mut HashMap<String, SecurityScheme>, api_external_url: &str) {
     if let Some(SecurityScheme::OAuth2 { flows, .. }) = schemes.get_mut("oauth2") {
         if let Some(auth_code) = flows.authorization_code.as_mut() {

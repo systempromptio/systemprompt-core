@@ -15,6 +15,15 @@
   - TransportProtocol renamed to ProtocolBinding (type alias kept)
   - JSON-RPC methods: PascalCase (`"message/send"` -> `"SendMessage"`, `"tasks/get"` -> `"GetTask"`, etc.)
 
+### Fixed
+- Resolve all build warnings and clippy errors across workspace
+  - Add missing `Debug` derives on `BuildMetadataParams`, `HtmlBuilder`, `TokenGenerationParams`, `AuthCodeValidationParams`
+  - Fix ambiguous glob re-export of `validation` module in OAuth endpoints
+  - Allow `struct_field_names` on A2A `Message` (protocol-required field name)
+  - Replace redundant closures with function references in agent URL extraction
+  - Add `const fn` to `TaskState::is_terminal()`, `can_transition_to()`, and `role_to_str()`
+  - Use `Self` instead of concrete type in `TaskState::can_transition_to()` parameter
+
 ### Added
 - Database migration `003_a2a_v1_task_states.sql` for task status value migration
 - TaskState `is_terminal()` and `can_transition_to()` methods for state machine validation

@@ -7,7 +7,7 @@ use super::parts::{
     FileUploadContext, PersistPartSqlxParams, persist_part_sqlx, persist_part_with_tx,
 };
 
-fn role_to_str(role: &MessageRole) -> &'static str {
+const fn role_to_str(role: &MessageRole) -> &'static str {
     match role {
         MessageRole::User => "user",
         MessageRole::Agent => "agent",

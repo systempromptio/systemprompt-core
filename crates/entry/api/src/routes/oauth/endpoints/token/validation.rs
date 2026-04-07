@@ -22,6 +22,7 @@ pub async fn validate_client_credentials(
     validate_client_credentials_shared(repo, client_id.as_str(), client_secret).await
 }
 
+#[derive(Debug)]
 pub struct AuthCodeValidationParams<'a> {
     pub repo: &'a OAuthRepository,
     pub code: &'a AuthorizationCode,

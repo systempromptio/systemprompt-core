@@ -1,6 +1,6 @@
 mod handler;
 pub mod response_builder;
-pub mod validation;
+pub(crate) mod validation;
 
 pub use handler::{handle_authorize_get, handle_authorize_post};
 

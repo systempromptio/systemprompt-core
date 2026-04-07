@@ -1,6 +1,6 @@
 pub mod generation;
 mod handler;
-pub mod validation;
+pub(crate) mod validation;
 
 pub use handler::handle_token;
 

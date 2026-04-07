@@ -77,14 +77,14 @@ pub enum TaskState {
 }
 
 impl TaskState {
-    pub fn is_terminal(&self) -> bool {
+    pub const fn is_terminal(&self) -> bool {
         matches!(
             self,
             Self::Completed | Self::Failed | Self::Canceled | Self::Rejected
         )
     }
 
-    pub fn can_transition_to(&self, target: &TaskState) -> bool {
+    pub const fn can_transition_to(&self, target: &Self) -> bool {
         if self.is_terminal() {
             return false;
         }
