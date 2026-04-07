@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.22] - 2026-04-07
 
 ### Changed
 - **A2A Protocol v1.0.0 Migration** — upgrade from v0.3.0 to the first stable release (Linux Foundation, March 2026)
