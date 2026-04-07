@@ -1,11 +1,12 @@
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
-use crate::models::a2a::{Message, MessageRole};
+use crate::models::a2a::{Message, MessageRole, Part};
+use crate::repository::task::constructor::batch_queries;
 
-use super::parts::get_message_parts;
 
 pub async fn get_messages_by_task(
     pool: &Arc<PgPool>,
@@ -35,10 +36,20 @@ pub async fn get_messages_by_task(
     .await
     .map_err(RepositoryError::database)?;
 
+    let task_ids: Vec<String> = message_rows
+        .iter()
+        .map(|r| r.task_id.to_string())
+        .collect();
+    let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
+    let parts_by_message = group_parts_by_message(all_parts);
+
     let mut messages = Vec::new();
 
     for row in message_rows {
-        let parts = get_message_parts(pool, &row.message_id).await?;
+        let parts = parts_by_message
+            .get(&row.message_id)
+            .cloned()
+            .unwrap_or_default();
 
         let reference_task_ids = row
             .reference_task_ids
@@ -95,10 +106,20 @@ pub async fn get_messages_by_context(
     .await
     .map_err(RepositoryError::database)?;
 
+    let task_ids: Vec<String> = message_rows
+        .iter()
+        .map(|r| r.task_id.to_string())
+        .collect();
+    let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
+    let parts_by_message = group_parts_by_message(all_parts);
+
     let mut messages = Vec::new();
 
     for row in message_rows {
-        let parts = get_message_parts(pool, &row.message_id).await?;
+        let parts = parts_by_message
+            .get(&row.message_id)
+            .cloned()
+            .unwrap_or_default();
 
         let role = match row.role.as_str() {
             "user" | "ROLE_USER" => MessageRole::User,
@@ -166,4 +187,32 @@ pub async fn get_next_sequence_number_in_tx(
     });
 
     Ok(max_seq.map_or(0, |s| s + 1))
+}
+
+fn group_parts_by_message(all_parts: Vec<crate::models::MessagePart>) -> HashMap<MessageId, Vec<Part>> {
+    use crate::models::a2a::{DataPart, FileContent, FilePart, TextPart};
+
+    let mut map: HashMap<MessageId, Vec<Part>> = HashMap::new();
+    for row in all_parts {
+        let part = match row.part_kind.as_str() {
+            "text" => row.text_content.map(|text| Part::Text(TextPart { text })),
+            "file" => Some(Part::File(FilePart {
+                file: FileContent {
+                    name: row.file_name,
+                    mime_type: row.file_mime_type,
+                    bytes: row.file_bytes,
+                    url: row.file_uri,
+                },
+            })),
+            "data" => row.data_content.and_then(|v| match v {
+                serde_json::Value::Object(data) => Some(Part::Data(DataPart { data })),
+                _ => None,
+            }),
+            _ => None,
+        };
+        if let Some(part) = part {
+            map.entry(row.message_id).or_default().push(part);
+        }
+    }
+    map
 }

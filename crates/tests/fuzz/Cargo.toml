@@ -1,0 +1,40 @@
+[package]
+name = "systemprompt-fuzz"
+version = "0.0.1"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-agent = { path = "../../domain/agent" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_jsonrpc_parse"
+path = "fuzz_targets/jsonrpc_parse.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_a2a_request"
+path = "fuzz_targets/a2a_request.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_identifier_validation"
+path = "fuzz_targets/identifier_validation.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_config_loading"
+path = "fuzz_targets/config_loading.rs"
+doc = false

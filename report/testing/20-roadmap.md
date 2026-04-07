@@ -97,18 +97,28 @@ DB-dependent repository tests and integration test database infrastructure. Not 
 | Agent DB operations | Repository integration tests | 1 week |
 | MCP server lifecycle | End-to-end orchestration tests | 1 week |
 
-### Phase 6: Advanced Testing (Not Started)
+### Phase 6: Advanced Testing — IN PROGRESS (2026-04-02)
 
-| Report | Task | Effort | Depends On |
-|--------|------|--------|-----------|
-| 19 | proptest for serialization, cargo-fuzz for parsers, criterion benchmarks, k6 load tests, protocol conformance | Ongoing | Coverage baseline |
+Infrastructure created for all 5 pillars. Initial test suites implemented and passing.
+
+| Pillar | Crate/Location | Tests | Status |
+|--------|---------------|-------|--------|
+| Property-Based | `crates/tests/property/` | 44 | ✅ Passing |
+| Protocol Contract | `crates/tests/contract/` | 57 | ✅ Passing |
+| Concurrency | `crates/tests/concurrency/` | 9 | ✅ Passing |
+| Criterion Benchmarks | `crates/tests/bench/` | 3 benches | ✅ Compiles |
+| Fuzz Testing | `fuzz/` | 4 targets | ✅ Compiles |
+| k6 Load Tests | `k6/` | 4 scripts | ✅ Ready |
+
+**Production code change**: Added `TaskState::is_terminal()` and `can_transition_to()` to `crates/shared/models/src/a2a/task.rs`
+
+**Justfile commands**: `property-test`, `contract-test`, `concurrency-test`, `bench`, `fuzz`
 
 ### Explicitly Skipped
 
 1. **CLI crate** (56.7K LOC, 1.8% coverage) — too large; needs dedicated E2E testing infrastructure
 2. **DB-dependent repository tests** — need integration test DB; project rules prohibit mock DB
 3. **WebSocket/streaming tests** — need runtime infrastructure
-4. **Property-based/fuzz testing** — Phase 6, not in scope for this campaign
 
 ---
 
@@ -149,17 +159,22 @@ PHASE 4-5: Coverage Campaign (8 waves)             ✅ COMPLETE
 └── 18  Shared Layer Cleanup                       ✅ (identifiers overhauled, extension 170)
          │
          ▼
-PHASE 6: Advanced Testing                          🔲 NOT STARTED
+PHASE 6: Advanced Testing                          🟡 IN PROGRESS
 │
-└── 19  Property-Based, Fuzz, Load, Contract
+├── 19a Property-Based Testing (proptest)          ✅ 44 tests
+├── 19b Protocol Contract Testing                  ✅ 57 tests
+├── 19c Concurrency Testing                        ✅ 9 tests
+├── 19d Criterion Benchmarks                       ✅ Infrastructure ready
+├── 19e Fuzz Testing (cargo-fuzz)                  ✅ 4 targets ready
+└── 19f k6 Load Testing                            ✅ 4 scripts ready
 ```
 
 ## Metrics
 
-| Metric | Pre-Campaign | Post-Campaign (Now) | Target |
-|--------|-------------|---------------------|--------|
-| Total tests | 6,572 | 8,535 | — |
-| Test crates | 30 | 31 (+extension-unit) | — |
+| Metric | Pre-Campaign | Post-Campaign | Phase 6 (Now) | Target |
+|--------|-------------|---------------|---------------|--------|
+| Total tests | 6,572 | 8,535 | 8,645 (+110 Phase 6) | — |
+| Test crates | 30 | 31 | 34 (+property, contract, concurrency) | — |
 | Extension unit tests | 0 | 170 | — |
 | Identifier tests (meaningful) | ~320 (trivial) | 328 (validated) | — |
 | Logging no-op tests | ~275 | 0 (all have assertions) | 0 |

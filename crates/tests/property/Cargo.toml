@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-property-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-agent = { workspace = true }
+proptest = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+proptest-derive = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

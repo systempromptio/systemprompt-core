@@ -66,35 +66,35 @@ impl FunnelRepository {
         steps: &[FunnelStep],
         since: DateTime<Utc>,
     ) -> Result<Vec<FunnelStepStats>> {
+        if steps.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let step_orders: Vec<i32> = steps.iter().map(|s| s.step_order).collect();
+
+        let rows = sqlx::query!(
+            r#"
+            SELECT
+                s.step_order,
+                COUNT(*) FILTER (WHERE fp.current_step >= s.step_order) as "entered_count!",
+                COUNT(*) FILTER (WHERE fp.current_step > s.step_order) as "exited_count!"
+            FROM UNNEST($3::int4[]) AS s(step_order)
+            LEFT JOIN funnel_progress fp
+                ON fp.funnel_id = $1 AND fp.created_at >= $2
+            GROUP BY s.step_order
+            ORDER BY s.step_order
+            "#,
+            funnel_id.as_str(),
+            since,
+            &step_orders
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+
         let mut stats = Vec::with_capacity(steps.len());
-
-        for step in steps {
-            let entered_count = sqlx::query_scalar!(
-                r#"
-                SELECT COUNT(*) as "count!"
-                FROM funnel_progress
-                WHERE funnel_id = $1 AND created_at >= $2 AND current_step >= $3
-                "#,
-                funnel_id.as_str(),
-                since,
-                step.step_order
-            )
-            .fetch_one(&*self.pool)
-            .await?;
-
-            let exited_count = sqlx::query_scalar!(
-                r#"
-                SELECT COUNT(*) as "count!"
-                FROM funnel_progress
-                WHERE funnel_id = $1 AND created_at >= $2 AND current_step > $3
-                "#,
-                funnel_id.as_str(),
-                since,
-                step.step_order
-            )
-            .fetch_one(&*self.pool)
-            .await?;
-
+        for row in rows {
+            let entered_count = row.entered_count;
+            let exited_count = row.exited_count;
             let conversion_rate = if entered_count > 0 {
                 (exited_count as f64 / entered_count as f64) * 100.0
             } else {
@@ -102,7 +102,7 @@ impl FunnelRepository {
             };
 
             stats.push(FunnelStepStats {
-                step_order: step.step_order,
+                step_order: row.step_order.unwrap_or(0),
                 entered_count,
                 exited_count,
                 conversion_rate,

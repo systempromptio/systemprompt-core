@@ -23,24 +23,20 @@ impl FunnelRepository {
         .execute(&*self.write_pool)
         .await?;
 
+        let mut funnel_ids_arr = Vec::with_capacity(input.steps.len());
+        let mut step_orders = Vec::with_capacity(input.steps.len());
+        let mut names = Vec::with_capacity(input.steps.len());
+        let mut patterns = Vec::with_capacity(input.steps.len());
+        let mut match_types = Vec::with_capacity(input.steps.len());
         let mut steps = Vec::with_capacity(input.steps.len());
+
         for (idx, step_input) in input.steps.iter().enumerate() {
             let step_order = i32::try_from(idx).unwrap_or(0);
-            let match_type = step_input.match_type.as_str();
-
-            sqlx::query!(
-                r#"
-                INSERT INTO funnel_steps (funnel_id, step_order, name, match_pattern, match_type)
-                VALUES ($1, $2, $3, $4, $5)
-                "#,
-                funnel_id.as_str(),
-                step_order,
-                step_input.name,
-                step_input.match_pattern,
-                match_type
-            )
-            .execute(&*self.write_pool)
-            .await?;
+            funnel_ids_arr.push(funnel_id.as_str().to_string());
+            step_orders.push(step_order);
+            names.push(step_input.name.clone());
+            patterns.push(step_input.match_pattern.clone());
+            match_types.push(step_input.match_type.as_str().to_string());
 
             steps.push(FunnelStep {
                 funnel_id: funnel_id.clone(),
@@ -49,6 +45,22 @@ impl FunnelRepository {
                 match_pattern: step_input.match_pattern.clone(),
                 match_type: step_input.match_type,
             });
+        }
+
+        if !steps.is_empty() {
+            sqlx::query!(
+                r#"
+                INSERT INTO funnel_steps (funnel_id, step_order, name, match_pattern, match_type)
+                SELECT * FROM UNNEST($1::text[], $2::int4[], $3::text[], $4::text[], $5::text[])
+                "#,
+                &funnel_ids_arr,
+                &step_orders,
+                &names,
+                &patterns,
+                &match_types
+            )
+            .execute(&*self.write_pool)
+            .await?;
         }
 
         let funnel = Funnel {

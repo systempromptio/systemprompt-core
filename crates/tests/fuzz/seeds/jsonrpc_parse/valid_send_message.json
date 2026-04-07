@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"SendMessage","params":{"message":{"role":"ROLE_USER","parts":[{"text":"hello"}],"messageId":"test-id","contextId":"ctx-1"}},"id":"1"}

@@ -118,6 +118,30 @@ unit-check:
 unit-test-crate CRATE *ARGS:
     cargo test --manifest-path crates/tests/Cargo.toml -p {{CRATE}} {{ARGS}}
 
+# Run property-based tests (proptest)
+property-test *ARGS:
+    cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-property-tests {{ARGS}}
+
+# Run protocol contract tests
+contract-test *ARGS:
+    cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-contract-tests {{ARGS}}
+
+# Run concurrency tests
+concurrency-test *ARGS:
+    cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-concurrency-tests {{ARGS}}
+
+# Run criterion benchmarks
+bench *ARGS:
+    cargo bench --manifest-path crates/tests/bench/Cargo.toml {{ARGS}}
+
+# Run a specific fuzz target (e.g., just fuzz fuzz_jsonrpc_parse 60)
+fuzz TARGET DURATION="60":
+    cargo fuzz run --fuzz-dir crates/tests/fuzz {{TARGET}} -- -max_total_time={{DURATION}}
+
+# Run load tests (requires running server: cd ../systemprompt-web && just start)
+loadtest SCENARIO="all" PROFILE="ci" *ARGS:
+    cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --scenario {{SCENARIO}} --profile {{PROFILE}} {{ARGS}}
+
 # Generate coverage report (text summary)
 #
 # Architecture: The test workspace (crates/tests/) has its own .cargo/config.toml

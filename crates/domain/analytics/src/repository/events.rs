@@ -64,14 +64,53 @@ impl AnalyticsEventsRepository {
         user_id: &str,
         inputs: &[CreateAnalyticsEventInput],
     ) -> Result<Vec<AnalyticsEventCreated>> {
-        let mut results = Vec::with_capacity(inputs.len());
-
-        for input in inputs {
-            let created = self.create_event(session_id, user_id, input).await?;
-            results.push(created);
+        if inputs.is_empty() {
+            return Ok(Vec::new());
         }
 
-        Ok(results)
+        let mut ids = Vec::with_capacity(inputs.len());
+        let mut user_ids = Vec::with_capacity(inputs.len());
+        let mut session_ids = Vec::with_capacity(inputs.len());
+        let mut event_types = Vec::with_capacity(inputs.len());
+        let mut event_categories = Vec::with_capacity(inputs.len());
+        let mut severities = Vec::with_capacity(inputs.len());
+        let mut endpoints: Vec<String> = Vec::with_capacity(inputs.len());
+        let mut event_datas = Vec::with_capacity(inputs.len());
+
+        for input in inputs {
+            let id = format!("evt_{}", uuid::Uuid::new_v4());
+            ids.push(id);
+            user_ids.push(user_id.to_string());
+            session_ids.push(session_id.to_string());
+            event_types.push(input.event_type.as_str().to_string());
+            event_categories.push(input.event_type.category().to_string());
+            severities.push("info".to_string());
+            endpoints.push(input.page_url.clone());
+            event_datas.push(Self::build_event_data(input));
+        }
+
+        sqlx::query!(
+            r#"
+            INSERT INTO analytics_events (id, user_id, session_id, event_type, event_category, severity, endpoint, event_data)
+            SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::jsonb[])
+            "#,
+            &ids,
+            &user_ids,
+            &session_ids,
+            &event_types,
+            &event_categories,
+            &severities,
+            &endpoints,
+            &event_datas
+        )
+        .execute(&*self.write_pool)
+        .await?;
+
+        Ok(ids
+            .into_iter()
+            .zip(event_types)
+            .map(|(id, event_type)| AnalyticsEventCreated { id, event_type })
+            .collect())
     }
 
     pub async fn count_events_by_type(

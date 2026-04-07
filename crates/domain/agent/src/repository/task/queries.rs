@@ -81,15 +81,8 @@ pub async fn list_tasks_by_context(
     .map_err(RepositoryError::database)?;
 
     let constructor = TaskConstructor::new(db_pool)?;
-    let mut tasks = Vec::new();
-
-    for row in rows {
-        tasks.push(
-            constructor
-                .construct_task_from_task_id(&row.task_id)
-                .await?,
-        );
-    }
+    let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
+    let tasks = constructor.construct_tasks_batch(&task_ids).await?;
 
     Ok(tasks)
 }
@@ -133,15 +126,8 @@ pub async fn get_tasks_by_user_id(
     .map_err(RepositoryError::database)?;
 
     let constructor = TaskConstructor::new(db_pool)?;
-    let mut tasks = Vec::new();
-
-    for row in &rows {
-        tasks.push(
-            constructor
-                .construct_task_from_task_id(&row.task_id)
-                .await?,
-        );
-    }
+    let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
+    let tasks = constructor.construct_tasks_batch(&task_ids).await?;
 
     Ok(tasks)
 }

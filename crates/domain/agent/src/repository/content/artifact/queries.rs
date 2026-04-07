@@ -1,7 +1,8 @@
 use super::ArtifactRepository;
+use super::converters::{row_to_artifact_with_parts, rows_to_artifacts_batch};
 use super::parts::get_artifact_parts;
 use crate::models::ArtifactRow;
-use crate::models::a2a::{Artifact, ArtifactMetadata};
+use crate::models::a2a::Artifact;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, SkillId, TaskId, UserId};
@@ -41,13 +42,7 @@ impl ArtifactRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        let mut artifacts = Vec::new();
-        for row in rows {
-            let artifact = row_to_artifact(&pool, row).await?;
-            artifacts.push(artifact);
-        }
-
-        Ok(artifacts)
+        rows_to_artifacts_batch(&pool, rows).await
     }
 
     pub async fn get_artifacts_by_context(
@@ -83,13 +78,7 @@ impl ArtifactRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        let mut artifacts = Vec::new();
-        for row in rows {
-            let artifact = row_to_artifact(&pool, row).await?;
-            artifacts.push(artifact);
-        }
-
-        Ok(artifacts)
+        rows_to_artifacts_batch(&pool, rows).await
     }
 
     pub async fn get_artifacts_by_user_id(
@@ -130,13 +119,7 @@ impl ArtifactRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        let mut artifacts = Vec::new();
-        for row in rows {
-            let artifact = row_to_artifact(&pool, row).await?;
-            artifacts.push(artifact);
-        }
-
-        Ok(artifacts)
+        rows_to_artifacts_batch(&pool, rows).await
     }
 
     pub async fn get_artifact_by_id(
@@ -213,13 +196,7 @@ impl ArtifactRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        let mut artifacts = Vec::new();
-        for row in rows {
-            let artifact = row_to_artifact(&pool, row).await?;
-            artifacts.push(artifact);
-        }
-
-        Ok(artifacts)
+        rows_to_artifacts_batch(&pool, rows).await
     }
 }
 
@@ -227,65 +204,10 @@ async fn row_to_artifact(
     pool: &Arc<PgPool>,
     row: ArtifactRow,
 ) -> Result<Artifact, RepositoryError> {
-    let context_id = row.context_id.clone().unwrap_or_else(|| ContextId::new(""));
+    let context_id = row
+        .context_id
+        .clone()
+        .unwrap_or_else(|| ContextId::new(""));
     let parts = get_artifact_parts(pool, row.artifact_id.as_str(), context_id.as_str()).await?;
-
-    let (rendering_hints, mcp_schema, is_internal, execution_index) =
-        extract_metadata_fields(row.metadata.as_ref());
-
-    Ok(Artifact {
-        id: row.artifact_id,
-        title: row.name,
-        description: row.description,
-        parts,
-        extensions: vec![],
-        metadata: ArtifactMetadata {
-            artifact_type: row.artifact_type,
-            context_id,
-            created_at: row.created_at.to_rfc3339(),
-            task_id: row.task_id,
-            rendering_hints,
-            source: row.source,
-            mcp_execution_id: row.mcp_execution_id.map(|id| id.as_str().to_string()),
-            mcp_schema,
-            is_internal,
-            fingerprint: row.fingerprint,
-            tool_name: row.tool_name,
-            execution_index,
-            skill_id: row.skill_id.map(|id| id.as_str().to_string()),
-            skill_name: row.skill_name,
-        },
-    })
-}
-
-fn extract_metadata_fields(
-    metadata: Option<&serde_json::Value>,
-) -> (
-    Option<serde_json::Value>,
-    Option<serde_json::Value>,
-    Option<bool>,
-    Option<usize>,
-) {
-    let Some(metadata) = metadata else {
-        return (None, None, None, None);
-    };
-
-    let rendering_hints = metadata
-        .get("rendering_hints")
-        .and_then(|v| if v.is_null() { None } else { Some(v.clone()) });
-
-    let mcp_schema = metadata
-        .get("mcp_schema")
-        .and_then(|v| if v.is_null() { None } else { Some(v.clone()) });
-
-    let is_internal = metadata
-        .get("is_internal")
-        .and_then(serde_json::Value::as_bool);
-
-    let execution_index = metadata
-        .get("execution_index")
-        .and_then(serde_json::Value::as_u64)
-        .map(|v| v as usize);
-
-    (rendering_hints, mcp_schema, is_internal, execution_index)
+    Ok(row_to_artifact_with_parts(row, parts))
 }

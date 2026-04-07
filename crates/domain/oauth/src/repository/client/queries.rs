@@ -53,13 +53,7 @@ impl ClientRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        let mut clients = Vec::new();
-        for row in rows {
-            let client = self.load_client_with_relations(row).await?;
-            clients.push(client);
-        }
-
-        Ok(clients)
+        self.load_clients_with_relations_batch(rows).await
     }
 
     pub async fn list_paginated(&self, limit: i32, offset: i32) -> Result<Vec<OAuthClient>> {
@@ -77,13 +71,7 @@ impl ClientRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        let mut clients = Vec::new();
-        for row in rows {
-            let client = self.load_client_with_relations(row).await?;
-            clients.push(client);
-        }
-
-        Ok(clients)
+        self.load_clients_with_relations_batch(rows).await
     }
 
     pub async fn count(&self) -> Result<i64> {
