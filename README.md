@@ -6,66 +6,62 @@
   <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
 </picture>
 
-### Control how your organization uses AI
+### The touchpoint between your AI and everything it does
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+[![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
 
-[Website](https://systemprompt.io) · [Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Skills](https://systemprompt.io/documentation/skills) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions)
-
-**Platform Support:** Working and tested on Unix (macOS and Linux). Windows support coming later.
+[Website](https://systemprompt.io) · [About](https://systemprompt.io/about) · [Documentation](https://systemprompt.io/documentation/) · [Live Demo](https://systemprompt.io/features/demo) · [Discord](https://discord.gg/wkAbSuPWpr)
 
 </div>
 
 ---
 
-30 people. 30 different AI setups. No visibility. No standards. No enforcement.
+systemprompt.io is a single compiled Rust binary that sits between your AI agents and everything they touch. Every tool call authenticated, authorised, rate-limited, logged, and costed. Self-hosted. Air-gap capable. Provider-agnostic.
 
-**systemprompt.io is the governance layer that fixes this.** Define how AI behaves across your organization — skills, permissions, and rules enforced consistently for every team member, every session, every time. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution.
+One language. One database (PostgreSQL). One binary (~50MB). No microservices. No Kubernetes required. No Redis. No Kafka. No ElasticSearch.
 
 ## Table of Contents
 
-- [Why systemprompt.io?](#governance-observability-deployment)
+- [Why systemprompt.io](#why-systempromptio)
+- [Performance](#performance)
 - [Quick Start](#quick-start)
-- [Using as a Library](#using-as-a-library)
+- [Core Capabilities](#core-capabilities)
 - [Architecture](#architecture)
-- [Extension Framework](#extension-framework)
+- [Extensions](#extensions)
 - [License](#license)
 
-## Governance. Observability. Deployment.
+## Why systemprompt.io
 
-### One policy. Every session.
+**Govern every tool call.** AI agents take actions on behalf of your people. Without governance, any agent can use any tool, access any data, and leak any credential. systemprompt.io enforces who can do what before it happens, not after.
 
-Define AI behavior once and enforce it everywhere. No more inconsistent setups across teams, no more untracked usage, no more ungoverned AI sprawl. systemprompt.io gives you policy-as-code enforcement with cryptographic traceability — built to survive an audit.
+**Prove every decision.** When the auditor asks what AI did and who authorised it, you query the answer. Full lineage from AI request to tool call to MCP execution, all linked by trace_id. Structured JSON for your SIEM.
 
-- **Governance**: Skills, permissions, and behavioral rules enforced consistently across your entire organization
-- **Observability**: Know what AI you have deployed, how it is being used, and where — usage analytics, audit trails, and session monitoring from a single dashboard
-- **Deployment**: Self-host or deploy under your own brand — white-label AI governance for SaaS companies that need to offer it to customers
+**Standardise every team.** Your best AI workflows should not live in one developer's head. systemprompt.io is the skill library for your organisation: curated knowledge, governed plugins, consistent standards.
 
-Compatible with SOC 2, ISO 27001, HIPAA, and FedRAMP (on-prem). Full data-plane control.
+### What this replaces
 
-### Core capabilities
+| Problem | Without systemprompt.io | With systemprompt.io |
+|---------|------------------------|---------------------|
+| AI governance | Build from components (months) | Deploy one binary (days) |
+| Audit trails | Policy documents | Structured, queryable evidence |
+| Secret management | Secrets in context windows | Server-side injection via MCP |
+| Cost attribution | No visibility | Per-agent, per-model, per-department |
+| Multi-provider | Separate governance per provider | One governance layer for all |
 
-- **Complete Runtime**: Web API + agent processes + MCP servers with shared auth and database
-- **Open Standards**: MCP, A2A, OAuth2, WebAuthn — no vendor lock-in
-- **Agent-Executable CLI**: Your AI manages infrastructure directly via the same CLI you use
-- **Native Rust**: Async-first on Tokio, zero-cost abstractions
-- **Self-Hosted or Cloud**: Docker locally, or deploy to isolated VM with managed database
-- **100% Extensible**: Build proprietary Rust extensions on the open core
+## Performance
 
-### What You Get
+200 concurrent governance requests benchmarked. Each performs JWT validation, scope resolution, three rule evaluations, and an async database write.
 
-A complete platform with built-in:
-- **Auth and Permissions**: OAuth2/OIDC, WebAuthn, sessions, roles, per-user and per-agent scopes
-- **File Storage**: Upload, serve, and manage files with metadata
-- **Content Management**: Markdown ingestion, search, and publishing
-- **AI Integration**: Multi-provider LLM support with request logging
-- **Analytics**: Session tracking, usage reporting, and audit trails
-- **Agent Orchestration**: A2A protocol for multi-agent coordination
-- **MCP Servers**: Tool and resource providers for any MCP-compatible AI client
+- **Sub-5ms p50 latency**
+- **Sub-10ms p99 latency**
+- **Zero garbage collector pauses**
+- Throughput supports hundreds of concurrent developers on a single instance
+
+See the [live load test](https://systemprompt.io/features/demo) for full results.
 
 ## Quick Start
 
@@ -87,11 +83,70 @@ just tenant
 just start
 ```
 
-See the [systemprompt-template](https://github.com/systempromptio/systemprompt-template) for full installation instructions and configuration options.  
+See [systemprompt-template](https://github.com/systempromptio/systemprompt-template) for full installation instructions.
 
-### Native MCP Client Support
+## Core Capabilities
 
-Works out of the box with any MCP-compatible client — Claude Code, Claude Desktop, ChatGPT, Cursor, and more. All transports are HTTP-native, supported by modern MCP clients.
+### Governance Pipeline
+
+Synchronous four-layer evaluation on every tool call. Scope check, secret scan, blocklist, rate limit. All four layers evaluate in the request path. The tool call either passes all four layers and executes, or it is blocked. Single-digit milliseconds overhead.
+
+- [Governance Pipeline](https://systemprompt.io/features/governance-pipeline)
+- [Compliance](https://systemprompt.io/features/compliance) (SOC 2, ISO 27001, HIPAA, OWASP Agentic Top 10)
+
+### Secrets Management
+
+Secrets flow through MCP services, not inference endpoints. The agent calls the tool, the MCP service injects the credential server-side. The LLM never sees it. ChaCha20-Poly1305 encryption with per-user key hierarchy.
+
+- [Secrets Management](https://systemprompt.io/features/secrets-management)
+
+### Analytics and Observability
+
+Full audit trail from AI request to tool call to MCP execution to cost. Structured JSON events for Splunk, ELK, Datadog, and Sumo Logic. Cost tracking in microdollars by model, agent, and department.
+
+- [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
+
+### MCP Governance
+
+Per-server OAuth2, governed tool calls, central MCP server registry with health monitoring. Built on MCP natively, not proxied. Claude Desktop compatible.
+
+- [MCP Governance](https://systemprompt.io/features/mcp-governance)
+
+### Skill Marketplace
+
+Curated library of your organisation's AI knowledge. Browse, install, create, and fork skills. Plugin bundles with governed distribution by role and department.
+
+- [Skill Marketplace](https://systemprompt.io/features/skill-marketplace)
+
+### Self-Hosted Deployment
+
+Single 50MB binary. Air-gapped, PostgreSQL only. Copy to a server, start it. That is the deployment.
+
+- [Self-Hosted & Air-Gapped](https://systemprompt.io/features/self-hosted-ai-platform)
+
+### Open Standards
+
+- **MCP** (Model Context Protocol) from Anthropic, implemented natively
+- **A2A** (Agent-to-Agent Protocol) from Google
+- **OAuth2/OIDC** with PKCE, token introspection, audience/issuer checks
+- **WebAuthn** for passwordless authentication
+
+### Config as Code
+
+```
+services/
+├── agents/           # Agent definitions with OAuth scopes
+├── mcp/              # MCP servers with per-tool permissions
+├── skills/           # Skills and plugins
+├── ai/               # Provider configs (Anthropic, OpenAI, Gemini)
+├── content/          # Markdown content sources
+├── scheduler/        # Cron jobs and background tasks
+└── web/              # Theme, branding, navigation
+```
+
+### MCP Client Support
+
+Works with any MCP-compatible client: Claude Code, Claude Desktop, ChatGPT, Cursor, and more.
 
 ```json
 {
@@ -104,11 +159,7 @@ Works out of the box with any MCP-compatible client — Claude Code, Claude Desk
 }
 ```
 
-One platform. Every team. Your AI tools connect to governed infrastructure with enforced permissions, audit trails, and consistent behavior — regardless of which AI provider your teams use.
-
 ### Discovery API
-
-Get agent and MCP connection details from the API at any time:
 
 | Endpoint | Description |
 |----------|-------------|
@@ -118,32 +169,7 @@ Get agent and MCP connection details from the API at any time:
 | `/api/v1/agents/registry` | Full agent registry with status |
 | `/api/v1/mcp/registry` | All MCP servers with endpoints |
 
-### Config as Code
-
-Define your entire AI governance infrastructure in the `services/` directory — granular permissions for agents, MCP tools, and users backed by production-grade OAuth2 and WebAuthn:
-
-```
-services/
-├── agents/           # Agent definitions with OAuth scopes
-│   └── blog.yaml     # security: [oauth2: ["admin"]]
-├── mcp/              # MCP servers with per-tool permissions
-│   └── content.yaml  # oauth: { required: true, scopes: ["admin"] }
-├── skills/           # Anthropic marketplace skills and plugins
-├── ai/               # Provider configs (Anthropic, OpenAI, Gemini)
-├── content/          # Markdown content sources
-├── scheduler/        # Cron jobs and background tasks
-└── web/              # Theme, branding, navigation
-```
-
-**Granular Security:**
-- **Agents**: OAuth2 scopes define who can interact with each agent
-- **MCP Tools**: Per-tool OAuth requirements and audience restrictions
-- **Users**: WebAuthn passwordless auth with role-based permissions
-- **All config changes deploy instantly** - no code changes required
-
-### CLI - Universal Agent Interface
-
-The CLI executes any task, sends messages to agents, and invokes MCP tools in any environment. Enable local-to-remote and remote-to-remote agentic flows:
+### CLI
 
 ```bash
 # Send a message to an agent
@@ -152,57 +178,13 @@ systemprompt admin agents message blog "Write a post about MCP security"
 # List available MCP tools
 systemprompt admin agents tools content-manager
 
-# Execute from local to remote, or remote to remote
+# Deploy to production
 systemprompt cloud deploy --profile production
-```
-
-The same CLI runs locally during development and in production on your cloud instance - your AI can manage infrastructure from anywhere.
-
-### Scheduling - Deterministic Tasks
-
-Run scheduled jobs when you need predictable, time-based execution:
-
-```yaml
-# services/scheduler/daily-analytics.yaml
-jobs:
-  daily_report:
-    cron: "0 9 * * *"
-    task: "analytics:generate_daily_report"
-    enabled: true
-```
-
-```bash
-# List scheduled jobs
-systemprompt infra jobs list
-
-# Run a job manually
-systemprompt infra jobs run daily_report
-
-# View execution history
-systemprompt infra jobs history
-```
-
-Scheduling complements agentic flows - use agents for dynamic reasoning and schedulers for deterministic tasks.
-
-### Building Your Own Project
-
-Use the [systemprompt-template](https://github.com/systempromptio/systemprompt-template) to create a new project with the recommended structure for agents, MCP servers, and content. The template includes installation instructions, example configurations, and a working development environment.
-
-## Using as a Library
-
-[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
-[![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
-
-Build your own extensions by adding the facade to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt = { version = "0.0.1", features = ["full"] }
 ```
 
 ## Architecture
 
-systemprompt.io uses a **layered crate architecture**:
+Layered crate architecture. Dependencies flow downward only.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -218,13 +200,27 @@ systemprompt.io uses a **layered crate architecture**:
 └─────────────────────────────────────────────────────────┘
 ```
 
-Dependencies flow downward only. Domain crates communicate via traits and events, not direct dependencies.
+Domain crates communicate via traits and events, not direct dependencies.
 
-See [full architecture documentation](https://systemprompt.io/documentation/architecture) for details on all 25+ crates.
+## Extensions
 
-## Extension Framework
+Build your own extensions by adding the library to your `Cargo.toml`:
 
-Extensions enable downstream projects to extend core functionality without modifying it.
+```toml
+[dependencies]
+systemprompt = { version = "0.0.1", features = ["full"] }
+```
+
+Available extension traits:
+
+| Trait | Purpose |
+|-------|---------|
+| `Extension` | Base trait: ID, name, version, dependencies |
+| `SchemaExtension` | Database table definitions |
+| `ApiExtension` | HTTP route handlers |
+| `ConfigExtensionTyped` | Config validation at startup |
+| `JobExtension` | Background job definitions |
+| `ProviderExtension` | Custom LLM/tool provider implementations |
 
 ```rust
 use systemprompt_extension::*;
@@ -237,26 +233,21 @@ register_extension!(MyExtension);
 register_api_extension!(MyExtension);
 ```
 
-**Available extension traits:**
-
-| Trait | Purpose |
-|-------|---------|
-| `Extension` | Base trait - ID, name, version, dependencies |
-| `SchemaExtension` | Database table definitions |
-| `ApiExtension` | HTTP route handlers |
-| `ConfigExtensionTyped` | Config validation at startup |
-| `JobExtension` | Background job definitions |
-| `ProviderExtension` | Custom LLM/tool provider implementations |
-
-Extensions are discovered at runtime via the `inventory` crate.
+Extensions are discovered at compile time via the `inventory` crate. Your code compiles into your binary.
 
 ## License
 
-FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Converts to Apache 2.0 four years after each version is published.
+
+See [LICENSE](LICENSE) for full terms.
 
 ## Links
 
-- [Website](https://systemprompt.io): Learn more about AI governance at enterprise scale
-- [Documentation](https://systemprompt.io/documentation): Full guides and API reference
-- [GitHub](https://github.com/systempromptio/systemprompt-core): Source code and issues
-- [Discord](https://discord.gg/wkAbSuPWpr): Get help and connect with the community
+- [Website](https://systemprompt.io)
+- [About](https://systemprompt.io/about)
+- [Documentation](https://systemprompt.io/documentation/)
+- [Live Demo](https://systemprompt.io/features/demo)
+- [Template](https://github.com/systempromptio/systemprompt-template)
+- [Discord](https://discord.gg/wkAbSuPWpr)
+
+For licensing enquiries: [ed@systemprompt.io](mailto:ed@systemprompt.io)
