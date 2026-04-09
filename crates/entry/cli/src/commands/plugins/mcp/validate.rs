@@ -18,7 +18,7 @@ use systemprompt_runtime::AppContext;
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
     #[arg(help = "MCP server name")]
-    pub service: Option<String>,
+    pub server: Option<String>,
 
     #[arg(long, help = "Validate all configured servers")]
     pub all: bool,
@@ -41,10 +41,12 @@ pub async fn execute(
         McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
     let database = DatabaseManager::new(Arc::clone(ctx.db_pool()));
 
-    let servers_to_validate: Vec<String> = if args.all {
+    let servers_to_validate: Vec<String> = if args.all
+        || (args.server.is_none() && !config.is_interactive())
+    {
         services_config.mcp_servers.keys().cloned().collect()
     } else {
-        let service = resolve_required(args.service, "service", config, || {
+        let service = resolve_required(args.server, "server", config, || {
             prompt_server_selection(&services_config)
         })?;
 

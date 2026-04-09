@@ -39,7 +39,7 @@ impl LogLevel {
 #[derive(Debug, Args)]
 pub struct LogsArgs {
     #[arg(help = "MCP server name (optional - shows all MCP logs if not specified)")]
-    pub service: Option<String>,
+    pub server: Option<String>,
 
     #[arg(
         long,
@@ -105,7 +105,7 @@ async fn execute_db_mode(
     );
     let repo = LoggingRepository::new(ctx.db_pool())?;
 
-    let patterns = match &args.service {
+    let patterns = match &args.server {
         Some(service) => build_service_patterns(service),
         None => build_all_mcp_patterns()?,
     };
@@ -143,7 +143,7 @@ async fn execute_db_mode(
         })
         .collect();
 
-    let service_label = args.service.clone().unwrap_or_else(|| "all".to_string());
+    let service_label = args.server.clone().unwrap_or_else(|| "all".to_string());
     let level_label = args.level.map_or_else(String::new, |l| {
         format!(" [{}+]", format!("{:?}", l).to_uppercase())
     });
@@ -188,7 +188,7 @@ fn execute_disk_mode(
         ));
     }
 
-    if args.service.is_none() && !config.is_interactive() {
+    if args.server.is_none() && !config.is_interactive() {
         let log_files = list_mcp_log_files(logs_path)?;
         return Ok(CommandResult::list(McpLogsOutput {
             service: None,
@@ -199,7 +199,7 @@ fn execute_disk_mode(
         .with_title("Available MCP Log Files"));
     }
 
-    let service = resolve_required(args.service.clone(), "service", config, || {
+    let service = resolve_required(args.server.clone(), "server", config, || {
         prompt_log_selection(logs_path)
     })?;
 
@@ -231,7 +231,7 @@ fn execute_follow_mode(
         ));
     }
 
-    let service = resolve_required(args.service.clone(), "service", config, || {
+    let service = resolve_required(args.server.clone(), "server", config, || {
         prompt_log_selection(logs_path)
     })?;
 

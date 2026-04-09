@@ -31,12 +31,19 @@ struct RegistryResponse {
 struct AgentCardResponse {
     name: String,
     description: String,
-    url: String,
+    #[serde(default)]
+    supported_interfaces: Vec<AgentInterfaceResponse>,
     version: String,
     #[serde(default)]
     capabilities: CapabilitiesResponse,
     #[serde(default)]
     skills: Vec<SkillResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentInterfaceResponse {
+    url: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -101,6 +108,12 @@ pub async fn execute(
             let status = extract_status(&agent);
             let skills: Vec<String> = agent.skills.iter().map(|s| s.name.clone()).collect();
 
+            let url = agent
+                .supported_interfaces
+                .first()
+                .map(|i| i.url.clone())
+                .unwrap_or_default();
+
             RegistryAgentInfo {
                 name: agent.name,
                 description: if args.verbose {
@@ -108,7 +121,7 @@ pub async fn execute(
                 } else {
                     truncate_with_ellipsis(&agent.description, 50)
                 },
-                url: agent.url,
+                url,
                 version: agent.version,
                 status,
                 streaming: agent.capabilities.streaming.unwrap_or(false),

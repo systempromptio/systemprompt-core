@@ -23,7 +23,7 @@ pub(super) fn execute_disk_mode(
         ));
     }
 
-    if args.service.is_none() && !config.is_interactive() {
+    if args.server.is_none() && !config.is_interactive() {
         let log_files = list_mcp_log_files(logs_path)?;
         return Ok(CommandResult::list(McpLogsOutput {
             service: None,
@@ -34,7 +34,7 @@ pub(super) fn execute_disk_mode(
         .with_title("Available MCP Log Files"));
     }
 
-    let service = resolve_required(args.service.clone(), "service", config, || {
+    let service = resolve_required(args.server.clone(), "server", config, || {
         prompt_log_selection(logs_path)
     })?;
 
@@ -66,7 +66,7 @@ pub(super) fn execute_follow_mode(
         ));
     }
 
-    let service = resolve_required(args.service.clone(), "service", config, || {
+    let service = resolve_required(args.server.clone(), "server", config, || {
         prompt_log_selection(logs_path)
     })?;
 

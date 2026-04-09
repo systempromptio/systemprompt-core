@@ -118,16 +118,12 @@ Build MCP (Model Context Protocol) extensions.
 ```bash
 sp build mcp
 sp build mcp --release
-sp build mcp --server filesystem
-sp build mcp --all
 ```
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--release` | `false` | Build in release mode |
-| `--server` | None | Build specific MCP server only |
-| `--all` | `false` | Build all MCP servers |
 
 **Output Structure:**
 ```json
@@ -175,8 +171,8 @@ sp build core --package systemprompt-cli
 # Watch mode for web development
 sp build web --watch
 
-# Build specific MCP server
-sp build mcp --server filesystem
+# Build all MCP extensions
+sp build mcp
 ```
 
 ---
@@ -206,8 +202,8 @@ sp build core
 sp build web
 # Error: Web build failed. Node.js/npm not found.
 
-sp build mcp --server nonexistent
-# Error: MCP server 'nonexistent' not found in configuration
+sp build mcp
+# Error: Extension 'example' has no binary defined
 ```
 
 ### Missing Dependencies

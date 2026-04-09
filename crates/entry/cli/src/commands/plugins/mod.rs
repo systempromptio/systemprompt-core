@@ -44,9 +44,7 @@ impl DescribeCommand for PluginsCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Mcp(
-                mcp::McpCommands::Logs(_)
-                | mcp::McpCommands::List(_)
-                | mcp::McpCommands::ListPackages(_),
+                mcp::McpCommands::Logs(_) | mcp::McpCommands::ListPackages(_),
             )
             | Self::Run(_) => CommandDescriptor::PROFILE_ONLY,
             Self::Mcp(_) => CommandDescriptor::FULL,
