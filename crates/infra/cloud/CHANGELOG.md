@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.24] - 2026-04-14
+
+### Added
+- `CredentialsBootstrap::init_empty()` helper to mark credentials as intentionally absent for local-only profiles, so downstream `get()` returns `Ok(None)` instead of `Err(NotInitialized)`.
+
 ## [0.1.18] - 2026-03-27
 
 ### Fixed

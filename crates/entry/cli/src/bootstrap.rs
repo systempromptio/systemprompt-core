@@ -5,7 +5,9 @@ use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError, Sessio
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
-use systemprompt_models::{AppPaths, Config, Profile, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{
+    AppPaths, CloudValidationMode, Config, Profile, ProfileBootstrap, SecretsBootstrap,
+};
 use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
@@ -121,6 +123,7 @@ pub async fn init_credentials_gracefully() -> Result<()> {
 
             if is_file_not_found {
                 tracing::debug!(error = %e, "Credentials file not found, continuing in local-only mode");
+                CredentialsBootstrap::init_empty();
                 Ok(())
             } else {
                 Err(e.context("Credential initialization failed"))
@@ -163,6 +166,19 @@ pub fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvironment
         return;
     }
 
+    let is_local_profile = ProfileBootstrap::get()
+        .ok()
+        .and_then(|p| p.cloud.as_ref())
+        .is_none_or(|c| {
+            c.tenant_id
+                .as_deref()
+                .is_some_and(|t| t.starts_with("local_"))
+                || matches!(
+                    c.validation,
+                    CloudValidationMode::Warn | CloudValidationMode::Skip
+                )
+        });
+
     match CredentialsBootstrap::get() {
         Ok(Some(creds)) => {
             if creds.is_token_expired() {
@@ -172,12 +188,20 @@ pub fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvironment
             }
         },
         Ok(None) => {
-            CliService::error(
-                "Cloud credentials not found. Run 'systemprompt cloud login' to register.",
-            );
+            if is_local_profile {
+                tracing::debug!("Cloud credentials not present; running in local-only mode");
+            } else {
+                CliService::error(
+                    "Cloud credentials not found. Run 'systemprompt cloud login' to register.",
+                );
+            }
         },
         Err(e) => {
-            CliService::error(&format!("Cloud credential error: {}", e));
+            if is_local_profile {
+                tracing::debug!(error = %e, "Cloud credentials unavailable; running in local-only mode");
+            } else {
+                CliService::error(&format!("Cloud credential error: {}", e));
+            }
         },
     }
 }

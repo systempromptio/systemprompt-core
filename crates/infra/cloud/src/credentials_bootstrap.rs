@@ -130,6 +130,10 @@ impl CredentialsBootstrap {
         CREDENTIALS.get().is_some()
     }
 
+    pub fn init_empty() {
+        let _ = CREDENTIALS.set(None);
+    }
+
     pub async fn try_init() -> Result<Option<&'static CloudCredentials>> {
         if CREDENTIALS.get().is_some() {
             return Self::get().map_err(Into::into);

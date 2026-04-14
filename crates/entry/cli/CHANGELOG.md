@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.24] - 2026-04-14
+
+### Fixed
+- Local-only profiles (`cloud.tenant_id` prefixed `local_`, or `cloud.validation: warn`/`skip`) no longer surface a `✗ Cloud credential error: Credentials not initialized` line on startup; the message is downgraded to a `debug!` log so local evals run clean.
+
 ## [0.1.23] - 2026-04-14
 
 ### Fixed
