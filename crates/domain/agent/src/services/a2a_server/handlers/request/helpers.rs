@@ -34,14 +34,14 @@ pub async fn parse_a2a_request(
                             "endpoint": "POST /api/v1/core/contexts"
                         },
                         "step3": {
-                            "description": "Include contextId in your message/stream request"
+                            "description": "Include contextId in your SendStreamingMessage request"
                         }
                     }
                 });
 
                 let error_response = JsonRpcErrorBuilder::invalid_params()
                     .with_data(helpful_message)
-                    .log_error("Missing required contextId in message/stream request".to_string())
+                    .log_error("Missing required contextId in SendStreamingMessage request".to_string())
                     .build(request_id);
                 Err((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
             } else {
@@ -68,12 +68,12 @@ pub async fn handle_streaming_path(
     context: RequestContext,
     start_time: std::time::Instant,
 ) -> axum::response::Response {
-    tracing::info!("Processing message/stream request with SSE response");
+    tracing::info!("Processing SendStreamingMessage request with SSE response");
 
     let stream = handle_streaming_request(a2a_request, state, request_id, context).await;
 
     let latency_ms = start_time.elapsed().as_millis();
-    tracing::info!(latency_ms = %latency_ms, "SSE stream initialized for message/stream");
+    tracing::info!(latency_ms = %latency_ms, "SSE stream initialized for SendStreamingMessage");
 
     Sse::new(stream)
         .keep_alive(KeepAlive::default())
@@ -90,7 +90,7 @@ pub async fn handle_push_notification_requests(
         A2aRequestParams::SetTaskPushNotificationConfig(params) => {
             use crate::services::a2a_server::handlers::push_notification_config::handle_set_push_notification_config;
 
-            tracing::info!("Handling tasks/pushNotificationConfig/set request");
+            tracing::info!("Handling CreateTaskPushNotificationConfig request");
 
             Some(
                 handle_set_push_notification_config(State(Arc::new(state.clone())), params.clone())
@@ -100,7 +100,7 @@ pub async fn handle_push_notification_requests(
         A2aRequestParams::GetTaskPushNotificationConfig(params) => {
             use crate::services::a2a_server::handlers::push_notification_config::handle_get_push_notification_config;
 
-            tracing::info!("Handling tasks/pushNotificationConfig/get request");
+            tracing::info!("Handling GetTaskPushNotificationConfig request");
 
             Some(
                 handle_get_push_notification_config(State(Arc::new(state.clone())), params.clone())
@@ -108,13 +108,13 @@ pub async fn handle_push_notification_requests(
             )
         },
         A2aRequestParams::ListTaskPushNotificationConfig(_params) => {
-            tracing::info!("Handling tasks/pushNotificationConfig/list request");
+            tracing::info!("Handling ListTaskPushNotificationConfigs request");
             None
         },
         A2aRequestParams::DeleteTaskPushNotificationConfig(params) => {
             use crate::services::a2a_server::handlers::push_notification_config::handle_delete_push_notification_config;
 
-            tracing::info!("Handling tasks/pushNotificationConfig/delete request");
+            tracing::info!("Handling DeleteTaskPushNotificationConfig request");
 
             Some(
                 handle_delete_push_notification_config(

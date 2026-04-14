@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.23] - 2026-04-14
+
+### Fixed
+- `admin agents message` and `admin agents task` now send A2A v1.0.0 method names (`SendMessage`, `SendStreamingMessage`, `GetTask`) — previously every call was rejected by the server with `Unsupported method`, causing blocking calls to hang until `--timeout` elapsed
+
 ## [0.1.21] - 2026-04-02
 
 ### Fixed

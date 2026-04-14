@@ -19,7 +19,7 @@ fn test_parse_message_send_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("1".to_string()),
     };
 
-    let parsed = request.parse_request().expect("should parse message/send request");
+    let parsed = request.parse_request().expect("should parse SendMessage request");
     match parsed {
         A2aRequestParams::SendMessage(_) => {}
         _ => panic!("Expected SendMessage variant"),
@@ -37,7 +37,7 @@ fn test_parse_tasks_get_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("2".to_string()),
     };
 
-    let parsed = request.parse_request().expect("should parse tasks/get request");
+    let parsed = request.parse_request().expect("should parse GetTask request");
     match parsed {
         A2aRequestParams::GetTask(params) => {
             assert_eq!(params.id, "task-123");
@@ -57,7 +57,7 @@ fn test_parse_tasks_cancel_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::Number(3),
     };
 
-    let parsed = request.parse_request().expect("should parse tasks/cancel request");
+    let parsed = request.parse_request().expect("should parse CancelTask request");
     match parsed {
         A2aRequestParams::CancelTask(params) => {
             assert_eq!(params.id, "task-456");
@@ -82,7 +82,7 @@ fn test_parse_message_stream_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("4".to_string()),
     };
 
-    let parsed = request.parse_request().expect("should parse message/stream request");
+    let parsed = request.parse_request().expect("should parse SendStreamingMessage request");
     match parsed {
         A2aRequestParams::SendStreamingMessage(_) => {}
         _ => panic!("Expected SendStreamingMessage variant"),

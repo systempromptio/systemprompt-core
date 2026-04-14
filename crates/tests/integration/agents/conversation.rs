@@ -30,7 +30,7 @@ async fn test_initiate_agent_conversation() -> Result<()> {
 
     let conversation_payload = json!({
         "jsonrpc": "2.0",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "message": {
                 "messageId": message_id,
@@ -105,7 +105,7 @@ async fn test_conversation_requires_message() -> Result<()> {
 
     let empty_message = json!({
         "jsonrpc": "2.0",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "message": {
                 "messageId": message_id,
@@ -157,7 +157,7 @@ async fn test_send_message_to_agent() -> Result<()> {
 
     let message = json!({
         "jsonrpc": "2.0",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "message": {
                 "messageId": message_id,
@@ -225,7 +225,7 @@ async fn test_multiple_message_exchange() -> Result<()> {
 
         let payload = json!({
             "jsonrpc": "2.0",
-            "method": "message/send",
+            "method": "SendMessage",
             "params": {
                 "message": {
                     "messageId": message_id,

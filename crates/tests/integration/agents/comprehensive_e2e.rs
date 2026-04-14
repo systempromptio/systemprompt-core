@@ -134,7 +134,7 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
 
     let conversation_payload = json!({
         "jsonrpc": "2.0",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "message": {
                 "messageId": message_id,

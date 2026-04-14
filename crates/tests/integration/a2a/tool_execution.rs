@@ -14,7 +14,7 @@ async fn test_tool_execution_with_context_propagation() {
     let message_id = Uuid::new_v4().to_string();
     let body = json!({
         "jsonrpc": "2.0",
-        "method": "message/stream",
+        "method": "SendStreamingMessage",
         "params": {
             "message": {
                 "messageId": message_id,
@@ -133,7 +133,7 @@ async fn test_tool_execution_requires_valid_context() {
     let message_id = Uuid::new_v4().to_string();
     let body = json!({
         "jsonrpc": "2.0",
-        "method": "message/stream",
+        "method": "SendStreamingMessage",
         "params": {
             "message": {
                 "messageId": message_id,
@@ -181,10 +181,10 @@ async fn test_context_propagation_both_paths() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
     let context_id = ctx.create_context().await.expect("Failed to create context");
 
-    // Test streaming path (message/stream)
+    // Test streaming path (SendStreamingMessage)
     let streaming_body = json!({
         "jsonrpc": "2.0",
-        "method": "message/stream",
+        "method": "SendStreamingMessage",
         "params": {
             "message": {
                 "messageId": Uuid::new_v4().to_string(),
@@ -207,10 +207,10 @@ async fn test_context_propagation_both_paths() {
 
     assert_eq!(streaming_response.status(), 200, "Streaming should succeed");
 
-    // Test non-streaming path (message/send)
+    // Test non-streaming path (SendMessage)
     let non_streaming_body = json!({
         "jsonrpc": "2.0",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "message": {
                 "messageId": Uuid::new_v4().to_string(),

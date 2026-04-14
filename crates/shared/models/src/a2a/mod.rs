@@ -3,6 +3,7 @@ pub mod artifact;
 pub mod artifact_metadata;
 pub mod mcp_extension;
 pub mod message;
+pub mod methods;
 pub mod security;
 pub mod task;
 pub mod task_metadata;

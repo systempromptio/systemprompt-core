@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.23] - 2026-04-14
+
+### Fixed
+- `SystempromptClient::send_message` now uses the A2A v1.0.0 method name `SendMessage` instead of the legacy `message/send`, which the server rejects after the v0.3.0 → v1.0.0 migration
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

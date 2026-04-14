@@ -123,7 +123,7 @@ async fn test_invalid_agent_id_returns_404() -> Result<()> {
 
     let a2a_payload = serde_json::json!({
         "jsonrpc": "2.0",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "message": {
                 "messageId": message_id,

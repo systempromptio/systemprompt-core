@@ -447,7 +447,7 @@ The command sends a JSON-RPC 2.0 request to the agent endpoint:
 ```json
 {
   "jsonrpc": "2.0",
-  "method": "message/send",
+  "method": "SendMessage",
   "params": {
     "message": {
       "role": "user",
@@ -517,7 +517,7 @@ sp admin agents task admin --task-id "$TASK_ID" --history-length 10 --token "$TO
 | `--url` | `http://localhost:8080` | Gateway URL |
 | `--timeout` | 30 | Timeout in seconds |
 
-**A2A Spec Compliance:** Per A2A spec Section 7.3, `tasks/get` uses `TaskQueryParams` which only requires `id` (task UUID). The context is resolved from task storage by the server.
+**A2A Spec Compliance:** Per A2A v1.0.0, `GetTask` uses `TaskQueryParams` which only requires `id` (task UUID). The context is resolved from task storage by the server.
 
 **Output Structure:**
 ```json

@@ -153,7 +153,7 @@ impl A2ATestContext {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "method": "message/send",
+            "method": "SendMessage",
             "params": {
                 "message": message_obj,
                 "configuration": null,
@@ -273,7 +273,7 @@ impl A2ATestContext {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "method": "message/send",
+            "method": "SendMessage",
             "params": {
                 "message": message_obj,
                 "configuration": null,
@@ -336,7 +336,7 @@ impl A2ATestContext {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "method": "message/stream",
+            "method": "SendStreamingMessage",
             "params": {
                 "message": message_obj,
                 "configuration": null,
@@ -728,7 +728,7 @@ mod error_handling_tests {
         let message_id = Uuid::new_v4().to_string();
         let body = json!({
             "jsonrpc": "2.0",
-            "method": "message/send",
+            "method": "SendMessage",
             "params": {
                 "message": {
                     "messageId": message_id,
@@ -774,7 +774,7 @@ mod error_handling_tests {
         let message_id = Uuid::new_v4().to_string();
         let body = json!({
             "jsonrpc": "2.0",
-            "method": "message/send",
+            "method": "SendMessage",
             "params": {
                 "message": {
                     "messageId": message_id,

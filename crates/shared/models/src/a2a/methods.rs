@@ -1,0 +1,10 @@
+pub const SEND_MESSAGE: &str = "SendMessage";
+pub const SEND_STREAMING_MESSAGE: &str = "SendStreamingMessage";
+pub const GET_TASK: &str = "GetTask";
+pub const CANCEL_TASK: &str = "CancelTask";
+pub const SUBSCRIBE_TO_TASK: &str = "SubscribeToTask";
+pub const GET_EXTENDED_AGENT_CARD: &str = "GetExtendedAgentCard";
+pub const CREATE_TASK_PUSH_NOTIFICATION_CONFIG: &str = "CreateTaskPushNotificationConfig";
+pub const GET_TASK_PUSH_NOTIFICATION_CONFIG: &str = "GetTaskPushNotificationConfig";
+pub const LIST_TASK_PUSH_NOTIFICATION_CONFIGS: &str = "ListTaskPushNotificationConfigs";
+pub const DELETE_TASK_PUSH_NOTIFICATION_CONFIG: &str = "DeleteTaskPushNotificationConfig";

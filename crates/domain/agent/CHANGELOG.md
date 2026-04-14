@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.23] - 2026-04-14
+
+### Fixed
+- Streaming dispatch regression: `handlers/request/mod.rs` was still comparing against the legacy `"message/stream"` method name after the A2A v0.3.0 → v1.0.0 migration, so correctly-formed `SendStreamingMessage` requests silently fell through to the non-streaming branch and never opened an SSE stream
+- Streaming fallback error string no longer references the removed `message/stream` method name
+
+### Changed
+- `A2aJsonRpcRequest::parse_request` and all request handler log/error messages now use the `systemprompt_models::a2a::methods` constants as the single source of truth for A2A v1.0.0 method names
+
 ## [0.1.21] - 2026-04-02
 
 ### Added

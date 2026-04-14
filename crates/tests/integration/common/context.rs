@@ -296,7 +296,7 @@ pub fn create_a2a_message(
 
     let payload = serde_json::json!({
         "jsonrpc": "2.0",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "message": {
                 "messageId": &message_id,

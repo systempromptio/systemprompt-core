@@ -9,6 +9,7 @@ use axum::response::IntoResponse;
 use serde_json::json;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
+use systemprompt_models::a2a::methods;
 
 use super::state::AgentHandlerState;
 use crate::models::a2a::A2aRequestParams;
@@ -111,7 +112,7 @@ pub async fn handle_agent_request(
         }
     }
 
-    let is_streaming = jsonrpc_request.method == "message/stream";
+    let is_streaming = jsonrpc_request.method == methods::SEND_STREAMING_MESSAGE;
 
     let a2a_request = match parse_a2a_request(&jsonrpc_request, &request_id).await {
         Ok(req) => req,

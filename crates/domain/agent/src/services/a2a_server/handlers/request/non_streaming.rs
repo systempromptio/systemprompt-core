@@ -20,7 +20,7 @@ pub async fn handle_non_streaming_request(
 
     match request {
         A2aRequestParams::SendMessage(params) => {
-            tracing::info!("Handling message/send request");
+            tracing::info!("Handling SendMessage request");
 
             validate_message_context(
                 &params.message,
@@ -38,7 +38,7 @@ pub async fn handle_non_streaming_request(
                 .map_err(Into::into)
         },
         A2aRequestParams::SendStreamingMessage(params) => {
-            tracing::info!("Handling message/stream request (fallback to non-streaming)");
+            tracing::info!("Handling SendStreamingMessage request (fallback to non-streaming)");
 
             validate_message_context(
                 &params.message,
@@ -56,7 +56,7 @@ pub async fn handle_non_streaming_request(
                 .map_err(Into::into)
         },
         A2aRequestParams::GetTask(params) => {
-            tracing::info!(task_id = %params.id, "Handling tasks/get request");
+            tracing::info!(task_id = %params.id, "Handling GetTask request");
 
             let task_repo = TaskRepository::new(&state.db_pool)?;
 
@@ -67,7 +67,7 @@ pub async fn handle_non_streaming_request(
             }
         },
         A2aRequestParams::CancelTask(params) => {
-            tracing::info!(task_id = %params.id, "Handling tasks/cancel request");
+            tracing::info!(task_id = %params.id, "Handling CancelTask request");
 
             let task_repo = TaskRepository::new(&state.db_pool)?;
 

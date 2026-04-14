@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.23] - 2026-04-14
+
+### Added
+- `a2a::methods` module — single source of truth for A2A v1.0.0 JSON-RPC method name constants (`SendMessage`, `SendStreamingMessage`, `GetTask`, `CancelTask`, `SubscribeToTask`, `GetExtendedAgentCard`, and the four push notification config methods)
+
 ## [0.1.21] - 2026-04-02
 
 ### Added

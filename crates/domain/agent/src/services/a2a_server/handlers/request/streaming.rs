@@ -83,7 +83,7 @@ pub async fn handle_streaming_request(
             "error": {
                 "code": -32601,
                 "message": "Method not found",
-                "data": "Only message/stream requests are supported for streaming"
+                "data": "Only SendStreamingMessage requests are supported for streaming"
             },
             "id": &request_id
         });

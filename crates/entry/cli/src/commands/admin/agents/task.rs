@@ -5,7 +5,7 @@ use systemprompt_agent::models::a2a::jsonrpc::{
     JSON_RPC_VERSION_2_0, JsonRpcResponse, Request, RequestId,
 };
 use systemprompt_agent::models::a2a::protocol::TaskQueryParams;
-use systemprompt_models::a2a::Task;
+use systemprompt_models::a2a::{Task, methods};
 
 use crate::CliConfig;
 use crate::interactive::resolve_required;
@@ -60,7 +60,7 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
 
     let request = Request {
         jsonrpc: JSON_RPC_VERSION_2_0.to_string(),
-        method: "tasks/get".to_string(),
+        method: methods::GET_TASK.to_string(),
         params: TaskQueryParams {
             id: task_id.clone(),
             history_length: args.history_length,

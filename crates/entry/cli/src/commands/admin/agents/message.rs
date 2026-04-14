@@ -11,7 +11,7 @@ use systemprompt_agent::models::a2a::protocol::{
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_logging::CliService;
-use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart};
+use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart, methods};
 
 use super::types::MessageOutput;
 use crate::CliConfig;
@@ -98,9 +98,9 @@ pub async fn execute(
     let request_id = RequestId::String(MessageId::generate().to_string());
 
     let method = if args.stream {
-        "message/stream"
+        methods::SEND_STREAMING_MESSAGE
     } else {
-        "message/send"
+        methods::SEND_MESSAGE
     };
 
     let request = Request {

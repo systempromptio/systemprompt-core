@@ -43,7 +43,7 @@ async fn test_anonymous_user_can_use_anonymous_tools() {
     let message_id = Uuid::new_v4().to_string();
     let body = json!({
         "jsonrpc": "2.0",
-        "method": "message/stream",
+        "method": "SendStreamingMessage",
         "params": {
             "message": {
                 "messageId": message_id,
@@ -185,7 +185,7 @@ async fn test_permission_checks_are_logged() {
     // Make a request that triggers tool loading
     let body = json!({
         "jsonrpc": "2.0",
-        "method": "message/stream",
+        "method": "SendStreamingMessage",
         "params": {
             "message": {
                 "messageId": Uuid::new_v4().to_string(),

@@ -4,7 +4,7 @@ use chrono::Utc;
 use reqwest::Client;
 use std::time::Duration;
 use systemprompt_identifiers::{ContextId, JwtToken};
-use systemprompt_models::a2a::Task;
+use systemprompt_models::a2a::{Task, methods};
 use systemprompt_models::admin::{AnalyticsData, LogEntry, UserInfo};
 use systemprompt_models::{
     AgentCard, ApiPaths, CollectionResponse, CreateContextRequest, SingleResponse, UserContext,
@@ -204,7 +204,7 @@ impl SystempromptClient {
         let url = format!("{}{}/{}/", self.base_url, ApiPaths::AGENTS_BASE, agent_name);
         let request = serde_json::json!({
             "jsonrpc": "2.0",
-            "method": "message/send",
+            "method": methods::SEND_MESSAGE,
             "params": { "message": message },
             "id": context_id.as_ref()
         });
