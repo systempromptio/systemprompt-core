@@ -15,7 +15,7 @@ Configuration module for systemprompt.io - environment configuration and validat
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-config.svg)](https://crates.io/crates/systemprompt-config)
 [![Documentation](https://docs.rs/systemprompt-config/badge.svg)](https://docs.rs/systemprompt-config)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -128,4 +128,4 @@ fn load_env(project_root: PathBuf) -> anyhow::Result<()> {
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

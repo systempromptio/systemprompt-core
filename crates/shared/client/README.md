@@ -15,7 +15,7 @@ HTTP API client library for systemprompt.io - enables CLI and external clients t
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-client.svg)](https://crates.io/crates/systemprompt-client)
 [![Documentation](https://docs.rs/systemprompt-client/badge.svg)](https://docs.rs/systemprompt-client)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -208,4 +208,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -15,7 +15,7 @@ Provider trait contracts for systemprompt.io - LLM, Tool, Job, Template, Compone
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-provider-contracts.svg)](https://crates.io/crates/systemprompt-provider-contracts)
 [![Documentation](https://docs.rs/systemprompt-provider-contracts/badge.svg)](https://docs.rs/systemprompt-provider-contracts)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -95,4 +95,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -15,7 +15,7 @@ Security module for systemprompt.io - authentication, authorization, JWT, and to
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-security.svg)](https://crates.io/crates/systemprompt-security)
 [![Documentation](https://docs.rs/systemprompt-security/badge.svg)](https://docs.rs/systemprompt-security)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -181,4 +181,4 @@ systemprompt-security = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

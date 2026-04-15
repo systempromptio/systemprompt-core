@@ -15,7 +15,7 @@ Core logging module for systemprompt.io OS.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-logging.svg)](https://crates.io/crates/systemprompt-logging)
 [![Documentation](https://docs.rs/systemprompt-logging/badge.svg)](https://docs.rs/systemprompt-logging)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -192,4 +192,4 @@ async fn recent_errors(pool: &DbPool) -> anyhow::Result<()> {
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

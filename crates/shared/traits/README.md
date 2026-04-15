@@ -15,7 +15,7 @@ Minimal shared traits and contracts for systemprompt.io.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-traits.svg)](https://crates.io/crates/systemprompt-traits)
 [![Documentation](https://docs.rs/systemprompt-traits/badge.svg)](https://docs.rs/systemprompt-traits)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -312,4 +312,4 @@ impl Service for HealthPinger {
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -23,7 +23,7 @@ Content module for systemprompt.io with content management, analytics, and event
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-content.svg)](https://crates.io/crates/systemprompt-content)
 [![Documentation](https://docs.rs/systemprompt-content/badge.svg)](https://docs.rs/systemprompt-content)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -196,4 +196,4 @@ systemprompt-content = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

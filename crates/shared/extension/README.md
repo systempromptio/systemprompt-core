@@ -15,7 +15,7 @@ Extension framework for systemprompt.io - register custom modules, providers, an
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-extension.svg)](https://crates.io/crates/systemprompt-extension)
 [![Documentation](https://docs.rs/systemprompt-extension/badge.svg)](https://docs.rs/systemprompt-extension)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -90,4 +90,4 @@ impl Extension for MyExtension {
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

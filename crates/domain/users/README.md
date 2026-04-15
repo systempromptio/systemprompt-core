@@ -23,7 +23,7 @@ Core user management module for systemprompt.io.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-users.svg)](https://crates.io/crates/systemprompt-users)
 [![Documentation](https://docs.rs/systemprompt-users/badge.svg)](https://docs.rs/systemprompt-users)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -156,4 +156,4 @@ systemprompt-users = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
