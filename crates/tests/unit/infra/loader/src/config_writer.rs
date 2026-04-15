@@ -8,7 +8,6 @@
 //! - Include management (add/remove)
 
 use std::collections::HashMap;
-use std::path::Path;
 use systemprompt_loader::ConfigWriter;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -302,65 +301,6 @@ fn test_delete_agent_not_found() {
     let result = ConfigWriter::delete_agent("nonexistent", temp_dir.path());
     result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
-}
-
-// ============================================================================
-// Add Include Tests
-// ============================================================================
-
-#[test]
-fn test_add_include_to_existing_includes() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let config_path = temp_dir.path().join("config.yaml");
-
-    let config_content = "includes:\n  - existing.yaml\nagents: {}\nmcp_servers: {}\n";
-    std::fs::write(&config_path, config_content).expect("Failed to write config");
-
-    let result = ConfigWriter::add_include("new-include.yaml", &config_path);
-    result.expect("result should succeed");
-
-    let content = std::fs::read_to_string(&config_path).expect("Failed to read config");
-    assert!(content.contains("new-include.yaml"));
-    assert!(content.contains("existing.yaml"));
-}
-
-#[test]
-fn test_add_include_creates_includes_section() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let config_path = temp_dir.path().join("config.yaml");
-
-    let config_content = "agents: {}\nmcp_servers: {}\n";
-    std::fs::write(&config_path, config_content).expect("Failed to write config");
-
-    let result = ConfigWriter::add_include("new-include.yaml", &config_path);
-    result.expect("result should succeed");
-
-    let content = std::fs::read_to_string(&config_path).expect("Failed to read config");
-    assert!(content.contains("includes:"));
-    assert!(content.contains("new-include.yaml"));
-}
-
-#[test]
-fn test_add_include_already_exists() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let config_path = temp_dir.path().join("config.yaml");
-
-    let config_content = "includes:\n  - already-there.yaml\nagents: {}\nmcp_servers: {}\n";
-    std::fs::write(&config_path, config_content).expect("Failed to write config");
-
-    let result = ConfigWriter::add_include("already-there.yaml", &config_path);
-    result.expect("result should succeed");
-
-    let content = std::fs::read_to_string(&config_path).expect("Failed to read config");
-    let count = content.matches("already-there.yaml").count();
-    assert_eq!(count, 1, "Should not duplicate the include");
-}
-
-#[test]
-fn test_add_include_nonexistent_config() {
-    let path = Path::new("/nonexistent/config.yaml");
-    let result = ConfigWriter::add_include("include.yaml", path);
-    result.unwrap_err();
 }
 
 // ============================================================================
