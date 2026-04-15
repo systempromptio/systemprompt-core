@@ -89,6 +89,7 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
         dev_only: args.agent.dev_only,
         is_primary: args.agent.is_primary,
         default: args.agent.default,
+        tags: Vec::new(),
         card: AgentCardConfig {
             protocol_version: "0.3.0".to_string(),
             name: Some(name.clone()),

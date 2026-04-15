@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "AppContext, lifecycle builder, extension registry and module wiring — part of the systemprompt.io AI governance infrastructure."
+description = "Application runtime for systemprompt.io AI governance infrastructure. AppContext, lifecycle builder, extension registry, and module wiring for the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true

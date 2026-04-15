@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-analytics = { workspace = true }
+systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 tokio = { workspace = true }
@@ -20,3 +21,5 @@ chrono = { workspace = true }
 serde_json = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }

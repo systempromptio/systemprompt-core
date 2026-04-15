@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -11,11 +11,19 @@
 
 # systemprompt-database
 
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-database.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-database.svg">
+    <img alt="systemprompt-database terminal demo" src="../../../assets/readme/terminals/dark/infra-database.svg" width="100%">
+  </picture>
+</div>
+
 Database abstraction layer for systemprompt.io supporting SQLite, PostgreSQL, and MySQL.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-database.svg)](https://crates.io/crates/systemprompt-database)
 [![Documentation](https://docs.rs/systemprompt-database/badge.svg)](https://docs.rs/systemprompt-database)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -228,4 +236,4 @@ From `sqlx`: `PgPool`, `Pool`, `Postgres`, `Transaction`, `Json`
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

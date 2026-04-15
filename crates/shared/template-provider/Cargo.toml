@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Template provider traits and abstractions powering config-as-code — part of the systemprompt.io AI governance infrastructure."
+description = "Template provider traits for systemprompt.io AI governance infrastructure. Config-as-code foundation for the AI governance template registry."
+readme = "README.md"
 
 [lints]
 workspace = true

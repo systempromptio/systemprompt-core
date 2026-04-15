@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Cloud sync services for file, database, and crate deployment — part of the systemprompt.io AI governance infrastructure."
+description = "Cloud sync services for systemprompt.io AI governance infrastructure. File, database, and crate deployment across governance tenants in the MCP governance pipeline."
+readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [dependencies]

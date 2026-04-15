@@ -2,18 +2,6 @@ use crate::error::RepositoryError;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
-
-#[derive(Debug)]
-pub struct CreateAiRequest<'a> {
-    pub user_id: &'a UserId,
-    pub session_id: Option<&'a SessionId>,
-    pub trace_id: Option<&'a TraceId>,
-    pub provider: &'a str,
-    pub model: &'a str,
-    pub temperature: Option<f64>,
-    pub max_tokens: Option<i32>,
-}
 
 #[must_use]
 #[derive(Debug, Clone)]

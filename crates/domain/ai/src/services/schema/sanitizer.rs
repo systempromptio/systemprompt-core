@@ -18,6 +18,7 @@ impl SchemaSanitizer {
             return sanitized;
         };
 
+        Self::normalize_nullable(obj);
         self.remove_unsupported_keywords(obj);
         Self::remove_metadata_fields(obj);
         Self::remove_extension_fields(obj);
@@ -25,6 +26,50 @@ impl SchemaSanitizer {
         self.sanitize_nested_schemas(obj);
 
         sanitized
+    }
+
+    fn normalize_nullable(obj: &mut Map<String, Value>) {
+        if let Some(Value::Array(types)) = obj.get("type").cloned() {
+            let original_len = types.len();
+            let mut non_null: Vec<Value> = types
+                .into_iter()
+                .filter(|v| v.as_str() != Some("null"))
+                .collect();
+            if non_null.len() < original_len {
+                if non_null.len() == 1 {
+                    obj.insert("type".to_string(), non_null.remove(0));
+                } else if non_null.is_empty() {
+                    obj.remove("type");
+                } else {
+                    obj.insert("type".to_string(), Value::Array(non_null));
+                }
+                obj.insert("nullable".to_string(), Value::Bool(true));
+            }
+        }
+
+        if let Some(Value::Array(variants)) = obj.get("anyOf").cloned() {
+            let null_count = variants
+                .iter()
+                .filter(|v| v.get("type").and_then(Value::as_str) == Some("null"))
+                .count();
+            if null_count > 0 && null_count < variants.len() {
+                let non_null: Vec<Value> = variants
+                    .into_iter()
+                    .filter(|v| v.get("type").and_then(Value::as_str) != Some("null"))
+                    .collect();
+                if non_null.len() == 1 {
+                    obj.remove("anyOf");
+                    if let Value::Object(inner) = non_null.into_iter().next().unwrap_or_default() {
+                        for (k, v) in inner {
+                            obj.insert(k, v);
+                        }
+                    }
+                } else {
+                    obj.insert("anyOf".to_string(), Value::Array(non_null));
+                }
+                obj.insert("nullable".to_string(), Value::Bool(true));
+            }
+        }
     }
 
     fn remove_unsupported_keywords(&self, obj: &mut Map<String, Value>) {

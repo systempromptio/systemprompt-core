@@ -6,10 +6,12 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Template registry, loading and rendering for config-as-code deployments — part of the systemprompt.io AI governance infrastructure."
-include = ["src/**/*", "defaults/**/*", "Cargo.toml"]
+description = "Template registry, loading, and rendering for systemprompt.io config-as-code AI governance deployments. Handlebars-powered template engine for the MCP governance pipeline."
+readme = "README.md"
+include = ["src/**/*", "defaults/**/*", "Cargo.toml", "README.md"]
 
 [lints]
 workspace = true

@@ -127,17 +127,33 @@ impl CostAnalyticsRepository {
         sqlx::query_as!(
             CostBreakdownRow,
             r#"
-            SELECT
-                COALESCE(at.agent_name, 'unknown') as "name!",
-                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
-                COUNT(*)::bigint as "requests!",
-                COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!"
-            FROM ai_requests r
-            LEFT JOIN agent_tasks at ON at.task_id = r.task_id
-            WHERE r.created_at >= $1 AND r.created_at < $2
-            GROUP BY at.agent_name
-            ORDER BY SUM(r.cost_microdollars) DESC NULLS LAST
-            LIMIT $3
+            (
+                SELECT
+                    at.agent_name as "name!",
+                    COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
+                    COUNT(*)::bigint as "requests!",
+                    COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!"
+                FROM ai_requests r
+                INNER JOIN agent_tasks at ON at.task_id = r.task_id
+                WHERE r.created_at >= $1 AND r.created_at < $2
+                  AND at.agent_name IS NOT NULL
+                GROUP BY at.agent_name
+                ORDER BY SUM(r.cost_microdollars) DESC NULLS LAST
+                LIMIT $3
+            )
+            UNION ALL
+            (
+                SELECT
+                    'unattributed' as "name!",
+                    COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
+                    COUNT(*)::bigint as "requests!",
+                    COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!"
+                FROM ai_requests r
+                LEFT JOIN agent_tasks at ON at.task_id = r.task_id
+                WHERE r.created_at >= $1 AND r.created_at < $2
+                  AND (r.task_id IS NULL OR at.agent_name IS NULL)
+                HAVING COUNT(*) > 0
+            )
             "#,
             start,
             end,

@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -15,7 +15,7 @@ Provider trait contracts for systemprompt.io - LLM, Tool, Job, Template, Compone
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-provider-contracts.svg)](https://crates.io/crates/systemprompt-provider-contracts)
 [![Documentation](https://docs.rs/systemprompt-provider-contracts/badge.svg)](https://docs.rs/systemprompt-provider-contracts)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -80,6 +80,19 @@ impl LlmProvider for MyLlmProvider {
 | `inventory` | Compile-time registration |
 | `serde` | Serialization |
 
+## Usage
+
+```rust
+use systemprompt_provider_contracts::web_config::WebConfig;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let yaml = std::fs::read_to_string("services/web/config.yaml")?;
+    let web: WebConfig = serde_yaml::from_str(&yaml)?;
+    println!("site title: {}", web.branding.site_title);
+    Ok(())
+}
+```
+
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -11,11 +11,19 @@
 
 # systemprompt-loader
 
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-loader.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-loader.svg">
+    <img alt="systemprompt-loader terminal demo" src="../../../assets/readme/terminals/dark/infra-loader.svg" width="100%">
+  </picture>
+</div>
+
 File loading infrastructure for systemprompt.io - separates I/O from shared models.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-loader.svg)](https://crates.io/crates/systemprompt-loader)
 [![Documentation](https://docs.rs/systemprompt-loader/badge.svg)](https://docs.rs/systemprompt-loader)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -113,4 +121,4 @@ systemprompt-loader = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

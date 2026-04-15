@@ -3,13 +3,21 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
 
 
 # systemprompt-sync
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/app-sync.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/app-sync.svg">
+    <img alt="systemprompt-sync terminal demo" src="../../../assets/readme/terminals/dark/app-sync.svg" width="100%">
+  </picture>
+</div>
 
 Synchronization services for systemprompt.io - file, database, and crate deployment synchronization between local and cloud environments.
 
@@ -125,4 +133,4 @@ systemprompt-sync = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -186,8 +186,8 @@ mod image_generation_response_tests {
 
         let response = ImageGenerationResponse::new(params);
 
-        assert!(!response.id.is_empty());
-        assert!(!response.request_id.is_empty());
+        assert!(!response.id.as_str().is_empty());
+        assert!(!response.request_id.as_str().is_empty());
         assert_eq!(response.provider, "gemini");
         assert_eq!(response.model, "gemini-pro-vision");
         assert_eq!(response.image_data, "base64imagedata");

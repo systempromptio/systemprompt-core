@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Background jobs, cron tasks and job-extension dispatch — part of the systemprompt.io AI governance infrastructure."
+description = "Background jobs, cron tasks, and job-extension dispatch for systemprompt.io AI governance infrastructure. Tokio-backed scheduling for the MCP governance pipeline."
+readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
@@ -62,6 +64,3 @@ wiremock = { workspace = true }
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
-
-[features]
-default = []

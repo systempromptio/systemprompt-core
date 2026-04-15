@@ -1,4 +1,3 @@
-#[cfg(feature = "web")]
 use axum::Router;
 
 use crate::types::ExtensionMeta;
@@ -11,7 +10,6 @@ pub trait ApiExtensionTyped: ExtensionMeta {
     }
 }
 
-#[cfg(feature = "web")]
 pub trait ApiExtensionTypedDyn: ApiExtensionTyped {
     fn build_router(&self) -> Router;
 }

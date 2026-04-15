@@ -5,4 +5,4 @@ mod repository;
 
 pub use message_operations::InsertToolCallParams;
 pub use mutations::UpdateCompletionParams;
-pub use repository::{AiRequestRepository, CreateAiRequest};
+pub use repository::AiRequestRepository;

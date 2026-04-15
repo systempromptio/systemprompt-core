@@ -30,7 +30,7 @@ pub use models::image_generation::{
 
 pub use services::providers::{GeminiImageProvider, ImageProvider, ImageProviderCapabilities};
 
-pub use repository::{AiRequestRepository, CreateAiRequest};
+pub use repository::AiRequestRepository;
 
 pub use services::tooled::ToolResultFormatter;
 

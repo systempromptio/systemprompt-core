@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use crate::any::AnyExtension;
 use crate::error::LoaderError;
 pub use crate::registry::RESERVED_PATHS;
-#[cfg(feature = "web")]
 use crate::typed::ApiExtensionTypedDyn;
 use crate::typed::SchemaExtensionTyped;
 use crate::types::ExtensionType;
@@ -37,7 +36,6 @@ impl TypedExtensionRegistry {
         let idx = self.extensions.len();
         self.by_id.insert(ext.id().to_string(), idx);
 
-        #[cfg(feature = "web")]
         if let Some(api) = ext.as_api() {
             self.api_paths.push(api.base_path().to_string());
         }
@@ -106,7 +104,6 @@ impl TypedExtensionRegistry {
         schemas.into_iter()
     }
 
-    #[cfg(feature = "web")]
     pub fn api_extensions(&self) -> impl Iterator<Item = &dyn ApiExtensionTypedDyn> {
         self.extensions.iter().filter_map(|e| e.as_api())
     }

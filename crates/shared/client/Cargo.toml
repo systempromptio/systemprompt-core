@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "HTTP API client for CLIs and external services talking to a systemprompt.io deployment — part of the systemprompt.io AI governance infrastructure."
+description = "HTTP API client for systemprompt.io AI governance infrastructure. Typed requests for CLIs and external services talking to a systemprompt.io deployment."
+readme = "README.md"
 
 [lints]
 workspace = true

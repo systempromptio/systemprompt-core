@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "OAuth 2.0 / OIDC with PKCE, token introspection, and audience/issuer checks — part of the systemprompt.io AI governance infrastructure."
+description = "OAuth 2.0 / OIDC with PKCE, token introspection, and audience/issuer validation for systemprompt.io AI governance infrastructure. WebAuthn and JWT auth for the MCP governance pipeline."
+readme = "README.md"
 include = ["src/**/*", "schema/**/*", "templates/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
@@ -57,8 +59,7 @@ webauthn-rs = { workspace = true }
 # HTTP types (framework-agnostic)
 http = { workspace = true }
 
-# Web framework (optional, for response types)
-axum = { workspace = true, optional = true }
+axum = { workspace = true }
 
 # HTTP client for CLI-to-REST calls
 reqwest = { workspace = true }
@@ -72,10 +73,6 @@ systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }
 
 
-
-[features]
-default = ["web"]
-web = ["dep:axum"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

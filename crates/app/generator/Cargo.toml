@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Static site generation, theme rendering and asset bundling — part of the systemprompt.io AI governance infrastructure."
+description = "Static site generation, theme rendering, and asset bundling for systemprompt.io AI governance dashboards. Handlebars and Markdown pipeline for the MCP governance platform."
+readme = "README.md"
 
 [lints]
 workspace = true

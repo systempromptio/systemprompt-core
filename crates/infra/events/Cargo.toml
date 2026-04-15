@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Event bus, SSE broadcasters (A2A, analytics, context) and fan-out routing — part of the systemprompt.io AI governance infrastructure."
+description = "Event bus, SSE broadcasters, and fan-out routing for systemprompt.io AI governance infrastructure. A2A, analytics, and context stream wiring for the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true

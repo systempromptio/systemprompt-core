@@ -74,6 +74,10 @@ impl SessionRepository {
         mutations::mark_as_scanner(&self.write_pool, session_id).await
     }
 
+    pub async fn mark_converted(&self, session_id: &SessionId) -> Result<()> {
+        mutations::mark_converted(&self.write_pool, session_id).await
+    }
+
     pub async fn mark_as_behavioral_bot(&self, session_id: &SessionId, reason: &str) -> Result<()> {
         behavioral::mark_as_behavioral_bot(&self.write_pool, session_id, reason).await
     }

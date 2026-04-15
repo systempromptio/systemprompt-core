@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret storage, and the four-layer tool-call governance pipeline — part of the systemprompt.io AI governance infrastructure."
+description = "Security infrastructure for systemprompt.io AI governance: JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret encryption, and the four-layer tool-call governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true

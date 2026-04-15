@@ -62,6 +62,10 @@ impl AnalyticsProvider for MockAnalyticsProvider {
     ) -> AnalyticsResult<u64> {
         Ok(0)
     }
+
+    async fn mark_session_converted(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
 }
 
 struct MockUserProvider;

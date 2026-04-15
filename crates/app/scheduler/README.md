@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -11,11 +11,19 @@
 
 # systemprompt-scheduler
 
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/app-scheduler.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/app-scheduler.svg">
+    <img alt="systemprompt-scheduler terminal demo" src="../../../assets/readme/terminals/dark/app-scheduler.svg" width="100%">
+  </picture>
+</div>
+
 Core scheduler module for systemprompt.io OS - background jobs and cron tasks.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-scheduler.svg)](https://crates.io/crates/systemprompt-scheduler)
 [![Documentation](https://docs.rs/systemprompt-scheduler/badge.svg)](https://docs.rs/systemprompt-scheduler)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -165,4 +173,4 @@ systemprompt-scheduler = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

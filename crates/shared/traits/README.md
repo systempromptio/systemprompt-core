@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -15,7 +15,7 @@ Minimal shared traits and contracts for systemprompt.io.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-traits.svg)](https://crates.io/crates/systemprompt-traits)
 [![Documentation](https://docs.rs/systemprompt-traits/badge.svg)](https://docs.rs/systemprompt-traits)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -293,6 +293,23 @@ impl ToolExecutor for MyExecutor {
 
 Supporting types: `ChatMessage`, `ChatRole`, `ChatRequest`, `ChatResponse`, `SamplingParameters`, `TokenUsage`, `ToolExecutionContext`
 
+## Usage
+
+```rust
+use async_trait::async_trait;
+use systemprompt_traits::Service;
+
+struct HealthPinger;
+
+#[async_trait]
+impl Service for HealthPinger {
+    fn name(&self) -> &str { "health-pinger" }
+    async fn start(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> { Ok(()) }
+    async fn stop(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> { Ok(()) }
+    async fn health_check(&self) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> { Ok(true) }
+}
+```
+
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

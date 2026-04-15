@@ -107,11 +107,25 @@ mod gemini_capabilities_tests {
         assert!(caps.composition.anyof);
         assert!(!caps.composition.oneof);
         assert!(!caps.composition.if_then_else);
-        assert!(caps.features.references);
-        assert!(caps.features.definitions);
+        assert!(!caps.features.references);
+        assert!(!caps.features.definitions);
         assert!(!caps.composition.not);
         assert!(!caps.features.additional_properties);
         assert!(!caps.features.const_values);
+    }
+
+    #[test]
+    fn gemini_requires_transformation_for_ref() {
+        let caps = ProviderCapabilities::gemini();
+        let schema = json!({"$ref": "#/$defs/Foo"});
+        assert!(caps.requires_transformation(&schema));
+    }
+
+    #[test]
+    fn gemini_requires_transformation_for_defs() {
+        let caps = ProviderCapabilities::gemini();
+        let schema = json!({"$defs": {"Foo": {"type": "string"}}});
+        assert!(caps.requires_transformation(&schema));
     }
 
     #[test]

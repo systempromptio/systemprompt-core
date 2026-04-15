@@ -4,12 +4,12 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "AI governance infrastructure for agentic systems — the Rust library behind systemprompt.io. MCP, A2A, OAuth2, audit trails, and a compile-time extension framework."
-keywords = ["mcp", "ai-agents", "llm", "agent", "ai-governance"]
-categories = ["web-programming::http-server", "authentication", "database"]
-repository = "https://github.com/systempromptio/systemprompt-core"
-homepage = "https://systemprompt.io"
-documentation = "https://systemprompt.io/documentation"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Self-hosted AI governance infrastructure. The Rust library behind systemprompt.io: MCP-native tool-call governance, 6-tier RBAC, secret detection, full audit trails, SIEM-ready events. Provider-agnostic across Anthropic, OpenAI, Gemini, and local models. PostgreSQL, air-gap capable, BSL-1.1."
 readme = "../README.md"
 
 [lints]

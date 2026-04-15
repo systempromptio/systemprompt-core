@@ -70,8 +70,8 @@ impl ProviderCapabilities {
                 not: false,
             },
             features: SchemaFeatures {
-                references: true,
-                definitions: true,
+                references: false,
+                definitions: false,
                 additional_properties: false,
                 const_values: false,
             },

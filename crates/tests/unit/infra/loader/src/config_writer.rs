@@ -23,6 +23,7 @@ fn create_test_agent(name: &str) -> AgentConfig {
         dev_only: false,
         is_primary: false,
         default: false,
+        tags: Vec::new(),
         card: AgentCardConfig {
             protocol_version: "0.2.3".to_string(),
             name: Some(name.to_string()),

@@ -6,15 +6,14 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Cloud API client, credentials, OAuth and tenant management for remote deployments — part of the systemprompt.io AI governance infrastructure."
+description = "Cloud API client, credentials, OAuth, and tenant management for systemprompt.io AI governance deployments. Remote sync and multi-tenant orchestration for the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true
-
-[features]
-test-utils = []
 
 [dependencies]
 # Core

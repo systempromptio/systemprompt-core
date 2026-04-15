@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Profile-based configuration with secrets and credentials bootstrap — part of the systemprompt.io AI governance infrastructure."
+description = "Profile-based configuration for systemprompt.io AI governance infrastructure. Bootstraps profiles, secrets, and credentials with zero environment-variable fallback."
+readme = "README.md"
 
 [lints]
 workspace = true

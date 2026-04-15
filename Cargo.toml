@@ -54,8 +54,8 @@ version = "0.2.1"
 repository = "https://github.com/systempromptio/systemprompt-core"
 homepage = "https://systemprompt.io"
 documentation = "https://systemprompt.io/documentation"
-keywords = ["mcp", "ai-agents", "llm", "agent", "ai-governance"]
-categories = ["web-programming::http-server", "authentication", "database"]
+keywords = ["mcp", "ai-governance", "claude", "agents", "rbac"]
+categories = ["api-bindings", "authentication", "web-programming::http-server"]
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }

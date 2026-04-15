@@ -104,7 +104,7 @@ impl Extension for AgentExtension {
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users", "oauth", "mcp"]
+        vec!["users", "oauth", "mcp", "ai"]
     }
 
     fn migrations(&self) -> Vec<Migration> {
@@ -118,6 +118,16 @@ impl Extension for AgentExtension {
                 2,
                 "add_server_type_column",
                 include_str!("../schema/migrations/002_add_server_type.sql"),
+            ),
+            Migration::new(
+                3,
+                "a2a_v1_task_states",
+                include_str!("../schema/migrations/003_a2a_v1_task_states.sql"),
+            ),
+            Migration::new(
+                4,
+                "ai_requests_task_fk",
+                include_str!("../schema/migrations/004_ai_requests_task_fk.sql"),
             ),
         ]
     }

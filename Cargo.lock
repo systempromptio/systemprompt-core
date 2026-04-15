@@ -4634,7 +4634,6 @@ version = "0.2.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum",
  "base64 0.22.1",
  "chrono",
  "inventory",

@@ -6,26 +6,15 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Agent-to-Agent (A2A) protocol with streaming, JSON-RPC models, and .well-known discovery — part of the systemprompt.io AI governance infrastructure."
+description = "Agent-to-Agent (A2A) protocol for systemprompt.io AI governance: streaming, JSON-RPC models, task lifecycle, .well-known discovery, and governed agent orchestration."
+readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
-
-[features]
-default = ["web"]
-cli = []
-web = [
-    "dep:axum",
-    "dep:tower", 
-    "dep:tower-http",
-    "dep:bytes",
-    "dep:jsonwebtoken",
-    "dep:tokio-stream",
-    "dep:urlencoding"
-]
 
 [dependencies]
 # Core traits for interface definitions (no circular dependencies)
@@ -50,26 +39,21 @@ futures = { workspace = true }
 futures-util = { workspace = true }
 async-trait = { workspace = true }
 
-# Web framework (optional, only for web builds)
-axum = { workspace = true, optional = true }
-tower = { workspace = true, optional = true }
-tower-http = { workspace = true, optional = true }
-
-# Templating (optional, only for web builds)
-
-# OpenAPI Documentation (optional, only for web builds)
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-bytes = { workspace = true, optional = true }
+bytes = { workspace = true }
 
 # Database
 sqlx = { workspace = true }
 
 # Security
-jsonwebtoken = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true }
 sha2 = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
@@ -105,11 +89,8 @@ hmac = { workspace = true }
 # Hex encoding/decoding
 hex = { workspace = true }
 
-# Streaming and async (optional, only for web builds)
-tokio-stream = { workspace = true, optional = true }
-
-# URL encoding (optional, only for web builds)
-urlencoding = { workspace = true, optional = true }
+tokio-stream = { workspace = true }
+urlencoding = { workspace = true }
 
 # Unix system utilities
 nix = { workspace = true }

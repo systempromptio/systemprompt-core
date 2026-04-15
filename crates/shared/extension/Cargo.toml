@@ -6,14 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Compile-time extension framework built on the inventory crate — register schemas, API routes, jobs, and providers. Part of the systemprompt.io AI governance infrastructure."
-
-[features]
-default = ["web"]
-plugin-discovery = []
-web = ["dep:axum", "dep:reqwest", "systemprompt-traits/web"]
+description = "Compile-time extension framework for systemprompt.io AI governance infrastructure. Built on the inventory crate — registers schemas, API routes, jobs, and providers in the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true
@@ -26,10 +23,10 @@ inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-axum = { workspace = true, optional = true }
-reqwest = { workspace = true, optional = true }
+axum = { workspace = true }
+reqwest = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
-systemprompt-traits = { workspace = true }
+systemprompt-traits = { workspace = true, features = ["web"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

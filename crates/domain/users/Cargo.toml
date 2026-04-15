@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "User management, roles, sessions and IP bans — part of the systemprompt.io AI governance infrastructure."
+description = "User management for systemprompt.io AI governance infrastructure. 6-tier RBAC, sessions, IP bans, and role-scoped access control for the MCP governance pipeline."
+readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]

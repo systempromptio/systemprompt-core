@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Minimal shared traits and contracts — the trait-first foundation of the systemprompt.io AI governance infrastructure."
+description = "Trait-first interface contracts for systemprompt.io AI governance infrastructure. Repository, provider, and service abstractions shared across the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true

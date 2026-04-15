@@ -35,7 +35,6 @@ impl ExtensionRegistry {
         detect_cycles(&self.extensions)
     }
 
-    #[cfg(feature = "web")]
     pub fn validate_api_paths(&self, ctx: &dyn crate::ExtensionContext) -> Result<(), LoaderError> {
         for ext in self.extensions.values() {
             if let Some(router_config) = ext.router(ctx) {
@@ -61,13 +60,6 @@ impl ExtensionRegistry {
         Ok(())
     }
 
-    #[cfg(not(feature = "web"))]
-    pub fn validate_api_paths(
-        &self,
-        _ctx: &dyn crate::ExtensionContext,
-    ) -> Result<(), LoaderError> {
-        Ok(())
-    }
 }
 
 fn detect_cycles(extensions: &HashMap<String, Arc<dyn Extension>>) -> Result<(), LoaderError> {

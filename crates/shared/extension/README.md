@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -15,7 +15,7 @@ Extension framework for systemprompt.io - register custom modules, providers, an
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-extension.svg)](https://crates.io/crates/systemprompt-extension)
 [![Documentation](https://docs.rs/systemprompt-extension/badge.svg)](https://docs.rs/systemprompt-extension)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -69,6 +69,25 @@ register_extension!(MyExtension);
 - `inventory` - Compile-time extension registration
 - `reqwest` - HTTP client (optional, with `web` feature)
 
+## Usage
+
+```rust
+use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRole};
+
+pub struct MyExtension;
+
+impl Extension for MyExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            name: "my-extension".into(),
+            version: "0.1.0".into(),
+            role: ExtensionRole::Domain,
+            ..Default::default()
+        }
+    }
+}
+```
+
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

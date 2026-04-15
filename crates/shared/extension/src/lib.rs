@@ -21,22 +21,16 @@ pub use error::{ConfigError, LoaderError};
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition, SchemaSource, SeedSource};
 pub use migration::Migration;
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
-#[cfg(feature = "web")]
-pub use router::ExtensionRouter;
-pub use router::{ExtensionRouterConfig, SiteAuthConfig};
+pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 pub use traits::Extension;
 
-#[cfg(feature = "web")]
-pub use any::ApiExtensionWrapper;
-pub use any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
+pub use any::{AnyExtension, ApiExtensionWrapper, ExtensionWrapper, SchemaExtensionWrapper};
 pub use builder::ExtensionBuilder;
-#[cfg(feature = "web")]
-pub use capabilities::HasHttpClient;
 pub use capabilities::{
     CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
+    HasHttpClient,
 };
 pub use hlist::{Contains, NotSame, Subset, TypeList};
-#[cfg(feature = "web")]
 pub use typed::ApiExtensionTypedDyn;
 pub use typed::{
     ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
@@ -53,29 +47,22 @@ pub mod prelude {
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
-        Extension, ExtensionMetadata, ExtensionRole, Migration, SchemaDefinition, SchemaSource,
-        SiteAuthConfig, register_extension,
+        Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
+        SchemaSource, SiteAuthConfig, register_extension,
     };
-
-    #[cfg(feature = "web")]
-    pub use crate::ExtensionRouter;
 
     pub use crate::any::AnyExtension;
     pub use crate::builder::ExtensionBuilder;
     pub use crate::capabilities::{
         CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
+        HasHttpClient,
     };
 
-    #[cfg(feature = "web")]
-    pub use crate::capabilities::HasHttpClient;
     pub use crate::hlist::{Contains, NotSame, Subset, TypeList};
     pub use crate::typed::{
-        ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
-        SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+        ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
+        ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
     };
-
-    #[cfg(feature = "web")]
-    pub use crate::typed::ApiExtensionTypedDyn;
     pub use crate::typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
     pub use crate::types::{
         Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency,

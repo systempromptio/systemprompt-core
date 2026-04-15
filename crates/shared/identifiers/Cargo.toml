@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Typed newtype identifiers (UserId, TraceId, AgentId, McpServerId…) enforced across every boundary — part of the systemprompt.io AI governance infrastructure."
+description = "Typed newtype identifiers (UserId, TraceId, AgentId, McpServerId…) for systemprompt.io AI governance infrastructure. Enforces type-safe IDs across every boundary in the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true

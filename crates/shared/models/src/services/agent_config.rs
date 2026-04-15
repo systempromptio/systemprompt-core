@@ -77,6 +77,7 @@ impl DiskAgentConfig {
             name: self.name.clone(),
             port: self.port,
             endpoint,
+            tags: self.tags.clone(),
             enabled: self.enabled,
             dev_only: self.dev_only,
             is_primary: self.is_primary,
@@ -150,6 +151,8 @@ pub struct AgentConfig {
     pub is_primary: bool,
     #[serde(default)]
     pub default: bool,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub card: AgentCardConfig,
     pub metadata: AgentMetadataConfig,
     #[serde(default)]
@@ -347,7 +350,7 @@ impl AgentSummary {
             enabled: config.enabled,
             is_primary: config.is_primary,
             is_default: config.default,
-            tags: Vec::new(),
+            tags: config.tags.clone(),
         }
     }
 }
@@ -362,7 +365,7 @@ impl From<&AgentConfig> for AgentSummary {
             enabled: config.enabled,
             is_primary: config.is_primary,
             is_default: config.default,
-            tags: Vec::new(),
+            tags: config.tags.clone(),
         }
     }
 }

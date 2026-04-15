@@ -205,7 +205,7 @@ impl CredentialsBootstrap {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 pub mod test_helpers {
     use chrono::{Duration, Utc};
 

@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Native Model Context Protocol (MCP) implementation with orchestration, per-server OAuth2, RBAC middleware and tool-call governance — part of the systemprompt.io AI governance infrastructure."
+description = "Native Model Context Protocol (MCP) implementation for systemprompt.io. Orchestration, per-server OAuth2, RBAC middleware, and tool-call governance — the core of the AI governance pipeline."
+readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
@@ -68,7 +70,3 @@ url = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true }
-
-[features]
-default = ["cli"]
-cli = []

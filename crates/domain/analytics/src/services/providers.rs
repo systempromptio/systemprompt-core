@@ -135,6 +135,13 @@ impl AnalyticsProvider for AnalyticsService {
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
     }
+
+    async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()> {
+        self.session_repo()
+            .mark_converted(session_id)
+            .await
+            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+    }
 }
 
 #[async_trait]

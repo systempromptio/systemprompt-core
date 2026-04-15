@@ -30,7 +30,6 @@ pub struct SiteAuthConfig {
     pub required_scope: &'static str,
 }
 
-#[cfg(feature = "web")]
 #[derive(Debug, Clone)]
 pub struct ExtensionRouter {
     pub router: axum::Router,
@@ -38,7 +37,6 @@ pub struct ExtensionRouter {
     pub requires_auth: bool,
 }
 
-#[cfg(feature = "web")]
 impl ExtensionRouter {
     #[must_use]
     pub const fn new(router: axum::Router, base_path: &'static str) -> Self {

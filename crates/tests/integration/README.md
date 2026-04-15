@@ -3,13 +3,21 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
 
 
 # Integration Tests Implementation
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/tests-integration.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/tests-integration.svg">
+    <img alt="systemprompt-tests-integration terminal demo" src="../../../assets/readme/terminals/dark/tests-integration.svg" width="100%">
+  </picture>
+</div>
 
 **Status**: Framework & Planning Complete. Ready for Implementation.
 

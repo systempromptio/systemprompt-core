@@ -12,7 +12,6 @@ use crate::context::ExtensionContext;
 use crate::error::ConfigError;
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
-#[cfg(feature = "web")]
 use crate::router::ExtensionRouter;
 use crate::router::{ExtensionRouterConfig, SiteAuthConfig};
 
@@ -27,7 +26,6 @@ pub trait Extension: Send + Sync + 'static {
         100
     }
 
-    #[cfg(feature = "web")]
     fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         let _ = ctx;
         None
@@ -142,14 +140,8 @@ pub trait Extension: Send + Sync + 'static {
         !self.schemas().is_empty()
     }
 
-    #[cfg(feature = "web")]
     fn has_router(&self, ctx: &dyn ExtensionContext) -> bool {
         self.router(ctx).is_some()
-    }
-
-    #[cfg(not(feature = "web"))]
-    fn has_router(&self, _ctx: &dyn ExtensionContext) -> bool {
-        false
     }
 
     fn has_jobs(&self) -> bool {

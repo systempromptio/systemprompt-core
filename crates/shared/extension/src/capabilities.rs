@@ -20,7 +20,6 @@ pub trait HasExtension<E: ExtensionType>: Send + Sync {
     fn extension(&self) -> &E;
 }
 
-#[cfg(feature = "web")]
 pub trait HasHttpClient: Send + Sync {
     fn http_client(&self) -> &reqwest::Client;
 }

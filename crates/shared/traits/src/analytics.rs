@@ -123,6 +123,8 @@ pub trait AnalyticsProvider: Send + Sync {
         from_user_id: &UserId,
         to_user_id: &UserId,
     ) -> AnalyticsResult<u64>;
+
+    async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()>;
 }
 
 #[async_trait]

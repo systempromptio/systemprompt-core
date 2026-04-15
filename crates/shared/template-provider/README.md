@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -15,7 +15,7 @@ Template provider traits and abstractions for systemprompt.io.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-template-provider.svg)](https://crates.io/crates/systemprompt-template-provider)
 [![Documentation](https://docs.rs/systemprompt-template-provider/badge.svg)](https://docs.rs/systemprompt-template-provider)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -76,6 +76,18 @@ let loader: DynTemplateLoader = std::sync::Arc::new(EmbeddedLoader::new());
 | `async-trait` | Async trait support |
 | `tokio` | Async filesystem operations (optional) |
 
+## Usage
+
+```rust
+use std::sync::Arc;
+use systemprompt_template_provider::{DynTemplateProvider, TemplateProvider};
+
+fn register(provider: Arc<dyn TemplateProvider>) -> DynTemplateProvider {
+    // Hand the provider to the runtime as a type-erased Arc.
+    provider
+}
+```
+
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

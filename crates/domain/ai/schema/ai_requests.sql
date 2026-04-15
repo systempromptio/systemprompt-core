@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     request_id VARCHAR(255) NOT NULL UNIQUE,
     user_id VARCHAR(255) NOT NULL,
     session_id VARCHAR(255),
-    task_id VARCHAR(255),
+    task_id TEXT,
     context_id VARCHAR(255),
     trace_id VARCHAR(255),
     mcp_execution_id VARCHAR(255),

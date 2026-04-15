@@ -6,10 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "SQLx-backed PostgreSQL pool and generic repository traits with compile-time query verification — part of the systemprompt.io AI governance infrastructure."
-keywords = ["database", "abstraction", "sqlx", "repository", "pattern"]
-categories = ["database"]
-documentation = "https://docs.rs/systemprompt-database"
+documentation.workspace = true
+keywords.workspace = true
+description = "PostgreSQL infrastructure for systemprompt.io AI governance. SQLx-backed pool, generic repository traits, and compile-time query verification. Part of the systemprompt.io AI governance pipeline."
+categories = ["database", "api-bindings", "authentication"]
+readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
@@ -42,10 +43,3 @@ rust_decimal = { workspace = true }
 
 # Extension registration
 inventory = { workspace = true }
-
-# Optional API dependencies
-axum = { workspace = true, optional = true }
-
-[features]
-default = []
-api = ["axum"]

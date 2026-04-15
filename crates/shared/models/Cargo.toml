@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Shared data models and DTOs used across every layer — part of the systemprompt.io AI governance infrastructure."
+description = "Foundation data models for systemprompt.io AI governance infrastructure. Shared DTOs, config, and domain types consumed by every layer of the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true

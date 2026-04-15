@@ -8,6 +8,14 @@
 
 # Own how your organization uses AI.
 
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt.io terminal demo" src="assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
+
 ### systemprompt-core is the Rust library behind [systemprompt.io](https://systemprompt.io) — the narrow waist between your AI and everything it touches.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg?style=flat-square)](https://crates.io/crates/systemprompt)

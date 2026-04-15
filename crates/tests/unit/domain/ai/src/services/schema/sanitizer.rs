@@ -31,14 +31,27 @@ mod remove_unsupported_keywords_tests {
     }
 
     #[test]
-    fn gemini_keeps_anyof() {
+    fn gemini_collapses_nullable_anyof() {
         let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
         let schema = json!({
             "anyOf": [{"type": "string"}, {"type": "null"}]
         });
 
         let result = sanitizer.sanitize(schema);
-        result.get("anyOf").expect("anyOf field should be present");
+        assert!(result.get("anyOf").is_none());
+        assert_eq!(result["type"], json!("string"));
+        assert_eq!(result["nullable"], json!(true));
+    }
+
+    #[test]
+    fn gemini_keeps_non_null_anyof() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
+        let schema = json!({
+            "anyOf": [{"type": "string"}, {"type": "integer"}]
+        });
+
+        let result = sanitizer.sanitize(schema);
+        result.get("anyOf").expect("non-null anyOf should be preserved");
     }
 
     #[test]
@@ -404,6 +417,73 @@ mod sanitize_nested_schemas_tests {
         let deep = &result["properties"]["level1"]["properties"]["level2"]["items"];
         assert!(deep.get("x-deep").is_none());
         assert!(deep.get("$schema").is_none());
+    }
+}
+
+mod nullable_normalisation_tests {
+    use super::*;
+
+    fn gemini() -> SchemaSanitizer {
+        SchemaSanitizer::new(ProviderCapabilities::gemini())
+    }
+
+    #[test]
+    fn rewrites_type_array_with_null_to_scalar_plus_nullable() {
+        let schema = json!({"type": ["string", "null"]});
+        let out = gemini().sanitize(schema);
+        assert_eq!(out["type"], json!("string"));
+        assert_eq!(out["nullable"], json!(true));
+    }
+
+    #[test]
+    fn collapses_anyof_with_null_sibling_into_nullable() {
+        let schema = json!({
+            "anyOf": [
+                {"type": "string", "minLength": 1},
+                {"type": "null"}
+            ]
+        });
+        let out = gemini().sanitize(schema);
+        assert!(out.get("anyOf").is_none());
+        assert_eq!(out["type"], json!("string"));
+        assert_eq!(out["minLength"], json!(1));
+        assert_eq!(out["nullable"], json!(true));
+    }
+
+    #[test]
+    fn recurses_into_properties_for_nullable_normalisation() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "foo": {"type": ["integer", "null"]},
+                "bar": {"type": "string"}
+            }
+        });
+        let out = gemini().sanitize(schema);
+        assert_eq!(out["properties"]["foo"]["type"], json!("integer"));
+        assert_eq!(out["properties"]["foo"]["nullable"], json!(true));
+        assert_eq!(out["properties"]["bar"]["type"], json!("string"));
+        assert!(out["properties"]["bar"].get("nullable").is_none());
+    }
+
+    #[test]
+    fn leaves_type_array_without_null_untouched() {
+        let schema = json!({"type": ["string", "integer"]});
+        let out = gemini().sanitize(schema);
+        assert_eq!(out["type"], json!(["string", "integer"]));
+        assert!(out.get("nullable").is_none());
+    }
+
+    #[test]
+    fn strips_defs_and_ref_for_gemini() {
+        let schema = json!({
+            "type": "object",
+            "$defs": {"Foo": {"type": "string"}},
+            "properties": {"foo": {"$ref": "#/$defs/Foo"}}
+        });
+        let out = gemini().sanitize(schema);
+        assert!(out.get("$defs").is_none());
+        assert!(out["properties"]["foo"].get("$ref").is_none());
     }
 }
 

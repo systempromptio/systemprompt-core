@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -348,3 +348,27 @@ mod a2a_schema_tests {
 - [Users Schema Module](../../users/src/schema/README.md) (Pattern Reference)
 - [SQLite JSON Extensions](https://sqlite.org/json1.html)
 - [Module Architecture Guide](../MODULE.md)
+
+## Usage
+
+```rust
+use sqlx::SqlitePool;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Load the A2A schema at compile time and validate a sample agent_card row.
+    let schema = include_str!("../schema/agent_cards.sql");
+    let pool = SqlitePool::connect(":memory:").await?;
+    sqlx::query(schema).execute(&pool).await?;
+
+    sqlx::query("INSERT INTO agent_cards (uuid, name, description, url, version) VALUES (?, ?, ?, ?, ?)")
+        .bind("550e8400-e29b-41d4-a716-446655440000")
+        .bind("Developer")
+        .bind("A sample A2A agent")
+        .bind("https://example.com/a2a")
+        .bind("1.0.0")
+        .execute(&pool)
+        .await?;
+    Ok(())
+}
+```

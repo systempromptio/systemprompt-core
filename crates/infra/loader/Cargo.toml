@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "File and module discovery infrastructure separating I/O from shared models — part of the systemprompt.io AI governance infrastructure."
+description = "File and module discovery infrastructure for systemprompt.io AI governance — manifests, schemas, and extension loading. Separates I/O from shared models in the MCP governance pipeline."
+readme = "README.md"
 
 [lints]
 workspace = true

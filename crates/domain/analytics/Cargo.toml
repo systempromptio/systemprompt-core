@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Session, agent, tool and cost analytics with microdollar-precision attribution — part of the systemprompt.io AI governance infrastructure."
+description = "Analytics for systemprompt.io AI governance infrastructure. Session, agent, tool, and microdollar-precision cost attribution across the MCP governance pipeline."
+readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
@@ -16,7 +18,6 @@ workspace = true
 
 [features]
 default = []
-web = ["dep:axum"]
 geolocation = ["dep:maxminddb"]
 
 [dependencies]
@@ -33,8 +34,7 @@ sqlx = { workspace = true }
 # HTTP types (framework-agnostic)
 http = { workspace = true }
 
-# Web framework (optional, for Request extraction)
-axum = { workspace = true, optional = true }
+axum = { workspace = true }
 
 # Serialization
 serde = { workspace = true }

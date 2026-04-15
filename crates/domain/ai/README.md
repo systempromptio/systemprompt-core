@@ -3,7 +3,7 @@
     <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
   </a>
   <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://systemprompt.io/documentation">Documentation</a></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
 </div>
 
 ---
@@ -11,11 +11,19 @@
 
 # systemprompt-ai
 
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/domain-ai.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/domain-ai.svg">
+    <img alt="systemprompt-ai terminal demo" src="../../../assets/readme/terminals/dark/domain-ai.svg" width="100%">
+  </picture>
+</div>
+
 Core AI module for systemprompt.io.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-ai.svg)](https://crates.io/crates/systemprompt-ai)
 [![Documentation](https://docs.rs/systemprompt-ai/badge.svg)](https://docs.rs/systemprompt-ai)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
 ## Overview
 
@@ -69,9 +77,9 @@ src/
 │   ├── mod.rs                          # Repository exports
 │   └── ai_requests/
 │       ├── mod.rs                      # AI request repository exports
-│       ├── repository.rs               # AiRequestRepository struct, CreateAiRequest
+│       ├── repository.rs               # AiRequestRepository struct
 │       ├── queries.rs                  # Read operations (get_by_id, usage queries)
-│       ├── mutations.rs                # Write operations (create, update, insert)
+│       ├── mutations.rs                # Write operations (insert, update_completion, update_error)
 │       └── message_operations.rs       # Message and tool call persistence
 └── services/
     ├── mod.rs                          # Service exports
@@ -226,4 +234,4 @@ systemprompt-ai = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

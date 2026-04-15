@@ -6,9 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation.workspace = true
 keywords.workspace = true
-categories.workspace = true
-description = "Unified CLI for agent orchestration, MCP governance, analytics, cloud deploy and self-hosted operations — part of the systemprompt.io AI governance infrastructure."
+categories = ["command-line-utilities", "api-bindings", "authentication"]
+description = "Unified CLI for systemprompt.io AI governance: agent orchestration, MCP governance, analytics, profiles, cloud deploy, and self-hosted operations."
+readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
