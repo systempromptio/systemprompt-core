@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0] - 2026-04-15
+
+### Added
+- `ContentConfig` wrapper at `services::content::ContentConfig`.
+- `SkillsConfig` is now first-class on `ServicesConfig`.
+- `PluginConfig` gained a `content_sources` binding field.
+- `ServicesConfig::validate()` now enforces plugin bindings (agents, mcp_servers) and skill map-key integrity.
+
+### Changed
+- `ServicesConfig.web` is now `Option<WebConfig>` using the full `systemprompt_provider_contracts::WebConfig` (via re-export), replacing the 3-field stub.
+- `ServicesConfig` and `PartialServicesConfig` are locked with `#[serde(deny_unknown_fields)]`.
+
+### Removed
+- `crates/shared/models/src/services/web.rs` stub.
+- `FullWebConfig` / `WebBrandingConfig` aliases in `crates/shared/models/src/lib.rs`.
+
+### Breaking
+- Any code constructing `WebConfig { branding: BrandingConfig { site_name, logo_url, primary_color } }` must migrate to the full `systemprompt_provider_contracts::WebConfig` type.
+
 ## [0.1.23] - 2026-04-14
 
 ### Added
