@@ -7,6 +7,7 @@ use systemprompt_agent::repository::content::SkillRepository;
 use systemprompt_agent::services::SkillIngestionService;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
+use systemprompt_models::SkillsConfig;
 use tracing::info;
 
 #[derive(Debug)]
@@ -87,6 +88,7 @@ impl SkillsLocalSync {
     pub async fn sync_to_db(
         &self,
         diff: &SkillsDiffResult,
+        skills_config: &SkillsConfig,
         delete_orphans: bool,
     ) -> Result<LocalSyncResult> {
         let ingestion_service = SkillIngestionService::new(&self.db)?;
@@ -97,7 +99,7 @@ impl SkillsLocalSync {
 
         let source_id = SourceId::new("skills");
         let report = ingestion_service
-            .ingest_directory(&self.skills_path, source_id, true)
+            .ingest_config(skills_config, source_id, true)
             .await?;
 
         result.items_synced += report.files_processed;

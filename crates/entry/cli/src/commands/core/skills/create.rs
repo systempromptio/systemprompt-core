@@ -13,6 +13,7 @@ use crate::shared::CommandResult;
 use systemprompt_agent::services::skills::SkillIngestionService;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{SkillId, SourceId};
+use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
@@ -120,7 +121,7 @@ pub async fn execute(
 
     let mut synced_to_db = false;
     if !args.no_sync {
-        match sync_skill_to_db(&skill_dir).await {
+        match sync_skill_to_db().await {
             Ok(()) => {
                 CliService::success("Skill synced to database");
                 synced_to_db = true;
@@ -335,7 +336,7 @@ fn prompt_instructions() -> Result<String> {
         .context("Failed to get instructions")
 }
 
-async fn sync_skill_to_db(skill_dir: &Path) -> Result<()> {
+async fn sync_skill_to_db() -> Result<()> {
     let db_url = SecretsBootstrap::database_url()
         .context("Database URL not configured")?
         .to_string();
@@ -352,8 +353,10 @@ async fn sync_skill_to_db(skill_dir: &Path) -> Result<()> {
     let db: DbPool = Arc::new(database);
     let ingestion_service = SkillIngestionService::new(&db)?;
 
+    let services_config = ConfigLoader::load().context("Failed to load services config")?;
+
     ingestion_service
-        .ingest_directory(skill_dir, SourceId::new("cli"), false)
+        .ingest_config(&services_config.skills, SourceId::new("cli"), false)
         .await
         .context("Failed to sync skill to database")?;
 

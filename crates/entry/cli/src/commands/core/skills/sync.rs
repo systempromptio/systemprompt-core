@@ -8,6 +8,7 @@ use super::types::SkillSyncOutput;
 use crate::CliConfig;
 use crate::shared::CommandResult;
 use systemprompt_database::{Database, DbPool};
+use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_sync::{LocalSyncDirection, SkillsDiffResult, SkillsLocalSync};
@@ -135,7 +136,12 @@ pub async fn execute(args: SyncArgs, config: &CliConfig) -> Result<CommandResult
     let spinner = CliService::spinner("Syncing skills...");
     let result = match direction {
         LocalSyncDirection::ToDisk => sync.sync_to_disk(&diff, args.delete_orphans).await?,
-        LocalSyncDirection::ToDatabase => sync.sync_to_db(&diff, args.delete_orphans).await?,
+        LocalSyncDirection::ToDatabase => {
+            let services_config =
+                ConfigLoader::load().context("Failed to load services config")?;
+            sync.sync_to_db(&diff, &services_config.skills, args.delete_orphans)
+                .await?
+        },
     };
     spinner.finish_and_clear();
 

@@ -1,19 +1,10 @@
 use crate::models::Skill;
 use crate::repository::content::SkillRepository;
 use anyhow::{Result, anyhow};
-use std::collections::HashSet;
-use std::path::Path;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SkillId, SourceId};
-use systemprompt_models::{
-    DiskSkillConfig, IngestionReport, SKILL_CONFIG_FILENAME, strip_frontmatter,
-};
+use systemprompt_models::{IngestionReport, SkillConfig, SkillsConfig};
 
-// TODO(phase-2a): Migrate ingestion to consume `ServicesConfig.skills` instead
-// of re-reading YAML from disk. Multiple callers in crates/app/sync and
-// crates/entry/cli still pass filesystem paths; a direct rewrite is out of
-// scope for Phase 2a. The disk-read path is preserved as a fallback until a
-// follow-up phase centralises skill sourcing through the config pipeline.
 #[derive(Debug)]
 pub struct SkillIngestionService {
     skill_repo: SkillRepository,
@@ -26,29 +17,25 @@ impl SkillIngestionService {
         })
     }
 
-    pub async fn ingest_directory(
+    pub async fn ingest_config(
         &self,
-        path: &Path,
+        config: &SkillsConfig,
         source_id: SourceId,
         override_existing: bool,
     ) -> Result<IngestionReport> {
         let mut report = IngestionReport::new();
+        report.files_found = config.skills.len();
 
-        let skill_dirs = Self::scan_skill_directories(path);
-        report.files_found = skill_dirs.len();
-
-        for skill_dir in skill_dirs {
+        for (key, skill_config) in &config.skills {
             match self
-                .ingest_skill(&skill_dir, source_id.clone(), override_existing)
+                .ingest_skill(key, skill_config, source_id.clone(), override_existing)
                 .await
             {
                 Ok(()) => {
                     report.files_processed += 1;
                 },
                 Err(e) => {
-                    report
-                        .errors
-                        .push(format!("{}: {:?}", skill_dir.display(), e));
+                    report.errors.push(format!("{key}: {e:?}"));
                 },
             }
         }
@@ -58,56 +45,39 @@ impl SkillIngestionService {
 
     async fn ingest_skill(
         &self,
-        skill_dir: &Path,
+        key: &str,
+        config: &SkillConfig,
         source_id: SourceId,
         override_existing: bool,
     ) -> Result<()> {
-        let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
-
-        if !config_path.exists() {
-            return Err(anyhow!(
-                "No {} found in skill directory",
-                SKILL_CONFIG_FILENAME
-            ));
-        }
-
-        let dir_name = skill_dir
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
-
-        let config_text = std::fs::read_to_string(&config_path)?;
-        let config: DiskSkillConfig = serde_yaml::from_str(&config_text)
-            .map_err(|e| anyhow!("Failed to parse {}: {}", SKILL_CONFIG_FILENAME, e))?;
-
-        let content_path = skill_dir.join(config.content_file());
-
         let skill_id_str = if config.id.is_empty() {
-            dir_name.replace('-', "_")
+            key.to_string()
         } else {
-            config.id
+            config.id.clone()
         };
 
-        let instructions = if content_path.exists() {
-            let raw = std::fs::read_to_string(&content_path)?;
-            strip_frontmatter(&raw)
-        } else {
-            return Err(anyhow!(
-                "Content file '{}' not found",
-                content_path.display()
-            ));
+        let instructions = match config.instructions.as_ref() {
+            Some(includable) => includable
+                .as_inline()
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Skill '{}' has unresolved !include for instructions; loader must resolve \
+                         includes before ingestion",
+                        skill_id_str
+                    )
+                })?
+                .to_string(),
+            None => String::new(),
         };
-
-        let file_path = content_path.to_string_lossy().to_string();
 
         let skill = Skill {
             id: SkillId::new(skill_id_str),
-            file_path,
-            name: config.name,
-            description: config.description,
+            file_path: String::new(),
+            name: config.name.clone(),
+            description: config.description.clone(),
             instructions,
             enabled: config.enabled,
-            tags: config.tags,
+            tags: config.tags.clone(),
             category_id: None,
             source_id,
             created_at: chrono::Utc::now(),
@@ -128,32 +98,5 @@ impl SkillIngestionService {
         }
 
         Ok(())
-    }
-
-    fn scan_skill_directories(dir: &Path) -> Vec<std::path::PathBuf> {
-        use walkdir::WalkDir;
-
-        let mut skill_dirs = Vec::new();
-        let mut seen = HashSet::new();
-
-        for entry in WalkDir::new(dir).max_depth(2).into_iter().filter_map(|e| {
-            e.map_err(|err| {
-                tracing::warn!(error = %err, "Skipping unreadable directory entry during skill scan");
-                err
-            })
-            .ok()
-        }) {
-            if entry.file_type().is_dir() && entry.file_name() != "." {
-                let config_file = entry.path().join(SKILL_CONFIG_FILENAME);
-                if config_file.exists() {
-                    let path = entry.path().to_path_buf();
-                    if seen.insert(path.clone()) {
-                        skill_dirs.push(path);
-                    }
-                }
-            }
-        }
-
-        skill_dirs
     }
 }
