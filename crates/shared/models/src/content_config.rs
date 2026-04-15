@@ -88,7 +88,7 @@ impl std::fmt::Display for ContentConfigErrors {
 
 impl std::error::Error for ContentConfigErrors {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContentConfigRaw {
     #[serde(default)]
     pub content_sources: HashMap<String, ContentSourceConfigRaw>,

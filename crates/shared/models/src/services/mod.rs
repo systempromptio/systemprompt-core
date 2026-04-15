@@ -1,5 +1,6 @@
 pub mod agent_config;
 pub mod ai;
+pub mod content;
 pub mod hooks;
 pub mod mcp;
 pub mod plugin;
@@ -14,6 +15,7 @@ pub use agent_config::{
     AgentSkillConfig, AgentSummary, CapabilitiesConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE,
     DiskAgentConfig, OAuthConfig,
 };
+pub use content::ContentConfig;
 pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
     ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
@@ -106,6 +108,8 @@ pub struct PartialServicesConfig {
     pub plugins: HashMap<String, PluginConfig>,
     #[serde(default)]
     pub skills: SkillsConfig,
+    #[serde(default)]
+    pub content: ContentConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,6 +130,8 @@ pub struct ServicesConfig {
     pub plugins: HashMap<String, PluginConfig>,
     #[serde(default)]
     pub skills: SkillsConfig,
+    #[serde(default)]
+    pub content: ContentConfig,
 }
 
 impl ServicesConfig {

@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_models::AppPaths;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
-    AgentConfig, AiConfig, PartialServicesConfig, PluginConfig, SchedulerConfig, ServicesConfig,
-    Settings as ServicesSettings, SkillsConfig, WebConfig,
+    AgentConfig, AiConfig, ContentConfig, PartialServicesConfig, PluginConfig, SchedulerConfig,
+    ServicesConfig, Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
 
 use crate::ConfigWriter;
@@ -44,6 +44,8 @@ struct PartialServicesRootConfig {
     pub plugins: HashMap<String, PluginConfig>,
     #[serde(default)]
     pub skills: SkillsConfig,
+    #[serde(default)]
+    pub content: ContentConfig,
 }
 
 impl ConfigLoader {
@@ -100,6 +102,7 @@ impl ConfigLoader {
             web: root.config.web.unwrap_or_else(WebConfig::default),
             plugins: root.config.plugins,
             skills: root.config.skills,
+            content: root.config.content,
         };
 
         for include_path in &root.includes {
@@ -241,6 +244,7 @@ impl ConfigLoader {
         }
 
         Self::merge_skills(target, partial.skills)?;
+        Self::merge_content(&mut target.content, partial.content)?;
 
         Ok(())
     }
@@ -258,6 +262,32 @@ impl ConfigLoader {
             }
             target.skills.skills.insert(id, skill);
         }
+        Ok(())
+    }
+
+    fn merge_content(target: &mut ContentConfig, partial: ContentConfig) -> Result<()> {
+        for (name, source) in partial.sources {
+            if target.sources.contains_key(&name) {
+                anyhow::bail!("Duplicate content source definition: {name}");
+            }
+            target.sources.insert(name, source);
+        }
+
+        for (name, source) in partial.raw.content_sources {
+            if target.raw.content_sources.contains_key(&name) {
+                anyhow::bail!("Duplicate content source definition: {name}");
+            }
+            target.raw.content_sources.insert(name, source);
+        }
+
+        for (name, category) in partial.raw.categories {
+            target.raw.categories.entry(name).or_insert(category);
+        }
+
+        if !partial.raw.metadata.default_author.is_empty() {
+            target.raw.metadata = partial.raw.metadata;
+        }
+
         Ok(())
     }
 
