@@ -104,6 +104,8 @@ pub struct PartialServicesConfig {
     pub web: Option<WebConfig>,
     #[serde(default)]
     pub plugins: HashMap<String, PluginConfig>,
+    #[serde(default)]
+    pub skills: SkillsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +124,8 @@ pub struct ServicesConfig {
     pub web: WebConfig,
     #[serde(default)]
     pub plugins: HashMap<String, PluginConfig>,
+    #[serde(default)]
+    pub skills: SkillsConfig,
 }
 
 impl ServicesConfig {
@@ -165,6 +169,42 @@ impl ServicesConfig {
                     plugin_name,
                     agent_ref
                 );
+            }
+        }
+
+        self.validate_skills()?;
+
+        Ok(())
+    }
+
+    fn validate_skills(&self) -> anyhow::Result<()> {
+        for (key, skill) in &self.skills.skills {
+            if !skill.id.is_empty() && skill.id != *key {
+                anyhow::bail!(
+                    "Skill map key '{}' does not match skill id '{}'",
+                    key,
+                    skill.id
+                );
+            }
+
+            for agent_ref in &skill.assigned_agents {
+                if !self.agents.contains_key(agent_ref) {
+                    tracing::warn!(
+                        skill = %key,
+                        agent = %agent_ref,
+                        "Skill references agent that is not defined in services config"
+                    );
+                }
+            }
+
+            for mcp_ref in &skill.mcp_servers {
+                if !self.mcp_servers.contains_key(mcp_ref) {
+                    tracing::warn!(
+                        skill = %key,
+                        mcp_server = %mcp_ref,
+                        "Skill references MCP server that is not defined in services config"
+                    );
+                }
             }
         }
 
