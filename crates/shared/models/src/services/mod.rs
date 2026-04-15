@@ -137,15 +137,34 @@ impl ServicesConfig {
 
         for (name, plugin) in &self.plugins {
             plugin.validate(name)?;
+            self.validate_plugin_bindings(name, plugin)?;
+        }
 
-            for mcp_ref in &plugin.mcp_servers {
-                if !self.mcp_servers.contains_key(mcp_ref) {
-                    tracing::warn!(
-                        plugin = %name,
-                        mcp_server = %mcp_ref,
-                        "Plugin references MCP server that is not defined in services config"
-                    );
-                }
+        Ok(())
+    }
+
+    fn validate_plugin_bindings(
+        &self,
+        plugin_name: &str,
+        plugin: &PluginConfig,
+    ) -> anyhow::Result<()> {
+        for mcp_ref in &plugin.mcp_servers {
+            if !self.mcp_servers.contains_key(mcp_ref) {
+                anyhow::bail!(
+                    "Plugin '{}': mcp_servers references unknown mcp_server '{}'",
+                    plugin_name,
+                    mcp_ref
+                );
+            }
+        }
+
+        for agent_ref in &plugin.agents.include {
+            if !self.agents.contains_key(agent_ref) {
+                anyhow::bail!(
+                    "Plugin '{}': agents.include references unknown agent '{}'",
+                    plugin_name,
+                    agent_ref
+                );
             }
         }
 
