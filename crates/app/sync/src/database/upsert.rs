@@ -80,7 +80,7 @@ pub(super) async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResu
              category_id = EXCLUDED.category_id,
              source_id = EXCLUDED.source_id,
              updated_at = EXCLUDED.updated_at"#,
-        skill.skill_id,
+        skill.skill_id.as_str(),
         skill.file_path,
         skill.name,
         skill.description,
@@ -88,7 +88,7 @@ pub(super) async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResu
         skill.enabled,
         skill.tags.as_deref(),
         skill.category_id,
-        skill.source_id,
+        skill.source_id.as_str(),
         skill.created_at,
         skill.updated_at
     )
@@ -110,7 +110,7 @@ pub(super) async fn upsert_context(
 ) -> SyncResult<(usize, usize)> {
     let user_exists: Option<bool> = sqlx::query_scalar!(
         "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)",
-        context.user_id
+        context.user_id.as_str()
     )
     .fetch_one(pool)
     .await?;
@@ -124,17 +124,17 @@ pub(super) async fn upsert_context(
         return Ok((0, 0));
     }
 
-    let session_id = match &context.session_id {
+    let resolved_session: Option<String> = match &context.session_id {
         Some(sid) => {
             let exists: Option<bool> = sqlx::query_scalar!(
                 "SELECT EXISTS(SELECT 1 FROM user_sessions WHERE session_id = $1)",
-                sid
+                sid.as_str()
             )
             .fetch_one(pool)
             .await?;
 
             if exists == Some(true) {
-                Some(sid.clone())
+                Some(sid.as_str().to_string())
             } else {
                 tracing::debug!(
                     session_id = %sid,
@@ -155,9 +155,9 @@ pub(super) async fn upsert_context(
              session_id = EXCLUDED.session_id,
              name = EXCLUDED.name,
              updated_at = EXCLUDED.updated_at"#,
-        context.context_id,
-        context.user_id,
-        session_id,
+        context.context_id.as_str(),
+        context.user_id.as_str(),
+        resolved_session,
         context.name,
         context.created_at,
         context.updated_at

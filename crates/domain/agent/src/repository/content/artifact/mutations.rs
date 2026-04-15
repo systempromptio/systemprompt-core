@@ -77,8 +77,8 @@ impl ArtifactRepository {
             persist_artifact_part(
                 pool.as_ref(),
                 part,
-                artifact.id.as_str(),
-                context_id.as_str(),
+                &artifact.id,
+                context_id,
                 idx as i32,
             )
             .await?;

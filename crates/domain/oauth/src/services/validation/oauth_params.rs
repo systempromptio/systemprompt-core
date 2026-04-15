@@ -1,3 +1,4 @@
+use systemprompt_identifiers::UserId;
 use systemprompt_models::{AuthError, GrantType, ResponseType};
 
 #[derive(Debug)]
@@ -76,11 +77,11 @@ pub fn scope_param(value: Option<&str>) -> Result<Vec<String>, AuthError> {
     Ok(scopes)
 }
 
-pub fn get_audit_user(user_id: Option<&str>) -> Result<String, AuthError> {
+pub fn get_audit_user(user_id: Option<&UserId>) -> Result<UserId, AuthError> {
     user_id
-        .filter(|id| !id.is_empty())
+        .filter(|id| !id.as_str().is_empty())
         .ok_or_else(|| AuthError::InvalidRequest {
             reason: "Authenticated user required for this operation".to_string(),
         })
-        .map(ToString::to_string)
+        .cloned()
 }

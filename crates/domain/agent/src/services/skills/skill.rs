@@ -6,7 +6,7 @@ use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SkillId, TaskId};
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::AgUiEventBuilder;
 use systemprompt_models::execution::context::RequestContext;
 
@@ -38,12 +38,10 @@ impl SkillService {
         })
     }
 
-    pub async fn load_skill(&self, skill_id: &str, ctx: &RequestContext) -> Result<String> {
-        let skill_id_typed = SkillId::new(skill_id);
-
+    pub async fn load_skill(&self, skill_id: &SkillId, ctx: &RequestContext) -> Result<String> {
         let skill = self
             .skill_repo
-            .get_by_skill_id(&skill_id_typed)
+            .get_by_skill_id(skill_id)
             .await?
             .ok_or_else(|| {
                 anyhow!(
@@ -81,7 +79,7 @@ impl SkillService {
             let tracking = ExecutionTrackingService::new(execution_step_repo);
             match tracking
                 .track_skill_usage(
-                    TaskId::new(task_id.as_str()),
+                    task_id.clone(),
                     skill.id.clone(),
                     skill.name.clone(),
                 )
@@ -112,12 +110,10 @@ impl SkillService {
         Ok(skills.into_iter().map(|s| s.id.to_string()).collect())
     }
 
-    pub async fn load_skill_metadata(&self, skill_id: &str) -> Result<SkillMetadata> {
-        let skill_id_typed = SkillId::new(skill_id);
-
+    pub async fn load_skill_metadata(&self, skill_id: &SkillId) -> Result<SkillMetadata> {
         let skill = self
             .skill_repo
-            .get_by_skill_id(&skill_id_typed)
+            .get_by_skill_id(skill_id)
             .await?
             .ok_or_else(|| {
                 anyhow!(
@@ -140,5 +136,5 @@ async fn broadcast_skill_event(
     ctx: &RequestContext,
     event: systemprompt_models::AgUiEvent,
 ) -> Result<usize, WebhookError> {
-    broadcast_agui_event(ctx.user_id().as_str(), event, ctx.auth_token().as_str()).await
+    broadcast_agui_event(ctx.user_id(), event, ctx.auth_token().as_str()).await
 }

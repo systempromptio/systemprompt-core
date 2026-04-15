@@ -129,7 +129,7 @@ fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) ->
         },
     }
 
-    shared_config.remove_tenant(&tenant.id);
+    shared_config.remove_tenant(tenant.id.as_str());
     save_shared_config(&shared_config)?;
 
     if shared_config.tenant_databases.is_empty() {

@@ -21,11 +21,13 @@ impl ContextService {
         })
     }
 
-    pub async fn load_conversation_history(&self, context_id: &str) -> Result<Vec<AiMessage>> {
-        let context_id_typed = systemprompt_identifiers::ContextId::new(context_id);
+    pub async fn load_conversation_history(
+        &self,
+        context_id: &systemprompt_identifiers::ContextId,
+    ) -> Result<Vec<AiMessage>> {
         let tasks = self
             .task_repo
-            .list_tasks_by_context(&context_id_typed)
+            .list_tasks_by_context(context_id)
             .await
             .map_err(|e| anyhow!("Failed to load conversation history: {}", e))?;
 

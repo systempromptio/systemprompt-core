@@ -10,8 +10,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {
-    #[arg(help = "Session ID to end (optional if using --user --all)")]
-    pub session_id: Option<String>,
+    #[arg(value_name = "SESSION_ID", help = "Session ID to end (optional if using --user --all)")]
+    pub session: Option<String>,
 
     #[arg(
         long,
@@ -64,7 +64,7 @@ pub async fn execute(
         return Ok(CommandResult::text(output).with_title("Sessions Ended"));
     }
 
-    let session_id_str = args.session_id.ok_or_else(|| {
+    let session_id_str = args.session.ok_or_else(|| {
         anyhow!("Session ID is required (or use --user --all to end all sessions for a user)")
     })?;
 

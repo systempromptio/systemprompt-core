@@ -111,9 +111,8 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         let create_artifact = CreateMcpArtifact {
             artifact_id: artifact_id.clone(),
             mcp_execution_id: exec_id,
-            context_id: (!self.ctx.context_id().is_empty())
-                .then(|| self.ctx.context_id().to_string()),
-            user_id: (!self.ctx.user_id().is_anonymous()).then(|| self.ctx.user_id().to_string()),
+            context_id: (!self.ctx.context_id().is_empty()).then(|| self.ctx.context_id().clone()),
+            user_id: (!self.ctx.user_id().is_anonymous()).then(|| self.ctx.user_id().clone()),
             server_name: tool_name,
             artifact_type: artifact_type_str,
             title,

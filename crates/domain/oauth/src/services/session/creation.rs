@@ -40,12 +40,7 @@ impl SessionCreationService {
             secret: params.jwt_secret,
             issuer: &config.jwt_issuer,
         };
-        let token = generate_anonymous_jwt(
-            user_id.as_str(),
-            session_id.as_str(),
-            params.client_id,
-            &signing,
-        )?;
+        let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)?;
 
         self.publish_event(UserEvent::UserCreated {
             user_id: user_id.to_string(),

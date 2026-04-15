@@ -145,7 +145,7 @@ pub async fn process_events(params: ProcessEventsParams) {
     } = params;
 
     let webhook_context =
-        WebhookContext::new(context.user_id().as_str(), context.auth_token().as_str());
+        WebhookContext::new(context.user_id().clone(), context.auth_token().as_str());
 
     emit_run_started(EmitRunStartedParams {
         tx: &tx,
@@ -164,7 +164,7 @@ pub async fn process_events(params: ProcessEventsParams) {
     while let Some(event) = chunk_rx.recv().await {
         match event {
             StreamEvent::Text(text) => {
-                text_state.handle_text(text, message_id.as_str()).await;
+                text_state.handle_text(text, &message_id).await;
             },
             StreamEvent::ToolCallStarted(tool_call) => {
                 let tool_call_id = tool_call.ai_tool_call_id.as_str();
@@ -211,7 +211,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 full_text,
                 artifacts,
             } => {
-                text_state.finalize(message_id.as_str()).await;
+                text_state.finalize(&message_id).await;
 
                 let complete_params = HandleCompleteParams {
                     tx: &tx,
@@ -252,7 +252,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 break;
             },
             StreamEvent::Error(error) => {
-                text_state.finalize(message_id.as_str()).await;
+                text_state.finalize(&message_id).await;
                 handle_error(HandleErrorParams {
                     tx: &tx,
                     webhook_context: &webhook_context,

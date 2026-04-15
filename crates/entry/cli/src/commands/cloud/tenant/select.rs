@@ -51,8 +51,8 @@ pub fn select_tenant(tenants: &[StoredTenant]) -> Result<&StoredTenant> {
     Ok(&tenants[selection])
 }
 
-pub fn resolve_tenant_id(tenant_id: Option<String>) -> Result<TenantId> {
-    if let Some(id) = tenant_id {
+pub fn resolve_tenant_id(tenant: Option<String>) -> Result<TenantId> {
+    if let Some(id) = tenant {
         return Ok(TenantId::new(id));
     }
 

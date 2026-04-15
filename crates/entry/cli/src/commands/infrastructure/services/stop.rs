@@ -161,12 +161,12 @@ async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
 
 pub async fn execute_individual_agent(
     ctx: &Arc<AppContext>,
-    agent_id: &str,
+    agent: &str,
     force: bool,
     config: &CliConfig,
 ) -> Result<CommandResult<StopIndividualOutput>> {
     if !config.is_json_output() {
-        CliService::section(&format!("Stopping Agent: {}", agent_id));
+        CliService::section(&format!("Stopping Agent: {}", agent));
     }
 
     let jwt_provider = Arc::new(
@@ -181,7 +181,7 @@ pub async fn execute_individual_agent(
         .await
         .context("Failed to initialize agent orchestrator")?;
 
-    let name = resolve_agent_name(agent_id).await?;
+    let name = resolve_agent_name(agent).await?;
 
     if force {
         orchestrator.delete_agent(&name).await?;
@@ -189,14 +189,14 @@ pub async fn execute_individual_agent(
         orchestrator.disable_agent(&name).await?;
     }
 
-    let message = format!("Agent {} stopped successfully", agent_id);
+    let message = format!("Agent {} stopped successfully", agent);
     if !config.is_json_output() {
         CliService::success(&message);
     }
 
     let output = StopIndividualOutput {
         service_type: "agent".to_string(),
-        service_name: agent_id.to_string(),
+        service_name: agent.to_string(),
         stopped: true,
         message,
     };

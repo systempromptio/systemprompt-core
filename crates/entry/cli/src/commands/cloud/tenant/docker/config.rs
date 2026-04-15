@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use systemprompt_cloud::ProjectContext;
+use systemprompt_identifiers::TenantId;
 
 pub const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
 pub const SHARED_ADMIN_USER: &str = "systemprompt_admin";
@@ -20,7 +21,7 @@ pub struct SharedContainerConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TenantDatabaseMapping {
-    pub tenant_id: String,
+    pub tenant_id: TenantId,
     pub database_name: String,
 }
 
@@ -34,17 +35,17 @@ impl SharedContainerConfig {
         }
     }
 
-    pub fn add_tenant(&mut self, tenant_id: String, database_name: String) {
+    pub fn add_tenant(&mut self, tenant: TenantId, database_name: String) {
         self.tenant_databases.push(TenantDatabaseMapping {
-            tenant_id,
+            tenant_id: tenant,
             database_name,
         });
     }
 
-    pub fn remove_tenant(&mut self, tenant_id: &str) -> Option<TenantDatabaseMapping> {
+    pub fn remove_tenant(&mut self, tenant: &str) -> Option<TenantDatabaseMapping> {
         self.tenant_databases
             .iter()
-            .position(|t| t.tenant_id == tenant_id)
+            .position(|t| t.tenant_id == tenant)
             .map(|pos| self.tenant_databases.remove(pos))
     }
 }

@@ -15,8 +15,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Artifact ID (full or partial prefix)")]
-    pub artifact_id: String,
+    #[arg(value_name = "ARTIFACT_ID", help = "Artifact ID (full or partial prefix)")]
+    pub artifact: String,
 
     #[arg(long, help = "Show full content without truncation")]
     pub full: bool,
@@ -38,13 +38,13 @@ pub async fn execute_with_pool(
 ) -> Result<CommandResult<ArtifactSummary>> {
     let repo = ArtifactRepository::new(pool)?;
 
-    let artifact_id = resolve_artifact_id(&args.artifact_id, &repo).await?;
+    let artifact_id = resolve_artifact_id(&args.artifact, &repo).await?;
 
     let artifact = repo
         .get_artifact_by_id(&artifact_id)
         .await
         .context("Failed to fetch artifact")?
-        .ok_or_else(|| anyhow::anyhow!("Artifact not found: {}", args.artifact_id))?;
+        .ok_or_else(|| anyhow::anyhow!("Artifact not found: {}", args.artifact))?;
 
     let parts: Vec<ArtifactPartOutput> = artifact
         .parts

@@ -134,18 +134,8 @@ pub async fn get_tasks_by_user_id(
 
 #[derive(Debug, Clone)]
 pub struct TaskContextInfo {
-    pub context_id: String,
-    pub user_id: String,
-}
-
-impl TaskContextInfo {
-    pub fn context_id(&self) -> ContextId {
-        ContextId::new(&self.context_id)
-    }
-
-    pub fn user_id(&self) -> UserId {
-        UserId::new(&self.user_id)
-    }
+    pub context_id: ContextId,
+    pub user_id: UserId,
 }
 
 pub async fn get_task_context_info(
@@ -155,8 +145,8 @@ pub async fn get_task_context_info(
     let task_id_str = task_id.as_str();
     let row = sqlx::query!(
         r#"SELECT
-            context_id as "context_id!",
-            user_id
+            context_id as "context_id!: ContextId",
+            user_id as "user_id?: UserId"
         FROM agent_tasks WHERE task_id = $1"#,
         task_id_str
     )
@@ -166,6 +156,6 @@ pub async fn get_task_context_info(
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,
-        user_id: r.user_id.unwrap_or_else(String::new),
+        user_id: r.user_id.unwrap_or_else(|| UserId::new("")),
     }))
 }

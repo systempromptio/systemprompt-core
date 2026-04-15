@@ -83,8 +83,8 @@ impl Job for ContentSyncJob {
 
             all_diffs.push(ContentDiffEntry {
                 name,
-                source_id: source.source_id.to_string(),
-                category_id: source.category_id.to_string(),
+                source_id: source.source_id.clone(),
+                category_id: source.category_id.clone(),
                 path: source_path,
                 allowed_content_types: source.allowed_content_types.clone(),
                 diff,

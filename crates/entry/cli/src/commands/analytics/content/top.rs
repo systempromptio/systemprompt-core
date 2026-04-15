@@ -61,10 +61,10 @@ async fn execute_internal(
     let content: Vec<TopContentRow> = rows
         .into_iter()
         .map(|row| TopContentRow {
-            content_id: row.content_id.to_string(),
+            content: row.content_id.to_string(),
             slug: row.slug.unwrap_or_default(),
             title: row.title.unwrap_or_default(),
-            source: row.source_id.unwrap_or_default(),
+            source: row.source_id.map(|s| s.to_string()).unwrap_or_default(),
             views: row.total_views,
             unique_visitors: row.unique_visitors,
             avg_time_seconds: row.avg_time_on_page_seconds.map_or(0, |v| v as i64),

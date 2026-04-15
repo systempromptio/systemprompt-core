@@ -22,8 +22,8 @@ impl AnalyticsEventsRepository {
 
     pub async fn create_event(
         &self,
-        session_id: &str,
-        user_id: &str,
+        session_id: &SessionId,
+        user_id: &UserId,
         input: &CreateAnalyticsEventInput,
     ) -> Result<AnalyticsEventCreated> {
         let id = format!("evt_{}", uuid::Uuid::new_v4());
@@ -41,8 +41,8 @@ impl AnalyticsEventsRepository {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
             id,
-            user_id,
-            session_id,
+            user_id.as_str(),
+            session_id.as_str(),
             event_type,
             event_category,
             "info",
@@ -60,8 +60,8 @@ impl AnalyticsEventsRepository {
 
     pub async fn create_events_batch(
         &self,
-        session_id: &str,
-        user_id: &str,
+        session_id: &SessionId,
+        user_id: &UserId,
         inputs: &[CreateAnalyticsEventInput],
     ) -> Result<Vec<AnalyticsEventCreated>> {
         if inputs.is_empty() {
@@ -80,8 +80,8 @@ impl AnalyticsEventsRepository {
         for input in inputs {
             let id = format!("evt_{}", uuid::Uuid::new_v4());
             ids.push(id);
-            user_ids.push(user_id.to_string());
-            session_ids.push(session_id.to_string());
+            user_ids.push(user_id.as_str().to_string());
+            session_ids.push(session_id.as_str().to_string());
             event_types.push(input.event_type.as_str().to_string());
             event_categories.push(input.event_type.category().to_string());
             severities.push("info".to_string());
@@ -115,7 +115,7 @@ impl AnalyticsEventsRepository {
 
     pub async fn count_events_by_type(
         &self,
-        session_id: &str,
+        session_id: &SessionId,
         event_type: &AnalyticsEventType,
     ) -> Result<i64> {
         let count = sqlx::query_scalar!(
@@ -124,7 +124,7 @@ impl AnalyticsEventsRepository {
             FROM analytics_events
             WHERE session_id = $1 AND event_type = $2
             "#,
-            session_id,
+            session_id.as_str(),
             event_type.as_str()
         )
         .fetch_one(&*self.pool)
@@ -135,7 +135,7 @@ impl AnalyticsEventsRepository {
 
     pub async fn find_by_session(
         &self,
-        session_id: &str,
+        session_id: &SessionId,
         limit: i64,
     ) -> Result<Vec<StoredAnalyticsEvent>> {
         let events = sqlx::query_as!(
@@ -155,7 +155,7 @@ impl AnalyticsEventsRepository {
             ORDER BY timestamp DESC
             LIMIT $2
             "#,
-            session_id,
+            session_id.as_str(),
             limit
         )
         .fetch_all(&*self.pool)

@@ -4,6 +4,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
+use systemprompt_identifiers::{ContentId, SourceId};
+
 use crate::models::cli::{ContentStatsRow, ContentTrendRow, TopContentRow};
 
 #[derive(Debug)]
@@ -40,10 +42,10 @@ impl ContentAnalyticsRepository {
                 GROUP BY ee.content_id
             )
             SELECT
-                cs.content_id as "content_id!",
+                cs.content_id as "content_id!: ContentId",
                 mc.slug as "slug?",
                 mc.title as "title?",
-                mc.source_id as "source_id?",
+                mc.source_id as "source_id?: SourceId",
                 cs.total_views as "total_views!",
                 cs.unique_visitors as "unique_visitors!",
                 cs.avg_time_on_page_seconds::float8 as "avg_time_on_page_seconds",

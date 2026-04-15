@@ -135,7 +135,8 @@ pub struct TenantCreateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RotateCredentialsOutput {
-    pub tenant_id: String,
+    #[serde(rename = "tenant_id")]
+    pub tenant: String,
     pub status: String,
     pub internal_database_url: String,
     pub external_database_url: String,
@@ -143,7 +144,8 @@ pub struct RotateCredentialsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RotateSyncTokenOutput {
-    pub tenant_id: String,
+    #[serde(rename = "tenant_id")]
+    pub tenant: String,
     pub status: String,
     pub message: String,
 }
@@ -252,7 +254,8 @@ pub struct InitOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CancelSubscriptionOutput {
-    pub tenant_id: String,
+    #[serde(rename = "tenant_id")]
+    pub tenant: String,
     pub tenant_name: String,
     pub message: String,
 }

@@ -9,7 +9,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct AssignArgs {
-    pub user_id: String,
+    #[arg(value_name = "USER_ID")]
+    pub user: String,
 
     #[arg(long, value_delimiter = ',')]
     pub roles: Vec<String>,
@@ -27,9 +28,9 @@ pub async fn execute(
         return Err(anyhow!("At least one role must be specified"));
     }
 
-    let existing = admin_service.find_user(&args.user_id).await?;
+    let existing = admin_service.find_user(&args.user).await?;
     let Some(existing_user) = existing else {
-        return Err(anyhow!("User not found: {}", args.user_id));
+        return Err(anyhow!("User not found: {}", args.user));
     };
 
     let user = user_service

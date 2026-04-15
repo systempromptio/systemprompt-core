@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{SessionId, UserId};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -65,9 +66,9 @@ pub struct ImageGenerationRequest {
     #[serde(default)]
     pub enable_search_grounding: bool,
     #[serde(default)]
-    pub user_id: Option<String>,
+    pub user_id: Option<UserId>,
     #[serde(default)]
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
     #[serde(default)]
     pub trace_id: Option<String>,
     #[serde(default)]
@@ -146,8 +147,8 @@ pub struct GeneratedImageRecord {
     pub aspect_ratio: Option<String>,
     pub generation_time_ms: Option<i32>,
     pub cost_estimate: Option<f32>,
-    pub user_id: Option<String>,
-    pub session_id: Option<String>,
+    pub user_id: Option<UserId>,
+    pub session_id: Option<SessionId>,
     pub trace_id: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,

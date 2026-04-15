@@ -1,3 +1,4 @@
+use systemprompt_identifiers::TaskId;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -22,7 +23,7 @@ pub enum TaskError {
     MissingTaskUuid,
 
     #[error("Agent name not found for task {task_id}")]
-    MissingAgentName { task_id: String },
+    MissingAgentName { task_id: TaskId },
 
     #[error("Context ID missing from database row")]
     MissingContextId,

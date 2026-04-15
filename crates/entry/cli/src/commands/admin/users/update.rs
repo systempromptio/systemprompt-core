@@ -10,7 +10,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
-    pub user_id: String,
+    #[arg(value_name = "USER_ID")]
+    pub user: String,
 
     #[arg(long)]
     pub email: Option<String>,
@@ -36,9 +37,9 @@ pub async fn execute(
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
 
-    let existing = admin_service.find_user(&args.user_id).await?;
+    let existing = admin_service.find_user(&args.user).await?;
     let Some(mut user) = existing else {
-        return Err(anyhow!("User not found: {}", args.user_id));
+        return Err(anyhow!("User not found: {}", args.user));
     };
     let user_id = user.id.clone();
 

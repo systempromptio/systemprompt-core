@@ -51,7 +51,7 @@ pub async fn generate_tokens_by_user_id(
         create_jwt_and_refresh_token(repo, &user, final_permissions, &session_id, &params).await?;
 
     if let Err(e) = repo
-        .update_client_last_used(params.client_id.as_str())
+        .update_client_last_used(&params.client_id)
         .await
     {
         tracing::warn!(
@@ -74,7 +74,7 @@ pub async fn load_authenticated_user(
     repo: &OAuthRepository,
     user_id: &UserId,
 ) -> Result<AuthenticatedUser> {
-    repo.get_authenticated_user(user_id.as_str()).await
+    repo.get_authenticated_user(user_id).await
 }
 
 pub async fn generate_client_tokens(
@@ -92,7 +92,7 @@ pub async fn generate_client_tokens(
     let requested_permissions = parse_permissions(scope_str)?;
 
     let client = repo
-        .find_client_by_id(client_id.as_str())
+        .find_client_by_id(client_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 

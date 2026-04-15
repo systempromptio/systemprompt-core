@@ -1,15 +1,17 @@
 use super::ClientRepository;
 use crate::models::{OAuthClient, OAuthClientRow};
 use anyhow::Result;
+use systemprompt_identifiers::ClientId;
 
 impl ClientRepository {
-    pub async fn get_by_client_id(&self, client_id: &str) -> Result<Option<OAuthClient>> {
+    pub async fn get_by_client_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
+        let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     client_uri, logo_uri, is_active, created_at, updated_at, last_used_at
              FROM oauth_clients WHERE client_id = $1 AND is_active = true",
-            client_id
+            client_id_str
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -23,13 +25,14 @@ impl ClientRepository {
         }
     }
 
-    pub async fn get_by_client_id_any(&self, client_id: &str) -> Result<Option<OAuthClient>> {
+    pub async fn get_by_client_id_any(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
+        let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     client_uri, logo_uri, is_active, created_at, updated_at, last_used_at
              FROM oauth_clients WHERE client_id = $1",
-            client_id
+            client_id_str
         )
         .fetch_optional(&*self.pool)
         .await?;

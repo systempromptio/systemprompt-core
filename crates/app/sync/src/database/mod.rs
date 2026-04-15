@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::prelude::FromRow;
+use systemprompt_identifiers::{ContextId, SessionId, SkillId, SourceId, UserId};
 
 use crate::error::SyncResult;
 use crate::{SyncDirection, SyncOperationResult};
@@ -37,7 +38,7 @@ pub struct UserExport {
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct SkillExport {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub file_path: String,
     pub name: String,
     pub description: String,
@@ -45,16 +46,16 @@ pub struct SkillExport {
     pub enabled: bool,
     pub tags: Option<Vec<String>>,
     pub category_id: Option<String>,
-    pub source_id: String,
+    pub source_id: SourceId,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct ContextExport {
-    pub context_id: String,
-    pub user_id: String,
-    pub session_id: Option<String>,
+    pub context_id: ContextId,
+    pub user_id: UserId,
+    pub session_id: Option<SessionId>,
     pub name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -152,8 +153,11 @@ async fn export_from_database(database_url: &str) -> SyncResult<DatabaseExport> 
 
     let skills = sqlx::query_as!(
         SkillExport,
-        r#"SELECT skill_id, file_path, name, description, instructions, enabled,
-                  tags, category_id, source_id, created_at, updated_at
+        r#"SELECT skill_id as "skill_id!: SkillId",
+                  file_path, name, description, instructions, enabled,
+                  tags, category_id,
+                  source_id as "source_id!: SourceId",
+                  created_at, updated_at
            FROM agent_skills"#
     )
     .fetch_all(&pool)
@@ -161,7 +165,10 @@ async fn export_from_database(database_url: &str) -> SyncResult<DatabaseExport> 
 
     let contexts = sqlx::query_as!(
         ContextExport,
-        r#"SELECT context_id, user_id, session_id, name, created_at, updated_at
+        r#"SELECT context_id as "context_id!: ContextId",
+                  user_id as "user_id!: UserId",
+                  session_id as "session_id: SessionId",
+                  name, created_at, updated_at
            FROM user_contexts"#
     )
     .fetch_all(&pool)

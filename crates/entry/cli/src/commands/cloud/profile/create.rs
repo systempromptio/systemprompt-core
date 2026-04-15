@@ -47,7 +47,7 @@ pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
         TenantStore::default()
     });
 
-    let (tenant, api_keys) = if config.is_interactive() && args.tenant_id.is_none() {
+    let (tenant, api_keys) = if config.is_interactive() && args.tenant.is_none() {
         let tenant_type = select_tenant_type(&store)?;
         let eligible_tenants = get_tenants_by_type(&store, tenant_type);
         let tenant = select_tenant(&eligible_tenants)?;

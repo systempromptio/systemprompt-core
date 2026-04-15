@@ -24,8 +24,8 @@ pub struct CreateArgs {
     #[arg(long, help = "Content path (relative to services)")]
     pub path: Option<String>,
 
-    #[arg(long, help = "Source ID")]
-    pub source_id: Option<String>,
+    #[arg(long = "source-id", help = "Source ID")]
+    pub source: Option<String>,
 
     #[arg(long, help = "Category ID")]
     pub category_id: Option<String>,
@@ -66,7 +66,7 @@ pub fn execute(
     }
 
     let path = resolve_required(args.path, "path", config, || prompt_path(&name))?;
-    let source_id = resolve_required(args.source_id, "source-id", config, || {
+    let source_id = resolve_required(args.source, "source-id", config, || {
         prompt_source_id(&name)
     })?;
     let category_id = resolve_required(args.category_id, "category-id", config, || {

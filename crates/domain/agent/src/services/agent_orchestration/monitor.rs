@@ -24,9 +24,9 @@ impl AgentMonitor {
 
     pub async fn comprehensive_health_check(
         &self,
-        agent_id: &str,
+        agent_name: &str,
     ) -> OrchestrationResult<HealthCheckResult> {
-        let status = self.db_service.get_status(agent_id).await?;
+        let status = self.db_service.get_status(agent_name).await?;
 
         match status {
             crate::services::agent_orchestration::AgentStatus::Running { pid, port } => {
@@ -49,7 +49,7 @@ impl AgentMonitor {
             },
             crate::services::agent_orchestration::AgentStatus::Failed { .. } => Ok(HealthCheckResult {
                 healthy: false,
-                message: format!("Agent {} not in running state", agent_id),
+                message: format!("Agent {} not in running state", agent_name),
                 response_time_ms: 0,
             }),
         }
@@ -161,8 +161,8 @@ impl MonitoringReport {
     }
 }
 
-pub async fn check_agent_health(agent_id: &str) -> Result<HealthCheckResult> {
-    let port = get_agent_port_simple(agent_id);
+pub async fn check_agent_health(agent_name: &str) -> Result<HealthCheckResult> {
+    let port = get_agent_port_simple(agent_name);
     perform_tcp_health_check("127.0.0.1", port).await
 }
 
@@ -201,8 +201,8 @@ async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckRe
     }
 }
 
-fn get_agent_port_simple(agent_id: &str) -> u16 {
-    let port_str = agent_id
+fn get_agent_port_simple(agent_name: &str) -> u16 {
+    let port_str = agent_name
         .chars()
         .filter(char::is_ascii_digit)
         .collect::<String>();
@@ -215,8 +215,8 @@ fn get_agent_port_simple(agent_id: &str) -> u16 {
     8000 + (port_num % 1000)
 }
 
-pub async fn check_agent_responsiveness(agent_id: &str, timeout_secs: u64) -> Result<bool> {
-    let port = get_agent_port_simple(agent_id);
+pub async fn check_agent_responsiveness(agent_name: &str, timeout_secs: u64) -> Result<bool> {
+    let port = get_agent_port_simple(agent_name);
     let address = format!("127.0.0.1:{port}");
 
     match timeout(
@@ -226,15 +226,15 @@ pub async fn check_agent_responsiveness(agent_id: &str, timeout_secs: u64) -> Re
     .await
     {
         Ok(Ok(_)) => {
-            tracing::trace!(agent_id = %agent_id, "Agent is responsive");
+            tracing::trace!(agent_name = %agent_name, "Agent is responsive");
             Ok(true)
         },
         Ok(Err(e)) => {
-            tracing::debug!(agent_id = %agent_id, error = %e, "Agent connection failed");
+            tracing::debug!(agent_name = %agent_name, error = %e, "Agent connection failed");
             Ok(false)
         },
         Err(_) => {
-            tracing::debug!(agent_id = %agent_id, timeout_secs = %timeout_secs, "Agent connection timeout");
+            tracing::debug!(agent_name = %agent_name, timeout_secs = %timeout_secs, "Agent connection timeout");
             Ok(false)
         },
     }

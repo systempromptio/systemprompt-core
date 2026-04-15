@@ -59,7 +59,7 @@ async fn construct_task_from_row(
     constructor: &TaskConstructor,
     row: &TaskRow,
 ) -> Result<Task, RepositoryError> {
-    let task_id = TaskId::new(&row.task_id);
+    let task_id = row.task_id.clone();
 
     let history = load_task_messages(constructor, &task_id).await?;
     let artifacts = load_task_artifacts(constructor, &task_id).await?;
@@ -126,7 +126,7 @@ async fn load_task_messages(
 
     let mut messages = Vec::new();
     for msg_row in message_rows {
-        let parts = load_message_parts(constructor, msg_row.message_id.as_str(), task_id).await?;
+        let parts = load_message_parts(constructor, &msg_row.message_id, task_id).await?;
         let message = build_message_from_row(msg_row, parts);
         messages.push(message);
     }
@@ -136,11 +136,12 @@ async fn load_task_messages(
 
 async fn load_message_parts(
     constructor: &TaskConstructor,
-    message_id: &str,
+    message_id: &MessageId,
     task_id: &TaskId,
 ) -> Result<Vec<Part>, RepositoryError> {
     let pool = constructor.pool();
     let task_id_str = task_id.as_str();
+    let message_id_str = message_id.as_str();
 
     let part_rows: Vec<MessagePart> = sqlx::query_as!(
         MessagePart,
@@ -158,7 +159,7 @@ async fn load_message_parts(
             data_content,
             metadata
         FROM message_parts WHERE message_id = $1 AND task_id = $2 ORDER BY sequence_number ASC"#,
-        message_id,
+        message_id_str,
         task_id_str
     )
     .fetch_all(pool.as_ref())

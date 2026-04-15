@@ -1,6 +1,7 @@
 use crate::services::skills::{SkillMetadata, SkillService};
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Debug)]
@@ -15,7 +16,7 @@ impl SkillInjector {
 
     pub async fn inject_for_tool(
         &self,
-        skill_id: Option<&str>,
+        skill_id: Option<&SkillId>,
         base_prompt: String,
         ctx: &RequestContext,
     ) -> Result<String> {
@@ -35,13 +36,13 @@ impl SkillInjector {
         }
     }
 
-    pub async fn get_metadata(&self, skill_id: &str) -> Result<SkillMetadata> {
+    pub async fn get_metadata(&self, skill_id: &SkillId) -> Result<SkillMetadata> {
         self.skill_service.load_skill_metadata(skill_id).await
     }
 
     pub async fn inject_with_metadata(
         &self,
-        skill_id: &str,
+        skill_id: &SkillId,
         base_prompt: String,
         ctx: &RequestContext,
     ) -> Result<(String, SkillMetadata)> {

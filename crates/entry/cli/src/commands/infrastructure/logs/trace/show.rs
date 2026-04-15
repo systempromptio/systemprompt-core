@@ -273,7 +273,7 @@ fn build_trace_output(
             failed: summaries.step.failed,
             pending: summaries.step.pending,
         },
-        task_id: task_id.map(|t| t.as_str().to_string()),
+        task: task_id.map(|t| t.as_str().to_string()),
         duration_ms,
         status,
     }

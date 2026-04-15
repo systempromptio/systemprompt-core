@@ -9,7 +9,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    pub user_id: String,
+    #[arg(value_name = "USER_ID")]
+    pub user: String,
 
     #[arg(short = 'y', long)]
     pub yes: bool,
@@ -29,9 +30,9 @@ pub async fn execute(
         ));
     }
 
-    let existing = admin_service.find_user(&args.user_id).await?;
+    let existing = admin_service.find_user(&args.user).await?;
     let Some(user) = existing else {
-        return Err(anyhow!("User not found: {}", args.user_id));
+        return Err(anyhow!("User not found: {}", args.user));
     };
 
     user_service.delete(&user.id).await?;

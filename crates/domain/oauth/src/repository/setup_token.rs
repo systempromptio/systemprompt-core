@@ -1,6 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -39,7 +40,7 @@ impl std::str::FromStr for SetupTokenPurpose {
 
 #[derive(Debug)]
 pub struct CreateSetupTokenParams {
-    pub user_id: String,
+    pub user_id: UserId,
     pub token_hash: String,
     pub purpose: SetupTokenPurpose,
     pub expires_at: DateTime<Utc>,
@@ -48,7 +49,7 @@ pub struct CreateSetupTokenParams {
 #[derive(Debug, Clone)]
 pub struct SetupTokenRecord {
     pub id: String,
-    pub user_id: String,
+    pub user_id: UserId,
     pub purpose: SetupTokenPurpose,
     pub expires_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
@@ -66,13 +67,14 @@ impl crate::repository::OAuthRepository {
     pub async fn store_setup_token(&self, params: CreateSetupTokenParams) -> Result<String> {
         let id = uuid::Uuid::new_v4().to_string();
 
+        let user_id_str = params.user_id.as_str();
         sqlx::query!(
             r#"
             INSERT INTO webauthn_setup_tokens (id, user_id, token_hash, purpose, expires_at)
             VALUES ($1, $2, $3, $4, $5)
             "#,
             id,
-            params.user_id,
+            user_id_str,
             params.token_hash,
             params.purpose.as_str(),
             params.expires_at
@@ -109,7 +111,7 @@ impl crate::repository::OAuthRepository {
 
                 Ok(TokenValidationResult::Valid(SetupTokenRecord {
                     id: r.id,
-                    user_id: r.user_id,
+                    user_id: UserId::new(r.user_id),
                     purpose,
                     expires_at: r.expires_at,
                     created_at: r.created_at,
@@ -149,14 +151,15 @@ impl crate::repository::OAuthRepository {
         Ok(rows_affected)
     }
 
-    pub async fn revoke_user_setup_tokens(&self, user_id: &str) -> Result<u64> {
+    pub async fn revoke_user_setup_tokens(&self, user_id: &UserId) -> Result<u64> {
+        let user_id_str = user_id.as_str();
         let rows_affected = sqlx::query!(
             r#"
             UPDATE webauthn_setup_tokens
             SET used_at = CURRENT_TIMESTAMP
             WHERE user_id = $1 AND used_at IS NULL
             "#,
-            user_id
+            user_id_str
         )
         .execute(self.write_pool_ref())
         .await?

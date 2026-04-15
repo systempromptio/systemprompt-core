@@ -78,8 +78,8 @@ async fn execute_start(
                 .context("Failed to initialize application context")?,
         );
         return match individual {
-            StartTarget::Agent { agent_id } => {
-                start::execute_individual_agent(&ctx, &agent_id, config).await
+            StartTarget::Agent { agent } => {
+                start::execute_individual_agent(&ctx, &agent, config).await
             },
             StartTarget::Mcp { server_name } => {
                 start::execute_individual_mcp(&ctx, &server_name, config).await
@@ -115,9 +115,9 @@ async fn execute_stop(
                 .context("Failed to initialize application context")?,
         );
         return match individual {
-            StopTarget::Agent { agent_id, force } => {
+            StopTarget::Agent { agent, force } => {
                 let result =
-                    stop::execute_individual_agent(&ctx, &agent_id, force, config).await?;
+                    stop::execute_individual_agent(&ctx, &agent, force, config).await?;
                 render_result(&result);
                 Ok(())
             },
@@ -162,8 +162,8 @@ async fn execute_restart(
     } else {
         match target {
             Some(RestartTarget::Api) => restart::execute_api(config).await?,
-            Some(RestartTarget::Agent { agent_id }) => {
-                restart::execute_agent(&ctx, &agent_id, config).await?
+            Some(RestartTarget::Agent { agent }) => {
+                restart::execute_agent(&ctx, &agent, config).await?
             },
             Some(RestartTarget::Mcp { server_name, build }) => {
                 restart::execute_mcp(&ctx, &server_name, build, config).await?

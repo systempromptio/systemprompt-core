@@ -31,8 +31,8 @@ impl From<FileRoleArg> for FileRole {
 
 #[derive(Debug, Clone, Args)]
 pub struct LinkArgs {
-    #[arg(help = "File ID")]
-    pub file_id: String,
+    #[arg(value_name = "FILE_ID", help = "File ID")]
+    pub file: String,
 
     #[arg(long, help = "Content ID")]
     pub content: String,
@@ -51,7 +51,7 @@ pub async fn execute(
     let ctx = AppContext::new().await?;
     let service = ContentService::new(ctx.db_pool())?;
 
-    let file_id = FileId::new(args.file_id.clone());
+    let file_id = FileId::new(args.file.clone());
     let content_id = ContentId::new(args.content.clone());
     let role: FileRole = args.role.into();
 

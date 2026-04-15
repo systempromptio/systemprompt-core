@@ -34,7 +34,7 @@ pub async fn execute(
     let expires_at = Utc::now() + Duration::minutes(i64::from(args.expires_minutes));
 
     let params = CreateSetupTokenParams {
-        user_id: user.id.to_string(),
+        user_id: user.id,
         token_hash,
         purpose: SetupTokenPurpose::CredentialLink,
         expires_at,

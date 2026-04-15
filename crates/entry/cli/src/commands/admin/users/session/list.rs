@@ -10,7 +10,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
-    pub user_id: String,
+    #[arg(value_name = "USER_ID")]
+    pub user: String,
 
     #[arg(long)]
     pub active: bool,
@@ -35,9 +36,9 @@ pub async fn execute_with_pool(
     let user_service = UserService::new(pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
-    let existing = admin_service.find_user(&args.user_id).await?;
+    let existing = admin_service.find_user(&args.user).await?;
     let Some(user) = existing else {
-        return Err(anyhow!("User not found: {}", args.user_id));
+        return Err(anyhow!("User not found: {}", args.user));
     };
 
     let sessions = if args.active {

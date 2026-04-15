@@ -67,22 +67,22 @@ pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutp
 
 pub async fn execute_agent(
     ctx: &Arc<AppContext>,
-    agent_id: &str,
+    agent: &str,
     config: &CliConfig,
 ) -> Result<CommandResult<RestartOutput>> {
     let quiet = config.is_json_output();
 
     if !quiet {
-        CliService::section(&format!("Restarting Agent: {}", agent_id));
+        CliService::section(&format!("Restarting Agent: {}", agent));
     }
 
     let orchestrator = super::create_orchestrator(ctx).await?;
-    let name = super::resolve_name(agent_id).await?;
+    let name = super::resolve_name(agent).await?;
     let service_id = orchestrator.restart_agent(&name, None).await?;
 
     let message = format!(
         "Agent {} restarted successfully (service ID: {})",
-        agent_id, service_id
+        agent, service_id
     );
     if !quiet {
         CliService::success(&message);
@@ -90,7 +90,7 @@ pub async fn execute_agent(
 
     let output = RestartOutput {
         service_type: "agent".to_string(),
-        service_name: Some(agent_id.to_string()),
+        service_name: Some(agent.to_string()),
         restarted_count: 1,
         failed_count: 0,
         message,

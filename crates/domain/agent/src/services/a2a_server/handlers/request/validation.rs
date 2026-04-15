@@ -4,14 +4,15 @@ use systemprompt_identifiers::UserId;
 
 pub async fn validate_message_context(
     message: &crate::models::a2a::Message,
-    user_id: Option<&str>,
+    user_id: Option<&UserId>,
     db_pool: &systemprompt_database::DbPool,
 ) -> Result<(), String> {
     let context_id = &message.context_id;
 
-    let user_id_str =
+    let user_id =
         user_id.ok_or_else(|| "User authentication required for message processing".to_string())?;
 
+    let user_id_str = user_id.as_str();
     if user_id_str == "missing-user-id" || user_id_str.is_empty() {
         return Err(
             "Authentication required: x-user-id header must be set by API proxy after JWT \
@@ -20,11 +21,10 @@ pub async fn validate_message_context(
         );
     }
 
-    let user_id = UserId::new(user_id_str.to_string());
     let context_repo = crate::repository::ContextRepository::new(db_pool)
         .map_err(|e| format!("Failed to create context repository: {e}"))?;
     context_repo
-        .validate_context_ownership(context_id, &user_id)
+        .validate_context_ownership(context_id, user_id)
         .await
         .map_err(|e| format!("Context validation failed: {e}"))?;
 

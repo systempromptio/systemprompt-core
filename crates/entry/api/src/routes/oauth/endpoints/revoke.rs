@@ -35,7 +35,7 @@ pub async fn handle_revoke(
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
 ) -> impl IntoResponse {
-    let audit_user = match get_audit_user(Some(req_ctx.auth.user_id.as_str())) {
+    let audit_user = match get_audit_user(Some(&req_ctx.auth.user_id)) {
         Ok(user) => user,
         Err(e) => {
             let error = RevokeError {
@@ -54,8 +54,9 @@ pub async fn handle_revoke(
         .unwrap_or("not_specified");
     let token_hash = hash_token(&request.token);
 
-    if let Some(client_id) = &request.client_id {
-        if validate_client_credentials(&repo, client_id, request.client_secret.as_deref())
+    if let Some(client_id_str) = &request.client_id {
+        let client_id = systemprompt_identifiers::ClientId::new(client_id_str.clone());
+        if validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
             .await
             .is_err()
         {

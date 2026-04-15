@@ -123,7 +123,7 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
         SessionKey::Local => Some(RoutingInfo {
             profile_name,
             target: "Local".to_string(),
-            tenant_id: None,
+            tenant: None,
             hostname: None,
         }),
         SessionKey::Tenant(tenant_id) => {
@@ -135,16 +135,16 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
                 } else {
                     "Tenant".to_string()
                 },
-                tenant_id: Some(tenant_id.as_str().to_string()),
+                tenant: Some(tenant_id.as_str().to_string()),
                 hostname,
             })
         },
     }
 }
 
-fn resolve_remote_hostname(paths: &ResolvedPaths, tenant_id: &str) -> Option<String> {
+fn resolve_remote_hostname(paths: &ResolvedPaths, tenant: &str) -> Option<String> {
     let tenants_path = paths.tenants_path();
     let store = TenantStore::load_from_path(&tenants_path).ok()?;
-    let tenant = store.find_tenant(tenant_id)?;
+    let tenant = store.find_tenant(tenant)?;
     tenant.hostname.clone()
 }

@@ -1,22 +1,22 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{ClientId, SessionId, UserId};
 
 #[derive(Debug, Serialize)]
 struct CliSessionRequest {
-    client_id: String,
-    user_id: String,
+    client_id: ClientId,
+    user_id: UserId,
     email: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct CliSessionResponse {
-    session_id: String,
+    session_id: SessionId,
 }
 
 pub(super) async fn request_session_id(
     api_url: &str,
-    user_id: &str,
+    user: &UserId,
     email: &str,
 ) -> Result<SessionId> {
     let client = reqwest::Client::builder()
@@ -30,8 +30,8 @@ pub(super) async fn request_session_id(
     );
 
     let request = CliSessionRequest {
-        client_id: "sp_cli".to_string(),
-        user_id: user_id.to_string(),
+        client_id: ClientId::new("sp_cli"),
+        user_id: user.clone(),
         email: email.to_string(),
     };
 
@@ -56,5 +56,5 @@ pub(super) async fn request_session_id(
         .await
         .context("Failed to parse session response")?;
 
-    Ok(SessionId::new(session_response.session_id))
+    Ok(session_response.session_id)
 }

@@ -68,7 +68,7 @@ impl WebAuthnService {
             existing_creds.iter().map(|c| c.cred_id().clone()).collect();
 
         let user_unique_id =
-            Uuid::parse_str(&token_record.user_id).unwrap_or_else(|_| Uuid::new_v4());
+            Uuid::parse_str(token_record.user_id.as_str()).unwrap_or_else(|_| Uuid::new_v4());
 
         let (challenge, reg_state) = self.webauthn.start_passkey_registration(
             user_unique_id,
@@ -84,7 +84,7 @@ impl WebAuthnService {
         let challenge_id = Uuid::new_v4().to_string();
         let state = LinkRegistrationState {
             reg_state,
-            user_id: UserId::new(token_record.user_id.clone()),
+            user_id: token_record.user_id.clone(),
             token_id: token_record.id.clone(),
             timestamp: Instant::now(),
         };
@@ -95,7 +95,7 @@ impl WebAuthnService {
         }
 
         let user_info = LinkUserInfo {
-            id: token_record.user_id,
+            id: token_record.user_id.to_string(),
             email: user.email,
             name: user.username,
         };
@@ -143,7 +143,7 @@ impl WebAuthnService {
             .webauthn
             .finish_passkey_registration(credential, &state.reg_state)?;
 
-        self.store_credential(state.user_id.as_str(), &passkey, "Linked Passkey")
+        self.store_credential(&state.user_id, &passkey, "Linked Passkey")
             .await?;
 
         self.oauth_repo

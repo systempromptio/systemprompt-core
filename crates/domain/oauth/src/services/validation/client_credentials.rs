@@ -1,12 +1,13 @@
 use crate::repository::OAuthRepository;
 use crate::services::verify_client_secret;
 use anyhow::Result;
+use systemprompt_identifiers::ClientId;
 
 const TIMING_SAFE_DUMMY_HASH: &str = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.VTtYA/7E/fxXwK";
 
 pub async fn validate_client_credentials(
     repo: &OAuthRepository,
-    client_id: &str,
+    client_id: &ClientId,
     client_secret: Option<&str>,
 ) -> Result<()> {
     let client = repo

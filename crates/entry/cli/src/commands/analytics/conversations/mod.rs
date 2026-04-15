@@ -50,7 +50,8 @@ pub struct ConversationTrendsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConversationListRow {
-    pub context_id: String,
+    #[serde(rename = "context_id")]
+    pub context: String,
     pub name: Option<String>,
     pub task_count: i64,
     pub message_count: i64,

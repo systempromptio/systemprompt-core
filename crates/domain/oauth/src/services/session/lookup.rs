@@ -61,7 +61,7 @@ impl SessionCreationService {
             secret: jwt_secret,
             issuer: &config.jwt_issuer,
         };
-        let token = generate_anonymous_jwt(user_id_str, session_id.as_str(), client_id, &signing)
+        let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)
             .map_err(|e| {
                 tracing::warn!(error = %e, "Failed to generate JWT for session reuse");
                 e
@@ -122,12 +122,7 @@ impl SessionCreationService {
             secret: jwt_secret,
             issuer: &config.jwt_issuer,
         };
-        let token = generate_anonymous_jwt(
-            user_id_str,
-            &existing_session.session_id,
-            client_id,
-            &signing,
-        )
+        let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)
         .map_err(|e| {
             tracing::warn!(error = %e, "Failed to generate JWT for session lookup");
             e

@@ -1,5 +1,5 @@
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ContextId, TaskId, UserId};
 use systemprompt_models::{Config, TaskMetadata};
 
 use crate::models::a2a::{Message, Task, TaskState, TaskStatus};
@@ -68,7 +68,7 @@ pub async fn broadcast_task_created(params: BroadcastTaskCreatedParams<'_>) {
     }
 }
 
-pub async fn broadcast_task_completed(task: &Task, user_id: &str, token: &str) {
+pub async fn broadcast_task_completed(task: &Task, user_id: &UserId, token: &str) {
     let api_url = match Config::get() {
         Ok(c) => c.api_internal_url.clone(),
         Err(e) => {
@@ -90,7 +90,7 @@ pub async fn broadcast_task_completed(task: &Task, user_id: &str, token: &str) {
         "event_type": "task_completed",
         "entity_id": task.id.as_str(),
         "context_id": task.context_id.as_str(),
-        "user_id": user_id,
+        "user_id": user_id.as_str(),
         "task_data": task_data
     });
 
@@ -146,7 +146,7 @@ pub async fn broadcast_artifact_created(
     artifact: &crate::models::a2a::Artifact,
     task_id: &TaskId,
     context_id: &ContextId,
-    user_id: &str,
+    user_id: &UserId,
     token: &str,
 ) -> Result<(), anyhow::Error> {
     let api_url = Config::get()
@@ -159,7 +159,7 @@ pub async fn broadcast_artifact_created(
         "event_type": "artifact_created",
         "entity_id": artifact.id.clone(),
         "context_id": context_id.as_str(),
-        "user_id": user_id,
+        "user_id": user_id.as_str(),
     });
 
     let client = reqwest::Client::new();

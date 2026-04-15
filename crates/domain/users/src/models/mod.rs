@@ -77,7 +77,7 @@ pub struct UserSession {
 pub struct UserSessionRow {
     #[sqlx(try_from = "String")]
     pub session_id: SessionId,
-    pub user_id: Option<String>,
+    pub user_id: Option<UserId>,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub device_type: Option<String>,
@@ -90,7 +90,7 @@ impl From<UserSessionRow> for UserSession {
     fn from(row: UserSessionRow) -> Self {
         Self {
             session_id: row.session_id,
-            user_id: row.user_id.map(UserId::new),
+            user_id: row.user_id,
             ip_address: row.ip_address,
             user_agent: row.user_agent,
             device_type: row.device_type,

@@ -43,7 +43,7 @@ pub(super) async fn create_local_session(
 
     let session_id = request_session_id(
         &profile.server.api_external_url,
-        admin_user.id.as_str(),
+        &admin_user.id,
         &admin_user.email,
     )
     .await
@@ -118,7 +118,7 @@ pub(super) async fn create_session_for_tenant(
 
     let session_id = request_session_id(
         &profile.server.api_external_url,
-        admin_user.id.as_str(),
+        &admin_user.id,
         &admin_user.email,
     )
     .await

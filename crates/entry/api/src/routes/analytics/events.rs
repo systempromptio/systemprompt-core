@@ -74,11 +74,7 @@ pub async fn record_event(
 
     let created = state
         .events
-        .create_event(
-            req_ctx.session_id().as_str(),
-            req_ctx.user_id().as_str(),
-            &input,
-        )
+        .create_event(req_ctx.session_id(), req_ctx.user_id(), &input)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to record analytics event");
@@ -111,11 +107,7 @@ pub async fn record_events_batch(
 
     let created = state
         .events
-        .create_events_batch(
-            req_ctx.session_id().as_str(),
-            req_ctx.user_id().as_str(),
-            &input.events,
-        )
+        .create_events_batch(req_ctx.session_id(), req_ctx.user_id(), &input.events)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to record analytics events batch");
@@ -200,8 +192,8 @@ async fn fan_out_engagement(
     if let Err(e) = state
         .engagement
         .create_engagement(
-            req_ctx.session_id().as_str(),
-            req_ctx.user_id().as_str(),
+            req_ctx.session_id(),
+            req_ctx.user_id(),
             content_id.as_ref(),
             &engagement_input,
         )

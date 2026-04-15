@@ -218,13 +218,13 @@ async fn handle_failed_agents(
 
 async fn enforce_clean_agent_state(
     orchestrator: &systemprompt_agent::services::agent_orchestration::AgentOrchestrator,
-    agent_id: &str,
+    agent: &str,
     desired_port: u16,
     events: Option<&StartupEventSender>,
 ) -> Result<bool> {
     use systemprompt_agent::services::agent_orchestration::{AgentStatus, PortManager};
 
-    if let Ok(status) = orchestrator.get_status(agent_id).await {
+    if let Ok(status) = orchestrator.get_status(agent).await {
         match status {
             AgentStatus::Running { pid, port } => {
                 use systemprompt_agent::services::agent_orchestration::process;
@@ -238,7 +238,7 @@ async fn enforce_clean_agent_state(
                 if let Some(tx) = events {
                     if tx
                         .unbounded_send(StartupEvent::AgentCleanup {
-                            name: agent_id.to_string(),
+                            name: agent.to_string(),
                             reason,
                         })
                         .is_err()
@@ -249,17 +249,17 @@ async fn enforce_clean_agent_state(
                     }
                 }
                 if let Err(e) = process::terminate_gracefully(pid, 5).await {
-                    tracing::warn!(error = %e, agent_id = %agent_id, "Failed to terminate agent process gracefully");
+                    tracing::warn!(error = %e, agent = %agent, "Failed to terminate agent process gracefully");
                 }
-                if let Err(e) = orchestrator.delete_agent(agent_id).await {
-                    tracing::warn!(error = %e, agent_id = %agent_id, "Failed to delete agent during cleanup");
+                if let Err(e) = orchestrator.delete_agent(agent).await {
+                    tracing::warn!(error = %e, agent = %agent, "Failed to delete agent during cleanup");
                 }
             },
             AgentStatus::Failed { .. } => {
                 if let Some(tx) = events {
                     if tx
                         .unbounded_send(StartupEvent::AgentCleanup {
-                            name: agent_id.to_string(),
+                            name: agent.to_string(),
                             reason: "Previously failed, restarting".to_string(),
                         })
                         .is_err()
@@ -279,7 +279,7 @@ async fn enforce_clean_agent_state(
             if tx
                 .unbounded_send(StartupEvent::Error {
                     message: format!(
-                        "Failed to cleanup port {desired_port} for agent {agent_id}: {e}"
+                        "Failed to cleanup port {desired_port} for agent {agent}: {e}"
                     ),
                     fatal: false,
                 })
@@ -291,7 +291,7 @@ async fn enforce_clean_agent_state(
         return Err(e.into());
     }
 
-    match orchestrator.start_agent(agent_id, events).await {
+    match orchestrator.start_agent(agent, events).await {
         Ok(_) => Ok(true),
         Err(e) => Err(e.into()),
     }

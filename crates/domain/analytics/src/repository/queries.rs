@@ -2,6 +2,7 @@ use anyhow::{Result, anyhow};
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone)]
 pub struct AnalyticsQueryRepository {
@@ -18,7 +19,7 @@ impl AnalyticsQueryRepository {
     pub async fn get_ai_provider_usage(
         &self,
         days: i32,
-        user_id: Option<&str>,
+        user_id: Option<&UserId>,
     ) -> Result<Vec<ProviderUsage>> {
         let base_query = r"
             SELECT
@@ -46,7 +47,7 @@ impl AnalyticsQueryRepository {
 
         if let Some(uid) = user_id {
             query.push_str(&format!(" AND user_id = {}", placeholder(&mut param_index)));
-            params.push(Box::new(uid.to_string()));
+            params.push(Box::new(uid.as_str().to_string()));
         }
 
         query.push_str(" GROUP BY provider, model ORDER BY request_count DESC");

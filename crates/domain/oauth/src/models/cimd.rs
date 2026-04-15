@@ -4,7 +4,7 @@ use systemprompt_identifiers::{ClientId, ClientType};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CimdMetadata {
-    pub client_id: String,
+    pub client_id: ClientId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_name: Option<String>,
     pub redirect_uris: Vec<String>,
@@ -24,7 +24,7 @@ pub struct CimdMetadata {
 
 impl CimdMetadata {
     pub fn validate(&self) -> Result<()> {
-        if !self.client_id.starts_with("https://") {
+        if !self.client_id.as_str().starts_with("https://") {
             return Err(anyhow!("client_id must be HTTPS URL"));
         }
 

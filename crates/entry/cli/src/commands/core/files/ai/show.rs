@@ -12,15 +12,15 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
-    #[arg(help = "AI image file ID (UUID format)")]
-    pub file_id: String,
+    #[arg(value_name = "FILE_ID", help = "AI image file ID (UUID format)")]
+    pub file: String,
 }
 
 pub async fn execute(
     args: ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {
-    let file_id = parse_file_id(&args.file_id)?;
+    let file_id = parse_file_id(&args.file)?;
 
     let ctx = AppContext::new().await?;
     let service = FileService::new(ctx.db_pool())?;
@@ -28,12 +28,12 @@ pub async fn execute(
     let file = service
         .find_by_id(&file_id)
         .await?
-        .ok_or_else(|| anyhow!("File not found: {}", args.file_id))?;
+        .ok_or_else(|| anyhow!("File not found: {}", args.file))?;
 
     if !file.ai_content {
         return Err(anyhow!(
             "File '{}' is not an AI-generated image. Use 'files show' for regular files.",
-            args.file_id
+            args.file
         ));
     }
 
@@ -55,7 +55,7 @@ pub async fn execute(
         updated_at: file.updated_at,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("AI Image: {}", args.file_id)))
+    Ok(CommandResult::card(output).with_title(format!("AI Image: {}", args.file)))
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {

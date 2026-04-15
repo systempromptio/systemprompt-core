@@ -21,8 +21,8 @@ use systemprompt_runtime::AppContext;
 
 const INVALID_CONTEXT_IDS: &[&str] = &["undefined", "null", "", "__CONTEXT_LOADING__"];
 
-pub fn is_valid_context_id(context_id: &str) -> bool {
-    !INVALID_CONTEXT_IDS.contains(&context_id)
+pub fn is_valid_context_id(context: &str) -> bool {
+    !INVALID_CONTEXT_IDS.contains(&context)
 }
 
 pub fn router() -> Router<AppContext> {

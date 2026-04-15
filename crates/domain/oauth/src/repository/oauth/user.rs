@@ -32,11 +32,12 @@ impl OAuthRepository {
 
     pub async fn get_authenticated_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
     ) -> Result<systemprompt_models::auth::AuthenticatedUser> {
+        let user_id_str = user_id.as_str();
         let row = sqlx::query!(
             "SELECT id, name, email, roles FROM users WHERE id = $1",
-            user_id
+            user_id_str
         )
         .fetch_optional(self.pool_ref())
         .await?

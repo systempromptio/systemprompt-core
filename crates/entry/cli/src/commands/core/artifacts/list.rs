@@ -14,8 +14,8 @@ use crate::shared::{CommandResult, truncate_with_ellipsis};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
-    #[arg(long, short = 'c', help = "Filter by context ID")]
-    pub context_id: Option<String>,
+    #[arg(long = "context-id", short = 'c', help = "Filter by context ID")]
+    pub context: Option<String>,
 
     #[arg(
         long,
@@ -57,7 +57,7 @@ pub async fn execute_with_pool(
 ) -> Result<CommandResult<ArtifactListOutput>> {
     let repo = ArtifactRepository::new(pool)?;
 
-    let artifacts = if let Some(ref ctx_id) = args.context_id {
+    let artifacts = if let Some(ref ctx_id) = args.context {
         let context_id = ContextId::new(ctx_id);
         repo.get_artifacts_by_context(&context_id)
             .await
@@ -87,7 +87,7 @@ pub async fn execute_with_pool(
     let output = ArtifactListOutput {
         artifacts: summaries.clone(),
         total,
-        context_id: args.context_id.clone(),
+        context: args.context.clone(),
     };
 
     if !config.is_json_output() {

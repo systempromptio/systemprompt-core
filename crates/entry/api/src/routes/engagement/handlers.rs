@@ -71,8 +71,8 @@ pub async fn record_engagement(
     state
         .repo
         .create_engagement(
-            req_ctx.session_id().as_str(),
-            req_ctx.user_id().as_str(),
+            req_ctx.session_id(),
+            req_ctx.user_id(),
             content_id.as_ref(),
             &input,
         )
@@ -104,12 +104,7 @@ pub async fn record_engagement_batch(
 
         match state
             .repo
-            .create_engagement(
-                session_id.as_str(),
-                user_id.as_str(),
-                content_id.as_ref(),
-                &event,
-            )
+            .create_engagement(session_id, user_id, content_id.as_ref(), &event)
             .await
         {
             Ok(_) => success_count += 1,

@@ -11,8 +11,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct UnlinkArgs {
-    #[arg(help = "File ID (UUID format)")]
-    pub file_id: String,
+    #[arg(value_name = "FILE_ID", help = "File ID (UUID format)")]
+    pub file: String,
 
     #[arg(long, help = "Content ID")]
     pub content: String,
@@ -32,7 +32,7 @@ pub async fn execute(
     args: UnlinkArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentUnlinkOutput>> {
-    let file_id = parse_file_id(&args.file_id)?;
+    let file_id = parse_file_id(&args.file)?;
     let content_id = ContentId::new(args.content.clone());
 
     if !args.yes {
@@ -40,7 +40,7 @@ pub async fn execute(
             let confirmed = Confirm::new()
                 .with_prompt(format!(
                     "Unlink file '{}' from content '{}'?",
-                    args.file_id, args.content
+                    args.file, args.content
                 ))
                 .default(false)
                 .interact()?;
@@ -61,7 +61,7 @@ pub async fn execute(
             content_id,
             message: format!(
                 "[DRY-RUN] Would unlink file '{}' from content '{}'",
-                args.file_id, args.content
+                args.file, args.content
             ),
         };
         return Ok(CommandResult::card(output).with_title("File Unlink (Dry Run)"));

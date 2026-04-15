@@ -146,7 +146,7 @@ impl MessageProcessor {
                         Some("EXECUTION_ERROR".to_string()),
                     );
                     if let Err(e) = broadcast_agui_event(
-                        context.user_id().as_str(),
+                        context.user_id(),
                         error_event,
                         context.auth_token().as_str(),
                     )
@@ -227,7 +227,7 @@ impl MessageProcessor {
 
         broadcast_completion(&task, context).await;
 
-        let user_id = context.user_id().as_str();
+        let user_id = context.user_id();
         let auth_token = context.auth_token().as_str();
         let context_id = task.context_id.clone();
         let task_id = task.id.clone();

@@ -3,15 +3,15 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ArtifactId, McpExecutionId};
+use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, UserId};
 
 #[derive(Debug, Clone)]
 pub struct McpArtifactRecord {
     pub id: uuid::Uuid,
-    pub artifact_id: String,
+    pub artifact_id: ArtifactId,
     pub mcp_execution_id: String,
-    pub context_id: Option<String>,
-    pub user_id: Option<String>,
+    pub context_id: Option<ContextId>,
+    pub user_id: Option<UserId>,
     pub server_name: String,
     pub artifact_type: String,
     pub title: Option<String>,
@@ -25,8 +25,8 @@ pub struct McpArtifactRecord {
 pub struct CreateMcpArtifact {
     pub artifact_id: ArtifactId,
     pub mcp_execution_id: McpExecutionId,
-    pub context_id: Option<String>,
-    pub user_id: Option<String>,
+    pub context_id: Option<ContextId>,
+    pub user_id: Option<UserId>,
     pub server_name: String,
     pub artifact_type: String,
     pub title: Option<String>,
@@ -67,8 +67,8 @@ impl McpArtifactRepository {
             "#,
             artifact.artifact_id.as_str(),
             artifact.mcp_execution_id.as_str(),
-            artifact.context_id.as_deref(),
-            artifact.user_id.as_deref(),
+            artifact.context_id.as_ref().map(ContextId::as_str),
+            artifact.user_id.as_ref().map(UserId::as_str),
             &artifact.server_name,
             &artifact.artifact_type,
             artifact.title.as_deref(),
@@ -87,10 +87,10 @@ impl McpArtifactRepository {
             r#"
             SELECT
                 id as "id!",
-                artifact_id as "artifact_id!",
+                artifact_id as "artifact_id!: ArtifactId",
                 mcp_execution_id as "mcp_execution_id!",
-                context_id,
-                user_id,
+                context_id as "context_id: ContextId",
+                user_id as "user_id: UserId",
                 server_name as "server_name!",
                 artifact_type as "artifact_type!",
                 title,
@@ -123,10 +123,6 @@ impl McpArtifactRepository {
         }))
     }
 
-    pub async fn find_by_id_str(&self, artifact_id: &str) -> Result<Option<McpArtifactRecord>> {
-        self.find_by_id(&ArtifactId::new(artifact_id)).await
-    }
-
     pub async fn list_by_server(
         &self,
         server_name: &str,
@@ -136,10 +132,10 @@ impl McpArtifactRepository {
             r#"
             SELECT
                 id as "id!",
-                artifact_id as "artifact_id!",
+                artifact_id as "artifact_id!: ArtifactId",
                 mcp_execution_id as "mcp_execution_id!",
-                context_id,
-                user_id,
+                context_id as "context_id: ContextId",
+                user_id as "user_id: UserId",
                 server_name as "server_name!",
                 artifact_type as "artifact_type!",
                 title,

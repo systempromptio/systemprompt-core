@@ -3,6 +3,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use serde_json::json;
 use std::sync::Arc;
+use systemprompt_identifiers::TaskId;
 
 use crate::models::a2a::protocol::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
@@ -123,7 +124,7 @@ pub async fn handle_get_push_notification_config(
 
 pub async fn handle_list_push_notification_configs(
     State(state): State<Arc<AgentHandlerState>>,
-    task_id: String,
+    task_id: TaskId,
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %task_id, "Listing push notification configs");
 
@@ -144,9 +145,7 @@ pub async fn handle_list_push_notification_configs(
             ));
         },
     };
-    let task_id_typed = systemprompt_identifiers::TaskId::new(&task_id);
-
-    match repo.list_configs(&task_id_typed).await {
+    match repo.list_configs(&task_id).await {
         Ok(configs) => {
             let total = configs.len() as u32;
 

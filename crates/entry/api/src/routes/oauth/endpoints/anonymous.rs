@@ -139,8 +139,8 @@ pub async fn generate_anonymous_token(
                         issuer: &config.jwt_issuer,
                     };
                     let jwt_token = match generate_admin_jwt(
-                        user_id.as_str(),
-                        session_id.as_str(),
+                        &user_id,
+                        &session_id,
                         &email,
                         &client_id,
                         &signing,

@@ -3,7 +3,7 @@ use systemprompt_identifiers::{ClientId, ClientType};
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ClientAnalyticsRow {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub session_count: i64,
     pub unique_users: i64,
     pub total_requests: i64,
@@ -32,7 +32,7 @@ pub struct ClientAnalytics {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ClientErrorAnalyticsRow {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub error_count: i64,
     pub affected_sessions: i64,
     pub last_error: Option<String>,
@@ -48,10 +48,9 @@ pub struct ClientErrorAnalytics {
 
 impl From<ClientAnalyticsRow> for ClientAnalytics {
     fn from(row: ClientAnalyticsRow) -> Self {
-        let client_id = ClientId::new(&row.client_id);
-        let client_type = client_id.client_type();
+        let client_type = row.client_id.client_type();
         Self {
-            client_id,
+            client_id: row.client_id,
             client_type,
             session_count: row.session_count,
             unique_users: row.unique_users,
@@ -69,7 +68,7 @@ impl From<ClientAnalyticsRow> for ClientAnalytics {
 impl From<ClientErrorAnalyticsRow> for ClientErrorAnalytics {
     fn from(row: ClientErrorAnalyticsRow) -> Self {
         Self {
-            client_id: ClientId::new(&row.client_id),
+            client_id: row.client_id,
             error_count: row.error_count,
             affected_sessions: row.affected_sessions,
             last_error: row.last_error.unwrap_or_else(String::new),

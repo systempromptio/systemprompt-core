@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId};
+use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId, UserId};
 
 use crate::models::{CreateEngagementEventInput, EngagementEvent};
 
@@ -22,8 +22,8 @@ impl EngagementRepository {
 
     pub async fn create_engagement(
         &self,
-        session_id: &str,
-        user_id: &str,
+        session_id: &SessionId,
+        user_id: &UserId,
         content_id: Option<&ContentId>,
         input: &CreateEngagementEventInput,
     ) -> Result<EngagementEventId> {
@@ -46,8 +46,8 @@ impl EngagementRepository {
             )
             "#,
             id.as_str(),
-            session_id,
-            user_id,
+            session_id.as_str(),
+            user_id.as_str(),
             input.page_url,
             content_id.map(ContentId::as_str),
             input.event_type.as_str(),
@@ -105,7 +105,7 @@ impl EngagementRepository {
         Ok(event)
     }
 
-    pub async fn list_by_session(&self, session_id: &str) -> Result<Vec<EngagementEvent>> {
+    pub async fn list_by_session(&self, session_id: &SessionId) -> Result<Vec<EngagementEvent>> {
         let events = sqlx::query_as!(
             EngagementEvent,
             r#"
@@ -127,7 +127,7 @@ impl EngagementRepository {
             WHERE session_id = $1
             ORDER BY created_at ASC
             "#,
-            session_id
+            session_id.as_str()
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -135,7 +135,7 @@ impl EngagementRepository {
         Ok(events)
     }
 
-    pub async fn list_by_user(&self, user_id: &str, limit: i64) -> Result<Vec<EngagementEvent>> {
+    pub async fn list_by_user(&self, user_id: &UserId, limit: i64) -> Result<Vec<EngagementEvent>> {
         let events = sqlx::query_as!(
             EngagementEvent,
             r#"
@@ -158,7 +158,7 @@ impl EngagementRepository {
             ORDER BY created_at DESC
             LIMIT $2
             "#,
-            user_id,
+            user_id.as_str(),
             limit
         )
         .fetch_all(&*self.pool)
@@ -169,7 +169,7 @@ impl EngagementRepository {
 
     pub async fn get_session_engagement_summary(
         &self,
-        session_id: &str,
+        session_id: &SessionId,
     ) -> Result<Option<SessionEngagementSummary>> {
         let summary = sqlx::query_as!(
             SessionEngagementSummary,
@@ -188,7 +188,7 @@ impl EngagementRepository {
             WHERE session_id = $1
             GROUP BY session_id
             "#,
-            session_id
+            session_id.as_str()
         )
         .fetch_optional(&*self.pool)
         .await?;

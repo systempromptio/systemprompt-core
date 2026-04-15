@@ -15,14 +15,14 @@ use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum StartTarget {
-    Agent { agent_id: String },
+    Agent { agent: String },
     Mcp { server_name: String },
 }
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum StopTarget {
     Agent {
-        agent_id: String,
+        agent: String,
         #[arg(long, help = "Force stop (SIGKILL)")]
         force: bool,
     },
@@ -143,7 +143,7 @@ pub enum ServicesCommands {
 pub enum RestartTarget {
     Api,
     Agent {
-        agent_id: String,
+        agent: String,
     },
     Mcp {
         server_name: String,
@@ -171,8 +171,8 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                         .context("Failed to initialize application context")?,
                 );
                 return match individual {
-                    StartTarget::Agent { agent_id } => {
-                        start::execute_individual_agent(&ctx, &agent_id, config).await
+                    StartTarget::Agent { agent } => {
+                        start::execute_individual_agent(&ctx, &agent, config).await
                     },
                     StartTarget::Mcp { server_name } => {
                         start::execute_individual_mcp(&ctx, &server_name, config).await
@@ -207,9 +207,9 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                         .context("Failed to initialize application context")?,
                 );
                 return match individual {
-                    StopTarget::Agent { agent_id, force } => {
+                    StopTarget::Agent { agent, force } => {
                         let result =
-                            stop::execute_individual_agent(&ctx, &agent_id, force, config).await?;
+                            stop::execute_individual_agent(&ctx, &agent, force, config).await?;
                         render_result(&result);
                         Ok(())
                     },
@@ -253,8 +253,8 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             } else {
                 match target {
                     Some(RestartTarget::Api) => restart::execute_api(config).await?,
-                    Some(RestartTarget::Agent { agent_id }) => {
-                        restart::execute_agent(&ctx, &agent_id, config).await?
+                    Some(RestartTarget::Agent { agent }) => {
+                        restart::execute_agent(&ctx, &agent, config).await?
                     },
                     Some(RestartTarget::Mcp { server_name, build }) => {
                         restart::execute_mcp(&ctx, &server_name, build, config).await?

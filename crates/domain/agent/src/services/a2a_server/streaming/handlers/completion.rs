@@ -231,7 +231,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
                 tracing::error!(error = %e, "Failed to broadcast RUN_FINISHED");
             }
 
-            broadcast_task_completed(&task_with_timing, context.user_id().as_str(), auth_token)
+            broadcast_task_completed(&task_with_timing, context.user_id(), auth_token)
                 .await;
         },
     }

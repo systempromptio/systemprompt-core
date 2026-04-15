@@ -96,7 +96,7 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiv
             },
             Err(e) => {
                 let webhook_context = WebhookContext::new(
-                    setup.context.user_id().as_str(),
+                    setup.context.user_id().clone(),
                     setup.context.auth_token().as_str(),
                 );
                 handle_stream_creation_error(

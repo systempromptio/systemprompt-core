@@ -13,7 +13,7 @@ use crate::shared::CommandResult;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::{Profile, ProfileBootstrap, Secrets, SecretsBootstrap};
@@ -46,7 +46,7 @@ pub struct LoginArgs {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoginOutput {
     pub status: String,
-    pub user_id: systemprompt_identifiers::UserId,
+    pub user_id: UserId,
     pub email: String,
     pub session_id: SessionId,
     pub expires_in_hours: i64,
@@ -54,14 +54,14 @@ pub struct LoginOutput {
 
 #[derive(Debug, Serialize)]
 struct SessionRequest {
-    client_id: String,
-    user_id: String,
+    client_id: ClientId,
+    user_id: UserId,
     email: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct SessionResponse {
-    session_id: String,
+    session_id: SessionId,
 }
 
 pub async fn execute(
@@ -317,8 +317,8 @@ async fn create_session(api_url: &str, user_id: &UserId, email: &str) -> Result<
     );
 
     let request = SessionRequest {
-        client_id: "sp_cli".to_string(),
-        user_id: user_id.as_str().to_string(),
+        client_id: ClientId::new("sp_cli"),
+        user_id: user_id.clone(),
         email: email.to_string(),
     };
 
@@ -340,7 +340,7 @@ async fn create_session(api_url: &str, user_id: &UserId, email: &str) -> Result<
         .await
         .context("Failed to parse session response")?;
 
-    Ok(SessionId::new(session_response.session_id))
+    Ok(session_response.session_id)
 }
 
 struct SessionStoreParams<'a> {
@@ -350,7 +350,7 @@ struct SessionStoreParams<'a> {
     session_token: systemprompt_identifiers::SessionToken,
     session_id: SessionId,
     context_id: ContextId,
-    user_id: systemprompt_identifiers::UserId,
+    user_id: UserId,
     user_email: &'a str,
 }
 

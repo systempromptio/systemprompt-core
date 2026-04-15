@@ -20,6 +20,7 @@ pub async fn update_client_configuration(
         Err(response) => return *response,
     };
 
+    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
     let existing_client = match repository.find_client_by_id(&client_id).await {
         Ok(Some(client)) => client,
         Ok(None) => {

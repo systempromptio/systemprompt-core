@@ -71,7 +71,7 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
         StoredTenant::new_local_shared(id, name.clone(), database_url.clone(), db_name.clone());
 
     let mut updated_config = config;
-    updated_config.add_tenant(tenant.id.clone(), db_name);
+    updated_config.add_tenant(tenant.id.clone().into(), db_name);
     save_shared_config(&updated_config)?;
 
     setup_local_profile(&tenant, &name, &database_url).await?;

@@ -15,6 +15,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::ClientId;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -112,7 +113,7 @@ impl OAuthRepository {
         client_repo.count().await
     }
 
-    pub async fn find_client_by_id(&self, client_id: &str) -> Result<Option<OAuthClient>> {
+    pub async fn find_client_by_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
         let client_repo = &self.client_repo;
         client_repo.get_by_client_id(client_id).await
     }
@@ -139,7 +140,7 @@ impl OAuthRepository {
 
     pub async fn update_client(
         &self,
-        client_id: &str,
+        client_id: &ClientId,
         name: Option<&str>,
         redirect_uris: Option<&[String]>,
         scopes: Option<&[String]>,
@@ -166,7 +167,7 @@ impl OAuthRepository {
 
         let client_repo = &self.client_repo;
         let params = UpdateClientParams {
-            client_id: client_id.into(),
+            client_id: client_id.clone(),
             client_name: updated_name,
             redirect_uris: updated_redirect_uris.to_vec(),
             grant_types: Some(client.grant_types.clone()),
@@ -201,7 +202,7 @@ impl OAuthRepository {
         updated.ok_or_else(|| anyhow::anyhow!("Client not found"))
     }
 
-    pub async fn delete_client(&self, client_id: &str) -> Result<bool> {
+    pub async fn delete_client(&self, client_id: &ClientId) -> Result<bool> {
         let client_repo = &self.client_repo;
         let rows_affected = client_repo.delete(client_id).await?;
         Ok(rows_affected > 0)
@@ -273,7 +274,7 @@ impl OAuthRepository {
         client_repo.list_old(cutoff_timestamp).await
     }
 
-    pub async fn update_client_last_used(&self, client_id: &str) -> Result<()> {
+    pub async fn update_client_last_used(&self, client_id: &ClientId) -> Result<()> {
         let now = Utc::now().timestamp();
         let client_repo = &self.client_repo;
         client_repo.update_last_used(client_id, now).await

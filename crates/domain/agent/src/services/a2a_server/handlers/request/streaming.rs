@@ -37,7 +37,7 @@ pub async fn handle_streaming_request(
 
         if let Err(err) = validate_message_context(
             &params.message,
-            Some(context.user_id().as_str()),
+            Some(context.user_id()),
             &state.db_pool,
         )
         .await

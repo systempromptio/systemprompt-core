@@ -52,7 +52,7 @@ pub fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
 
 struct DiscoveredProfile {
     name: String,
-    tenant_id: Option<String>,
+    tenant: Option<String>,
 }
 
 fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
@@ -80,7 +80,7 @@ fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
 
             Some(DiscoveredProfile {
                 name,
-                tenant_id: profile
+                tenant: profile
                     .as_ref()
                     .and_then(|p| p.cloud.as_ref())
                     .and_then(|c| c.tenant_id.clone()),
@@ -95,7 +95,7 @@ fn load_profile_config(config_path: &std::path::Path) -> Option<Profile> {
 }
 
 fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) -> ProfileInfo {
-    let session_key = SessionKey::from_tenant_id(info.tenant_id.as_deref());
+    let session_key = SessionKey::from_tenant_id(info.tenant.as_deref());
 
     let is_active = store.is_some_and(|s| {
         s.active_profile_name.as_deref() == Some(info.name.as_str())
@@ -118,7 +118,7 @@ fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) ->
     );
 
     let routing = info
-        .tenant_id
+        .tenant
         .as_ref()
         .map_or_else(|| "local".to_string(), |_| "remote".to_string());
 
@@ -126,7 +126,7 @@ fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) ->
         name: info.name.clone(),
         display_name: None,
         database_url: None,
-        tenant_id: info.tenant_id.clone(),
+        tenant_id: info.tenant.clone(),
         validation_mode: None,
         credentials_path: None,
         routing: Some(routing),

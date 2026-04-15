@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 
 #[derive(Debug, Deserialize)]
 pub struct DynamicRegistrationRequest {
@@ -18,7 +19,7 @@ pub struct DynamicRegistrationRequest {
 
 #[derive(Debug, Serialize)]
 pub struct DynamicRegistrationResponse {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_secret: String,
     pub client_name: String,
     pub redirect_uris: Vec<String>,

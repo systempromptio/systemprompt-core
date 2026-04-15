@@ -102,7 +102,7 @@ impl IngestionService {
         let new_content = Self::create_content_from_metadata(
             &parsed.metadata,
             &parsed.body,
-            source.source_id.to_string(),
+            source.source_id.clone(),
             resolved_category_id,
         )?;
 
@@ -193,7 +193,7 @@ impl IngestionService {
 
     async fn call_frontmatter_processors(
         &self,
-        content_id: &str,
+        content_id_str: &str,
         slug: &str,
         source_name: &str,
         parsed: &ParsedFrontmatter,
@@ -208,7 +208,7 @@ impl IngestionService {
                 }
 
                 let ctx = FrontmatterContext::new(
-                    content_id,
+                    content_id_str,
                     slug,
                     source_name,
                     &parsed.raw_yaml,
@@ -218,7 +218,7 @@ impl IngestionService {
                 if let Err(e) = processor.process_frontmatter(&ctx).await {
                     tracing::warn!(
                         processor = %processor.processor_id(),
-                        content_id = %content_id,
+                        content_id = %content_id_str,
                         error = %e,
                         "Frontmatter processor failed"
                     );
@@ -230,7 +230,7 @@ impl IngestionService {
     fn create_content_from_metadata(
         metadata: &ContentMetadata,
         content_text: &str,
-        source_id: String,
+        source_id: SourceId,
         category_id: String,
     ) -> Result<Content, ContentError> {
         let id = ContentId::new(uuid::Uuid::new_v4().to_string());
@@ -272,7 +272,7 @@ impl IngestionService {
             kind: metadata.kind.clone(),
             image: metadata.image.clone(),
             category_id: Some(CategoryId::new(category_id)),
-            source_id: SourceId::new(source_id),
+            source_id,
             version_hash: String::new(),
             public: metadata.public.unwrap_or(true),
             links,

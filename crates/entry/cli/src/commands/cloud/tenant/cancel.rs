@@ -85,7 +85,7 @@ pub async fn cancel_subscription(
     if confirmation != tenant.name {
         CliService::info("Cancellation aborted. Tenant name did not match.");
         let output = CancelSubscriptionOutput {
-            tenant_id: tenant.id.clone(),
+            tenant: tenant.id.clone(),
             tenant_name: tenant.name.clone(),
             message: "Cancellation aborted. Tenant name did not match.".to_string(),
         };
@@ -110,7 +110,7 @@ pub async fn cancel_subscription(
     );
 
     let output = CancelSubscriptionOutput {
-        tenant_id: tenant.id.clone(),
+        tenant: tenant.id.clone(),
         tenant_name: tenant.name.clone(),
         message: "Subscription cancelled. Your tenant will be suspended and all data will be \
                   destroyed."

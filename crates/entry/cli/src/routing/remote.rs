@@ -10,7 +10,7 @@ use systemprompt_models::api::{CliExecuteRequest, CliOutputEvent};
 pub async fn execute_remote(
     hostname: &str,
     token: &str,
-    context_id: &str,
+    context: &str,
     args: &[String],
     timeout_secs: u64,
 ) -> Result<i32> {
@@ -18,10 +18,10 @@ pub async fn execute_remote(
     let request = CliExecuteRequest {
         args: args.to_vec(),
         timeout_secs,
-        context_id: if context_id.is_empty() {
+        context_id: if context.is_empty() {
             None
         } else {
-            Some(context_id.to_string())
+            Some(context.to_string())
         },
     };
 
@@ -35,8 +35,8 @@ pub async fn execute_remote(
         .header("Authorization", format!("Bearer {}", token))
         .header("Accept", "text/event-stream");
 
-    if !context_id.is_empty() {
-        request_builder = request_builder.header("x-context-id", context_id);
+    if !context.is_empty() {
+        request_builder = request_builder.header("x-context-id", context);
     }
 
     let request_builder = request_builder.json(&request);

@@ -53,7 +53,8 @@ pub struct SessionTrendsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ActiveSessionRow {
-    pub session_id: String,
+    #[serde(rename = "session_id")]
+    pub session: String,
     pub user_type: String,
     pub started_at: String,
     pub duration_seconds: i64,

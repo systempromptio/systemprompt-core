@@ -13,8 +13,8 @@ use tracing::info;
 #[derive(Debug)]
 pub struct ContentDiffEntry {
     pub name: String,
-    pub source_id: String,
-    pub category_id: String,
+    pub source_id: SourceId,
+    pub category_id: CategoryId,
     pub path: PathBuf,
     pub allowed_content_types: Vec<String>,
     pub diff: ContentDiffResult,
@@ -57,9 +57,8 @@ impl ContentLocalSync {
             let source_path = &entry.path;
 
             for item in &entry.diff.modified {
-                let source_id = SourceId::new(&entry.source_id);
                 match content_repo
-                    .get_by_source_and_slug(&source_id, &item.slug)
+                    .get_by_source_and_slug(&entry.source_id, &item.slug)
                     .await?
                 {
                     Some(content) => {
@@ -76,9 +75,8 @@ impl ContentLocalSync {
             }
 
             for item in &entry.diff.removed {
-                let source_id = SourceId::new(&entry.source_id);
                 match content_repo
-                    .get_by_source_and_slug(&source_id, &item.slug)
+                    .get_by_source_and_slug(&entry.source_id, &item.slug)
                     .await?
                 {
                     Some(content) => {
@@ -135,9 +133,7 @@ impl ContentLocalSync {
 
         for entry in diffs {
             let source_path = &entry.path;
-            let source_id = SourceId::new(&entry.source_id);
-            let category_id = CategoryId::new(&entry.category_id);
-            let source = IngestionSource::new(&source_id, &entry.name, &category_id);
+            let source = IngestionSource::new(&entry.source_id, &entry.name, &entry.category_id);
             let report = ingestion_service
                 .ingest_directory(
                     source_path,

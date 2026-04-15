@@ -57,7 +57,7 @@ pub fn execute(
         })
         .map(|(name, source)| ContentTypeSummary {
             name: name.clone(),
-            source_id: source.source_id.to_string(),
+            source: source.source_id.to_string(),
             category_id: source.category_id.to_string(),
             enabled: source.enabled,
             path: source.path.clone(),

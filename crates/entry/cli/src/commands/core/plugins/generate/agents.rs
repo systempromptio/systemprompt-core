@@ -12,9 +12,9 @@ pub fn generate_agents(
 ) -> Result<()> {
     let agents_dir = output_dir.join("agents");
 
-    let agent_ids = resolve_agent_ids(plugin, services_path)?;
+    let agents = resolve_agents(plugin, services_path)?;
 
-    if agent_ids.is_empty() {
+    if agents.is_empty() {
         return Ok(());
     }
 
@@ -22,9 +22,9 @@ pub fn generate_agents(
 
     let services_agents_dir = services_path.join("agents");
 
-    for agent_id in &agent_ids {
-        let agent_md = build_agent_md(agent_id, &services_agents_dir)?;
-        let agent_path = agents_dir.join(format!("{agent_id}.md"));
+    for agent in &agents {
+        let agent_md = build_agent_md(agent, &services_agents_dir)?;
+        let agent_path = agents_dir.join(format!("{agent}.md"));
         std::fs::write(&agent_path, &agent_md)?;
         files_generated.push(agent_path.to_string_lossy().to_string());
     }
@@ -32,7 +32,7 @@ pub fn generate_agents(
     Ok(())
 }
 
-fn resolve_agent_ids(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<String>> {
+fn resolve_agents(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<String>> {
     if plugin.agents.source == ComponentSource::Explicit {
         return Ok(plugin.agents.include.clone());
     }
@@ -60,7 +60,7 @@ fn resolve_agent_ids(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<
     Ok(ids)
 }
 
-fn build_agent_md(agent_id: &str, services_agents_dir: &Path) -> Result<String> {
+fn build_agent_md(agent: &str, services_agents_dir: &Path) -> Result<String> {
     if services_agents_dir.exists() {
         for entry in std::fs::read_dir(services_agents_dir)? {
             let entry = entry?;
@@ -77,12 +77,12 @@ fn build_agent_md(agent_id: &str, services_agents_dir: &Path) -> Result<String> 
                     continue;
                 },
             };
-            if let Some(agent_val) = config.get("agents").and_then(|a| a.get(agent_id)) {
+            if let Some(agent_val) = config.get("agents").and_then(|a| a.get(agent)) {
                 let description = agent_val
                     .get("card")
                     .and_then(|c| c.get("description"))
                     .and_then(|d| d.as_str())
-                    .map_or_else(|| format!("{agent_id} agent"), ToString::to_string);
+                    .map_or_else(|| format!("{agent} agent"), ToString::to_string);
                 let system_prompt = agent_val
                     .get("metadata")
                     .and_then(|m| m.get("systemPrompt"))
@@ -90,7 +90,7 @@ fn build_agent_md(agent_id: &str, services_agents_dir: &Path) -> Result<String> 
                     .map_or_else(String::new, ToString::to_string);
                 return Ok(format!(
                     "---\nname: {}\ndescription: \"{}\"\ntools: {}\n---\n\n{}\n",
-                    agent_id,
+                    agent,
                     description.replace('"', "\\\""),
                     DEFAULT_AGENT_TOOLS,
                     system_prompt.trim()
@@ -101,6 +101,6 @@ fn build_agent_md(agent_id: &str, services_agents_dir: &Path) -> Result<String> 
 
     Ok(format!(
         "---\nname: {}\ndescription: \"{} agent\"\ntools: {}\n---\n\nYou are the {} agent.\n",
-        agent_id, agent_id, DEFAULT_AGENT_TOOLS, agent_id
+        agent, agent, DEFAULT_AGENT_TOOLS, agent
     ))
 }

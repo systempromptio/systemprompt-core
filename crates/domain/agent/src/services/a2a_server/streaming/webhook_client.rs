@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde::Serialize;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::{A2AEvent, AgUiEvent, Config};
 
 #[derive(Debug, thiserror::Error)]
@@ -14,14 +15,14 @@ pub enum WebhookError {
 struct AgUiWebhookPayload {
     #[serde(flatten)]
     event: AgUiEvent,
-    user_id: String,
+    user_id: UserId,
 }
 
 #[derive(Serialize)]
 struct A2AWebhookPayload {
     #[serde(flatten)]
     event: A2AEvent,
-    user_id: String,
+    user_id: UserId,
 }
 
 fn get_api_url() -> String {
@@ -32,7 +33,7 @@ fn get_api_url() -> String {
 }
 
 pub async fn broadcast_agui_event(
-    user_id: &str,
+    user_id: &UserId,
     event: AgUiEvent,
     auth_token: &str,
 ) -> Result<usize, WebhookError> {
@@ -51,7 +52,7 @@ pub async fn broadcast_agui_event(
 
     let payload = AgUiWebhookPayload {
         event,
-        user_id: user_id.to_string(),
+        user_id: user_id.clone(),
     };
 
     let client = Client::new();
@@ -112,7 +113,7 @@ pub async fn broadcast_agui_event(
 }
 
 pub async fn broadcast_a2a_event(
-    user_id: &str,
+    user_id: &UserId,
     event: A2AEvent,
     auth_token: &str,
 ) -> Result<usize, WebhookError> {
@@ -123,7 +124,7 @@ pub async fn broadcast_a2a_event(
 
     let payload = A2AWebhookPayload {
         event,
-        user_id: user_id.to_string(),
+        user_id: user_id.clone(),
     };
 
     let client = Client::new();
@@ -185,19 +186,19 @@ pub async fn broadcast_a2a_event(
 
 #[derive(Clone, Debug)]
 pub struct WebhookContext {
-    user_id: String,
+    user_id: UserId,
     auth_token: String,
 }
 
 impl WebhookContext {
-    pub fn new(user_id: impl Into<String>, auth_token: impl Into<String>) -> Self {
+    pub fn new(user_id: UserId, auth_token: impl Into<String>) -> Self {
         Self {
-            user_id: user_id.into(),
+            user_id,
             auth_token: auth_token.into(),
         }
     }
 
-    pub fn user_id(&self) -> &str {
+    pub fn user_id(&self) -> &UserId {
         &self.user_id
     }
 

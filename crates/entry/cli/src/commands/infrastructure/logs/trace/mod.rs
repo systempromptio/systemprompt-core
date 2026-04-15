@@ -80,8 +80,8 @@ pub struct TraceViewOutput {
     pub ai_summary: AiSummaryRow,
     pub mcp_summary: McpSummaryRow,
     pub step_summary: StepSummaryRow,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub task_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "task_id")]
+    pub task: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<i64>,
     pub status: String,
@@ -108,7 +108,8 @@ pub struct TraceListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TaskInfoRow {
-    pub task_id: String,
+    #[serde(rename = "task_id")]
+    pub task: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_name: Option<String>,
     pub status: String,
@@ -142,7 +143,8 @@ pub struct AiRequestRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ArtifactRow {
-    pub artifact_id: String,
+    #[serde(rename = "artifact_id")]
+    pub artifact: String,
     pub artifact_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -154,7 +156,8 @@ pub struct ArtifactRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AiTraceOutput {
-    pub task_id: String,
+    #[serde(rename = "task_id")]
+    pub task: String,
     pub task_info: TaskInfoRow,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_input: Option<String>,

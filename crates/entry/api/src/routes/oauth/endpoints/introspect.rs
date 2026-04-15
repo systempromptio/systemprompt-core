@@ -56,7 +56,8 @@ pub async fn handle_introspect(
     Form(request): Form<IntrospectRequest>,
 ) -> impl IntoResponse {
     if let Some(client_id) = &request.client_id {
-        if validate_client_credentials(&repo, client_id, request.client_secret.as_deref())
+        let client_id = systemprompt_identifiers::ClientId::new(client_id);
+        if validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
             .await
             .is_err()
         {

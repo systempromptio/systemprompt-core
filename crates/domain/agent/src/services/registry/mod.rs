@@ -197,7 +197,8 @@ fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill>
     if !skills_path.is_empty() {
         let skills_dir = Path::new(&skills_path);
         for skill_id in &agent.metadata.skills {
-            match load_skill_from_disk(skills_dir, skill_id) {
+            let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
+            match load_skill_from_disk(skills_dir, &skill_id_typed) {
                 Ok(skill) => all_skills.push(skill),
                 Err(e) => {
                     tracing::warn!(

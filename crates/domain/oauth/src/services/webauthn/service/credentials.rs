@@ -1,13 +1,14 @@
 use super::WebAuthnService;
 use crate::repository::WebAuthnCredentialParams;
 use anyhow::Result;
+use systemprompt_identifiers::UserId;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
 impl WebAuthnService {
     pub(super) async fn store_credential(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         sk: &Passkey,
         display_name: &str,
     ) -> Result<()> {
@@ -33,7 +34,7 @@ impl WebAuthnService {
         };
 
         let params =
-            WebAuthnCredentialParams::builder(&id, user_id, &credential_id, &public_key, counter)
+            WebAuthnCredentialParams::builder(&id, user_id.as_str(), &credential_id, &public_key, counter)
                 .with_display_name(display_name)
                 .with_device_type("platform")
                 .with_transports(&transports)
@@ -42,7 +43,7 @@ impl WebAuthnService {
         self.oauth_repo.store_webauthn_credential(params).await
     }
 
-    pub(super) async fn get_user_credentials(&self, user_id: &str) -> Result<Vec<Passkey>> {
+    pub(super) async fn get_user_credentials(&self, user_id: &UserId) -> Result<Vec<Passkey>> {
         let credentials = self.oauth_repo.get_webauthn_credentials(user_id).await?;
 
         let mut passkeys = Vec::new();
@@ -75,7 +76,7 @@ impl WebAuthnService {
 
     pub(super) async fn get_user_credentials_by_email(&self, email: &str) -> Result<Vec<Passkey>> {
         if let Some(user) = self.oauth_repo.find_user_by_email(email).await? {
-            self.get_user_credentials(user.id.as_ref()).await
+            self.get_user_credentials(&user.id).await
         } else {
             Ok(Vec::new())
         }

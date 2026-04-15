@@ -5,7 +5,7 @@ use tabled::{Table, Tabled};
 #[derive(Debug, Tabled)]
 pub struct TaskInfoRow {
     #[tabled(rename = "Task ID")]
-    pub task_id: String,
+    pub task: String,
     #[tabled(rename = "Agent")]
     pub agent_name: String,
     #[tabled(rename = "Status")]
@@ -59,7 +59,7 @@ pub struct ToolCallRow {
 #[derive(Debug, Tabled)]
 pub struct ArtifactRow {
     #[tabled(rename = "ID")]
-    pub artifact_id: String,
+    pub artifact: String,
     #[tabled(rename = "Type")]
     pub artifact_type: String,
     #[tabled(rename = "Name")]
@@ -91,7 +91,7 @@ pub fn print_content_block(content: &str) {
 
 pub fn print_task_info(task_info: &TaskInfo) {
     let rows = vec![TaskInfoRow {
-        task_id: task_info.task_id.as_str()[..8].to_string(),
+        task: task_info.task_id.as_str()[..8].to_string(),
         agent_name: task_info
             .agent_name
             .clone()

@@ -14,6 +14,7 @@ pub async fn delete_client_configuration(
         return *response;
     }
 
+    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(_)) => match repository.delete_client(&client_id).await {
             Ok(_) => StatusCode::NO_CONTENT.into_response(),

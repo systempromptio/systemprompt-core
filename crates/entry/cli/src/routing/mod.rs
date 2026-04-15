@@ -2,7 +2,7 @@ pub mod remote;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{ContextId, TenantId};
 use systemprompt_models::ProfileBootstrap;
 
 use crate::paths::ResolvedPaths;
@@ -12,7 +12,7 @@ pub enum ExecutionTarget {
     Remote {
         hostname: String,
         token: String,
-        context_id: String,
+        context: ContextId,
     },
 }
 
@@ -63,20 +63,20 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
     Ok(ExecutionTarget::Remote {
         hostname,
         token: session.session_token.as_str().to_string(),
-        context_id: session.context_id.to_string(),
+        context: session.context_id.clone(),
     })
 }
 
-fn resolve_tenant(tenant_id: &str) -> Result<StoredTenant> {
+fn resolve_tenant(tenant: &str) -> Result<StoredTenant> {
     let tenants_path = ResolvedPaths::discover().tenants_path();
 
     let store = TenantStore::load_from_path(&tenants_path)
         .context("Failed to load tenants. Run 'systemprompt cloud tenant list' to sync.")?;
 
     store
-        .find_tenant(tenant_id)
+        .find_tenant(tenant)
         .cloned()
-        .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant_id))
+        .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant))
 }
 
 fn load_session_for_key(session_key: &SessionKey) -> Result<systemprompt_cloud::CliSession> {

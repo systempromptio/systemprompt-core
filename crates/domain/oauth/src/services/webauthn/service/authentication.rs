@@ -20,7 +20,7 @@ impl WebAuthnService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
-        let user_credentials = self.get_user_credentials(user.id.as_ref()).await?;
+        let user_credentials = self.get_user_credentials(&user.id).await?;
 
         if user_credentials.is_empty() {
             return Err(anyhow::anyhow!("No credentials found for user"));

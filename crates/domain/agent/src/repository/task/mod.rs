@@ -116,24 +116,11 @@ impl TaskRepository {
         get_task(&self.pool, &self.db_pool, task_id).await
     }
 
-    pub async fn get_task_by_str(&self, task_id: &str) -> Result<Option<Task>, RepositoryError> {
-        let task_id_typed = systemprompt_identifiers::TaskId::new(task_id);
-        self.get_task(&task_id_typed).await
-    }
-
     pub async fn list_tasks_by_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
     ) -> Result<Vec<Task>, RepositoryError> {
         list_tasks_by_context(&self.pool, &self.db_pool, context_id).await
-    }
-
-    pub async fn list_tasks_by_context_str(
-        &self,
-        context_id: &str,
-    ) -> Result<Vec<Task>, RepositoryError> {
-        let context_id_typed = systemprompt_identifiers::ContextId::new(context_id);
-        self.list_tasks_by_context(&context_id_typed).await
     }
 
     pub async fn get_tasks_by_user_id(
@@ -145,33 +132,12 @@ impl TaskRepository {
         get_tasks_by_user_id(&self.pool, &self.db_pool, user_id, limit, offset).await
     }
 
-    pub async fn get_tasks_by_user_id_str(
-        &self,
-        user_id: &str,
-        limit: Option<i32>,
-        offset: Option<i32>,
-    ) -> Result<Vec<Task>, RepositoryError> {
-        let user_id_typed = UserId::new(user_id);
-        self.get_tasks_by_user_id(&user_id_typed, limit, offset)
-            .await
-    }
-
     pub async fn track_agent_in_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
         agent_name: &str,
     ) -> Result<(), RepositoryError> {
         track_agent_in_context(&self.write_pool, context_id, agent_name).await
-    }
-
-    pub async fn track_agent_in_context_str(
-        &self,
-        context_id: &str,
-        agent_name: &str,
-    ) -> Result<(), RepositoryError> {
-        let context_id_typed = systemprompt_identifiers::ContextId::new(context_id);
-        self.track_agent_in_context(&context_id_typed, agent_name)
-            .await
     }
 
     pub async fn update_task_state(
@@ -181,17 +147,6 @@ impl TaskRepository {
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
         update_task_state(&self.write_pool, task_id, state, timestamp).await
-    }
-
-    pub async fn update_task_state_str(
-        &self,
-        task_id: &str,
-        state: TaskState,
-        timestamp: &chrono::DateTime<chrono::Utc>,
-    ) -> Result<(), RepositoryError> {
-        let task_id_typed = systemprompt_identifiers::TaskId::new(task_id);
-        self.update_task_state(&task_id_typed, state, timestamp)
-            .await
     }
 
     pub async fn update_task_failed_with_error(

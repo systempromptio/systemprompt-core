@@ -9,8 +9,8 @@ use super::A2aNotification;
 
 pub async fn persist_notification(
     db: systemprompt_database::DbPool,
-    context_id: &str,
-    agent_id: &str,
+    context: &str,
+    agent: &str,
     notification: &A2aNotification,
 ) -> Result<i32, anyhow::Error> {
     let pool = db.write_pool_arc()?;
@@ -21,8 +21,8 @@ pub async fn persist_notification(
         r#"INSERT INTO context_notifications (context_id, agent_id, notification_type, notification_data)
         VALUES ($1, $2, $3, $4)
         RETURNING id"#,
-        context_id,
-        agent_id,
+        context,
+        agent,
         notification.method,
         notification_data
     )
@@ -94,7 +94,7 @@ pub async fn process_notification(
 }
 
 pub async fn broadcast_notification(
-    context_id: &str,
+    context: &str,
     user_id: &UserId,
     notification: &A2aNotification,
 ) -> Result<usize, anyhow::Error> {
@@ -105,7 +105,7 @@ pub async fn broadcast_notification(
             let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
                 name: "task_status_changed".to_string(),
                 value: json!({
-                    "contextId": context_id,
+                    "contextId": context,
                     "taskId": notification.params.get("taskId"),
                     "status": notification.params.get("status"),
                     "task": notification.params.get("task"),
@@ -121,7 +121,7 @@ pub async fn broadcast_notification(
                 value: json!({
                     "artifact": notification.params.get("artifact"),
                     "taskId": notification.params.get("taskId"),
-                    "contextId": context_id,
+                    "contextId": context,
                 }),
             }));
 
@@ -132,7 +132,7 @@ pub async fn broadcast_notification(
             let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
                 name: "message_added".to_string(),
                 value: json!({
-                    "contextId": context_id,
+                    "contextId": context,
                     "messageId": notification.params.get("messageId"),
                     "message": notification.params.get("message"),
                 }),

@@ -7,7 +7,7 @@ use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::{ArtifactId, McpExecutionId};
+use systemprompt_identifiers::{ArtifactId, McpExecutionId, SkillId};
 use systemprompt_models::artifacts::types::ArtifactType;
 
 pub use metadata_builder::{BuildMetadataParams, build_metadata};
@@ -17,7 +17,7 @@ pub use type_inference::infer_type;
 
 #[derive(Debug, Deserialize)]
 pub struct ParsedMetadata {
-    pub skill_id: Option<String>,
+    pub skill_id: Option<SkillId>,
     pub skill_name: Option<String>,
     pub execution_id: Option<String>,
 }
@@ -140,7 +140,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
     metadata = metadata.with_fingerprint(fingerprint);
 
     if let Some(sid) = &parsed.metadata.skill_id {
-        metadata = metadata.with_skill_id(systemprompt_identifiers::SkillId::from(sid.clone()));
+        metadata = metadata.with_skill_id(sid.clone());
     }
 
     Ok(Artifact {

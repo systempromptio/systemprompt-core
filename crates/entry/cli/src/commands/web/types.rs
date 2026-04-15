@@ -11,7 +11,8 @@ pub struct ContentTypeListOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentTypeSummary {
     pub name: String,
-    pub source_id: String,
+    #[serde(rename = "source_id")]
+    pub source: String,
     pub category_id: String,
     pub enabled: bool,
     pub path: String,
@@ -21,7 +22,8 @@ pub struct ContentTypeSummary {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentTypeDetailOutput {
     pub name: String,
-    pub source_id: String,
+    #[serde(rename = "source_id")]
+    pub source: String,
     pub category_id: String,
     pub enabled: bool,
     pub path: String,

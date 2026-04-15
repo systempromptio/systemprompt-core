@@ -76,7 +76,7 @@ fn resolve_skills(plugin: &PluginConfig, skills_path: &Path) -> Result<Vec<(Stri
     Ok(resolved)
 }
 
-fn build_skill_md(skill_id: &str, skill_dir: &Path) -> Result<String> {
+fn build_skill_md(skill: &str, skill_dir: &Path) -> Result<String> {
     let index_md = skill_dir.join("index.md");
     let skill_md_path = skill_dir.join("SKILL.md");
 
@@ -87,7 +87,7 @@ fn build_skill_md(skill_id: &str, skill_dir: &Path) -> Result<String> {
         let name = cfg
             .get("name")
             .and_then(|v| v.as_str())
-            .unwrap_or(skill_id)
+            .unwrap_or(skill)
             .to_string();
         let desc = cfg
             .get("description")
@@ -96,7 +96,7 @@ fn build_skill_md(skill_id: &str, skill_dir: &Path) -> Result<String> {
             .to_string();
         (name, desc)
     } else {
-        (skill_id.to_string(), String::new())
+        (skill.to_string(), String::new())
     };
 
     let body = if index_md.exists() {
@@ -108,7 +108,7 @@ fn build_skill_md(skill_id: &str, skill_dir: &Path) -> Result<String> {
     } else {
         format!(
             "$(systemprompt core skills show {} --raw 2>/dev/null || echo \"Skill not available\")",
-            skill_id
+            skill
         )
     };
 

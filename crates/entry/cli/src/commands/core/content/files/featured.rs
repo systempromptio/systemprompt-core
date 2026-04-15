@@ -10,8 +10,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct FeaturedArgs {
-    #[arg(help = "Content ID")]
-    pub content_id: String,
+    #[arg(value_name = "CONTENT_ID", help = "Content ID")]
+    pub content: String,
 
     #[arg(long, help = "Set featured image")]
     pub set: Option<String>,
@@ -24,7 +24,7 @@ pub async fn execute(
     let ctx = AppContext::new().await?;
     let service = ContentService::new(ctx.db_pool())?;
 
-    let content_id = ContentId::new(args.content_id.clone());
+    let content_id = ContentId::new(args.content.clone());
 
     if let Some(file_id_str) = args.set {
         let file_id = FileId::new(file_id_str);

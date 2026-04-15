@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, SessionId};
+use systemprompt_identifiers::{ClientId, ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 use systemprompt_users::{User, UserService};
@@ -16,14 +16,14 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Serialize)]
 pub struct SessionRequest {
-    pub client_id: String,
-    pub user_id: String,
+    pub client_id: ClientId,
+    pub user_id: UserId,
     pub email: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SessionResponse {
-    pub session_id: String,
+    pub session_id: SessionId,
 }
 
 pub fn session_key_for_profile(profile: &Profile) -> SessionKey {
@@ -128,7 +128,7 @@ pub async fn fetch_admin_user(
     Ok(user)
 }
 
-pub async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result<SessionId> {
+pub async fn create_session(api_url: &str, user: &UserId, email: &str) -> Result<SessionId> {
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -140,8 +140,8 @@ pub async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result
     );
 
     let request = SessionRequest {
-        client_id: "sp_cli".to_string(),
-        user_id: user_id.to_string(),
+        client_id: ClientId::new("sp_cli"),
+        user_id: user.clone(),
         email: email.to_string(),
     };
 
@@ -163,7 +163,7 @@ pub async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result
         .await
         .context("Failed to parse session response")?;
 
-    Ok(SessionId::new(session_response.session_id))
+    Ok(session_response.session_id)
 }
 
 pub struct SessionStoreParams<'a> {

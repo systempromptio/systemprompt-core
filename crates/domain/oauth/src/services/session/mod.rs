@@ -19,7 +19,7 @@ const MAX_SESSION_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
 #[derive(Debug, thiserror::Error)]
 pub enum SessionCreationError {
     #[error("User not found: {user_id}")]
-    UserNotFound { user_id: String },
+    UserNotFound { user_id: UserId },
 
     #[error("Session creation failed: {0}")]
     Internal(String),
@@ -143,7 +143,7 @@ impl SessionCreationService {
 
         if user.is_none() {
             return Err(SessionCreationError::UserNotFound {
-                user_id: user_id.to_string(),
+                user_id: user_id.clone(),
             });
         }
 

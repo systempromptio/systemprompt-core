@@ -13,6 +13,7 @@ pub async fn delete_client(
     OAuthRepo(repository): OAuthRepo,
     Path(client_id): Path<String>,
 ) -> impl IntoResponse {
+    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(client)) => match repository.delete_client(&client_id).await {
             Ok(_) => {

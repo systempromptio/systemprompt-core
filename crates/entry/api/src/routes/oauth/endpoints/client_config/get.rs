@@ -59,6 +59,7 @@ pub async fn get_client_configuration(
             .into_response();
     }
 
+    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(client)) => {
             let base_url = match Config::get() {
@@ -76,7 +77,7 @@ pub async fn get_client_configuration(
             };
 
             let response = DynamicRegistrationResponse {
-                client_id: client.client_id.to_string(),
+                client_id: client.client_id.clone(),
                 client_secret: "***REDACTED***".to_string(),
                 client_name: client.client_name,
                 redirect_uris: client.redirect_uris,

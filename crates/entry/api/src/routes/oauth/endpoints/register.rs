@@ -149,7 +149,7 @@ pub async fn register_client(
     match repository.create_client(params).await {
         Ok(_) => {
             let response = DynamicRegistrationResponse {
-                client_id: client_id.clone(),
+                client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),
                 client_secret,
                 client_name,
                 redirect_uris,

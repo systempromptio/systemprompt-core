@@ -72,7 +72,7 @@ pub async fn execute(
         previous_profile,
         new_profile: profile_name.to_string(),
         session_key: session_key.as_storage_key(),
-        tenant_id: new_tenant_id,
+        tenant: new_tenant_id,
         message: format!("Switched to profile '{}'", profile_name),
     };
 

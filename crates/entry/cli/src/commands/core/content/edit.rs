@@ -223,12 +223,12 @@ pub async fn execute_with_pool(
 
 fn prompt_content_selection(
     repo: &ContentRepository,
-    source_id: Option<&str>,
+    source: Option<&str>,
     _config: &CliConfig,
 ) -> Result<String> {
     let rt = tokio::runtime::Handle::current();
     let contents = rt.block_on(async {
-        if let Some(source) = source_id {
+        if let Some(source) = source {
             let source = SourceId::new(source.to_string());
             repo.list_by_source_limited(&source, 50).await
         } else {

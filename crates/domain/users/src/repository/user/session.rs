@@ -10,7 +10,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             UserSessionRow,
             r#"
-            SELECT session_id, user_id, ip_address, user_agent, device_type,
+            SELECT session_id, user_id as "user_id: UserId", ip_address, user_agent, device_type,
                    started_at, last_activity_at, ended_at
             FROM user_sessions
             WHERE user_id = $1
@@ -28,7 +28,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             UserSessionRow,
             r#"
-            SELECT session_id, user_id, ip_address, user_agent, device_type,
+            SELECT session_id, user_id as "user_id: UserId", ip_address, user_agent, device_type,
                    started_at, last_activity_at, ended_at
             FROM user_sessions
             WHERE user_id = $1 AND ended_at IS NULL
@@ -51,7 +51,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             UserSessionRow,
             r#"
-            SELECT session_id, user_id, ip_address, user_agent, device_type,
+            SELECT session_id, user_id as "user_id: UserId", ip_address, user_agent, device_type,
                    started_at, last_activity_at, ended_at
             FROM user_sessions
             WHERE user_id = $1

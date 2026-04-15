@@ -49,7 +49,7 @@ impl ClientValidator {
         client_id: &ClientId,
         redirect_uri: Option<&str>,
     ) -> Result<ClientValidation> {
-        let metadata = self.cimd_fetcher.fetch_metadata(client_id.as_str()).await?;
+        let metadata = self.cimd_fetcher.fetch_metadata(client_id).await?;
 
         if let Some(uri) = redirect_uri {
             if !metadata.has_redirect_uri(uri) {
@@ -66,7 +66,7 @@ impl ClientValidator {
     }
 
     async fn validate_dcr(&self, client_id: &ClientId) -> Result<ClientValidation> {
-        let client = self.dcr_repo.find_client_by_id(client_id.as_str()).await?;
+        let client = self.dcr_repo.find_client_by_id(client_id).await?;
 
         if client.is_none() {
             return Err(anyhow!(

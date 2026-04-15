@@ -46,7 +46,7 @@ systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-logging = { workspace = true }
-systemprompt-identifiers = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
@@ -59,10 +59,6 @@ inventory = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
-
-[[test]]
-name = "unit"
-path = "../../tests/unit/app/sync/mod.rs"
 
 [lints]
 workspace = true

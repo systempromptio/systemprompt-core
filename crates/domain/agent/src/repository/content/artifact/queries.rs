@@ -208,6 +208,6 @@ async fn row_to_artifact(
         .context_id
         .clone()
         .unwrap_or_else(|| ContextId::new(""));
-    let parts = get_artifact_parts(pool, row.artifact_id.as_str(), context_id.as_str()).await?;
+    let parts = get_artifact_parts(pool, &row.artifact_id, &context_id).await?;
     Ok(row_to_artifact_with_parts(row, parts))
 }

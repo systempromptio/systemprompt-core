@@ -28,13 +28,13 @@ pub struct MessageArgs {
     pub message: Option<String>,
 
     #[arg(
-        long,
+        long = "context-id",
         help = "Context ID for conversation continuity (overrides session)"
     )]
-    pub context_id: Option<String>,
+    pub context: Option<String>,
 
-    #[arg(long, help = "Task ID to continue an existing task")]
-    pub task_id: Option<String>,
+    #[arg(long = "task-id", help = "Task ID to continue an existing task")]
+    pub task: Option<String>,
 
     #[arg(long, help = "Gateway URL (overrides profile's api_external_url)")]
     pub url: Option<String>,
@@ -88,11 +88,11 @@ pub async fn execute(
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
     let context_id: ContextId = args
-        .context_id
+        .context
         .map_or_else(|| session_ctx.context_id().clone(), ContextId::new);
     let auth_token = session_ctx.session_token().as_str();
 
-    let task_id: Option<TaskId> = args.task_id.map(TaskId::new);
+    let task_id: Option<TaskId> = args.task.map(TaskId::new);
 
     let message_id = MessageId::generate();
     let request_id = RequestId::String(MessageId::generate().to_string());

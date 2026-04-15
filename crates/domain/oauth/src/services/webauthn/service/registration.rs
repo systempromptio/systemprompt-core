@@ -133,7 +133,7 @@ impl WebAuthnService {
             .finish_passkey_registration(params.reg_response, &reg_state)
         {
             Ok(sk) => {
-                let user_id = self
+                let user_id_str = self
                     .user_creation_service
                     .create_user_with_webauthn_registration(
                         params.username,
@@ -141,6 +141,7 @@ impl WebAuthnService {
                         params.full_name,
                     )
                     .await?;
+                let user_id = systemprompt_identifiers::UserId::new(user_id_str);
 
                 let credential_id = sk.cred_id().clone();
                 let display_name = params
@@ -162,7 +163,7 @@ impl WebAuthnService {
                     "WebAuthn registration completed"
                 );
 
-                Ok(user_id)
+                Ok(user_id.to_string())
             },
             Err(e) => {
                 tracing::info!(
@@ -198,7 +199,7 @@ impl WebAuthnService {
 
     async fn complete_registration(
         &self,
-        user_id: &str,
+        user_id: &systemprompt_identifiers::UserId,
         sk: &Passkey,
         display_name: &str,
     ) -> Result<()> {

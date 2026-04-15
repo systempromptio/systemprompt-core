@@ -19,7 +19,8 @@ pub struct SessionInfo {
 pub struct RoutingInfo {
     pub profile_name: String,
     pub target: String,
-    pub tenant_id: Option<String>,
+    #[serde(rename = "tenant_id")]
+    pub tenant: Option<String>,
     pub hostname: Option<String>,
 }
 
@@ -48,6 +49,7 @@ pub struct SwitchOutput {
     pub previous_profile: Option<String>,
     pub new_profile: String,
     pub session_key: String,
-    pub tenant_id: Option<String>,
+    #[serde(rename = "tenant_id")]
+    pub tenant: Option<String>,
     pub message: String,
 }

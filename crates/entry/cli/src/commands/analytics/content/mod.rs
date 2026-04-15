@@ -38,7 +38,8 @@ pub struct ContentStatsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TopContentRow {
-    pub content_id: String,
+    #[serde(rename = "content_id")]
+    pub content: String,
     pub slug: String,
     pub title: String,
     pub source: String,

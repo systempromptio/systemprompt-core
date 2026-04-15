@@ -41,16 +41,16 @@ impl AgentOrchestrator {
         self.db_service.list_all_agents().await
     }
 
-    pub async fn validate_agent(&self, agent_id: &str) -> OrchestrationResult<ValidationReport> {
+    pub async fn validate_agent(&self, agent_name: &str) -> OrchestrationResult<ValidationReport> {
         let mut report = ValidationReport::new();
 
-        let exists = self.db_service.agent_exists(agent_id).await?;
+        let exists = self.db_service.agent_exists(agent_name).await?;
         if !exists {
             report.add_issue("Agent not found in database".to_string());
             return Ok(report);
         }
 
-        match self.db_service.get_agent_config(agent_id).await {
+        match self.db_service.get_agent_config(agent_name).await {
             Ok(_) => {},
             Err(e) => {
                 report.add_issue(format!("Configuration error: {e}"));
@@ -58,9 +58,9 @@ impl AgentOrchestrator {
             },
         }
 
-        let status = self.db_service.get_status(agent_id).await?;
+        let status = self.db_service.get_status(agent_name).await?;
         match status {
-            AgentStatus::Running { .. } => match self.health_check(agent_id).await {
+            AgentStatus::Running { .. } => match self.health_check(agent_name).await {
                 Ok(health) => {
                     if !health.healthy {
                         report.add_issue(format!("Health check failed: {}", health.message));

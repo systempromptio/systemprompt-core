@@ -1,4 +1,5 @@
 use anyhow::Result;
+use systemprompt_identifiers::UserId;
 
 use super::FingerprintRepository;
 use crate::models::{FingerprintReputation, FlagReason};
@@ -9,9 +10,9 @@ impl FingerprintRepository {
         fingerprint_hash: &str,
         ip_address: Option<&str>,
         user_agent: Option<&str>,
-        user_id: Option<&str>,
+        user_id: Option<&UserId>,
     ) -> Result<FingerprintReputation> {
-        let user_ids = user_id.map_or_else(Vec::new, |u| vec![u.to_string()]);
+        let user_ids = user_id.map_or_else(Vec::new, |u| vec![u.as_str().to_string()]);
 
         let row = sqlx::query_as!(
             FingerprintReputation,

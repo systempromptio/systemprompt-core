@@ -10,7 +10,7 @@ use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
 
 pub async fn execute(
-    tenant_id: Option<String>,
+    tenant: Option<String>,
     yes: bool,
     config: &CliConfig,
 ) -> Result<CommandResult<RestartOutput>> {
@@ -18,7 +18,7 @@ pub async fn execute(
         CliService::section("Restart Tenant");
     }
 
-    let resolved_tenant_id = resolve_tenant_id(tenant_id)?;
+    let resolved_tenant_id = resolve_tenant_id(tenant)?;
 
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);

@@ -132,7 +132,7 @@ pub fn create_profile_for_tenant(
 }
 
 pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<StoredTenant> {
-    let tenant_id = args.tenant_id.as_ref().ok_or_else(|| {
+    let tenant_id = args.tenant.as_ref().ok_or_else(|| {
         anyhow::anyhow!(
             "Missing required flag: --tenant-id\nIn non-interactive mode, --tenant-id is \
              required.\nList tenants with: systemprompt cloud tenant list"

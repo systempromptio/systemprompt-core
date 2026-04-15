@@ -1,6 +1,7 @@
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::path::Path;
+use systemprompt_identifiers::SkillId;
 
 use crate::models::a2a::AgentSkill;
 
@@ -23,8 +24,9 @@ pub struct SkillConfig {
     output_modes: Option<Vec<String>>,
 }
 
-pub fn load_skill_from_disk(skills_path: &Path, skill_id: &str) -> Result<AgentSkill> {
-    let skill_dir = skills_path.join(skill_id);
+pub fn load_skill_from_disk(skills_path: &Path, skill_id: &SkillId) -> Result<AgentSkill> {
+    let skill_id_str = skill_id.as_str();
+    let skill_dir = skills_path.join(skill_id_str);
     let skill_path = skill_dir.join(SKILL_FILENAME);
 
     if !skill_path.exists() {
@@ -55,12 +57,12 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &str) -> Result<AgentS
     };
 
     Ok(AgentSkill {
-        id: skill_id.to_string(),
-        name: config.name.unwrap_or_else(|| skill_id.to_string()),
+        id: skill_id_str.to_string(),
+        name: config.name.unwrap_or_else(|| skill_id_str.to_string()),
         description: config
             .description
             .or(description)
-            .unwrap_or_else(|| format!("{skill_id} skill")),
+            .unwrap_or_else(|| format!("{skill_id_str} skill")),
         tags: config.tags,
         examples: config.examples,
         input_modes: config.input_modes,

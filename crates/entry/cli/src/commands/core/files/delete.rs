@@ -11,8 +11,8 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct DeleteArgs {
-    #[arg(help = "File ID (UUID format)")]
-    pub file_id: String,
+    #[arg(value_name = "FILE_ID", help = "File ID (UUID format)")]
+    pub file: String,
 
     #[arg(
         short = 'y',
@@ -29,7 +29,7 @@ pub async fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<FileDeleteOutput>> {
-    let file_id = parse_file_id(&args.file_id)?;
+    let file_id = parse_file_id(&args.file)?;
 
     let ctx = AppContext::new().await?;
     let service = FileService::new(ctx.db_pool())?;
@@ -37,14 +37,14 @@ pub async fn execute(
     let file = service
         .find_by_id(&file_id)
         .await?
-        .ok_or_else(|| anyhow!("File not found: {}", args.file_id))?;
+        .ok_or_else(|| anyhow!("File not found: {}", args.file))?;
 
     if args.dry_run {
         let output = FileDeleteOutput {
             file_id,
             message: format!(
                 "[DRY-RUN] Would delete file '{}' ({})",
-                file.path, args.file_id
+                file.path, args.file
             ),
         };
         return Ok(CommandResult::card(output).with_title("File Delete (Dry Run)"));
@@ -55,7 +55,7 @@ pub async fn execute(
             let confirmed = Confirm::new()
                 .with_prompt(format!(
                     "Delete file '{}' ({})? This action cannot be undone.",
-                    file.path, args.file_id
+                    file.path, args.file
                 ))
                 .default(false)
                 .interact()?;

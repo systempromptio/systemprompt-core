@@ -2,7 +2,7 @@ use crate::error::{AiError, Result};
 use crate::models::AiRequestRecordBuilder;
 use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
 use crate::repository::AiRequestRepository;
-use systemprompt_identifiers::{FileId, McpExecutionId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{FileId, McpExecutionId, TraceId, UserId};
 use systemprompt_traits::{
     AiFilePersistenceProvider, AiGeneratedFile, ImageGenerationInfo, ImageMetadata,
     InsertAiFileParams,
@@ -37,7 +37,10 @@ async fn persist_ai_request(
     request: &ImageGenerationRequest,
     response: &ImageGenerationResponse,
 ) -> Result<()> {
-    let user_id = UserId::new(request.user_id.as_deref().unwrap_or("anonymous"));
+    let user_id = request
+        .user_id
+        .clone()
+        .unwrap_or_else(|| UserId::new("anonymous"));
 
     let mut builder = AiRequestRecordBuilder::new(&response.request_id, user_id)
         .provider(&response.provider)
@@ -47,7 +50,7 @@ async fn persist_ai_request(
         .completed();
 
     if let Some(session_id) = &request.session_id {
-        builder = builder.session_id(SessionId::new(session_id));
+        builder = builder.session_id(session_id.clone());
     }
 
     if let Some(trace_id) = &request.trace_id {
@@ -101,8 +104,8 @@ async fn persist_file_record(
         mime_type: response.mime_type.clone(),
         size_bytes: response.file_size_bytes.map(|s| s as i64),
         metadata,
-        user_id: request.user_id.as_ref().map(UserId::new),
-        session_id: request.session_id.as_ref().map(SessionId::new),
+        user_id: request.user_id.clone(),
+        session_id: request.session_id.clone(),
         trace_id: request.trace_id.as_ref().map(TraceId::new),
         context_id: None,
     };

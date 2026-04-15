@@ -113,7 +113,7 @@ pub async fn execute_ai_trace(
                 .filter(|s| s.status == "pending" || s.status == "in_progress")
                 .count() as i64,
         },
-        task_id: Some(task_id.as_str().to_string()),
+        task: Some(task_id.as_str().to_string()),
         duration_ms,
         status: task_info.status,
     };

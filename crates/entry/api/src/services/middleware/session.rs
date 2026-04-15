@@ -268,8 +268,8 @@ impl SessionMiddleware {
         })?;
 
         let token = systemprompt_oauth::services::generation::generate_anonymous_jwt(
-            user_id.as_str(),
-            session_id.as_str(),
+            user_id,
+            &session_id,
             &ClientId::new("sp_web".to_string()),
             &systemprompt_oauth::services::JwtSigningParams {
                 secret: jwt_secret,

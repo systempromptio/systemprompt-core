@@ -16,7 +16,7 @@ pub fn print_artifacts(artifacts: &[TaskArtifact]) {
     for artifact in artifacts {
         if seen_artifacts.insert(artifact.artifact_id.to_string()) {
             artifact_rows.push(ArtifactRow {
-                artifact_id: truncate(artifact.artifact_id.as_str(), 12),
+                artifact: truncate(artifact.artifact_id.as_str(), 12),
                 artifact_type: artifact.artifact_type.clone(),
                 name: artifact
                     .name

@@ -2,17 +2,17 @@ use super::AgentOrchestrator;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
 
 impl AgentOrchestrator {
-    pub async fn delete_agent(&self, agent_id: &str) -> OrchestrationResult<()> {
-        tracing::debug!(agent_id = %agent_id, "Deleting agent");
+    pub async fn delete_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+        tracing::debug!(agent_name = %agent_name, "Deleting agent");
 
-        if let Ok(AgentStatus::Running { .. }) = self.get_status(agent_id).await {
-            tracing::debug!(agent_id = %agent_id, "Stopping running agent before deletion");
-            self.lifecycle.disable_agent(agent_id).await?;
+        if let Ok(AgentStatus::Running { .. }) = self.get_status(agent_name).await {
+            tracing::debug!(agent_name = %agent_name, "Stopping running agent before deletion");
+            self.lifecycle.disable_agent(agent_name).await?;
         }
 
-        self.db_service.remove_agent_service(agent_id).await?;
+        self.db_service.remove_agent_service(agent_name).await?;
 
-        tracing::debug!(agent_id = %agent_id, "Agent deleted successfully");
+        tracing::debug!(agent_name = %agent_name, "Agent deleted successfully");
         Ok(())
     }
 

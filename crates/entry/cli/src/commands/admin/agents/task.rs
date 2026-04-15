@@ -17,8 +17,8 @@ pub struct TaskArgs {
     #[arg(help = "Agent name that processed the task")]
     pub agent: Option<String>,
 
-    #[arg(long, help = "Task ID to retrieve")]
-    pub task_id: Option<String>,
+    #[arg(long = "task-id", help = "Task ID to retrieve")]
+    pub task: Option<String>,
 
     #[arg(long, help = "Number of history messages to retrieve")]
     pub history_length: Option<u32>,
@@ -44,7 +44,7 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         Err(anyhow!("Agent name is required"))
     })?;
 
-    let task_id = resolve_required(args.task_id, "task-id", config, || {
+    let task_id = resolve_required(args.task, "task-id", config, || {
         Err(anyhow!("Task ID is required. Use --task-id"))
     })?;
 

@@ -65,10 +65,10 @@ impl ContentProvider for DefaultContentProvider {
 
     async fn get_content_by_source_and_slug(
         &self,
-        source_id: &str,
+        source_id_str: &str,
         slug: &str,
     ) -> Result<Option<ContentItem>, Self::Error> {
-        let source = systemprompt_identifiers::SourceId::new(source_id);
+        let source = systemprompt_identifiers::SourceId::new(source_id_str);
         let content = self.repo.get_by_source_and_slug(&source, slug).await?;
 
         Ok(content.map(|c| ContentItem {

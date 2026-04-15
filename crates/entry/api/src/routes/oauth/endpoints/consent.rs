@@ -71,7 +71,7 @@ async fn get_consent_info(
     params: &ConsentQuery,
 ) -> Result<ConsentResponse> {
     let client = repo
-        .find_client_by_id(params.client_id.as_str())
+        .find_client_by_id(&params.client_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 

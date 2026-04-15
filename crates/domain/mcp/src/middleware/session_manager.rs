@@ -76,7 +76,7 @@ impl DatabaseSessionManager {
     async fn persist_create(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref()
-            && let Err(e) = repo.create(session_id.as_ref(), None, None).await
+            && let Err(e) = repo.create(&systemprompt_identifiers::SessionId::new(session_id.as_ref()), None, None).await
         {
             tracing::warn!(
                 session_id = %session_id,
@@ -89,7 +89,9 @@ impl DatabaseSessionManager {
     async fn persist_close(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref()
-            && let Err(e) = repo.close(session_id.as_ref()).await
+            && let Err(e) = repo
+                .close(&systemprompt_identifiers::SessionId::new(session_id.as_ref()))
+                .await
         {
             tracing::warn!(
                 session_id = %session_id,
@@ -102,7 +104,9 @@ impl DatabaseSessionManager {
     async fn update_activity(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref()
-            && let Err(e) = repo.update_activity(session_id.as_ref()).await
+            && let Err(e) = repo
+                .update_activity(&systemprompt_identifiers::SessionId::new(session_id.as_ref()))
+                .await
         {
             tracing::debug!(
                 session_id = %session_id,
@@ -115,7 +119,10 @@ impl DatabaseSessionManager {
     async fn check_db_session(&self, session_id: &SessionId) -> Option<bool> {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref() {
-            match repo.find_active(session_id.as_ref()).await {
+            match repo
+                .find_active(&systemprompt_identifiers::SessionId::new(session_id.as_ref()))
+                .await
+            {
                 Ok(Some(_)) => Some(true),
                 Ok(None) => Some(false),
                 Err(e) => {

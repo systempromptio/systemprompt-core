@@ -8,8 +8,8 @@ pub use systemprompt_models::a2a::ArtifactSummary;
 pub struct ArtifactListOutput {
     pub artifacts: Vec<ArtifactSummary>,
     pub total: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub context_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "context_id")]
+    pub context: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -14,6 +14,7 @@ pub async fn update_client(
     Path(client_id): Path<String>,
     Json(request): Json<UpdateOAuthClientRequest>,
 ) -> impl IntoResponse {
+    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(prev_client)) => {
             match repository

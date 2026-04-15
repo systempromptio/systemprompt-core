@@ -6,7 +6,7 @@ use rand::{Rng, rng};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
@@ -130,8 +130,8 @@ pub fn verify_client_secret(secret: &str, hash: &str) -> Result<bool> {
 }
 
 pub fn generate_anonymous_jwt(
-    user_id: &str,
-    session_id: &str,
+    user_id: &UserId,
+    session_id: &SessionId,
     client_id: &systemprompt_identifiers::ClientId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
@@ -140,8 +140,8 @@ pub fn generate_anonymous_jwt(
 }
 
 pub fn generate_anonymous_jwt_with_expiry(
-    user_id: &str,
-    session_id: &str,
+    user_id: &UserId,
+    session_id: &SessionId,
     client_id: &systemprompt_identifiers::ClientId,
     signing: &JwtSigningParams<'_>,
     expires_in_seconds: i64,
@@ -184,8 +184,8 @@ pub fn generate_anonymous_jwt_with_expiry(
 }
 
 pub fn generate_admin_jwt(
-    user_id: &str,
-    session_id: &str,
+    user_id: &UserId,
+    session_id: &SessionId,
     email: &str,
     client_id: &systemprompt_identifiers::ClientId,
     signing: &JwtSigningParams<'_>,
@@ -203,8 +203,8 @@ pub fn generate_admin_jwt(
 
 #[allow(clippy::too_many_arguments)]
 pub fn generate_admin_jwt_with_expiry(
-    user_id: &str,
-    session_id: &str,
+    user_id: &UserId,
+    session_id: &SessionId,
     email: &str,
     client_id: &systemprompt_identifiers::ClientId,
     signing: &JwtSigningParams<'_>,

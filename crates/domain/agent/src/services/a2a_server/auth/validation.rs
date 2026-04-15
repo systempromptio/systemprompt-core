@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::auth::Permission;
 use systemprompt_traits::{AgentJwtClaims, AuthUser, GenerateTokenParams};
 
@@ -41,7 +41,7 @@ pub async fn validate_agent_token(
 }
 
 pub async fn generate_agent_token(
-    user_id: &str,
+    user_id: &UserId,
     username: &str,
     state: &AgentOAuthState,
 ) -> Result<String> {
@@ -52,7 +52,7 @@ pub async fn generate_agent_token(
 
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
 
-    let params = GenerateTokenParams::new(user_id, username, session_id)
+    let params = GenerateTokenParams::new(user_id.as_str(), username, session_id)
         .with_permissions(vec!["a2a".to_string()])
         .with_audiences(vec!["a2a".to_string()])
         .with_expires_in_hours(1);
@@ -63,7 +63,7 @@ pub async fn generate_agent_token(
 }
 
 pub async fn generate_cross_protocol_token(
-    user_id: &str,
+    user_id: &UserId,
     username: &str,
     state: &AgentOAuthState,
 ) -> Result<String> {
@@ -74,7 +74,7 @@ pub async fn generate_cross_protocol_token(
 
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
 
-    let params = GenerateTokenParams::new(user_id, username, session_id)
+    let params = GenerateTokenParams::new(user_id.as_str(), username, session_id)
         .with_permissions(vec!["mcp".to_string(), "a2a".to_string()])
         .with_audiences(vec!["mcp".to_string(), "a2a".to_string()])
         .with_expires_in_hours(1);

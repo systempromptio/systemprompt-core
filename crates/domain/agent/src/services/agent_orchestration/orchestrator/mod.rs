@@ -91,34 +91,34 @@ impl AgentOrchestrator {
 
     pub async fn start_agent(
         &self,
-        agent_id: &str,
+        agent_name: &str,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
-        self.lifecycle.start_agent(agent_id, events).await
+        self.lifecycle.start_agent(agent_name, events).await
     }
 
     pub async fn enable_agent(
         &self,
-        agent_id: &str,
+        agent_name: &str,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
-        self.lifecycle.enable_agent(agent_id, events).await
+        self.lifecycle.enable_agent(agent_name, events).await
     }
 
-    pub async fn disable_agent(&self, agent_id: &str) -> OrchestrationResult<()> {
-        self.lifecycle.disable_agent(agent_id).await
+    pub async fn disable_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+        self.lifecycle.disable_agent(agent_name).await
     }
 
     pub async fn restart_agent(
         &self,
-        agent_id: &str,
+        agent_name: &str,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
-        self.lifecycle.restart_agent(agent_id, events).await
+        self.lifecycle.restart_agent(agent_name, events).await
     }
 
-    pub async fn get_status(&self, agent_id: &str) -> OrchestrationResult<AgentStatus> {
-        self.db_service.get_status(agent_id).await
+    pub async fn get_status(&self, agent_name: &str) -> OrchestrationResult<AgentStatus> {
+        self.db_service.get_status(agent_name).await
     }
 
     pub async fn list_agents(&self) -> OrchestrationResult<Vec<(String, AgentStatus)>> {
@@ -131,9 +131,9 @@ impl AgentOrchestrator {
 
     pub async fn health_check(
         &self,
-        agent_id: &str,
+        agent_name: &str,
     ) -> OrchestrationResult<monitor::HealthCheckResult> {
-        self.monitor.comprehensive_health_check(agent_id).await
+        self.monitor.comprehensive_health_check(agent_name).await
     }
 
     pub async fn start_all(

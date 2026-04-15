@@ -3,11 +3,12 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::{SessionId, UserId};
 
 #[derive(Debug, Clone)]
 pub struct McpSessionRecord {
-    pub session_id: String,
-    pub user_id: Option<String>,
+    pub session_id: SessionId,
+    pub user_id: Option<UserId>,
     pub mcp_server_id: Option<String>,
     pub last_event_id: Option<String>,
     pub status: String,
@@ -35,8 +36,8 @@ impl McpSessionRepository {
 
     pub async fn create(
         &self,
-        session_id: &str,
-        user_id: Option<&str>,
+        session_id: &SessionId,
+        user_id: Option<&UserId>,
         mcp_server_id: Option<&str>,
     ) -> Result<()> {
         sqlx::query!(
@@ -45,8 +46,8 @@ impl McpSessionRepository {
             VALUES ($1, $2, $3, 'active')
             ON CONFLICT (session_id) DO NOTHING
             "#,
-            session_id,
-            user_id,
+            session_id.as_str(),
+            user_id.map(UserId::as_str),
             mcp_server_id,
         )
         .execute(&*self.write_pool)
@@ -55,10 +56,10 @@ impl McpSessionRepository {
         Ok(())
     }
 
-    pub async fn exists(&self, session_id: &str) -> Result<bool> {
+    pub async fn exists(&self, session_id: &SessionId) -> Result<bool> {
         let result = sqlx::query_scalar!(
             r#"SELECT EXISTS(SELECT 1 FROM mcp_sessions WHERE session_id = $1) as "exists!""#,
-            session_id
+            session_id.as_str()
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -66,12 +67,12 @@ impl McpSessionRepository {
         Ok(result)
     }
 
-    pub async fn find_active(&self, session_id: &str) -> Result<Option<McpSessionRecord>> {
+    pub async fn find_active(&self, session_id: &SessionId) -> Result<Option<McpSessionRecord>> {
         let row = sqlx::query!(
             r#"
             SELECT
-                session_id as "session_id!",
-                user_id,
+                session_id as "session_id!: SessionId",
+                user_id as "user_id: UserId",
                 mcp_server_id,
                 last_event_id,
                 status as "status!",
@@ -83,7 +84,7 @@ impl McpSessionRepository {
               AND status = 'active'
               AND expires_at > NOW()
             "#,
-            session_id
+            session_id.as_str()
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -100,14 +101,18 @@ impl McpSessionRepository {
         }))
     }
 
-    pub async fn update_last_event_id(&self, session_id: &str, last_event_id: &str) -> Result<()> {
+    pub async fn update_last_event_id(
+        &self,
+        session_id: &SessionId,
+        last_event_id: &str,
+    ) -> Result<()> {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions
             SET last_event_id = $2, last_activity_at = NOW()
             WHERE session_id = $1
             "#,
-            session_id,
+            session_id.as_str(),
             last_event_id,
         )
         .execute(&*self.write_pool)
@@ -116,7 +121,7 @@ impl McpSessionRepository {
         Ok(())
     }
 
-    pub async fn update_activity(&self, session_id: &str) -> Result<()> {
+    pub async fn update_activity(&self, session_id: &SessionId) -> Result<()> {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions
@@ -124,7 +129,7 @@ impl McpSessionRepository {
                 expires_at = NOW() + INTERVAL '24 hours'
             WHERE session_id = $1
             "#,
-            session_id,
+            session_id.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;
@@ -132,14 +137,14 @@ impl McpSessionRepository {
         Ok(())
     }
 
-    pub async fn close(&self, session_id: &str) -> Result<()> {
+    pub async fn close(&self, session_id: &SessionId) -> Result<()> {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions
             SET status = 'closed', last_activity_at = NOW()
             WHERE session_id = $1
             "#,
-            session_id,
+            session_id.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;

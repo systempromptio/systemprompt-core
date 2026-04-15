@@ -17,7 +17,7 @@ use super::resolver::ServiceResolver;
 
 #[derive(Clone, Debug)]
 struct ProxySessionIdentity {
-    user_id: String,
+    user: String,
     user_type: String,
     permissions: Vec<Permission>,
     auth_token: String,
@@ -94,11 +94,11 @@ impl ProxyEngine {
                     tracing::info!(
                         service = %service_name,
                         session_id = %session_id,
-                        user_id = %identity.user_id,
+                        user_id = %identity.user,
                         "Enriching session-only request with cached identity"
                     );
                     req_context = req_context
-                        .with_user_id(UserId::from(identity.user_id.clone()))
+                        .with_user_id(UserId::from(identity.user.clone()))
                         .with_user_type(
                             identity
                                 .user_type
@@ -107,7 +107,7 @@ impl ProxyEngine {
                         )
                         .with_auth_token(identity.auth_token.clone())
                         .with_user(AuthenticatedUser::new(
-                            identity.user_id.parse().unwrap_or(uuid::Uuid::nil()),
+                            identity.user.parse().unwrap_or(uuid::Uuid::nil()),
                             String::new(),
                             String::new(),
                             identity.permissions.clone(),
@@ -213,7 +213,7 @@ impl ProxyEngine {
                     self.session_cache.write().await.insert(
                         session_id.to_string(),
                         ProxySessionIdentity {
-                            user_id: user.id.to_string(),
+                            user: user.id.to_string(),
                             user_type: req_context.user_type().to_string(),
                             permissions: user.permissions.clone(),
                             auth_token: req_context.auth_token().as_str().to_string(),

@@ -59,7 +59,7 @@ pub async fn rotate_credentials(
                 CliService::info("Cancelled");
             }
             let output = RotateCredentialsOutput {
-                tenant_id: tenant_id.clone(),
+                tenant: tenant_id.clone(),
                 status: "cancelled".to_string(),
                 internal_database_url: String::new(),
                 external_database_url: String::new(),
@@ -94,7 +94,7 @@ pub async fn rotate_credentials(
     store.save_to_path(&tenants_path)?;
 
     let output = RotateCredentialsOutput {
-        tenant_id: tenant_id.clone(),
+        tenant: tenant_id.clone(),
         status: response.status.clone(),
         internal_database_url: response.internal_database_url.clone(),
         external_database_url: response.external_database_url.clone(),
@@ -163,7 +163,7 @@ pub async fn rotate_sync_token(
                 CliService::info("Cancelled");
             }
             let output = RotateSyncTokenOutput {
-                tenant_id: tenant_id.clone(),
+                tenant: tenant_id.clone(),
                 status: "cancelled".to_string(),
                 message: "Cancelled".to_string(),
             };
@@ -194,7 +194,7 @@ pub async fn rotate_sync_token(
     store.save_to_path(&tenants_path)?;
 
     let output = RotateSyncTokenOutput {
-        tenant_id: tenant_id.clone(),
+        tenant: tenant_id.clone(),
         status: "success".to_string(),
         message: "New sync token has been saved locally.".to_string(),
     };

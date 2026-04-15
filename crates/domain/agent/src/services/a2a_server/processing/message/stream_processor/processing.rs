@@ -37,7 +37,7 @@ impl StreamProcessor {
         let context_id = &a2a_message.context_id;
         let conversation_history = self
             .context_service
-            .load_conversation_history(context_id.as_str())
+            .load_conversation_history(context_id)
             .await
             .unwrap_or_else(|e| {
                 tracing::warn!(error = %e, context_id = %context_id, "Failed to load conversation history");
@@ -237,7 +237,8 @@ async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<AiMessage> 
         );
 
         for skill_id in &agent_runtime.skills {
-            match skill_service.load_skill(skill_id, request_ctx).await {
+            let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
+            match skill_service.load_skill(&skill_id_typed, request_ctx).await {
                 Ok(skill_content) => {
                     tracing::info!(
                         skill_id = %skill_id,

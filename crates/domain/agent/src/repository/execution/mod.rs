@@ -9,7 +9,7 @@ use systemprompt_models::{ExecutionStep, PlannedTool, StepContent, StepId, StepS
 #[allow(missing_debug_implementations)]
 struct ParseStepParams {
     step_id: String,
-    task_id: String,
+    task_id: TaskId,
     status: String,
     content: serde_json::Value,
     started_at: DateTime<Utc>,
@@ -36,7 +36,7 @@ fn parse_step(params: ParseStepParams) -> Result<ExecutionStep> {
         serde_json::from_value(content).map_err(|e| anyhow::anyhow!("Invalid content: {}", e))?;
     Ok(ExecutionStep {
         step_id: step_id.into(),
-        task_id: task_id.into(),
+        task_id,
         status,
         started_at,
         completed_at,
@@ -91,7 +91,7 @@ impl ExecutionStepRepository {
     pub async fn get(&self, step_id: &StepId) -> Result<Option<ExecutionStep>> {
         let step_id_str = step_id.as_str();
         let row = sqlx::query!(
-            r#"SELECT step_id, task_id, status, content,
+            r#"SELECT step_id, task_id as "task_id!: TaskId", status, content,
                     started_at as "started_at!", completed_at, duration_ms, error_message
                 FROM task_execution_steps WHERE step_id = $1"#,
             step_id_str
@@ -116,7 +116,7 @@ impl ExecutionStepRepository {
 
     pub async fn list_by_task(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
         let rows = sqlx::query!(
-            r#"SELECT step_id, task_id, status, content,
+            r#"SELECT step_id, task_id as "task_id!: TaskId", status, content,
                     started_at as "started_at!", completed_at, duration_ms, error_message
                 FROM task_execution_steps WHERE task_id = $1 ORDER BY started_at ASC"#,
             task_id.as_str()
@@ -277,7 +277,7 @@ impl ExecutionStepRepository {
                 duration_ms = $4,
                 content = $5
             WHERE step_id = $1
-            RETURNING step_id, task_id, status, content,
+            RETURNING step_id, task_id as "task_id!: TaskId", status, content,
                     started_at as "started_at!", completed_at, duration_ms, error_message"#,
             step_id_str,
             status_str,

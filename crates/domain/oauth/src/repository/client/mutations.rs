@@ -126,11 +126,11 @@ impl ClientRepository {
             return Ok(None);
         }
 
-        Self::delete_related_data(&mut tx, params.client_id.as_str()).await?;
+        Self::delete_related_data(&mut tx, &params.client_id).await?;
         Self::insert_related_data(
             &mut tx,
             InsertRelatedData {
-                client_id: params.client_id.as_str(),
+                client_id: &params.client_id,
                 redirect_uris: &params.redirect_uris,
                 grant_types: params.grant_types.as_deref(),
                 response_types: params.response_types.as_deref(),
@@ -142,21 +142,22 @@ impl ClientRepository {
 
         tx.commit().await?;
 
-        self.get_by_client_id(params.client_id.as_str()).await
+        self.get_by_client_id(&params.client_id).await
     }
 
     pub async fn update_secret(
         &self,
-        client_id: &str,
+        client_id: &ClientId,
         client_secret_hash: &str,
     ) -> Result<Option<OAuthClient>> {
         let now = Utc::now();
+        let client_id_str = client_id.as_str();
         let result = sqlx::query!(
             "UPDATE oauth_clients SET client_secret_hash = $1, updated_at = $2 WHERE client_id = \
              $3",
             client_secret_hash,
             now,
-            client_id
+            client_id_str
         )
         .execute(&*self.write_pool)
         .await?;
@@ -168,31 +169,37 @@ impl ClientRepository {
         self.get_by_client_id(client_id).await
     }
 
-    pub async fn delete(&self, client_id: &str) -> Result<u64> {
-        let result = sqlx::query!("DELETE FROM oauth_clients WHERE client_id = $1", client_id)
-            .execute(&*self.write_pool)
-            .await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn deactivate(&self, client_id: &str) -> Result<u64> {
-        let now = Utc::now();
+    pub async fn delete(&self, client_id: &ClientId) -> Result<u64> {
+        let client_id_str = client_id.as_str();
         let result = sqlx::query!(
-            "UPDATE oauth_clients SET is_active = false, updated_at = $1 WHERE client_id = $2",
-            now,
-            client_id
+            "DELETE FROM oauth_clients WHERE client_id = $1",
+            client_id_str
         )
         .execute(&*self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }
 
-    pub async fn activate(&self, client_id: &str) -> Result<u64> {
+    pub async fn deactivate(&self, client_id: &ClientId) -> Result<u64> {
         let now = Utc::now();
+        let client_id_str = client_id.as_str();
+        let result = sqlx::query!(
+            "UPDATE oauth_clients SET is_active = false, updated_at = $1 WHERE client_id = $2",
+            now,
+            client_id_str
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn activate(&self, client_id: &ClientId) -> Result<u64> {
+        let now = Utc::now();
+        let client_id_str = client_id.as_str();
         let result = sqlx::query!(
             "UPDATE oauth_clients SET is_active = true, updated_at = $1 WHERE client_id = $2",
             now,
-            client_id
+            client_id_str
         )
         .execute(&*self.write_pool)
         .await?;

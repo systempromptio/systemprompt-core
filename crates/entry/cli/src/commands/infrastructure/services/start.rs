@@ -160,10 +160,10 @@ async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
 
 pub async fn execute_individual_agent(
     ctx: &Arc<AppContext>,
-    agent_id: &str,
+    agent: &str,
     _config: &CliConfig,
 ) -> Result<()> {
-    CliService::section(&format!("Starting Agent: {}", agent_id));
+    CliService::section(&format!("Starting Agent: {}", agent));
 
     let jwt_provider = Arc::new(
         JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
@@ -177,12 +177,12 @@ pub async fn execute_individual_agent(
         .await
         .context("Failed to initialize agent orchestrator")?;
 
-    let name = resolve_agent_name(agent_id).await?;
+    let name = resolve_agent_name(agent).await?;
     let service_id = orchestrator.start_agent(&name, None).await?;
 
     CliService::success(&format!(
         "Agent {} started successfully (service ID: {})",
-        agent_id, service_id
+        agent, service_id
     ));
 
     Ok(())
