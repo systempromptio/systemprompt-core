@@ -27,6 +27,7 @@ struct RootConfig {
 }
 
 #[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct PartialServicesRootConfig {
     #[serde(default)]
     pub agents: HashMap<String, AgentConfig>,

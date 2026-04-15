@@ -92,6 +92,7 @@ impl Default for IncludableString {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PartialServicesConfig {
     #[serde(default)]
     pub agents: HashMap<String, AgentConfig>,
@@ -112,6 +113,7 @@ pub struct PartialServicesConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ServicesConfig {
     #[serde(default)]
     pub agents: HashMap<String, AgentConfig>,
