@@ -36,28 +36,14 @@ The loader crate sits in the infrastructure layer and depends only on `systempro
 ```
 src/
 ├── lib.rs                       # Public API exports
-├── config_loader.rs             # Basic services configuration loader
+├── config_loader.rs             # Services configuration loader with include merging
 ├── config_writer.rs             # Agent configuration file writer
-├── enhanced_config_loader.rs    # Extended config loader with includes
 ├── extension_loader.rs          # Extension manifest discovery and loading
 ├── extension_registry.rs        # Runtime extension binary registry
-├── include_resolver.rs          # YAML !include directive resolver
 ├── module_loader.rs             # Module definition aggregator
 ├── profile_loader.rs            # Profile YAML loader with validation
 └── modules/
-    ├── mod.rs                   # Module collection aggregator
-    ├── agent.rs                 # Agent module definition
-    ├── ai.rs                    # AI service module definition
-    ├── analytics.rs             # Analytics module definition
-    ├── api.rs                   # API gateway module definition
-    ├── content.rs               # Content management module definition
-    ├── database.rs              # Database module definition
-    ├── files.rs                 # File management module definition
-    ├── log.rs                   # Logging module definition
-    ├── mcp.rs                   # MCP service module definition
-    ├── oauth.rs                 # OAuth module definition
-    ├── scheduler.rs             # Scheduler module definition
-    └── users.rs                 # Users module definition
+    └── mod.rs                   # Module collection aggregator
 ```
 
 ## Module Overview
@@ -67,8 +53,7 @@ src/
 | Module | Purpose |
 |--------|---------|
 | `ProfileLoader` | Loads and validates profile YAML files from the profiles directory |
-| `ConfigLoader` | Loads services configuration with include file merging |
-| `EnhancedConfigLoader` | Extended config loader with agent discovery and include resolution |
+| `ConfigLoader` | Loads services configuration, merges includes, and validates strict schema |
 | `ModuleLoader` | Aggregates all module definitions for database schema management |
 
 ### Extension Support
@@ -77,7 +62,6 @@ src/
 |--------|---------|
 | `ExtensionLoader` | Discovers extensions by scanning for `manifest.yaml` files |
 | `ExtensionRegistry` | Runtime registry mapping binary names to extension metadata |
-| `IncludeResolver` | Resolves `!include` directives in YAML configuration |
 | `ConfigWriter` | Creates, updates, and deletes agent configuration files |
 
 ### Module Definitions
@@ -99,6 +83,8 @@ use systemprompt_loader::{
 };
 
 let config = ConfigLoader::load()?;
+
+let loader = ConfigLoader::from_env()?;
 
 let profile = ProfileLoader::load_and_validate(services_path, "development")?;
 

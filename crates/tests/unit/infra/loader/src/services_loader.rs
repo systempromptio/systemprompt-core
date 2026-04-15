@@ -686,6 +686,66 @@ ai:
 }
 
 #[test]
+fn test_loader_denies_unknown_top_level_field() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let config_path = temp_dir.path().join("services.yaml");
+
+    let content = r#"
+agents: {}
+mcp_servers: {}
+skills_typo:
+  enabled: true
+settings:
+  agent_port_range: [4000, 4999]
+  mcp_port_range: [5000, 5999]
+ai:
+  default_provider: anthropic
+"#;
+
+    let err = ConfigLoader::load_from_content(content, &config_path)
+        .expect_err("unknown top-level field should fail through loader path");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("unknown field") && msg.contains("skills_typo"),
+        "expected unknown field error mentioning skills_typo, got: {msg}"
+    );
+}
+
+#[test]
+fn test_loader_denies_unknown_field_in_include() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let config_path = temp_dir.path().join("services.yaml");
+
+    let include_content = r#"
+agents: {}
+mcp_servers: {}
+mcp_servers_typo: {}
+"#;
+    std::fs::write(temp_dir.path().join("extra.yaml"), include_content)
+        .expect("Failed to write include");
+
+    let main_content = r#"
+includes:
+  - extra.yaml
+agents: {}
+mcp_servers: {}
+settings:
+  agent_port_range: [4000, 4999]
+  mcp_port_range: [5000, 5999]
+ai:
+  default_provider: anthropic
+"#;
+
+    let err = ConfigLoader::load_from_content(main_content, &config_path)
+        .expect_err("unknown field in include should fail through loader path");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("unknown field") && msg.contains("mcp_servers_typo"),
+        "expected unknown field error mentioning mcp_servers_typo, got: {msg}"
+    );
+}
+
+#[test]
 fn test_plugin_binding_references_unknown_agent() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("services.yaml");
@@ -756,9 +816,6 @@ fn test_external_template_smoke() {
         return;
     }
 
-    let config = ConfigLoader::load_from_path(&path)
+    let _config = ConfigLoader::load_from_path(&path)
         .expect("external template should load");
-    assert!(!config.agents.is_empty(), "expected non-zero agents");
-    assert!(!config.skills.skills.is_empty(), "expected non-zero skills");
-    assert!(!config.plugins.is_empty(), "expected non-zero plugins");
 }

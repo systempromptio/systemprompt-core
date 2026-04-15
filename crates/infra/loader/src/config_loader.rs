@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_models::AppPaths;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
-    AgentConfig, AiConfig, ContentConfig, PartialServicesConfig, PluginConfig, SchedulerConfig,
-    ServicesConfig, Settings as ServicesSettings, SkillsConfig, WebConfig,
+    AgentConfig, AiConfig, ContentConfig, IncludableString, PartialServicesConfig, PluginConfig,
+    SchedulerConfig, ServicesConfig, Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
 
 #[derive(Debug)]
@@ -16,43 +16,67 @@ pub struct ConfigLoader {
     config_path: PathBuf,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct RootConfig {
     #[serde(default)]
     includes: Vec<String>,
-    #[serde(flatten)]
-    config: PartialServicesRootConfig,
+    #[serde(default)]
+    agents: HashMap<String, AgentConfig>,
+    #[serde(default)]
+    mcp_servers: HashMap<String, Deployment>,
+    #[serde(default)]
+    settings: ServicesSettings,
+    #[serde(default)]
+    scheduler: Option<SchedulerConfig>,
+    #[serde(default)]
+    ai: Option<AiConfig>,
+    #[serde(default)]
+    web: Option<WebConfig>,
+    #[serde(default)]
+    plugins: HashMap<String, PluginConfig>,
+    #[serde(default)]
+    skills: SkillsConfig,
+    #[serde(default)]
+    content: ContentConfig,
 }
 
 #[derive(serde::Deserialize, Default)]
 #[serde(deny_unknown_fields)]
-struct PartialServicesRootConfig {
-    #[serde(default)]
-    pub agents: HashMap<String, AgentConfig>,
-    #[serde(default)]
-    pub mcp_servers: HashMap<String, Deployment>,
-    #[serde(default)]
-    pub settings: ServicesSettings,
-    #[serde(default)]
-    pub scheduler: Option<SchedulerConfig>,
-    #[serde(default)]
-    pub ai: Option<AiConfig>,
-    #[serde(default)]
-    pub web: Option<WebConfig>,
-    #[serde(default)]
-    pub plugins: HashMap<String, PluginConfig>,
-    #[serde(default)]
-    pub skills: SkillsConfig,
-    #[serde(default)]
-    pub content: ContentConfig,
-}
-
-#[derive(serde::Deserialize)]
 struct PartialServicesFile {
     #[serde(default)]
     includes: Vec<String>,
-    #[serde(flatten)]
-    config: PartialServicesConfig,
+    #[serde(default)]
+    agents: HashMap<String, AgentConfig>,
+    #[serde(default)]
+    mcp_servers: HashMap<String, Deployment>,
+    #[serde(default)]
+    scheduler: Option<SchedulerConfig>,
+    #[serde(default)]
+    ai: Option<AiConfig>,
+    #[serde(default)]
+    web: Option<WebConfig>,
+    #[serde(default)]
+    plugins: HashMap<String, PluginConfig>,
+    #[serde(default)]
+    skills: SkillsConfig,
+    #[serde(default)]
+    content: ContentConfig,
+}
+
+impl PartialServicesFile {
+    fn into_partial_config(self) -> PartialServicesConfig {
+        PartialServicesConfig {
+            agents: self.agents,
+            mcp_servers: self.mcp_servers,
+            scheduler: self.scheduler,
+            ai: self.ai,
+            web: self.web,
+            plugins: self.plugins,
+            skills: self.skills,
+            content: self.content,
+        }
+    }
 }
 
 struct IncludeResolveCtx<'a> {
@@ -107,15 +131,15 @@ impl ConfigLoader {
             .with_context(|| format!("Failed to parse config: {}", self.config_path.display()))?;
 
         let mut merged = ServicesConfig {
-            agents: root.config.agents,
-            mcp_servers: root.config.mcp_servers,
-            settings: root.config.settings,
-            scheduler: root.config.scheduler,
-            ai: root.config.ai.unwrap_or_else(AiConfig::default),
-            web: root.config.web,
-            plugins: root.config.plugins,
-            skills: root.config.skills,
-            content: root.config.content,
+            agents: root.agents,
+            mcp_servers: root.mcp_servers,
+            settings: root.settings,
+            scheduler: root.scheduler,
+            ai: root.ai.unwrap_or_else(AiConfig::default),
+            web: root.web,
+            plugins: root.plugins,
+            skills: root.skills,
+            content: root.content,
         };
 
         let mut visited: HashSet<PathBuf> = HashSet::new();
@@ -134,6 +158,7 @@ impl ConfigLoader {
         }
 
         self.resolve_system_prompt_includes(&mut merged)?;
+        self.resolve_skill_instruction_includes(&mut merged)?;
 
         merged.settings.apply_env_overrides();
 
@@ -201,7 +226,48 @@ impl ConfigLoader {
         }
         ctx.chain.pop();
 
-        Self::merge_partial(ctx.merged, partial_file.config)?;
+        let file_dir = canonical.parent().unwrap_or(&self.base_path).to_path_buf();
+        let mut partial = partial_file.into_partial_config();
+        Self::resolve_partial_includes(&mut partial, &file_dir)?;
+        Self::merge_partial(ctx.merged, partial)?;
+
+        Ok(())
+    }
+
+    fn resolve_partial_includes(
+        partial: &mut PartialServicesConfig,
+        base_dir: &Path,
+    ) -> Result<()> {
+        for (name, agent) in &mut partial.agents {
+            if let Some(ref system_prompt) = agent.metadata.system_prompt {
+                if let Some(include_path) = system_prompt.strip_prefix("!include ") {
+                    let full_path = base_dir.join(include_path.trim());
+                    let resolved = fs::read_to_string(&full_path).with_context(|| {
+                        format!(
+                            "Failed to resolve system_prompt include for agent '{name}': {}",
+                            full_path.display()
+                        )
+                    })?;
+                    agent.metadata.system_prompt = Some(resolved);
+                }
+            }
+        }
+
+        for (key, skill) in &mut partial.skills.skills {
+            let Some(instructions) = skill.instructions.as_ref() else {
+                continue;
+            };
+            if let IncludableString::Include { path } = instructions {
+                let full_path = base_dir.join(path.trim());
+                let resolved = fs::read_to_string(&full_path).with_context(|| {
+                    format!(
+                        "Failed to resolve instructions include for skill '{key}': {}",
+                        full_path.display()
+                    )
+                })?;
+                skill.instructions = Some(IncludableString::Inline(resolved));
+            }
+        }
 
         Ok(())
     }
@@ -310,6 +376,25 @@ impl ConfigLoader {
             }
         }
 
+        Ok(())
+    }
+
+    fn resolve_skill_instruction_includes(&self, config: &mut ServicesConfig) -> Result<()> {
+        for (key, skill) in &mut config.skills.skills {
+            let Some(instructions) = skill.instructions.as_ref() else {
+                continue;
+            };
+            if let IncludableString::Include { path } = instructions {
+                let full_path = self.base_path.join(path.trim());
+                let resolved = fs::read_to_string(&full_path).with_context(|| {
+                    format!(
+                        "Failed to resolve instructions include for skill '{key}': {}",
+                        full_path.display()
+                    )
+                })?;
+                skill.instructions = Some(IncludableString::Inline(resolved));
+            }
+        }
         Ok(())
     }
 
