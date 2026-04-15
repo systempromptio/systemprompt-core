@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{CategoryId, SourceId};
+use systemprompt_models::services::{ContentConfig, ServicesConfig};
 use systemprompt_models::{
     Category, ContentConfigError, ContentConfigErrors, ContentConfigRaw, ContentRouting,
     ContentSourceConfigRaw, IndexingConfig, Metadata, SitemapConfig, SourceBranding,
@@ -45,6 +46,17 @@ impl ContentConfigValidated {
             categories,
             base_path,
         })
+    }
+
+    pub fn from_content_config(config: &ContentConfig, base_path: PathBuf) -> ValidationResult {
+        Self::from_raw(config.raw.clone(), base_path)
+    }
+
+    pub fn from_services_config(
+        services: &ServicesConfig,
+        base_path: PathBuf,
+    ) -> ValidationResult {
+        Self::from_content_config(&services.content, base_path)
     }
 
     pub const fn content_sources(&self) -> &HashMap<String, ContentSourceConfigValidated> {
