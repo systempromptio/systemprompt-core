@@ -1,6 +1,7 @@
 //! Tests for WebAuthn service data types: VerifiedAuthentication, LinkUserInfo, LinkStates, WebAuthnManager
 
 use std::time::Instant;
+use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::webauthn::service::{
     LinkUserInfo, create_link_states,
 };
@@ -14,17 +15,17 @@ use systemprompt_oauth::services::webauthn::WebAuthnManager;
 #[test]
 fn test_verified_authentication_construction() {
     let auth = VerifiedAuthentication {
-        user_id: "user-abc-123".to_string(),
+        user_id: UserId::new("user-abc-123"),
         timestamp: Instant::now(),
     };
 
-    assert_eq!(auth.user_id, "user-abc-123");
+    assert_eq!(auth.user_id.as_str(), "user-abc-123");
 }
 
 #[test]
 fn test_verified_authentication_clone() {
     let original = VerifiedAuthentication {
-        user_id: "user-clone-test".to_string(),
+        user_id: UserId::new("user-clone-test"),
         timestamp: Instant::now(),
     };
 
@@ -36,7 +37,7 @@ fn test_verified_authentication_clone() {
 #[test]
 fn test_verified_authentication_debug() {
     let auth = VerifiedAuthentication {
-        user_id: "debug-user-id".to_string(),
+        user_id: UserId::new("debug-user-id"),
         timestamp: Instant::now(),
     };
 
@@ -49,7 +50,7 @@ fn test_verified_authentication_debug() {
 fn test_verified_authentication_timestamp_preserves_value() {
     let before = Instant::now();
     let auth = VerifiedAuthentication {
-        user_id: "timestamp-test".to_string(),
+        user_id: UserId::new("timestamp-test"),
         timestamp: before,
     };
     let after = Instant::now();

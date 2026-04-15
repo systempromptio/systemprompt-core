@@ -34,7 +34,7 @@ impl AgentReconciler {
                             "Agent marked as running but process not found - marking as failed"
                         );
                         self.db_service
-                            .mark_failed(&agent_id, "Process died unexpectedly")
+                            .mark_failed(&agent_id)
                             .await?;
                         reconciled += 1;
                     }
@@ -111,17 +111,13 @@ impl AgentReconciler {
 
         for (agent_id, pid) in &report.inconsistent_running {
             tracing::warn!(agent_id = %agent_id, pid = %pid, "Fixing inconsistent agent");
-            self.db_service
-                .mark_failed(agent_id, &format!("Process {} died", pid))
-                .await?;
+            self.db_service.mark_failed(agent_id).await?;
             fixed += 1;
         }
 
         for (agent_id, pid) in &report.orphaned_processes {
             tracing::warn!(agent_id = %agent_id, pid = %pid, "Cleaning up orphaned process for agent");
-            self.db_service
-                .mark_failed(agent_id, &format!("Orphaned process {pid}"))
-                .await?;
+            self.db_service.mark_failed(agent_id).await?;
             fixed += 1;
         }
 

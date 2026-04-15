@@ -119,7 +119,6 @@ src/
 │       └── user.rs                     # User retrieval
 └── services/                           # Business logic
     ├── mod.rs                          # Service exports
-    ├── auth_provider.rs                # JwtAuthProvider, JwtAuthorizationProvider
     ├── generation.rs                   # Token generation utilities
     ├── http.rs                         # HTTP utilities
     ├── templating.rs                   # HTML template rendering
@@ -171,7 +170,6 @@ Data access layer with separate repositories for clients, OAuth operations, and 
 
 ### services/
 Business logic including:
-- **auth_provider**: Trait implementations for `AuthProvider` and `AuthorizationProvider`
 - **generation**: Secure token and JWT generation
 - **validation**: PKCE, client credentials, and JWT validation
 - **webauthn**: FIDO2 passwordless authentication
@@ -184,8 +182,7 @@ pub use repository::OAuthRepository;
 pub use services::validation::jwt::validate_jwt_token;
 pub use services::{
     extract_bearer_token, extract_cookie_token, is_browser_request, AnonymousSessionInfo,
-    CreateAnonymousSessionInput, JwtAuthProvider, JwtAuthorizationProvider,
-    SessionCreationService, TemplateEngine, TokenValidator, TraitBasedAuthService,
+    CreateAnonymousSessionInput, SessionCreationService, TemplateEngine, TokenValidator,
 };
 pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX};
 ```
@@ -211,8 +208,7 @@ Implements traits from `systemprompt-traits`:
 
 | Trait | Implementation | Purpose |
 |-------|----------------|---------|
-| `AuthProvider` | `JwtAuthProvider` | Token validation |
-| `AuthorizationProvider` | `JwtAuthorizationProvider` | Permission checks |
+| `JwtValidationProvider` | `JwtValidationProviderImpl` | Token validation |
 | `UserProvider` | Consumed via `Arc<dyn UserProvider>` | User lookup |
 
 ## Dependencies

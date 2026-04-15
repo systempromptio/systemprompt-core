@@ -1,5 +1,6 @@
 //! Tests for DynamicRegistrationRequest and DynamicRegistrationResponse
 
+use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::{DynamicRegistrationRequest, DynamicRegistrationResponse};
 
 // ============================================================================
@@ -222,7 +223,7 @@ fn test_dynamic_registration_request_debug() {
 
 fn create_valid_response() -> DynamicRegistrationResponse {
     DynamicRegistrationResponse {
-        client_id: "client_abc123".to_string(),
+        client_id: ClientId::new("client_abc123"),
         client_secret: "secret_xyz789".to_string(),
         client_name: "Test Client".to_string(),
         redirect_uris: vec!["https://example.com/callback".to_string()],
@@ -243,7 +244,7 @@ fn create_valid_response() -> DynamicRegistrationResponse {
 #[test]
 fn test_dynamic_registration_response_creation() {
     let response = create_valid_response();
-    assert_eq!(response.client_id, "client_abc123");
+    assert_eq!(response.client_id.as_str(), "client_abc123");
     assert_eq!(response.client_secret, "secret_xyz789");
     assert_eq!(response.client_name, "Test Client");
 }
@@ -251,7 +252,7 @@ fn test_dynamic_registration_response_creation() {
 #[test]
 fn test_dynamic_registration_response_without_optional_fields() {
     let response = DynamicRegistrationResponse {
-        client_id: "client_minimal".to_string(),
+        client_id: ClientId::new("client_minimal"),
         client_secret: "secret_minimal".to_string(),
         client_name: "Minimal Client".to_string(),
         redirect_uris: vec!["https://example.com/callback".to_string()],
@@ -287,7 +288,7 @@ fn test_dynamic_registration_response_serialize() {
 #[test]
 fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
     let response = DynamicRegistrationResponse {
-        client_id: "client_no_opt".to_string(),
+        client_id: ClientId::new("client_no_opt"),
         client_secret: "secret_no_opt".to_string(),
         client_name: "No Optional".to_string(),
         redirect_uris: vec!["https://example.com/callback".to_string()],

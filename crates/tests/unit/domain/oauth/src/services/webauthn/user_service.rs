@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
+use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::UserCreationService;
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
 
@@ -26,9 +27,9 @@ impl MockUserProvider {
 
 #[async_trait]
 impl UserProvider for MockUserProvider {
-    async fn find_by_id(&self, id: &str) -> AuthResult<Option<AuthUser>> {
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
         let users = self.users.lock().expect("lock poisoned");
-        Ok(users.iter().find(|u| u.id == id).cloned())
+        Ok(users.iter().find(|u| u.id.as_str() == id.as_str()).cloned())
     }
 
     async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>> {
@@ -48,7 +49,7 @@ impl UserProvider for MockUserProvider {
         full_name: Option<&str>,
     ) -> AuthResult<AuthUser> {
         let user = AuthUser {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: UserId::new(uuid::Uuid::new_v4().to_string()),
             name: name.to_string(),
             email: email.to_string(),
             roles: Vec::new(),
@@ -73,7 +74,7 @@ impl UserProvider for MockUserProvider {
 
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: UserId::new(uuid::Uuid::new_v4().to_string()),
             name: format!("anon-{fingerprint}"),
             email: String::new(),
             roles: Vec::new(),
@@ -81,18 +82,18 @@ impl UserProvider for MockUserProvider {
         })
     }
 
-    async fn assign_roles(&self, user_id: &str, roles: &[String]) -> AuthResult<()> {
+    async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()> {
         self.assigned_roles
             .lock()
             .expect("lock poisoned")
-            .push((user_id.to_string(), roles.to_vec()));
+            .push((user_id.as_str().to_string(), roles.to_vec()));
         Ok(())
     }
 }
 
 fn make_test_user(id: &str, name: &str, email: &str) -> AuthUser {
     AuthUser {
-        id: id.to_string(),
+        id: UserId::new(id),
         name: name.to_string(),
         email: email.to_string(),
         roles: vec!["user".to_string()],
@@ -255,7 +256,7 @@ async fn test_find_or_create_returns_created_user_id() {
     let created = provider.created_users.lock().expect("lock");
     assert_eq!(created.len(), 1);
     assert_eq!(
-        returned_id, created[0].id,
+        returned_id, created[0].id.as_str(),
         "returned ID should match the created user's ID"
     );
 }

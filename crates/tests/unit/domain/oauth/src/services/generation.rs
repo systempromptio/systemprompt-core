@@ -290,7 +290,7 @@ fn test_jwt_config_deserialize() {
 // ============================================================================
 
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::auth::{JwtClaims, UserType};
 use systemprompt_oauth::services::{generate_anonymous_jwt_with_expiry, generate_admin_jwt_with_expiry, JwtSigningParams};
 
@@ -320,8 +320,8 @@ fn test_generate_anonymous_jwt_with_expiry_produces_valid_jwt() {
     let signing = test_signing_params();
     let client_id = ClientId::new("test-client-id");
     let token = generate_anonymous_jwt_with_expiry(
-        "anon-user-1",
-        "session-1",
+        &UserId::new("anon-user-1"),
+        &SessionId::new("session-1"),
         &client_id,
         &signing,
         3600,
@@ -340,8 +340,8 @@ fn test_generate_anonymous_jwt_with_expiry_standard_duration() {
     let signing = test_signing_params();
     let client_id = ClientId::new("client-abc");
     let token = generate_anonymous_jwt_with_expiry(
-        "anon-user-2",
-        "session-2",
+        &UserId::new("anon-user-2"),
+        &SessionId::new("session-2"),
         &client_id,
         &signing,
         7200,
@@ -360,8 +360,8 @@ fn test_generate_anonymous_jwt_with_expiry_zero_seconds() {
     let signing = test_signing_params();
     let client_id = ClientId::new("client-zero");
     let result = generate_anonymous_jwt_with_expiry(
-        "anon-user-3",
-        "session-3",
+        &UserId::new("anon-user-3"),
+        &SessionId::new("session-3"),
         &client_id,
         &signing,
         0,
@@ -377,8 +377,8 @@ fn test_generate_anonymous_jwt_with_expiry_claims_contain_client_id() {
     let signing = test_signing_params();
     let client_id = ClientId::new("my-client-123");
     let token = generate_anonymous_jwt_with_expiry(
-        "anon-user-4",
-        "session-4",
+        &UserId::new("anon-user-4"),
+        &SessionId::new("session-4"),
         &client_id,
         &signing,
         3600,
@@ -401,8 +401,8 @@ fn test_generate_admin_jwt_with_expiry_produces_valid_jwt() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client");
     let token = generate_admin_jwt_with_expiry(
-        "admin-user-1",
-        "admin-session-1",
+        &UserId::new("admin-user-1"),
+        &SessionId::new("admin-session-1"),
         "admin@example.com",
         &client_id,
         &signing,
@@ -419,8 +419,8 @@ fn test_generate_admin_jwt_with_expiry_standard_duration() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client-2");
     let token = generate_admin_jwt_with_expiry(
-        "admin-user-2",
-        "admin-session-2",
+        &UserId::new("admin-user-2"),
+        &SessionId::new("admin-session-2"),
         "admin2@example.com",
         &client_id,
         &signing,
@@ -440,8 +440,8 @@ fn test_generate_admin_jwt_with_expiry_claims_contain_email_and_roles() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client-3");
     let token = generate_admin_jwt_with_expiry(
-        "admin-user-3",
-        "admin-session-3",
+        &UserId::new("admin-user-3"),
+        &SessionId::new("admin-session-3"),
         "super@example.com",
         &client_id,
         &signing,
@@ -463,8 +463,8 @@ fn test_generate_admin_jwt_with_expiry_zero_seconds() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client-zero");
     let result = generate_admin_jwt_with_expiry(
-        "admin-user-4",
-        "admin-session-4",
+        &UserId::new("admin-user-4"),
+        &SessionId::new("admin-session-4"),
         "admin4@example.com",
         &client_id,
         &signing,

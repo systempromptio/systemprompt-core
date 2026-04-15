@@ -93,7 +93,7 @@ impl AgentOrchestrator {
                     },
                 }
 
-                if let Err(e) = monitor.cleanup_unresponsive_agents(3).await {
+                if let Err(e) = monitor.cleanup_unresponsive_agents().await {
                     tracing::error!(error = %e, "Cleanup error");
                 }
             }

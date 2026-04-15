@@ -4,6 +4,7 @@ use systemprompt_oauth::services::validation::{
     get_audit_user, optional_param, required_param, scope_param, CsrfToken,
     ValidatedClientRegistration,
 };
+use systemprompt_identifiers::UserId;
 use systemprompt_models::{AuthError, GrantType, ResponseType};
 
 #[test]
@@ -143,8 +144,9 @@ fn test_scope_param_tabs_and_newlines() {
 
 #[test]
 fn test_get_audit_user_success() {
-    let result = get_audit_user(Some("user_123"));
-    assert_eq!(result.expect("should succeed"), "user_123");
+    let user = UserId::new("user_123");
+    let result = get_audit_user(Some(&user));
+    assert_eq!(result.expect("should succeed").as_str(), "user_123");
 }
 
 #[test]
@@ -160,7 +162,8 @@ fn test_get_audit_user_none() {
 
 #[test]
 fn test_get_audit_user_empty() {
-    let result = get_audit_user(Some(""));
+    let user = UserId::new("");
+    let result = get_audit_user(Some(&user));
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("Authenticated user required"));
@@ -171,14 +174,16 @@ fn test_get_audit_user_empty() {
 
 #[test]
 fn test_get_audit_user_whitespace() {
-    let result = get_audit_user(Some("  "));
-    assert_eq!(result.expect("should succeed"), "  ");
+    let user = UserId::new("  ");
+    let result = get_audit_user(Some(&user));
+    assert_eq!(result.expect("should succeed").as_str(), "  ");
 }
 
 #[test]
 fn test_get_audit_user_uuid_format() {
-    let result = get_audit_user(Some("550e8400-e29b-41d4-a716-446655440000"));
-    assert_eq!(result.expect("should succeed"), "550e8400-e29b-41d4-a716-446655440000");
+    let user = UserId::new("550e8400-e29b-41d4-a716-446655440000");
+    let result = get_audit_user(Some(&user));
+    assert_eq!(result.expect("should succeed").as_str(), "550e8400-e29b-41d4-a716-446655440000");
 }
 
 #[test]

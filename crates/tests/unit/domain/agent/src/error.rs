@@ -56,7 +56,7 @@ fn test_task_error_missing_task_uuid_display() {
 #[test]
 fn test_task_error_missing_agent_name_display() {
     let error = TaskError::MissingAgentName {
-        task_id: "task-123".to_string(),
+        task_id: systemprompt_identifiers::TaskId::new("task-123"),
     };
     assert!(error.to_string().contains("task-123"));
     assert!(error.to_string().contains("Agent name not found"));

@@ -27,7 +27,7 @@ async fn test_webauthn_credential_lifecycle() {
         .expect("Failed to store credential");
 
     let credentials = repo
-        .get_webauthn_credentials(user_id.as_str())
+        .get_webauthn_credentials(&user_id)
         .await
         .expect("Failed to get credentials");
 
@@ -69,7 +69,7 @@ async fn test_webauthn_credential_counter_update() {
         .expect("Failed to update counter");
 
     let credentials = repo
-        .get_webauthn_credentials(user_id.as_str())
+        .get_webauthn_credentials(&user_id)
         .await
         .expect("Failed to get credentials");
 
@@ -105,7 +105,7 @@ async fn test_webauthn_multiple_credentials_per_user() {
     }
 
     let credentials = repo
-        .get_webauthn_credentials(user_id.as_str())
+        .get_webauthn_credentials(&user_id)
         .await
         .expect("Failed to get credentials");
 
@@ -119,7 +119,7 @@ async fn test_webauthn_empty_for_new_user() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
-    let nonexistent_user_id = Uuid::new_v4().to_string();
+    let nonexistent_user_id = systemprompt_identifiers::UserId::new(Uuid::new_v4().to_string());
 
     let credentials = repo
         .get_webauthn_credentials(&nonexistent_user_id)

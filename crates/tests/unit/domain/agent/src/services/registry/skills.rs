@@ -1,4 +1,5 @@
 use systemprompt_agent::services::registry::skills::{extract_description, load_skill_from_disk};
+use systemprompt_identifiers::SkillId;
 use tempfile::TempDir;
 
 #[test]
@@ -63,10 +64,10 @@ fn test_load_skill_from_disk_with_skill_md_only() {
     std::fs::create_dir_all(&skill_dir).unwrap();
     std::fs::write(skill_dir.join("SKILL.md"), "This is a skill description").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "my-skill");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("my-skill"));
     let skill = result.expect("expected success");
 
-    assert_eq!(skill.id, "my-skill");
+    assert_eq!(skill.id.as_str(), "my-skill");
     assert_eq!(skill.name, "my-skill");
     assert_eq!(skill.description, "my-skill skill");
     assert!(skill.tags.is_empty());
@@ -99,10 +100,10 @@ output_modes:
     )
     .unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "writer");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("writer"));
     let skill = result.expect("expected success");
 
-    assert_eq!(skill.id, "writer");
+    assert_eq!(skill.id.as_str(), "writer");
     assert_eq!(skill.name, "Blog Writer");
     assert_eq!(skill.description, "Writes blog posts");
     assert_eq!(skill.tags, vec!["writing", "content"]);
@@ -117,7 +118,7 @@ fn test_load_skill_from_disk_missing_skill_md() {
     let skill_dir = dir.path().join("no-skill");
     std::fs::create_dir_all(&skill_dir).unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "no-skill");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("no-skill"));
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("SKILL.md"));
@@ -127,7 +128,7 @@ fn test_load_skill_from_disk_missing_skill_md() {
 fn test_load_skill_from_disk_missing_directory() {
     let dir = TempDir::new().unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "nonexistent");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("nonexistent"));
     assert!(result.is_err());
 }
 
@@ -147,7 +148,7 @@ fn test_load_skill_from_disk_config_overrides_frontmatter_description() {
     )
     .unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "override-skill");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("override-skill"));
     let skill = result.expect("expected success");
 
     assert_eq!(skill.description, "Config description");
@@ -165,7 +166,7 @@ fn test_load_skill_from_disk_frontmatter_description_used_when_no_config_descrip
     .unwrap();
     std::fs::write(skill_dir.join("config.yaml"), "tags:\n  - test\n").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "frontmatter-skill");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("frontmatter-skill"));
     let skill = result.expect("expected success");
 
     assert_eq!(skill.description, "From frontmatter");
@@ -179,7 +180,7 @@ fn test_load_skill_from_disk_fallback_description() {
     std::fs::write(skill_dir.join("SKILL.md"), "No frontmatter content").unwrap();
     std::fs::write(skill_dir.join("config.yaml"), "tags: []\n").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "fallback-skill");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("fallback-skill"));
     let skill = result.expect("expected success");
 
     assert_eq!(skill.description, "fallback-skill skill");
@@ -193,7 +194,7 @@ fn test_load_skill_from_disk_config_name_override() {
     std::fs::write(skill_dir.join("SKILL.md"), "content").unwrap();
     std::fs::write(skill_dir.join("config.yaml"), "name: Custom Name\n").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "name-test");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("name-test"));
     let skill = result.expect("expected success");
 
     assert_eq!(skill.name, "Custom Name");
@@ -206,7 +207,7 @@ fn test_load_skill_from_disk_name_defaults_to_skill_id() {
     std::fs::create_dir_all(&skill_dir).unwrap();
     std::fs::write(skill_dir.join("SKILL.md"), "content").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "default-name");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("default-name"));
     let skill = result.expect("expected success");
 
     assert_eq!(skill.name, "default-name");
@@ -220,7 +221,7 @@ fn test_load_skill_from_disk_invalid_config_yaml() {
     std::fs::write(skill_dir.join("SKILL.md"), "content").unwrap();
     std::fs::write(skill_dir.join("config.yaml"), "{{{{invalid yaml").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "bad-config");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("bad-config"));
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("config.yaml"));
@@ -233,7 +234,7 @@ fn test_load_skill_from_disk_security_is_none() {
     std::fs::create_dir_all(&skill_dir).unwrap();
     std::fs::write(skill_dir.join("SKILL.md"), "content").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "sec-test");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("sec-test"));
     let skill = result.expect("expected success");
 
     assert!(skill.security.is_none());
@@ -247,7 +248,7 @@ fn test_load_skill_from_disk_empty_tags_in_config() {
     std::fs::write(skill_dir.join("SKILL.md"), "content").unwrap();
     std::fs::write(skill_dir.join("config.yaml"), "tags: []\n").unwrap();
 
-    let result = load_skill_from_disk(dir.path(), "empty-tags");
+    let result = load_skill_from_disk(dir.path(), &SkillId::new("empty-tags"));
     let skill = result.expect("expected success");
 
     assert!(skill.tags.is_empty());

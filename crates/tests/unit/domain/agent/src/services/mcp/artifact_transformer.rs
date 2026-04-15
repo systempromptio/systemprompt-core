@@ -35,7 +35,7 @@ fn parse_tool_response_valid_complete() {
     let parsed = parse_tool_response(&input).expect("should parse");
     assert_eq!(parsed.artifact_id.as_str(), "art-001");
     assert_eq!(parsed.mcp_execution_id.as_str(), "exec-001");
-    assert_eq!(parsed.metadata.skill_id, Some("skill-1".to_string()));
+    assert_eq!(parsed.metadata.skill_id.as_ref().map(|s| s.as_str()), Some("skill-1"));
     assert_eq!(parsed.metadata.skill_name, Some("test-skill".to_string()));
     assert_eq!(parsed.metadata.execution_id, Some("exec-ref".to_string()));
 }

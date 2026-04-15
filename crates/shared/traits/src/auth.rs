@@ -33,95 +33,6 @@ impl From<anyhow::Error> for AuthProviderError {
 }
 
 #[derive(Debug, Clone)]
-pub struct TokenPair {
-    pub access_token: String,
-    pub refresh_token: Option<String>,
-    pub expires_in: i64,
-    pub token_type: String,
-}
-
-impl TokenPair {
-    #[must_use]
-    pub fn new(access_token: String, refresh_token: Option<String>, expires_in: i64) -> Self {
-        Self {
-            access_token,
-            refresh_token,
-            expires_in,
-            token_type: "Bearer".to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TokenClaims {
-    pub subject: String,
-    pub username: String,
-    pub email: Option<String>,
-    pub audiences: Vec<String>,
-    pub permissions: Vec<String>,
-    pub expires_at: i64,
-    pub issued_at: i64,
-}
-
-#[async_trait]
-pub trait AuthProvider: Send + Sync {
-    async fn validate_token(&self, token: &str) -> AuthResult<TokenClaims>;
-    async fn refresh_token(&self, refresh_token: &str) -> AuthResult<TokenPair>;
-    async fn revoke_token(&self, token: &str) -> AuthResult<()>;
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum AuthAction {
-    Read,
-    Write,
-    Delete,
-    Admin,
-    Custom(String),
-}
-
-impl AuthAction {
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        match self {
-            Self::Read => "read",
-            Self::Write => "write",
-            Self::Delete => "delete",
-            Self::Admin => "admin",
-            Self::Custom(s) => s.as_str(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AuthPermission {
-    pub resource: String,
-    pub action: AuthAction,
-}
-
-impl AuthPermission {
-    #[must_use]
-    pub fn new(resource: impl Into<String>, action: AuthAction) -> Self {
-        Self {
-            resource: resource.into(),
-            action,
-        }
-    }
-}
-
-#[async_trait]
-pub trait AuthorizationProvider: Send + Sync {
-    async fn authorize(
-        &self,
-        user_id: &UserId,
-        resource: &str,
-        action: &AuthAction,
-    ) -> AuthResult<bool>;
-    async fn get_permissions(&self, user_id: &UserId) -> AuthResult<Vec<AuthPermission>>;
-    async fn has_audience(&self, token: &str, audience: &str) -> AuthResult<bool>;
-}
-
-#[derive(Debug, Clone)]
 pub struct AuthUser {
     pub id: UserId,
     pub name: String,
@@ -153,7 +64,5 @@ pub trait RoleProvider: Send + Sync {
     async fn list_users_by_role(&self, role: &str) -> AuthResult<Vec<AuthUser>>;
 }
 
-pub type DynAuthProvider = Arc<dyn AuthProvider>;
-pub type DynAuthorizationProvider = Arc<dyn AuthorizationProvider>;
 pub type DynUserProvider = Arc<dyn UserProvider>;
 pub type DynRoleProvider = Arc<dyn RoleProvider>;

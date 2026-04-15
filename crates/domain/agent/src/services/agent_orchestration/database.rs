@@ -52,7 +52,7 @@ impl AgentDatabaseService {
                             port: r.port as u16,
                         })
                     } else {
-                        self.mark_failed(agent_name, "Process died unexpectedly")
+                        self.mark_failed(agent_name)
                             .await?;
                         Ok(AgentStatus::Failed {
                             reason: "Process died unexpectedly".to_string(),
@@ -78,7 +78,7 @@ impl AgentDatabaseService {
                     })
                 },
                 _ => {
-                    self.mark_failed(agent_name, "Invalid database state")
+                    self.mark_failed(agent_name)
                         .await?;
                     Ok(AgentStatus::Failed {
                         reason: "Invalid database state".to_string(),
@@ -95,7 +95,7 @@ impl AgentDatabaseService {
         }
     }
 
-    pub async fn mark_failed(&self, agent_name: &str, _reason: &str) -> OrchestrationResult<()> {
+    pub async fn mark_failed(&self, agent_name: &str) -> OrchestrationResult<()> {
         self.repository
             .mark_error(agent_name)
             .await
@@ -108,7 +108,7 @@ impl AgentDatabaseService {
     }
 
     pub async fn mark_crashed(&self, agent_name: &str) -> OrchestrationResult<()> {
-        self.mark_failed(agent_name, "Process crashed").await
+        self.mark_failed(agent_name).await
     }
 
     pub async fn get_error_message(&self, agent_name: &str) -> OrchestrationResult<String> {
@@ -256,7 +256,6 @@ impl AgentDatabaseService {
 
     pub async fn get_unresponsive_agents(
         &self,
-        _max_failures: u32,
     ) -> OrchestrationResult<Vec<(String, Option<u32>)>> {
         use crate::services::agent_orchestration::monitor::check_a2a_agent_health;
 

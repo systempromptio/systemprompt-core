@@ -71,7 +71,7 @@ impl AgentMonitor {
                         }
                     } else {
                         self.db_service
-                            .mark_failed(&agent_id, "Process died")
+                            .mark_failed(&agent_id)
                             .await?;
                         report.failed.push(agent_id);
                     }
@@ -85,13 +85,10 @@ impl AgentMonitor {
         Ok(report)
     }
 
-    pub async fn cleanup_unresponsive_agents(&self, max_failures: u32) -> OrchestrationResult<u32> {
+    pub async fn cleanup_unresponsive_agents(&self) -> OrchestrationResult<u32> {
         tracing::debug!("Cleaning up unresponsive agents");
 
-        let unresponsive_agents = self
-            .db_service
-            .get_unresponsive_agents(max_failures)
-            .await?;
+        let unresponsive_agents = self.db_service.get_unresponsive_agents().await?;
         let mut cleaned_up = 0;
 
         for (agent_id, pid_opt) in unresponsive_agents {

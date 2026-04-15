@@ -13,9 +13,9 @@ pub use repository::OAuthRepository;
 pub use services::providers::JwtValidationProviderImpl;
 pub use services::validation::jwt::validate_jwt_token;
 pub use services::{
-    AnonymousSessionInfo, CreateAnonymousSessionInput, JwtAuthProvider, JwtAuthorizationProvider,
-    SessionCreationError, SessionCreationService, TemplateEngine, TokenValidator,
-    TraitBasedAuthService, extract_bearer_token, extract_cookie_token, is_browser_request,
+    AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError,
+    SessionCreationService, TemplateEngine, TokenValidator, extract_bearer_token,
+    extract_cookie_token, is_browser_request,
 };
 
 pub use state::OAuthState;

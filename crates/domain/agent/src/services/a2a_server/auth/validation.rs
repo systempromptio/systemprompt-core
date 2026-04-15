@@ -88,7 +88,7 @@ async fn verify_user_exists_and_active(
     claims: &AgentJwtClaims,
     user_provider: &dyn systemprompt_traits::UserProvider,
 ) -> Result<AuthUser> {
-    let subject_id = systemprompt_identifiers::UserId::new(&claims.subject);
+    let subject_id = UserId::new(&claims.subject);
     let user = user_provider
         .find_by_id(&subject_id)
         .await

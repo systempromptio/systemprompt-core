@@ -1,4 +1,4 @@
-//! Unit tests for asset handling functionality
+#![allow(clippy::expect_used)]
 
 use std::fs;
 use systemprompt_generator::organize_dist_assets;

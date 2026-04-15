@@ -11,13 +11,16 @@ pub mod userinfo;
 pub mod webauthn_complete;
 
 pub use anonymous::*;
-pub use authorize::*;
+pub use authorize::{
+    AuthorizeQuery, AuthorizeRequest, AuthorizeResponse, handle_authorize_get,
+    handle_authorize_post, response_builder,
+};
 pub use callback::*;
 pub use client_config::*;
 pub use consent::*;
 pub use introspect::*;
 pub use register::*;
 pub use revoke::*;
-pub use token::*;
+pub use token::{TokenError, TokenResult, generation, handle_token};
 pub use userinfo::*;
 pub use webauthn_complete::*;

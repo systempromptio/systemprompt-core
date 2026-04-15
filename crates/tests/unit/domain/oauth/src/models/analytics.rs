@@ -1,6 +1,7 @@
 //! Tests for Analytics models
 
 use chrono::Utc;
+use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::models::analytics::{
     ClientAnalytics, ClientAnalyticsRow, ClientErrorAnalytics, ClientErrorAnalyticsRow,
 };
@@ -11,7 +12,7 @@ use systemprompt_oauth::models::analytics::{
 
 fn create_analytics_row() -> ClientAnalyticsRow {
     ClientAnalyticsRow {
-        client_id: "test-client-123".to_string(),
+        client_id: ClientId::new("test-client-123"),
         session_count: 100,
         unique_users: 50,
         total_requests: 1000,
@@ -74,7 +75,7 @@ fn test_client_analytics_debug() {
 #[test]
 fn test_client_analytics_zero_values() {
     let row = ClientAnalyticsRow {
-        client_id: "zero-client".to_string(),
+        client_id: ClientId::new("zero-client"),
         session_count: 0,
         unique_users: 0,
         total_requests: 0,
@@ -99,7 +100,7 @@ fn test_client_analytics_zero_values() {
 #[test]
 fn test_client_error_analytics_from_row() {
     let row = ClientErrorAnalyticsRow {
-        client_id: "error-client".to_string(),
+        client_id: ClientId::new("error-client"),
         error_count: 25,
         affected_sessions: 10,
         last_error: Some("Connection timeout".to_string()),
@@ -115,7 +116,7 @@ fn test_client_error_analytics_from_row() {
 #[test]
 fn test_client_error_analytics_from_row_no_error() {
     let row = ClientErrorAnalyticsRow {
-        client_id: "clean-client".to_string(),
+        client_id: ClientId::new("clean-client"),
         error_count: 0,
         affected_sessions: 0,
         last_error: None,
@@ -129,7 +130,7 @@ fn test_client_error_analytics_from_row_no_error() {
 #[test]
 fn test_client_error_analytics_serialize() {
     let row = ClientErrorAnalyticsRow {
-        client_id: "error-client".to_string(),
+        client_id: ClientId::new("error-client"),
         error_count: 5,
         affected_sessions: 3,
         last_error: Some("Rate limited".to_string()),
@@ -147,7 +148,7 @@ fn test_client_error_analytics_serialize() {
 #[test]
 fn test_client_error_analytics_debug() {
     let row = ClientErrorAnalyticsRow {
-        client_id: "debug-error-client".to_string(),
+        client_id: ClientId::new("debug-error-client"),
         error_count: 1,
         affected_sessions: 1,
         last_error: Some("Debug error".to_string()),
@@ -161,7 +162,7 @@ fn test_client_error_analytics_debug() {
 #[test]
 fn test_client_error_analytics_clone() {
     let row = ClientErrorAnalyticsRow {
-        client_id: "clone-client".to_string(),
+        client_id: ClientId::new("clone-client"),
         error_count: 10,
         affected_sessions: 5,
         last_error: Some("Clone error".to_string()),
@@ -194,7 +195,7 @@ fn test_client_analytics_row_debug() {
 #[test]
 fn test_client_error_analytics_row_debug() {
     let row = ClientErrorAnalyticsRow {
-        client_id: "debug-row".to_string(),
+        client_id: ClientId::new("debug-row"),
         error_count: 1,
         affected_sessions: 1,
         last_error: None,

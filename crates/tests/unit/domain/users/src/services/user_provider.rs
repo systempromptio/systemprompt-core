@@ -319,6 +319,6 @@ mod edge_case_tests {
         let user_id_str = user.id.to_string();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, user_id_str);
+        assert_eq!(auth_user.id.as_str(), user_id_str);
     }
 }

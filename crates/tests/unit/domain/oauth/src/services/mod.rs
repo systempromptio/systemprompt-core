@@ -1,6 +1,5 @@
 //! Tests for OAuth services
 
-mod auth_provider;
 mod cimd;
 mod generation;
 mod http;

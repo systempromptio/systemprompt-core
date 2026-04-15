@@ -9,7 +9,7 @@ use systemprompt_identifiers::{ClientId, ClientType};
 
 fn create_valid_cimd_metadata() -> CimdMetadata {
     CimdMetadata {
-        client_id: "https://example.com/.well-known/oauth-client".to_string(),
+        client_id: ClientId::new("https://example.com/.well-known/oauth-client"),
         client_name: Some("Test Client".to_string()),
         redirect_uris: vec!["https://example.com/callback".to_string()],
         grant_types: Some(vec!["authorization_code".to_string()]),
@@ -30,7 +30,7 @@ fn test_cimd_metadata_validate_success() {
 #[test]
 fn test_cimd_metadata_validate_non_https_client_id() {
     let metadata = CimdMetadata {
-        client_id: "http://example.com/.well-known/oauth-client".to_string(),
+        client_id: ClientId::new("http://example.com/.well-known/oauth-client"),
         redirect_uris: vec!["https://example.com/callback".to_string()],
         ..create_valid_cimd_metadata()
     };
@@ -125,7 +125,7 @@ fn test_cimd_metadata_deserialize() {
     }"#;
 
     let metadata: CimdMetadata = serde_json::from_str(json).unwrap();
-    assert_eq!(metadata.client_id, "https://example.com/.well-known/oauth-client");
+    assert_eq!(metadata.client_id.as_str(), "https://example.com/.well-known/oauth-client");
     assert_eq!(metadata.redirect_uris.len(), 1);
     assert_eq!(metadata.client_name, Some("Test Client".to_string()));
 }
@@ -133,7 +133,7 @@ fn test_cimd_metadata_deserialize() {
 #[test]
 fn test_cimd_metadata_skip_serializing_none_fields() {
     let metadata = CimdMetadata {
-        client_id: "https://example.com/.well-known/oauth-client".to_string(),
+        client_id: ClientId::new("https://example.com/.well-known/oauth-client"),
         client_name: None,
         redirect_uris: vec!["https://example.com/callback".to_string()],
         grant_types: None,

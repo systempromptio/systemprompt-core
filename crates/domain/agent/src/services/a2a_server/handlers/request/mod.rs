@@ -90,7 +90,7 @@ pub async fn handle_agent_request(
     let request_id = jsonrpc_request.id.clone();
     tracing::info!(method = %jsonrpc_request.method, "Processing A2A JSON-RPC method");
 
-    let requires_oauth = should_require_oauth(&jsonrpc_request, &state).await;
+    let requires_oauth = should_require_oauth(&state).await;
 
     if requires_oauth {
         tracing::info!("Request requires OAuth2 authentication");

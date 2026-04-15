@@ -44,7 +44,7 @@ async fn create_test_client(
 
 async fn cleanup_test_client(db: &systemprompt_database::DbPool, client_id: &ClientId) {
     let repo = ClientRepository::new(db).expect("Failed to create client repo");
-    let _ = repo.delete(client_id.as_str()).await;
+    let _ = repo.delete(client_id).await;
 }
 
 #[tokio::test]

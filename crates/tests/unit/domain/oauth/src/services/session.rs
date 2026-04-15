@@ -68,7 +68,7 @@ struct MockUserProvider;
 
 #[async_trait]
 impl UserProvider for MockUserProvider {
-    async fn find_by_id(&self, _id: &str) -> AuthResult<Option<AuthUser>> {
+    async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
         Ok(None)
     }
 
@@ -87,7 +87,7 @@ impl UserProvider for MockUserProvider {
         _full_name: Option<&str>,
     ) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: "user_new".to_string(),
+            id: UserId::new("user_new"),
             name: "newuser".to_string(),
             email: "new@example.com".to_string(),
             roles: vec![],
@@ -97,7 +97,7 @@ impl UserProvider for MockUserProvider {
 
     async fn create_anonymous(&self, _fingerprint: &str) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: "user_anon".to_string(),
+            id: UserId::new("user_anon"),
             name: "anonymous".to_string(),
             email: "anon@example.com".to_string(),
             roles: vec![],
@@ -105,7 +105,7 @@ impl UserProvider for MockUserProvider {
         })
     }
 
-    async fn assign_roles(&self, _user_id: &str, _roles: &[String]) -> AuthResult<()> {
+    async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {
         Ok(())
     }
 }
@@ -218,7 +218,7 @@ fn test_authenticated_session_info_fields() {
 #[test]
 fn test_session_creation_error_user_not_found() {
     let error = SessionCreationError::UserNotFound {
-        user_id: TEST_USER_ID.to_string(),
+        user_id: UserId::new(TEST_USER_ID),
     };
     let message = error.to_string();
 
@@ -237,7 +237,7 @@ fn test_session_creation_error_internal() {
 #[test]
 fn test_session_creation_error_display() {
     let user_error = SessionCreationError::UserNotFound {
-        user_id: "user_missing".to_string(),
+        user_id: UserId::new("user_missing"),
     };
     let internal_error = SessionCreationError::Internal("timeout".to_string());
 

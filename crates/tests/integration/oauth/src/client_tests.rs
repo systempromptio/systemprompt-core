@@ -42,7 +42,7 @@ async fn test_client_lifecycle() {
     assert_eq!(created.redirect_uris.len(), 1);
 
     let found = repo
-        .get_by_client_id(client_id.as_str())
+        .get_by_client_id(&client_id)
         .await
         .expect("Failed to get client")
         .expect("Client not found");
@@ -50,43 +50,43 @@ async fn test_client_lifecycle() {
     assert_eq!(found.client_id.as_str(), created.client_id.as_str());
     assert_eq!(found.scopes, created.scopes);
 
-    repo.deactivate(client_id.as_str())
+    repo.deactivate(&client_id)
         .await
         .expect("Failed to deactivate client");
 
     let inactive = repo
-        .get_by_client_id(client_id.as_str())
+        .get_by_client_id(&client_id)
         .await
         .expect("Failed to get client");
 
     assert!(inactive.is_none(), "Deactivated client should not be found");
 
     let found_any = repo
-        .get_by_client_id_any(client_id.as_str())
+        .get_by_client_id_any(&client_id)
         .await
         .expect("Failed to get client (any)")
         .expect("Client not found (any)");
 
     assert!(!found_any.is_active, "Client should be inactive");
 
-    repo.activate(client_id.as_str())
+    repo.activate(&client_id)
         .await
         .expect("Failed to activate client");
 
     let reactivated = repo
-        .get_by_client_id(client_id.as_str())
+        .get_by_client_id(&client_id)
         .await
         .expect("Failed to get client")
         .expect("Client not found after reactivation");
 
     assert!(reactivated.is_active, "Client should be active again");
 
-    repo.delete(client_id.as_str())
+    repo.delete(&client_id)
         .await
         .expect("Failed to delete client");
 
     let deleted = repo
-        .get_by_client_id(client_id.as_str())
+        .get_by_client_id(&client_id)
         .await
         .expect("Failed to query deleted client");
 
@@ -145,7 +145,7 @@ async fn test_client_update() {
     assert!(updated.scopes.contains(&"email".to_string()));
     assert_eq!(updated.redirect_uris[0], "http://localhost:4000/callback");
 
-    repo.delete(client_id.as_str()).await.ok();
+    repo.delete(&client_id).await.ok();
 }
 
 #[tokio::test]
@@ -174,14 +174,14 @@ async fn test_client_secret_update() {
         .expect("Failed to create client");
 
     let updated = repo
-        .update_secret(client_id.as_str(), "new_hash")
+        .update_secret(&client_id, "new_hash")
         .await
         .expect("Failed to update secret")
         .expect("Client not found");
 
     assert_eq!(updated.client_secret_hash, Some("new_hash".to_string()));
 
-    repo.delete(client_id.as_str()).await.ok();
+    repo.delete(&client_id).await.ok();
 }
 
 #[tokio::test]
@@ -216,13 +216,13 @@ async fn test_client_counting() {
     assert!(count_after_create > 0, "Count should be positive after creating client");
 
     let client_exists = repo
-        .get_by_client_id(client_id.as_str())
+        .get_by_client_id(&client_id)
         .await
         .expect("Failed to query client")
         .is_some();
     assert!(client_exists, "Created client should be retrievable");
 
-    repo.delete(client_id.as_str())
+    repo.delete(&client_id)
         .await
         .expect("Failed to delete client");
 

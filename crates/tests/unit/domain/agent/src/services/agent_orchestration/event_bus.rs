@@ -1,15 +1,5 @@
-//! Unit tests for AgentEventBus
-//!
-//! Tests cover:
-//! - Event bus creation
-//! - Publishing and subscribing to events
-//! - Default configuration
-
 use systemprompt_agent::{AgentEvent, AgentEventBus};
-
-// ============================================================================
-// AgentEventBus Creation Tests
-// ============================================================================
+use systemprompt_identifiers::AgentId;
 
 #[test]
 fn test_event_bus_new() {
@@ -38,7 +28,7 @@ fn test_event_bus_sender() {
     let sender = bus.sender();
 
     let event = AgentEvent::AgentStartRequested {
-        agent_id: "test".to_string(),
+        agent_id: AgentId::new("test"),
     };
     let result = sender.send(event);
     result.unwrap_err();
@@ -50,13 +40,13 @@ async fn test_event_bus_publish_with_subscriber() {
     let mut receiver = bus.subscribe();
 
     let event = AgentEvent::AgentStartRequested {
-        agent_id: "pub-sub-test".to_string(),
+        agent_id: AgentId::new("pub-sub-test"),
     };
 
     bus.publish(event);
 
     let received = receiver.recv().await.unwrap();
-    assert_eq!(received.agent_id(), "pub-sub-test");
+    assert_eq!(received.agent_id().map(|a| a.as_str()), Some("pub-sub-test"));
 }
 
 #[tokio::test]
@@ -65,22 +55,22 @@ async fn test_event_bus_publish_multiple_events() {
     let mut receiver = bus.subscribe();
 
     bus.publish(AgentEvent::AgentStartRequested {
-        agent_id: "agent-1".to_string(),
+        agent_id: AgentId::new("agent-1"),
     });
     bus.publish(AgentEvent::AgentStartRequested {
-        agent_id: "agent-2".to_string(),
+        agent_id: AgentId::new("agent-2"),
     });
     bus.publish(AgentEvent::AgentStartRequested {
-        agent_id: "agent-3".to_string(),
+        agent_id: AgentId::new("agent-3"),
     });
 
     let event1 = receiver.recv().await.unwrap();
     let event2 = receiver.recv().await.unwrap();
     let event3 = receiver.recv().await.unwrap();
 
-    assert_eq!(event1.agent_id(), "agent-1");
-    assert_eq!(event2.agent_id(), "agent-2");
-    assert_eq!(event3.agent_id(), "agent-3");
+    assert_eq!(event1.agent_id().map(|a| a.as_str()), Some("agent-1"));
+    assert_eq!(event2.agent_id().map(|a| a.as_str()), Some("agent-2"));
+    assert_eq!(event3.agent_id().map(|a| a.as_str()), Some("agent-3"));
 }
 
 #[tokio::test]
@@ -90,7 +80,7 @@ async fn test_event_bus_broadcast_to_multiple_subscribers() {
     let mut receiver2 = bus.subscribe();
 
     let event = AgentEvent::AgentStarted {
-        agent_id: "broadcast-test".to_string(),
+        agent_id: AgentId::new("broadcast-test"),
         pid: 1234,
         port: 8080,
     };
@@ -100,13 +90,9 @@ async fn test_event_bus_broadcast_to_multiple_subscribers() {
     let received1 = receiver1.recv().await.unwrap();
     let received2 = receiver2.recv().await.unwrap();
 
-    assert_eq!(received1.agent_id(), "broadcast-test");
-    assert_eq!(received2.agent_id(), "broadcast-test");
+    assert_eq!(received1.agent_id().map(|a| a.as_str()), Some("broadcast-test"));
+    assert_eq!(received2.agent_id().map(|a| a.as_str()), Some("broadcast-test"));
 }
-
-// ============================================================================
-// Event Type Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_event_bus_different_event_types() {
@@ -114,15 +100,15 @@ async fn test_event_bus_different_event_types() {
     let mut receiver = bus.subscribe();
 
     bus.publish(AgentEvent::AgentStartRequested {
-        agent_id: "a1".to_string(),
+        agent_id: AgentId::new("a1"),
     });
     bus.publish(AgentEvent::AgentStarted {
-        agent_id: "a1".to_string(),
+        agent_id: AgentId::new("a1"),
         pid: 100,
         port: 8080,
     });
     bus.publish(AgentEvent::AgentStopped {
-        agent_id: "a1".to_string(),
+        agent_id: AgentId::new("a1"),
         exit_code: Some(0),
     });
 
@@ -134,10 +120,6 @@ async fn test_event_bus_different_event_types() {
     assert_eq!(e2.event_type(), "agent_started");
     assert_eq!(e3.event_type(), "agent_stopped");
 }
-
-// ============================================================================
-// Debug Implementation Tests
-// ============================================================================
 
 #[test]
 fn test_event_bus_debug_format() {

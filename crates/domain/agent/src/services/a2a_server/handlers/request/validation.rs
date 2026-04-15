@@ -1,4 +1,3 @@
-use crate::models::a2a::A2aJsonRpcRequest;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use systemprompt_identifiers::UserId;
 
@@ -31,7 +30,7 @@ pub async fn validate_message_context(
     Ok(())
 }
 
-pub async fn should_require_oauth(_request: &A2aJsonRpcRequest, state: &AgentHandlerState) -> bool {
+pub async fn should_require_oauth(state: &AgentHandlerState) -> bool {
     let config = state.config.read().await;
     config.oauth.required
 }

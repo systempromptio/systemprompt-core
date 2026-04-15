@@ -1,4 +1,3 @@
-pub mod auth_provider;
 pub mod cimd;
 pub mod generation;
 pub mod http;
@@ -29,4 +28,3 @@ pub use validation::{
     verify_client_authentication,
 };
 
-pub use auth_provider::{JwtAuthProvider, JwtAuthorizationProvider, TraitBasedAuthService};
