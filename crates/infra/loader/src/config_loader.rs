@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,6 +9,8 @@ use systemprompt_models::services::{
     AgentConfig, AiConfig, PartialServicesConfig, PluginConfig, SchedulerConfig, ServicesConfig,
     Settings as ServicesSettings, WebConfig,
 };
+
+use crate::ConfigWriter;
 
 #[derive(Debug)]
 pub struct ConfigLoader {
@@ -60,14 +62,30 @@ impl ConfigLoader {
         Ok(Self::new(config_path))
     }
 
-    pub fn load(&self) -> Result<ServicesConfig> {
-        let content = fs::read_to_string(&self.config_path)
-            .with_context(|| format!("Failed to read config: {}", self.config_path.display()))?;
-
-        self.load_from_content(&content)
+    pub fn load() -> Result<ServicesConfig> {
+        Self::from_env()?.run()
     }
 
-    pub fn load_from_content(&self, content: &str) -> Result<ServicesConfig> {
+    pub fn load_from_path(path: &Path) -> Result<ServicesConfig> {
+        Self::new(path.to_path_buf()).run()
+    }
+
+    pub fn load_from_content(content: &str, path: &Path) -> Result<ServicesConfig> {
+        Self::new(path.to_path_buf()).run_from_content(content)
+    }
+
+    pub fn validate_file(path: &Path) -> Result<()> {
+        let _ = Self::load_from_path(path)?;
+        Ok(())
+    }
+
+    fn run(&self) -> Result<ServicesConfig> {
+        let content = fs::read_to_string(&self.config_path)
+            .with_context(|| format!("Failed to read config: {}", self.config_path.display()))?;
+        self.run_from_content(&content)
+    }
+
+    fn run_from_content(&self, content: &str) -> Result<ServicesConfig> {
         let root: RootConfig = serde_yaml::from_str(content)
             .with_context(|| format!("Failed to parse config: {}", self.config_path.display()))?;
 
@@ -86,7 +104,9 @@ impl ConfigLoader {
             Self::merge_partial(&mut merged, partial)?;
         }
 
-        self.resolve_includes(&mut merged)?;
+        self.discover_and_load_agents(&root.includes, &mut merged)?;
+
+        self.resolve_system_prompt_includes(&mut merged)?;
 
         merged.settings.apply_env_overrides();
 
@@ -95,6 +115,67 @@ impl ConfigLoader {
             .map_err(|e| anyhow::anyhow!("Services config validation failed: {}", e))?;
 
         Ok(merged)
+    }
+
+    fn discover_and_load_agents(
+        &self,
+        existing_includes: &[String],
+        merged: &mut ServicesConfig,
+    ) -> Result<()> {
+        let agents_dir = self.base_path.join("../agents");
+
+        if !agents_dir.exists() {
+            return Ok(());
+        }
+
+        let included_files: HashSet<String> = existing_includes
+            .iter()
+            .filter_map(|inc| {
+                Path::new(inc)
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+            })
+            .collect();
+
+        let entries = fs::read_dir(&agents_dir).with_context(|| {
+            format!("Failed to read agents directory: {}", agents_dir.display())
+        })?;
+
+        for entry in entries {
+            let path = entry
+                .with_context(|| format!("Failed to read entry in: {}", agents_dir.display()))?
+                .path();
+
+            let is_yaml = path
+                .extension()
+                .is_some_and(|ext| ext == "yaml" || ext == "yml");
+
+            if !is_yaml {
+                continue;
+            }
+
+            let file_name = path
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .ok_or_else(|| anyhow::anyhow!("Invalid file path: {}", path.display()))?;
+
+            if included_files.contains(&file_name) {
+                continue;
+            }
+
+            let relative_path = format!("../agents/{}", file_name);
+            let partial = self.load_include(&relative_path)?;
+            Self::merge_partial(merged, partial)?;
+
+            ConfigWriter::add_include(&relative_path, &self.config_path).with_context(|| {
+                format!(
+                    "Failed to add discovered agent to includes: {}",
+                    relative_path
+                )
+            })?;
+        }
+
+        Ok(())
     }
 
     fn load_include(&self, path: &str) -> Result<PartialServicesConfig> {
@@ -159,7 +240,7 @@ impl ConfigLoader {
         Ok(())
     }
 
-    fn resolve_includes(&self, config: &mut ServicesConfig) -> Result<()> {
+    fn resolve_system_prompt_includes(&self, config: &mut ServicesConfig) -> Result<()> {
         for (name, agent) in &mut config.agents {
             if let Some(ref system_prompt) = agent.metadata.system_prompt {
                 if let Some(include_path) = system_prompt.strip_prefix("!include ") {
@@ -202,19 +283,5 @@ impl ConfigLoader {
 
     pub fn base_path(&self) -> &Path {
         &self.base_path
-    }
-
-    pub fn load_from_path(path: &Path) -> Result<ServicesConfig> {
-        Self::new(path.to_path_buf()).load()
-    }
-
-    pub fn load_from_content_at(content: &str, path: &Path) -> Result<ServicesConfig> {
-        Self::new(path.to_path_buf()).load_from_content(content)
-    }
-
-    pub fn validate_file(path: &Path) -> Result<()> {
-        let loader = Self::new(path.to_path_buf());
-        let _config = loader.load()?;
-        Ok(())
     }
 }

@@ -9,8 +9,6 @@ mod extension_loader;
 #[cfg(test)]
 mod extension_registry;
 #[cfg(test)]
-mod include_resolver;
-#[cfg(test)]
 mod module_loader;
 #[cfg(test)]
 mod profile_loader;

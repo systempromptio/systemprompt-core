@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
-use systemprompt_loader::EnhancedConfigLoader;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig, WebConfig};
 
@@ -29,8 +29,7 @@ pub fn execute(
         }
     });
 
-    let loader = EnhancedConfigLoader::from_env().ok();
-    let services_config = loader.and_then(|l| l.load().ok());
+    let services_config = ConfigLoader::load().ok();
 
     let full_config = build_config_for_filter(filter, config, services_config.as_ref());
 
