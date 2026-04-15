@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0] - 2026-04-15
+
+### Added
+- Recursive `includes:` resolution with cycle detection.
+
+### Changed
+- `ConfigLoader` is now the single loader; the public API is preserved via static-method shims.
+
+### Removed
+- `EnhancedConfigLoader`, `IncludeResolver`, `ConfigLoader::discover_and_load_agents`, and `ConfigWriter::add_include`.
+
+### Breaking
+- Loading is now pure — the loader no longer auto-adds discovered agent files to the root `config.yaml` `includes:` list. Users must list every include explicitly.
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

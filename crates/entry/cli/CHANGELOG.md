@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.0] - 2026-04-15
+
+### Changed
+- `cloud profile show` uses `ConfigLoader::load()` (replacing `EnhancedConfigLoader::from_env()?.load()`).
+
 ## [0.1.24] - 2026-04-14
 
 ### Fixed
