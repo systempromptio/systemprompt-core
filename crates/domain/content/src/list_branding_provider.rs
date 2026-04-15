@@ -4,10 +4,19 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::ContentConfigRaw;
+use systemprompt_models::services::ServicesConfig;
 use systemprompt_provider_contracts::{PageContext, PageDataProvider};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefaultListBrandingProvider;
+
+fn resolve_content_raw<'a>(ctx: &'a PageContext<'_>) -> Result<&'a ContentConfigRaw> {
+    if let Some(services) = ctx.content_config::<ServicesConfig>() {
+        return Ok(&services.content.raw);
+    }
+    ctx.content_config::<ContentConfigRaw>()
+        .ok_or_else(|| anyhow::anyhow!("ContentConfig not available in PageContext"))
+}
 
 #[async_trait]
 impl PageDataProvider for DefaultListBrandingProvider {
@@ -20,9 +29,7 @@ impl PageDataProvider for DefaultListBrandingProvider {
             return Ok(serde_json::json!({}));
         };
 
-        let content_config = ctx
-            .content_config::<ContentConfigRaw>()
-            .ok_or_else(|| anyhow::anyhow!("ContentConfigRaw not available in PageContext"))?;
+        let content_config = resolve_content_raw(ctx)?;
 
         let source = content_config.content_sources.get(source_name);
         let org = &content_config.metadata.structured_data.organization;

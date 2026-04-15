@@ -3,39 +3,17 @@ use std::path::Path;
 use std::time::Duration;
 use systemprompt_logging::CliService;
 use systemprompt_models::validators::{ValidationConfigProvider, WebConfigRaw, WebMetadataRaw};
-use systemprompt_models::{Config, ContentConfigRaw};
+use systemprompt_models::Config;
 use systemprompt_traits::ConfigProvider;
 
 pub fn load_content_config(
-    config: &Config,
     mut provider: ValidationConfigProvider,
     verbose: bool,
 ) -> ValidationConfigProvider {
-    if let Some(content_config_path) = ConfigProvider::get(config, "content_config_path") {
-        let spinner = if verbose {
-            Some(create_spinner("Loading content config"))
-        } else {
-            None
-        };
-        match load_yaml_config::<ContentConfigRaw>(Path::new(&content_config_path)) {
-            Ok(cfg) => {
-                if let Some(s) = spinner {
-                    s.finish_and_clear();
-                }
-                if verbose {
-                    CliService::phase_success("Content config", None);
-                }
-                provider = provider.with_content_config(cfg);
-            },
-            Err(e) => {
-                if let Some(s) = spinner {
-                    s.finish_and_clear();
-                }
-                if verbose {
-                    CliService::phase_warning("Content config", Some(&e));
-                }
-            },
-        }
+    let raw = provider.services_config().content.raw.clone();
+    provider = provider.with_content_config(raw);
+    if verbose {
+        CliService::phase_success("Content config", Some("from services config"));
     }
     provider
 }

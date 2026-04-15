@@ -1,7 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
 use systemprompt_database::DbPool;
-use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
+use systemprompt_models::services::ServicesConfig;
+use systemprompt_models::{AppPaths, ContentSourceConfigRaw};
 use systemprompt_traits::JobResult;
 
 use crate::services::IngestionService;
@@ -12,13 +13,15 @@ struct IngestionStats {
     errors: u64,
 }
 
-pub async fn execute_content_ingestion(db_pool: &DbPool) -> Result<JobResult> {
+pub async fn execute_content_ingestion(
+    db_pool: &DbPool,
+    services_config: &ServicesConfig,
+) -> Result<JobResult> {
     let start_time = std::time::Instant::now();
     log_job_started();
 
-    let config = load_content_config()?;
     let ingestion_service = create_ingestion_service(db_pool)?;
-    let sources = get_enabled_sources(&config);
+    let sources = get_enabled_sources(services_config);
 
     if sources.is_empty() {
         return Ok(empty_sources_result(start_time));
@@ -34,25 +37,17 @@ fn log_job_started() {
     tracing::info!("Content ingestion job started");
 }
 
-fn load_content_config() -> Result<ContentConfigRaw> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let config_path = paths.system().content_config();
-    let config_display = config_path.display().to_string();
-
-    let yaml_content = std::fs::read_to_string(config_path)
-        .with_context(|| format!("Failed to read config: {config_display}"))?;
-
-    serde_yaml::from_str(&yaml_content)
-        .with_context(|| format!("Failed to parse config: {config_display}"))
-}
-
 fn create_ingestion_service(db_pool: &DbPool) -> Result<IngestionService> {
     IngestionService::new(db_pool)
         .map_err(|e| anyhow::anyhow!("Failed to create ingestion service: {}", e))
 }
 
-fn get_enabled_sources(config: &ContentConfigRaw) -> Vec<(&String, &ContentSourceConfigRaw)> {
-    config
+fn get_enabled_sources(
+    services_config: &ServicesConfig,
+) -> Vec<(&String, &ContentSourceConfigRaw)> {
+    services_config
+        .content
+        .raw
         .content_sources
         .iter()
         .filter(|(name, cfg)| cfg.enabled && !name.contains("skill"))
