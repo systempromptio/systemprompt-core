@@ -19,8 +19,8 @@ pub struct AnonymousTokenResponse {
     pub token_type: String,
     pub expires_in: i64,
     pub session_id: String,
-    pub user_id: String,
-    pub client_id: String,
+    pub user_id: UserId,
+    pub client_id: ClientId,
     pub client_type: String,
 }
 
@@ -33,19 +33,19 @@ pub struct AnonymousError {
 #[derive(Debug, Deserialize)]
 pub struct AnonymousTokenRequest {
     #[serde(default = "default_client_id")]
-    pub client_id: String,
+    pub client_id: ClientId,
     #[serde(default)]
     pub redirect_uri: Option<String>,
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
     #[serde(default)]
-    pub user_id: Option<String>,
+    pub user_id: Option<UserId>,
     #[serde(default)]
     pub email: Option<String>,
 }
 
-fn default_client_id() -> String {
-    "sp_web".to_string()
+fn default_client_id() -> ClientId {
+    ClientId::new("sp_web")
 }
 
 pub async fn generate_anonymous_token(
@@ -54,7 +54,7 @@ pub async fn generate_anonymous_token(
     Json(req): Json<AnonymousTokenRequest>,
 ) -> impl IntoResponse {
     let expires_in = systemprompt_oauth::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
-    let client_id = ClientId::new(req.client_id.clone());
+    let client_id = req.client_id.clone();
     let validator = match ClientValidator::new(state.db_pool()) {
         Ok(v) => v,
         Err(e) => {
@@ -99,13 +99,12 @@ pub async fn generate_anonymous_token(
         session_service = session_service.with_event_publisher(Arc::clone(event_publisher));
     }
 
-    if let Some(ref user_id_str) = req.user_id {
+    if let Some(ref user_id) = req.user_id {
         if req.client_id == "sp_cli" {
-            let user_id = UserId::new(user_id_str.clone());
-            let email = req.email.clone().unwrap_or_else(|| user_id_str.clone());
+            let email = req.email.clone().unwrap_or_else(|| user_id.to_string());
 
             match session_service
-                .create_authenticated_session(&user_id, &headers, SessionSource::Cli)
+                .create_authenticated_session(user_id, &headers, SessionSource::Cli)
                 .await
             {
                 Ok(session_id) => {
@@ -140,7 +139,7 @@ pub async fn generate_anonymous_token(
                         issuer: &config.jwt_issuer,
                     };
                     let jwt_token = match generate_admin_jwt(
-                        user_id_str,
+                        user_id.as_str(),
                         session_id.as_str(),
                         &email,
                         &client_id,
@@ -171,8 +170,8 @@ pub async fn generate_anonymous_token(
                             token_type: TokenType::Bearer.to_string(),
                             expires_in,
                             session_id: session_id.to_string(),
-                            user_id: user_id_str.clone(),
-                            client_id: client_id.to_string(),
+                            user_id: user_id.clone(),
+                            client_id: client_id.clone(),
                             client_type: "cli".to_string(),
                         }),
                     )
@@ -213,7 +212,7 @@ pub async fn generate_anonymous_token(
                 .into_response();
         },
     };
-    let session_source = SessionSource::from_client_id(&req.client_id);
+    let session_source = SessionSource::from_client_id(req.client_id.as_str());
     match session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
             headers: &headers,
@@ -237,8 +236,8 @@ pub async fn generate_anonymous_token(
                     token_type: TokenType::Bearer.to_string(),
                     expires_in,
                     session_id: session_info.session_id.to_string(),
-                    user_id: session_info.user_id.to_string(),
-                    client_id: client_id.to_string(),
+                    user_id: session_info.user_id,
+                    client_id: client_id.clone(),
                     client_type: client_type.to_string(),
                 }),
             )

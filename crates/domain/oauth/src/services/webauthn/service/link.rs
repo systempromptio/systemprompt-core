@@ -5,6 +5,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::UserId;
 use tokio::sync::Mutex;
 use tracing::instrument;
 use uuid::Uuid;
@@ -15,7 +16,7 @@ const CHALLENGE_EXPIRY_SECONDS: u64 = 300;
 #[derive(Debug)]
 pub struct LinkRegistrationState {
     pub reg_state: PasskeyRegistration,
-    pub user_id: String,
+    pub user_id: UserId,
     pub token_id: String,
     pub timestamp: Instant,
 }
@@ -83,7 +84,7 @@ impl WebAuthnService {
         let challenge_id = Uuid::new_v4().to_string();
         let state = LinkRegistrationState {
             reg_state,
-            user_id: token_record.user_id.clone(),
+            user_id: UserId::new(token_record.user_id.clone()),
             token_id: token_record.id.clone(),
             timestamp: Instant::now(),
         };
@@ -142,7 +143,7 @@ impl WebAuthnService {
             .webauthn
             .finish_passkey_registration(credential, &state.reg_state)?;
 
-        self.store_credential(&state.user_id, &passkey, "Linked Passkey")
+        self.store_credential(state.user_id.as_str(), &passkey, "Linked Passkey")
             .await?;
 
         self.oauth_repo
@@ -154,7 +155,7 @@ impl WebAuthnService {
             "WebAuthn credential linked to existing user"
         );
 
-        Ok(state.user_id)
+        Ok(state.user_id.into())
     }
 
     pub async fn cleanup_expired_link_states(link_states: &LinkStates) {

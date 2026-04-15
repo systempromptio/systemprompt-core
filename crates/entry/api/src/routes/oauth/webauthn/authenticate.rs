@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_identifiers::UserId;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use tracing::instrument;
@@ -128,7 +129,7 @@ pub struct FinishAuthRequest {
 
 #[derive(Debug, Serialize)]
 pub struct FinishAuthResponse {
-    pub user_id: String,
+    pub user_id: UserId,
     pub oauth_state: Option<String>,
     pub success: bool,
     pub auth_token: Option<String>,

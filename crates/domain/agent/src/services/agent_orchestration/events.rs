@@ -1,40 +1,41 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
     AgentStartRequested {
-        agent_id: String,
+        agent_id: AgentId,
     },
     AgentStartCompleted {
-        agent_id: String,
+        agent_id: AgentId,
         success: bool,
         pid: Option<u32>,
         port: Option<u16>,
         error: Option<String>,
     },
     AgentStarted {
-        agent_id: String,
+        agent_id: AgentId,
         pid: u32,
         port: u16,
     },
     AgentFailed {
-        agent_id: String,
+        agent_id: AgentId,
         error: String,
     },
     AgentStopped {
-        agent_id: String,
+        agent_id: AgentId,
         exit_code: Option<i32>,
     },
     AgentDisabled {
-        agent_id: String,
+        agent_id: AgentId,
     },
     HealthCheckFailed {
-        agent_id: String,
+        agent_id: AgentId,
         reason: String,
     },
     AgentRestartRequested {
-        agent_id: String,
+        agent_id: AgentId,
         reason: String,
     },
     ReconciliationStarted {
@@ -47,7 +48,7 @@ pub enum AgentEvent {
 }
 
 impl AgentEvent {
-    pub fn agent_id(&self) -> &str {
+    pub fn agent_id(&self) -> Option<&AgentId> {
         match self {
             Self::AgentStartRequested { agent_id }
             | Self::AgentStartCompleted { agent_id, .. }
@@ -56,8 +57,8 @@ impl AgentEvent {
             | Self::AgentStopped { agent_id, .. }
             | Self::AgentDisabled { agent_id }
             | Self::HealthCheckFailed { agent_id, .. }
-            | Self::AgentRestartRequested { agent_id, .. } => agent_id,
-            Self::ReconciliationStarted { .. } | Self::ReconciliationCompleted { .. } => "",
+            | Self::AgentRestartRequested { agent_id, .. } => Some(agent_id),
+            Self::ReconciliationStarted { .. } | Self::ReconciliationCompleted { .. } => None,
         }
     }
 

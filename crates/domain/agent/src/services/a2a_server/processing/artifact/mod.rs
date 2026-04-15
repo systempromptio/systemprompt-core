@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, ContextId, TaskId};
 use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, ToolCall};
 
 use crate::models::a2a::Artifact;
@@ -52,8 +52,8 @@ pub struct ArtifactBuilder {
     tool_calls: Vec<ToolCall>,
     tool_results: Vec<CallToolResult>,
     tools: Vec<McpTool>,
-    context_id: String,
-    task_id: String,
+    context_id: ContextId,
+    task_id: TaskId,
 }
 
 impl ArtifactBuilder {
@@ -61,8 +61,8 @@ impl ArtifactBuilder {
         tool_calls: Vec<ToolCall>,
         tool_results: Vec<CallToolResult>,
         tools: Vec<McpTool>,
-        context_id: String,
-        task_id: String,
+        context_id: ContextId,
+        task_id: TaskId,
     ) -> Self {
         Self {
             tool_calls,
@@ -95,8 +95,8 @@ impl ArtifactBuilder {
                             tool_name: &tool_call.name,
                             tool_result_json: structured_content,
                             output_schema,
-                            context_id: &self.context_id,
-                            task_id: &self.task_id,
+                            context_id: self.context_id.as_str(),
+                            task_id: self.task_id.as_str(),
                             tool_arguments: Some(&tool_call.arguments),
                         },
                     )

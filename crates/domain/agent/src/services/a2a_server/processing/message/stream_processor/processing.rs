@@ -50,9 +50,9 @@ impl StreamProcessor {
             "Loaded historical messages for context"
         );
 
-        let context_id_str = context_id.to_string();
+        let context_id_for_artifacts = context_id.clone();
         let context_id_owned = context_id.clone();
-        let task_id_str = task_id.to_string();
+        let task_id_for_artifacts = task_id.clone();
 
         let request_ctx = context
             .clone()
@@ -148,8 +148,8 @@ impl StreamProcessor {
                 &tool_results,
                 &tool_calls,
                 &tools,
-                &context_id_str,
-                &task_id_str,
+                &context_id_for_artifacts,
+                &task_id_for_artifacts,
             ) {
                 Ok(artifacts) => artifacts,
                 Err(e) => {

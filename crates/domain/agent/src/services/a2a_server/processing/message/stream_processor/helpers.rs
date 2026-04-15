@@ -7,14 +7,15 @@ use crate::models::a2a::Artifact;
 use crate::services::SkillService;
 use crate::services::a2a_server::processing::artifact::ArtifactBuilder;
 use crate::services::a2a_server::processing::message::StreamEvent;
+use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{AiMessage, AiProvider, RequestContext};
 
 pub fn build_artifacts_from_results(
     tool_results: &[systemprompt_models::CallToolResult],
     tool_calls: &[systemprompt_models::ToolCall],
     tools: &[systemprompt_models::McpTool],
-    context_id_str: &str,
-    task_id_str: &str,
+    context_id: &ContextId,
+    task_id: &TaskId,
 ) -> Result<Vec<Artifact>> {
     if tool_results.is_empty() {
         tracing::info!("No tool_results - no artifacts expected");
@@ -38,8 +39,8 @@ pub fn build_artifacts_from_results(
         tool_calls.to_vec(),
         tool_results.to_vec(),
         tools.to_vec(),
-        context_id_str.to_string(),
-        task_id_str.to_string(),
+        context_id.clone(),
+        task_id.clone(),
     );
 
     artifact_builder.build_artifacts()

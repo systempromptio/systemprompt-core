@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,8 +9,6 @@ use systemprompt_models::services::{
     AgentConfig, AiConfig, ContentConfig, PartialServicesConfig, PluginConfig, SchedulerConfig,
     ServicesConfig, Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
-
-use crate::ConfigWriter;
 
 #[derive(Debug)]
 pub struct ConfigLoader {
@@ -47,6 +45,14 @@ struct PartialServicesRootConfig {
     pub skills: SkillsConfig,
     #[serde(default)]
     pub content: ContentConfig,
+}
+
+#[derive(serde::Deserialize)]
+struct PartialServicesFile {
+    #[serde(default)]
+    includes: Vec<String>,
+    #[serde(flatten)]
+    config: PartialServicesConfig,
 }
 
 impl ConfigLoader {

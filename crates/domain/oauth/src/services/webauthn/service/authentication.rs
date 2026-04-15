@@ -2,6 +2,7 @@ use super::{AuthenticationStateData, WebAuthnService};
 use anyhow::Result;
 use base64::engine::{Engine, general_purpose};
 use std::time::Instant;
+use systemprompt_identifiers::UserId;
 use tracing::instrument;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
@@ -37,7 +38,7 @@ impl WebAuthnService {
                 challenge_id.clone(),
                 AuthenticationStateData {
                     state: auth_state,
-                    user_id: user.id.to_string(),
+                    user_id: user.id.clone(),
                     oauth_state: oauth_state.clone(),
                     timestamp: Instant::now(),
                 },
@@ -61,7 +62,7 @@ impl WebAuthnService {
         &self,
         challenge_id: &str,
         auth_response: &PublicKeyCredential,
-    ) -> Result<(String, Option<String>)> {
+    ) -> Result<(UserId, Option<String>)> {
         let (auth_state, user_id, oauth_state) = self
             .retrieve_and_remove_authentication_state(challenge_id)
             .await?;
@@ -102,7 +103,7 @@ impl WebAuthnService {
     async fn retrieve_and_remove_authentication_state(
         &self,
         challenge_id: &str,
-    ) -> Result<(PasskeyAuthentication, String, Option<String>)> {
+    ) -> Result<(PasskeyAuthentication, UserId, Option<String>)> {
         let data = {
             let mut states = self.auth_states.lock().await;
             states

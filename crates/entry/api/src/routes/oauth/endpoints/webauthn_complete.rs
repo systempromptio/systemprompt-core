@@ -15,10 +15,10 @@ use systemprompt_oauth::services::{generate_secure_token, is_browser_request};
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {
-    pub user_id: String,
+    pub user_id: UserId,
     pub auth_token: Option<String>,
     pub response_type: Option<String>,
-    pub client_id: Option<String>,
+    pub client_id: Option<ClientId>,
     pub redirect_uri: Option<String>,
     pub scope: Option<String>,
     pub state: Option<String>,
@@ -124,7 +124,7 @@ pub async fn handle_webauthn_complete(
             .into_response();
     };
 
-    match user_provider.find_by_id(&verified_user_id).await {
+    match user_provider.find_by_id(verified_user_id.as_str()).await {
         Ok(Some(_)) => {
             let authorization_code = generate_secure_token("auth_code");
 
@@ -180,7 +180,7 @@ async fn store_authorization_code(
     code_str: &str,
     query: &WebAuthnCompleteQuery,
 ) -> Result<()> {
-    let client_id_str = query
+    let client_id = query
         .client_id
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("client_id is required"))?;
@@ -201,10 +201,8 @@ async fn store_authorization_code(
     );
 
     let code = AuthorizationCode::new(code_str);
-    let client_id = ClientId::new(client_id_str);
-    let user_id = UserId::new(&query.user_id);
 
-    let mut builder = AuthCodeParams::builder(&code, &client_id, &user_id, redirect_uri, &scope);
+    let mut builder = AuthCodeParams::builder(&code, client_id, &query.user_id, redirect_uri, &scope);
 
     if let (Some(challenge), Some(method)) = (
         query.code_challenge.as_deref(),
@@ -228,7 +226,7 @@ pub struct WebAuthnCompleteResponse {
     pub authorization_code: String,
     pub state: String,
     pub redirect_uri: String,
-    pub client_id: String,
+    pub client_id: ClientId,
 }
 
 fn create_successful_response(
@@ -242,10 +240,10 @@ fn create_successful_response(
     if is_browser_request(headers) {
         let mut target = format!("{redirect_uri}?code={authorization_code}");
 
-        if let Some(client_id_val) = params.client_id.as_deref() {
+        if let Some(client_id_val) = params.client_id.as_ref() {
             target.push_str(&format!(
                 "&client_id={}",
-                urlencoding::encode(client_id_val)
+                urlencoding::encode(client_id_val.as_str())
             ));
         }
 
@@ -258,7 +256,7 @@ fn create_successful_response(
             authorization_code: authorization_code.to_string(),
             state: state.unwrap_or("").to_string(),
             redirect_uri: redirect_uri.to_string(),
-            client_id: params.client_id.as_deref().unwrap_or("").to_string(),
+            client_id: params.client_id.clone().unwrap_or_else(|| ClientId::new("")),
         };
 
         Json(response_data).into_response()

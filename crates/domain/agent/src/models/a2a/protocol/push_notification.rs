@@ -1,5 +1,6 @@
 use crate::models::a2a::AgentAuthentication;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TaskId;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct PushNotificationConfig {
@@ -25,7 +26,7 @@ pub struct TaskPushNotificationConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SetTaskPushNotificationConfigRequest {
-    pub task_id: String,
+    pub task_id: TaskId,
     pub config: PushNotificationConfig,
 }
 
@@ -37,7 +38,7 @@ pub struct SetTaskPushNotificationConfigResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct GetTaskPushNotificationConfigRequest {
-    pub task_id: String,
+    pub task_id: TaskId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -52,7 +53,7 @@ pub struct GetTaskPushNotificationConfigParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DeleteTaskPushNotificationConfigRequest {
-    pub task_id: String,
+    pub task_id: TaskId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -68,7 +69,7 @@ pub struct DeleteTaskPushNotificationConfigParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ListTaskPushNotificationConfigRequest {
-    pub task_id: String,
+    pub task_id: TaskId,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
 }
@@ -81,7 +82,7 @@ pub struct ListTaskPushNotificationConfigResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TaskResubscriptionRequest {
-    pub task_id: String,
+    pub task_id: TaskId,
     pub config: PushNotificationConfig,
 }
 

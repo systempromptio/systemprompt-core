@@ -15,6 +15,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
+use systemprompt_identifiers::UserId;
 use systemprompt_traits::UserProvider;
 use tokio::sync::Mutex;
 use webauthn_rs::prelude::*;
@@ -23,14 +24,14 @@ use webauthn_rs::{Webauthn, WebauthnBuilder};
 #[derive(Debug)]
 pub(super) struct AuthenticationStateData {
     pub state: PasskeyAuthentication,
-    pub user_id: String,
+    pub user_id: UserId,
     pub oauth_state: Option<String>,
     pub timestamp: Instant,
 }
 
 #[derive(Debug, Clone)]
 pub struct VerifiedAuthentication {
-    pub user_id: String,
+    pub user_id: UserId,
     pub timestamp: Instant,
 }
 
@@ -107,7 +108,7 @@ impl WebAuthnService {
         Ok(())
     }
 
-    pub async fn store_verified_authentication(&self, token: String, user_id: String) {
+    pub async fn store_verified_authentication(&self, token: String, user_id: UserId) {
         let mut verified = self.verified_auths.lock().await;
         verified.insert(
             token,
@@ -118,7 +119,7 @@ impl WebAuthnService {
         );
     }
 
-    pub async fn consume_verified_authentication(&self, token: &str) -> Result<String> {
+    pub async fn consume_verified_authentication(&self, token: &str) -> Result<UserId> {
         let data = {
             let mut verified = self.verified_auths.lock().await;
             verified

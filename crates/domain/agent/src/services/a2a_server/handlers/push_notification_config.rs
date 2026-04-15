@@ -35,8 +35,7 @@ pub async fn handle_set_push_notification_config(
         },
     };
 
-    let task_id = systemprompt_identifiers::TaskId::new(&request.task_id);
-    match repo.add_config(&task_id, &request.config).await {
+    match repo.add_config(&request.task_id, &request.config).await {
         Ok(config_id) => {
             tracing::info!(config_id = %config_id, task_id = %request.task_id, "Successfully added config");
 
@@ -94,8 +93,7 @@ pub async fn handle_get_push_notification_config(
         },
     };
 
-    let task_id = systemprompt_identifiers::TaskId::new(&request.task_id);
-    match repo.list_configs(&task_id).await {
+    match repo.list_configs(&request.task_id).await {
         Ok(configs) => Ok((
             StatusCode::OK,
             Json(json!({
@@ -204,9 +202,7 @@ pub async fn handle_delete_push_notification_config(
             ));
         },
     };
-    let task_id = systemprompt_identifiers::TaskId::new(&request.task_id);
-
-    match repo.delete_all_for_task(&task_id).await {
+    match repo.delete_all_for_task(&request.task_id).await {
         Ok(count) => {
             tracing::info!(task_id = %request.task_id, deleted = count, "Successfully deleted configs");
 

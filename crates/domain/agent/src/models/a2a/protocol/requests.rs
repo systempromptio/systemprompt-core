@@ -6,6 +6,7 @@ use super::push_notification::{
 use crate::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 use crate::models::a2a::{AgentCard, Task, TaskState};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TaskId;
 use systemprompt_models::a2a::methods;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -221,7 +222,7 @@ impl A2aResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TaskNotFoundError {
-    pub task_id: String,
+    pub task_id: TaskId,
     pub message: String,
     pub code: i32,
     pub data: serde_json::Value,
@@ -229,7 +230,7 @@ pub struct TaskNotFoundError {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TaskNotCancelableError {
-    pub task_id: String,
+    pub task_id: TaskId,
     pub state: TaskState,
     pub message: String,
     pub code: i32,

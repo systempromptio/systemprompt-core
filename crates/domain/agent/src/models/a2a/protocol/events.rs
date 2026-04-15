@@ -1,12 +1,13 @@
 use crate::models::a2a::{Artifact, TaskStatus};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{ContextId, TaskId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskStatusUpdateEvent {
     pub kind: String,
-    pub task_id: String,
-    pub context_id: String,
+    pub task_id: TaskId,
+    pub context_id: ContextId,
     pub status: TaskStatus,
     #[serde(rename = "final")]
     pub is_final: bool,
@@ -14,8 +15,8 @@ pub struct TaskStatusUpdateEvent {
 
 impl TaskStatusUpdateEvent {
     pub fn new(
-        task_id: impl Into<String>,
-        context_id: impl Into<String>,
+        task_id: impl Into<TaskId>,
+        context_id: impl Into<ContextId>,
         status: TaskStatus,
         is_final: bool,
     ) -> Self {
@@ -40,8 +41,8 @@ impl TaskStatusUpdateEvent {
 #[serde(rename_all = "camelCase")]
 pub struct TaskArtifactUpdateEvent {
     pub kind: String,
-    pub task_id: String,
-    pub context_id: String,
+    pub task_id: TaskId,
+    pub context_id: ContextId,
     pub artifact: Artifact,
     #[serde(rename = "final")]
     pub is_final: bool,
@@ -49,8 +50,8 @@ pub struct TaskArtifactUpdateEvent {
 
 impl TaskArtifactUpdateEvent {
     pub fn new(
-        task_id: impl Into<String>,
-        context_id: impl Into<String>,
+        task_id: impl Into<TaskId>,
+        context_id: impl Into<ContextId>,
         artifact: Artifact,
         is_final: bool,
     ) -> Self {
