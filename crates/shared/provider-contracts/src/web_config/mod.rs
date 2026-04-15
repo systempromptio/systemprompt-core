@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WebConfig {
     pub paths: PathsConfig,
     #[serde(default)]
@@ -39,5 +40,49 @@ pub struct WebConfig {
     #[serde(rename = "touchTargets")]
     pub touch_targets: TouchTargetsConfig,
     #[serde(default)]
+    pub nav: NavConfig,
+    #[serde(default)]
+    pub social_action_bar: SocialActionBarConfig,
+    #[serde(default)]
     pub pages: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+#[allow(clippy::struct_field_names)]
+pub struct NavConfig {
+    #[serde(default)]
+    pub app_url: String,
+    #[serde(default)]
+    pub docs_url: String,
+    #[serde(default)]
+    pub blog_url: String,
+    #[serde(default)]
+    pub playbooks_url: String,
+    #[serde(default)]
+    pub github_url: String,
+    #[serde(default)]
+    pub getting_started_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SocialActionBarConfig {
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub platforms: Vec<SocialPlatform>,
+    #[serde(default)]
+    pub enable_share: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SocialPlatform {
+    #[serde(rename = "type")]
+    pub platform_type: String,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub label: Option<String>,
 }
