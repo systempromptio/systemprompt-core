@@ -123,7 +123,7 @@ impl WebAuthnService {
     pub async fn finish_registration(
         &self,
         params: FinishRegistrationParams<'_>,
-    ) -> Result<String> {
+    ) -> Result<systemprompt_identifiers::UserId> {
         let reg_state = self
             .retrieve_and_remove_registration_state(params.challenge_id)
             .await?;
@@ -163,7 +163,7 @@ impl WebAuthnService {
                     "WebAuthn registration completed"
                 );
 
-                Ok(user_id.to_string())
+                Ok(user_id)
             },
             Err(e) => {
                 tracing::info!(

@@ -14,6 +14,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{AiRequestId, TraceId};
 use systemprompt_runtime::DatabaseContext;
 
 use super::types::{MessageRow, ToolCallRow};
@@ -75,7 +76,7 @@ pub struct StepSummaryRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TraceViewOutput {
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub events: Vec<TraceEventRow>,
     pub ai_summary: AiSummaryRow,
     pub mcp_summary: McpSummaryRow,
@@ -89,7 +90,7 @@ pub struct TraceViewOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TraceListRow {
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub timestamp: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
@@ -131,7 +132,7 @@ pub struct StepRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AiRequestRow {
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub model: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<i32>,
@@ -171,7 +172,7 @@ pub struct AiTraceOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AiLookupOutput {
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub input_tokens: i32,

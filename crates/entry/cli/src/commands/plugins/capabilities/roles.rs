@@ -22,7 +22,7 @@ pub fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesList
             ext.roles()
                 .iter()
                 .map(|role| RoleWithExtension {
-                    extension_id: ext.id().to_string(),
+                    extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
                     extension_name: ext.name().to_string(),
                     role_name: role.name.clone(),
                     display_name: role.display_name.clone(),

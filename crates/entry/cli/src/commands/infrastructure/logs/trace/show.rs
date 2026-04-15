@@ -15,6 +15,7 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
+    // CLI: user-provided partial lookup
     #[arg(help = "Trace ID or Task ID (can be partial)")]
     pub id: String,
 
@@ -247,7 +248,7 @@ fn build_trace_output(
     };
 
     TraceViewOutput {
-        trace_id: trace_id.to_string(),
+        trace_id: systemprompt_identifiers::TraceId::new(trace_id),
         events: event_rows,
         ai_summary: AiSummaryRow {
             request_count: summaries.ai.request_count,

@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::PluginId;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilitySummary {
@@ -89,7 +90,7 @@ impl CapabilitySummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobWithExtension {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub extension_name: String,
     pub job_name: String,
     pub schedule: String,
@@ -104,7 +105,7 @@ pub struct JobsListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TemplateWithExtension {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub extension_name: String,
     pub template_name: String,
     pub description: String,
@@ -118,7 +119,7 @@ pub struct TemplatesListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SchemaWithExtension {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub extension_name: String,
     pub table: String,
     pub source: String,
@@ -133,7 +134,7 @@ pub struct SchemasListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RouteWithExtension {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub extension_name: String,
     pub base_path: String,
     pub requires_auth: bool,
@@ -147,7 +148,7 @@ pub struct RoutesListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolWithExtension {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub extension_name: String,
     pub tool_name: String,
 }
@@ -160,7 +161,7 @@ pub struct ToolsListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RoleWithExtension {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub extension_name: String,
     pub role_name: String,
     pub display_name: String,
@@ -176,7 +177,7 @@ pub struct RolesListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LlmProviderWithExtension {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub extension_name: String,
     pub provider_name: String,
 }

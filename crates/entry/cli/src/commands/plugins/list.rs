@@ -69,7 +69,7 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<ExtensionL
                     };
 
                     ExtensionSummary {
-                        id: ext.id().to_string(),
+                        id: systemprompt_identifiers::PluginId::new(ext.id()),
                         name: ext.name().to_string(),
                         version: ext.version().to_string(),
                         priority: ext.priority(),
@@ -109,7 +109,7 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<ExtensionL
             }
 
             extensions.push(ExtensionSummary {
-                id: ext.manifest.extension.name.clone(),
+                id: systemprompt_identifiers::PluginId::new(ext.manifest.extension.name.clone()),
                 name: ext.manifest.extension.name.clone(),
                 version: "manifest".to_string(),
                 priority: 100,

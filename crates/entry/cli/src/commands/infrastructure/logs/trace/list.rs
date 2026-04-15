@@ -73,7 +73,7 @@ async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Re
         .map(|r| {
             let duration_ms = (r.last_timestamp - r.first_timestamp).num_milliseconds();
             TraceListRow {
-                trace_id: r.trace_id.to_string(),
+                trace_id: r.trace_id,
                 timestamp: r.first_timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
                 agent: r.agent,
                 status: r.status.unwrap_or_else(|| "unknown".to_string()),

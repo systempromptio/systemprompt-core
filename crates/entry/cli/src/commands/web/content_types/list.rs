@@ -58,7 +58,7 @@ pub fn execute(
         .map(|(name, source)| ContentTypeSummary {
             name: name.clone(),
             source: source.source_id.to_string(),
-            category_id: source.category_id.to_string(),
+            category_id: source.category_id.clone(),
             enabled: source.enabled,
             path: source.path.clone(),
             url_pattern: source.sitemap.as_ref().map(|s| s.url_pattern.clone()),

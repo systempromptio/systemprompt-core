@@ -26,7 +26,7 @@ pub fn execute(
                 .iter()
                 .enumerate()
                 .map(|(i, _provider)| LlmProviderWithExtension {
-                    extension_id: ext.id().to_string(),
+                    extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
                     extension_name: ext.name().to_string(),
                     provider_name: format!("llm_provider_{}", i),
                 })

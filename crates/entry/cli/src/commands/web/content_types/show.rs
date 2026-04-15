@@ -45,7 +45,7 @@ pub fn execute(
     let output = ContentTypeDetailOutput {
         name: name.clone(),
         source: source.source_id.to_string(),
-        category_id: source.category_id.to_string(),
+        category_id: source.category_id.clone(),
         enabled: source.enabled,
         path: source.path.clone(),
         description: source.description.clone(),

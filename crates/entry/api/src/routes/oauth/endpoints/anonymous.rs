@@ -5,7 +5,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use systemprompt_identifiers::{ClientId, SessionSource, UserId};
+use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::cimd::ClientValidator;
@@ -18,7 +18,7 @@ pub struct AnonymousTokenResponse {
     pub access_token: String,
     pub token_type: String,
     pub expires_in: i64,
-    pub session_id: String,
+    pub session_id: SessionId,
     pub user_id: UserId,
     pub client_id: ClientId,
     pub client_type: String,
@@ -169,7 +169,7 @@ pub async fn generate_anonymous_token(
                             access_token: jwt_token,
                             token_type: TokenType::Bearer.to_string(),
                             expires_in,
-                            session_id: session_id.to_string(),
+                            session_id,
                             user_id: user_id.clone(),
                             client_id: client_id.clone(),
                             client_type: "cli".to_string(),
@@ -235,7 +235,7 @@ pub async fn generate_anonymous_token(
                     access_token: session_info.jwt_token,
                     token_type: TokenType::Bearer.to_string(),
                     expires_in,
-                    session_id: session_info.session_id.to_string(),
+                    session_id: session_info.session_id.clone(),
                     user_id: session_info.user_id,
                     client_id: client_id.clone(),
                     client_type: client_type.to_string(),

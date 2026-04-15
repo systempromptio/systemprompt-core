@@ -22,7 +22,7 @@ fn render_metadata(output: &AuditOutput) {
         CliService::key_value("Task ID", task_id.as_str());
     }
     if let Some(trace_id) = &output.trace_id {
-        CliService::key_value("Trace ID", trace_id);
+        CliService::key_value("Trace ID", trace_id.as_str());
     }
 }
 

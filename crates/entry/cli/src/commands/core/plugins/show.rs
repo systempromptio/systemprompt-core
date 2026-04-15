@@ -9,6 +9,7 @@ use super::types::{PluginComponentRef, PluginDetailOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
+    // CLI: user-provided partial lookup
     #[arg(help = "Plugin ID (directory name)")]
     pub id: String,
 }
@@ -32,7 +33,7 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<Plu
     let hooks_count = count_hooks(&plugin.hooks);
 
     let output = PluginDetailOutput {
-        id: plugin.id.to_string(),
+        id: systemprompt_identifiers::PluginId::new(plugin.id.clone()),
         name: plugin.name.clone(),
         description: plugin.description.clone(),
         version: plugin.version.clone(),

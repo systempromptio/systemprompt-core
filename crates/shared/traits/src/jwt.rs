@@ -65,11 +65,7 @@ pub struct GenerateTokenParams {
 
 impl GenerateTokenParams {
     #[must_use]
-    pub fn new(
-        user_id: UserId,
-        username: impl Into<String>,
-        session_id: SessionId,
-    ) -> Self {
+    pub fn new(user_id: UserId, username: impl Into<String>, session_id: SessionId) -> Self {
         Self {
             user_id,
             username: username.into(),

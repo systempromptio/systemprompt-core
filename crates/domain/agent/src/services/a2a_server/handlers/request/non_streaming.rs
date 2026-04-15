@@ -63,10 +63,10 @@ pub async fn handle_non_streaming_request(
             tracing::info!(task_id = %params.id, "Handling CancelTask request");
 
             let task_repo = TaskRepository::new(&state.db_pool)?;
-            let task_id = systemprompt_identifiers::TaskId::new(&params.id);
+            let task_id = params.id.clone();
 
             match task_repo.get_task(&task_id).await {
-                Ok(Some(task)) => Ok(build_canceled_task(params.id.into(), task.context_id)),
+                Ok(Some(task)) => Ok(build_canceled_task(params.id, task.context_id)),
                 Ok(None) => Err(format!("Task not found: {}", params.id).into()),
                 Err(e) => Err(format!("Failed to look up task: {e}").into()),
             }

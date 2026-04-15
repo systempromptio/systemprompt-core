@@ -28,7 +28,7 @@ pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<Schemas
                     };
 
                     SchemaWithExtension {
-                        extension_id: ext.id().to_string(),
+                        extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
                         extension_name: ext.name().to_string(),
                         table: schema.table.clone(),
                         source,

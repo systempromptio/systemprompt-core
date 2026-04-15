@@ -29,7 +29,7 @@ pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandResult<C
             .ok_or_else(|| anyhow!("Extension '{}' not found", id))?;
 
         let output = ExtensionConfigOutput {
-            extension_id: ext.id().to_string(),
+            extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
             config_prefix: ext.config_prefix().map(String::from),
             config_schema: ext.config_schema(),
             has_config: ext.has_config(),
@@ -42,7 +42,7 @@ pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandResult<C
             .extensions()
             .iter()
             .map(|ext| ExtensionConfigSummary {
-                extension_id: ext.id().to_string(),
+                extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
                 config_prefix: ext.config_prefix().map(String::from),
                 has_config: ext.has_config(),
             })

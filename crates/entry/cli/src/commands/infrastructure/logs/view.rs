@@ -125,8 +125,8 @@ fn build_output(logs: &[LogEntry], args: &ViewArgs) -> LogViewOutput {
 
 fn log_to_row(log: &LogEntry) -> LogEntryRow {
     LogEntryRow {
-        id: log.id.to_string(),
-        trace_id: log.trace_id.to_string(),
+        id: log.id.clone(),
+        trace_id: log.trace_id.clone(),
         timestamp: log.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         level: format!("{:?}", log.level).to_uppercase(),
         module: log.module.clone(),

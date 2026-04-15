@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::PluginId;
 
 pub use systemprompt_models::services::PluginSummary;
 pub use systemprompt_models::services::plugin::PluginComponentRef;
@@ -11,7 +12,7 @@ pub struct PluginListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginDetailOutput {
-    pub id: String,
+    pub id: PluginId,
     pub name: String,
     pub description: String,
     pub version: String,
@@ -28,7 +29,7 @@ pub struct PluginDetailOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PluginValidateOutput {
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
     pub valid: bool,
     pub errors: Vec<String>,
     pub warnings: Vec<String>,
@@ -41,7 +42,7 @@ pub struct PluginValidateAllOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PluginGenerateOutput {
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
     pub files_generated: Vec<String>,
     pub marketplace_path: String,
 }

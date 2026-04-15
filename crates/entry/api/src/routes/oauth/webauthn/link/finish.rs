@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use tracing::instrument;
@@ -15,7 +16,7 @@ use super::LinkError;
 
 #[derive(Debug, Deserialize)]
 pub struct FinishLinkRequest {
-    pub challenge_id: String,
+    pub challenge_id: ChallengeId,
     pub token: String,
     pub credential: RegisterPublicKeyCredential,
 }
@@ -23,7 +24,7 @@ pub struct FinishLinkRequest {
 #[derive(Debug, Serialize)]
 pub struct FinishLinkResponse {
     pub success: bool,
-    pub user_id: String,
+    pub user_id: UserId,
     pub message: String,
 }
 
@@ -52,7 +53,7 @@ pub async fn finish_link(
 
     match webauthn_service
         .finish_registration_with_token(
-            &request.challenge_id,
+            request.challenge_id.as_str(),
             &request.token,
             &request.credential,
             state.link_states(),

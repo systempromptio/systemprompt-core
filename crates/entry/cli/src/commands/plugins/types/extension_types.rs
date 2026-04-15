@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::PluginId;
 
 use super::capability_types::CapabilitySummary;
 
@@ -33,7 +34,7 @@ pub enum ExtensionSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionSummary {
-    pub id: String,
+    pub id: PluginId,
     pub name: String,
     pub version: String,
     pub priority: u32,
@@ -94,7 +95,7 @@ pub struct LlmProviderInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionDetailOutput {
-    pub id: String,
+    pub id: PluginId,
     pub name: String,
     pub version: String,
     pub priority: u32,
@@ -113,7 +114,7 @@ pub struct ExtensionDetailOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionConfigOutput {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub config_prefix: Option<String>,
     pub config_schema: Option<serde_json::Value>,
     pub has_config: bool,
@@ -121,7 +122,7 @@ pub struct ExtensionConfigOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionConfigSummary {
-    pub extension_id: String,
+    pub extension_id: PluginId,
     pub config_prefix: Option<String>,
     pub has_config: bool,
 }

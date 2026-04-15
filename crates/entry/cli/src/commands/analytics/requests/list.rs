@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::RequestAnalyticsRepository;
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -41,7 +42,7 @@ pub struct ListArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RequestListRowOutput {
-    pub id: String,
+    pub id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub input_tokens: i32,
@@ -88,7 +89,7 @@ async fn execute_internal(
     let requests: Vec<RequestListRowOutput> = rows
         .into_iter()
         .map(|row| RequestListRowOutput {
-            id: row.id.to_string(),
+            id: AiRequestId::new(row.id),
             provider: row.provider,
             model: row.model,
             input_tokens: row.input_tokens.unwrap_or(0),

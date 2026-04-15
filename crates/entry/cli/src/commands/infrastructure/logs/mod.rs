@@ -24,6 +24,7 @@ use anyhow::{Result, bail};
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{LogId, TraceId};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
@@ -99,8 +100,8 @@ pub enum LogsCommands {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LogEntryRow {
-    pub id: String,
-    pub trace_id: String,
+    pub id: LogId,
+    pub trace_id: TraceId,
     pub timestamp: String,
     pub level: String,
     pub module: String,

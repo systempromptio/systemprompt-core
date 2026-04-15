@@ -30,7 +30,7 @@ pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOu
                     }
 
                     Some(JobWithExtension {
-                        extension_id: ext.id().to_string(),
+                        extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
                         extension_name: ext.name().to_string(),
                         job_name: job.name().to_string(),
                         schedule: job.schedule().to_string(),

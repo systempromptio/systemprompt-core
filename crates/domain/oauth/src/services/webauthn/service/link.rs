@@ -116,7 +116,7 @@ impl WebAuthnService {
         setup_token: &str,
         credential: &RegisterPublicKeyCredential,
         link_states: &LinkStates,
-    ) -> Result<String> {
+    ) -> Result<UserId> {
         let token_hash = hash_token(setup_token);
         let validation = self.oauth_repo.validate_setup_token(&token_hash).await?;
 
@@ -155,7 +155,7 @@ impl WebAuthnService {
             "WebAuthn credential linked to existing user"
         );
 
-        Ok(state.user_id.into())
+        Ok(state.user_id)
     }
 
     pub async fn cleanup_expired_link_states(link_states: &LinkStates) {

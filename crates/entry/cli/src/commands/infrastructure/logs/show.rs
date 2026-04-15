@@ -3,7 +3,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
+use systemprompt_identifiers::{ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_logging::{CliService, LogEntry, TraceQueryService};
 
 use crate::CliConfig;
@@ -12,6 +12,7 @@ use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
+    // CLI: user-provided partial lookup
     #[arg(help = "Log entry ID or trace ID (can be partial)")]
     pub id: String,
 
@@ -21,8 +22,8 @@ pub struct ShowArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LogShowOutput {
-    pub id: String,
-    pub trace_id: String,
+    pub id: LogId,
+    pub trace_id: TraceId,
     pub timestamp: String,
     pub level: String,
     pub module: String,
@@ -41,7 +42,7 @@ pub struct LogShowOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TraceLogsOutput {
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub total: u64,
     pub logs: Vec<LogShowOutput>,
 }
@@ -79,8 +80,8 @@ async fn execute_with_pool_inner(
 
 fn entry_to_output(entry: &LogEntry) -> LogShowOutput {
     LogShowOutput {
-        id: entry.id.to_string(),
-        trace_id: entry.trace_id.to_string(),
+        id: entry.id.clone(),
+        trace_id: entry.trace_id.clone(),
         timestamp: entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         level: entry.level.to_string().to_uppercase(),
         module: entry.module.clone(),
@@ -103,8 +104,8 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     }
 
     CliService::section("Log Entry Details");
-    CliService::key_value("ID", &output.id);
-    CliService::key_value("Trace ID", &output.trace_id);
+    CliService::key_value("ID", output.id.as_str());
+    CliService::key_value("Trace ID", output.trace_id.as_str());
     CliService::key_value("Timestamp", &output.timestamp);
     CliService::key_value("Level", &output.level);
     CliService::key_value("Module", &output.module);
@@ -138,7 +139,7 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     CliService::info("");
     CliService::info(&format!(
         "Tip: Use 'logs trace show {}' for full execution trace",
-        truncate_with_ellipsis(&output.trace_id, 12)
+        truncate_with_ellipsis(output.trace_id.as_str(), 12)
     ));
 }
 
@@ -146,7 +147,7 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
     let Some(first_log) = logs.first() else {
         return;
     };
-    let trace_id = first_log.trace_id.to_string();
+    let trace_id = first_log.trace_id.clone();
     let outputs: Vec<LogShowOutput> = logs.iter().map(entry_to_output).collect();
 
     let output = TraceLogsOutput {
@@ -163,7 +164,7 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
 
     CliService::section(&format!(
         "Logs for Trace: {}",
-        truncate_with_ellipsis(&trace_id, 12)
+        truncate_with_ellipsis(trace_id.as_str(), 12)
     ));
     CliService::info(&format!("Found {} log entries", logs.len()));
     CliService::info("");
@@ -186,6 +187,6 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
     CliService::info("");
     CliService::info(&format!(
         "Tip: Use 'logs trace show {}' for full trace with AI/MCP details",
-        truncate_with_ellipsis(&trace_id, 12)
+        truncate_with_ellipsis(trace_id.as_str(), 12)
     ));
 }

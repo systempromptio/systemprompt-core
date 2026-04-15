@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::{FinishRegistrationParams, WebAuthnManager};
 use tracing::instrument;
@@ -15,7 +16,7 @@ use super::RegisterError;
 
 #[derive(Debug, Deserialize)]
 pub struct FinishRegisterRequest {
-    pub challenge_id: String,
+    pub challenge_id: ChallengeId,
     pub username: String,
     pub email: String,
     pub full_name: Option<String>,
@@ -26,7 +27,7 @@ pub struct FinishRegisterRequest {
 
 impl FinishRegisterRequest {
     fn validate(&self) -> Result<(), String> {
-        if self.challenge_id.trim().is_empty() {
+        if self.challenge_id.as_str().trim().is_empty() {
             return Err("Challenge ID is required".to_string());
         }
 
@@ -58,7 +59,7 @@ impl FinishRegisterRequest {
 
 #[derive(Debug, Serialize)]
 pub struct FinishRegisterResponse {
-    pub user_id: String,
+    pub user_id: UserId,
     pub success: bool,
 }
 
@@ -98,7 +99,7 @@ pub async fn finish_register(
         };
 
     let mut builder = FinishRegistrationParams::builder(
-        &request.challenge_id,
+        request.challenge_id.as_str(),
         &request.username,
         &request.email,
         &request.credential,
@@ -111,21 +112,20 @@ pub async fn finish_register(
         Ok(user_id) => {
             if let Some(publisher) = state.event_publisher() {
                 publisher.publish_user_event(systemprompt_traits::UserEvent::UserCreated {
-                    user_id: user_id.clone(),
+                    user_id: user_id.as_str().to_string(),
                 });
             }
 
             if let Some(session_id_str) = &request.session_id {
-                use systemprompt_identifiers::{SessionId, UserId};
+                use systemprompt_identifiers::SessionId;
 
                 let session_id = SessionId::new(session_id_str.clone());
                 let analytics_provider = state.analytics_provider();
 
                 match analytics_provider.find_session_by_id(&session_id).await {
                     Ok(Some(session)) => {
-                        if let Some(old_user_id_str) = session.user_id {
-                            let old_user_id = UserId::new(old_user_id_str);
-                            let new_user_id = UserId::new(user_id.clone());
+                        if let Some(old_user_id) = session.user_id {
+                            let new_user_id = user_id.clone();
 
                             match analytics_provider
                                 .migrate_user_sessions(&old_user_id, &new_user_id)

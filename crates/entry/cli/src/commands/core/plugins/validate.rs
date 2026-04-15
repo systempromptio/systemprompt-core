@@ -83,7 +83,7 @@ fn validate_plugin(
         Err(e) => {
             errors.push(format!("Failed to read config.yaml: {}", e));
             return PluginValidateOutput {
-                plugin_id: plugin_id.to_string(),
+                plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
                 valid: false,
                 errors,
                 warnings,
@@ -96,7 +96,7 @@ fn validate_plugin(
         Err(e) => {
             errors.push(format!("Failed to parse config.yaml: {}", e));
             return PluginValidateOutput {
-                plugin_id: plugin_id.to_string(),
+                plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
                 valid: false,
                 errors,
                 warnings,
@@ -121,7 +121,7 @@ fn validate_plugin(
     validate_scripts(plugin, plugins_path, plugin_id, &mut errors);
 
     PluginValidateOutput {
-        plugin_id: plugin_id.to_string(),
+        plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
         valid: errors.is_empty(),
         errors,
         warnings,

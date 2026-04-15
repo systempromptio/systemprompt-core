@@ -11,6 +11,7 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
+    // CLI: user-provided partial lookup
     #[arg(help = "Extension ID to show")]
     pub id: String,
 }
@@ -106,7 +107,7 @@ pub fn execute(
         .collect();
 
     let output = ExtensionDetailOutput {
-        id: ext.id().to_string(),
+        id: systemprompt_identifiers::PluginId::new(ext.id()),
         name: ext.name().to_string(),
         version: ext.version().to_string(),
         priority: ext.priority(),

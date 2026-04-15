@@ -87,7 +87,7 @@ pub async fn execute_ai_trace(
         .map(|(s, e)| (e - s).num_milliseconds());
 
     let output = TraceViewOutput {
-        trace_id: task_id.as_str().to_string(),
+        trace_id: systemprompt_identifiers::TraceId::new(task_id.as_str()),
         events: Vec::new(),
         ai_summary: AiSummaryRow {
             request_count: ai_requests.len() as i64,

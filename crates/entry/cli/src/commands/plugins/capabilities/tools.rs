@@ -23,7 +23,7 @@ pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<ToolsList
                 .iter()
                 .enumerate()
                 .map(|(i, _provider)| ToolWithExtension {
-                    extension_id: ext.id().to_string(),
+                    extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
                     extension_name: ext.name().to_string(),
                     tool_name: format!("tool_provider_{}", i),
                 })

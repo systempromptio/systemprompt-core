@@ -140,7 +140,7 @@ fn generate_plugin(
     marketplace::generate_plugin_json(plugin, &output_dir, &mut files_generated)?;
 
     Ok(PluginGenerateOutput {
-        plugin_id: plugin_id.to_string(),
+        plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
         files_generated,
         marketplace_path: output_dir.to_string_lossy().to_string(),
     })

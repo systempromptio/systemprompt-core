@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use tracing::instrument;
@@ -22,7 +22,7 @@ pub struct StartAuthQuery {
 pub struct StartAuthResponse {
     #[serde(rename = "publicKey")]
     pub public_key: serde_json::Value,
-    pub challenge_id: String,
+    pub challenge_id: ChallengeId,
 }
 
 #[derive(Debug, Serialize)]
@@ -97,7 +97,7 @@ pub async fn start_auth(
                 StatusCode::OK,
                 Json(StartAuthResponse {
                     public_key,
-                    challenge_id,
+                    challenge_id: ChallengeId::new(challenge_id),
                 }),
             )
                 .into_response()
@@ -123,7 +123,7 @@ pub async fn start_auth(
 
 #[derive(Debug, Deserialize)]
 pub struct FinishAuthRequest {
-    pub challenge_id: String,
+    pub challenge_id: ChallengeId,
     pub credential: PublicKeyCredential,
 }
 
@@ -160,7 +160,7 @@ pub async fn finish_auth(
         };
 
     match webauthn_service
-        .finish_authentication(&request.challenge_id, &request.credential)
+        .finish_authentication(request.challenge_id.as_str(), &request.credential)
         .await
     {
         Ok((user_id, oauth_state)) => {

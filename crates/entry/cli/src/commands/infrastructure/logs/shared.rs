@@ -16,7 +16,7 @@ pub fn display_log_row(log: &LogEntryRow) {
         &log.timestamp
     };
 
-    let trace_short = truncate_with_ellipsis(&log.trace_id, 8);
+    let trace_short = truncate_with_ellipsis(log.trace_id.as_str(), 8);
 
     let line = format!(
         "{} {} [{}] {}  [{}]",

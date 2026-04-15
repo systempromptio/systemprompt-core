@@ -32,7 +32,7 @@ pub fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandResult<Templ
                         .collect::<Vec<_>>()
                 })
                 .map(|(name, desc)| TemplateWithExtension {
-                    extension_id: ext_id.clone(),
+                    extension_id: systemprompt_identifiers::PluginId::new(ext_id.clone()),
                     extension_name: ext_name.clone(),
                     template_name: name,
                     description: desc,

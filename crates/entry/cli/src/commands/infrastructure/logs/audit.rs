@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 use systemprompt_logging::TraceQueryService;
 
 use super::audit_display::render_text_output;
@@ -14,6 +14,7 @@ use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct AuditArgs {
+    // CLI: user-provided partial lookup
     #[arg(help = "AI request ID, task ID, or trace ID")]
     pub id: String,
 
@@ -26,7 +27,7 @@ pub struct AuditArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuditOutput {
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub input_tokens: i32,
@@ -34,7 +35,7 @@ pub struct AuditOutput {
     pub cost_dollars: f64,
     pub latency_ms: i64,
     pub task_id: Option<TaskId>,
-    pub trace_id: Option<String>,
+    pub trace_id: Option<TraceId>,
     pub messages: Vec<MessageRow>,
     pub tool_calls: Vec<AuditToolCall>,
 }
@@ -62,10 +63,10 @@ async fn execute_with_pool_inner(
         return Ok(());
     };
 
-    let request_id = row.id.to_string();
+    let request_id = AiRequestId::new(row.id);
     let (messages, tool_calls) = tokio::try_join!(
-        service.list_audit_messages(&request_id),
-        service.list_audit_tool_calls(&request_id),
+        service.list_audit_messages(request_id.as_str()),
+        service.list_audit_tool_calls(request_id.as_str()),
     )?;
 
     let output = AuditOutput {
@@ -77,7 +78,7 @@ async fn execute_with_pool_inner(
         cost_dollars: row.cost_microdollars as f64 / 1_000_000.0,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
         task_id: row.task_id,
-        trace_id: row.trace_id.map(|id| id.to_string()),
+        trace_id: row.trace_id.map(TraceId::new),
         messages: messages
             .into_iter()
             .map(|m| MessageRow {

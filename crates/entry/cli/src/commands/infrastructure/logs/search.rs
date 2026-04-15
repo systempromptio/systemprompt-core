@@ -3,6 +3,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_identifiers::TraceId;
 use systemprompt_logging::{CliService, TraceQueryService};
 
 use super::duration::parse_since;
@@ -38,7 +39,7 @@ pub struct SearchArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolSearchResult {
     pub timestamp: String,
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub tool_name: String,
     pub server: String,
     pub status: String,
@@ -96,8 +97,8 @@ async fn execute_with_pool_inner(
     let logs: Vec<LogEntryRow> = filtered_rows
         .into_iter()
         .map(|r| LogEntryRow {
-            id: r.id.to_string(),
-            trace_id: r.trace_id.to_string(),
+            id: r.id,
+            trace_id: r.trace_id,
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
             level: r.level.to_uppercase(),
             module: r.module,
@@ -117,7 +118,7 @@ async fn execute_with_pool_inner(
         .into_iter()
         .map(|r| ToolSearchResult {
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
-            trace_id: r.trace_id.to_string(),
+            trace_id: r.trace_id,
             tool_name: r.tool_name,
             server: r.server_name.unwrap_or_else(|| "unknown".to_string()),
             status: r.status,

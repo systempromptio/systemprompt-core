@@ -17,7 +17,7 @@ use systemprompt_traits::McpRegistryProvider;
 
 #[derive(Debug, Serialize)]
 pub struct ToolExecutionResponse {
-    pub id: String,
+    pub id: McpExecutionId,
     pub tool_name: String,
     pub server_name: String,
     pub server_endpoint: String,
@@ -54,7 +54,7 @@ pub async fn handle_get_execution(
             };
 
             let response = ToolExecutionResponse {
-                id: execution.mcp_execution_id.to_string(),
+                id: execution.mcp_execution_id,
                 tool_name: execution.tool_name,
                 server_name: execution.server_name.clone(),
                 server_endpoint,

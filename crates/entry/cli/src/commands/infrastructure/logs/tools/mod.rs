@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TraceId;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
@@ -22,7 +23,7 @@ pub enum ToolsCommands {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolExecutionRow {
     pub timestamp: String,
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub tool_name: String,
     pub server: String,
     pub status: String,

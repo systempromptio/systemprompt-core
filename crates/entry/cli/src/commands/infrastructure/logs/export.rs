@@ -73,8 +73,8 @@ async fn execute_with_pool_inner(
                 .is_none_or(|module| e.module.contains(module))
         })
         .map(|e| LogEntryRow {
-            id: e.id.to_string(),
-            trace_id: e.trace_id.to_string(),
+            id: e.id.clone(),
+            trace_id: e.trace_id.clone(),
             timestamp: e.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
             level: e.level.to_string().to_uppercase(),
             module: e.module,

@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::CategoryId;
 
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
 
@@ -13,7 +14,7 @@ pub struct ContentTypeSummary {
     pub name: String,
     #[serde(rename = "source_id")]
     pub source: String,
-    pub category_id: String,
+    pub category_id: CategoryId,
     pub enabled: bool,
     pub path: String,
     pub url_pattern: Option<String>,
@@ -24,7 +25,7 @@ pub struct ContentTypeDetailOutput {
     pub name: String,
     #[serde(rename = "source_id")]
     pub source: String,
-    pub category_id: String,
+    pub category_id: CategoryId,
     pub enabled: bool,
     pub path: String,
     pub description: String,
