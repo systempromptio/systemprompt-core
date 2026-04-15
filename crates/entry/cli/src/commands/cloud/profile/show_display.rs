@@ -124,9 +124,8 @@ fn print_ai_section(ai: &AiConfig) {
 
 fn print_web_section(web: &WebConfig) {
     CliService::section("Web Configuration");
-    if let Some(name) = &web.branding.site_name {
-        CliService::key_value("  site_name", name);
-    }
+    CliService::key_value("  site_name", &web.branding.name);
+    CliService::key_value("  title", &web.branding.title);
 }
 
 fn print_content_section(content: &ContentConfigRaw) {

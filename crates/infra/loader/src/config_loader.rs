@@ -95,7 +95,7 @@ impl ConfigLoader {
             settings: root.config.settings,
             scheduler: root.config.scheduler,
             ai: root.config.ai.unwrap_or_else(AiConfig::default),
-            web: root.config.web.unwrap_or_else(WebConfig::default),
+            web: root.config.web,
             plugins: root.config.plugins,
         };
 
@@ -226,8 +226,8 @@ impl ConfigLoader {
             }
         }
 
-        if let Some(web) = partial.web {
-            target.web = web;
+        if partial.web.is_some() {
+            target.web = partial.web;
         }
 
         for (name, plugin) in partial.plugins {

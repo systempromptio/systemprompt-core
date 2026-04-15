@@ -13,8 +13,6 @@ settings:
   mcp_port_range: [5000, 5999]
 ai:
   default_provider: anthropic
-web:
-  enabled: false
 "#
     .to_string()
 }
@@ -80,8 +78,6 @@ settings:
   mcp_port_range: [5000, 5999]
 ai:
   default_provider: anthropic
-web:
-  enabled: false
 "#;
 
     ConfigLoader::load_from_content(main_content, &config_path).expect("result should succeed");
@@ -136,8 +132,6 @@ settings:
   mcp_port_range: [5000, 5999]
 ai:
   default_provider: anthropic
-web:
-  enabled: false
 "#;
 
     std::fs::write(&config_path, content).expect("Failed to write config");
@@ -171,8 +165,6 @@ settings:
   mcp_port_range: [5000, 5999]
 ai:
   default_provider: anthropic
-web:
-  enabled: false
 "#;
 
     std::fs::write(&config_path, content).expect("Failed to write config");
@@ -216,8 +208,6 @@ settings:
   mcp_port_range: [5000, 5999]
 ai:
   default_provider: anthropic
-web:
-  enabled: false
 "#;
 
     std::fs::write(&config_path, main_content).expect("Failed to write config");
