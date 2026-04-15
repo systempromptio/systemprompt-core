@@ -34,10 +34,6 @@ impl ConfigWriter {
 
         Self::write_agent_file(&agent_file, agent)?;
 
-        let config_path = services_dir.join("config/config.yaml");
-        let include_path = format!("../agents/{}.yaml", agent.name);
-        Self::add_include(&include_path, &config_path)?;
-
         Ok(agent_file)
     }
 
@@ -114,48 +110,6 @@ impl ConfigWriter {
 
         fs::write(path, format!("{}{}", header, yaml))
             .with_context(|| format!("Failed to write agent file: {}", path.display()))
-    }
-
-    pub fn add_include(include_path: &str, config_path: &Path) -> Result<()> {
-        let content = fs::read_to_string(config_path)
-            .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
-
-        if content.contains(include_path) {
-            return Ok(());
-        }
-
-        let lines: Vec<&str> = content.lines().collect();
-
-        for (i, line) in lines.iter().enumerate() {
-            if line.starts_with("includes:") {
-                let insert_pos = lines
-                    .iter()
-                    .enumerate()
-                    .skip(i + 1)
-                    .take_while(|(_, l)| l.starts_with("  - ") || l.trim().is_empty())
-                    .filter(|(_, l)| l.starts_with("  - "))
-                    .last()
-                    .map_or(i + 1, |(idx, _)| idx + 1);
-
-                let new_line = format!("  - {}", include_path);
-                let new_lines: Vec<&str> = lines[..insert_pos]
-                    .iter()
-                    .copied()
-                    .chain(std::iter::once(new_line.as_str()))
-                    .chain(lines[insert_pos..].iter().copied())
-                    .collect();
-
-                return fs::write(config_path, new_lines.join("\n")).with_context(|| {
-                    format!("Failed to write config file: {}", config_path.display())
-                });
-            }
-        }
-
-        fs::write(
-            config_path,
-            format!("includes:\n  - {}\n\n{}", include_path, content),
-        )
-        .with_context(|| format!("Failed to write config file: {}", config_path.display()))
     }
 
     fn remove_include(include_path: &str, config_path: &Path) -> Result<()> {
