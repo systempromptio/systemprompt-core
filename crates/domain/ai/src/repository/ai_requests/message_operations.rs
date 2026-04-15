@@ -1,6 +1,6 @@
 use crate::error::RepositoryError;
 use crate::models::{AiRequestMessage, AiRequestToolCall};
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId};
 use uuid::Uuid;
 
 use super::repository::AiRequestRepository;
@@ -30,7 +30,7 @@ impl AiRequestRepository {
             r#"
             INSERT INTO ai_request_messages (id, request_id, role, content, sequence_number, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            RETURNING id, request_id, role, content, sequence_number, name, tool_call_id, created_at, updated_at
+            RETURNING id, request_id as "request_id!: AiRequestId", role, content, sequence_number, name, tool_call_id as "tool_call_id: AiToolCallId", created_at, updated_at
             "#,
             id,
             request_id_str,
@@ -52,7 +52,7 @@ impl AiRequestRepository {
         sqlx::query_as!(
             AiRequestMessage,
             r#"
-            SELECT id, request_id, role, content, sequence_number, name, tool_call_id, created_at, updated_at
+            SELECT id, request_id as "request_id!: AiRequestId", role, content, sequence_number, name, tool_call_id as "tool_call_id: AiToolCallId", created_at, updated_at
             FROM ai_request_messages
             WHERE request_id = $1
             ORDER BY sequence_number ASC
@@ -88,7 +88,7 @@ impl AiRequestRepository {
             r#"
             INSERT INTO ai_request_tool_calls (id, request_id, ai_tool_call_id, tool_name, tool_input, sequence_number, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            RETURNING id, request_id, tool_name, tool_input, mcp_execution_id, sequence_number, ai_tool_call_id, created_at, updated_at
+            RETURNING id, request_id as "request_id!: AiRequestId", tool_name, tool_input, mcp_execution_id as "mcp_execution_id: McpExecutionId", sequence_number, ai_tool_call_id as "ai_tool_call_id: AiToolCallId", created_at, updated_at
             "#,
             id,
             request_id_str,
@@ -111,7 +111,7 @@ impl AiRequestRepository {
         sqlx::query_as!(
             AiRequestToolCall,
             r#"
-            SELECT id, request_id, tool_name, tool_input, mcp_execution_id, sequence_number, ai_tool_call_id, created_at, updated_at
+            SELECT id, request_id as "request_id!: AiRequestId", tool_name, tool_input, mcp_execution_id as "mcp_execution_id: McpExecutionId", sequence_number, ai_tool_call_id as "ai_tool_call_id: AiToolCallId", created_at, updated_at
             FROM ai_request_tool_calls
             WHERE request_id = $1
             ORDER BY sequence_number ASC

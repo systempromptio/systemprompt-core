@@ -72,7 +72,7 @@ async fn process_source(
     source: &ContentSourceConfigRaw,
     sitemap_config: &SitemapConfig,
 ) -> Result<u32> {
-    let contents = fetch_content_for_source(ctx, source_name, source.source_id.as_str())
+    let contents = fetch_content_for_source(ctx, source_name, &source.source_id)
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
@@ -88,7 +88,7 @@ async fn process_source(
         &ctx.db_pool,
     )
     .await;
-    let popular_ids = fetch_popular_ids(ctx, source_name, source.source_id.as_str())
+    let popular_ids = fetch_popular_ids(ctx, source_name, &source.source_id)
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 

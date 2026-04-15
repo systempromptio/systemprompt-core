@@ -1,4 +1,5 @@
 use anyhow::Result;
+use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_logging::{AiTraceService, CliService, TraceEvent};
 
 use super::ai_artifacts::print_artifacts;
@@ -13,50 +14,54 @@ use crate::shared::CommandResult;
 
 pub async fn execute_ai_trace(
     service: &AiTraceService,
-    task_id: &str,
+    task_id: &TaskId,
     args: &ShowArgs,
 ) -> Result<CommandResult<TraceViewOutput>> {
     if !args.json {
-        CliService::section(&format!("Trace: {}", task_id));
+        CliService::section(&format!("Trace: {}", task_id.as_str()));
     }
 
-    let task_info = service.get_task_info(task_id).await?;
-    let context_id = task_info.context_id.as_str().to_owned();
+    let task_info = service.get_task_info(task_id.as_str()).await?;
+    let context_id: ContextId = task_info.context_id.clone();
 
     if !args.json {
         print_task_info(&task_info);
     }
 
-    let user_input = service.get_user_input(task_id).await?;
+    let user_input = service.get_user_input(task_id.as_str()).await?;
     if !args.json {
         print_user_input(user_input.as_ref());
     }
 
     let show_all = args.sections.all;
 
-    let steps = service.get_execution_steps(task_id).await?;
+    let steps = service.get_execution_steps(task_id.as_str()).await?;
     if (show_all || args.sections.steps) && !args.json {
         print_execution_steps(&steps);
     }
 
-    let ai_requests = service.get_ai_requests(task_id).await?;
+    let ai_requests = service.get_ai_requests(task_id.as_str()).await?;
     if (show_all || args.sections.ai) && !args.json {
         print_ai_requests(&ai_requests);
     }
 
-    let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
+    let mcp_executions = service
+        .get_mcp_executions(task_id.as_str(), context_id.as_str())
+        .await?;
     if (show_all || args.sections.mcp) && !args.json {
         print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose).await;
     }
 
     if show_all || args.sections.artifacts {
-        let artifacts = service.get_task_artifacts(task_id, &context_id).await?;
+        let artifacts = service
+            .get_task_artifacts(task_id.as_str(), context_id.as_str())
+            .await?;
         if !args.json {
             print_artifacts(&artifacts);
         }
     }
 
-    let response = service.get_agent_response(task_id).await?;
+    let response = service.get_agent_response(task_id.as_str()).await?;
     if !args.json {
         print_agent_response(response.as_ref());
         CliService::info(&"═".repeat(60));
@@ -82,7 +87,7 @@ pub async fn execute_ai_trace(
         .map(|(s, e)| (e - s).num_milliseconds());
 
     let output = TraceViewOutput {
-        trace_id: task_id.to_string(),
+        trace_id: task_id.as_str().to_string(),
         events: Vec::new(),
         ai_summary: AiSummaryRow {
             request_count: ai_requests.len() as i64,
@@ -108,7 +113,7 @@ pub async fn execute_ai_trace(
                 .filter(|s| s.status == "pending" || s.status == "in_progress")
                 .count() as i64,
         },
-        task_id: Some(task_id.to_string()),
+        task_id: Some(task_id.as_str().to_string()),
         duration_ms,
         status: task_info.status,
     };

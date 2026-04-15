@@ -13,7 +13,7 @@ use crate::shared::CommandResult;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{ContextId, SessionId};
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::{Profile, ProfileBootstrap, Secrets, SecretsBootstrap};
@@ -117,7 +117,7 @@ pub async fn login_for_profile(
     }
     let session_id = create_session(
         &profile.server.api_external_url,
-        admin_user.id.as_str(),
+        &admin_user.id,
         &admin_user.email,
     )
     .await?;
@@ -305,7 +305,7 @@ async fn fetch_admin_user(db_pool: &DbPool, email: &str, is_cloud_profile: bool)
     Ok(user)
 }
 
-async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result<SessionId> {
+async fn create_session(api_url: &str, user_id: &UserId, email: &str) -> Result<SessionId> {
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -318,7 +318,7 @@ async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result<Ses
 
     let request = SessionRequest {
         client_id: "sp_cli".to_string(),
-        user_id: user_id.to_string(),
+        user_id: user_id.as_str().to_string(),
         email: email.to_string(),
     };
 

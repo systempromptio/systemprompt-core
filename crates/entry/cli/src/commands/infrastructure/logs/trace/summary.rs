@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
+use systemprompt_identifiers::TaskId;
 use systemprompt_logging::{
     AiRequestSummary, CliService, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
@@ -9,7 +10,7 @@ pub struct SummaryContext<'a> {
     pub events: &'a [TraceEvent],
     pub first: Option<DateTime<Utc>>,
     pub last: Option<DateTime<Utc>>,
-    pub task_id: Option<&'a str>,
+    pub task_id: Option<&'a TaskId>,
     pub ai_summary: &'a AiRequestSummary,
     pub mcp_summary: &'a McpExecutionSummary,
     pub step_summary: &'a ExecutionStepSummary,
@@ -107,11 +108,11 @@ fn print_step_summary(step_summary: &ExecutionStepSummary) {
     }
 }
 
-fn print_trace_context(events: &[TraceEvent], task_id: Option<&str>) {
+fn print_trace_context(events: &[TraceEvent], task_id: Option<&TaskId>) {
     if let Some(task_id) = task_id {
         CliService::key_value(
             "  Task",
-            &format!("{task_id} (use: just ai-trace <task_id>)"),
+            &format!("{} (use: just ai-trace <task_id>)", task_id.as_str()),
         );
     }
 

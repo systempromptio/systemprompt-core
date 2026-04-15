@@ -1,3 +1,4 @@
+use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_logging::{
     AiRequestInfo, AiTraceService, CliService, McpToolExecution, ToolLogEntry,
 };
@@ -9,8 +10,8 @@ use tabled::settings::Style;
 pub async fn print_mcp_executions(
     service: &AiTraceService,
     executions: &[McpToolExecution],
-    task_id: &str,
-    context_id: &str,
+    task_id: &TaskId,
+    context_id: &ContextId,
     show_full: bool,
 ) {
     if executions.is_empty() {
@@ -142,8 +143,15 @@ async fn print_mcp_linked_ai_requests(
     }
 }
 
-async fn print_tool_errors_from_logs(service: &AiTraceService, task_id: &str, context_id: &str) {
-    let Ok(logs) = service.get_tool_logs(task_id, context_id).await else {
+async fn print_tool_errors_from_logs(
+    service: &AiTraceService,
+    task_id: &TaskId,
+    context_id: &ContextId,
+) {
+    let Ok(logs) = service
+        .get_tool_logs(task_id.as_str(), context_id.as_str())
+        .await
+    else {
         return;
     };
 

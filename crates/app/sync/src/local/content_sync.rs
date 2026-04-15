@@ -32,7 +32,7 @@ impl ContentLocalSync {
 
     pub async fn calculate_diff(
         &self,
-        source_id: &str,
+        source_id: &SourceId,
         disk_path: &Path,
         allowed_types: &[String],
     ) -> Result<ContentDiffResult> {

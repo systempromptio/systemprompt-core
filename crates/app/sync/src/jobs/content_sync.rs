@@ -74,7 +74,7 @@ impl Job for ContentSyncJob {
 
             let diff = sync
                 .calculate_diff(
-                    source.source_id.as_str(),
+                    &source.source_id,
                     &source_path,
                     &source.allowed_content_types,
                 )

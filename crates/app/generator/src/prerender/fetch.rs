@@ -16,7 +16,7 @@ const RETRY_DELAY_MS: u64 = 500;
 pub async fn fetch_content_for_source(
     ctx: &PrerenderContext,
     source_name: &str,
-    source_id: &str,
+    source_id: &SourceId,
 ) -> Result<Vec<Content>> {
     let repo = ContentRepository::new(&ctx.db_pool)
         .map_err(|e| anyhow::anyhow!("{}", e))
@@ -26,14 +26,13 @@ pub async fn fetch_content_for_source(
 
 async fn fetch_with_retries(
     repo: &ContentRepository,
-    source_id_str: &str,
+    source_id: &SourceId,
     source_name: &str,
 ) -> Result<Vec<Content>> {
-    let source_id = SourceId::new(source_id_str);
     let mut last_error = None;
 
     for retry in 0..=MAX_RETRIES {
-        match repo.list_by_source(&source_id).await {
+        match repo.list_by_source(source_id).await {
             Ok(contents) if !contents.is_empty() => return Ok(contents),
             Ok(_) if retry < MAX_RETRIES => {
                 tracing::warn!(source = %source_name, attempt = retry + 1, "No content found, retrying");
@@ -120,7 +119,7 @@ pub async fn contents_to_json(
 pub async fn fetch_popular_ids(
     ctx: &PrerenderContext,
     source_name: &str,
-    source_id_str: &str,
+    source_id: &SourceId,
 ) -> Result<Vec<String>> {
     if source_name.is_empty() {
         return Ok(Vec::new());
@@ -130,9 +129,8 @@ pub async fn fetch_popular_ids(
         .map_err(|e| anyhow::anyhow!("{}", e))
         .context("Failed to create content repository for popular IDs")?;
 
-    let source_id = SourceId::new(source_id_str);
     let ids = content_repo
-        .get_popular_content_ids(&source_id, 30, 20)
+        .get_popular_content_ids(source_id, 30, 20)
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))
         .context("Failed to get popular content IDs")?;

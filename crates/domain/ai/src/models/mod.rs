@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{
+    AiRequestId, AiToolCallId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+};
 
 pub use systemprompt_models::ai as ai_models;
 
@@ -25,13 +27,13 @@ pub use ai_request_record::{
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AiRequest {
-    pub id: String,
-    pub request_id: String,
-    pub user_id: String,
-    pub session_id: Option<String>,
-    pub task_id: Option<String>,
-    pub context_id: Option<String>,
-    pub trace_id: Option<String>,
+    pub id: AiRequestId,
+    pub request_id: AiRequestId,
+    pub user_id: UserId,
+    pub session_id: Option<SessionId>,
+    pub task_id: Option<TaskId>,
+    pub context_id: Option<ContextId>,
+    pub trace_id: Option<TraceId>,
     pub provider: String,
     pub model: String,
     pub temperature: Option<f64>,
@@ -56,12 +58,12 @@ pub struct AiRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AiRequestMessage {
     pub id: String,
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub role: String,
     pub content: String,
     pub sequence_number: i32,
     pub name: Option<String>,
-    pub tool_call_id: Option<String>,
+    pub tool_call_id: Option<AiToolCallId>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -69,12 +71,12 @@ pub struct AiRequestMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AiRequestToolCall {
     pub id: String,
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub tool_name: String,
     pub tool_input: String,
-    pub mcp_execution_id: Option<String>,
+    pub mcp_execution_id: Option<McpExecutionId>,
     pub sequence_number: i32,
-    pub ai_tool_call_id: Option<String>,
+    pub ai_tool_call_id: Option<AiToolCallId>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

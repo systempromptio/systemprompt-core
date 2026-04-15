@@ -24,11 +24,11 @@ impl ContentDiffCalculator {
 
     pub async fn calculate_diff(
         &self,
-        source_id: &str,
+        source_id: &SourceId,
         disk_path: &Path,
         allowed_types: &[String],
     ) -> Result<ContentDiffResult> {
-        let source_id_typed = SourceId::new(source_id);
+        let source_id_typed = source_id.clone();
         let db_content = self.content_repo.list_by_source(&source_id_typed).await?;
         let db_map: HashMap<String, Content> = db_content
             .into_iter()

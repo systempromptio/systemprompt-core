@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
+use systemprompt_identifiers::TaskId;
 
 use crate::models::LogEntry;
 
@@ -46,8 +47,10 @@ impl TraceQueryService {
         queries::fetch_mcp_execution_events(&self.pool, trace_id).await
     }
 
-    pub async fn get_task_id(&self, trace_id: &str) -> Result<Option<String>> {
-        queries::fetch_task_id_for_trace(&self.pool, trace_id).await
+    pub async fn get_task_id(&self, trace_id: &str) -> Result<Option<TaskId>> {
+        Ok(queries::fetch_task_id_for_trace(&self.pool, trace_id)
+            .await?
+            .map(TaskId::from))
     }
 
     pub async fn get_execution_step_summary(&self, trace_id: &str) -> Result<ExecutionStepSummary> {
@@ -69,7 +72,7 @@ impl TraceQueryService {
         AiRequestSummary,
         McpExecutionSummary,
         ExecutionStepSummary,
-        Option<String>,
+        Option<TaskId>,
     )> {
         tokio::try_join!(
             self.get_log_events(trace_id),

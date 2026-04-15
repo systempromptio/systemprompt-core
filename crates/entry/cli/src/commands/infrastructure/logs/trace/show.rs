@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_identifiers::TaskId;
 use systemprompt_logging::{AiTraceService, CliService, TraceEvent, TraceQueryService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -54,7 +55,7 @@ struct TraceSummaries<'a> {
 struct FormattedDisplayContext<'a> {
     events: &'a [TraceEvent],
     trace_id: &'a str,
-    task_id: Option<&'a str>,
+    task_id: Option<&'a TaskId>,
     verbose: bool,
     ai_summary: &'a systemprompt_logging::AiRequestSummary,
     mcp_summary: &'a systemprompt_logging::McpExecutionSummary,
@@ -81,6 +82,7 @@ async fn execute_with_pool_inner(
 ) -> Result<CommandResult<TraceViewOutput>> {
     let ai_service = AiTraceService::new(Arc::clone(pool));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
+        let task_id = TaskId::new(task_id);
         return execute_ai_trace(&ai_service, &task_id, &args).await;
     }
 
@@ -103,6 +105,7 @@ async fn execute_trace_view(
         step_summary,
         task_id,
     ) = service.get_all_trace_data(&args.id).await?;
+    let task_id: Option<TaskId> = task_id.map(TaskId::new);
 
     let filtered_log_events = filter_log_events(log_events, args.verbose);
 
@@ -128,7 +131,7 @@ async fn execute_trace_view(
         &args.id,
         &events,
         &summaries,
-        task_id.as_deref(),
+        task_id.as_ref(),
         duration_ms,
     );
 
@@ -176,7 +179,7 @@ async fn execute_trace_view(
     let display_ctx = FormattedDisplayContext {
         events: &events,
         trace_id: &args.id,
-        task_id: task_id.as_deref(),
+        task_id: task_id.as_ref(),
         verbose: args.verbose,
         ai_summary: &ai_summary,
         mcp_summary: &mcp_summary,
@@ -219,7 +222,7 @@ fn build_trace_output(
     trace_id: &str,
     events: &[TraceEvent],
     summaries: &TraceSummaries<'_>,
-    task_id: Option<&str>,
+    task_id: Option<&TaskId>,
     duration_ms: Option<i64>,
 ) -> TraceViewOutput {
     let first_timestamp = events.first().map(|e| e.timestamp);
@@ -270,7 +273,7 @@ fn build_trace_output(
             failed: summaries.step.failed,
             pending: summaries.step.pending,
         },
-        task_id: task_id.map(String::from),
+        task_id: task_id.map(|t| t.as_str().to_string()),
         duration_ms,
         status,
     }

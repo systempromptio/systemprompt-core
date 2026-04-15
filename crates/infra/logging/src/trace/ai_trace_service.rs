@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::sync::Arc;
+use systemprompt_identifiers::TaskId;
 
 use super::ai_trace_queries;
 use super::models::{
@@ -18,9 +19,10 @@ impl AiTraceService {
         Self { pool }
     }
 
-    pub async fn resolve_task_id(&self, partial_id: &str) -> Result<String> {
+    pub async fn resolve_task_id(&self, partial_id: &str) -> Result<TaskId> {
         ai_trace_queries::resolve_task_id(&self.pool, partial_id)
             .await?
+            .map(TaskId::from)
             .ok_or_else(|| anyhow::anyhow!("No task found matching: {}", partial_id))
     }
 

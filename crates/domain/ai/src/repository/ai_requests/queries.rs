@@ -1,7 +1,7 @@
 use crate::error::RepositoryError;
 use crate::models::{AiRequest, ProviderUsage, UserAiUsage};
 use chrono::Utc;
-use systemprompt_identifiers::{AiRequestId, SessionId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
 
 use super::AiRequestRepository;
 
@@ -11,7 +11,13 @@ impl AiRequestRepository {
         sqlx::query_as!(
             AiRequest,
             r#"
-            SELECT id, request_id, user_id, session_id, task_id, context_id, trace_id,
+            SELECT id as "id!: AiRequestId",
+                   request_id as "request_id!: AiRequestId",
+                   user_id as "user_id!: UserId",
+                   session_id as "session_id: SessionId",
+                   task_id as "task_id: TaskId",
+                   context_id as "context_id: ContextId",
+                   trace_id as "trace_id: TraceId",
                    provider, model, temperature, top_p, max_tokens, tokens_used,
                    input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
                    cache_read_tokens, cache_creation_tokens, is_streaming, status,

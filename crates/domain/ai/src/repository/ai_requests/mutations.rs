@@ -1,6 +1,6 @@
 use crate::error::RepositoryError;
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
-use systemprompt_identifiers::{AiRequestId, SessionId, TraceId};
+use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
 
 use super::{AiRequestRepository, CreateAiRequest};
 
@@ -28,7 +28,13 @@ impl AiRequestRepository {
                 temperature, max_tokens, status, created_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
-            RETURNING id, request_id, user_id, session_id, task_id, context_id, trace_id,
+            RETURNING id as "id!: AiRequestId",
+                      request_id as "request_id!: AiRequestId",
+                      user_id as "user_id!: UserId",
+                      session_id as "session_id: SessionId",
+                      task_id as "task_id: TaskId",
+                      context_id as "context_id: ContextId",
+                      trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, is_streaming, status,
@@ -63,7 +69,13 @@ impl AiRequestRepository {
                 cost_microdollars = $4, latency_ms = $5, status = $6,
                 completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
             WHERE id = $7
-            RETURNING id, request_id, user_id, session_id, task_id, context_id, trace_id,
+            RETURNING id as "id!: AiRequestId",
+                      request_id as "request_id!: AiRequestId",
+                      user_id as "user_id!: UserId",
+                      session_id as "session_id: SessionId",
+                      task_id as "task_id: TaskId",
+                      context_id as "context_id: ContextId",
+                      trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, is_streaming, status,
@@ -95,7 +107,13 @@ impl AiRequestRepository {
             SET status = $1, error_message = $2, completed_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $3
-            RETURNING id, request_id, user_id, session_id, task_id, context_id, trace_id,
+            RETURNING id as "id!: AiRequestId",
+                      request_id as "request_id!: AiRequestId",
+                      user_id as "user_id!: UserId",
+                      session_id as "session_id: SessionId",
+                      task_id as "task_id: TaskId",
+                      context_id as "context_id: ContextId",
+                      trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, is_streaming, status,
