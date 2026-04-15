@@ -216,3 +216,83 @@ ai:
     assert!(config.agents.is_empty());
     assert!(config.mcp_servers.is_empty());
 }
+
+#[test]
+fn test_recursive_three_level_includes() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let config_path = temp_dir.path().join("services.yaml");
+
+    let skill_foo = r#"
+agents: {}
+mcp_servers: {}
+"#;
+    std::fs::write(temp_dir.path().join("skill-foo.yaml"), skill_foo)
+        .expect("Failed to write skill-foo");
+
+    let skills = r#"
+includes:
+  - skill-foo.yaml
+agents: {}
+mcp_servers: {}
+"#;
+    std::fs::write(temp_dir.path().join("skills.yaml"), skills)
+        .expect("Failed to write skills");
+
+    let main_content = r#"
+includes:
+  - skills.yaml
+agents: {}
+mcp_servers: {}
+settings:
+  agent_port_range: [4000, 4999]
+  mcp_port_range: [5000, 5999]
+ai:
+  default_provider: anthropic
+"#;
+    std::fs::write(&config_path, main_content).expect("Failed to write config");
+
+    ConfigLoader::load_from_path(&config_path)
+        .expect("Three-level nested includes should load successfully");
+}
+
+#[test]
+fn test_include_cycle_detected() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let config_path = temp_dir.path().join("services.yaml");
+
+    let a_yaml = r#"
+includes:
+  - b.yaml
+agents: {}
+mcp_servers: {}
+"#;
+    let b_yaml = r#"
+includes:
+  - a.yaml
+agents: {}
+mcp_servers: {}
+"#;
+    std::fs::write(temp_dir.path().join("a.yaml"), a_yaml).expect("Failed to write a.yaml");
+    std::fs::write(temp_dir.path().join("b.yaml"), b_yaml).expect("Failed to write b.yaml");
+
+    let main_content = r#"
+includes:
+  - a.yaml
+agents: {}
+mcp_servers: {}
+settings:
+  agent_port_range: [4000, 4999]
+  mcp_port_range: [5000, 5999]
+ai:
+  default_provider: anthropic
+"#;
+    std::fs::write(&config_path, main_content).expect("Failed to write config");
+
+    let err = ConfigLoader::load_from_path(&config_path)
+        .expect_err("cycle should error");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("cycle detected"),
+        "expected cycle detected error, got: {msg}"
+    );
+}

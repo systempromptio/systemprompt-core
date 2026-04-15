@@ -49,6 +49,20 @@ struct PartialServicesRootConfig {
     pub content: ContentConfig,
 }
 
+#[derive(serde::Deserialize)]
+struct PartialServicesFile {
+    #[serde(default)]
+    includes: Vec<String>,
+    #[serde(flatten)]
+    config: PartialServicesConfig,
+}
+
+struct IncludeResolveCtx<'a> {
+    visited: &'a mut HashSet<PathBuf>,
+    merged: &'a mut ServicesConfig,
+    chain: Vec<PathBuf>,
+}
+
 impl ConfigLoader {
     pub fn new(config_path: PathBuf) -> Self {
         let base_path = config_path
@@ -106,9 +120,19 @@ impl ConfigLoader {
             content: root.config.content,
         };
 
-        for include_path in &root.includes {
-            let partial = self.load_include(include_path)?;
-            Self::merge_partial(&mut merged, partial)?;
+        let mut visited: HashSet<PathBuf> = HashSet::new();
+        if let Ok(canonical_root) = fs::canonicalize(&self.config_path) {
+            visited.insert(canonical_root);
+        }
+        {
+            let mut ctx = IncludeResolveCtx {
+                visited: &mut visited,
+                merged: &mut merged,
+                chain: vec![self.config_path.clone()],
+            };
+            for include_path in &root.includes {
+                self.resolve_includes_recursively(include_path, &self.config_path, &mut ctx)?;
+            }
         }
 
         self.discover_and_load_agents(&root.includes, &mut merged)?;
@@ -181,6 +205,68 @@ impl ConfigLoader {
                 )
             })?;
         }
+
+        Ok(())
+    }
+
+    fn resolve_includes_recursively(
+        &self,
+        include_path: &str,
+        referrer: &Path,
+        ctx: &mut IncludeResolveCtx<'_>,
+    ) -> Result<()> {
+        let referrer_dir = referrer.parent().unwrap_or(&self.base_path);
+        let full_path = referrer_dir.join(include_path);
+
+        if !full_path.exists() {
+            anyhow::bail!(
+                "Include file not found: {}\nReferenced in: {}\nEither create the file or remove \
+                 it from the includes list.",
+                full_path.display(),
+                referrer.display()
+            );
+        }
+
+        let canonical = fs::canonicalize(&full_path).with_context(|| {
+            format!(
+                "while loading include {} referenced from {}",
+                full_path.display(),
+                referrer.display()
+            )
+        })?;
+
+        if ctx.visited.contains(&canonical) {
+            let mut chain: Vec<String> =
+                ctx.chain.iter().map(|p| p.display().to_string()).collect();
+            chain.push(canonical.display().to_string());
+            anyhow::bail!("Include cycle detected: {}", chain.join(" -> "));
+        }
+        ctx.visited.insert(canonical.clone());
+
+        let content = fs::read_to_string(&canonical).with_context(|| {
+            format!(
+                "while loading include {} referenced from {}",
+                canonical.display(),
+                referrer.display()
+            )
+        })?;
+
+        let partial_file: PartialServicesFile =
+            serde_yaml::from_str(&content).with_context(|| {
+                format!(
+                    "while loading include {} referenced from {}",
+                    canonical.display(),
+                    referrer.display()
+                )
+            })?;
+
+        ctx.chain.push(canonical.clone());
+        for nested in &partial_file.includes {
+            self.resolve_includes_recursively(nested, &canonical, ctx)?;
+        }
+        ctx.chain.pop();
+
+        Self::merge_partial(ctx.merged, partial_file.config)?;
 
         Ok(())
     }
