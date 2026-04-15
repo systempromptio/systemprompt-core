@@ -43,7 +43,12 @@ impl Fixture {
         .execute(&pool)
         .await?;
 
-        let window_start = Utc.with_ymd_and_hms(2099, 1, 1, 0, 0, 0).unwrap();
+        let uuid = Uuid::new_v4();
+        let offset_days = i64::from(u32::from_le_bytes(
+            uuid.as_bytes()[0..4].try_into().unwrap(),
+        ));
+        let base = Utc.with_ymd_and_hms(2100, 1, 1, 0, 0, 0).unwrap();
+        let window_start = base + Duration::days(offset_days % 1_000_000);
         let window_end = window_start + Duration::days(1);
 
         Ok(Self {

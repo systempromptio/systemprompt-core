@@ -11,14 +11,6 @@
 
 # systemprompt-security
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-security.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-security.svg">
-    <img alt="systemprompt-security terminal demo" src="../../../assets/readme/terminals/dark/infra-security.svg" width="100%">
-  </picture>
-</div>
-
 Security module for systemprompt.io - authentication, authorization, JWT, and token extraction.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-security.svg)](https://crates.io/crates/systemprompt-security)

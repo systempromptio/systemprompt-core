@@ -4,8 +4,7 @@ mod job;
 mod provider;
 mod schema;
 
-pub use api::ApiExtensionTyped;
-pub use api::ApiExtensionTypedDyn;
+pub use api::{ApiExtensionTyped, ApiExtensionTypedDyn};
 pub use config::ConfigExtensionTyped;
 pub use job::JobExtensionTyped;
 pub use provider::ProviderExtensionTyped;

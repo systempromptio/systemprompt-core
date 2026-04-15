@@ -11,14 +11,6 @@
 
 # systemprompt-loader
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-loader.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-loader.svg">
-    <img alt="systemprompt-loader terminal demo" src="../../../assets/readme/terminals/dark/infra-loader.svg" width="100%">
-  </picture>
-</div>
-
 File loading infrastructure for systemprompt.io - separates I/O from shared models.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-loader.svg)](https://crates.io/crates/systemprompt-loader)

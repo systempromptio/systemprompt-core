@@ -11,14 +11,6 @@
 
 # systemprompt-logging
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-logging.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-logging.svg">
-    <img alt="systemprompt-logging terminal demo" src="../../../assets/readme/terminals/dark/infra-logging.svg" width="100%">
-  </picture>
-</div>
-
 Core logging module for systemprompt.io OS.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-logging.svg)](https://crates.io/crates/systemprompt-logging)
@@ -179,6 +171,23 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 systemprompt-logging = "0.0.1"
+```
+
+## Usage
+
+```rust
+use systemprompt_database::DbPool;
+use systemprompt_logging::{LoggingRepository, LogFilter, LogLevel};
+
+async fn recent_errors(pool: &DbPool) -> anyhow::Result<()> {
+    let repo = LoggingRepository::new(pool.clone());
+    let filter = LogFilter::default().with_level(LogLevel::Error).with_limit(20);
+    let entries = repo.list_logs_paginated(&filter).await?;
+    for entry in entries {
+        println!("{}: {}", entry.level, entry.message);
+    }
+    Ok(())
+}
 ```
 
 ## License

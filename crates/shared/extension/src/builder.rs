@@ -1,11 +1,9 @@
 use std::marker::PhantomData;
 
-use crate::any::ApiExtensionWrapper;
-use crate::any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
+use crate::any::{AnyExtension, ApiExtensionWrapper, ExtensionWrapper, SchemaExtensionWrapper};
 use crate::error::LoaderError;
 use crate::hlist::{Subset, TypeList};
-use crate::typed::ApiExtensionTypedDyn;
-use crate::typed::SchemaExtensionTyped;
+use crate::typed::{ApiExtensionTypedDyn, SchemaExtensionTyped};
 use crate::typed_registry::TypedExtensionRegistry;
 use crate::types::{Dependencies, ExtensionType};
 

@@ -1,9 +1,9 @@
 use std::any::Any;
 use std::fmt::Debug;
 
-use crate::typed::ApiExtensionTypedDyn;
 use crate::typed::{
-    ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped, SchemaExtensionTyped,
+    ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
+    SchemaExtensionTyped,
 };
 use crate::types::ExtensionType;
 

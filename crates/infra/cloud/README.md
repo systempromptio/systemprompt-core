@@ -11,14 +11,6 @@
 
 # systemprompt-cloud
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-cloud.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-cloud.svg">
-    <img alt="systemprompt-cloud terminal demo" src="../../../assets/readme/terminals/dark/infra-cloud.svg" width="100%">
-  </picture>
-</div>
-
 systemprompt.io Cloud infrastructure - API client, credentials, OAuth.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-cloud.svg)](https://crates.io/crates/systemprompt-cloud)
@@ -180,6 +172,20 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 systemprompt-cloud = "0.0.1"
+```
+
+## Usage
+
+```rust
+use systemprompt_cloud::{CloudApiClient, CloudCredentials, Environment};
+
+async fn whoami() -> anyhow::Result<()> {
+    let creds = CloudCredentials::load()?;
+    let client = CloudApiClient::new(Environment::Production, creds);
+    let me = client.user_me().await?;
+    println!("Logged in as {}", me.user.email);
+    Ok(())
+}
 ```
 
 ## License

@@ -104,8 +104,8 @@ pub async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Result<()
 pub async fn mark_converted(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
-        "UPDATE user_sessions SET converted_at = CURRENT_TIMESTAMP \
-         WHERE session_id = $1 AND converted_at IS NULL",
+        "UPDATE user_sessions SET converted_at = CURRENT_TIMESTAMP WHERE session_id = $1 AND \
+         converted_at IS NULL",
         id
     )
     .execute(pool)

@@ -2,7 +2,7 @@ use anyhow::Result;
 use axum::Router;
 use axum::routing::post;
 use std::sync::Arc;
-use systemprompt_analytics::EngagementRepository;
+use systemprompt_analytics::{EngagementRepository, SessionRepository};
 use systemprompt_content::ContentRepository;
 use systemprompt_runtime::AppContext;
 
@@ -13,6 +13,7 @@ pub use handlers::{BatchResponse, EngagementBatchInput, EngagementState};
 pub fn router(ctx: &AppContext) -> Result<Router> {
     let state = EngagementState {
         repo: Arc::new(EngagementRepository::new(ctx.db_pool())?),
+        session_repo: Arc::new(SessionRepository::new(ctx.db_pool())?),
         content_repo: Arc::new(ContentRepository::new(ctx.db_pool())?),
         content_routing: ctx.content_routing(),
     };

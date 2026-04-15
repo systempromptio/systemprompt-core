@@ -12,8 +12,7 @@ use crate::context::ExtensionContext;
 use crate::error::ConfigError;
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
-use crate::router::ExtensionRouter;
-use crate::router::{ExtensionRouterConfig, SiteAuthConfig};
+use crate::router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 
 pub trait Extension: Send + Sync + 'static {
     fn metadata(&self) -> ExtensionMetadata;

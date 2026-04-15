@@ -31,10 +31,9 @@ pub use capabilities::{
     HasHttpClient,
 };
 pub use hlist::{Contains, NotSame, Subset, TypeList};
-pub use typed::ApiExtensionTypedDyn;
 pub use typed::{
-    ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
-    SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+    ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
+    ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
 };
 pub use typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
 pub use types::{

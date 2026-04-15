@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use crate::any::AnyExtension;
 use crate::error::LoaderError;
 pub use crate::registry::RESERVED_PATHS;
-use crate::typed::ApiExtensionTypedDyn;
-use crate::typed::SchemaExtensionTyped;
+use crate::typed::{ApiExtensionTypedDyn, SchemaExtensionTyped};
 use crate::types::ExtensionType;
 
 pub struct TypedExtensionRegistry {

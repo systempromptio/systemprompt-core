@@ -11,14 +11,6 @@
 
 # systemprompt-config
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-config.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-config.svg">
-    <img alt="systemprompt-config terminal demo" src="../../../assets/readme/terminals/dark/infra-config.svg" width="100%">
-  </picture>
-</div>
-
 Configuration module for systemprompt.io - environment configuration and validation.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-config.svg)](https://crates.io/crates/systemprompt-config)
@@ -117,6 +109,21 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 systemprompt-config = "0.0.1"
+```
+
+## Usage
+
+```rust
+use std::path::PathBuf;
+use systemprompt_config::{ConfigManager, ConfigValidator, DeployEnvironment};
+
+fn load_env(project_root: PathBuf) -> anyhow::Result<()> {
+    let manager = ConfigManager::new(project_root);
+    let config = manager.generate_config(DeployEnvironment::Local)?;
+    let report = ConfigValidator::validate(&config);
+    report.into_result()?;
+    Ok(())
+}
 ```
 
 ## License

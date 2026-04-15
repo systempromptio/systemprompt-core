@@ -11,14 +11,6 @@
 
 # systemprompt-events
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-events.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-events.svg">
-    <img alt="systemprompt-events terminal demo" src="../../../assets/readme/terminals/dark/infra-events.svg" width="100%">
-  </picture>
-</div>
-
 Events module for systemprompt.io - event broadcasting and routing.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-events.svg)](https://crates.io/crates/systemprompt-events)
@@ -141,6 +133,17 @@ systemprompt-events = "0.0.1"
 ## Tests
 
 Tests are located in `crates/tests/unit/infra/events/` following the project convention of separating tests from source files.
+
+## Usage
+
+```rust
+use systemprompt_events::{AGUI_BROADCASTER, Broadcaster};
+use systemprompt_identifiers::UserId;
+
+async fn active_listeners(user_id: &UserId) -> usize {
+    AGUI_BROADCASTER.connection_count(user_id).await
+}
+```
 
 ## License
 

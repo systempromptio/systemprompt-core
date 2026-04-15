@@ -59,7 +59,6 @@ impl ExtensionRegistry {
         }
         Ok(())
     }
-
 }
 
 fn detect_cycles(extensions: &HashMap<String, Arc<dyn Extension>>) -> Result<(), LoaderError> {

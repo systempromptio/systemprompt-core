@@ -11,14 +11,6 @@
 
 # systemprompt-database
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/infra-database.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/infra-database.svg">
-    <img alt="systemprompt-database terminal demo" src="../../../assets/readme/terminals/dark/infra-database.svg" width="100%">
-  </picture>
-</div>
-
 Database abstraction layer for systemprompt.io supporting SQLite, PostgreSQL, and MySQL.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-database.svg)](https://crates.io/crates/systemprompt-database)
@@ -233,6 +225,22 @@ From `sqlx`: `PgPool`, `Pool`, `Postgres`, `Transaction`, `Json`
 - `anyhow` - Error handling
 - `thiserror` - Error derivation
 - `async-trait` - Async traits
+
+## Usage
+
+```rust
+use systemprompt_database::{Database, DbPool, with_transaction};
+
+async fn count_users(pool: &DbPool) -> anyhow::Result<i64> {
+    with_transaction(pool, |tx| Box::pin(async move {
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+            .fetch_one(&mut **tx)
+            .await?;
+        Ok(row.0)
+    }))
+    .await
+}
+```
 
 ## License
 
