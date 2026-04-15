@@ -6,147 +6,219 @@
   <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
 </picture>
 
-### The touchpoint between your AI and everything it does
+# Own how your organization uses AI.
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
-[![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
-[![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
-[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
+### systemprompt-core is the Rust library behind [systemprompt.io](https://systemprompt.io) — the narrow waist between your AI and everything it touches.
 
-[Website](https://systemprompt.io) · [About](https://systemprompt.io/about) · [Documentation](https://systemprompt.io/documentation/) · [Live Demo](https://systemprompt.io/features/demo) · [Discord](https://discord.gg/wkAbSuPWpr)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg?style=flat-square)](https://crates.io/crates/systemprompt)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt?style=flat-square)](https://docs.rs/systemprompt)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](LICENSE)
+[![Rust 1.75+](https://img.shields.io/badge/rust-1.75+-f97316?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![PostgreSQL 18+](https://img.shields.io/badge/postgres-18+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Template](https://img.shields.io/badge/evaluate-systemprompt--template-16a34a?style=flat-square)](https://github.com/systempromptio/systemprompt-template)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2.svg?style=flat-square)](https://discord.gg/wkAbSuPWpr)
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Live Demo**](https://systemprompt.io/features/demo) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
 
 </div>
 
 ---
 
-systemprompt.io is a single compiled Rust binary that sits between your AI agents and everything they touch. Every tool call authenticated, authorised, rate-limited, logged, and costed. Self-hosted. Air-gap capable. Provider-agnostic.
+**AI governance infrastructure for agentic systems.** Every tool call authenticated, authorised, rate-limited, logged, and costed. Self-hosted. Air-gap capable. Provider-agnostic. One language. One database (PostgreSQL). One binary (~50 MB). No microservices. No Kubernetes. No Redis. No Kafka.
 
-One language. One database (PostgreSQL). One binary (~50MB). No microservices. No Kubernetes required. No Redis. No Kafka. No ElasticSearch.
+**AI infrastructure built for AI agents.** A production-ready Rust library with auth, MCP servers, A2A orchestration, and playbooks for deterministic execution. 30 crates published on crates.io under `systemprompt-*` and the `systemprompt` facade. Compile-time extensions via the `inventory` crate. Zero-raw-String-ID policy. Compile-time verified SQL via `sqlx::query!` macros. Typed identifiers across every boundary.
+
+> 👉 **Evaluating?** Clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) and run `just build && just setup-local <key> && just start`. 40+ scripted demos exercise every claim below against your own machine in three commands.
+>
+> 👉 **Building on it?** Add `systemprompt = "0.2.1"` to your `Cargo.toml` and jump to [Extensions](#extensions-technical).
 
 ## Table of Contents
 
-- [Why systemprompt.io](#why-systempromptio)
+- [Govern. Every tool call.](#govern-every-tool-call)
+- [Prove. Every decision.](#prove-every-decision)
+- [Standardise. Every team.](#standardise-every-team)
+- [Architecture](#architecture)
+- [Extensions (technical)](#extensions-technical)
+- [Typed identifiers](#typed-identifiers)
+- [Database & repositories](#database--repositories)
+- [MCP and A2A](#mcp-and-a2a)
+- [Runtime & AppContext](#runtime--appcontext)
+- [CLI](#cli)
+- [Facade crate & feature flags](#facade-crate--feature-flags)
 - [Performance](#performance)
 - [Quick Start](#quick-start)
-- [Core Capabilities](#core-capabilities)
-- [Architecture](#architecture)
-- [Extensions](#extensions)
 - [License](#license)
 
-## Why systemprompt.io
+---
 
-**Govern every tool call.** AI agents take actions on behalf of your people. Without governance, any agent can use any tool, access any data, and leak any credential. systemprompt.io enforces who can do what before it happens, not after.
+## Govern. Every tool call.
 
-**Prove every decision.** When the auditor asks what AI did and who authorised it, you query the answer. Full lineage from AI request to tool call to MCP execution, all linked by trace_id. Structured JSON for your SIEM.
+**Every tool call governed.** Synchronous evaluation before execution, not after. Four layers of enforcement in the request path: **scope check → secret detection → blocklist → rate limit**. Deny reasons are structured and auditable. Single-digit milliseconds overhead. No sidecar. No proxy.
 
-**Standardise every team.** Your best AI workflows should not live in one developer's head. systemprompt.io is the skill library for your organisation: curated knowledge, governed plugins, consistent standards.
+Compliance that survives an audit: **SOC 2 Type II**, **ISO 27001**, **HIPAA**, **OWASP Top 10 for Agentic Applications**.
 
-### What this replaces
+**Where in the code**
 
-| Problem | Without systemprompt.io | With systemprompt.io |
-|---------|------------------------|---------------------|
-| AI governance | Build from components (months) | Deploy one binary (days) |
-| Audit trails | Policy documents | Structured, queryable evidence |
-| Secret management | Secrets in context windows | Server-side injection via MCP |
-| Cost attribution | No visibility | Per-agent, per-model, per-department |
-| Multi-provider | Separate governance per provider | One governance layer for all |
-
-## Performance
-
-200 concurrent governance requests benchmarked. Each performs JWT validation, scope resolution, three rule evaluations, and an async database write.
-
-- **Sub-5ms p50 latency**
-- **Sub-10ms p99 latency**
-- **Zero garbage collector pauses**
-- Throughput supports hundreds of concurrent developers on a single instance
-
-See the [live load test](https://systemprompt.io/features/demo) for full results.
-
-## Quick Start
-
-```bash
-# 1. Create from template
-gh repo create my-project --template systempromptio/systemprompt-template --clone
-cd my-project
-
-# 2. Build
-just build
-
-# 3. Login
-just login
-
-# 4. Create tenant
-just tenant
-
-# 5. Start
-just start
-```
-
-See [systemprompt-template](https://github.com/systempromptio/systemprompt-template) for full installation instructions.
-
-## Core Capabilities
-
-### Governance Pipeline
-
-Synchronous four-layer evaluation on every tool call. Scope check, secret scan, blocklist, rate limit. All four layers evaluate in the request path. The tool call either passes all four layers and executes, or it is blocked. Single-digit milliseconds overhead.
+| Layer | File |
+|---|---|
+| Scope / RBAC middleware | [`crates/domain/mcp/src/middleware/rbac.rs`](crates/domain/mcp/src/middleware/rbac.rs) |
+| Secret detection / scanner | [`crates/infra/security/src/services/scanner.rs`](crates/infra/security/src/services/scanner.rs) |
+| Blocklist rules | [`crates/infra/security/src/services/`](crates/infra/security/src/services/) |
+| Rate limit middleware (`tower_governor`) | [`crates/infra/security/src/`](crates/infra/security/src/) |
 
 - [Governance Pipeline](https://systemprompt.io/features/governance-pipeline)
-- [Compliance](https://systemprompt.io/features/compliance) (SOC 2, ISO 27001, HIPAA, OWASP Agentic Top 10)
+- [Compliance](https://systemprompt.io/features/compliance)
 
-### Secrets Management
+## Prove. Every decision.
 
-Secrets flow through MCP services, not inference endpoints. The agent calls the tool, the MCP service injects the credential server-side. The LLM never sees it. ChaCha20-Poly1305 encryption with per-user key hierarchy.
+**Structured evidence for every interaction.** Secrets never touch inference — the agent calls the tool, the MCP service injects the credential server-side, the LLM never sees it. Every tool call produces a **five-point audit trace**: *Identity → Agent Context → Permissions → Tool Execution → Result*. Everything linked by `trace_id`. Structured JSON events for Splunk, ELK, Datadog, Sumo Logic. Cost tracking in microdollars by model, agent, and department.
+
+Per-user key hierarchy encrypted with **ChaCha20-Poly1305**. `TraceId`, `ContextId`, `TaskId` carried end-to-end as typed identifiers — never raw strings.
+
+**Where in the code**
+
+| Concern | File |
+|---|---|
+| Audit queries | [`crates/infra/logging/src/trace/audit_queries.rs`](crates/infra/logging/src/trace/audit_queries.rs) |
+| Event broadcasters (`A2A_BROADCASTER`, `ANALYTICS_BROADCASTER`, `CONTEXT_BROADCASTER`) | [`crates/infra/events/src/services/broadcaster.rs`](crates/infra/events/src/services/broadcaster.rs) |
+| Secret storage (ChaCha20-Poly1305) | [`crates/infra/security/src/`](crates/infra/security/src/) |
+| Typed IDs (`TraceId`, `ContextId`, `TaskId` …) | [`crates/shared/identifiers/src/lib.rs`](crates/shared/identifiers/src/lib.rs) |
 
 - [Secrets Management](https://systemprompt.io/features/secrets-management)
-
-### Analytics and Observability
-
-Full audit trail from AI request to tool call to MCP execution to cost. Structured JSON events for Splunk, ELK, Datadog, and Sumo Logic. Cost tracking in microdollars by model, agent, and department.
-
 - [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
 
-### MCP Governance
+## Standardise. Every team.
 
-Per-server OAuth2, governed tool calls, central MCP server registry with health monitoring. Built on MCP natively, not proxied. Claude Desktop compatible.
+**One CLI, one binary, one database.** The same surface local and remote. Register agents, distribute skills by role and department, run them under identical policy everywhere. Config-as-code: agents, MCP servers, skills, AI providers, content, scheduler jobs, and web theme all live as YAML or Markdown under `services/`.
 
-- [MCP Governance](https://systemprompt.io/features/mcp-governance)
+Provider-agnostic by trait, not by adapter — swap **Anthropic / OpenAI / Gemini** at the profile level. Built on open standards: **MCP** (Model Context Protocol), **A2A** (Agent-to-Agent), **OAuth2/OIDC** with PKCE, **WebAuthn**.
 
-### Skill Marketplace
+**Where in the code**
 
-Curated library of your organisation's AI knowledge. Browse, install, create, and fork skills. Plugin bundles with governed distribution by role and department.
+| Concern | File |
+|---|---|
+| Provider traits (`LlmProvider`, `ToolProvider`, …) | [`crates/shared/provider-contracts/src/lib.rs`](crates/shared/provider-contracts/src/lib.rs) |
+| AppContext wiring | [`crates/app/runtime/src/context.rs`](crates/app/runtime/src/context.rs) · [`builder.rs`](crates/app/runtime/src/builder.rs) |
+| Bootstrap sequence | `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext` |
 
 - [Skill Marketplace](https://systemprompt.io/features/skill-marketplace)
-
-### Self-Hosted Deployment
-
-Single 50MB binary. Air-gapped, PostgreSQL only. Copy to a server, start it. That is the deployment.
-
+- [MCP Governance](https://systemprompt.io/features/mcp-governance)
 - [Self-Hosted & Air-Gapped](https://systemprompt.io/features/self-hosted-ai-platform)
 
-### Open Standards
+---
 
-- **MCP** (Model Context Protocol) from Anthropic, implemented natively
-- **A2A** (Agent-to-Agent Protocol) from Google
-- **OAuth2/OIDC** with PKCE, token introspection, audience/issuer checks
-- **WebAuthn** for passwordless authentication
+## Architecture
 
-### Config as Code
+A 30-crate Rust workspace that compiles into a single ~50 MB binary. Dependencies flow downward only — no circular references.
 
 ```
-services/
-├── agents/           # Agent definitions with OAuth scopes
-├── mcp/              # MCP servers with per-tool permissions
-├── skills/           # Skills and plugins
-├── ai/               # Provider configs (Anthropic, OpenAI, Gemini)
-├── content/          # Markdown content sources
-├── scheduler/        # Cron jobs and background tasks
-└── web/              # Theme, branding, navigation
+┌─────────────────────────────────────────────────────────────────────┐
+│  ENTRY      api · cli                                               │
+├─────────────────────────────────────────────────────────────────────┤
+│  APP        runtime · scheduler · generator · sync                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  DOMAIN     agent · ai · analytics · content · files · mcp ·        │
+│             oauth · templates · users                               │
+├─────────────────────────────────────────────────────────────────────┤
+│  INFRA      cloud · config · database · events · loader ·           │
+│             logging · security                                      │
+├─────────────────────────────────────────────────────────────────────┤
+│  SHARED     identifiers · provider-contracts · traits ·             │
+│             extension · models · client · template-provider        │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### MCP Client Support
+All 30 crates publish on crates.io at matching workspace versions. Domain crates communicate via traits and the event bus, not direct dependencies. Database-touching crates ship a per-crate `.sqlx/` query cache (committed) so downstream consumers compile offline — see [`instructions/information/crates-publishing.md`](instructions/information/crates-publishing.md) for the two-level cache convention.
 
-Works with any MCP-compatible client: Claude Code, Claude Desktop, ChatGPT, Cursor, and more.
+| Layer | Crates |
+|---|---|
+| Shared | [`systemprompt-identifiers`](https://docs.rs/systemprompt-identifiers) · [`systemprompt-provider-contracts`](https://docs.rs/systemprompt-provider-contracts) · [`systemprompt-traits`](https://docs.rs/systemprompt-traits) · [`systemprompt-extension`](https://docs.rs/systemprompt-extension) · [`systemprompt-models`](https://docs.rs/systemprompt-models) · [`systemprompt-client`](https://docs.rs/systemprompt-client) · [`systemprompt-template-provider`](https://docs.rs/systemprompt-template-provider) |
+| Infra | [`systemprompt-database`](https://docs.rs/systemprompt-database) · [`systemprompt-logging`](https://docs.rs/systemprompt-logging) · [`systemprompt-events`](https://docs.rs/systemprompt-events) · [`systemprompt-security`](https://docs.rs/systemprompt-security) · [`systemprompt-loader`](https://docs.rs/systemprompt-loader) · [`systemprompt-config`](https://docs.rs/systemprompt-config) · [`systemprompt-cloud`](https://docs.rs/systemprompt-cloud) |
+| Domain | [`systemprompt-analytics`](https://docs.rs/systemprompt-analytics) · [`systemprompt-users`](https://docs.rs/systemprompt-users) · [`systemprompt-files`](https://docs.rs/systemprompt-files) · [`systemprompt-templates`](https://docs.rs/systemprompt-templates) · [`systemprompt-content`](https://docs.rs/systemprompt-content) · [`systemprompt-ai`](https://docs.rs/systemprompt-ai) · [`systemprompt-oauth`](https://docs.rs/systemprompt-oauth) · [`systemprompt-mcp`](https://docs.rs/systemprompt-mcp) · [`systemprompt-agent`](https://docs.rs/systemprompt-agent) |
+| App | [`systemprompt-runtime`](https://docs.rs/systemprompt-runtime) · [`systemprompt-scheduler`](https://docs.rs/systemprompt-scheduler) · [`systemprompt-generator`](https://docs.rs/systemprompt-generator) · [`systemprompt-sync`](https://docs.rs/systemprompt-sync) |
+| Entry | [`systemprompt-api`](https://docs.rs/systemprompt-api) · [`systemprompt-cli`](https://docs.rs/systemprompt-cli) |
+| Facade | [`systemprompt`](https://docs.rs/systemprompt) |
+
+## Extensions (technical)
+
+Extensions are discovered at **compile time** via the [`inventory`](https://crates.io/crates/inventory) crate — no runtime plugin loading, no `dlopen`. Your code compiles straight into your binary. Typed traits cover the full surface:
+
+| Trait | File | Purpose |
+|---|---|---|
+| `Extension` | [`crates/shared/extension/src/traits.rs`](crates/shared/extension/src/traits.rs) | Identity, version, dependency metadata |
+| `SchemaExtensionTyped` | [`crates/shared/extension/src/typed/schema.rs`](crates/shared/extension/src/typed/schema.rs) | DDL + migrations via `include_str!()` |
+| `ApiExtensionTyped` · `ApiExtensionTypedDyn` | [`crates/shared/extension/src/typed/api.rs`](crates/shared/extension/src/typed/api.rs) | Axum route handlers |
+| `JobExtensionTyped` | [`crates/shared/extension/src/typed/job.rs`](crates/shared/extension/src/typed/job.rs) | Scheduled and background jobs |
+| `ProviderExtensionTyped` | [`crates/shared/extension/src/typed/provider.rs`](crates/shared/extension/src/typed/provider.rs) | Custom LLM / tool / data providers |
+| `ConfigExtensionTyped` | [`crates/shared/extension/src/typed/config.rs`](crates/shared/extension/src/typed/config.rs) | Startup config validation |
+
+Registration is a single macro — `register_extension!` lives in [`crates/shared/extension/src/traits.rs`](crates/shared/extension/src/traits.rs) and wraps `inventory::submit!`. Discovery goes through [`ExtensionBuilder<R>`](crates/shared/extension/src/builder.rs) and `TypedExtensionRegistry`.
+
+```toml
+[dependencies]
+systemprompt = { version = "0.2.1", features = ["full"] }
+```
+
+```rust
+use systemprompt::extension::prelude::*;
+
+struct MyExtension;
+
+impl Extension for MyExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata::new("my-extension", env!("CARGO_PKG_VERSION"))
+    }
+
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![SchemaDefinition::new(
+            "my_extension",
+            include_str!("../schema/001_init.sql"),
+        )]
+    }
+
+    fn router(&self) -> Option<ExtensionRouter> { None }
+}
+
+register_extension!(MyExtension);
+```
+
+## Typed identifiers
+
+**Zero raw-String IDs.** Every identifier that crosses a boundary is a newtype in [`crates/shared/identifiers`](crates/shared/identifiers/src/lib.rs) — the compiler prevents passing a `UserId` where an `AgentId` is expected.
+
+`UserId` · `SessionId` · `TraceId` · `ContextId` · `TaskId` · `AgentId` · `TenantId` · `McpServerId` · `McpExecutionId` · `AiRequestId` · `PluginId` · `SkillId` · `ArtifactId` · `FileId` · `ContentId` · `MessageId` · `TokenId` · `ClientId` · `RoleId` · `ProfileName` · `Email` · `ValidatedUrl` · `ValidatedFilePath`
+
+## Database & repositories
+
+Services call repositories, repositories issue SQL. All queries go through **compile-time verified macros** — `sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()`. No unverified `sqlx::query()`.
+
+DDL lives in `{crate}/schema/*.sql` and is embedded with `include_str!()` from `extension.rs`. The generic entity/repository traits live in [`crates/infra/database/src/repository/entity.rs`](crates/infra/database/src/repository/entity.rs) (`Entity`, `GenericRepository<E>`).
+
+```rust
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::UserId;
+
+pub struct UserRepository { pool: DbPool }
+
+impl UserRepository {
+    pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {
+        sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id.as_str())
+            .fetch_optional(self.pool.as_ref())
+            .await
+            .map_err(Into::into)
+    }
+}
+```
+
+## MCP and A2A
+
+**Model Context Protocol** ([`crates/domain/mcp`](crates/domain/mcp)) is implemented natively — not proxied. Per-server OAuth2, scoped tool exposure, central registry with health monitoring, end-to-end access logs. Works with Claude Code, Claude Desktop, ChatGPT, Cursor, and any other MCP-compatible client.
+
+| Concern | File |
+|---|---|
+| Orchestrator | [`crates/domain/mcp/src/services/orchestrator/mod.rs`](crates/domain/mcp/src/services/orchestrator/mod.rs) |
+| Network / port management / proxy | [`crates/domain/mcp/src/services/network/mod.rs`](crates/domain/mcp/src/services/network/mod.rs) |
+| RBAC middleware | [`crates/domain/mcp/src/middleware/rbac.rs`](crates/domain/mcp/src/middleware/rbac.rs) |
 
 ```json
 {
@@ -159,95 +231,125 @@ Works with any MCP-compatible client: Claude Code, Claude Desktop, ChatGPT, Curs
 }
 ```
 
-### Discovery API
+**Agent-to-Agent** ([`crates/domain/agent`](crates/domain/agent)) ships a standalone A2A server with streaming, a JSON-RPC protocol model, and `.well-known` discovery endpoints.
+
+| Concern | File |
+|---|---|
+| Standalone A2A server | [`crates/domain/agent/src/services/a2a_server/mod.rs`](crates/domain/agent/src/services/a2a_server/mod.rs) |
+| Streaming | [`crates/domain/agent/src/services/a2a_server/streaming/mod.rs`](crates/domain/agent/src/services/a2a_server/streaming/mod.rs) |
+| Protocol models (`Message`, `Task`, `TaskState`) | [`crates/domain/agent/src/models/a2a/protocol/mod.rs`](crates/domain/agent/src/models/a2a/protocol/mod.rs) |
+
+**Discovery API**
 
 | Endpoint | Description |
-|----------|-------------|
+|---|---|
 | `/.well-known/agent-card.json` | Default agent card |
 | `/.well-known/agent-cards` | List all available agents |
 | `/.well-known/agent-cards/{name}` | Specific agent card |
 | `/api/v1/agents/registry` | Full agent registry with status |
 | `/api/v1/mcp/registry` | All MCP servers with endpoints |
 
-### CLI
+## Runtime & AppContext
+
+Bootstrap sequence: `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext`. [`AppContextBuilder::build()`](crates/app/runtime/src/builder.rs) wires `Config`, `DbPool`, `ExtensionRegistry`, `ModuleApiRegistry`, `AnalyticsService`, `UserService`, `GeoIpReader`, `FingerprintRepository`, and `RouteClassifier`, then hands back a single `AppContext` shared across every service.
+
+## CLI
+
+One binary, eight domains. Every command is discoverable — `systemprompt <domain> --help` works everywhere.
+
+| Domain | Source | Purpose |
+|---|---|---|
+| `core` | [`crates/entry/cli/src/commands/core/`](crates/entry/cli/src/commands/core/) | Skills, content, files, contexts, plugins, hooks, artifacts |
+| `infra` | [`crates/entry/cli/src/commands/infrastructure/`](crates/entry/cli/src/commands/infrastructure/) | Services, database, jobs, logs |
+| `admin` | [`crates/entry/cli/src/commands/admin/`](crates/entry/cli/src/commands/admin/) | Users, agents, config, setup, session, rate limits |
+| `cloud` | [`crates/entry/cli/src/commands/cloud/`](crates/entry/cli/src/commands/cloud/) | Auth, deploy, sync, secrets, tenant, domain |
+| `analytics` | [`crates/entry/cli/src/commands/analytics/`](crates/entry/cli/src/commands/analytics/) | Overview, conversations, agents, tools, requests, sessions, content, traffic, costs |
+| `web` | [`crates/entry/cli/src/commands/web/`](crates/entry/cli/src/commands/web/) | Content types, templates, assets, sitemap, validate |
+| `plugins` | [`crates/entry/cli/src/commands/plugins/`](crates/entry/cli/src/commands/plugins/) | Extensions, MCP servers, capabilities |
+| `build` | [`crates/entry/cli/src/commands/build/`](crates/entry/cli/src/commands/build/) | Build core workspace and MCP extensions |
 
 ```bash
-# Send a message to an agent
 systemprompt admin agents message blog "Write a post about MCP security"
-
-# List available MCP tools
 systemprompt admin agents tools content-manager
-
-# Deploy to production
 systemprompt cloud deploy --profile production
 ```
 
-## Architecture
+## Facade crate & feature flags
 
-Layered crate architecture. Dependencies flow downward only.
+Pull in only what you need through the `systemprompt` facade.
 
+| Feature | Includes |
+|---|---|
+| `core` *(default)* | traits · models · identifiers · extension · template-provider |
+| `database` | SQLx-backed `DbPool` |
+| `api` | HTTP server, runtime, Axum (requires `core` + `database`) |
+| `cli` | CLI entry point |
+| `runtime` | Extension runtime builder (requires `cli`) |
+| `mcp` | `rmcp` macros |
+| `sync` | Cloud synchronization |
+| `cloud` | Cloud API client, credentials, OAuth |
+| `test-utils` | Credential fixtures (requires `cloud`) |
+| `full` | Everything: API + MCP + sync + cloud + CLI + all domain crates |
+
+```toml
+# Embedded library usage
+systemprompt = { version = "0.2.1", features = ["core", "database"] }
+
+# Building a product binary
+systemprompt = { version = "0.2.1", features = ["full"] }
 ```
-┌─────────────────────────────────────────────────────────┐
-│  ENTRY: api, cli                                        │
-├─────────────────────────────────────────────────────────┤
-│  APP: runtime, scheduler, generator, sync               │
-├─────────────────────────────────────────────────────────┤
-│  DOMAIN: users, oauth, ai, agent, mcp, files, content   │
-├─────────────────────────────────────────────────────────┤
-│  INFRA: database, events, security, config, logging     │
-├─────────────────────────────────────────────────────────┤
-│  SHARED: models, traits, identifiers, extension         │
-└─────────────────────────────────────────────────────────┘
+
+```rust
+use systemprompt::prelude::*;
+use systemprompt::database::DbPool;
 ```
 
-Domain crates communicate via traits and events, not direct dependencies.
+## Performance
 
-## Extensions
+Sub-5 ms governance overhead, benchmarked. Each request performs JWT validation, scope resolution, three rule evaluations, and an async database write.
 
-Build your own extensions by adding the library to your `Cargo.toml`:
+- **p50 < 5 ms**
+- **p99 < 12 ms**
+- **200 concurrent governance requests**
+- Zero GC pauses — hundreds of concurrent developers on a single instance
+
+Numbers measured on the author's laptop. Reproduce with `./demo/performance/02-benchmark.sh` in the template. Full results and a live load test: [systemprompt.io/features/demo](https://systemprompt.io/features/demo).
+
+## Quick Start
+
+**Evaluation path** — you get 40+ runnable demos:
+
+```bash
+gh repo create my-eval --template systempromptio/systemprompt-template --clone
+cd my-eval
+just build
+just setup-local <anthropic-or-openai-or-gemini-key>
+just start
+```
+
+Open **http://localhost:8080**, point Claude Code / Claude Desktop at it, and walk through [`demo/`](https://github.com/systempromptio/systemprompt-template/tree/main/demo). Prerequisites: Rust 1.75+, [`just`](https://just.systems), Docker, `jq`, `yq`, ports `8080` and `5432` free.
+
+**Library path** — add the facade to your own Rust workspace:
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.0.1", features = ["full"] }
+systemprompt = { version = "0.2.1", features = ["full"] }
 ```
 
-Available extension traits:
-
-| Trait | Purpose |
-|-------|---------|
-| `Extension` | Base trait: ID, name, version, dependencies |
-| `SchemaExtension` | Database table definitions |
-| `ApiExtension` | HTTP route handlers |
-| `ConfigExtensionTyped` | Config validation at startup |
-| `JobExtension` | Background job definitions |
-| `ProviderExtension` | Custom LLM/tool provider implementations |
-
-```rust
-use systemprompt_extension::*;
-
-struct MyExtension;
-impl Extension for MyExtension { ... }
-impl ApiExtension for MyExtension { ... }
-
-register_extension!(MyExtension);
-register_api_extension!(MyExtension);
-```
-
-Extensions are discovered at compile time via the `inventory` crate. Your code compiles into your binary.
+See [Extensions](#extensions-technical) for the compile-time plugin model.
 
 ## License
 
-BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Converts to Apache 2.0 four years after each version is published.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. **Production use requires a commercial license.** Each version converts to Apache 2.0 four years after publication.
 
-See [LICENSE](LICENSE) for full terms.
+See [LICENSE](LICENSE) for the full terms. Licensing enquiries: [ed@systemprompt.io](mailto:ed@systemprompt.io).
 
-## Links
+---
 
-- [Website](https://systemprompt.io)
-- [About](https://systemprompt.io/about)
-- [Documentation](https://systemprompt.io/documentation/)
-- [Live Demo](https://systemprompt.io/features/demo)
-- [Template](https://github.com/systempromptio/systemprompt-template)
-- [Discord](https://discord.gg/wkAbSuPWpr)
+<div align="center">
 
-For licensing enquiries: [ed@systemprompt.io](mailto:ed@systemprompt.io)
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt)** · **[docs.rs](https://docs.rs/systemprompt)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Own how your organization uses AI. Every interaction governed and provable.</sub>
+
+</div>
