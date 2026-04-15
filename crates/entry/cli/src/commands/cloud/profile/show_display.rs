@@ -104,7 +104,7 @@ fn print_skills_section(skills: &SkillsConfig) {
     CliService::key_value("  enabled", &skills.enabled.to_string());
     for (name, skill) in &skills.skills {
         CliService::info(&format!("  {} (enabled: {})", name, skill.enabled));
-        CliService::key_value("    id", &skill.id);
+        CliService::key_value("    id", skill.id.as_str());
         CliService::key_value("    name", &skill.name);
     }
 }

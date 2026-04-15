@@ -78,8 +78,7 @@ impl AgentIngestionService {
         let agent_id_str = config
             .id
             .as_ref()
-            .map(|id| id.as_str().to_string())
-            .unwrap_or_else(|| dir_name.replace('-', "_"));
+            .map_or_else(|| dir_name.replace('-', "_"), |id| id.as_str().to_string());
 
         let system_prompt_path = agent_dir.join(config.system_prompt_file());
         let system_prompt = if system_prompt_path.exists() {

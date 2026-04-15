@@ -124,12 +124,11 @@ fn parse_skill_file(config_path: &Path, skill_dir: &Path) -> Result<DiskSkill> {
 
     let content_path = skill_dir.join(config.content_file());
 
-    let skill_id_str = if config.id.is_empty() {
-        dir_name.replace('-', "_")
+    let skill_id = if config.id.as_str().is_empty() {
+        SkillId::new(dir_name.replace('-', "_"))
     } else {
-        config.id
+        config.id.clone()
     };
-    let skill_id = SkillId::new(skill_id_str);
 
     let name = if config.name.is_empty() {
         dir_name.replace('_', " ")

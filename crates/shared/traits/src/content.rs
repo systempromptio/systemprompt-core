@@ -16,7 +16,7 @@ pub struct ContentSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentItem {
-    pub id: String,
+    pub id: ContentId,
     pub slug: String,
     pub title: String,
     pub description: String,
@@ -26,7 +26,7 @@ pub struct ContentItem {
     pub keywords: String,
     pub kind: String,
     pub image: Option<String>,
-    pub source_id: String,
+    pub source_id: SourceId,
     pub category_id: Option<String>,
 }
 

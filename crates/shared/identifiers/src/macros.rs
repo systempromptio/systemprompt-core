@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! define_id {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -33,7 +33,7 @@ macro_rules! define_id {
     };
 
     ($name:ident, non_empty) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -63,7 +63,7 @@ macro_rules! define_id {
     };
 
     ($name:ident, validated, $validator:expr) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -126,7 +126,7 @@ macro_rules! define_id {
     };
 
     ($name:ident, schema) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -168,7 +168,7 @@ macro_rules! define_id {
     };
 
     (@ $name:ident, schema) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -319,7 +319,7 @@ pub use define_id;
 #[macro_export]
 macro_rules! define_token {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]

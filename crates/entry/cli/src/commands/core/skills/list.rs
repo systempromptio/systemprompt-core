@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
 use crate::CliConfig;
@@ -84,7 +85,7 @@ fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandResu
     let instructions_preview = truncate_with_ellipsis(&parsed.instructions, 200);
 
     let output = SkillDetailOutput {
-        skill_id: skill_name.to_string(),
+        skill_id: SkillId::new(skill_name),
         name: parsed.name.clone(),
         display_name: parsed.name,
         description: parsed.description,
@@ -127,7 +128,7 @@ fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
                     .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
 
                 skills.push(SkillSummary {
-                    skill_id: dir_name.to_string(),
+                    skill_id: SkillId::new(dir_name),
                     name: parsed.name.clone(),
                     display_name: parsed.name,
                     enabled: parsed.enabled,

@@ -65,7 +65,7 @@ fn scan_hooks(plugins_path: &Path) -> Result<Vec<HookEntry>> {
         };
 
         let plugin_id = plugin_file.plugin.id.clone();
-        extract_hook_entries(&plugin_id, &plugin_file.plugin.hooks, &mut entries);
+        extract_hook_entries(plugin_id.as_str(), &plugin_file.plugin.hooks, &mut entries);
     }
 
     Ok(entries)

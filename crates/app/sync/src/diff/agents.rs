@@ -119,12 +119,10 @@ fn parse_agent_dir(config_path: &Path, agent_dir: &Path) -> Result<DiskAgent> {
         .and_then(|n| n.to_str())
         .ok_or_else(|| anyhow!("Invalid agent directory name"))?;
 
-    let agent_id_str = if config.id.is_empty() {
-        dir_name.replace('-', "_")
-    } else {
-        config.id.clone()
-    };
-    let agent_id = AgentId::new(agent_id_str);
+    let agent_id = config
+        .id
+        .clone()
+        .unwrap_or_else(|| AgentId::new(dir_name.replace('-', "_")));
 
     let system_prompt_path = agent_dir.join(config.system_prompt_file());
     let system_prompt = if system_prompt_path.exists() {

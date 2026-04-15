@@ -32,7 +32,7 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<Plu
     let hooks_count = count_hooks(&plugin.hooks);
 
     let output = PluginDetailOutput {
-        id: plugin.id.clone(),
+        id: plugin.id.to_string(),
         name: plugin.name.clone(),
         description: plugin.description.clone(),
         version: plugin.version.clone(),

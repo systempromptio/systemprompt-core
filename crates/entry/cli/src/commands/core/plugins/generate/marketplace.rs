@@ -83,7 +83,7 @@ pub fn generate_plugin_json(
     let mut manifest = serde_json::Map::new();
     manifest.insert(
         "name".to_string(),
-        serde_json::Value::String(plugin.id.clone()),
+        serde_json::Value::String(plugin.id.to_string()),
     );
     manifest.insert(
         "description".to_string(),

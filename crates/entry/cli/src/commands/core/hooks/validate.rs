@@ -74,7 +74,7 @@ fn validate_all_hooks(plugins_path: &Path) -> Result<Vec<HookValidateEntry>> {
         validate_hook_scripts(plugin, plugins_path, &mut errors);
 
         results.push(HookValidateEntry {
-            plugin_id: plugin.id.clone(),
+            plugin_id: plugin.id.to_string(),
             valid: errors.is_empty(),
             errors,
         });
@@ -89,7 +89,7 @@ fn validate_hook_scripts(
     errors: &mut Vec<String>,
 ) {
     let all_commands = collect_hook_commands(&plugin.hooks);
-    let plugin_dir = plugins_path.join(&plugin.id);
+    let plugin_dir = plugins_path.join(plugin.id.as_str());
 
     for cmd in all_commands {
         if cmd.contains(PLUGIN_ROOT_VAR) {

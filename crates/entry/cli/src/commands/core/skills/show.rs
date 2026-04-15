@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
 use crate::CliConfig;
@@ -54,7 +55,7 @@ fn show_skill_detail(
         };
 
     let output = SkillDetailOutput {
-        skill_id: skill_name.to_string(),
+        skill_id: SkillId::new(skill_name),
         name: parsed.name.clone(),
         display_name: parsed.name,
         description: parsed.description,
