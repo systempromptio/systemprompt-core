@@ -193,7 +193,7 @@ async fn load_authenticated_user(
     user_provider: &Arc<dyn systemprompt_traits::UserProvider>,
 ) -> anyhow::Result<AuthenticatedUser> {
     let user = user_provider
-        .find_by_id(user_id.as_str())
+        .find_by_id(user_id)
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))?
         .ok_or_else(|| anyhow::anyhow!("User not found: {user_id}"))?;
@@ -216,7 +216,7 @@ async fn load_authenticated_user(
         })
         .collect();
 
-    let user_uuid = uuid::Uuid::parse_str(&user.id)
+    let user_uuid = uuid::Uuid::parse_str(user.id.as_str())
         .map_err(|_| anyhow::anyhow!("Invalid user UUID: {}", user.id))?;
 
     Ok(AuthenticatedUser::new_with_roles(

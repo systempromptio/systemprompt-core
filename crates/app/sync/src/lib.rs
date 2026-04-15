@@ -11,6 +11,7 @@ pub mod local;
 pub mod models;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TenantId;
 
 pub use api_client::SyncApiClient;
 pub use database::{ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
@@ -45,7 +46,7 @@ pub struct SyncConfig {
     pub direction: SyncDirection,
     pub dry_run: bool,
     pub verbose: bool,
-    pub tenant_id: String,
+    pub tenant_id: TenantId,
     pub api_url: String,
     pub api_token: String,
     pub services_path: String,
@@ -59,7 +60,7 @@ pub struct SyncConfigBuilder {
     direction: SyncDirection,
     dry_run: bool,
     verbose: bool,
-    tenant_id: String,
+    tenant_id: TenantId,
     api_url: String,
     api_token: String,
     services_path: String,
@@ -70,7 +71,7 @@ pub struct SyncConfigBuilder {
 
 impl SyncConfigBuilder {
     pub fn new(
-        tenant_id: impl Into<String>,
+        tenant_id: impl Into<TenantId>,
         api_url: impl Into<String>,
         api_token: impl Into<String>,
         services_path: impl Into<String>,
@@ -137,7 +138,7 @@ impl SyncConfigBuilder {
 
 impl SyncConfig {
     pub fn builder(
-        tenant_id: impl Into<String>,
+        tenant_id: impl Into<TenantId>,
         api_url: impl Into<String>,
         api_token: impl Into<String>,
         services_path: impl Into<String>,

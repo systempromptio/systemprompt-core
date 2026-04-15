@@ -124,7 +124,7 @@ pub async fn handle_webauthn_complete(
             .into_response();
     };
 
-    match user_provider.find_by_id(verified_user_id.as_str()).await {
+    match user_provider.find_by_id(&verified_user_id).await {
         Ok(Some(_)) => {
             let authorization_code = generate_secure_token("auth_code");
 

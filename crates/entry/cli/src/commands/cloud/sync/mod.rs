@@ -198,7 +198,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         direction,
         dry_run: args.dry_run,
         verbose: args.verbose,
-        tenant_id: tenant_id.clone(),
+        tenant_id: systemprompt_identifiers::TenantId::new(tenant_id),
         api_url: creds.api_url.clone(),
         api_token: creds.api_token.clone(),
         services_path,

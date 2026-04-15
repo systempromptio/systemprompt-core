@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
+use systemprompt_identifiers::UserId;
 
 pub type AuthResult<T> = Result<T, AuthProviderError>;
 
@@ -112,17 +113,17 @@ impl AuthPermission {
 pub trait AuthorizationProvider: Send + Sync {
     async fn authorize(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         resource: &str,
         action: &AuthAction,
     ) -> AuthResult<bool>;
-    async fn get_permissions(&self, user_id: &str) -> AuthResult<Vec<AuthPermission>>;
+    async fn get_permissions(&self, user_id: &UserId) -> AuthResult<Vec<AuthPermission>>;
     async fn has_audience(&self, token: &str, audience: &str) -> AuthResult<bool>;
 }
 
 #[derive(Debug, Clone)]
 pub struct AuthUser {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub roles: Vec<String>,
@@ -131,7 +132,7 @@ pub struct AuthUser {
 
 #[async_trait]
 pub trait UserProvider: Send + Sync {
-    async fn find_by_id(&self, id: &str) -> AuthResult<Option<AuthUser>>;
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>>;
     async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>>;
     async fn find_by_name(&self, name: &str) -> AuthResult<Option<AuthUser>>;
     async fn create_user(
@@ -141,14 +142,14 @@ pub trait UserProvider: Send + Sync {
         full_name: Option<&str>,
     ) -> AuthResult<AuthUser>;
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser>;
-    async fn assign_roles(&self, user_id: &str, roles: &[String]) -> AuthResult<()>;
+    async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()>;
 }
 
 #[async_trait]
 pub trait RoleProvider: Send + Sync {
-    async fn get_roles(&self, user_id: &str) -> AuthResult<Vec<String>>;
-    async fn assign_role(&self, user_id: &str, role: &str) -> AuthResult<()>;
-    async fn revoke_role(&self, user_id: &str, role: &str) -> AuthResult<()>;
+    async fn get_roles(&self, user_id: &UserId) -> AuthResult<Vec<String>>;
+    async fn assign_role(&self, user_id: &UserId, role: &str) -> AuthResult<()>;
+    async fn revoke_role(&self, user_id: &UserId, role: &str) -> AuthResult<()>;
     async fn list_users_by_role(&self, role: &str) -> AuthResult<Vec<AuthUser>>;
 }
 

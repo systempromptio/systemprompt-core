@@ -95,7 +95,11 @@ impl SyncApiClient {
             .min(self.retry_config.max_delay)
     }
 
-    pub async fn upload_files(&self, tenant_id: &str, data: Vec<u8>) -> SyncResult<UploadResponse> {
+    pub async fn upload_files(
+        &self,
+        tenant_id: &systemprompt_identifiers::TenantId,
+        data: Vec<u8>,
+    ) -> SyncResult<UploadResponse> {
         let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
             (
                 format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
@@ -138,7 +142,10 @@ impl SyncApiClient {
         })
     }
 
-    pub async fn download_files(&self, tenant_id: &str) -> SyncResult<Vec<u8>> {
+    pub async fn download_files(
+        &self,
+        tenant_id: &systemprompt_identifiers::TenantId,
+    ) -> SyncResult<Vec<u8>> {
         let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
             (
                 format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
@@ -179,7 +186,10 @@ impl SyncApiClient {
         })
     }
 
-    pub async fn get_registry_token(&self, tenant_id: &str) -> SyncResult<RegistryToken> {
+    pub async fn get_registry_token(
+        &self,
+        tenant_id: &systemprompt_identifiers::TenantId,
+    ) -> SyncResult<RegistryToken> {
         let url = format!(
             "{}/api/v1/cloud/tenants/{}/registry-token",
             self.api_url, tenant_id
@@ -187,13 +197,20 @@ impl SyncApiClient {
         self.get(&url).await
     }
 
-    pub async fn deploy(&self, tenant_id: &str, image: &str) -> SyncResult<DeployResponse> {
+    pub async fn deploy(
+        &self,
+        tenant_id: &systemprompt_identifiers::TenantId,
+        image: &str,
+    ) -> SyncResult<DeployResponse> {
         let url = format!("{}/api/v1/cloud/tenants/{}/deploy", self.api_url, tenant_id);
         self.post(&url, &serde_json::json!({ "image": image }))
             .await
     }
 
-    pub async fn get_tenant_app_id(&self, tenant_id: &str) -> SyncResult<String> {
+    pub async fn get_tenant_app_id(
+        &self,
+        tenant_id: &systemprompt_identifiers::TenantId,
+    ) -> SyncResult<String> {
         #[derive(Deserialize)]
         struct TenantInfo {
             fly_app_name: Option<String>,
@@ -203,7 +220,10 @@ impl SyncApiClient {
         info.fly_app_name.ok_or(SyncError::TenantNoApp)
     }
 
-    pub async fn get_database_url(&self, tenant_id: &str) -> SyncResult<String> {
+    pub async fn get_database_url(
+        &self,
+        tenant_id: &systemprompt_identifiers::TenantId,
+    ) -> SyncResult<String> {
         #[derive(Deserialize)]
         struct DatabaseInfo {
             database_url: Option<String>,

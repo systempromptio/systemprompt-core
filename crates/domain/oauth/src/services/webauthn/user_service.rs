@@ -30,7 +30,7 @@ impl UserCreationService {
             .await
             .map_err(|e| anyhow::anyhow!("{}", e))?
         {
-            return Ok(existing_user.id);
+            return Ok(existing_user.id.as_str().to_string());
         }
 
         let roles = roles.unwrap_or_else(|| vec!["user".to_string()]);
@@ -46,7 +46,7 @@ impl UserCreationService {
             .await
             .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-        Ok(user.id)
+        Ok(user.id.as_str().to_string())
     }
 
     pub async fn create_user_with_webauthn_registration(

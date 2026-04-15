@@ -55,7 +55,7 @@ impl ArtifactRepository {
             artifact.metadata.tool_name.as_deref(),
             artifact.metadata.mcp_execution_id.as_deref(),
             artifact.metadata.fingerprint.as_deref(),
-            artifact.metadata.skill_id.as_ref().map(|id| id.as_str()),
+            artifact.metadata.skill_id.as_ref().map(systemprompt_identifiers::SkillId::as_str),
             artifact.metadata.skill_name.as_deref(),
             metadata_json,
             now

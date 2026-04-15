@@ -137,7 +137,7 @@ impl SessionCreationService {
     ) -> Result<SessionId, SessionCreationError> {
         let user = self
             .user_provider
-            .find_by_id(user_id.as_str())
+            .find_by_id(user_id)
             .await
             .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
 

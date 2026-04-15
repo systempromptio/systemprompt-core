@@ -48,7 +48,7 @@ pub enum AgentEvent {
 }
 
 impl AgentEvent {
-    pub fn agent_id(&self) -> Option<&AgentId> {
+    pub const fn agent_id(&self) -> Option<&AgentId> {
         match self {
             Self::AgentStartRequested { agent_id }
             | Self::AgentStartCompleted { agent_id, .. }

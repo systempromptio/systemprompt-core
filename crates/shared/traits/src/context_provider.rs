@@ -1,8 +1,7 @@
-//! Context provider trait for accessing user contexts.
-
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -22,8 +21,8 @@ pub enum ContextProviderError {
 
 #[derive(Debug, Clone)]
 pub struct ContextWithStats {
-    pub context_id: String,
-    pub user_id: String,
+    pub context_id: ContextId,
+    pub user_id: UserId,
     pub name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -36,33 +35,33 @@ pub struct ContextWithStats {
 pub trait ContextProvider: Send + Sync {
     async fn list_contexts_with_stats(
         &self,
-        user_id: &str,
+        user_id: &UserId,
     ) -> Result<Vec<ContextWithStats>, ContextProviderError>;
 
     async fn get_context(
         &self,
-        context_id: &str,
-        user_id: &str,
+        context_id: &ContextId,
+        user_id: &UserId,
     ) -> Result<ContextWithStats, ContextProviderError>;
 
     async fn create_context(
         &self,
-        user_id: &str,
-        session_id: Option<&str>,
+        user_id: &UserId,
+        session_id: Option<&SessionId>,
         name: &str,
-    ) -> Result<String, ContextProviderError>;
+    ) -> Result<ContextId, ContextProviderError>;
 
     async fn update_context_name(
         &self,
-        context_id: &str,
-        user_id: &str,
+        context_id: &ContextId,
+        user_id: &UserId,
         name: &str,
     ) -> Result<(), ContextProviderError>;
 
     async fn delete_context(
         &self,
-        context_id: &str,
-        user_id: &str,
+        context_id: &ContextId,
+        user_id: &UserId,
     ) -> Result<(), ContextProviderError>;
 }
 

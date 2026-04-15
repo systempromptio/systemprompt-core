@@ -18,7 +18,7 @@ impl UserProviderImpl {
 impl From<crate::User> for AuthUser {
     fn from(user: crate::User) -> Self {
         Self {
-            id: user.id.to_string(),
+            id: UserId::new(user.id.to_string()),
             name: user.name,
             email: user.email,
             roles: user.roles,
@@ -29,10 +29,9 @@ impl From<crate::User> for AuthUser {
 
 #[async_trait]
 impl UserProvider for UserProviderImpl {
-    async fn find_by_id(&self, id: &str) -> AuthResult<Option<AuthUser>> {
-        let user_id = UserId::new(id.to_string());
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
         self.user_service
-            .find_by_id(&user_id)
+            .find_by_id(id)
             .await
             .map(|opt| opt.map(AuthUser::from))
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
@@ -75,10 +74,9 @@ impl UserProvider for UserProviderImpl {
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
-    async fn assign_roles(&self, user_id: &str, roles: &[String]) -> AuthResult<()> {
-        let id = UserId::new(user_id.to_string());
+    async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()> {
         self.user_service
-            .assign_roles(&id, roles)
+            .assign_roles(user_id, roles)
             .await
             .map(|_| ())
             .map_err(|e| AuthProviderError::Internal(e.to_string()))

@@ -25,13 +25,13 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
 }
 
 fn show_skill_detail(
-    skill_id: &str,
+    skill_name: &str,
     skills_path: &Path,
 ) -> Result<CommandResult<SkillDetailOutput>> {
-    let skill_dir = skills_path.join(skill_id);
+    let skill_dir = skills_path.join(skill_name);
 
     if !skill_dir.exists() {
-        return Err(anyhow!("Skill '{}' not found", skill_id));
+        return Err(anyhow!("Skill '{}' not found", skill_name));
     }
 
     let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
@@ -39,7 +39,7 @@ fn show_skill_detail(
     if !config_path.exists() {
         return Err(anyhow!(
             "Skill '{}' has no {} file",
-            skill_id,
+            skill_name,
             SKILL_CONFIG_FILENAME
         ));
     }
@@ -54,7 +54,7 @@ fn show_skill_detail(
         };
 
     let output = SkillDetailOutput {
-        skill_id: skill_id.to_string(),
+        skill_id: skill_name.to_string(),
         name: parsed.name.clone(),
         display_name: parsed.name,
         description: parsed.description,
@@ -65,5 +65,5 @@ fn show_skill_detail(
         instructions_preview,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Skill: {}", skill_id)))
+    Ok(CommandResult::card(output).with_title(format!("Skill: {}", skill_name)))
 }

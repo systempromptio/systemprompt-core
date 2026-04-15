@@ -30,7 +30,7 @@ pub async fn stream_context_state(
 
     match state
         .context_provider
-        .list_contexts_with_stats(&user_id_str)
+        .list_contexts_with_stats(&user_id)
         .await
     {
         Ok(contexts_with_stats) => {

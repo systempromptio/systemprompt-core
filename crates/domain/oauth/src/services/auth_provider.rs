@@ -93,14 +93,17 @@ impl JwtAuthorizationProvider {
 impl AuthorizationProvider for JwtAuthorizationProvider {
     async fn authorize(
         &self,
-        _user_id: &str,
+        _user_id: &systemprompt_identifiers::UserId,
         _resource: &str,
         _action: &AuthAction,
     ) -> AuthResult<bool> {
         Ok(true)
     }
 
-    async fn get_permissions(&self, _user_id: &str) -> AuthResult<Vec<AuthPermission>> {
+    async fn get_permissions(
+        &self,
+        _user_id: &systemprompt_identifiers::UserId,
+    ) -> AuthResult<Vec<AuthPermission>> {
         Ok(vec![])
     }
 

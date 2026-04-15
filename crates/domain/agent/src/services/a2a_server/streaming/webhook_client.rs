@@ -198,7 +198,7 @@ impl WebhookContext {
         }
     }
 
-    pub fn user_id(&self) -> &UserId {
+    pub const fn user_id(&self) -> &UserId {
         &self.user_id
     }
 

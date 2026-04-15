@@ -11,9 +11,8 @@ use crate::models::{User, UserRole};
 
 #[async_trait]
 impl UserProvider for UserService {
-    async fn find_by_id(&self, id: &str) -> AuthResult<Option<AuthUser>> {
-        let user_id = UserId::new(id);
-        self.find_by_id(&user_id)
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
+        self.find_by_id(id)
             .await
             .map(|opt| opt.map(|u| user_to_auth_user(&u)))
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
@@ -52,9 +51,8 @@ impl UserProvider for UserService {
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
-    async fn assign_roles(&self, user_id: &str, roles: &[String]) -> AuthResult<()> {
-        let id = UserId::new(user_id);
-        Self::assign_roles(self, &id, roles)
+    async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()> {
+        Self::assign_roles(self, user_id, roles)
             .await
             .map(|_| ())
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
@@ -63,7 +61,7 @@ impl UserProvider for UserService {
 
 fn user_to_auth_user(user: &User) -> AuthUser {
     AuthUser {
-        id: user.id.to_string(),
+        id: UserId::new(user.id.to_string()),
         name: user.name.clone(),
         email: user.email.clone(),
         roles: user.roles.clone(),
@@ -73,18 +71,16 @@ fn user_to_auth_user(user: &User) -> AuthUser {
 
 #[async_trait]
 impl RoleProvider for UserService {
-    async fn get_roles(&self, user_id: &str) -> AuthResult<Vec<String>> {
-        let id = UserId::new(user_id);
-        match Self::find_by_id(self, &id).await {
+    async fn get_roles(&self, user_id: &UserId) -> AuthResult<Vec<String>> {
+        match Self::find_by_id(self, user_id).await {
             Ok(Some(user)) => Ok(user.roles),
             Ok(None) => Err(AuthProviderError::UserNotFound),
             Err(e) => Err(AuthProviderError::Internal(e.to_string())),
         }
     }
 
-    async fn assign_role(&self, user_id: &str, role: &str) -> AuthResult<()> {
-        let id = UserId::new(user_id);
-        let user = match Self::find_by_id(self, &id).await {
+    async fn assign_role(&self, user_id: &UserId, role: &str) -> AuthResult<()> {
+        let user = match Self::find_by_id(self, user_id).await {
             Ok(Some(u)) => u,
             Ok(None) => return Err(AuthProviderError::UserNotFound),
             Err(e) => return Err(AuthProviderError::Internal(e.to_string())),
@@ -96,15 +92,14 @@ impl RoleProvider for UserService {
             roles.push(role_str);
         }
 
-        Self::assign_roles(self, &id, &roles)
+        Self::assign_roles(self, user_id, &roles)
             .await
             .map(|_| ())
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
-    async fn revoke_role(&self, user_id: &str, role: &str) -> AuthResult<()> {
-        let id = UserId::new(user_id);
-        let user = match Self::find_by_id(self, &id).await {
+    async fn revoke_role(&self, user_id: &UserId, role: &str) -> AuthResult<()> {
+        let user = match Self::find_by_id(self, user_id).await {
             Ok(Some(u)) => u,
             Ok(None) => return Err(AuthProviderError::UserNotFound),
             Err(e) => return Err(AuthProviderError::Internal(e.to_string())),
@@ -112,7 +107,7 @@ impl RoleProvider for UserService {
 
         let roles: Vec<String> = user.roles.into_iter().filter(|r| r != role).collect();
 
-        Self::assign_roles(self, &id, &roles)
+        Self::assign_roles(self, user_id, &roles)
             .await
             .map(|_| ())
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
