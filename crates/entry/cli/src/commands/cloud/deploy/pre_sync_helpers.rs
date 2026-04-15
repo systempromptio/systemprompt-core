@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CloudApiClient, CloudPath, ProfilePath, TenantStore, get_cloud_paths};
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 use systemprompt_sync::{FileDiffStatus, SyncDiffResult, SyncOperationResult};
 
@@ -81,7 +82,7 @@ fn display_file_list(details: &serde_json::Value) {
 }
 
 pub async fn setup_sync_token(
-    tenant_id: &str,
+    tenant_id: &TenantId,
     yes: bool,
     cli_config: &CliConfig,
     profile_path: &Path,
@@ -95,7 +96,7 @@ pub async fn setup_sync_token(
     CliService::warning("Sync token not configured in profile secrets");
 
     let stored_token = tenant_store
-        .find_tenant(tenant_id)
+        .find_tenant(tenant_id.as_str())
         .and_then(|t| t.sync_token.clone());
 
     let token = if let Some(token) = stored_token {
@@ -120,13 +121,13 @@ pub async fn setup_sync_token(
 
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
         let spinner = CliService::spinner("Generating sync token...");
-        let response = client.rotate_sync_token(tenant_id).await?;
+        let response = client.rotate_sync_token(tenant_id.as_str()).await?;
         spinner.finish_and_clear();
 
         let token = response.sync_token;
         CliService::success("Sync token generated");
 
-        if let Some(tenant) = tenant_store.tenants.iter_mut().find(|t| t.id == tenant_id) {
+        if let Some(tenant) = tenant_store.tenants.iter_mut().find(|t| t.id == tenant_id.as_str()) {
             tenant.sync_token = Some(token.clone());
         }
         tenant_store.save_to_path(&tenants_path)?;

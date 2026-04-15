@@ -40,10 +40,10 @@ pub async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOut
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let keys = if config.is_json_output() {
-        client.set_secrets(&tenant_id, env_secrets).await?
+        client.set_secrets(tenant_id.as_str(), env_secrets).await?
     } else {
         let spinner = CliService::spinner("Syncing secrets...");
-        match client.set_secrets(&tenant_id, env_secrets).await {
+        match client.set_secrets(tenant_id.as_str(), env_secrets).await {
             Ok(keys) => {
                 spinner.finish_and_clear();
                 CliService::success(&format!("Synced {} secrets", keys.len()));
@@ -111,10 +111,10 @@ pub async fn set_secrets(
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let keys = if config.is_json_output() {
-        client.set_secrets(&tenant_id, secrets).await?
+        client.set_secrets(tenant_id.as_str(), secrets).await?
     } else {
         let spinner = CliService::spinner("Setting secrets...");
-        match client.set_secrets(&tenant_id, secrets).await {
+        match client.set_secrets(tenant_id.as_str(), secrets).await {
             Ok(keys) => {
                 spinner.finish_and_clear();
                 CliService::success(&format!("Set {} secrets", keys.len()));
@@ -166,13 +166,13 @@ pub async fn unset_secrets(
 
     for key in &uppercase_keys {
         if config.is_json_output() {
-            match client.unset_secret(&tenant_id, key).await {
+            match client.unset_secret(tenant_id.as_str(), key).await {
                 Ok(()) => removed.push(key.clone()),
                 Err(e) => errors.push((key.clone(), e.to_string())),
             }
         } else {
             let spinner = CliService::spinner(&format!("Removing {key}..."));
-            match client.unset_secret(&tenant_id, key).await {
+            match client.unset_secret(tenant_id.as_str(), key).await {
                 Ok(()) => {
                     spinner.finish_and_clear();
                     removed.push(key.clone());
@@ -227,13 +227,13 @@ pub async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<Secrets
 
     for key in keys_to_remove {
         if config.is_json_output() {
-            match client.unset_secret(&tenant_id, key).await {
+            match client.unset_secret(tenant_id.as_str(), key).await {
                 Ok(()) => removed.push(key.to_string()),
                 Err(e) => errors.push((key, e.to_string())),
             }
         } else {
             let spinner = CliService::spinner(&format!("Removing {key}..."));
-            match client.unset_secret(&tenant_id, key).await {
+            match client.unset_secret(tenant_id.as_str(), key).await {
                 Ok(()) => {
                     spinner.finish_and_clear();
                     removed.push(key.to_string());

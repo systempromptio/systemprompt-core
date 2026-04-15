@@ -6,6 +6,7 @@ use systemprompt_cloud::constants::regions::AVAILABLE;
 use systemprompt_cloud::{
     CheckoutTemplates, CloudApiClient, CloudCredentials, StoredTenant, TenantType,
 };
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 use url::Url;
 
@@ -47,13 +48,11 @@ pub async fn create_cloud_tenant(
     };
 
     let result = run_checkout_callback_flow(&client, &checkout.checkout_url, templates).await?;
-    CliService::success(&format!(
-        "Checkout complete! Tenant ID: {}",
-        result.tenant_id
-    ));
+    let tenant_id = TenantId::new(&result.tenant_id);
+    CliService::success(&format!("Checkout complete! Tenant ID: {}", tenant_id));
 
     let spinner = CliService::spinner("Waiting for infrastructure provisioning...");
-    wait_for_provisioning(&client, &result.tenant_id, |event| {
+    wait_for_provisioning(&client, tenant_id.as_str(), |event| {
         if let Some(msg) = &event.message {
             CliService::info(msg);
         }
@@ -62,14 +61,14 @@ pub async fn create_cloud_tenant(
     spinner.finish_and_clear();
     CliService::success("Tenant provisioned successfully");
 
-    let (internal_database_url, sync_token) = fetch_credentials(&client, &result.tenant_id).await?;
+    let (internal_database_url, sync_token) = fetch_credentials(&client, &tenant_id).await?;
 
     let (external_db_access, external_database_url) =
-        configure_external_access(&client, &result.tenant_id, &internal_database_url).await?;
+        configure_external_access(&client, &tenant_id, &internal_database_url).await?;
 
     let stored_tenant = build_stored_tenant(
         &client,
-        &result.tenant_id,
+        &tenant_id,
         TenantDatabaseConfig {
             external_database_url,
             internal_database_url,
@@ -94,7 +93,7 @@ pub async fn create_cloud_tenant(
     if result.needs_deploy {
         CliService::section("Initial Deploy");
         CliService::info("Deploying your code with profile configuration...");
-        deploy_with_secrets(&client, &result.tenant_id, &profile.name).await?;
+        deploy_with_secrets(&client, &tenant_id, &profile.name).await?;
     }
 
     warn_required_secrets(&validation.required_secrets);
@@ -139,10 +138,10 @@ fn select_region() -> Result<&'static str> {
 
 async fn fetch_credentials(
     client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
 ) -> Result<(String, Option<String>)> {
     let spinner = CliService::spinner("Fetching database credentials...");
-    let status = client.get_tenant_status(tenant_id).await?;
+    let status = client.get_tenant_status(tenant_id.as_str()).await?;
     let secrets_url = status
         .secrets_url
         .ok_or_else(|| anyhow!("Tenant is ready but secrets URL is missing"))?;
@@ -154,7 +153,7 @@ async fn fetch_credentials(
 
 async fn configure_external_access(
     client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
     internal_database_url: &str,
 ) -> Result<(bool, Option<String>)> {
     CliService::section("Database Access");
@@ -174,7 +173,7 @@ async fn configure_external_access(
     }
 
     let spinner = CliService::spinner("Enabling external database access...");
-    match client.set_external_db_access(tenant_id, true).await {
+    match client.set_external_db_access(tenant_id.as_str(), true).await {
         Ok(_) => {
             let external_url = swap_to_external_host(internal_database_url);
             spinner.finish_and_clear();
@@ -200,7 +199,7 @@ struct TenantDatabaseConfig {
 
 async fn build_stored_tenant(
     client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
     db_config: TenantDatabaseConfig,
 ) -> Result<StoredTenant> {
     let spinner = CliService::spinner("Syncing new tenant...");
@@ -210,7 +209,7 @@ async fn build_stored_tenant(
     let new_tenant = response
         .tenants
         .iter()
-        .find(|t| t.id == tenant_id)
+        .find(|t| t.id == tenant_id.as_str())
         .ok_or_else(|| anyhow!("New tenant not found after checkout"))?;
 
     Ok(StoredTenant {

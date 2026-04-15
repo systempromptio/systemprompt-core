@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CloudApiClient, CloudPath, ProfilePath, TenantStore, get_cloud_paths};
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{
@@ -39,7 +40,7 @@ impl PreSyncResult {
 }
 
 pub async fn execute(
-    tenant_id: &str,
+    tenant_id: &TenantId,
     config: PreSyncConfig,
     cli_config: &CliConfig,
     profile_path: &Path,
@@ -161,7 +162,7 @@ fn display_diff(diff: &SyncDiffResult) {
 }
 
 async fn build_sync_config(
-    tenant_id: &str,
+    tenant_id: &TenantId,
     dry_run: bool,
     yes: bool,
     cli_config: &CliConfig,
@@ -175,7 +176,7 @@ async fn build_sync_config(
     let mut tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
 
-    let tenant = tenant_store.find_tenant(tenant_id);
+    let tenant = tenant_store.find_tenant(tenant_id.as_str());
     let hostname = tenant.and_then(|t| t.hostname.clone());
 
     if hostname.is_none() {
@@ -193,7 +194,7 @@ async fn build_sync_config(
     let local_services_path = project.as_path().join("services");
 
     let sync_config = SyncConfigBuilder::new(
-        tenant_id,
+        tenant_id.as_str(),
         &creds.api_url,
         &creds.api_token,
         local_services_path.to_string_lossy(),
@@ -211,7 +212,7 @@ async fn build_sync_config(
 }
 
 async fn setup_sync_token(
-    tenant_id: &str,
+    tenant_id: &TenantId,
     yes: bool,
     cli_config: &CliConfig,
     profile_path: &Path,
@@ -225,7 +226,7 @@ async fn setup_sync_token(
     CliService::warning("Sync token not configured in profile secrets");
 
     let stored_token = tenant_store
-        .find_tenant(tenant_id)
+        .find_tenant(tenant_id.as_str())
         .and_then(|t| t.sync_token.clone());
 
     let token = if let Some(token) = stored_token {
@@ -250,13 +251,13 @@ async fn setup_sync_token(
 
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
         let spinner = CliService::spinner("Generating sync token...");
-        let response = client.rotate_sync_token(tenant_id).await?;
+        let response = client.rotate_sync_token(tenant_id.as_str()).await?;
         spinner.finish_and_clear();
 
         let token = response.sync_token;
         CliService::success("Sync token generated");
 
-        if let Some(tenant) = tenant_store.tenants.iter_mut().find(|t| t.id == tenant_id) {
+        if let Some(tenant) = tenant_store.tenants.iter_mut().find(|t| t.id == tenant_id.as_str()) {
             tenant.sync_token = Some(token.clone());
         }
         tenant_store.save_to_path(&tenants_path)?;

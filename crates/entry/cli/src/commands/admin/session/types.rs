@@ -1,13 +1,14 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{ContextId, SessionId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SessionInfo {
     pub key: String,
     pub profile_name: String,
     pub user_email: String,
-    pub session_id: String,
-    pub context_id: String,
+    pub session_id: Option<SessionId>,
+    pub context_id: Option<ContextId>,
     pub is_active: bool,
     pub is_expired: bool,
     pub expires_in: Option<String>,

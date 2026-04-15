@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TaskId;
 use systemprompt_logging::TraceQueryService;
 
 use super::audit_display::render_text_output;
@@ -32,7 +33,7 @@ pub struct AuditOutput {
     pub output_tokens: i32,
     pub cost_dollars: f64,
     pub latency_ms: i64,
-    pub task_id: Option<String>,
+    pub task_id: Option<TaskId>,
     pub trace_id: Option<String>,
     pub messages: Vec<MessageRow>,
     pub tool_calls: Vec<AuditToolCall>,
@@ -75,7 +76,7 @@ async fn execute_with_pool_inner(
         output_tokens: row.output_tokens.unwrap_or(0),
         cost_dollars: row.cost_microdollars as f64 / 1_000_000.0,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
-        task_id: row.task_id.map(|id| id.to_string()),
+        task_id: row.task_id,
         trace_id: row.trace_id.map(|id| id.to_string()),
         messages: messages
             .into_iter()

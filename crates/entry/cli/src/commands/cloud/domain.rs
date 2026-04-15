@@ -3,6 +3,7 @@ use clap::Subcommand;
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::CloudApiClient;
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
@@ -35,7 +36,7 @@ pub async fn execute(cmd: DomainCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-fn get_tenant_id() -> Result<String> {
+fn get_tenant_id() -> Result<TenantId> {
     let profile =
         ProfileBootstrap::get().map_err(|_| anyhow::anyhow!("Profile not initialized"))?;
 
@@ -46,7 +47,8 @@ fn get_tenant_id() -> Result<String> {
 
     cloud
         .tenant_id
-        .clone()
+        .as_ref()
+        .map(TenantId::new)
         .ok_or_else(|| anyhow::anyhow!("No tenant_id in profile. Create a cloud tenant first."))
 }
 
@@ -58,7 +60,7 @@ async fn set_domain(domain: String) -> Result<()> {
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner(&format!("Configuring domain {}...", domain));
-    match client.set_custom_domain(&tenant_id, &domain).await {
+    match client.set_custom_domain(tenant_id.as_str(), &domain).await {
         Ok(response) => {
             spinner.finish_and_clear();
 
@@ -100,7 +102,7 @@ async fn get_status() -> Result<()> {
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Checking domain status...");
-    match client.get_custom_domain(&tenant_id).await {
+    match client.get_custom_domain(tenant_id.as_str()).await {
         Ok(response) => {
             spinner.finish_and_clear();
 
@@ -155,7 +157,7 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
-    let domain_name = match client.get_custom_domain(&tenant_id).await {
+    let domain_name = match client.get_custom_domain(tenant_id.as_str()).await {
         Ok(response) => response.domain,
         Err(e) => {
             let err_str = e.to_string();
@@ -189,7 +191,7 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
     }
 
     let spinner = CliService::spinner(&format!("Removing domain {}...", domain_name));
-    match client.delete_custom_domain(&tenant_id).await {
+    match client.delete_custom_domain(tenant_id.as_str()).await {
         Ok(()) => {
             spinner.finish_and_clear();
             CliService::success(&format!(

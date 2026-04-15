@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
 
 pub use systemprompt_models::services::{SkillDetail as SkillDetailOutput, SkillSummary};
@@ -20,14 +21,14 @@ pub enum ListOrDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillCreateOutput {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub message: String,
     pub file_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillEditOutput {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub message: String,
     pub changes: Vec<String>,
 }
@@ -55,7 +56,7 @@ pub struct SkillStatusOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillStatusRow {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub name: String,
     pub on_disk: bool,
     pub in_db: bool,

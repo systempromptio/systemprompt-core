@@ -40,7 +40,7 @@ pub async fn execute(
             }
         }
         skills.push(SkillStatusRow {
-            skill_id: item.skill_id.to_string(),
+            skill_id: item.skill_id.clone(),
             name: item.name.clone().unwrap_or_else(String::new),
             on_disk: true,
             in_db: false,
@@ -55,7 +55,7 @@ pub async fn execute(
             }
         }
         skills.push(SkillStatusRow {
-            skill_id: item.skill_id.to_string(),
+            skill_id: item.skill_id.clone(),
             name: item.name.clone().unwrap_or_else(String::new),
             on_disk: false,
             in_db: true,
@@ -70,7 +70,7 @@ pub async fn execute(
             }
         }
         skills.push(SkillStatusRow {
-            skill_id: item.skill_id.to_string(),
+            skill_id: item.skill_id.clone(),
             name: item.name.clone().unwrap_or_else(String::new),
             on_disk: true,
             in_db: true,
@@ -84,7 +84,7 @@ pub async fn execute(
         diff.unchanged
     };
 
-    skills.sort_by(|a, b| a.skill_id.cmp(&b.skill_id));
+    skills.sort_by(|a, b| a.skill_id.as_str().cmp(b.skill_id.as_str()));
 
     let summary = SkillStatusSummary {
         total: skills.len() + synced_count,

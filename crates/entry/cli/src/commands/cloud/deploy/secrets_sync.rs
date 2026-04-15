@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::{Result, anyhow};
 use systemprompt_cloud::constants::{container, paths};
 use systemprompt_cloud::{CloudApiClient, ProfilePath};
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use super::super::secrets::sync_cloud_credentials;
@@ -10,7 +11,7 @@ use super::super::tenant::get_credentials;
 
 pub async fn sync_secrets_after_deploy(
     api_client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
     profile_name: &str,
     profile_path: &Path,
 ) -> Result<()> {
@@ -25,7 +26,7 @@ pub async fn sync_secrets_after_deploy(
         if !secrets.is_empty() {
             let env_secrets = super::super::secrets::map_secrets_to_env_vars(secrets);
             let spinner = CliService::spinner("Syncing secrets...");
-            let keys = api_client.set_secrets(tenant_id, env_secrets).await?;
+            let keys = api_client.set_secrets(tenant_id.as_str(), env_secrets).await?;
             spinner.finish_and_clear();
             CliService::success(&format!("Synced {} secrets", keys.len()));
         }
@@ -49,7 +50,7 @@ pub async fn sync_secrets_after_deploy(
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
-    api_client.set_secrets(tenant_id, profile_secret).await?;
+    api_client.set_secrets(tenant_id.as_str(), profile_secret).await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");
 
@@ -58,7 +59,7 @@ pub async fn sync_secrets_after_deploy(
 
 pub async fn sync_secrets_for_deploy(
     client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
     profile_name: &str,
 ) -> Result<()> {
     let ctx = systemprompt_cloud::ProjectContext::discover();
@@ -70,7 +71,7 @@ pub async fn sync_secrets_for_deploy(
         if !secrets.is_empty() {
             let env_secrets = super::super::secrets::map_secrets_to_env_vars(secrets);
             let spinner = CliService::spinner("Syncing secrets...");
-            let keys = client.set_secrets(tenant_id, env_secrets).await?;
+            let keys = client.set_secrets(tenant_id.as_str(), env_secrets).await?;
             spinner.finish_and_clear();
             CliService::success(&format!("Synced {} secrets", keys.len()));
         }
@@ -91,7 +92,7 @@ pub async fn sync_secrets_for_deploy(
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
-    client.set_secrets(tenant_id, profile_secret).await?;
+    client.set_secrets(tenant_id.as_str(), profile_secret).await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");
 

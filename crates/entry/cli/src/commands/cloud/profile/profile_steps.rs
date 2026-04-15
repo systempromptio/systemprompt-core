@@ -171,9 +171,9 @@ pub struct RefreshedCredentials {
 
 pub async fn refresh_tenant_credentials(
     client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
 ) -> Result<RefreshedCredentials> {
-    let status = client.get_tenant_status(tenant_id).await?;
+    let status = client.get_tenant_status(tenant_id.as_str()).await?;
     let secrets_url = status
         .secrets_url
         .ok_or_else(|| anyhow::anyhow!("No secrets URL available for tenant"))?;
@@ -209,7 +209,7 @@ pub async fn ensure_unmasked_credentials(
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
-    match refresh_tenant_credentials(&client, &tenant.id).await {
+    match refresh_tenant_credentials(&client, &TenantId::new(&tenant.id)).await {
         Ok(creds) => {
             let mut updated_tenant = tenant.clone();
             updated_tenant.internal_database_url = Some(creds.internal_database_url);

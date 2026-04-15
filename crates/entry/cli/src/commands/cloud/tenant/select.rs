@@ -4,6 +4,7 @@ use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType, get_cloud_paths,
 };
+use systemprompt_identifiers::TenantId;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 pub fn get_credentials() -> Result<CloudCredentials> {
@@ -50,14 +51,14 @@ pub fn select_tenant(tenants: &[StoredTenant]) -> Result<&StoredTenant> {
     Ok(&tenants[selection])
 }
 
-pub fn resolve_tenant_id(tenant_id: Option<String>) -> Result<String> {
+pub fn resolve_tenant_id(tenant_id: Option<String>) -> Result<TenantId> {
     if let Some(id) = tenant_id {
-        return Ok(id);
+        return Ok(TenantId::new(id));
     }
 
     ProfileBootstrap::get()
         .ok()
-        .and_then(|p| p.cloud.as_ref()?.tenant_id.clone())
+        .and_then(|p| p.cloud.as_ref()?.tenant_id.as_ref().map(TenantId::new))
         .ok_or_else(|| {
             anyhow!("No tenant specified. Use --tenant or configure a tenant in your profile.")
         })

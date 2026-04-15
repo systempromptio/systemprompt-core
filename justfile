@@ -9,6 +9,10 @@ default:
 # BUILD & TEST
 # =============================================================================
 
+# Lint: enforce typed identifiers (no raw String/&str for known ID field names)
+lint-raw-ids:
+    ./scripts/lint-raw-ids.sh
+
 # Build workspace
 build:
     cargo build --workspace

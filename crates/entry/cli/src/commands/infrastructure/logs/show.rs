@@ -3,6 +3,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_logging::{CliService, LogEntry, TraceQueryService};
 
 use crate::CliConfig;
@@ -29,13 +30,13 @@ pub struct LogShowOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_id: Option<String>,
+    pub user_id: Option<UserId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub task_id: Option<String>,
+    pub task_id: Option<TaskId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub context_id: Option<String>,
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -85,10 +86,10 @@ fn entry_to_output(entry: &LogEntry) -> LogShowOutput {
         module: entry.module.clone(),
         message: entry.message.clone(),
         metadata: entry.metadata.clone(),
-        user_id: Some(entry.user_id.to_string()),
-        session_id: Some(entry.session_id.to_string()),
-        task_id: entry.task_id.as_ref().map(ToString::to_string),
-        context_id: entry.context_id.as_ref().map(ToString::to_string),
+        user_id: Some(entry.user_id.clone()),
+        session_id: Some(entry.session_id.clone()),
+        task_id: entry.task_id.clone(),
+        context_id: entry.context_id.clone(),
     }
 }
 
@@ -110,16 +111,16 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     CliService::key_value("Message", &output.message);
 
     if let Some(user_id) = &output.user_id {
-        CliService::key_value("User ID", user_id);
+        CliService::key_value("User ID", user_id.as_str());
     }
     if let Some(session_id) = &output.session_id {
-        CliService::key_value("Session ID", session_id);
+        CliService::key_value("Session ID", session_id.as_str());
     }
     if let Some(task_id) = &output.task_id {
-        CliService::key_value("Task ID", task_id);
+        CliService::key_value("Task ID", task_id.as_str());
     }
     if let Some(context_id) = &output.context_id {
-        CliService::key_value("Context ID", context_id);
+        CliService::key_value("Context ID", context_id.as_str());
     }
 
     if let Some(metadata) = &output.metadata {

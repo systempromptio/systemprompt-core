@@ -12,7 +12,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_agent::services::skills::SkillIngestionService;
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
@@ -145,7 +145,7 @@ pub async fn execute(
     };
 
     let output = SkillCreateOutput {
-        skill_id: name.clone(),
+        skill_id: SkillId::new(name.clone()),
         message,
         file_path: skill_path.to_string_lossy().to_string(),
     };

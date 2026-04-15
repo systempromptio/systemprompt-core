@@ -2,9 +2,10 @@ use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
+use systemprompt_identifiers::TenantId;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
-pub fn get_tenant_id() -> Result<String> {
+pub fn get_tenant_id() -> Result<TenantId> {
     let profile =
         ProfileBootstrap::get().map_err(|_| anyhow::anyhow!("Profile not initialized"))?;
 
@@ -15,11 +16,12 @@ pub fn get_tenant_id() -> Result<String> {
 
     cloud
         .tenant_id
-        .clone()
+        .as_ref()
+        .map(TenantId::new)
         .ok_or_else(|| anyhow::anyhow!("No tenant_id in profile. Create a cloud tenant first."))
 }
 
-pub fn get_tenant_and_secrets_path() -> Result<(String, PathBuf)> {
+pub fn get_tenant_and_secrets_path() -> Result<(TenantId, PathBuf)> {
     let tenant_id = get_tenant_id()?;
 
     let profile_path =
@@ -119,7 +121,7 @@ fn is_standard_env_var(key: &str) -> bool {
 
 pub async fn sync_cloud_credentials(
     api_client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
     creds: &CloudCredentials,
 ) -> Result<Vec<String>> {
     let mut secrets = HashMap::new();
@@ -136,5 +138,5 @@ pub async fn sync_cloud_credentials(
 
     secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_string(), "true".to_string());
 
-    api_client.set_secrets(tenant_id, secrets).await
+    api_client.set_secrets(tenant_id.as_str(), secrets).await
 }

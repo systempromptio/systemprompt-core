@@ -23,16 +23,16 @@ pub async fn execute(
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_name = if let Ok(store) = TenantStore::load_from_path(&tenants_path) {
-        if let Some(tenant) = store.find_tenant(&resolved_tenant_id) {
+        if let Some(tenant) = store.find_tenant(resolved_tenant_id.as_str()) {
             if tenant.tenant_type != TenantType::Cloud {
                 bail!("Restart is only available for cloud tenants");
             }
             tenant.name.clone()
         } else {
-            resolved_tenant_id.clone()
+            resolved_tenant_id.to_string()
         }
     } else {
-        resolved_tenant_id.clone()
+        resolved_tenant_id.to_string()
     };
 
     if !yes {
@@ -66,10 +66,10 @@ pub async fn execute(
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let response = if config.is_json_output() {
-        client.restart_tenant(&resolved_tenant_id).await?
+        client.restart_tenant(resolved_tenant_id.as_str()).await?
     } else {
         let spinner = CliService::spinner(&format!("Restarting tenant {}...", tenant_name));
-        match client.restart_tenant(&resolved_tenant_id).await {
+        match client.restart_tenant(resolved_tenant_id.as_str()).await {
             Ok(response) => {
                 spinner.finish_and_clear();
                 response

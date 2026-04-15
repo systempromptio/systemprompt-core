@@ -11,6 +11,7 @@ use systemprompt_cloud::constants::{build, container, paths};
 use systemprompt_cloud::{
     CloudApiClient, CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths,
 };
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use super::dockerfile::validate_profile_dockerfile;
@@ -206,6 +207,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let tenant_id = cloud_config
         .tenant_id
         .as_ref()
+        .map(TenantId::new)
         .ok_or_else(|| anyhow!("No tenant configured. Run 'systemprompt cloud config'"))?;
 
     let creds = get_credentials()?;
@@ -218,7 +220,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
 
-    let tenant = tenant_store.find_tenant(tenant_id).ok_or_else(|| {
+    let tenant = tenant_store.find_tenant(tenant_id.as_str()).ok_or_else(|| {
         anyhow!(
             "Tenant {} not found. Run 'systemprompt cloud login'",
             tenant_id
@@ -228,7 +230,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let tenant_name = &tenant.name;
 
     let sync_result = pre_sync::execute(
-        tenant_id,
+        &tenant_id,
         pre_sync::PreSyncConfig {
             no_sync: args.no_sync,
             yes: args.yes,
@@ -259,7 +261,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Fetching registry credentials...");
-    let registry_token = api_client.get_registry_token(tenant_id).await?;
+    let registry_token = api_client.get_registry_token(tenant_id.as_str()).await?;
     spinner.finish_and_clear();
 
     let image = format!(
@@ -288,7 +290,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     }
 
     let spinner = CliService::spinner("Deploying...");
-    let response = api_client.deploy(tenant_id, &image).await?;
+    let response = api_client.deploy(tenant_id.as_str(), &image).await?;
     spinner.finish_and_clear();
     CliService::success("Deployed!");
     CliService::key_value("Status", &response.status);
@@ -307,7 +309,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
         if !secrets.is_empty() {
             let env_secrets = super::secrets::map_secrets_to_env_vars(secrets);
             let spinner = CliService::spinner("Syncing secrets...");
-            let keys = api_client.set_secrets(tenant_id, env_secrets).await?;
+            let keys = api_client.set_secrets(tenant_id.as_str(), env_secrets).await?;
             spinner.finish_and_clear();
             CliService::success(&format!("Synced {} secrets", keys.len()));
         }
@@ -317,7 +319,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
 
     CliService::section("Syncing Cloud Credentials");
     let spinner = CliService::spinner("Syncing cloud credentials...");
-    let keys = sync_cloud_credentials(&api_client, tenant_id, &creds).await?;
+    let keys = sync_cloud_credentials(&api_client, &tenant_id, &creds).await?;
     spinner.finish_and_clear();
     CliService::success(&format!("Synced {} cloud credentials", keys.len()));
 
@@ -330,7 +332,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
-    api_client.set_secrets(tenant_id, profile_secret).await?;
+    api_client.set_secrets(tenant_id.as_str(), profile_secret).await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");
 

@@ -9,6 +9,7 @@ use super::types::SkillEditOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
+use systemprompt_identifiers::SkillId;
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
@@ -116,7 +117,7 @@ fn edit_skill(
     CliService::success(&format!("Skill '{}' updated successfully", name));
 
     let output = SkillEditOutput {
-        skill_id: name.to_string(),
+        skill_id: SkillId::new(name.to_string()),
         message: format!(
             "Skill '{}' updated successfully with {} change(s)",
             name,
