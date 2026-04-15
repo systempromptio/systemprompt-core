@@ -69,7 +69,7 @@ fn user_count_breakdown_multiple_statuses() {
 }
 
 fn create_test_user_export() -> UserExport {
-    UserExport { id: "user-export-123".to_string(), name: "exportuser".to_string(), email: "export@example.com".to_string(), full_name: Some("Export User".to_string()), display_name: Some("Export".to_string()), status: Some("active".to_string()), email_verified: Some(true), roles: vec!["user".to_string()], is_bot: false, is_scanner: false, created_at: Some(Utc::now()), updated_at: Some(Utc::now()) }
+    UserExport { id: "user-export-123".to_string().into(), name: "exportuser".to_string(), email: "export@example.com".to_string(), full_name: Some("Export User".to_string()), display_name: Some("Export".to_string()), status: Some("active".to_string()), email_verified: Some(true), roles: vec!["user".to_string()], is_bot: false, is_scanner: false, created_at: Some(Utc::now()), updated_at: Some(Utc::now()) }
 }
 
 #[test] fn user_export_creation() { let e = create_test_user_export(); assert_eq!(e.id, "user-export-123"); assert_eq!(e.name, "exportuser"); assert_eq!(e.email, "export@example.com"); }
@@ -79,7 +79,7 @@ fn create_test_user_export() -> UserExport {
 fn user_export_from_user_conversion() {
     let user = User { id: UserId::new("user-456".to_string()), name: "testuser".to_string(), email: "test@example.com".to_string(), full_name: Some("Test User".to_string()), display_name: Some("Test".to_string()), status: Some("active".to_string()), email_verified: Some(true), roles: vec!["user".to_string(), "admin".to_string()], avatar_url: Some("https://example.com/avatar.png".to_string()), is_bot: false, is_scanner: true, created_at: Some(Utc::now()), updated_at: Some(Utc::now()) };
     let export: UserExport = user.clone().into();
-    assert_eq!(export.id, user.id.to_string()); assert_eq!(export.name, user.name); assert_eq!(export.email, user.email);
+    assert_eq!(export.id, user.id); assert_eq!(export.name, user.name); assert_eq!(export.email, user.email);
     assert_eq!(export.full_name, user.full_name); assert_eq!(export.display_name, user.display_name);
     assert_eq!(export.status, user.status); assert_eq!(export.email_verified, user.email_verified);
     assert_eq!(export.roles, user.roles); assert_eq!(export.is_bot, user.is_bot); assert_eq!(export.is_scanner, user.is_scanner);
@@ -95,7 +95,7 @@ fn user_export_from_user_with_none_fields() {
 
 #[test]
 fn user_export_with_empty_roles() {
-    let export = UserExport { id: "user-empty-roles".to_string(), name: "emptyroles".to_string(), email: "empty@example.com".to_string(), full_name: None, display_name: None, status: None, email_verified: None, roles: vec![], is_bot: false, is_scanner: false, created_at: None, updated_at: None };
+    let export = UserExport { id: "user-empty-roles".to_string().into(), name: "emptyroles".to_string(), email: "empty@example.com".to_string(), full_name: None, display_name: None, status: None, email_verified: None, roles: vec![], is_bot: false, is_scanner: false, created_at: None, updated_at: None };
     assert!(export.roles.is_empty());
 }
 

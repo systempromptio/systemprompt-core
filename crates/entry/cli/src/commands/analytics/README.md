@@ -1239,3 +1239,10 @@ sp --json analytics tools list | jq '.tools[] | select(.success_rate < 90)'
 - [x] JSON output supported via `--json` flag
 - [x] CSV export supported via `--export` flag
 - [x] Common time range flags (`--since`, `--until`) across all commands
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

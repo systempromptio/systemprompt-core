@@ -800,3 +800,10 @@ sp --json users session list johndoe | jq '.sessions[] | select(.is_active == tr
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing required flags
 - [x] All user identifiers accept username, email, or UUID
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

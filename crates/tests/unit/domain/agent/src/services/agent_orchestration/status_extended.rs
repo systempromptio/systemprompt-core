@@ -113,7 +113,7 @@ fn test_validation_report_default_equals_new() {
 fn test_agent_runtime_config_various_ports() {
     for port in [0u16, 80, 443, 8080, 65535] {
         let config = AgentRuntimeConfig {
-            id: format!("port-{}", port),
+            id: format!("port-{}", port).into(),
             name: format!("Agent on port {}", port),
             port,
         };
@@ -124,7 +124,7 @@ fn test_agent_runtime_config_various_ports() {
 #[test]
 fn test_agent_info_construction() {
     let info = AgentInfo {
-        id: "info-1".to_string(),
+        id: "info-1".to_string().into(),
         name: "Test Agent".to_string(),
         status: AgentStatus::Running {
             pid: 100,
@@ -141,7 +141,7 @@ fn test_agent_info_construction() {
 #[test]
 fn test_agent_info_with_failed_status() {
     let info = AgentInfo {
-        id: "info-2".to_string(),
+        id: "info-2".to_string().into(),
         name: "Failed Agent".to_string(),
         status: AgentStatus::Failed {
             reason: "crashed".to_string(),
@@ -158,7 +158,7 @@ fn test_agent_info_with_failed_status() {
 #[test]
 fn test_agent_info_clone() {
     let info = AgentInfo {
-        id: "clone-info".to_string(),
+        id: "clone-info".to_string().into(),
         name: "Cloned".to_string(),
         status: AgentStatus::Running {
             pid: 200,
@@ -176,7 +176,7 @@ fn test_agent_info_clone() {
 #[test]
 fn test_agent_info_debug() {
     let info = AgentInfo {
-        id: "debug-info".to_string(),
+        id: "debug-info".to_string().into(),
         name: "Debug".to_string(),
         status: AgentStatus::Running {
             pid: 300,

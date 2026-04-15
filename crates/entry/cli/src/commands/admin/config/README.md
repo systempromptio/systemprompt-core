@@ -461,3 +461,10 @@ sp admin config rate-limits reset --yes
 - [x] JSON output supported via `--json` flag
 - [x] Destructive operations (`reset`) require `--yes` in non-interactive mode
 - [x] `--dry-run` supported for preview
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

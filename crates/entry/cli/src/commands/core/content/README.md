@@ -765,3 +765,10 @@ sp --json content popular --source blog | jq '.items[] | {title, kind}'
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
 - [x] Uses `config.is_interactive()` for interactive checks
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

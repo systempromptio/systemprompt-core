@@ -10,21 +10,21 @@ use systemprompt_security::ValidatedSessionClaims;
 #[test]
 fn test_validated_session_claims_creation() {
     let claims = ValidatedSessionClaims {
-        user_id: "user_123".to_string(),
-        session_id: "session_456".to_string(),
+        user_id: "user_123".to_string().into(),
+        session_id: "session_456".to_string().into(),
         user_type: UserType::User,
     };
 
-    assert_eq!(claims.user_id, "user_123");
-    assert_eq!(claims.session_id, "session_456");
+    assert_eq!(claims.user_id.as_str(), "user_123");
+    assert_eq!(claims.session_id.as_str(), "session_456");
     assert_eq!(claims.user_type, UserType::User);
 }
 
 #[test]
 fn test_validated_session_claims_admin_user_type() {
     let claims = ValidatedSessionClaims {
-        user_id: "admin_user".to_string(),
-        session_id: "admin_session".to_string(),
+        user_id: "admin_user".to_string().into(),
+        session_id: "admin_session".to_string().into(),
         user_type: UserType::Admin,
     };
 
@@ -34,8 +34,8 @@ fn test_validated_session_claims_admin_user_type() {
 #[test]
 fn test_validated_session_claims_anon_user_type() {
     let claims = ValidatedSessionClaims {
-        user_id: "anonymous".to_string(),
-        session_id: "anon_session".to_string(),
+        user_id: "anonymous".to_string().into(),
+        session_id: "anon_session".to_string().into(),
         user_type: UserType::Anon,
     };
 
@@ -45,8 +45,8 @@ fn test_validated_session_claims_anon_user_type() {
 #[test]
 fn test_validated_session_claims_debug() {
     let claims = ValidatedSessionClaims {
-        user_id: "user".to_string(),
-        session_id: "session".to_string(),
+        user_id: "user".to_string().into(),
+        session_id: "session".to_string().into(),
         user_type: UserType::User,
     };
 
@@ -59,8 +59,8 @@ fn test_validated_session_claims_debug() {
 #[test]
 fn test_validated_session_claims_clone() {
     let original = ValidatedSessionClaims {
-        user_id: "user_original".to_string(),
-        session_id: "session_original".to_string(),
+        user_id: "user_original".to_string().into(),
+        session_id: "session_original".to_string().into(),
         user_type: UserType::User,
     };
 
@@ -74,35 +74,35 @@ fn test_validated_session_claims_clone() {
 #[test]
 fn test_validated_session_claims_empty_strings() {
     let claims = ValidatedSessionClaims {
-        user_id: String::new(),
-        session_id: String::new(),
+        user_id: String::new().into(),
+        session_id: String::new().into(),
         user_type: UserType::Anon,
     };
 
-    assert!(claims.user_id.is_empty());
-    assert!(claims.session_id.is_empty());
+    assert!(claims.user_id.as_str().is_empty());
+    assert!(claims.session_id.as_str().is_empty());
 }
 
 #[test]
 fn test_validated_session_claims_uuid_format() {
     let claims = ValidatedSessionClaims {
-        user_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-        session_id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8".to_string(),
+        user_id: "550e8400-e29b-41d4-a716-446655440000".to_string().into(),
+        session_id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8".to_string().into(),
         user_type: UserType::User,
     };
 
-    assert_eq!(claims.user_id.len(), 36);
-    assert_eq!(claims.session_id.len(), 36);
+    assert_eq!(claims.user_id.as_str().len(), 36);
+    assert_eq!(claims.session_id.as_str().len(), 36);
 }
 
 #[test]
 fn test_validated_session_claims_special_characters() {
     let claims = ValidatedSessionClaims {
-        user_id: "user_with-special.chars@domain".to_string(),
-        session_id: "session:with:colons".to_string(),
+        user_id: "user_with-special.chars@domain".to_string().into(),
+        session_id: "session:with:colons".to_string().into(),
         user_type: UserType::User,
     };
 
-    assert!(claims.user_id.contains('@'));
-    assert!(claims.session_id.contains(':'));
+    assert!(claims.user_id.as_str().contains('@'));
+    assert!(claims.session_id.as_str().contains(':'));
 }

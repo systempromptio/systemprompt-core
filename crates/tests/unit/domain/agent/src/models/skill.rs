@@ -14,7 +14,7 @@ use systemprompt_agent::models::skill::SkillMetadata;
 #[test]
 fn test_skill_metadata_serialize() {
     let metadata = SkillMetadata {
-        id: "skill-123".to_string(),
+        id: "skill-123".to_string().into(),
         name: "Search".to_string(),
         description: "Search capability".to_string(),
         enabled: true,
@@ -70,7 +70,7 @@ fn test_skill_metadata_empty_arrays() {
 #[test]
 fn test_skill_metadata_debug() {
     let metadata = SkillMetadata {
-        id: "skill-debug".to_string(),
+        id: "skill-debug".to_string().into(),
         name: "Debug".to_string(),
         description: "Debug skill".to_string(),
         enabled: true,
@@ -87,7 +87,7 @@ fn test_skill_metadata_debug() {
 #[test]
 fn test_skill_metadata_clone() {
     let metadata = SkillMetadata {
-        id: "skill-clone".to_string(),
+        id: "skill-clone".to_string().into(),
         name: "Clone".to_string(),
         description: "Clone skill".to_string(),
         enabled: true,
@@ -105,7 +105,7 @@ fn test_skill_metadata_clone() {
 #[test]
 fn test_skill_metadata_multiple_agents() {
     let metadata = SkillMetadata {
-        id: "skill-multi".to_string(),
+        id: "skill-multi".to_string().into(),
         name: "Multi".to_string(),
         description: "Multi-agent skill".to_string(),
         enabled: true,

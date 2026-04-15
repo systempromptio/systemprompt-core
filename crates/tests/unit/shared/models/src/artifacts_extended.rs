@@ -7,7 +7,7 @@ use systemprompt_models::artifacts::dashboard::{
     MetricsCardsData, SectionLayout, SectionType, ServiceStatus, StatusSectionData,
     TableSectionData,
 };
-use systemprompt_models::artifacts::research::{ResearchArtifact, SourceCitation};
+use systemprompt_models::artifacts::research::SourceCitation;
 use systemprompt_models::artifacts::table::{Column, TableHints};
 use systemprompt_models::artifacts::types::SortOrder as ArtifactSortOrder;
 use systemprompt_models::artifacts::traits::ArtifactSchema;

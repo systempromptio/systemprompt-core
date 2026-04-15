@@ -93,6 +93,8 @@ pub const BOT_KEYWORDS: &[&str] = &[
     "prefetch proxy",
     "surf/",
     "amazon-quick",
+    "gzip(gfe)",
+    "rv:1.9",
 ];
 
 pub const BOT_IP_PREFIXES: &[&str] = &[

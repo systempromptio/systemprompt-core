@@ -118,7 +118,7 @@ fn test_parse_invalid_params() {
 #[test]
 fn test_task_query_params_serialize() {
     let params = TaskQueryParams {
-        id: "task-789".to_string(),
+        id: "task-789".to_string().into(),
         history_length: Some(10),
     };
 
@@ -139,7 +139,7 @@ fn test_task_query_params_optional_history_length() {
 #[test]
 fn test_task_id_params_serialize() {
     let params = TaskIdParams {
-        id: "task-123".to_string(),
+        id: "task-123".to_string().into(),
     };
 
     let json = serde_json::to_string(&params).unwrap();

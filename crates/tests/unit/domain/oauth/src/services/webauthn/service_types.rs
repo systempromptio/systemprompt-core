@@ -66,12 +66,12 @@ fn test_verified_authentication_timestamp_preserves_value() {
 #[test]
 fn test_link_user_info_construction() {
     let info = LinkUserInfo {
-        id: "user-id-456".to_string(),
+        id: "user-id-456".to_string().into(),
         email: "test@example.com".to_string(),
         name: "Test User".to_string(),
     };
 
-    assert_eq!(info.id, "user-id-456");
+    assert_eq!(info.id.as_str(), "user-id-456");
     assert_eq!(info.email, "test@example.com");
     assert_eq!(info.name, "Test User");
 }
@@ -79,7 +79,7 @@ fn test_link_user_info_construction() {
 #[test]
 fn test_link_user_info_clone() {
     let original = LinkUserInfo {
-        id: "clone-id".to_string(),
+        id: "clone-id".to_string().into(),
         email: "clone@example.com".to_string(),
         name: "Clone User".to_string(),
     };
@@ -93,7 +93,7 @@ fn test_link_user_info_clone() {
 #[test]
 fn test_link_user_info_debug() {
     let info = LinkUserInfo {
-        id: "dbg-id".to_string(),
+        id: "dbg-id".to_string().into(),
         email: "dbg@example.com".to_string(),
         name: "Debug Name".to_string(),
     };
@@ -108,12 +108,12 @@ fn test_link_user_info_debug() {
 #[test]
 fn test_link_user_info_empty_fields() {
     let info = LinkUserInfo {
-        id: String::new(),
+        id: String::new().into(),
         email: String::new(),
         name: String::new(),
     };
 
-    assert!(info.id.is_empty());
+    assert!(info.id.as_str().is_empty());
     assert!(info.email.is_empty());
     assert!(info.name.is_empty());
 }

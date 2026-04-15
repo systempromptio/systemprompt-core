@@ -227,3 +227,10 @@ sp --json contexts list | jq '.contexts[] | select(.message_count == 0)'
 # Delete unused context
 sp core contexts delete "Old Test" --yes
 ```
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

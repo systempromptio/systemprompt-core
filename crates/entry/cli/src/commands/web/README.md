@@ -1074,3 +1074,10 @@ sp --json web validate | jq 'if .valid then "Configuration OK" else "Issues foun
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing required flags
 - [x] No inline comments per Rust standards
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

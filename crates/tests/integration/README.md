@@ -299,3 +299,10 @@ Refer to the relevant IMPLEMENTATION_GUIDE.md for your folder. Each includes:
 **Implementation Status**: ⏳ Ready to Begin
 **Timeline**: 8-10 weeks for full completion
 **Target**: 64 fully implemented tests with database assertions
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -805,3 +805,10 @@ sp --json files search uploads | jq '.data.files[] | select(.mime_type | startsw
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing required flags
 - [x] Proper error messages for invalid UUID format
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

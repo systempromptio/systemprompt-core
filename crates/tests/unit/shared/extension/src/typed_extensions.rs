@@ -5,7 +5,7 @@ use systemprompt_extension::typed::{
     ApiExtensionTyped, ConfigExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
     SchemaSourceTyped,
 };
-use systemprompt_extension::types::{ExtensionMeta, ExtensionType, NoDependencies};
+use systemprompt_extension::types::{ExtensionType, NoDependencies};
 
 #[derive(Debug, Default)]
 struct TestSchemaExt;

@@ -1,35 +1,4 @@
-use systemprompt_extension::any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
-use systemprompt_extension::typed::{SchemaDefinitionTyped, SchemaExtensionTyped};
 use systemprompt_extension::typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
-use systemprompt_extension::types::{ExtensionMeta, ExtensionType, NoDependencies};
-
-#[derive(Debug, Default)]
-struct RegExt;
-
-impl ExtensionType for RegExt {
-    const ID: &'static str = "reg-ext";
-    const NAME: &'static str = "Registry Extension";
-    const VERSION: &'static str = "1.0.0";
-}
-
-impl NoDependencies for RegExt {}
-
-#[derive(Debug, Default)]
-struct RegSchemaExt;
-
-impl ExtensionType for RegSchemaExt {
-    const ID: &'static str = "reg-schema";
-    const NAME: &'static str = "Registry Schema Extension";
-    const VERSION: &'static str = "1.0.0";
-}
-
-impl NoDependencies for RegSchemaExt {}
-
-impl SchemaExtensionTyped for RegSchemaExt {
-    fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::embedded("reg_table", "CREATE TABLE reg_table (id TEXT)")]
-    }
-}
 
 #[test]
 fn typed_registry_new_is_empty() {

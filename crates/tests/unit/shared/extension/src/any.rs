@@ -1,6 +1,6 @@
 use systemprompt_extension::any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
 use systemprompt_extension::typed::{SchemaDefinitionTyped, SchemaExtensionTyped};
-use systemprompt_extension::types::{ExtensionMeta, ExtensionType, NoDependencies};
+use systemprompt_extension::types::{ExtensionType, NoDependencies};
 
 #[derive(Debug, Default)]
 struct SimpleExt;

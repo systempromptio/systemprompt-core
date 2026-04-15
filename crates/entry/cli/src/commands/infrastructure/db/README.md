@@ -459,3 +459,10 @@ sp --json db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
 - [x] User-friendly error messages
 - [x] Schema validation via `infra db validate`
 - [x] Table sizes and index information included
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -766,3 +766,10 @@ sp --json logs trace list | jq '.data.traces[] | select(.status == "failed")'
 - [x] JSON output supported via `--json` flag
 - [x] Time range filters consistent across commands
 - [x] `-n` shortcut available for limit flags
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

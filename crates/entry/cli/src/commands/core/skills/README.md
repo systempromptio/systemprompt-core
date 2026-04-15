@@ -470,3 +470,10 @@ sp --json skills status | jq '.skills[] | select(.synced == false)'
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing required flags
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

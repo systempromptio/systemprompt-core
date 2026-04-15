@@ -30,7 +30,7 @@ fn test_system_event() -> SystemEvent {
 
 fn test_analytics_event() -> AnalyticsEvent {
     AnalyticsEventBuilder::page_view(
-        "test-session".to_string(),
+        "test-session".to_string().into(),
         None,
         "/test-page".to_string(),
         None,
@@ -222,7 +222,7 @@ fn test_analytics_event_heartbeat() {
 #[test]
 fn test_analytics_event_session_ended() {
     let event = AnalyticsEventBuilder::session_ended(
-        "test-session".to_string(),
+        "test-session".to_string().into(),
         60000,
         5,
         10,
@@ -234,7 +234,7 @@ fn test_analytics_event_session_ended() {
 #[test]
 fn test_analytics_event_engagement_update() {
     let event = AnalyticsEventBuilder::engagement_update(
-        "test-session".to_string(),
+        "test-session".to_string().into(),
         "/test-page".to_string(),
         75,
         30000,

@@ -519,3 +519,10 @@ sp infra services stop --mcp
 - [x] Batch validation with `--all` flag
 - [x] Configurable timeout for validation
 - [x] Logs path from profile config (not hardcoded)
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

@@ -462,3 +462,10 @@ sp --json services status --health | jq '.agents[] | {name, health}'
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
 - [x] Graceful shutdown handling
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

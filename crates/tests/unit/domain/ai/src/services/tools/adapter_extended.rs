@@ -1,4 +1,4 @@
-use rmcp::model::{Annotated, RawContent, RawImageContent, RawResource, RawTextContent};
+use rmcp::model::{Annotated, RawContent, RawTextContent};
 use serde_json::json;
 use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::tools::{

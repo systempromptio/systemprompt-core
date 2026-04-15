@@ -1,5 +1,5 @@
 use systemprompt_extension::builder::ExtensionBuilder;
-use systemprompt_extension::types::{Dependencies, ExtensionType, NoDependencies};
+use systemprompt_extension::types::{ExtensionType, NoDependencies};
 
 #[derive(Debug, Default)]
 struct ExtA;

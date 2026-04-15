@@ -25,7 +25,7 @@ pub mod thresholds {
     pub const TIMING_VARIANCE_MIN: f64 = 0.1;
     pub const CHROME_MIN_VERSION: i32 = 120;
     pub const FIREFOX_MIN_VERSION: i32 = 120;
-    pub const NO_JS_MIN_REQUESTS: i64 = 3;
+    pub const NO_JS_MIN_REQUESTS: i64 = 2;
     pub const GHOST_SESSION_MIN_AGE_SECONDS: i64 = 30;
 }
 

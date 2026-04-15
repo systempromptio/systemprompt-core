@@ -369,3 +369,10 @@ sp infra db query "SELECT version()"
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing required flags
 - [x] Environment variables supported as fallback for API keys
+
+
+---
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.

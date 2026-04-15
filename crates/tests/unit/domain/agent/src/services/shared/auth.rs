@@ -120,7 +120,7 @@ fn test_jwt_validator_validate_empty_token() {
 #[test]
 fn test_agent_session_user_debug() {
     let user = AgentSessionUser {
-        id: "user-123".to_string(),
+        id: "user-123".to_string().into(),
         username: "testuser".to_string(),
         user_type: "registered".to_string(),
         roles: vec!["admin".to_string(), "user".to_string()],
@@ -135,7 +135,7 @@ fn test_agent_session_user_debug() {
 #[test]
 fn test_agent_session_user_clone() {
     let user = AgentSessionUser {
-        id: "user-clone".to_string(),
+        id: "user-clone".to_string().into(),
         username: "cloneuser".to_string(),
         user_type: "anonymous".to_string(),
         roles: vec!["reader".to_string()],
@@ -151,7 +151,7 @@ fn test_agent_session_user_clone() {
 #[test]
 fn test_agent_session_user_empty_roles() {
     let user = AgentSessionUser {
-        id: "user-no-roles".to_string(),
+        id: "user-no-roles".to_string().into(),
         username: "noroles".to_string(),
         user_type: "guest".to_string(),
         roles: vec![],
@@ -163,7 +163,7 @@ fn test_agent_session_user_empty_roles() {
 #[test]
 fn test_agent_session_user_multiple_roles() {
     let user = AgentSessionUser {
-        id: "user-multi".to_string(),
+        id: "user-multi".to_string().into(),
         username: "multiuser".to_string(),
         user_type: "registered".to_string(),
         roles: vec![

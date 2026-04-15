@@ -211,7 +211,7 @@ async fn test_system_event_type_preserved() {
 
 fn test_analytics_event() -> AnalyticsEvent {
     AnalyticsEventBuilder::page_view(
-        "test-session".to_string(),
+        "test-session".to_string().into(),
         None,
         "/test-page".to_string(),
         None,
@@ -337,7 +337,7 @@ async fn test_route_analytics_session_ended_event() {
         .await;
 
     let session_end = AnalyticsEventBuilder::session_ended(
-        "test-session".to_string(),
+        "test-session".to_string().into(),
         120000,
         10,
         20,

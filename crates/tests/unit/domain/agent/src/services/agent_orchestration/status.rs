@@ -101,7 +101,7 @@ fn test_agent_status_debug_failed() {
 #[test]
 fn test_agent_runtime_config_creation() {
     let config = AgentRuntimeConfig {
-        id: "config-1".to_string(),
+        id: "config-1".to_string().into(),
         name: "Test Agent".to_string(),
         port: 8080,
     };
@@ -114,7 +114,7 @@ fn test_agent_runtime_config_creation() {
 #[test]
 fn test_agent_runtime_config_debug() {
     let config = AgentRuntimeConfig {
-        id: "debug-config".to_string(),
+        id: "debug-config".to_string().into(),
         name: "Debug Agent".to_string(),
         port: 3000,
     };
@@ -129,7 +129,7 @@ fn test_agent_runtime_config_debug() {
 #[test]
 fn test_agent_runtime_config_clone() {
     let config = AgentRuntimeConfig {
-        id: "clone-config".to_string(),
+        id: "clone-config".to_string().into(),
         name: "Clone Agent".to_string(),
         port: 4000,
     };
