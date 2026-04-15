@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::SessionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
@@ -49,7 +50,7 @@ impl AnalyticsEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionStartedPayload {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub device_type: Option<String>,
     pub browser: Option<String>,
     pub os: Option<String>,
@@ -60,7 +61,7 @@ pub struct SessionStartedPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionEndedPayload {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub duration_ms: i64,
     pub page_count: i64,
     pub request_count: i64,
@@ -68,7 +69,7 @@ pub struct SessionEndedPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageViewPayload {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub user_id: Option<String>,
     pub page_url: String,
     pub content_id: Option<String>,
@@ -77,7 +78,7 @@ pub struct PageViewPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngagementUpdatePayload {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub page_url: String,
     pub scroll_depth: i32,
     pub time_on_page_ms: i64,
@@ -105,7 +106,7 @@ impl AnalyticsEventBuilder {
     }
 
     pub fn session_ended(
-        session_id: String,
+        session_id: SessionId,
         duration_ms: i64,
         page_count: i64,
         request_count: i64,
@@ -122,7 +123,7 @@ impl AnalyticsEventBuilder {
     }
 
     pub fn page_view(
-        session_id: String,
+        session_id: SessionId,
         user_id: Option<String>,
         page_url: String,
         content_id: Option<String>,
@@ -141,7 +142,7 @@ impl AnalyticsEventBuilder {
     }
 
     pub fn engagement_update(
-        session_id: String,
+        session_id: SessionId,
         page_url: String,
         scroll_depth: i32,
         time_on_page_ms: i64,

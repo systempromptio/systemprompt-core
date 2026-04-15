@@ -52,7 +52,7 @@ pub async fn generate_agent_token(
 
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
 
-    let params = GenerateTokenParams::new(user_id.as_str(), username, session_id)
+    let params = GenerateTokenParams::new(user_id.clone(), username, session_id)
         .with_permissions(vec!["a2a".to_string()])
         .with_audiences(vec!["a2a".to_string()])
         .with_expires_in_hours(1);
@@ -74,7 +74,7 @@ pub async fn generate_cross_protocol_token(
 
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
 
-    let params = GenerateTokenParams::new(user_id.as_str(), username, session_id)
+    let params = GenerateTokenParams::new(user_id.clone(), username, session_id)
         .with_permissions(vec!["mcp".to_string(), "a2a".to_string()])
         .with_audiences(vec!["mcp".to_string(), "a2a".to_string()])
         .with_expires_in_hours(1);

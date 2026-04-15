@@ -175,6 +175,7 @@ impl AgentExtension {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentSkill {
+    // JSON: A2A spec skill identifier in published agent card (may belong to another agent)
     pub id: String,
     pub name: String,
     pub description: String,

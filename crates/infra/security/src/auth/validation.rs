@@ -111,9 +111,10 @@ impl AuthValidationService {
         };
 
         Ok(ValidatedSessionClaims {
-            user_id: claims.sub,
+            user_id: UserId::new(claims.sub),
             session_id: claims
                 .session_id
+                .map(SessionId::new)
                 .ok_or_else(|| anyhow!("Missing session_id in token"))?,
             user_type,
         })
@@ -124,8 +125,8 @@ impl AuthValidationService {
         token: &str,
         headers: &HeaderMap,
     ) -> RequestContext {
-        let session_id = SessionId::new(claims.session_id.clone());
-        let user_id = UserId::new(claims.user_id.clone());
+        let session_id = claims.session_id.clone();
+        let user_id = claims.user_id.clone();
 
         RequestContext::new(
             session_id,

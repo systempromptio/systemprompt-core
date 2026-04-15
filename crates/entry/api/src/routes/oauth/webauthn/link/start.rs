@@ -4,6 +4,7 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_identifiers::UserId;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use tracing::instrument;
@@ -19,7 +20,7 @@ pub struct StartLinkQuery {
 
 #[derive(Debug, Serialize)]
 pub struct StartLinkUserInfo {
-    pub id: String,
+    pub id: UserId,
     pub email: String,
     pub name: String,
 }

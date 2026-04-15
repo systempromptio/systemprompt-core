@@ -57,6 +57,7 @@ pub struct AiRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AiRequestMessage {
+    // SQLx: message row primary key (text column, no typed ID defined)
     pub id: String,
     pub request_id: AiRequestId,
     pub role: String,
@@ -70,6 +71,7 @@ pub struct AiRequestMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AiRequestToolCall {
+    // SQLx: tool call row primary key (text column, no typed ID defined)
     pub id: String,
     pub request_id: AiRequestId,
     pub tool_name: String,

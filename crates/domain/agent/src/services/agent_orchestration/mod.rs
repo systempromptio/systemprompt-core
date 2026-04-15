@@ -8,6 +8,8 @@ pub mod port_manager;
 pub mod process;
 pub mod reconciler;
 
+use systemprompt_identifiers::AgentId;
+
 pub use event_bus::AgentEventBus;
 pub use events::AgentEvent;
 pub use orchestrator::{AgentInfo, AgentOrchestrator};
@@ -28,7 +30,7 @@ pub enum AgentStatus {
 
 #[derive(Debug, Clone)]
 pub struct AgentRuntimeConfig {
-    pub id: String,
+    pub id: AgentId,
     pub name: String,
     pub port: u16,
 }

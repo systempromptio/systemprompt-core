@@ -20,7 +20,7 @@ pub struct PushNotificationNotSupportedError {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TaskPushNotificationConfig {
-    pub id: String,
+    pub id: TaskId,
     pub push_notification_config: PushNotificationConfig,
 }
 
@@ -48,7 +48,7 @@ pub struct GetTaskPushNotificationConfigResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct GetTaskPushNotificationConfigParams {
-    pub id: String,
+    pub id: TaskId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -64,7 +64,7 @@ pub struct DeleteTaskPushNotificationConfigResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DeleteTaskPushNotificationConfigParams {
-    pub id: String,
+    pub id: TaskId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]

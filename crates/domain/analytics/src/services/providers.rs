@@ -100,8 +100,8 @@ impl AnalyticsProvider for AnalyticsService {
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
 
         Ok(result.map(|r| AnalyticsSession {
-            session_id: r.session_id.to_string(),
-            user_id: r.user_id.map(|u| u.to_string()),
+            session_id: r.session_id,
+            user_id: r.user_id,
             fingerprint: Some(fingerprint.to_string()),
             created_at: Utc::now(),
         }))
@@ -118,8 +118,8 @@ impl AnalyticsProvider for AnalyticsService {
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
 
         Ok(result.map(|r| AnalyticsSession {
-            session_id: r.session_id.to_string(),
-            user_id: r.user_id.map(|u| u.to_string()),
+            session_id: r.session_id,
+            user_id: r.user_id,
             fingerprint: r.fingerprint_hash,
             created_at: r.started_at.unwrap_or_else(Utc::now),
         }))

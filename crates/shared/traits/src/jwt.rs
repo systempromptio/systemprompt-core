@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{SessionId, UserId};
 
 pub type JwtResult<T> = Result<T, JwtProviderError>;
 
@@ -54,7 +54,7 @@ impl AgentJwtClaims {
 
 #[derive(Debug, Clone)]
 pub struct GenerateTokenParams {
-    pub user_id: String,
+    pub user_id: UserId,
     pub username: String,
     pub user_type: String,
     pub permissions: Vec<String>,
@@ -66,12 +66,12 @@ pub struct GenerateTokenParams {
 impl GenerateTokenParams {
     #[must_use]
     pub fn new(
-        user_id: impl Into<String>,
+        user_id: UserId,
         username: impl Into<String>,
         session_id: SessionId,
     ) -> Self {
         Self {
-            user_id: user_id.into(),
+            user_id,
             username: username.into(),
             user_type: "user".to_string(),
             permissions: Vec::new(),

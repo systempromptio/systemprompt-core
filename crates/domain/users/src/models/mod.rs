@@ -125,7 +125,7 @@ pub struct UserCountBreakdown {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserExport {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
@@ -142,7 +142,7 @@ pub struct UserExport {
 impl From<User> for UserExport {
     fn from(user: User) -> Self {
         Self {
-            id: user.id.to_string(),
+            id: user.id,
             name: user.name,
             email: user.email,
             full_name: user.full_name,

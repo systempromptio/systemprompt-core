@@ -8,7 +8,7 @@ pub(super) async fn upsert_user(pool: &PgPool, user: &UserExport) -> SyncResult<
         "SELECT EXISTS(SELECT 1 FROM users WHERE (name = $1 OR email = $2) AND id != $3)",
         user.name,
         user.email,
-        user.id
+        user.id.as_str()
     )
     .fetch_one(pool)
     .await?;
@@ -39,7 +39,7 @@ pub(super) async fn upsert_user(pool: &PgPool, user: &UserExport) -> SyncResult<
              is_scanner = EXCLUDED.is_scanner,
              avatar_url = EXCLUDED.avatar_url,
              updated_at = EXCLUDED.updated_at"#,
-        user.id,
+        user.id.as_str(),
         user.name,
         user.email,
         user.full_name,

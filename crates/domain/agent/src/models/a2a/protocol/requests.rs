@@ -27,13 +27,13 @@ pub struct MessageSendConfiguration {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TaskQueryParams {
-    pub id: String,
+    pub id: TaskId,
     pub history_length: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TaskIdParams {
-    pub id: String,
+    pub id: TaskId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]

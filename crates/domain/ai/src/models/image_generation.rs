@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{AiRequestId, SessionId, UserId};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -95,8 +95,8 @@ pub struct NewImageGenerationResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageGenerationResponse {
-    pub id: String,
-    pub request_id: String,
+    pub id: AiRequestId,
+    pub request_id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub image_data: String,
@@ -114,8 +114,8 @@ pub struct ImageGenerationResponse {
 impl ImageGenerationResponse {
     pub fn new(params: NewImageGenerationResponse) -> Self {
         Self {
-            id: Uuid::new_v4().to_string(),
-            request_id: Uuid::new_v4().to_string(),
+            id: AiRequestId::new(Uuid::new_v4().to_string()),
+            request_id: AiRequestId::new(Uuid::new_v4().to_string()),
             provider: params.provider,
             model: params.model,
             image_data: params.image_data,

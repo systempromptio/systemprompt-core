@@ -51,6 +51,7 @@ impl CardSection {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CardCta {
+    // JSON: CTA button action identifier, not an entity ID
     pub id: String,
     pub label: String,
     pub message: String,

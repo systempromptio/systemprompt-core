@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{TokenId, UserId};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -48,7 +48,7 @@ pub struct CreateSetupTokenParams {
 
 #[derive(Debug, Clone)]
 pub struct SetupTokenRecord {
-    pub id: String,
+    pub id: TokenId,
     pub user_id: UserId,
     pub purpose: SetupTokenPurpose,
     pub expires_at: DateTime<Utc>,
@@ -110,7 +110,7 @@ impl crate::repository::OAuthRepository {
                 let purpose: SetupTokenPurpose = r.purpose.parse()?;
 
                 Ok(TokenValidationResult::Valid(SetupTokenRecord {
-                    id: r.id,
+                    id: TokenId::new(r.id),
                     user_id: UserId::new(r.user_id),
                     purpose,
                     expires_at: r.expires_at,

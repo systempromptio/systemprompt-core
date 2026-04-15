@@ -91,6 +91,7 @@ pub struct AnalyticsSession {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AnalyticsEvent {
+    // SQLx: analytics event primary key (text column, no typed ID defined)
     pub id: String,
     pub event_type: String,
     pub event_category: String,

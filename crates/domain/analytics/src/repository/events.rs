@@ -219,6 +219,7 @@ impl AnalyticsEventsRepository {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct StoredAnalyticsEvent {
+    // SQLx: analytics event primary key (text column, no typed ID defined)
     pub id: String,
     pub user_id: UserId,
     pub session_id: Option<SessionId>,

@@ -4,6 +4,7 @@ use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone)]
 pub struct WebAuthnCredential {
+    // JSON: WebAuthn FIDO2 credential identifier (base64url, external vendor format)
     pub id: String,
     pub user_id: UserId,
     pub credential_id: Vec<u8>,

@@ -63,7 +63,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
     }
 
     fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String> {
-        let user_id = Uuid::parse_str(&params.user_id).unwrap_or_else(|_| Uuid::new_v4());
+        let user_id = Uuid::parse_str(params.user_id.as_str()).unwrap_or_else(|_| Uuid::new_v4());
 
         let user = AuthenticatedUser {
             id: user_id,

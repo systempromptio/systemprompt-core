@@ -5,7 +5,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{TokenId, UserId};
 use tokio::sync::Mutex;
 use tracing::instrument;
 use uuid::Uuid;
@@ -17,7 +17,7 @@ const CHALLENGE_EXPIRY_SECONDS: u64 = 300;
 pub struct LinkRegistrationState {
     pub reg_state: PasskeyRegistration,
     pub user_id: UserId,
-    pub token_id: String,
+    pub token_id: TokenId,
     pub timestamp: Instant,
 }
 
@@ -30,7 +30,7 @@ pub fn create_link_states() -> LinkStates {
 
 #[derive(Debug, Clone)]
 pub struct LinkUserInfo {
-    pub id: String,
+    pub id: UserId,
     pub email: String,
     pub name: String,
 }
@@ -95,7 +95,7 @@ impl WebAuthnService {
         }
 
         let user_info = LinkUserInfo {
-            id: token_record.user_id.to_string(),
+            id: token_record.user_id.clone(),
             email: user.email,
             name: user.username,
         };
@@ -147,7 +147,7 @@ impl WebAuthnService {
             .await?;
 
         self.oauth_repo
-            .consume_setup_token(&token_record.id)
+            .consume_setup_token(token_record.id.as_str())
             .await?;
 
         tracing::info!(

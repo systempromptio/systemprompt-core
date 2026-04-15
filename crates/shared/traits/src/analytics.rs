@@ -85,8 +85,8 @@ impl SessionAnalytics {
 
 #[derive(Debug, Clone)]
 pub struct AnalyticsSession {
-    pub session_id: String,
-    pub user_id: Option<String>,
+    pub session_id: SessionId,
+    pub user_id: Option<UserId>,
     pub fingerprint: Option<String>,
     pub created_at: DateTime<Utc>,
 }

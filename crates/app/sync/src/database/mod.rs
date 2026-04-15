@@ -21,7 +21,7 @@ pub struct DatabaseExport {
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct UserExport {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,

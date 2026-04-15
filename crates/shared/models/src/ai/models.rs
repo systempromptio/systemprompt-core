@@ -42,6 +42,7 @@ pub type ToolModelOverrides = HashMap<String, HashMap<String, ToolModelConfig>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
+    // JSON: external LLM model identifier (e.g. "claude-opus-4-6")
     pub id: String,
     pub max_tokens: u32,
     pub supports_tools: bool,

@@ -197,6 +197,7 @@ pub struct AgentRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct PushNotificationConfigRow {
+    // SQLx: push notification config row primary key (text column)
     pub id: String,
     pub task_id: TaskId,
     pub url: String,

@@ -105,7 +105,7 @@ impl Skill {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillMetadata {
-    pub id: String,
+    pub id: SkillId,
     pub name: String,
     pub description: String,
     pub enabled: bool,

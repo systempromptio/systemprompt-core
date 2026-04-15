@@ -1,5 +1,6 @@
 use crate::services::shared::error::{AgentServiceError, Result};
 use jsonwebtoken::{DecodingKey, Validation, decode};
+use systemprompt_identifiers::UserId;
 pub use systemprompt_models::auth::JwtClaims;
 use systemprompt_traits::AgentJwtClaims;
 
@@ -40,7 +41,7 @@ pub fn extract_bearer_token(authorization_header: &str) -> Result<&str> {
 
 #[derive(Debug, Clone)]
 pub struct AgentSessionUser {
-    pub id: String,
+    pub id: UserId,
     pub username: String,
     pub user_type: String,
     pub roles: Vec<String>,
@@ -49,7 +50,7 @@ pub struct AgentSessionUser {
 impl AgentSessionUser {
     pub fn from_jwt_claims(claims: AgentJwtClaims) -> Self {
         Self {
-            id: claims.subject,
+            id: UserId::new(claims.subject),
             username: claims.username,
             user_type: claims.user_type,
             roles: claims.permissions,
@@ -60,7 +61,7 @@ impl AgentSessionUser {
 impl From<JwtClaims> for AgentSessionUser {
     fn from(claims: JwtClaims) -> Self {
         Self {
-            id: claims.sub.clone(),
+            id: UserId::new(claims.sub.clone()),
             username: claims.username.clone(),
             user_type: claims.user_type.to_string(),
             roles: claims.get_scopes(),

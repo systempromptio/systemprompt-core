@@ -94,7 +94,7 @@ async fn persist_file_record(
     let image_metadata = ImageMetadata::new().with_generation(generation_info);
     let metadata = serde_json::to_value(image_metadata).map_err(AiError::SerializationError)?;
 
-    let id = Uuid::parse_str(&response.id)
+    let id = Uuid::parse_str(response.id.as_str())
         .map_err(|e| AiError::InvalidInput(format!("Invalid UUID: {e}")))?;
 
     let params = InsertAiFileParams {

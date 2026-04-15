@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
-use systemprompt_identifiers::{AiToolCallId, McpServerId};
+use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpServerId};
 use systemprompt_traits::parse_database_datetime;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,8 +16,8 @@ pub use rmcp::model::CallToolResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolExecution {
-    pub id: String,
-    pub request_id: String,
+    pub id: McpExecutionId,
+    pub request_id: AiRequestId,
     pub sequence: i32,
     pub tool_name: String,
     pub service_id: McpServerId,
@@ -34,14 +34,14 @@ impl ToolExecution {
         let id = row
             .get("id")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing id"))?
-            .to_string();
+            .ok_or_else(|| anyhow::anyhow!("Missing id"))
+            .map(McpExecutionId::new)?;
 
         let request_id = row
             .get("request_id")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing request_id"))?
-            .to_string();
+            .ok_or_else(|| anyhow::anyhow!("Missing request_id"))
+            .map(AiRequestId::new)?;
 
         let sequence = row
             .get("sequence")

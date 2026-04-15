@@ -2,6 +2,7 @@ use super::{AgentInfo, AgentOrchestrator};
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationResult, ValidationReport, monitor,
 };
+use systemprompt_identifiers::AgentId;
 
 impl AgentOrchestrator {
     pub async fn get_detailed_status(&self) -> OrchestrationResult<Vec<AgentInfo>> {
@@ -15,7 +16,7 @@ impl AgentOrchestrator {
         for (agent_id, status) in agents {
             if let Ok(config) = self.db_service.get_agent_config(&agent_id).await {
                 agent_info.push(AgentInfo {
-                    id: agent_id,
+                    id: AgentId::new(agent_id),
                     name: config.name,
                     status,
                     port: config.port,
@@ -26,7 +27,7 @@ impl AgentOrchestrator {
                     AgentStatus::Failed { .. } => 8000,
                 };
                 agent_info.push(AgentInfo {
-                    id: agent_id.clone(),
+                    id: AgentId::new(agent_id.clone()),
                     name: "Unknown".to_string(),
                     status,
                     port,

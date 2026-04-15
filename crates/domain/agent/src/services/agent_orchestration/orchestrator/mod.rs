@@ -17,10 +17,11 @@ use crate::services::agent_orchestration::monitor::AgentMonitor;
 use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, monitor};
 use crate::state::AgentState;
+use systemprompt_identifiers::AgentId;
 
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
-    pub id: String,
+    pub id: AgentId,
     pub name: String,
     pub status: AgentStatus,
     pub port: u16,

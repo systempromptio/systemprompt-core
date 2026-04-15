@@ -29,7 +29,7 @@ impl ContentProvider for DefaultContentProvider {
         let content = self.repo.get_by_id(&content_id).await?;
 
         Ok(content.map(|c| ContentItem {
-            id: c.id.to_string(),
+            id: c.id,
             slug: c.slug,
             title: c.title,
             description: c.description,
@@ -39,7 +39,7 @@ impl ContentProvider for DefaultContentProvider {
             keywords: c.keywords,
             kind: c.kind,
             image: c.image,
-            source_id: c.source_id.to_string(),
+            source_id: c.source_id,
             category_id: c.category_id.map(|id| id.to_string()),
         }))
     }
@@ -48,7 +48,7 @@ impl ContentProvider for DefaultContentProvider {
         let content = self.repo.get_by_slug(slug).await?;
 
         Ok(content.map(|c| ContentItem {
-            id: c.id.to_string(),
+            id: c.id,
             slug: c.slug,
             title: c.title,
             description: c.description,
@@ -58,7 +58,7 @@ impl ContentProvider for DefaultContentProvider {
             keywords: c.keywords,
             kind: c.kind,
             image: c.image,
-            source_id: c.source_id.to_string(),
+            source_id: c.source_id,
             category_id: c.category_id.map(|id| id.to_string()),
         }))
     }
@@ -72,7 +72,7 @@ impl ContentProvider for DefaultContentProvider {
         let content = self.repo.get_by_source_and_slug(&source, slug).await?;
 
         Ok(content.map(|c| ContentItem {
-            id: c.id.to_string(),
+            id: c.id,
             slug: c.slug,
             title: c.title,
             description: c.description,
@@ -82,7 +82,7 @@ impl ContentProvider for DefaultContentProvider {
             keywords: c.keywords,
             kind: c.kind,
             image: c.image,
-            source_id: c.source_id.to_string(),
+            source_id: c.source_id,
             category_id: c.category_id.map(|id| id.to_string()),
         }))
     }
