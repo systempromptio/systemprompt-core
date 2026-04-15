@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Analytics module for systemprompt.io - session tracking, metrics, and reporting"
+description = "Session, agent, tool and cost analytics with microdollar-precision attribution — part of the systemprompt.io AI governance infrastructure."
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]

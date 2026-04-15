@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Core MCP (Model Context Protocol) functionality for systemprompt.io OS"
+description = "Native Model Context Protocol (MCP) implementation with orchestration, per-server OAuth2, RBAC middleware and tool-call governance — part of the systemprompt.io AI governance infrastructure."
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]

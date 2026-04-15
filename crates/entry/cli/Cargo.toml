@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "systemprompt.io OS - CLI for agent orchestration, AI operations, and system management"
+description = "Unified CLI for agent orchestration, MCP governance, analytics, cloud deploy and self-hosted operations — part of the systemprompt.io AI governance infrastructure."
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]

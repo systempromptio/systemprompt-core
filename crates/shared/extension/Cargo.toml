@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Extension framework for systemprompt.io - register custom modules, providers, and APIs"
+description = "Compile-time extension framework built on the inventory crate — register schemas, API routes, jobs, and providers. Part of the systemprompt.io AI governance infrastructure."
 
 [features]
 default = ["web"]

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Core AI module for systemprompt.io"
+description = "Provider-agnostic LLM integration (Anthropic, OpenAI, Gemini) with cost tracking and audit — part of the systemprompt.io AI governance infrastructure."
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]

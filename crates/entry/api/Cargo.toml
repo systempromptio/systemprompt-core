@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "HTTP API server and gateway for systemprompt.io OS"
+description = "Axum-based HTTP server and API gateway exposing governed agents, MCP, A2A and admin endpoints — part of the systemprompt.io AI governance infrastructure."
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [dependencies]

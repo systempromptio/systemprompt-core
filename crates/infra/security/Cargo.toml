@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Security module for systemprompt.io - authentication, authorization, JWT, and token extraction"
+description = "JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret storage, and the four-layer tool-call governance pipeline — part of the systemprompt.io AI governance infrastructure."
 
 [lints]
 workspace = true

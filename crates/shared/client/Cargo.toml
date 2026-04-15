@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "HTTP API client library for systemprompt.io - enables CLI and external clients to communicate with the server"
+description = "HTTP API client for CLIs and external services talking to a systemprompt.io deployment — part of the systemprompt.io AI governance infrastructure."
 
 [lints]
 workspace = true

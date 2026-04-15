@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Provider trait contracts for systemprompt.io - LLM, Tool, Job, Template, Component providers"
+description = "Provider trait contracts — LlmProvider, ToolProvider, JobContext and friends — for swapping Anthropic, OpenAI, Gemini at the profile level. Part of the systemprompt.io AI governance infrastructure."
 
 [lints]
 workspace = true

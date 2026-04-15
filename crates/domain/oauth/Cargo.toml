@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "OAuth 2.0 authentication and authorization module for systemprompt.io OS"
+description = "OAuth 2.0 / OIDC with PKCE, token introspection, and audience/issuer checks — part of the systemprompt.io AI governance infrastructure."
 include = ["src/**/*", "schema/**/*", "templates/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]

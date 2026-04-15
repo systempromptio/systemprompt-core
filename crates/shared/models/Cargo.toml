@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Shared data models and types for systemprompt.io OS"
+description = "Shared data models and DTOs used across every layer — part of the systemprompt.io AI governance infrastructure."
 
 [lints]
 workspace = true

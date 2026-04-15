@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Template registry and management for systemprompt.io"
+description = "Template registry, loading and rendering for config-as-code deployments — part of the systemprompt.io AI governance infrastructure."
 include = ["src/**/*", "defaults/**/*", "Cargo.toml"]
 
 [lints]
