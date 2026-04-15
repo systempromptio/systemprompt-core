@@ -123,7 +123,7 @@ async fn execute_admin_user_sync(args: AdminUserSyncArgs) -> Result<()> {
                 .profiles
                 .into_iter()
                 .find(|p| &p.name == profile_name)
-                .map(|p| p.database_url)
+                .and_then(|p| p.database_url)
                 .ok_or_else(|| {
                     anyhow!(
                         "Profile '{}' not found or has no database_url",

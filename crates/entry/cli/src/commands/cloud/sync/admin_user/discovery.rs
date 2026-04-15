@@ -28,7 +28,14 @@ fn process_profile_entry(ctx: &ProjectContext, path: PathBuf) -> ProfileEntryRes
     match load_database_url_from_secrets(&secrets_json, &name) {
         Ok(db_url) => ProfileEntryResult::Valid(ProfileInfo {
             name,
-            database_url: db_url,
+            display_name: None,
+            database_url: Some(db_url),
+            tenant_id: None,
+            validation_mode: None,
+            credentials_path: None,
+            routing: None,
+            is_active: None,
+            session_status: None,
         }),
         Err(reason) => ProfileEntryResult::Skip(reason),
     }

@@ -4,30 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
 
+pub use systemprompt_models::services::{SkillDetail as SkillDetailOutput, SkillSummary};
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillListOutput {
     pub skills: Vec<SkillSummary>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SkillSummary {
-    pub skill_id: String,
-    pub name: String,
-    pub enabled: bool,
-    pub tags: Vec<String>,
-    pub file_path: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SkillDetailOutput {
-    pub skill_id: String,
-    pub name: String,
-    pub description: String,
-    pub enabled: bool,
-    pub tags: Vec<String>,
-    pub category: Option<String>,
-    pub file_path: String,
-    pub instructions_preview: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -28,13 +28,7 @@ pub struct SessionShowOutput {
     pub routing: Option<RoutingInfo>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProfileInfo {
-    pub name: String,
-    pub routing: String,
-    pub is_active: bool,
-    pub session_status: String,
-}
+pub use systemprompt_models::profile::ProfileInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProfileListOutput {

@@ -8,7 +8,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::a2a::Part;
 use systemprompt_runtime::AppContext;
 
-use super::types::{ArtifactDetailOutput, ArtifactPartOutput};
+use super::types::{ArtifactPartOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
@@ -25,7 +25,7 @@ pub struct ShowArgs {
 pub async fn execute(
     args: ShowArgs,
     config: &CliConfig,
-) -> Result<CommandResult<ArtifactDetailOutput>> {
+) -> Result<CommandResult<ArtifactSummary>> {
     let _session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
@@ -35,7 +35,7 @@ pub async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     config: &CliConfig,
-) -> Result<CommandResult<ArtifactDetailOutput>> {
+) -> Result<CommandResult<ArtifactSummary>> {
     let repo = ArtifactRepository::new(pool)?;
 
     let artifact_id = resolve_artifact_id(&args.artifact_id, &repo).await?;
@@ -71,26 +71,14 @@ pub async fn execute_with_pool(
         })
         .collect();
 
-    let output = ArtifactDetailOutput {
-        id: artifact.id.as_str().to_string(),
+    let output = ArtifactSummary {
+        artifact_id: artifact.id.clone(),
         name: artifact.title.clone(),
-        description: artifact.description.clone(),
         artifact_type: artifact.metadata.artifact_type.clone(),
         tool_name: artifact.metadata.tool_name.clone(),
-        source: artifact.metadata.source.clone(),
-        task_id: artifact.metadata.task_id.as_str().to_string(),
-        context_id: artifact.metadata.context_id.as_str().to_string(),
-        skill_id: artifact
-            .metadata
-            .skill_id
-            .as_ref()
-            .map(|id| id.as_str().to_string()),
-        skill_name: artifact.metadata.skill_name.clone(),
-        mcp_execution_id: artifact.metadata.mcp_execution_id.clone(),
-        fingerprint: artifact.metadata.fingerprint.clone(),
-        created_at: artifact.metadata.created_at.clone(),
-        parts: parts.clone(),
-        rendering_hints: artifact.metadata.rendering_hints.clone(),
+        task_id: artifact.metadata.task_id.clone(),
+        created_at: chrono::DateTime::parse_from_rfc3339(&artifact.metadata.created_at)
+            .map_or_else(|_| chrono::Utc::now(), |dt| dt.with_timezone(&chrono::Utc)),
     };
 
     if !config.is_json_output() {

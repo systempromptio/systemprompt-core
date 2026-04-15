@@ -1,46 +1,29 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_models::{ComponentFilter, ComponentSource};
+
+pub use systemprompt_models::services::PluginSummary;
+pub use systemprompt_models::services::plugin::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PluginListOutput {
     pub plugins: Vec<PluginSummary>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PluginSummary {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub version: String,
-    pub enabled: bool,
-    pub skill_count: usize,
-    pub agent_count: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginDetailOutput {
     pub id: String,
     pub name: String,
     pub description: String,
     pub version: String,
     pub enabled: bool,
-    pub skills: PluginComponentDetail,
-    pub agents: PluginComponentDetail,
+    pub skills: PluginComponentRef,
+    pub agents: PluginComponentRef,
     pub mcp_servers: Vec<String>,
     pub hooks_count: usize,
     pub scripts: Vec<String>,
     pub keywords: Vec<String>,
     pub category: String,
     pub author: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PluginComponentDetail {
-    pub source: ComponentSource,
-    pub filter: Option<ComponentFilter>,
-    pub include: Vec<String>,
-    pub exclude: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -40,7 +40,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Plug
         .with_columns(vec![
             "id".to_string(),
             "name".to_string(),
-            "version".to_string(),
+            "display_name".to_string(),
             "enabled".to_string(),
             "skill_count".to_string(),
             "agent_count".to_string(),
@@ -75,18 +75,10 @@ fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
         match parse_plugin_config(&config_path) {
             Ok(plugin_file) => {
                 let plugin = &plugin_file.plugin;
-                let skill_count = estimate_component_count(&plugin.skills);
-                let agent_count = estimate_component_count(&plugin.agents);
-
-                plugins.push(PluginSummary {
-                    id: plugin.id.clone(),
-                    name: plugin.name.clone(),
-                    description: plugin.description.clone(),
-                    version: plugin.version.clone(),
-                    enabled: plugin.enabled,
-                    skill_count,
-                    agent_count,
-                });
+                let mut summary: PluginSummary = plugin.into();
+                summary.skill_count = estimate_component_count(&plugin.skills);
+                summary.agent_count = estimate_component_count(&plugin.agents);
+                plugins.push(summary);
             },
             Err(e) => {
                 tracing::warn!(

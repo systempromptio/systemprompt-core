@@ -137,7 +137,17 @@ pub async fn sync_admin_to_all_profiles(user: &CloudUser, verbose: bool) -> Vec<
     let mut results = Vec::new();
 
     for profile in discovery.profiles {
-        let result = sync_admin_to_database(user, &profile.database_url, &profile.name).await;
+        let database_url = match profile.database_url.as_deref() {
+            Some(url) => url,
+            None => {
+                results.push(SyncResult::Failed {
+                    profile: profile.name.clone(),
+                    error: "Missing database_url".to_string(),
+                });
+                continue;
+            },
+        };
+        let result = sync_admin_to_database(user, database_url, &profile.name).await;
         results.push(result);
     }
 

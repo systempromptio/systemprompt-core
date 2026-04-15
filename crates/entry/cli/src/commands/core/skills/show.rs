@@ -55,12 +55,13 @@ fn show_skill_detail(
 
     let output = SkillDetailOutput {
         skill_id: skill_id.to_string(),
-        name: parsed.name,
+        name: parsed.name.clone(),
+        display_name: parsed.name,
         description: parsed.description,
         enabled: parsed.enabled,
         tags: parsed.tags,
         category: parsed.category,
-        file_path: config_path.to_string_lossy().to_string(),
+        file_path: Some(config_path.to_string_lossy().to_string()),
         instructions_preview,
     };
 

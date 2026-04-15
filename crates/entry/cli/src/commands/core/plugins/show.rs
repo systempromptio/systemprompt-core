@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::CliConfig;
 use crate::shared::CommandResult;
 
-use super::types::{PluginComponentDetail, PluginDetailOutput};
+use super::types::{PluginComponentRef, PluginDetailOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -37,13 +37,13 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<Plu
         description: plugin.description.clone(),
         version: plugin.version.clone(),
         enabled: plugin.enabled,
-        skills: PluginComponentDetail {
+        skills: PluginComponentRef {
             source: plugin.skills.source,
             filter: plugin.skills.filter,
             include: plugin.skills.include.clone(),
             exclude: plugin.skills.exclude.clone(),
         },
-        agents: PluginComponentDetail {
+        agents: PluginComponentRef {
             source: plugin.agents.source,
             filter: plugin.agents.filter,
             include: plugin.agents.include.clone(),

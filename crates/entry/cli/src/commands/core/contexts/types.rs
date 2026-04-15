@@ -24,19 +24,6 @@ pub struct ContextSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContextDetailOutput {
-    pub id: ContextId,
-    pub name: String,
-    pub task_count: i64,
-    pub message_count: i64,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_message_at: Option<DateTime<Utc>>,
-    pub is_active: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextCreatedOutput {
     pub id: ContextId,
     pub name: String,

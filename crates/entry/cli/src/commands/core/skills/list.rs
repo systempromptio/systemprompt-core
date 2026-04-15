@@ -85,12 +85,13 @@ fn show_skill_detail(skill_id: &str, skills_path: &Path) -> Result<CommandResult
 
     let output = SkillDetailOutput {
         skill_id: skill_id.to_string(),
-        name: parsed.name,
+        name: parsed.name.clone(),
+        display_name: parsed.name,
         description: parsed.description,
         enabled: parsed.enabled,
         tags: parsed.tags,
         category: parsed.category,
-        file_path: config_path.to_string_lossy().to_string(),
+        file_path: Some(config_path.to_string_lossy().to_string()),
         instructions_preview,
     };
 
@@ -129,10 +130,11 @@ fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
 
                 skills.push(SkillSummary {
                     skill_id: dir_name.to_string(),
-                    name: parsed.name,
+                    name: parsed.name.clone(),
+                    display_name: parsed.name,
                     enabled: parsed.enabled,
                     tags: parsed.tags,
-                    file_path: config_path.to_string_lossy().to_string(),
+                    file_path: Some(config_path.to_string_lossy().to_string()),
                 });
             },
             Err(e) => {

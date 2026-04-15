@@ -72,11 +72,11 @@ pub async fn execute_with_pool(
         .iter()
         .take(args.limit as usize)
         .map(|a| ArtifactSummary {
-            id: a.id.as_str().to_string(),
+            artifact_id: a.id.clone(),
             name: a.title.clone(),
             artifact_type: a.metadata.artifact_type.clone(),
             tool_name: a.metadata.tool_name.clone(),
-            task_id: a.metadata.task_id.as_str().to_string(),
+            task_id: a.metadata.task_id.clone(),
             created_at: chrono::DateTime::parse_from_rfc3339(&a.metadata.created_at)
                 .map_or_else(|_| chrono::Utc::now(), |dt| dt.with_timezone(&chrono::Utc)),
         })
@@ -99,7 +99,7 @@ pub async fn execute_with_pool(
             let rows: Vec<ArtifactRow> = summaries
                 .iter()
                 .map(|a| ArtifactRow {
-                    id: truncate_with_ellipsis(&a.id, 12),
+                    id: truncate_with_ellipsis(a.artifact_id.as_str(), 12),
                     name: a.name.clone().unwrap_or_else(|| "-".to_string()),
                     artifact_type: a.artifact_type.clone(),
                     tool_name: a.tool_name.clone().unwrap_or_else(|| "-".to_string()),

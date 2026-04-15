@@ -43,24 +43,26 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpL
             } else {
                 server.binary.clone()
             };
-            let (debug_binary, debug_created_at) =
+            let (binary_debug, debug_created_at) =
                 get_binary_info(project_root.as_ref(), &binary_name, false);
-            let (release_binary, release_created_at) =
+            let (binary_release, release_created_at) =
                 get_binary_info(project_root.as_ref(), &binary_name, true);
 
             McpServerSummary {
                 name: name.clone(),
+                display_name: name.clone(),
                 port: server.port,
                 enabled: server.enabled,
-                status: determine_status(
+                status: Some(determine_status(
                     server.enabled,
-                    debug_binary.as_deref(),
-                    release_binary.as_deref(),
-                ),
-                debug_binary,
+                    binary_debug.as_deref(),
+                    binary_release.as_deref(),
+                )),
+                binary_debug,
+                binary_release,
                 debug_created_at,
-                release_binary,
                 release_created_at,
+                created_at: None,
             }
         })
         .collect();
@@ -76,8 +78,8 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpL
             "port".to_string(),
             "enabled".to_string(),
             "status".to_string(),
-            "debug_binary".to_string(),
-            "release_binary".to_string(),
+            "binary_debug".to_string(),
+            "binary_release".to_string(),
         ]))
 }
 

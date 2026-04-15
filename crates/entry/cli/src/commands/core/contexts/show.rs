@@ -6,7 +6,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::resolve::resolve_context;
-use super::types::ContextDetailOutput;
+use super::types::ContextSummary;
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
@@ -20,7 +20,7 @@ pub struct ShowArgs {
 pub async fn execute(
     args: ShowArgs,
     config: &CliConfig,
-) -> Result<CommandResult<ContextDetailOutput>> {
+) -> Result<CommandResult<ContextSummary>> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(args, &session_ctx.session, ctx.db_pool(), config).await
@@ -31,7 +31,7 @@ pub async fn execute_with_pool(
     session: &systemprompt_cloud::CliSession,
     pool: &DbPool,
     config: &CliConfig,
-) -> Result<CommandResult<ContextDetailOutput>> {
+) -> Result<CommandResult<ContextSummary>> {
     let repo = ContextRepository::new(pool)?;
 
     let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
@@ -45,7 +45,7 @@ pub async fn execute_with_pool(
         .find(|c| c.context_id == context_id)
         .ok_or_else(|| anyhow::anyhow!("Context not found: {}", args.context))?;
 
-    let output = ContextDetailOutput {
+    let output = ContextSummary {
         id: context.context_id.clone(),
         name: context.name.clone(),
         task_count: context.task_count,

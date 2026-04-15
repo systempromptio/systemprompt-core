@@ -124,8 +124,13 @@ fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) ->
 
     ProfileInfo {
         name: info.name.clone(),
-        routing,
-        is_active,
-        session_status,
+        display_name: None,
+        database_url: None,
+        tenant_id: info.tenant_id.clone(),
+        validation_mode: None,
+        credentials_path: None,
+        routing: Some(routing),
+        is_active: Some(is_active),
+        session_status: Some(session_status),
     }
 }

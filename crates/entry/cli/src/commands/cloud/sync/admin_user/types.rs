@@ -60,11 +60,7 @@ impl CloudUser {
     }
 }
 
-#[derive(Debug)]
-pub struct ProfileInfo {
-    pub name: String,
-    pub database_url: String,
-}
+pub use systemprompt_models::profile::ProfileInfo;
 
 pub(super) enum ProfileEntryResult {
     Valid(ProfileInfo),

@@ -21,10 +21,14 @@ pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutp
         Ok(profile) => {
             let mut info = ProfileInfo {
                 name: profile.name.clone(),
-                display_name: profile.display_name.clone(),
+                display_name: Some(profile.display_name.clone()),
+                database_url: None,
                 tenant_id: None,
                 validation_mode: None,
                 credentials_path: None,
+                routing: None,
+                is_active: None,
+                session_status: None,
             };
 
             if let Some(cloud) = &profile.cloud {
@@ -133,7 +137,11 @@ pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutp
         if let Some(ref profile) = profile_info {
             CliService::key_value(
                 "Profile",
-                &format!("{} ({})", profile.name, profile.display_name),
+                &format!(
+                    "{} ({})",
+                    profile.name,
+                    profile.display_name.as_deref().unwrap_or("")
+                ),
             );
             if let Some(ref creds_path) = profile.credentials_path {
                 CliService::key_value("Credentials path", creds_path);
