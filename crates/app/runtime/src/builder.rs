@@ -65,12 +65,12 @@ impl AppContextBuilder {
         registry.validate()?;
         let extension_registry = Arc::new(registry);
 
-        let geoip_reader =
-            AppContext::load_geoip_database(&config, self.show_startup_warnings);
+        let geoip_reader = AppContext::load_geoip_database(&config, self.show_startup_warnings);
         let content_config = AppContext::load_content_config(&config);
         let content_routing = content_routing_from(content_config.as_ref());
-        let route_classifier =
-            Arc::new(systemprompt_models::RouteClassifier::new(content_routing.clone()));
+        let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
+            content_routing.clone(),
+        ));
         let analytics_service = Arc::new(AnalyticsService::new(
             &database,
             geoip_reader.clone(),
@@ -112,5 +112,7 @@ impl AppContextBuilder {
 fn content_routing_from(
     content_config: Option<&Arc<ContentConfigRaw>>,
 ) -> Option<Arc<dyn ContentRouting>> {
-    content_config.cloned().map(|c| c as Arc<dyn ContentRouting>)
+    content_config
+        .cloned()
+        .map(|c| c as Arc<dyn ContentRouting>)
 }

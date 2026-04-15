@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0] - 2026-04-15
+
+### Changed (BREAKING)
+- `ContextProviderService` impl updated for the new `ContextProvider` trait — methods accept `&UserId`, `&ContextId`, and `Option<&SessionId>`.
+
+### Fixed
+- `AgentOrchestrationDatabase::mark_failed` no longer takes an unused `_reason` parameter. `get_unresponsive_agents` no longer takes an unused `_max_failures` parameter. `MonitorService::cleanup_unresponsive_agents` lost its unused `max_failures` parameter in turn.
+- `a2a_server::handlers::request::validation::should_require_oauth` no longer takes an unused `_request: &A2aJsonRpcRequest` parameter — the implementation only inspected `state.config.oauth.required`.
+- Removed 1 unnecessary path qualification in `services/a2a_server/auth/validation.rs` (`systemprompt_identifiers::UserId::new` → `UserId::new`).
+
 ## [0.1.23] - 2026-04-14
 
 ### Fixed

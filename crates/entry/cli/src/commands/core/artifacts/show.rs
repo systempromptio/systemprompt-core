@@ -15,17 +15,17 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    #[arg(value_name = "ARTIFACT_ID", help = "Artifact ID (full or partial prefix)")]
+    #[arg(
+        value_name = "ARTIFACT_ID",
+        help = "Artifact ID (full or partial prefix)"
+    )]
     pub artifact: String,
 
     #[arg(long, help = "Show full content without truncation")]
     pub full: bool,
 }
 
-pub async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ArtifactSummary>> {
+pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<ArtifactSummary>> {
     let _session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await

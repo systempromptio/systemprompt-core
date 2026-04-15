@@ -213,8 +213,8 @@ async fn execute_streaming(
                             if event.is_final {
                                 CliService::output("");
                                 final_task = Some(Task {
-                                    id: event.task_id.into(),
-                                    context_id: event.context_id.into(),
+                                    id: event.task_id,
+                                    context_id: event.context_id,
                                     status: event.status,
                                     history: None,
                                     artifacts: None,

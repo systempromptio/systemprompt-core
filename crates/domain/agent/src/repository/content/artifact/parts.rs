@@ -46,16 +46,14 @@ pub async fn get_artifact_parts(
                     .ok_or_else(|| RepositoryError::InvalidData("Missing text_content".into()))?;
                 Part::Text(TextPart { text })
             },
-            "file" => {
-                Part::File(FilePart {
-                    file: FileContent {
-                        name: row.file_name,
-                        mime_type: row.file_mime_type,
-                        bytes: row.file_bytes,
-                        url: row.file_uri,
-                    },
-                })
-            },
+            "file" => Part::File(FilePart {
+                file: FileContent {
+                    name: row.file_name,
+                    mime_type: row.file_mime_type,
+                    bytes: row.file_bytes,
+                    url: row.file_uri,
+                },
+            }),
             "data" => {
                 let data_value = row
                     .data_content

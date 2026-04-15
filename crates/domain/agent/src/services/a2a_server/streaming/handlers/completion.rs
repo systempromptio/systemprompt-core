@@ -7,7 +7,9 @@ use systemprompt_traits::validation::Validate;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::models::a2a::protocol::TaskStatusUpdateEvent;
-use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{
+    Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
+};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{
     MessageProcessor, PersistCompletedTaskOnProcessorParams,
@@ -231,8 +233,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
                 tracing::error!(error = %e, "Failed to broadcast RUN_FINISHED");
             }
 
-            broadcast_task_completed(&task_with_timing, context.user_id(), auth_token)
-                .await;
+            broadcast_task_completed(&task_with_timing, context.user_id(), auth_token).await;
         },
     }
 }

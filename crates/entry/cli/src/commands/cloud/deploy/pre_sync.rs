@@ -257,7 +257,11 @@ async fn setup_sync_token(
         let token = response.sync_token;
         CliService::success("Sync token generated");
 
-        if let Some(tenant) = tenant_store.tenants.iter_mut().find(|t| t.id == tenant_id.as_str()) {
+        if let Some(tenant) = tenant_store
+            .tenants
+            .iter_mut()
+            .find(|t| t.id == tenant_id.as_str())
+        {
             tenant.sync_token = Some(token.clone());
         }
         tenant_store.save_to_path(&tenants_path)?;

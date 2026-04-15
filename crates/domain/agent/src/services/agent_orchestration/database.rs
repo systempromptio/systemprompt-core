@@ -52,8 +52,7 @@ impl AgentDatabaseService {
                             port: r.port as u16,
                         })
                     } else {
-                        self.mark_failed(agent_name)
-                            .await?;
+                        self.mark_failed(agent_name).await?;
                         Ok(AgentStatus::Failed {
                             reason: "Process died unexpectedly".to_string(),
                             last_attempt: None,
@@ -78,8 +77,7 @@ impl AgentDatabaseService {
                     })
                 },
                 _ => {
-                    self.mark_failed(agent_name)
-                        .await?;
+                    self.mark_failed(agent_name).await?;
                     Ok(AgentStatus::Failed {
                         reason: "Invalid database state".to_string(),
                         last_attempt: None,
@@ -254,9 +252,7 @@ impl AgentDatabaseService {
             .map_err(|e| OrchestrationError::Database(e.to_string()))
     }
 
-    pub async fn get_unresponsive_agents(
-        &self,
-    ) -> OrchestrationResult<Vec<(String, Option<u32>)>> {
+    pub async fn get_unresponsive_agents(&self) -> OrchestrationResult<Vec<(String, Option<u32>)>> {
         use crate::services::agent_orchestration::monitor::check_a2a_agent_health;
 
         let agents = self.list_all_agents().await?;

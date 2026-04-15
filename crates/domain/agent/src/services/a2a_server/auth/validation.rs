@@ -179,7 +179,10 @@ pub async fn validate_oauth_for_request(
     };
 
     let Some(provider) = jwt_provider else {
-        return Err(unauthorized_response("JWT provider not configured", request_id));
+        return Err(unauthorized_response(
+            "JWT provider not configured",
+            request_id,
+        ));
     };
 
     match provider.validate_token(&token) {
@@ -197,8 +200,7 @@ pub async fn validate_oauth_for_request(
                         claims.audiences
                     ),
                     request_id,
-                )
-                );
+                ));
             }
 
             if claims.is_admin {
@@ -241,8 +243,7 @@ pub async fn validate_oauth_for_request(
                         claims.permissions.join(", ")
                     ),
                     request_id,
-                )
-                );
+                ));
             }
 
             Ok(Some(serde_json::json!({
@@ -254,8 +255,9 @@ pub async fn validate_oauth_for_request(
                 "audiences": claims.audiences
             })))
         },
-        Err(e) => {
-            Err(unauthorized_response(format!("Invalid or expired token: {e}"), request_id))
-        },
+        Err(e) => Err(unauthorized_response(
+            format!("Invalid or expired token: {e}"),
+            request_id,
+        )),
     }
 }

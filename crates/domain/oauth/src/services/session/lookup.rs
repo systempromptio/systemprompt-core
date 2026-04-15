@@ -123,11 +123,11 @@ impl SessionCreationService {
             issuer: &config.jwt_issuer,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)
-        .map_err(|e| {
-            tracing::warn!(error = %e, "Failed to generate JWT for session lookup");
-            e
-        })
-        .ok()?;
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to generate JWT for session lookup");
+                e
+            })
+            .ok()?;
 
         Some(AnonymousSessionInfo {
             session_id,

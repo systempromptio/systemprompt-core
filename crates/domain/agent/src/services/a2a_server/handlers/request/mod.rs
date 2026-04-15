@@ -158,19 +158,15 @@ pub async fn handle_agent_request(
                 "result": task_value,
                 "id": request_id
             }),
-            Err(e) => {
-                JsonRpcErrorBuilder::internal_error()
-                    .with_data(json!("Task serialization failed"))
-                    .log_error(format!("Failed to serialize task response: {e}"))
-                    .build(&request_id)
-            },
+            Err(e) => JsonRpcErrorBuilder::internal_error()
+                .with_data(json!("Task serialization failed"))
+                .log_error(format!("Failed to serialize task response: {e}"))
+                .build(&request_id),
         },
-        Err(e) => {
-            JsonRpcErrorBuilder::internal_error()
-                .with_data(json!(format!("Request handling failed: {e}")))
-                .log_error(format!("A2A request handling failed: {e}"))
-                .build(&request_id)
-        },
+        Err(e) => JsonRpcErrorBuilder::internal_error()
+            .with_data(json!(format!("Request handling failed: {e}")))
+            .log_error(format!("A2A request handling failed: {e}"))
+            .build(&request_id),
     };
 
     let latency_ms = start_time.elapsed().as_millis();

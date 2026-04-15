@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use serde_json::json;
-use systemprompt_identifiers::{AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::{RequestContext, TaskMetadata};
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;

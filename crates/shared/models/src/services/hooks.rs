@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::HookId;
 
 pub const HOOK_CONFIG_FILENAME: &str = "config.yaml";
 
@@ -16,6 +17,10 @@ fn default_version() -> String {
 
 fn default_matcher() -> String {
     "*".to_string()
+}
+
+fn default_hook_id() -> HookId {
+    HookId::new("")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -126,8 +131,8 @@ impl FromStr for HookCategory {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskHookConfig {
-    #[serde(default)]
-    pub id: String,
+    #[serde(default = "default_hook_id")]
+    pub id: HookId,
     #[serde(default)]
     pub name: String,
     #[serde(default)]

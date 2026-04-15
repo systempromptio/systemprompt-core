@@ -24,10 +24,8 @@ impl SkillsDiffCalculator {
 
     pub async fn calculate_diff(&self, skills_path: &Path) -> Result<SkillsDiffResult> {
         let db_skills = self.skill_repo.list_all().await?;
-        let db_map: HashMap<SkillId, Skill> = db_skills
-            .into_iter()
-            .map(|s| (s.id.clone(), s))
-            .collect();
+        let db_map: HashMap<SkillId, Skill> =
+            db_skills.into_iter().map(|s| (s.id.clone(), s)).collect();
 
         let disk_skills = Self::scan_disk_skills(skills_path)?;
 

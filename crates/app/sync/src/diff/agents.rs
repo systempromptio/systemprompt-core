@@ -24,10 +24,8 @@ impl AgentsDiffCalculator {
 
     pub async fn calculate_diff(&self, agents_path: &Path) -> Result<AgentsDiffResult> {
         let db_agents = self.agent_repo.list_all().await?;
-        let db_map: HashMap<AgentId, Agent> = db_agents
-            .into_iter()
-            .map(|a| (a.id.clone(), a))
-            .collect();
+        let db_map: HashMap<AgentId, Agent> =
+            db_agents.into_iter().map(|a| (a.id.clone(), a)).collect();
 
         let disk_agents = Self::scan_disk_agents(agents_path)?;
 

@@ -89,7 +89,9 @@ pub async fn deploy_with_secrets(
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
-    client.set_secrets(tenant_id.as_str(), profile_secret).await?;
+    client
+        .set_secrets(tenant_id.as_str(), profile_secret)
+        .await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");
 

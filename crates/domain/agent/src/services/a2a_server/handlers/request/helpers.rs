@@ -41,7 +41,9 @@ pub async fn parse_a2a_request(
 
                 let error_response = JsonRpcErrorBuilder::invalid_params()
                     .with_data(helpful_message)
-                    .log_error("Missing required contextId in SendStreamingMessage request".to_string())
+                    .log_error(
+                        "Missing required contextId in SendStreamingMessage request".to_string(),
+                    )
                     .build(request_id);
                 Err((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
             } else {

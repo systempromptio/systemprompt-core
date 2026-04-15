@@ -132,7 +132,10 @@ impl crate::repository::OAuthRepository {
         Ok(())
     }
 
-    pub async fn get_webauthn_credentials(&self, user_id: &UserId) -> Result<Vec<WebAuthnCredential>> {
+    pub async fn get_webauthn_credentials(
+        &self,
+        user_id: &UserId,
+    ) -> Result<Vec<WebAuthnCredential>> {
         let user_id_str = user_id.as_str();
         let rows = sqlx::query!(
             "SELECT id, user_id, credential_id, public_key, counter, display_name,

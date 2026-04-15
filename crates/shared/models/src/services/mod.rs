@@ -14,15 +14,16 @@ pub use agent_config::{
     AgentSkillConfig, AgentSummary, CapabilitiesConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE,
     DiskAgentConfig, OAuthConfig,
 };
-pub use content::ContentConfig;
 pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
     ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
 };
+pub use content::ContentConfig;
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
 };
+pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
     PluginConfigFile, PluginScript, PluginSummary, PluginVariableDef,
@@ -30,7 +31,6 @@ pub use plugin::{
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
 pub use settings::*;
-pub use mcp::McpServerSummary;
 pub use skills::{
     DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillDetail,
     SkillSummary, SkillsConfig, strip_frontmatter,
@@ -186,7 +186,7 @@ impl ServicesConfig {
 
     fn validate_skills(&self) -> anyhow::Result<()> {
         for (key, skill) in &self.skills.skills {
-            if !skill.id.is_empty() && skill.id != *key {
+            if !skill.id.as_str().is_empty() && skill.id.as_str() != key.as_str() {
                 anyhow::bail!(
                     "Skill map key '{}' does not match skill id '{}'",
                     key,

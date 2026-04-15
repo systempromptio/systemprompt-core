@@ -1,7 +1,7 @@
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
-use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 use systemprompt_models::artifacts::types::ArtifactType;
+use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 
 use super::artifact_type_to_string;
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] - 2026-04-15
+
+### Fixed
+- Resolved clippy `needless_borrow` in `routes/oauth/endpoints/anonymous.rs` (`generate_admin_jwt(&user_id, ...)` → `generate_admin_jwt(user_id, ...)`).
+- Resolved clippy `needless_borrow` in `routes/oauth/endpoints/token/generation.rs` (`repo.update_client_last_used(&params.client_id)` → `repo.update_client_last_used(params.client_id)`).
+
 ## [0.1.21] - 2026-04-02
 
 ### Changed

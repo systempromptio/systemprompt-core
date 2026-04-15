@@ -19,6 +19,9 @@
 ### Breaking
 - Any code constructing `WebConfig { branding: BrandingConfig { site_name, logo_url, primary_color } }` must migrate to the full `systemprompt_provider_contracts::WebConfig` type.
 
+### Fixed
+- Removed 15 forbidden doc comments (`///`) from `src/macros.rs` per project coding standards.
+
 ## [0.1.23] - 2026-04-14
 
 ### Added

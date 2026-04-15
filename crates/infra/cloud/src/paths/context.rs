@@ -49,9 +49,7 @@ impl UnifiedContext {
 
     #[must_use]
     pub fn project_root(&self) -> Option<&Path> {
-        self.project
-            .as_ref()
-            .map(DiscoveredProject::root)
+        self.project.as_ref().map(DiscoveredProject::root)
     }
 
     #[must_use]

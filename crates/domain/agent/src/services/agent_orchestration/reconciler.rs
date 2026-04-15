@@ -33,9 +33,7 @@ impl AgentReconciler {
                             pid = %pid,
                             "Agent marked as running but process not found - marking as failed"
                         );
-                        self.db_service
-                            .mark_failed(&agent_id)
-                            .await?;
+                        self.db_service.mark_failed(&agent_id).await?;
                         reconciled += 1;
                     }
                 },

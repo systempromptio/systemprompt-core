@@ -220,12 +220,14 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
 
-    let tenant = tenant_store.find_tenant(tenant_id.as_str()).ok_or_else(|| {
-        anyhow!(
-            "Tenant {} not found. Run 'systemprompt cloud login'",
-            tenant_id
-        )
-    })?;
+    let tenant = tenant_store
+        .find_tenant(tenant_id.as_str())
+        .ok_or_else(|| {
+            anyhow!(
+                "Tenant {} not found. Run 'systemprompt cloud login'",
+                tenant_id
+            )
+        })?;
 
     let tenant_name = &tenant.name;
 
@@ -309,7 +311,9 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
         if !secrets.is_empty() {
             let env_secrets = super::secrets::map_secrets_to_env_vars(secrets);
             let spinner = CliService::spinner("Syncing secrets...");
-            let keys = api_client.set_secrets(tenant_id.as_str(), env_secrets).await?;
+            let keys = api_client
+                .set_secrets(tenant_id.as_str(), env_secrets)
+                .await?;
             spinner.finish_and_clear();
             CliService::success(&format!("Synced {} secrets", keys.len()));
         }
@@ -332,7 +336,9 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
-    api_client.set_secrets(tenant_id.as_str(), profile_secret).await?;
+    api_client
+        .set_secrets(tenant_id.as_str(), profile_secret)
+        .await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");
 

@@ -127,13 +127,7 @@ async fn execute_trace_view(
         mcp: &mcp_summary,
         step: &step_summary,
     };
-    let output = build_trace_output(
-        &args.id,
-        &events,
-        &summaries,
-        task_id.as_ref(),
-        duration_ms,
-    );
+    let output = build_trace_output(&args.id, &events, &summaries, task_id.as_ref(), duration_ms);
 
     let result = CommandResult::card(output).with_title("Trace Details");
 

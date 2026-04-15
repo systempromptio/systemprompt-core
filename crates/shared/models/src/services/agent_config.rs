@@ -2,6 +2,7 @@ use super::super::ai::ToolModelOverrides;
 use super::super::auth::{JwtAudience, Permission};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentId;
 
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
 pub const DEFAULT_AGENT_SYSTEM_PROMPT_FILE: &str = "system_prompt.md";
@@ -13,7 +14,7 @@ fn default_version() -> String {
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskAgentConfig {
     #[serde(default)]
-    pub id: String,
+    pub id: Option<AgentId>,
     pub name: String,
     pub display_name: String,
     pub description: String,
@@ -97,10 +98,12 @@ impl DiskAgentConfig {
     }
 
     pub fn validate(&self, dir_name: &str) -> anyhow::Result<()> {
-        if !self.id.is_empty() && self.id != dir_name {
+        if let Some(id) = &self.id
+            && id.as_str() != dir_name
+        {
             anyhow::bail!(
                 "Agent config id '{}' does not match directory name '{}'",
-                self.id,
+                id,
                 dir_name
             );
         }
@@ -188,7 +191,7 @@ pub struct AgentCardConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSkillConfig {
-    pub id: String,
+    pub id: systemprompt_identifiers::SkillId,
     pub name: String,
     pub description: String,
     #[serde(default)]
@@ -323,7 +326,7 @@ impl AgentConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentSummary {
-    pub agent_id: String,
+    pub agent_id: AgentId,
     pub name: String,
     pub display_name: String,
     pub port: u16,
@@ -337,7 +340,7 @@ pub struct AgentSummary {
 impl AgentSummary {
     pub fn from_config(name: &str, config: &AgentConfig) -> Self {
         Self {
-            agent_id: name.to_string(),
+            agent_id: AgentId::new(name),
             name: name.to_string(),
             display_name: config.card.display_name.clone(),
             port: config.port,
@@ -352,7 +355,7 @@ impl AgentSummary {
 impl From<&AgentConfig> for AgentSummary {
     fn from(config: &AgentConfig) -> Self {
         Self {
-            agent_id: config.name.clone(),
+            agent_id: AgentId::new(config.name.clone()),
             name: config.name.clone(),
             display_name: config.card.display_name.clone(),
             port: config.port,

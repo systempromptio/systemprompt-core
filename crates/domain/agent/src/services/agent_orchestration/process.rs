@@ -104,14 +104,8 @@ fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .arg("--port")
         .arg(port.to_string())
         .env_clear()
-        .env(
-            "PATH",
-            std::env::var("PATH").unwrap_or_default(),
-        )
-        .env(
-            "HOME",
-            std::env::var("HOME").unwrap_or_default(),
-        )
+        .env("PATH", std::env::var("PATH").unwrap_or_default())
+        .env("HOME", std::env::var("HOME").unwrap_or_default())
         .env("SYSTEMPROMPT_PROFILE", profile_path)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .env("JWT_SECRET", &secrets.jwt_secret)

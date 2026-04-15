@@ -33,12 +33,17 @@ impl WebAuthnService {
                 )
         };
 
-        let params =
-            WebAuthnCredentialParams::builder(&id, user_id.as_str(), &credential_id, &public_key, counter)
-                .with_display_name(display_name)
-                .with_device_type("platform")
-                .with_transports(&transports)
-                .build();
+        let params = WebAuthnCredentialParams::builder(
+            &id,
+            user_id.as_str(),
+            &credential_id,
+            &public_key,
+            counter,
+        )
+        .with_display_name(display_name)
+        .with_device_type("platform")
+        .with_transports(&transports)
+        .build();
 
         self.oauth_repo.store_webauthn_credential(params).await
     }

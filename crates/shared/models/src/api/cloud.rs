@@ -22,6 +22,7 @@ pub struct CloudApiErrorDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudUserInfo {
+    // JSON: external vendor identifier
     pub id: String,
     pub email: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -30,6 +31,7 @@ pub struct CloudUserInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudCustomerInfo {
+    // JSON: external vendor identifier
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
@@ -56,6 +58,7 @@ pub struct CloudPlanInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudPlan {
+    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub paddle_price_id: String,
@@ -78,6 +81,7 @@ pub enum CloudTenantStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudTenantInfo {
+    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -101,6 +105,7 @@ pub struct CloudTenantInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudTenant {
+    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,6 +150,7 @@ pub struct SetExternalDbAccessRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExternalDbAccessResponse {
+    // JSON: external vendor identifier
     pub tenant_id: String,
     pub external_db_access: bool,
     pub database_url: String,
@@ -165,6 +171,7 @@ pub struct RotateSyncTokenResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudEnterpriseLicenseInfo {
+    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub domain: String,
@@ -247,6 +254,7 @@ pub enum ProvisioningEventType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProvisioningEvent {
+    // JSON: external vendor identifier
     pub tenant_id: String,
     pub event_type: ProvisioningEventType,
     pub status: String,
@@ -261,6 +269,7 @@ pub struct ProvisioningEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutEvent {
     pub checkout_session_id: String,
+    // JSON: external vendor identifier
     pub tenant_id: String,
     pub tenant_name: String,
     pub event_type: ProvisioningEventType,
@@ -326,6 +335,7 @@ pub struct ActivityRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActivityData {
+    // JSON: external vendor identifier
     pub user_id: String,
 }
 

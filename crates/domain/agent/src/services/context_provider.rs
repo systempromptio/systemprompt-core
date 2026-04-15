@@ -57,7 +57,7 @@ impl ContextProvider for ContextProviderService {
             .map_err(|e| match e {
                 systemprompt_traits::RepositoryError::NotFound(msg) => {
                     ContextProviderError::NotFound(msg)
-                }
+                },
                 other => ContextProviderError::Database(other.to_string()),
             })?;
 
@@ -110,7 +110,7 @@ impl ContextProvider for ContextProviderService {
             .map_err(|e| match e {
                 systemprompt_traits::RepositoryError::NotFound(msg) => {
                     ContextProviderError::NotFound(msg)
-                }
+                },
                 other => ContextProviderError::Database(other.to_string()),
             })
     }
@@ -126,7 +126,7 @@ impl ContextProvider for ContextProviderService {
             .map_err(|e| match e {
                 systemprompt_traits::RepositoryError::NotFound(msg) => {
                     ContextProviderError::NotFound(msg)
-                }
+                },
                 other => ContextProviderError::Database(other.to_string()),
             })
     }

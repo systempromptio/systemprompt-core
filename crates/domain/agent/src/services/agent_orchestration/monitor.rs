@@ -47,11 +47,13 @@ impl AgentMonitor {
                     }),
                 }
             },
-            crate::services::agent_orchestration::AgentStatus::Failed { .. } => Ok(HealthCheckResult {
-                healthy: false,
-                message: format!("Agent {} not in running state", agent_name),
-                response_time_ms: 0,
-            }),
+            crate::services::agent_orchestration::AgentStatus::Failed { .. } => {
+                Ok(HealthCheckResult {
+                    healthy: false,
+                    message: format!("Agent {} not in running state", agent_name),
+                    response_time_ms: 0,
+                })
+            },
         }
     }
 
@@ -70,9 +72,7 @@ impl AgentMonitor {
                             report.unhealthy.push(agent_id);
                         }
                     } else {
-                        self.db_service
-                            .mark_failed(&agent_id)
-                            .await?;
+                        self.db_service.mark_failed(&agent_id).await?;
                         report.failed.push(agent_id);
                     }
                 },

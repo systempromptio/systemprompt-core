@@ -46,8 +46,7 @@ pub async fn start_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(pool)
-        .map_err(OrchestrationError::Generic)?;
+    let lifecycle = AgentLifecycle::new(pool).map_err(OrchestrationError::Generic)?;
     lifecycle.start_agent(agent_name, events).await
 }
 
@@ -56,14 +55,12 @@ pub async fn enable_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(pool)
-        .map_err(OrchestrationError::Generic)?;
+    let lifecycle = AgentLifecycle::new(pool).map_err(OrchestrationError::Generic)?;
     lifecycle.enable_agent(agent_name, events).await
 }
 
 pub async fn disable_agent(pool: &DbPool, agent_name: &str) -> OrchestrationResult<()> {
-    let lifecycle = AgentLifecycle::new(pool)
-        .map_err(OrchestrationError::Generic)?;
+    let lifecycle = AgentLifecycle::new(pool).map_err(OrchestrationError::Generic)?;
     lifecycle.disable_agent(agent_name).await
 }
 
@@ -72,7 +69,6 @@ pub async fn restart_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(pool)
-        .map_err(OrchestrationError::Generic)?;
+    let lifecycle = AgentLifecycle::new(pool).map_err(OrchestrationError::Generic)?;
     lifecycle.restart_agent(agent_name, events).await
 }

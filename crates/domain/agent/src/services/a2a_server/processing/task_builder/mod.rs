@@ -6,7 +6,9 @@ pub use builders::{
     build_submitted_task,
 };
 
-use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{
+    Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
+};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::TaskMetadata;
 

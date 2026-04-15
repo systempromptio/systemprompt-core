@@ -1,5 +1,7 @@
 use crate::models::ArtifactRow;
-use crate::models::a2a::{Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, TextPart};
+use crate::models::a2a::{
+    Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, TextPart,
+};
 use crate::repository::task::constructor::batch_queries;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -50,7 +52,7 @@ fn convert_artifact_part_row(
                 .clone()
                 .ok_or_else(|| RepositoryError::InvalidData("Missing text_content".into()))?;
             Ok(Part::Text(TextPart { text }))
-        }
+        },
         "file" => Ok(Part::File(FilePart {
             file: FileContent {
                 name: row.file_name.clone(),
@@ -70,7 +72,7 @@ fn convert_artifact_part_row(
                 ));
             };
             Ok(Part::Data(DataPart { data }))
-        }
+        },
         _ => Err(RepositoryError::InvalidData(format!(
             "Unknown part kind: {part_kind}"
         ))),

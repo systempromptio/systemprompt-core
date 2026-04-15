@@ -70,8 +70,9 @@ fn build_config_for_filter(
         },
         ShowFilter::Ai => FullConfig::empty()
             .with_ai(services_config.map_or_else(AiConfig::default, |s| s.ai.clone())),
-        ShowFilter::Web => FullConfig::empty()
-            .with_web(services_config.and_then(|s| s.web.clone())),
+        ShowFilter::Web => {
+            FullConfig::empty().with_web(services_config.and_then(|s| s.web.clone()))
+        },
         ShowFilter::Content => {
             let mut full = FullConfig::empty();
             if let Some(content) = load_content_config() {
@@ -112,7 +113,6 @@ fn build_full_config(
             .with_mcp_servers(sc.mcp_servers.clone())
             .with_ai(sc.ai.clone())
             .with_web(sc.web.clone());
-
     }
 
     if let Some(content) = load_content_config() {

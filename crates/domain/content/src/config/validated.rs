@@ -52,10 +52,7 @@ impl ContentConfigValidated {
         Self::from_raw(config.raw.clone(), base_path)
     }
 
-    pub fn from_services_config(
-        services: &ServicesConfig,
-        base_path: PathBuf,
-    ) -> ValidationResult {
+    pub fn from_services_config(services: &ServicesConfig, base_path: PathBuf) -> ValidationResult {
         Self::from_content_config(&services.content, base_path)
     }
 

@@ -1,4 +1,4 @@
-//! Unit tests for markdown processing functionality
+#![allow(clippy::expect_used)]
 
 use systemprompt_generator::{extract_frontmatter, render_markdown};
 

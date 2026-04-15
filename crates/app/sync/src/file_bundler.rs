@@ -129,10 +129,7 @@ pub fn extract_tarball_selective(
     Ok(count)
 }
 
-pub fn compare_tarball_with_local(
-    data: &[u8],
-    services_path: &Path,
-) -> SyncResult<SyncDiffResult> {
+pub fn compare_tarball_with_local(data: &[u8], services_path: &Path) -> SyncResult<SyncDiffResult> {
     let temp_dir = tempfile::tempdir()?;
     extract_tarball(data, temp_dir.path())?;
 

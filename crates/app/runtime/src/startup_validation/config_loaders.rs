@@ -2,8 +2,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::time::Duration;
 use systemprompt_logging::CliService;
-use systemprompt_models::validators::{ValidationConfigProvider, WebConfigRaw, WebMetadataRaw};
 use systemprompt_models::Config;
+use systemprompt_models::validators::{ValidationConfigProvider, WebConfigRaw, WebMetadataRaw};
 use systemprompt_traits::ConfigProvider;
 
 pub fn load_content_config(

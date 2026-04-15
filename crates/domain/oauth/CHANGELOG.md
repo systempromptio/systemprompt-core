@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] - 2026-04-15
+
+### Removed (BREAKING)
+- Deleted `crates/domain/oauth/src/services/auth_provider.rs` in its entirety. `JwtAuthProvider`, `JwtAuthorizationProvider`, and `TraitBasedAuthService` were dead since v0.0.1 — zero production callers, `authorize()` / `get_permissions()` silently returned stub values. Real token validation lives in `JwtValidationProviderImpl`; real permission checks live in `JwtClaims::get_permissions()` and `crates/domain/mcp/src/middleware/rbac.rs`.
+- Removed the corresponding re-exports from `crates/domain/oauth/src/lib.rs` and `src/services/mod.rs`.
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

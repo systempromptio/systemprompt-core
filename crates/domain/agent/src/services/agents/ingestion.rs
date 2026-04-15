@@ -75,11 +75,11 @@ impl AgentIngestionService {
         let config: DiskAgentConfig = serde_yaml::from_str(&config_text)
             .map_err(|e| anyhow!("Failed to parse {}: {}", AGENT_CONFIG_FILENAME, e))?;
 
-        let agent_id_str = if config.id.is_empty() {
-            dir_name.replace('-', "_")
-        } else {
-            config.id.clone()
-        };
+        let agent_id_str = config
+            .id
+            .as_ref()
+            .map(|id| id.as_str().to_string())
+            .unwrap_or_else(|| dir_name.replace('-', "_"));
 
         let system_prompt_path = agent_dir.join(config.system_prompt_file());
         let system_prompt = if system_prompt_path.exists() {
@@ -122,12 +122,7 @@ impl AgentIngestionService {
             updated_at: chrono::Utc::now(),
         };
 
-        if self
-            .agent_repo
-            .get_by_agent_id(&agent.id)
-            .await?
-            .is_some()
-        {
+        if self.agent_repo.get_by_agent_id(&agent.id).await?.is_some() {
             if override_existing {
                 self.agent_repo.update(&agent.id, &agent).await?;
             }

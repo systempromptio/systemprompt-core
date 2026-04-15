@@ -202,7 +202,8 @@ async fn store_authorization_code(
 
     let code = AuthorizationCode::new(code_str);
 
-    let mut builder = AuthCodeParams::builder(&code, client_id, &query.user_id, redirect_uri, &scope);
+    let mut builder =
+        AuthCodeParams::builder(&code, client_id, &query.user_id, redirect_uri, &scope);
 
     if let (Some(challenge), Some(method)) = (
         query.code_challenge.as_deref(),
@@ -256,7 +257,10 @@ fn create_successful_response(
             authorization_code: authorization_code.to_string(),
             state: state.unwrap_or("").to_string(),
             redirect_uri: redirect_uri.to_string(),
-            client_id: params.client_id.clone().unwrap_or_else(|| ClientId::new("")),
+            client_id: params
+                .client_id
+                .clone()
+                .unwrap_or_else(|| ClientId::new("")),
         };
 
         Json(response_data).into_response()

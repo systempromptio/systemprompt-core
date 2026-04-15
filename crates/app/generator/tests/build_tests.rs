@@ -1,4 +1,4 @@
-//! Unit tests for build orchestrator functionality
+#![allow(clippy::expect_used)]
 
 use std::path::PathBuf;
 use systemprompt_generator::{BuildError, BuildMode, BuildOrchestrator};

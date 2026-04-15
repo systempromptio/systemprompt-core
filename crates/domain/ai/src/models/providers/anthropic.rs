@@ -129,6 +129,7 @@ pub struct AnthropicTool {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnthropicResponse {
+    // JSON: external vendor identifier
     pub id: String,
     pub r#type: String,
     pub role: String,
@@ -180,6 +181,7 @@ pub enum AnthropicStreamEvent {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AnthropicMessageInfo {
+    // JSON: external vendor identifier
     pub id: String,
     pub model: String,
     pub role: String,
@@ -255,6 +257,7 @@ pub struct AnthropicSearchRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AnthropicSearchResponse {
+    // JSON: external vendor identifier
     pub id: String,
     pub content: Vec<AnthropicSearchContentBlock>,
     pub model: String,

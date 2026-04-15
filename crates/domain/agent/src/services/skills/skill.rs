@@ -78,11 +78,7 @@ impl SkillService {
             };
             let tracking = ExecutionTrackingService::new(execution_step_repo);
             match tracking
-                .track_skill_usage(
-                    task_id.clone(),
-                    skill.id.clone(),
-                    skill.name.clone(),
-                )
+                .track_skill_usage(task_id.clone(), skill.id.clone(), skill.name.clone())
                 .await
             {
                 Ok(step) => {

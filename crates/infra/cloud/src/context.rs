@@ -9,6 +9,7 @@ use crate::tenants::{StoredTenant, TenantStore};
 
 #[derive(Debug, Clone)]
 pub struct ResolvedTenant {
+    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub app_id: Option<String>,

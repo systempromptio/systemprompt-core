@@ -137,8 +137,7 @@ pub async fn execute(args: SyncArgs, config: &CliConfig) -> Result<CommandResult
     let result = match direction {
         LocalSyncDirection::ToDisk => sync.sync_to_disk(&diff, args.delete_orphans).await?,
         LocalSyncDirection::ToDatabase => {
-            let services_config =
-                ConfigLoader::load().context("Failed to load services config")?;
+            let services_config = ConfigLoader::load().context("Failed to load services config")?;
             sync.sync_to_db(&diff, &services_config.skills, args.delete_orphans)
                 .await?
         },

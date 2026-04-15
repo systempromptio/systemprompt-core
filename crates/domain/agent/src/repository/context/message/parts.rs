@@ -62,16 +62,14 @@ pub async fn get_message_parts(
                     .ok_or_else(|| RepositoryError::InvalidData("Missing text_content".into()))?;
                 Part::Text(crate::models::a2a::TextPart { text })
             },
-            "file" => {
-                Part::File(crate::models::a2a::FilePart {
-                    file: crate::models::a2a::FileContent {
-                        name: row.file_name,
-                        mime_type: row.file_mime_type,
-                        bytes: row.file_bytes,
-                        url: row.file_uri,
-                    },
-                })
-            },
+            "file" => Part::File(crate::models::a2a::FilePart {
+                file: crate::models::a2a::FileContent {
+                    name: row.file_name,
+                    mime_type: row.file_mime_type,
+                    bytes: row.file_bytes,
+                    url: row.file_uri,
+                },
+            }),
             "data" => {
                 let data_value = row
                     .data_content

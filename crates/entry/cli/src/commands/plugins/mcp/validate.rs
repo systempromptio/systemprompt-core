@@ -41,21 +41,20 @@ pub async fn execute(
         McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
     let database = DatabaseManager::new(Arc::clone(ctx.db_pool()));
 
-    let servers_to_validate: Vec<String> = if args.all
-        || (args.server.is_none() && !config.is_interactive())
-    {
-        services_config.mcp_servers.keys().cloned().collect()
-    } else {
-        let service = resolve_required(args.server, "server", config, || {
-            prompt_server_selection(&services_config)
-        })?;
+    let servers_to_validate: Vec<String> =
+        if args.all || (args.server.is_none() && !config.is_interactive()) {
+            services_config.mcp_servers.keys().cloned().collect()
+        } else {
+            let service = resolve_required(args.server, "server", config, || {
+                prompt_server_selection(&services_config)
+            })?;
 
-        if !services_config.mcp_servers.contains_key(&service) {
-            return Err(anyhow!("MCP server '{}' not found", service));
-        }
+            if !services_config.mcp_servers.contains_key(&service) {
+                return Err(anyhow!("MCP server '{}' not found", service));
+            }
 
-        vec![service]
-    };
+            vec![service]
+        };
 
     let mut results = Vec::new();
 

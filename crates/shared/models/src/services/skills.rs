@@ -1,6 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use systemprompt_identifiers::SkillId;
 
 use super::IncludableString;
 use super::ai::ToolModelConfig;
@@ -29,7 +30,7 @@ pub struct SkillsConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillConfig {
-    pub id: String,
+    pub id: SkillId,
     pub name: String,
     pub description: String,
 
@@ -54,7 +55,7 @@ pub struct SkillConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskSkillConfig {
-    pub id: String,
+    pub id: SkillId,
     pub name: String,
     pub description: String,
     #[serde(default = "default_true")]
@@ -79,7 +80,7 @@ impl DiskSkillConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillSummary {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub name: String,
     pub display_name: String,
     pub enabled: bool,
@@ -107,7 +108,7 @@ impl From<&DiskSkillConfig> for SkillSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillDetail {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub name: String,
     pub display_name: String,
     pub description: String,

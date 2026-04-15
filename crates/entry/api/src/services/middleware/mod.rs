@@ -17,11 +17,15 @@ pub mod trailing_slash;
 pub use analytics::*;
 pub use auth::*;
 pub use bot_detector::*;
-pub use context::{ContextExtractor, ContextMiddleware, ContextRequirement, HeaderContextExtractor};
+pub use context::{
+    ContextExtractor, ContextMiddleware, ContextRequirement, HeaderContextExtractor,
+};
 pub use cors::*;
 pub use ip_ban::*;
 pub use jwt::*;
-pub use negotiation::{AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header};
+pub use negotiation::{
+    AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
+};
 pub use rate_limit::*;
 pub use security_headers::*;
 pub use session::*;

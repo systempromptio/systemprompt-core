@@ -232,11 +232,16 @@ async fn try_use_existing_session(
     let session_token = session.session_token.clone();
 
     let user_service = UserService::new(db_pool)?;
-    let exists = user_service.session_exists(&session_id).await.unwrap_or(false);
+    let exists = user_service
+        .session_exists(&session_id)
+        .await
+        .unwrap_or(false);
 
     if !exists {
         if !args.token_only {
-            CliService::info("Cached session is stale (not found in database), creating new session...");
+            CliService::info(
+                "Cached session is stale (not found in database), creating new session...",
+            );
         }
         store.remove_session(session_key);
         store.save(sessions_dir)?;

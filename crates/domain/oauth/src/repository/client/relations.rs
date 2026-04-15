@@ -59,7 +59,8 @@ impl ClientRepository {
         client_ids: &[String],
     ) -> Result<HashMap<String, Vec<String>>> {
         let rows = sqlx::query!(
-            "SELECT client_id, redirect_uri FROM oauth_client_redirect_uris WHERE client_id = ANY($1) ORDER BY is_primary DESC",
+            "SELECT client_id, redirect_uri FROM oauth_client_redirect_uris WHERE client_id = \
+             ANY($1) ORDER BY is_primary DESC",
             client_ids
         )
         .fetch_all(&*self.pool)
@@ -93,14 +94,17 @@ impl ClientRepository {
         client_ids: &[String],
     ) -> Result<HashMap<String, Vec<String>>> {
         let rows = sqlx::query!(
-            "SELECT client_id, response_type FROM oauth_client_response_types WHERE client_id = ANY($1)",
+            "SELECT client_id, response_type FROM oauth_client_response_types WHERE client_id = \
+             ANY($1)",
             client_ids
         )
         .fetch_all(&*self.pool)
         .await?;
         let mut map: HashMap<String, Vec<String>> = HashMap::new();
         for row in rows {
-            map.entry(row.client_id).or_default().push(row.response_type);
+            map.entry(row.client_id)
+                .or_default()
+                .push(row.response_type);
         }
         Ok(map)
     }
@@ -134,7 +138,9 @@ impl ClientRepository {
         .await?;
         let mut map: HashMap<String, Vec<String>> = HashMap::new();
         for row in rows {
-            map.entry(row.client_id).or_default().push(row.contact_email);
+            map.entry(row.client_id)
+                .or_default()
+                .push(row.contact_email);
         }
         Ok(map)
     }

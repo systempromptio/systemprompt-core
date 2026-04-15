@@ -6,9 +6,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReade
 use systemprompt_database::DbPool;
 use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
 use systemprompt_logging::CliService;
-use systemprompt_models::{
-    AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier,
-};
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
     FingerprintProvider, UserProvider,

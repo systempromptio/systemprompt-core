@@ -22,12 +22,8 @@ pub async fn handle_non_streaming_request(
         A2aRequestParams::SendMessage(params) => {
             tracing::info!("Handling SendMessage request");
 
-            validate_message_context(
-                &params.message,
-                Some(context.user_id()),
-                &state.db_pool,
-            )
-            .await?;
+            validate_message_context(&params.message, Some(context.user_id()), &state.db_pool)
+                .await?;
 
             let message_processor =
                 MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service))?;
@@ -40,12 +36,8 @@ pub async fn handle_non_streaming_request(
         A2aRequestParams::SendStreamingMessage(params) => {
             tracing::info!("Handling SendStreamingMessage request (fallback to non-streaming)");
 
-            validate_message_context(
-                &params.message,
-                Some(context.user_id()),
-                &state.db_pool,
-            )
-            .await?;
+            validate_message_context(&params.message, Some(context.user_id()), &state.db_pool)
+                .await?;
 
             let message_processor =
                 MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service))?;

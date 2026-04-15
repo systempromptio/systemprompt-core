@@ -17,10 +17,7 @@ pub struct ShowArgs {
     pub context: String,
 }
 
-pub async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContextSummary>> {
+pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<ContextSummary>> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(args, &session_ctx.session, ctx.db_pool(), config).await

@@ -1,6 +1,4 @@
-use crate::models::a2a::{
-    AgentCapabilities, AgentCard, AgentInterface, TransportProtocol,
-};
+use crate::models::a2a::{AgentCapabilities, AgentCard, AgentInterface, TransportProtocol};
 use serde::{Deserialize, Serialize};
 
 use super::card_input::AgentCardInput;

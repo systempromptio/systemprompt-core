@@ -50,10 +50,7 @@ pub async fn generate_tokens_by_user_id(
     let jwt_and_refresh =
         create_jwt_and_refresh_token(repo, &user, final_permissions, &session_id, &params).await?;
 
-    if let Err(e) = repo
-        .update_client_last_used(params.client_id)
-        .await
-    {
+    if let Err(e) = repo.update_client_last_used(params.client_id).await {
         tracing::warn!(
             client_id = %params.client_id,
             error = %e,

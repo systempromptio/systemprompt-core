@@ -80,10 +80,5 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
 }
 
 pub async fn broadcast_completion(task: &Task, context: &RequestContext) {
-    broadcast_task_completed(
-        task,
-        context.user_id(),
-        context.auth_token().as_str(),
-    )
-    .await;
+    broadcast_task_completed(task, context.user_id(), context.auth_token().as_str()).await;
 }

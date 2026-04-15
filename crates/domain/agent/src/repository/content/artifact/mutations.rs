@@ -55,7 +55,11 @@ impl ArtifactRepository {
             artifact.metadata.tool_name.as_deref(),
             artifact.metadata.mcp_execution_id.as_deref(),
             artifact.metadata.fingerprint.as_deref(),
-            artifact.metadata.skill_id.as_ref().map(systemprompt_identifiers::SkillId::as_str),
+            artifact
+                .metadata
+                .skill_id
+                .as_ref()
+                .map(systemprompt_identifiers::SkillId::as_str),
             artifact.metadata.skill_name.as_deref(),
             metadata_json,
             now
@@ -74,14 +78,8 @@ impl ArtifactRepository {
         .map_err(RepositoryError::database)?;
 
         for (idx, part) in artifact.parts.iter().enumerate() {
-            persist_artifact_part(
-                pool.as_ref(),
-                part,
-                &artifact.id,
-                context_id,
-                idx as i32,
-            )
-            .await?;
+            persist_artifact_part(pool.as_ref(), part, &artifact.id, context_id, idx as i32)
+                .await?;
         }
 
         Ok(())

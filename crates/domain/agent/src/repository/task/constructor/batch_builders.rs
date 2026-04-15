@@ -1,4 +1,6 @@
-use crate::models::a2a::{Artifact, DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart};
+use crate::models::a2a::{
+    Artifact, DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart,
+};
 use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
 };
@@ -204,16 +206,14 @@ fn build_artifact_parts(parts: Option<&Vec<&ArtifactPartRow>>) -> Vec<Part> {
                 let text = row.text_content.clone().unwrap_or_else(String::new);
                 Part::Text(TextPart { text })
             },
-            "file" => {
-                Part::File(FilePart {
-                    file: FileContent {
-                        name: row.file_name.clone(),
-                        mime_type: row.file_mime_type.clone(),
-                        bytes: row.file_bytes.clone(),
-                        url: row.file_uri.clone(),
-                    },
-                })
-            },
+            "file" => Part::File(FilePart {
+                file: FileContent {
+                    name: row.file_name.clone(),
+                    mime_type: row.file_mime_type.clone(),
+                    bytes: row.file_bytes.clone(),
+                    url: row.file_uri.clone(),
+                },
+            }),
             "data" => {
                 let Some(data_value) = &row.data_content else {
                     continue;

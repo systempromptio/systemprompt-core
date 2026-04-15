@@ -27,8 +27,8 @@ pub mod secrets;
 pub mod secrets_bootstrap;
 pub mod services;
 pub mod text;
-pub mod users;
 pub mod time_format;
+pub mod users;
 pub mod validators;
 
 pub use a2a::{
@@ -124,7 +124,6 @@ pub use profile::{
     PathsConfig, Profile, ProfileInfo, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
     SecurityConfig, SecurityHeadersConfig, ServerConfig, SiteConfig,
 };
-pub use users::{SessionSummary, UserSummary};
 pub use profile_bootstrap::{ProfileBootstrap, ProfileBootstrapError};
 pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};
 pub use routing::{ApiCategory, AssetType, RouteClassifier, RouteType};
@@ -143,6 +142,7 @@ pub use services::{
     WebConfig, strip_frontmatter,
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
+pub use users::{SessionSummary, UserSummary};
 
 pub use systemprompt_provider_contracts::{
     AnimationConfig, CardConfig, ColorsConfig, FontsConfig, LayoutConfig, LogoConfig, MobileConfig,

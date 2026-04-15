@@ -50,10 +50,10 @@ impl SkillIngestionService {
         source_id: SourceId,
         override_existing: bool,
     ) -> Result<()> {
-        let skill_id_str = if config.id.is_empty() {
+        let skill_id_str = if config.id.as_str().is_empty() {
             key.to_string()
         } else {
-            config.id.clone()
+            config.id.as_str().to_string()
         };
 
         let instructions = match config.instructions.as_ref() {
@@ -84,12 +84,7 @@ impl SkillIngestionService {
             updated_at: chrono::Utc::now(),
         };
 
-        if self
-            .skill_repo
-            .get_by_skill_id(&skill.id)
-            .await?
-            .is_some()
-        {
+        if self.skill_repo.get_by_skill_id(&skill.id).await?.is_some() {
             if override_existing {
                 self.skill_repo.update(&skill.id, &skill).await?;
             }

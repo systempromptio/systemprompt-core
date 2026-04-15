@@ -161,10 +161,7 @@ impl WebhookService {
         Ok(Self::secure_compare(&expected_signature, signature))
     }
 
-    pub(crate) fn generate_signature(
-        secret: &str,
-        payload: &Value,
-    ) -> IntegrationResult<String> {
+    pub(crate) fn generate_signature(secret: &str, payload: &Value) -> IntegrationResult<String> {
         let payload_bytes = serde_json::to_vec(payload)?;
 
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes())

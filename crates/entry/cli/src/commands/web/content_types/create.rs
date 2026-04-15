@@ -66,9 +66,7 @@ pub fn execute(
     }
 
     let path = resolve_required(args.path, "path", config, || prompt_path(&name))?;
-    let source_id = resolve_required(args.source, "source-id", config, || {
-        prompt_source_id(&name)
-    })?;
+    let source_id = resolve_required(args.source, "source-id", config, || prompt_source_id(&name))?;
     let category_id = resolve_required(args.category_id, "category-id", config, || {
         prompt_category_id(&content_config)
     })?;

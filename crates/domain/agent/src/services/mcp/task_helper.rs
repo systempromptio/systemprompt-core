@@ -1,4 +1,6 @@
-use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{
+    Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
+};
 use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
 use crate::services::MessageService;

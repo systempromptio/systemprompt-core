@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0] - 2026-04-15
+
+### Changed (BREAKING)
+- `ContextProvider`, `UserProvider`, `RoleProvider` trait methods now take typed identifiers (`&UserId`, `&ContextId`, `Option<&SessionId>`) instead of `&str`. `ContextWithStats` fields `context_id` and `user_id` are now `ContextId` / `UserId`.
+
+### Removed (BREAKING)
+- Deleted `AuthProvider` trait (and `DynAuthProvider` alias) — single dead impl, zero callers.
+- Deleted `AuthorizationProvider` trait (and `DynAuthorizationProvider` alias) — single dead impl returning stub values regardless of input, zero callers. Latent authorization footgun.
+- Deleted associated dead types: `AuthAction`, `AuthPermission`, `TokenPair`, `TokenClaims`.
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

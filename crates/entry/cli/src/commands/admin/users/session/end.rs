@@ -10,7 +10,10 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {
-    #[arg(value_name = "SESSION_ID", help = "Session ID to end (optional if using --user --all)")]
+    #[arg(
+        value_name = "SESSION_ID",
+        help = "Session ID to end (optional if using --user --all)"
+    )]
     pub session: Option<String>,
 
     #[arg(

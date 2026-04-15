@@ -36,10 +36,7 @@ pub async fn get_messages_by_task(
     .await
     .map_err(RepositoryError::database)?;
 
-    let task_ids: Vec<String> = message_rows
-        .iter()
-        .map(|r| r.task_id.to_string())
-        .collect();
+    let task_ids: Vec<String> = message_rows.iter().map(|r| r.task_id.to_string()).collect();
     let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
     let parts_by_message = group_parts_by_message(all_parts);
 
@@ -106,10 +103,7 @@ pub async fn get_messages_by_context(
     .await
     .map_err(RepositoryError::database)?;
 
-    let task_ids: Vec<String> = message_rows
-        .iter()
-        .map(|r| r.task_id.to_string())
-        .collect();
+    let task_ids: Vec<String> = message_rows.iter().map(|r| r.task_id.to_string()).collect();
     let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
     let parts_by_message = group_parts_by_message(all_parts);
 
@@ -189,7 +183,9 @@ pub async fn get_next_sequence_number_in_tx(
     Ok(max_seq.map_or(0, |s| s + 1))
 }
 
-fn group_parts_by_message(all_parts: Vec<crate::models::MessagePart>) -> HashMap<MessageId, Vec<Part>> {
+fn group_parts_by_message(
+    all_parts: Vec<crate::models::MessagePart>,
+) -> HashMap<MessageId, Vec<Part>> {
     use crate::models::a2a::{DataPart, FileContent, FilePart, TextPart};
 
     let mut map: HashMap<MessageId, Vec<Part>> = HashMap::new();

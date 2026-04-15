@@ -123,11 +123,7 @@ impl ContextService {
         None
     }
 
-    fn decode_text_file(
-        bytes: &str,
-        file_name: &str,
-        mime_type: &str,
-    ) -> Option<AiContentPart> {
+    fn decode_text_file(bytes: &str, file_name: &str, mime_type: &str) -> Option<AiContentPart> {
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(bytes)
             .map_err(|e| {

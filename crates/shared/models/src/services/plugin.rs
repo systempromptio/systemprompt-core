@@ -2,6 +2,7 @@ use std::fmt;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::PluginId;
 
 use super::hooks::HookEventsConfig;
 
@@ -60,7 +61,7 @@ pub struct PluginVariableDef {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginConfig {
-    pub id: String,
+    pub id: PluginId,
     pub name: String,
     pub description: String,
     pub version: String,
@@ -109,7 +110,7 @@ pub struct PluginAuthor {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PluginSummary {
-    pub id: String,
+    pub id: PluginId,
     pub name: String,
     pub display_name: String,
     pub enabled: bool,
@@ -132,12 +133,12 @@ impl From<&PluginConfig> for PluginSummary {
 
 impl PluginConfig {
     pub fn validate(&self, key: &str) -> anyhow::Result<()> {
-        if self.id.len() < 3 || self.id.len() > 50 {
+        let id_str = self.id.as_str();
+        if id_str.len() < 3 || id_str.len() > 50 {
             anyhow::bail!("Plugin '{}': id must be between 3 and 50 characters", key);
         }
 
-        if !self
-            .id
+        if !id_str
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         {

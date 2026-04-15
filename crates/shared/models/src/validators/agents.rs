@@ -92,7 +92,7 @@ impl DomainConfig for AgentConfigValidator {
 
             for skill in &agent.card.skills {
                 let skill_id = &skill.id;
-                let skill_path = Path::new(skills_path).join(skill_id);
+                let skill_path = Path::new(skills_path).join(skill_id.as_str());
                 if !skill_path.exists() {
                     report.add_error(
                         ValidationError::new(

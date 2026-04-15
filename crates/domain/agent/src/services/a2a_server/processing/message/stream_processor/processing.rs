@@ -111,8 +111,9 @@ impl StreamProcessor {
                 Err(e) => {
                     tracing::error!(error = %e, "Execution failed");
 
-                    let tracking =
-                        crate::services::ExecutionTrackingService::new(Arc::clone(&execution_step_repo));
+                    let tracking = crate::services::ExecutionTrackingService::new(Arc::clone(
+                        &execution_step_repo,
+                    ));
                     if let Err(fail_err) = tracking
                         .fail_in_progress_steps(&task_id, &e.to_string())
                         .await

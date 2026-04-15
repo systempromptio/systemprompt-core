@@ -173,7 +173,10 @@ async fn configure_external_access(
     }
 
     let spinner = CliService::spinner("Enabling external database access...");
-    match client.set_external_db_access(tenant_id.as_str(), true).await {
+    match client
+        .set_external_db_access(tenant_id.as_str(), true)
+        .await
+    {
         Ok(_) => {
             let external_url = swap_to_external_host(internal_database_url);
             spinner.finish_and_clear();

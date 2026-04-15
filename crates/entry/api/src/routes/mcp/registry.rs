@@ -2,7 +2,8 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
 use systemprompt_mcp::services::RegistryManager;
-use systemprompt_models::{ApiError, CollectionResponse, modules::ApiPaths};
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::{ApiError, CollectionResponse};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct McpRegistryServer {

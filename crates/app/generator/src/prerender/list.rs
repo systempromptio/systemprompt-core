@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
-use systemprompt_models::{ContentConfigRaw, WebConfig, ParentRoute};
+use systemprompt_models::{ContentConfigRaw, ParentRoute, WebConfig};
 use systemprompt_template_provider::{ComponentContext, PageContext};
 use systemprompt_templates::TemplateRegistry;
 use tokio::fs;

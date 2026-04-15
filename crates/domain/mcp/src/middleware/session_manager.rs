@@ -76,7 +76,13 @@ impl DatabaseSessionManager {
     async fn persist_create(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref()
-            && let Err(e) = repo.create(&systemprompt_identifiers::SessionId::new(session_id.as_ref()), None, None).await
+            && let Err(e) = repo
+                .create(
+                    &systemprompt_identifiers::SessionId::new(session_id.as_ref()),
+                    None,
+                    None,
+                )
+                .await
         {
             tracing::warn!(
                 session_id = %session_id,
@@ -90,7 +96,9 @@ impl DatabaseSessionManager {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref()
             && let Err(e) = repo
-                .close(&systemprompt_identifiers::SessionId::new(session_id.as_ref()))
+                .close(&systemprompt_identifiers::SessionId::new(
+                    session_id.as_ref(),
+                ))
                 .await
         {
             tracing::warn!(
@@ -105,7 +113,9 @@ impl DatabaseSessionManager {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref()
             && let Err(e) = repo
-                .update_activity(&systemprompt_identifiers::SessionId::new(session_id.as_ref()))
+                .update_activity(&systemprompt_identifiers::SessionId::new(
+                    session_id.as_ref(),
+                ))
                 .await
         {
             tracing::debug!(
@@ -120,7 +130,9 @@ impl DatabaseSessionManager {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref() {
             match repo
-                .find_active(&systemprompt_identifiers::SessionId::new(session_id.as_ref()))
+                .find_active(&systemprompt_identifiers::SessionId::new(
+                    session_id.as_ref(),
+                ))
                 .await
             {
                 Ok(Some(_)) => Some(true),
