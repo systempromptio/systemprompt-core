@@ -1,16 +1,17 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{ContentId, SourceId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentSummary {
-    pub id: String,
+    pub id: ContentId,
     pub slug: String,
     pub title: String,
     pub description: String,
     pub published_at: DateTime<Utc>,
     pub kind: String,
-    pub source_id: String,
+    pub source_id: SourceId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

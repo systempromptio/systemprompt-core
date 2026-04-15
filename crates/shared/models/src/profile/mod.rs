@@ -3,6 +3,7 @@
 mod cloud;
 mod database;
 mod from_env;
+mod info;
 mod paths;
 mod rate_limits;
 mod runtime;
@@ -15,6 +16,7 @@ mod validation;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
+pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
     RateLimitsConfig, TierMultipliers, default_a2a_multiplier, default_admin_multiplier,

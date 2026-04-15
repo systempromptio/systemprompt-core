@@ -1,6 +1,7 @@
 pub mod agent_config;
 pub mod ai;
 pub mod hooks;
+pub mod mcp;
 pub mod plugin;
 pub mod runtime;
 pub mod scheduler;
@@ -10,8 +11,8 @@ pub mod web;
 
 pub use agent_config::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
-    AgentSkillConfig, CapabilitiesConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE, DiskAgentConfig,
-    OAuthConfig,
+    AgentSkillConfig, AgentSummary, CapabilitiesConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE,
+    DiskAgentConfig, OAuthConfig,
 };
 pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
@@ -23,14 +24,15 @@ pub use hooks::{
 };
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-    PluginConfigFile, PluginScript, PluginVariableDef,
+    PluginConfigFile, PluginScript, PluginSummary, PluginVariableDef,
 };
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
 pub use settings::*;
+pub use mcp::McpServerSummary;
 pub use skills::{
-    DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillsConfig,
-    strip_frontmatter,
+    DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillDetail,
+    SkillSummary, SkillsConfig, strip_frontmatter,
 };
 pub use web::{BrandingConfig, WebConfig};
 

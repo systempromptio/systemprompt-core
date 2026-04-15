@@ -1,5 +1,6 @@
 use super::super::ai::ToolModelOverrides;
 use super::super::auth::{JwtAudience, Permission};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
@@ -317,6 +318,49 @@ impl AgentConfig {
             base_url.trim_end_matches('/'),
             self.name
         )
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentSummary {
+    pub agent_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub port: u16,
+    pub enabled: bool,
+    pub is_primary: bool,
+    pub is_default: bool,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+impl AgentSummary {
+    pub fn from_config(name: &str, config: &AgentConfig) -> Self {
+        Self {
+            agent_id: name.to_string(),
+            name: name.to_string(),
+            display_name: config.card.display_name.clone(),
+            port: config.port,
+            enabled: config.enabled,
+            is_primary: config.is_primary,
+            is_default: config.default,
+            tags: Vec::new(),
+        }
+    }
+}
+
+impl From<&AgentConfig> for AgentSummary {
+    fn from(config: &AgentConfig) -> Self {
+        Self {
+            agent_id: config.name.clone(),
+            name: config.name.clone(),
+            display_name: config.card.display_name.clone(),
+            port: config.port,
+            enabled: config.enabled,
+            is_primary: config.is_primary,
+            is_default: config.default,
+            tags: Vec::new(),
+        }
     }
 }
 

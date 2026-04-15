@@ -1,4 +1,3 @@
-pub mod agents;
 pub mod artifacts;
 pub mod content;
 pub mod contexts;
@@ -15,9 +14,6 @@ use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {
-    #[command(subcommand, about = "Agent entity management and database sync")]
-    Agents(agents::AgentsCommands),
-
     #[command(subcommand, about = "Artifact inspection and debugging")]
     Artifacts(artifacts::ArtifactsCommands),
 
@@ -42,7 +38,6 @@ pub enum CoreCommands {
 
 pub async fn execute(cmd: CoreCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        CoreCommands::Agents(cmd) => agents::execute(cmd).await,
         CoreCommands::Artifacts(cmd) => artifacts::execute(cmd, config).await,
         CoreCommands::Content(cmd) => content::execute(cmd).await,
         CoreCommands::Files(cmd) => files::execute(cmd, config).await,
@@ -61,8 +56,7 @@ pub async fn execute_with_db(
     match cmd {
         CoreCommands::Content(cmd) => content::execute_with_db(cmd, db_ctx, config).await,
         CoreCommands::Files(cmd) => files::execute_with_db(cmd, db_ctx, config).await,
-        CoreCommands::Agents(_)
-        | CoreCommands::Artifacts(_)
+        CoreCommands::Artifacts(_)
         | CoreCommands::Contexts(_)
         | CoreCommands::Skills(_)
         | CoreCommands::Plugins(_)

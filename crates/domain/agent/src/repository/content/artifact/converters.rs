@@ -101,7 +101,7 @@ pub fn row_to_artifact_with_parts(row: ArtifactRow, parts: Vec<Part>) -> Artifac
             fingerprint: row.fingerprint,
             tool_name: row.tool_name,
             execution_index,
-            skill_id: row.skill_id.map(|id| id.as_str().to_string()),
+            skill_id: row.skill_id.map(systemprompt_identifiers::SkillId::from),
             skill_name: row.skill_name,
         },
     }

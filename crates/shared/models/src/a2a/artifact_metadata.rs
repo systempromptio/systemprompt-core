@@ -1,6 +1,6 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ContextId, SkillId, TaskId};
 use systemprompt_traits::validation::{
     MetadataValidation, Validate, ValidationError, ValidationResult,
 };
@@ -28,7 +28,7 @@ pub struct ArtifactMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_index: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_id: Option<String>,
+    pub skill_id: Option<SkillId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_name: Option<String>,
 }
@@ -93,7 +93,7 @@ impl ArtifactMetadata {
         self
     }
 
-    pub fn with_skill_id(mut self, skill_id: String) -> Self {
+    pub fn with_skill_id(mut self, skill_id: SkillId) -> Self {
         self.skill_id = Some(skill_id);
         self
     }
@@ -103,7 +103,7 @@ impl ArtifactMetadata {
         self
     }
 
-    pub fn with_skill(mut self, skill_id: String, skill_name: String) -> Self {
+    pub fn with_skill(mut self, skill_id: SkillId, skill_name: String) -> Self {
         self.skill_id = Some(skill_id);
         self.skill_name = Some(skill_name);
         self

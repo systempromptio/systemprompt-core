@@ -140,7 +140,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
     metadata = metadata.with_fingerprint(fingerprint);
 
     if let Some(sid) = &parsed.metadata.skill_id {
-        metadata = metadata.with_skill_id(sid.clone());
+        metadata = metadata.with_skill_id(systemprompt_identifiers::SkillId::from(sid.clone()));
     }
 
     Ok(Artifact {

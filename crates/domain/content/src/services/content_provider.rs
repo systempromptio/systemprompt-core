@@ -104,13 +104,13 @@ impl ContentProvider for DefaultContentProvider {
         Ok(contents
             .into_iter()
             .map(|c| ContentSummary {
-                id: c.id.to_string(),
+                id: c.id,
                 slug: c.slug,
                 title: c.title,
                 description: c.description,
                 published_at: c.published_at,
                 kind: c.kind,
-                source_id: c.source_id.to_string(),
+                source_id: c.source_id,
             })
             .collect())
     }
@@ -126,13 +126,13 @@ impl ContentProvider for DefaultContentProvider {
         Ok(results
             .into_iter()
             .map(|r| ContentSummary {
-                id: r.id.to_string(),
+                id: r.id,
                 slug: r.slug,
                 title: r.title,
                 description: r.description,
                 published_at: chrono::Utc::now(),
                 kind: String::new(),
-                source_id: r.source_id.to_string(),
+                source_id: r.source_id,
             })
             .collect())
     }

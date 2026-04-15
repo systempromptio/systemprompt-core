@@ -27,13 +27,14 @@ pub mod secrets;
 pub mod secrets_bootstrap;
 pub mod services;
 pub mod text;
+pub mod users;
 pub mod time_format;
 pub mod validators;
 
 pub use a2a::{
     AgentAuthentication, AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature,
     AgentExtension, AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation,
-    Artifact as A2aArtifact, ArtifactMetadata, DataPart, FileContent, FilePart,
+    Artifact as A2aArtifact, ArtifactMetadata, ArtifactSummary, DataPart, FileContent, FilePart,
     McpServerMetadata, McpToolsParams, Message, MessageMetadata as A2aMessageMetadata,
     MessageRole as A2aMessageRole, OAuth2Flow, OAuth2Flows, Part, ProtocolBinding, SecurityScheme,
     Task, TaskMetadata, TaskState, TaskStatus, TextPart, TransportProtocol,
@@ -120,9 +121,10 @@ pub use paths::{
 pub use profile::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig,
     DatabaseConfig as ProfileDatabaseConfig, Environment, ExtensionsConfig, LogLevel, OutputFormat,
-    PathsConfig, Profile, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
+    PathsConfig, Profile, ProfileInfo, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
     SecurityConfig, SecurityHeadersConfig, ServerConfig, SiteConfig,
 };
+pub use users::{SessionSummary, UserSummary};
 pub use profile_bootstrap::{ProfileBootstrap, ProfileBootstrapError};
 pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};
 pub use routing::{ApiCategory, AssetType, RouteClassifier, RouteType};
@@ -130,7 +132,7 @@ pub use secrets::Secrets;
 pub use secrets_bootstrap::*;
 pub use services::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
-    AiConfig, AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource,
+    AgentSummary, AiConfig, AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource,
     DEFAULT_AGENT_SYSTEM_PROMPT_FILE, DEFAULT_SKILL_CONTENT_FILE, DiskAgentConfig, DiskHookConfig,
     DiskSkillConfig, HOOK_CONFIG_FILENAME, HistoryConfig, HookAction, HookCategory, HookEvent,
     HookEventsConfig, HookMatcher, HookType, IncludableString, JobConfig, McpConfig,

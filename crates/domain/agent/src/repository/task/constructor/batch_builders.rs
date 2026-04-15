@@ -166,7 +166,10 @@ fn build_artifact(
             .get("execution_index")
             .and_then(serde_json::Value::as_u64)
             .map(|v| v as usize),
-        skill_id: row.skill_id.clone().map(|id| id.to_string()),
+        skill_id: row
+            .skill_id
+            .clone()
+            .map(systemprompt_identifiers::SkillId::from),
         skill_name: row.skill_name.clone(),
     };
 

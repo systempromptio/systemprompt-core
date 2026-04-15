@@ -1,6 +1,7 @@
 pub mod agent_card;
 pub mod artifact;
 pub mod artifact_metadata;
+pub mod artifact_summary;
 pub mod mcp_extension;
 pub mod message;
 pub mod methods;
@@ -15,6 +16,7 @@ pub use agent_card::{
 };
 pub use artifact::Artifact;
 pub use artifact_metadata::ArtifactMetadata;
+pub use artifact_summary::ArtifactSummary;
 pub use mcp_extension::{McpServerMetadata, McpToolsParams, MessageMetadata};
 pub use message::{DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart};
 pub use security::{AgentAuthentication, ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityScheme};

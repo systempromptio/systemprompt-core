@@ -164,11 +164,6 @@ impl DescribeCommand for Commands {
             | Self::Core(
                 core::CoreCommands::Hooks(_)
                 | core::CoreCommands::Plugins(_)
-                | core::CoreCommands::Agents(
-                    core::agents::AgentsCommands::List(_)
-                    | core::agents::AgentsCommands::Show(_)
-                    | core::agents::AgentsCommands::Validate(_),
-                )
                 | core::CoreCommands::Skills(
                     core::skills::SkillsCommands::List(_) | core::skills::SkillsCommands::Show(_),
                 ),

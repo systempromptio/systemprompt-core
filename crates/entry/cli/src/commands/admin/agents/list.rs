@@ -71,14 +71,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<List
                 true
             }
         })
-        .map(|(name, agent)| AgentSummary {
-            name: name.clone(),
-            display_name: agent.card.display_name.clone(),
-            port: agent.port,
-            enabled: agent.enabled,
-            is_primary: agent.is_primary,
-            is_default: agent.default,
-        })
+        .map(|(name, agent)| AgentSummary::from_config(name, agent))
         .collect();
 
     agents.sort_by(|a, b| a.name.cmp(&b.name));

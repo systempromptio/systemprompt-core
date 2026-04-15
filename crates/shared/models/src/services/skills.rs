@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -72,6 +73,68 @@ impl DiskSkillConfig {
             DEFAULT_SKILL_CONTENT_FILE
         } else {
             &self.file
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SkillSummary {
+    pub skill_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub enabled: bool,
+    pub file_path: Option<String>,
+    pub tags: Vec<String>,
+}
+
+impl From<&DiskSkillConfig> for SkillSummary {
+    fn from(config: &DiskSkillConfig) -> Self {
+        let file_path = if config.file.is_empty() {
+            None
+        } else {
+            Some(config.file.clone())
+        };
+        Self {
+            skill_id: config.id.clone(),
+            name: config.name.clone(),
+            display_name: config.name.clone(),
+            enabled: config.enabled,
+            file_path,
+            tags: config.tags.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SkillDetail {
+    pub skill_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub enabled: bool,
+    pub tags: Vec<String>,
+    pub category: Option<String>,
+    pub file_path: Option<String>,
+    pub instructions_preview: String,
+}
+
+impl From<&DiskSkillConfig> for SkillDetail {
+    fn from(config: &DiskSkillConfig) -> Self {
+        let file_path = if config.file.is_empty() {
+            None
+        } else {
+            Some(config.file.clone())
+        };
+        Self {
+            skill_id: config.id.clone(),
+            name: config.name.clone(),
+            display_name: config.name.clone(),
+            description: config.description.clone(),
+            enabled: config.enabled,
+            tags: config.tags.clone(),
+            category: config.category.clone(),
+            file_path,
+            instructions_preview: String::new(),
         }
     }
 }

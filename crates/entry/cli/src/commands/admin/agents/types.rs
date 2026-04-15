@@ -1,6 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_models::a2a::Task;
+pub use systemprompt_models::services::AgentSummary;
 
 use crate::commands::plugins::mcp::types::McpToolEntry;
 
@@ -9,16 +10,6 @@ pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListOutput {
     pub agents: Vec<AgentSummary>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AgentSummary {
-    pub name: String,
-    pub display_name: String,
-    pub port: u16,
-    pub enabled: bool,
-    pub is_primary: bool,
-    pub is_default: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

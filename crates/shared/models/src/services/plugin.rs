@@ -105,6 +105,29 @@ pub struct PluginAuthor {
     pub email: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PluginSummary {
+    pub id: String,
+    pub name: String,
+    pub display_name: String,
+    pub enabled: bool,
+    pub skill_count: usize,
+    pub agent_count: usize,
+}
+
+impl From<&PluginConfig> for PluginSummary {
+    fn from(config: &PluginConfig) -> Self {
+        Self {
+            id: config.id.clone(),
+            name: config.name.clone(),
+            display_name: config.name.clone(),
+            enabled: config.enabled,
+            skill_count: config.skills.include.len(),
+            agent_count: config.agents.include.len(),
+        }
+    }
+}
+
 impl PluginConfig {
     pub fn validate(&self, key: &str) -> anyhow::Result<()> {
         if self.id.len() < 3 || self.id.len() > 50 {

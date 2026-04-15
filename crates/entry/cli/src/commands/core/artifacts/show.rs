@@ -80,7 +80,11 @@ pub async fn execute_with_pool(
         source: artifact.metadata.source.clone(),
         task_id: artifact.metadata.task_id.as_str().to_string(),
         context_id: artifact.metadata.context_id.as_str().to_string(),
-        skill_id: artifact.metadata.skill_id.clone(),
+        skill_id: artifact
+            .metadata
+            .skill_id
+            .as_ref()
+            .map(|id| id.as_str().to_string()),
         skill_name: artifact.metadata.skill_name.clone(),
         mcp_execution_id: artifact.metadata.mcp_execution_id.clone(),
         fingerprint: artifact.metadata.fingerprint.clone(),
