@@ -7,7 +7,7 @@ use systemprompt_models::AppPaths;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
     AgentConfig, AiConfig, PartialServicesConfig, PluginConfig, SchedulerConfig, ServicesConfig,
-    Settings as ServicesSettings, WebConfig,
+    Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
 
 use crate::ConfigWriter;
@@ -42,6 +42,8 @@ struct PartialServicesRootConfig {
     pub web: Option<WebConfig>,
     #[serde(default)]
     pub plugins: HashMap<String, PluginConfig>,
+    #[serde(default)]
+    pub skills: SkillsConfig,
 }
 
 impl ConfigLoader {
@@ -97,6 +99,7 @@ impl ConfigLoader {
             ai: root.config.ai.unwrap_or_else(AiConfig::default),
             web: root.config.web.unwrap_or_else(WebConfig::default),
             plugins: root.config.plugins,
+            skills: root.config.skills,
         };
 
         for include_path in &root.includes {
@@ -237,6 +240,24 @@ impl ConfigLoader {
             target.plugins.insert(name, plugin);
         }
 
+        Self::merge_skills(target, partial.skills)?;
+
+        Ok(())
+    }
+
+    fn merge_skills(target: &mut ServicesConfig, partial: SkillsConfig) -> Result<()> {
+        if partial.auto_discover {
+            target.skills.auto_discover = true;
+        }
+        if partial.skills_path.is_some() {
+            target.skills.skills_path = partial.skills_path;
+        }
+        for (id, skill) in partial.skills {
+            if target.skills.skills.contains_key(&id) {
+                anyhow::bail!("Duplicate skill definition: {id}");
+            }
+            target.skills.skills.insert(id, skill);
+        }
         Ok(())
     }
 

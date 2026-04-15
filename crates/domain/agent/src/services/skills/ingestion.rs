@@ -9,6 +9,11 @@ use systemprompt_models::{
     DiskSkillConfig, IngestionReport, SKILL_CONFIG_FILENAME, strip_frontmatter,
 };
 
+// TODO(phase-2a): Migrate ingestion to consume `ServicesConfig.skills` instead
+// of re-reading YAML from disk. Multiple callers in crates/app/sync and
+// crates/entry/cli still pass filesystem paths; a direct rewrite is out of
+// scope for Phase 2a. The disk-read path is preserved as a fallback until a
+// follow-up phase centralises skill sourcing through the config pipeline.
 #[derive(Debug)]
 pub struct SkillIngestionService {
     skill_repo: SkillRepository,
