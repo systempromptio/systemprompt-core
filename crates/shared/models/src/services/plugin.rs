@@ -76,6 +76,8 @@ pub struct PluginConfig {
     #[serde(default)]
     pub mcp_servers: Vec<String>,
     #[serde(default)]
+    pub content_sources: Vec<String>,
+    #[serde(default)]
     pub hooks: HookEventsConfig,
     #[serde(default)]
     pub scripts: Vec<PluginScript>,
