@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
-use systemprompt_models::{ContentConfigRaw, FullWebConfig, ParentRoute};
+use systemprompt_models::{ContentConfigRaw, WebConfig, ParentRoute};
 use systemprompt_template_provider::{ComponentContext, PageContext};
 use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
@@ -12,7 +12,7 @@ use crate::prerender::utils::{merge_json_data, render_components};
 pub struct RenderListParams<'a> {
     pub items: &'a [serde_json::Value],
     pub config: &'a ContentConfigRaw,
-    pub web_config: &'a FullWebConfig,
+    pub web_config: &'a WebConfig,
     pub list_config: &'a ParentRoute,
     pub source_name: &'a str,
     pub template_registry: &'a TemplateRegistry,

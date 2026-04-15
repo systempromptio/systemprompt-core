@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{AppPaths, ContentConfigRaw, FullWebConfig};
+use systemprompt_models::{AppPaths, ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::ContentDataProvider;
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
 use systemprompt_templates::{
@@ -17,7 +17,7 @@ use crate::templates::{get_templates_path, load_web_config};
 pub struct PrerenderContext {
     pub db_pool: DbPool,
     pub config: ContentConfigRaw,
-    pub web_config: FullWebConfig,
+    pub web_config: WebConfig,
     pub template_registry: TemplateRegistry,
     pub dist_dir: PathBuf,
     pub content_data_providers: Vec<Arc<dyn ContentDataProvider>>,

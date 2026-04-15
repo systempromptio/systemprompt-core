@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, FullWebConfig};
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::{
     RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
 };
@@ -16,7 +16,7 @@ const DEFAULT_MAX_ITEMS: i64 = 20;
 pub struct DefaultRssFeedProvider {
     db_pool: DbPool,
     content_config: ContentConfigRaw,
-    web_config: FullWebConfig,
+    web_config: WebConfig,
 }
 
 impl std::fmt::Debug for DefaultRssFeedProvider {

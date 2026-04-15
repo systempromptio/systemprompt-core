@@ -68,8 +68,8 @@ impl FullConfig {
         self
     }
 
-    pub fn with_web(mut self, web: WebConfig) -> Self {
-        self.web = Some(web);
+    pub fn with_web(mut self, web: Option<WebConfig>) -> Self {
+        self.web = web;
         self
     }
 

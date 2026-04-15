@@ -8,7 +8,6 @@ pub mod runtime;
 pub mod scheduler;
 pub mod settings;
 pub mod skills;
-pub mod web;
 
 pub use agent_config::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
@@ -36,7 +35,7 @@ pub use skills::{
     DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillDetail,
     SkillSummary, SkillsConfig, strip_frontmatter,
 };
-pub use web::{BrandingConfig, WebConfig};
+pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
 
 use crate::mcp::{Deployment, McpServerType};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -125,7 +124,7 @@ pub struct ServicesConfig {
     #[serde(default)]
     pub ai: AiConfig,
     #[serde(default)]
-    pub web: WebConfig,
+    pub web: Option<WebConfig>,
     #[serde(default)]
     pub plugins: HashMap<String, PluginConfig>,
     #[serde(default)]
