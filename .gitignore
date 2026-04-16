@@ -91,10 +91,10 @@ audit/
 /plan/*
 
 # Instructions (local-only documentation)
-instructions/
+instructions/*
 
 # Report files
-report/
+report/*
 
 # Coverage reports
 coverage-report/
