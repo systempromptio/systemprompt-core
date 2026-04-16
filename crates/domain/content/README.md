@@ -28,6 +28,7 @@ Content module for systemprompt.io with content management, analytics, and event
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Integrations** · [Skill Marketplace](https://systemprompt.io/features/skill-marketplace)
 
 This crate handles all content-related functionality:
 

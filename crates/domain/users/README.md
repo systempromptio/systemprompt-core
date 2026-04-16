@@ -28,6 +28,7 @@ Core user management module for systemprompt.io.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Capabilities** · [Compliance](https://systemprompt.io/features/compliance)
 
 This crate provides user management functionality including:
 

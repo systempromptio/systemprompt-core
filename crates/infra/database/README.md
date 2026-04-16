@@ -20,6 +20,7 @@ Database abstraction layer for systemprompt.io supporting SQLite, PostgreSQL, an
 ## Overview
 
 **Part of the Infra layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 Provides database abstraction via SQLx with repository patterns, transaction helpers, and administrative utilities.
 

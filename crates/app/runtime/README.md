@@ -28,6 +28,7 @@ Application runtime context and module registry for systemprompt.io.
 ## Overview
 
 **Part of the App layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 Provides centralized access to database connections, configuration, extension services, and startup validation.
 

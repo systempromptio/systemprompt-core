@@ -20,6 +20,7 @@ Extension framework for systemprompt.io - register custom modules, providers, an
 ## Overview
 
 **Part of the Shared layer in the systemprompt.io architecture.**
+**Integrations** · [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
 
 Provides the infrastructure for building and loading systemprompt.io extensions.
 Extensions can add new routes, services, and capabilities to the platform.

@@ -28,6 +28,7 @@ OAuth 2.0 authentication and authorization module for systemprompt.io OS.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Capabilities** · [Compliance](https://systemprompt.io/features/compliance)
 
 This crate implements a complete OAuth 2.0 authorization server with:
 

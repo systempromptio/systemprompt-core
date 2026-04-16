@@ -22,6 +22,7 @@ Provider trait contracts for systemprompt.io - LLM, Tool, Job, Template, Compone
 Defines the core provider trait contracts used throughout systemprompt.io. These traits establish the interface boundaries for LLM providers, tool executors, job runners, template providers, and component renderers. Implementations live in domain crates while contracts remain in the shared layer for maximum composability.
 
 **Part of the Shared layer in the systemprompt.io architecture.**
+**Integrations** · [Any AI Agent](https://systemprompt.io/features/any-ai-agent)
 
 ## Installation
 

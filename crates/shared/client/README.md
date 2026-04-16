@@ -20,6 +20,7 @@ HTTP API client library for systemprompt.io - enables CLI and external clients t
 ## Overview
 
 **Part of the Shared layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides a type-safe, async HTTP client for interacting with the systemprompt.io API. It serves as the primary interface for external applications (CLI tools, third-party integrations) to communicate with the systemprompt.io server without depending on internal business logic.
 

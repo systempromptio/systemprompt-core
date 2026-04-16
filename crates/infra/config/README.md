@@ -20,6 +20,7 @@ Configuration module for systemprompt.io - environment configuration and validat
 ## Overview
 
 **Part of the Infra layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides configuration management for the systemprompt.io platform:
 

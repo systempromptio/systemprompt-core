@@ -28,6 +28,7 @@ Core scheduler module for systemprompt.io OS - background jobs and cron tasks.
 ## Overview
 
 **Part of the App layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 Background job scheduling and execution module. Discovers jobs via the `inventory` crate and executes them on configurable cron schedules.
 

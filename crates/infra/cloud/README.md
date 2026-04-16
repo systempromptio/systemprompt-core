@@ -20,6 +20,7 @@ systemprompt.io Cloud infrastructure - API client, credentials, OAuth.
 ## Overview
 
 **Part of the Infra layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 Cloud infrastructure services including API client, credentials, OAuth, and tenant management.
 

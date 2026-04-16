@@ -20,6 +20,7 @@ Security module for systemprompt.io - authentication, authorization, JWT, and to
 ## Overview
 
 **Part of the Infra layer in the systemprompt.io architecture.**
+**Capabilities** · [Governance Pipeline](https://systemprompt.io/features/governance-pipeline) · [Secrets Management](https://systemprompt.io/features/secrets-management) · [Compliance](https://systemprompt.io/features/compliance)
 
 This crate provides security primitives for the systemprompt.io platform. It handles JWT token generation and validation, multi-method token extraction, and bot/scanner detection.
 

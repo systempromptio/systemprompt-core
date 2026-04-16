@@ -20,6 +20,7 @@ Minimal shared traits and contracts for systemprompt.io.
 ## Overview
 
 **Part of the Shared layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides the core trait definitions that enable polymorphism, dependency injection, and consistent patterns across the systemprompt.io codebase.
 

@@ -23,6 +23,9 @@ Synchronization services for systemprompt.io - file, database, and crate deploym
 
 ## Overview
 
+**Part of the App layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
+
 This crate provides bidirectional sync capabilities for:
 
 - **File Sync** - Upload/download service configuration files (agents, skills, content, config)

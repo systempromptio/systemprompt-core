@@ -28,6 +28,7 @@ Core MCP (Model Context Protocol) functionality for systemprompt.io OS.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Capabilities** · [MCP Governance](https://systemprompt.io/features/mcp-governance)
 
 MCP (Model Context Protocol) server lifecycle management module.
 

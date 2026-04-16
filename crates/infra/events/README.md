@@ -20,6 +20,7 @@ Events module for systemprompt.io - event broadcasting and routing.
 ## Overview
 
 **Part of the Infra layer in the systemprompt.io architecture.**
+**Capabilities** · [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
 
 This crate provides a type-safe, generic event broadcasting system for real-time communication with connected clients via SSE (Server-Sent Events). It manages connection lifecycles, routes events to appropriate channels, and handles automatic cleanup of disconnected clients.
 

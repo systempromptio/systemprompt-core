@@ -20,6 +20,7 @@ Core identifier types for systemprompt.io OS.
 ## Overview
 
 **Part of the Shared layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 Provides strongly-typed wrappers for all domain identifiers, ensuring type safety
 and preventing accidental mixing of different ID types.

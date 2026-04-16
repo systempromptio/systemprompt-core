@@ -28,6 +28,7 @@ Core Agent protocol module for systemprompt.io.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Capabilities** · [Closed-Loop Agents](https://systemprompt.io/features/closed-loop-agents)
 
 A2A protocol server/client, agent orchestration, and agent business logic.
 

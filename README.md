@@ -36,22 +36,19 @@
 
 **AI infrastructure built for AI agents.** A production-ready Rust library with auth, MCP servers, A2A orchestration, and playbooks for deterministic execution. 30 crates published on crates.io under `systemprompt-*` and the `systemprompt` facade. Compile-time extensions via the `inventory` crate. Zero-raw-String-ID policy. Compile-time verified SQL via `sqlx::query!` macros. Typed identifiers across every boundary.
 
-> 👉 **Evaluating?** Clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) and run `just build && just setup-local <key> && just start`. 40+ scripted demos exercise every claim below against your own machine in three commands.
+> **Evaluating?** Clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) and run `just build && just setup-local <key> && just start`. 40+ scripted demos exercise every claim below against your own machine in three commands.
 >
-> 👉 **Building on it?** Add `systemprompt = "0.2.1"` to your `Cargo.toml` and jump to [Extensions](#extensions-technical).
+> **Building on it?** Add `systemprompt = "0.2.1"` to your `Cargo.toml` and jump to [Extensions](#extensions-technical).
 
 ## Table of Contents
 
-- [Govern. Every tool call.](#govern-every-tool-call)
-- [Prove. Every decision.](#prove-every-decision)
-- [Standardise. Every team.](#standardise-every-team)
+- [Infrastructure](#infrastructure)
+- [Capabilities](#capabilities)
+- [Integrations](#integrations)
 - [Architecture](#architecture)
 - [Extensions (technical)](#extensions-technical)
 - [Typed identifiers](#typed-identifiers)
 - [Database & repositories](#database--repositories)
-- [MCP and A2A](#mcp-and-a2a)
-- [Runtime & AppContext](#runtime--appcontext)
-- [CLI](#cli)
 - [Facade crate & feature flags](#facade-crate--feature-flags)
 - [Performance](#performance)
 - [Quick Start](#quick-start)
@@ -59,59 +56,105 @@
 
 ---
 
-## Govern. Every tool call.
+## Infrastructure
 
-**Every tool call governed.** Synchronous evaluation before execution, not after. Four layers of enforcement in the request path: **scope check → secret detection → blocklist → rate limit**. Deny reasons are structured and auditable. Single-digit milliseconds overhead. No sidecar. No proxy.
-
-Compliance that survives an audit: **SOC 2 Type II**, **ISO 27001**, **HIPAA**, **OWASP Top 10 for Agentic Applications**.
+**One binary. One database. Deploys anywhere.** The same surface local and remote. Config-as-code: agents, MCP servers, skills, AI providers, content, scheduler jobs, and web theme all live as YAML or Markdown under `services/`. Built on open standards: **MCP** (Model Context Protocol), **A2A** (Agent-to-Agent), **OAuth2/OIDC** with PKCE, **WebAuthn**.
 
 **Where in the code**
 
-| Layer | File |
+| Concern | File |
+|---|---|
+| Bootstrap sequence | `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext` |
+| AppContext wiring | [`crates/app/runtime/src/context.rs`](crates/app/runtime/src/context.rs) · [`builder.rs`](crates/app/runtime/src/builder.rs) |
+| Provider traits (`LlmProvider`, `ToolProvider`, …) | [`crates/shared/provider-contracts/src/lib.rs`](crates/shared/provider-contracts/src/lib.rs) |
+| CLI entry point (8 domains) | [`crates/entry/cli/src/commands/`](crates/entry/cli/src/commands/) |
+
+One binary, eight domains. Every command is discoverable — `systemprompt <domain> --help` works everywhere.
+
+| Domain | Source | Purpose |
+|---|---|---|
+| `core` | [`crates/entry/cli/src/commands/core/`](crates/entry/cli/src/commands/core/) | Skills, content, files, contexts, plugins, hooks, artifacts |
+| `infra` | [`crates/entry/cli/src/commands/infrastructure/`](crates/entry/cli/src/commands/infrastructure/) | Services, database, jobs, logs |
+| `admin` | [`crates/entry/cli/src/commands/admin/`](crates/entry/cli/src/commands/admin/) | Users, agents, config, setup, session, rate limits |
+| `cloud` | [`crates/entry/cli/src/commands/cloud/`](crates/entry/cli/src/commands/cloud/) | Auth, deploy, sync, secrets, tenant, domain |
+| `analytics` | [`crates/entry/cli/src/commands/analytics/`](crates/entry/cli/src/commands/analytics/) | Overview, conversations, agents, tools, requests, sessions, content, traffic, costs |
+| `web` | [`crates/entry/cli/src/commands/web/`](crates/entry/cli/src/commands/web/) | Content types, templates, assets, sitemap, validate |
+| `plugins` | [`crates/entry/cli/src/commands/plugins/`](crates/entry/cli/src/commands/plugins/) | Extensions, MCP servers, capabilities |
+| `build` | [`crates/entry/cli/src/commands/build/`](crates/entry/cli/src/commands/build/) | Build core workspace and MCP extensions |
+
+- [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
+- [No Vendor Lock-In](https://systemprompt.io/features/no-vendor-lock-in)
+
+## Capabilities
+
+**Every tool call governed.** Synchronous evaluation before execution, not after. Four layers of enforcement in the request path: **scope check → secret detection → blocklist → rate limit**. Deny reasons are structured and auditable. Single-digit milliseconds overhead. No sidecar. No proxy. Compliance that survives an audit: **SOC 2 Type II**, **ISO 27001**, **HIPAA**, **OWASP Top 10 for Agentic Applications**.
+
+**Secrets never touch inference** — the agent calls the tool, the MCP service injects the credential server-side, the LLM never sees it. Per-user key hierarchy encrypted with **ChaCha20-Poly1305**. Every tool call produces a **five-point audit trace**: *Identity → Agent Context → Permissions → Tool Execution → Result*. Everything linked by `trace_id`. Structured JSON events for Splunk, ELK, Datadog, Sumo Logic. Cost tracking in microdollars by model, agent, and department.
+
+**Where in the code**
+
+| Concern | File |
 |---|---|
 | Scope / RBAC middleware | [`crates/domain/mcp/src/middleware/rbac.rs`](crates/domain/mcp/src/middleware/rbac.rs) |
 | Secret detection / scanner | [`crates/infra/security/src/services/scanner.rs`](crates/infra/security/src/services/scanner.rs) |
 | Blocklist rules | [`crates/infra/security/src/services/`](crates/infra/security/src/services/) |
 | Rate limit middleware (`tower_governor`) | [`crates/infra/security/src/`](crates/infra/security/src/) |
-
-- [Governance Pipeline](https://systemprompt.io/features/governance-pipeline)
-- [Compliance](https://systemprompt.io/features/compliance)
-
-## Prove. Every decision.
-
-**Structured evidence for every interaction.** Secrets never touch inference — the agent calls the tool, the MCP service injects the credential server-side, the LLM never sees it. Every tool call produces a **five-point audit trace**: *Identity → Agent Context → Permissions → Tool Execution → Result*. Everything linked by `trace_id`. Structured JSON events for Splunk, ELK, Datadog, Sumo Logic. Cost tracking in microdollars by model, agent, and department.
-
-Per-user key hierarchy encrypted with **ChaCha20-Poly1305**. `TraceId`, `ContextId`, `TaskId` carried end-to-end as typed identifiers — never raw strings.
-
-**Where in the code**
-
-| Concern | File |
-|---|---|
 | Audit queries | [`crates/infra/logging/src/trace/audit_queries.rs`](crates/infra/logging/src/trace/audit_queries.rs) |
-| Event broadcasters (`A2A_BROADCASTER`, `ANALYTICS_BROADCASTER`, `CONTEXT_BROADCASTER`) | [`crates/infra/events/src/services/broadcaster.rs`](crates/infra/events/src/services/broadcaster.rs) |
+| Event broadcasters | [`crates/infra/events/src/services/broadcaster.rs`](crates/infra/events/src/services/broadcaster.rs) |
 | Secret storage (ChaCha20-Poly1305) | [`crates/infra/security/src/`](crates/infra/security/src/) |
 | Typed IDs (`TraceId`, `ContextId`, `TaskId` …) | [`crates/shared/identifiers/src/lib.rs`](crates/shared/identifiers/src/lib.rs) |
 
-- [Secrets Management](https://systemprompt.io/features/secrets-management)
-- [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
-
-## Standardise. Every team.
-
-**One CLI, one binary, one database.** The same surface local and remote. Register agents, distribute skills by role and department, run them under identical policy everywhere. Config-as-code: agents, MCP servers, skills, AI providers, content, scheduler jobs, and web theme all live as YAML or Markdown under `services/`.
-
-Provider-agnostic by trait, not by adapter — swap **Anthropic / OpenAI / Gemini** at the profile level. Built on open standards: **MCP** (Model Context Protocol), **A2A** (Agent-to-Agent), **OAuth2/OIDC** with PKCE, **WebAuthn**.
-
-**Where in the code**
+**MCP** ([`crates/domain/mcp`](crates/domain/mcp)) is implemented natively — not proxied. Per-server OAuth2, scoped tool exposure, central registry with health monitoring, end-to-end access logs. Works with Claude Code, Claude Desktop, ChatGPT, Cursor, and any other MCP-compatible client.
 
 | Concern | File |
 |---|---|
-| Provider traits (`LlmProvider`, `ToolProvider`, …) | [`crates/shared/provider-contracts/src/lib.rs`](crates/shared/provider-contracts/src/lib.rs) |
-| AppContext wiring | [`crates/app/runtime/src/context.rs`](crates/app/runtime/src/context.rs) · [`builder.rs`](crates/app/runtime/src/builder.rs) |
-| Bootstrap sequence | `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext` |
+| Orchestrator | [`crates/domain/mcp/src/services/orchestrator/mod.rs`](crates/domain/mcp/src/services/orchestrator/mod.rs) |
+| Network / port management / proxy | [`crates/domain/mcp/src/services/network/mod.rs`](crates/domain/mcp/src/services/network/mod.rs) |
+| RBAC middleware | [`crates/domain/mcp/src/middleware/rbac.rs`](crates/domain/mcp/src/middleware/rbac.rs) |
 
-- [Skill Marketplace](https://systemprompt.io/features/skill-marketplace)
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "url": "https://my-tenant.systemprompt.io/api/v1/mcp/my-server/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+**Agent-to-Agent** ([`crates/domain/agent`](crates/domain/agent)) ships a standalone A2A server with streaming, a JSON-RPC protocol model, and `.well-known` discovery endpoints.
+
+| Concern | File |
+|---|---|
+| Standalone A2A server | [`crates/domain/agent/src/services/a2a_server/mod.rs`](crates/domain/agent/src/services/a2a_server/mod.rs) |
+| Streaming | [`crates/domain/agent/src/services/a2a_server/streaming/mod.rs`](crates/domain/agent/src/services/a2a_server/streaming/mod.rs) |
+| Protocol models (`Message`, `Task`, `TaskState`) | [`crates/domain/agent/src/models/a2a/protocol/mod.rs`](crates/domain/agent/src/models/a2a/protocol/mod.rs) |
+
+**Discovery API**
+
+| Endpoint | Description |
+|---|---|
+| `/.well-known/agent-card.json` | Default agent card |
+| `/.well-known/agent-cards` | List all available agents |
+| `/.well-known/agent-cards/{name}` | Specific agent card |
+| `/api/v1/agents/registry` | Full agent registry with status |
+| `/api/v1/mcp/registry` | All MCP servers with endpoints |
+
+- [Governance Pipeline](https://systemprompt.io/features/governance-pipeline)
+- [Secrets Management](https://systemprompt.io/features/secrets-management)
 - [MCP Governance](https://systemprompt.io/features/mcp-governance)
-- [Self-Hosted & Air-Gapped](https://systemprompt.io/features/self-hosted-ai-platform)
+- [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
+- [Closed-Loop Agents](https://systemprompt.io/features/closed-loop-agents)
+- [Compliance](https://systemprompt.io/features/compliance)
+
+## Integrations
+
+**Provider-agnostic. Protocol-native. Fully extensible.** Provider-agnostic by trait, not by adapter — swap **Anthropic / OpenAI / Gemini** at the profile level.
+
+- [Any AI Agent](https://systemprompt.io/features/any-ai-agent)
+- [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
+- [Skill Marketplace](https://systemprompt.io/features/skill-marketplace)
 
 ---
 
@@ -216,70 +259,6 @@ impl UserRepository {
             .map_err(Into::into)
     }
 }
-```
-
-## MCP and A2A
-
-**Model Context Protocol** ([`crates/domain/mcp`](crates/domain/mcp)) is implemented natively — not proxied. Per-server OAuth2, scoped tool exposure, central registry with health monitoring, end-to-end access logs. Works with Claude Code, Claude Desktop, ChatGPT, Cursor, and any other MCP-compatible client.
-
-| Concern | File |
-|---|---|
-| Orchestrator | [`crates/domain/mcp/src/services/orchestrator/mod.rs`](crates/domain/mcp/src/services/orchestrator/mod.rs) |
-| Network / port management / proxy | [`crates/domain/mcp/src/services/network/mod.rs`](crates/domain/mcp/src/services/network/mod.rs) |
-| RBAC middleware | [`crates/domain/mcp/src/middleware/rbac.rs`](crates/domain/mcp/src/middleware/rbac.rs) |
-
-```json
-{
-  "mcpServers": {
-    "my-server": {
-      "url": "https://my-tenant.systemprompt.io/api/v1/mcp/my-server/mcp",
-      "transport": "streamable-http"
-    }
-  }
-}
-```
-
-**Agent-to-Agent** ([`crates/domain/agent`](crates/domain/agent)) ships a standalone A2A server with streaming, a JSON-RPC protocol model, and `.well-known` discovery endpoints.
-
-| Concern | File |
-|---|---|
-| Standalone A2A server | [`crates/domain/agent/src/services/a2a_server/mod.rs`](crates/domain/agent/src/services/a2a_server/mod.rs) |
-| Streaming | [`crates/domain/agent/src/services/a2a_server/streaming/mod.rs`](crates/domain/agent/src/services/a2a_server/streaming/mod.rs) |
-| Protocol models (`Message`, `Task`, `TaskState`) | [`crates/domain/agent/src/models/a2a/protocol/mod.rs`](crates/domain/agent/src/models/a2a/protocol/mod.rs) |
-
-**Discovery API**
-
-| Endpoint | Description |
-|---|---|
-| `/.well-known/agent-card.json` | Default agent card |
-| `/.well-known/agent-cards` | List all available agents |
-| `/.well-known/agent-cards/{name}` | Specific agent card |
-| `/api/v1/agents/registry` | Full agent registry with status |
-| `/api/v1/mcp/registry` | All MCP servers with endpoints |
-
-## Runtime & AppContext
-
-Bootstrap sequence: `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext`. [`AppContextBuilder::build()`](crates/app/runtime/src/builder.rs) wires `Config`, `DbPool`, `ExtensionRegistry`, `ModuleApiRegistry`, `AnalyticsService`, `UserService`, `GeoIpReader`, `FingerprintRepository`, and `RouteClassifier`, then hands back a single `AppContext` shared across every service.
-
-## CLI
-
-One binary, eight domains. Every command is discoverable — `systemprompt <domain> --help` works everywhere.
-
-| Domain | Source | Purpose |
-|---|---|---|
-| `core` | [`crates/entry/cli/src/commands/core/`](crates/entry/cli/src/commands/core/) | Skills, content, files, contexts, plugins, hooks, artifacts |
-| `infra` | [`crates/entry/cli/src/commands/infrastructure/`](crates/entry/cli/src/commands/infrastructure/) | Services, database, jobs, logs |
-| `admin` | [`crates/entry/cli/src/commands/admin/`](crates/entry/cli/src/commands/admin/) | Users, agents, config, setup, session, rate limits |
-| `cloud` | [`crates/entry/cli/src/commands/cloud/`](crates/entry/cli/src/commands/cloud/) | Auth, deploy, sync, secrets, tenant, domain |
-| `analytics` | [`crates/entry/cli/src/commands/analytics/`](crates/entry/cli/src/commands/analytics/) | Overview, conversations, agents, tools, requests, sessions, content, traffic, costs |
-| `web` | [`crates/entry/cli/src/commands/web/`](crates/entry/cli/src/commands/web/) | Content types, templates, assets, sitemap, validate |
-| `plugins` | [`crates/entry/cli/src/commands/plugins/`](crates/entry/cli/src/commands/plugins/) | Extensions, MCP servers, capabilities |
-| `build` | [`crates/entry/cli/src/commands/build/`](crates/entry/cli/src/commands/build/) | Build core workspace and MCP extensions |
-
-```bash
-systemprompt admin agents message blog "Write a post about MCP security"
-systemprompt admin agents tools content-manager
-systemprompt cloud deploy --profile production
 ```
 
 ## Facade crate & feature flags

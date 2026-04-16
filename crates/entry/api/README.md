@@ -23,6 +23,9 @@ HTTP API gateway for systemprompt.io OS.
 
 ## Overview
 
+**Part of the Entry layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
+
 This crate serves as the entry point for all HTTP requests to systemprompt.io OS. It provides:
 
 - **Route Configuration:** Mounts all API endpoints from domain crates

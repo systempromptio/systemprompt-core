@@ -20,6 +20,7 @@ Shared data models and types for systemprompt.io OS.
 ## Overview
 
 **Part of the Shared layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides common data models, error types, and repository patterns used throughout systemprompt.io. It includes API models, authentication types, configuration, database models, and service-layer error handling.
 

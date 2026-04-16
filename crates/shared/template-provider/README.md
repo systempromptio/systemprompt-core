@@ -22,6 +22,7 @@ Template provider traits and abstractions for systemprompt.io.
 Provides template loading abstractions and dynamic type aliases for template-related providers. Includes an embedded loader for compile-time templates and a filesystem loader for runtime template discovery. Re-exports provider contracts for template, component, and page data handling.
 
 **Part of the Shared layer in the systemprompt.io architecture.**
+**Integrations** · [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
 
 ## Installation
 

@@ -20,6 +20,7 @@ Core logging module for systemprompt.io OS.
 ## Overview
 
 **Part of the Infra layer in the systemprompt.io architecture.**
+**Capabilities** · [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
 
 This crate provides a dual-layer logging architecture combining console output with PostgreSQL persistence. It includes async batch processing, automatic context propagation, retention policies, and rich CLI output utilities.
 

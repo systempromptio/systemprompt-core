@@ -28,6 +28,7 @@ Core AI module for systemprompt.io.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Integrations** · [Any AI Agent](https://systemprompt.io/features/any-ai-agent)
 
 Multi-provider AI integration with tool execution, structured output, and request tracking.
 

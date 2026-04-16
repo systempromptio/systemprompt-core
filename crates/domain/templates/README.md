@@ -28,6 +28,7 @@ Template registry and management for systemprompt.io.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Integrations** · [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
 
 This crate provides the core template system for discovering, loading, and rendering HTML templates using Handlebars. It supports a plugin architecture with providers, loaders, extenders, and component renderers.
 

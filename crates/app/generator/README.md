@@ -23,6 +23,9 @@ Static site generation and content publishing orchestrator for systemprompt.io. 
 
 ## Overview
 
+**Part of the App layer in the systemprompt.io architecture.**
+**Integrations** · [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
+
 This application-layer crate orchestrates the full content publishing pipeline:
 
 1. **Content Ingestion** - Fetches and processes content from sources

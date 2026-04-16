@@ -28,6 +28,7 @@ Analytics module for systemprompt.io - session tracking, metrics, and reporting.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Capabilities** · [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
 
 This crate provides comprehensive analytics capabilities including:
 

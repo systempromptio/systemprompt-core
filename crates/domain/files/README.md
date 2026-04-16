@@ -28,6 +28,7 @@ File management module for systemprompt.io.
 ## Overview
 
 **Part of the Domain layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides file storage, metadata management, and content-file linking capabilities. It handles file uploads with validation, AI-generated image tracking, and content associations.
 

@@ -20,6 +20,7 @@ File loading infrastructure for systemprompt.io - separates I/O from shared mode
 ## Overview
 
 **Part of the Infra layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides pure I/O operations for loading configuration files, profiles, secrets, extensions, and module definitions without any domain logic.
 

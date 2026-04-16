@@ -28,6 +28,9 @@ Command-line interface for systemprompt.io OS. Every command supports both human
 
 ## Overview
 
+**Part of the Entry layer in the systemprompt.io architecture.**
+**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
+
 The CLI provides comprehensive management of systemprompt.io OS including:
 
 - **Agent Management** - Create, configure, and orchestrate AI agents
