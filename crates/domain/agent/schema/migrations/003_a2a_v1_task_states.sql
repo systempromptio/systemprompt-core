@@ -1,5 +1,4 @@
-BEGIN;
-
+UPDATE agent_tasks SET status = 'TASK_STATE_PENDING' WHERE status = 'pending';
 UPDATE agent_tasks SET status = 'TASK_STATE_SUBMITTED' WHERE status = 'submitted';
 UPDATE agent_tasks SET status = 'TASK_STATE_WORKING' WHERE status = 'working';
 UPDATE agent_tasks SET status = 'TASK_STATE_INPUT_REQUIRED' WHERE status = 'input-required';
@@ -21,5 +20,3 @@ ALTER TABLE agent_tasks ADD CONSTRAINT agent_tasks_status_check CHECK (
 );
 
 ALTER TABLE agent_tasks ALTER COLUMN status SET DEFAULT 'TASK_STATE_SUBMITTED';
-
-COMMIT;

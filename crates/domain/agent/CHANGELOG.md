@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.1] - 2026-04-16
+
+### Fixed
+- **Idempotent migrations.** `003_a2a_v1_task_states.sql`: removed ineffective `BEGIN`/`COMMIT` (statement parser runs each statement individually), added missing `'pending'` → `'TASK_STATE_PENDING'` update. `004_ai_requests_task_fk.sql`: wrapped `ADD CONSTRAINT` in a `DO` block with `IF NOT EXISTS` guard so re-runs after partial failure are safe. Fixes startup crash on existing databases.
+
 ## [0.2.0] - 2026-04-15
 
 ### Changed (BREAKING)
