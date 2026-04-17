@@ -1,26 +1,38 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-client
 
-HTTP API client library for systemprompt.io - enables CLI and external clients to communicate with the server.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-client — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-client.svg)](https://crates.io/crates/systemprompt-client)
-[![Documentation](https://docs.rs/systemprompt-client/badge.svg)](https://docs.rs/systemprompt-client)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-client.svg?style=flat-square)](https://crates.io/crates/systemprompt-client)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-client?style=flat-square)](https://docs.rs/systemprompt-client)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+HTTP API client for systemprompt.io AI governance infrastructure. Typed requests for CLIs and external services talking to a systemprompt.io deployment. Communicates exclusively via HTTP — no direct access to repositories or services.
+
+**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
-
-**Part of the Shared layer in the systemprompt.io architecture.**
-**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides a type-safe, async HTTP client for interacting with the systemprompt.io API. It serves as the primary interface for external applications (CLI tools, third-party integrations) to communicate with the systemprompt.io server without depending on internal business logic.
 
@@ -31,7 +43,7 @@ This crate provides a type-safe, async HTTP client for interacting with the syst
 - **Error Transparency**: Structured error types with `thiserror` for clear failure modes
 - **Async-First**: Built on `reqwest` and `tokio` for non-blocking I/O
 
-## File Structure
+## Architecture
 
 ```
 src/
@@ -41,13 +53,11 @@ src/
 └── http.rs       # Internal HTTP helper functions (get, post, put, delete)
 ```
 
-## Module Breakdown
-
 ### `lib.rs`
 Minimal public interface exposing only:
-- `SystempromptClient` - the main client struct
-- `ClientError` - error enum for all failure modes
-- `ClientResult<T>` - type alias for `Result<T, ClientError>`
+- `SystempromptClient` — the main client struct
+- `ClientError` — error enum for all failure modes
+- `ClientResult<T>` — type alias for `Result<T, ClientError>`
 
 ### `client.rs`
 The core client implementation containing:
@@ -63,6 +73,7 @@ The core client implementation containing:
 
 ### `error.rs`
 Comprehensive error handling with variants:
+
 | Variant | Description |
 |---------|-------------|
 | `HttpError` | Network/transport failures (wraps `reqwest::Error`) |
@@ -79,14 +90,19 @@ Includes `is_retryable()` helper for retry logic.
 
 ### `http.rs`
 Internal module providing low-level HTTP operations:
-- `get<T>()` - GET request with optional auth, returns deserialized response
-- `post<T, B>()` - POST with JSON body, returns deserialized response
-- `put<B>()` - PUT with JSON body, returns unit
-- `delete()` - DELETE request, returns unit
+- `get<T>()` — GET request with optional auth, returns deserialized response
+- `post<T, B>()` — POST with JSON body, returns deserialized response
+- `put<B>()` — PUT with JSON body, returns unit
+- `delete()` — DELETE request, returns unit
 
 All functions handle authorization headers and error response parsing uniformly.
 
 ## Usage
+
+```toml
+[dependencies]
+systemprompt-client = "0.2.1"
+```
 
 ```rust
 use systemprompt_client::{SystempromptClient, ClientResult};
@@ -117,6 +133,20 @@ async fn main() -> ClientResult<()> {
         println!("Server is healthy");
     }
 
+    Ok(())
+}
+```
+
+```rust
+use systemprompt_client::SystempromptClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = SystempromptClient::new("http://localhost:9999")?;
+    let agents = client.list_agents().await?;
+    for agent in agents {
+        println!("agent: {}", agent.name);
+    }
     Ok(())
 }
 ```
@@ -158,20 +188,6 @@ async fn handle_errors(client: &SystempromptClient) -> ClientResult<()> {
 }
 ```
 
-## Dependencies
-
-| Crate | Purpose |
-|-------|---------|
-| `reqwest` | HTTP client with async support |
-| `tokio` | Async runtime |
-| `serde` / `serde_json` | JSON serialization |
-| `chrono` | DateTime handling for auto-naming |
-| `thiserror` | Derive macro for error types |
-| `anyhow` | Error wrapping for `Other` variant |
-| `tracing` | Structured logging for error diagnostics |
-| `systemprompt-models` | Shared API types (`AgentCard`, `Task`, etc.) |
-| `systemprompt-identifiers` | Typed identifiers (`ContextId`, `JwtToken`) |
-
 ## Configuration
 
 ### Timeout
@@ -191,22 +207,30 @@ let mut client = SystempromptClient::new(url)?;
 client.set_token(token);
 ```
 
-## Usage
+## Dependencies
 
-```rust
-use systemprompt_client::SystempromptClient;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = SystempromptClient::new("http://localhost:9999")?;
-    let agents = client.list_agents().await?;
-    for agent in agents {
-        println!("agent: {}", agent.name);
-    }
-    Ok(())
-}
-```
+| Crate | Purpose |
+|-------|---------|
+| `reqwest` | HTTP client with async support |
+| `tokio` | Async runtime |
+| `serde` / `serde_json` | JSON serialization |
+| `chrono` | DateTime handling for auto-naming |
+| `thiserror` | Derive macro for error types |
+| `anyhow` | Error wrapping for `Other` variant |
+| `tracing` | Structured logging for error diagnostics |
+| `systemprompt-models` | Shared API types (`AgentCard`, `Task`, etc.) |
+| `systemprompt-identifiers` | Typed identifiers (`ContextId`, `JwtToken`) |
 
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-client)** · **[docs.rs](https://docs.rs/systemprompt-client)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Shared layer · Own how your organization uses AI.</sub>
+
+</div>

@@ -1,30 +1,42 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-security
 
-Security module for systemprompt.io - authentication, authorization, JWT, and token extraction.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-security — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-security.svg)](https://crates.io/crates/systemprompt-security)
-[![Documentation](https://docs.rs/systemprompt-security/badge.svg)](https://docs.rs/systemprompt-security)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-security.svg?style=flat-square)](https://crates.io/crates/systemprompt-security)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-security?style=flat-square)](https://docs.rs/systemprompt-security)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Security infrastructure for systemprompt.io AI governance: JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret encryption, and the four-layer tool-call governance pipeline. Handles JWT token generation and validation, multi-method token extraction, and bot/scanner detection.
+
+**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Infra layer in the systemprompt.io architecture.**
-**Capabilities** · [Governance Pipeline](https://systemprompt.io/features/governance-pipeline) · [Secrets Management](https://systemprompt.io/features/secrets-management) · [Compliance](https://systemprompt.io/features/compliance)
-
 This crate provides security primitives for the systemprompt.io platform. It handles JWT token generation and validation, multi-method token extraction, and bot/scanner detection.
 
-## File Structure
+## Architecture
 
 ```
 src/
@@ -47,8 +59,6 @@ src/
     ├── generator.rs           # SessionGenerator for session token creation
     └── claims.rs              # ValidatedSessionClaims data structure
 ```
-
-## Modules
 
 ### `auth`
 
@@ -101,18 +111,12 @@ Session token generation and claim validation.
 | `SessionParams` | Struct | Configuration for session token creation |
 | `ValidatedSessionClaims` | Struct | Extracted claims after JWT validation |
 
-## Dependencies
-
-| Crate | Purpose |
-|-------|---------|
-| `systemprompt-models` | Shared models (JwtClaims, UserType, Permission) |
-| `systemprompt-identifiers` | Typed identifiers (UserId, SessionId, TraceId) |
-| `jsonwebtoken` | JWT encoding/decoding with HS256 |
-| `axum` | HTTP types (HeaderMap, HeaderValue) |
-| `chrono` | Timestamp handling |
-| `tracing` | Debug logging for extraction errors |
-
 ## Usage
+
+```toml
+[dependencies]
+systemprompt-security = "0.2.1"
+```
 
 ### Token Extraction
 
@@ -171,15 +175,27 @@ let params = SessionParams {
 let token = generator.generate(&params)?;
 ```
 
-## Installation
+## Dependencies
 
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-security = "0.0.1"
-```
+| Crate | Purpose |
+|-------|---------|
+| `systemprompt-models` | Shared models (JwtClaims, UserType, Permission) |
+| `systemprompt-identifiers` | Typed identifiers (UserId, SessionId, TraceId) |
+| `jsonwebtoken` | JWT encoding/decoding with HS256 |
+| `axum` | HTTP types (HeaderMap, HeaderValue) |
+| `chrono` | Timestamp handling |
+| `tracing` | Debug logging for extraction errors |
 
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-security)** · **[docs.rs](https://docs.rs/systemprompt-security)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Infra layer · Own how your organization uses AI.</sub>
+
+</div>

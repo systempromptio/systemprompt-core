@@ -1,26 +1,38 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-logging
 
-Core logging module for systemprompt.io OS.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-logging — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-logging.svg)](https://crates.io/crates/systemprompt-logging)
-[![Documentation](https://docs.rs/systemprompt-logging/badge.svg)](https://docs.rs/systemprompt-logging)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-logging.svg?style=flat-square)](https://crates.io/crates/systemprompt-logging)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-logging?style=flat-square)](https://docs.rs/systemprompt-logging)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Tracing and audit infrastructure for systemprompt.io AI governance. Structured events, five-point audit traces, and SIEM-ready JSON output — part of the MCP governance pipeline. Provides a dual-layer logging architecture combining console output with PostgreSQL persistence, async batch processing, automatic context propagation, and retention policies.
+
+**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
-
-**Part of the Infra layer in the systemprompt.io architecture.**
-**Capabilities** · [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
 
 This crate provides a dual-layer logging architecture combining console output with PostgreSQL persistence. It includes async batch processing, automatic context propagation, retention policies, and rich CLI output utilities.
 
@@ -32,7 +44,7 @@ This crate provides a dual-layer logging architecture combining console output w
 - AI/MCP operation tracing and querying
 - Rich CLI output with themes and progress indicators
 
-## Structure
+## Architecture
 
 ```
 src/
@@ -106,6 +118,28 @@ schema/
 └── analytics.sql                       - analytics_events table with GIN indexes
 ```
 
+## Usage
+
+```toml
+[dependencies]
+systemprompt-logging = "0.2.1"
+```
+
+```rust
+use systemprompt_database::DbPool;
+use systemprompt_logging::{LoggingRepository, LogFilter, LogLevel};
+
+async fn recent_errors(pool: &DbPool) -> anyhow::Result<()> {
+    let repo = LoggingRepository::new(pool.clone());
+    let filter = LogFilter::default().with_level(LogLevel::Error).with_limit(20);
+    let entries = repo.list_logs_paginated(&filter).await?;
+    for entry in entries {
+        println!("{}: {}", entry.level, entry.message);
+    }
+    Ok(())
+}
+```
+
 ## Public API
 
 ### Initialization
@@ -150,6 +184,12 @@ schema/
 - `is_startup_mode()`, `set_startup_mode()` - Startup mode control
 - `publish_log()`, `set_log_publisher()` - Log event publishing
 
+## Feature Flags
+
+| Feature | Dependencies enabled |
+|---------|---------------------|
+| `cli` | `colored`, `console`, `dialoguer`, `indicatif` |
+
 ## Dependencies
 
 ### Internal
@@ -165,32 +205,16 @@ schema/
 - `tokio-cron-scheduler` - Retention job scheduling
 - `colored`, `console`, `indicatif`, `dialoguer` - CLI utilities
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-logging = "0.0.1"
-```
-
-## Usage
-
-```rust
-use systemprompt_database::DbPool;
-use systemprompt_logging::{LoggingRepository, LogFilter, LogLevel};
-
-async fn recent_errors(pool: &DbPool) -> anyhow::Result<()> {
-    let repo = LoggingRepository::new(pool.clone());
-    let filter = LogFilter::default().with_level(LogLevel::Error).with_limit(20);
-    let entries = repo.list_logs_paginated(&filter).await?;
-    for entry in entries {
-        println!("{}: {}", entry.level, entry.message);
-    }
-    Ok(())
-}
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-logging)** · **[docs.rs](https://docs.rs/systemprompt-logging)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Infra layer · Own how your organization uses AI.</sub>
+
+</div>

@@ -1,49 +1,79 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-models
 
-Shared data models and types for systemprompt.io OS.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-models — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-models.svg)](https://crates.io/crates/systemprompt-models)
-[![Documentation](https://docs.rs/systemprompt-models/badge.svg)](https://docs.rs/systemprompt-models)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-models.svg?style=flat-square)](https://crates.io/crates/systemprompt-models)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-models?style=flat-square)](https://docs.rs/systemprompt-models)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Foundation data models for systemprompt.io AI governance infrastructure. Shared DTOs, config, and domain types consumed by every layer of the MCP governance pipeline. Includes API models, authentication types, configuration, database models, and service-layer error handling.
+
+**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Shared layer in the systemprompt.io architecture.**
-**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
-
 This crate provides common data models, error types, and repository patterns used throughout systemprompt.io. It includes API models, authentication types, configuration, database models, and service-layer error handling.
 
-## Installation
+## Architecture
 
-Add to your `Cargo.toml`:
+### `api` — API Response Models
+
+Standard JSON API response structures.
+
+### `auth` — Authentication Models
+
+User identity, roles, and auth error types.
+
+### `config` — Configuration Models
+
+Config struct and provider integration.
+
+### `errors` — Error Handling
+
+Layered error types with automatic conversions:
+
+```
+RepositoryError → ServiceError → ApiError → HTTP Response
+```
+
+### `repository` — Repository Patterns
+
+Service lifecycle trait, `WhereClause` query builder, and repository macros.
+
+### `execution` — Execution Context
+
+`RequestContext` and related types for request-scoped state propagation.
+
+## Usage
 
 ```toml
 [dependencies]
-systemprompt-models = "0.0.1"
+systemprompt-models = "0.2.1"
 ```
 
-## Feature Flags
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `web` | No | Axum `IntoResponse` implementations |
-
-## Modules
-
-### `api` - API Response Models
-
-Standard JSON API response structures:
+### `api` — API Response Models
 
 ```rust
 use systemprompt_models::{ApiResponse, ApiError, ErrorCode};
@@ -52,7 +82,7 @@ let response = ApiResponse::success(data);
 let error = ApiError::not_found("User not found");
 ```
 
-### `auth` - Authentication Models
+### `auth` — Authentication Models
 
 ```rust
 use systemprompt_models::{AuthenticatedUser, BaseRole, AuthError};
@@ -65,7 +95,7 @@ let user = AuthenticatedUser {
 };
 ```
 
-### `config` - Configuration Models
+### `config` — Configuration Models
 
 ```rust
 use systemprompt_models::Config;
@@ -75,9 +105,9 @@ let config = Config::from_env()?;
 let db_url = config.database_url(); // ConfigProvider trait
 ```
 
-### `errors` - Error Handling
+### `errors` — Error Handling
 
-**`RepositoryError`** - Database/repository layer errors:
+**`RepositoryError`** — Database/repository layer errors:
 ```rust
 use systemprompt_models::RepositoryError;
 
@@ -86,7 +116,7 @@ let err = RepositoryError::NotFound("user-123".to_string());
 let api_err: ApiError = err.into();
 ```
 
-**`ServiceError`** - Business logic layer errors:
+**`ServiceError`** — Business logic layer errors:
 ```rust
 use systemprompt_models::ServiceError;
 
@@ -94,12 +124,7 @@ let err = ServiceError::Validation("Invalid email".to_string());
 let api_err: ApiError = err.into(); // Converts to HTTP 400
 ```
 
-**Error Conversion Flow:**
-```
-RepositoryError → ServiceError → ApiError → HTTP Response
-```
-
-### `repository` - Repository Patterns
+### `repository` — Repository Patterns
 
 **Service Lifecycle Trait:**
 ```rust
@@ -139,10 +164,10 @@ impl_repository_base!(MyRepository, DbPool, db_pool);
 // }
 ```
 
-### `execution` - Execution Context
+### `execution` — Execution Context
 
 ```rust
-use systemprompt_core_system::RequestContext;
+use systemprompt_models::RequestContext;
 
 let req_ctx = RequestContext {
     session_id: "session-123".into(),
@@ -157,6 +182,23 @@ let req_ctx = RequestContext {
     start_time: std::time::Instant::now(),
     user_type: UserType::AdminUser,
 };
+```
+
+### AgentConfig
+
+```rust
+use systemprompt_models::config::AgentConfig;
+
+fn main() -> anyhow::Result<()> {
+    let yaml = r#"
+        id: developer_agent
+        name: Developer
+        description: Writes and reviews code
+    "#;
+    let agent: AgentConfig = serde_yaml::from_str(yaml)?;
+    println!("loaded agent: {}", agent.id);
+    Ok(())
+}
 ```
 
 ## Error Handling Pattern
@@ -215,7 +257,7 @@ All repositories should implement the `Repository` trait from `systemprompt-trai
 
 ```rust
 use systemprompt_traits::{Repository, RepositoryError};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 pub struct UserRepository {
     db_pool: DbPool,
@@ -305,26 +347,33 @@ let module = Module {
 };
 ```
 
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `web` | No | Axum `IntoResponse` implementations |
+
 ## Dependencies
 
-- `serde` / `serde_json` - Serialization
-- `sqlx` - Database types
-- `anyhow` / `thiserror` - Error handling
-- `chrono` / `uuid` - Common types
-- `axum` - Request types for analytics
-- `async-trait` - Async traits
-- `systemprompt-traits` - Core trait definitions
-- `systemprompt-core-logging` - Logging context
+- `serde` / `serde_json` — Serialization
+- `anyhow` / `thiserror` — Error handling
+- `chrono` / `uuid` — Common types
+- `axum` — Request types (optional, with `web` feature)
+- `async-trait` — Async traits
+- `systemprompt-traits` — Core trait definitions
+- `systemprompt-identifiers` — Typed identifiers
+- `systemprompt-extension` — Extension framework
+- `systemprompt-provider-contracts` — Provider trait definitions
 
 ## Best Practices
 
 ### 1. Use Shared Error Types
 
 ```rust
-// ✅ Good
+// Good
 async fn my_repo_method(&self) -> Result<Data, RepositoryError> { ... }
 
-// ❌ Bad
+// Avoid
 async fn my_repo_method(&self) -> Result<Data, anyhow::Error> { ... }
 ```
 
@@ -344,22 +393,22 @@ Result<T, ApiError>
 ### 3. Use Query Builders
 
 ```rust
-// ✅ Good
+// Good
 let (clause, params) = WhereClause::new().eq("status", status).build();
 
-// ❌ Bad
-let clause = format!("WHERE status = '{}'", status); // SQL injection risk!
+// Avoid — SQL injection risk
+let clause = format!("WHERE status = '{}'", status);
 ```
 
 ### 4. Implement Repository Trait
 
 ```rust
-// ✅ Good - Consistent pattern
+// Good — consistent pattern
 impl Repository for MyRepository { ... }
 
-// ❌ Bad - No trait, inconsistent
+// Avoid — no trait, inconsistent
 impl MyRepository {
-    pub fn get_pool(&self) -> &DbPool { ... } // Different name
+    pub fn get_pool(&self) -> &DbPool { ... }
 }
 ```
 
@@ -391,23 +440,16 @@ mod tests {
 }
 ```
 
-## Usage
-
-```rust
-use systemprompt_models::config::AgentConfig;
-
-fn main() -> anyhow::Result<()> {
-    let yaml = r#"
-        id: developer_agent
-        name: Developer
-        description: Writes and reviews code
-    "#;
-    let agent: AgentConfig = serde_yaml::from_str(yaml)?;
-    println!("loaded agent: {}", agent.id);
-    Ok(())
-}
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-models)** · **[docs.rs](https://docs.rs/systemprompt-models)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Shared layer · Own how your organization uses AI.</sub>
+
+</div>

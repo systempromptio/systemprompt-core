@@ -1,36 +1,41 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
-
 
 # systemprompt-runtime
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/app-runtime.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/app-runtime.svg">
-    <img alt="systemprompt-runtime terminal demo" src="../../../assets/readme/terminals/dark/app-runtime.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-runtime.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/app-runtime.svg">
+    <img alt="systemprompt-runtime terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-runtime.svg" width="100%">
   </picture>
 </div>
 
-Application runtime context and module registry for systemprompt.io.
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-runtime.svg?style=flat-square)](https://crates.io/crates/systemprompt-runtime)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-runtime?style=flat-square)](https://docs.rs/systemprompt-runtime)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-runtime.svg)](https://crates.io/crates/systemprompt-runtime)
-[![Documentation](https://docs.rs/systemprompt-runtime/badge.svg)](https://docs.rs/systemprompt-runtime)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+Application runtime for systemprompt.io AI governance infrastructure. Provides `AppContext`, lifecycle builder, extension registry, and module wiring for the MCP governance pipeline. Centralizes access to database connections, configuration, extension services, and startup validation.
+
+**Layer**: App — orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the App layer in the systemprompt.io architecture.**
+Part of the App layer in the systemprompt.io architecture.
 **Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
-
-Provides centralized access to database connections, configuration, extension services, and startup validation.
 
 This crate is the application-layer orchestrator that:
 
@@ -39,7 +44,7 @@ This crate is the application-layer orchestrator that:
 - Validates system configuration and extensions at startup
 - Coordinates domain services without implementing business logic
 
-## File Structure
+## Architecture
 
 ```
 src/
@@ -59,8 +64,6 @@ src/
 ├── validation.rs             # Runtime system checks
 └── wellknown.rs              # Well-known endpoint metadata registry
 ```
-
-## Modules
 
 ### `context.rs`
 
@@ -152,14 +155,19 @@ Validates: files, rate limits, web config, content config, agents, MCP servers, 
 | `WellKnownMetadata` | Static metadata (path, name, description) for discovery |
 | `get_wellknown_metadata` | Retrieves metadata for a given path |
 
-## Macros
+## Usage
+
+```toml
+[dependencies]
+systemprompt-runtime = "0.2.1"
+```
+
+### Macros
 
 | Macro | Purpose |
 |-------|---------|
 | `register_module_api!` | Register module routes with the runtime registry |
 | `register_wellknown_route!` | Register `.well-known` endpoints with optional metadata |
-
-### Usage
 
 ```rust
 use systemprompt_runtime::{register_module_api, ServiceCategory, ModuleType};
@@ -185,15 +193,16 @@ register_module_api!(
 | `systemprompt-analytics` | Analytics service and GeoIP |
 | `inventory` | Compile-time static registration |
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-runtime = "0.0.1"
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-runtime)** · **[docs.rs](https://docs.rs/systemprompt-runtime)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>App layer · Own how your organization uses AI.</sub>
+
+</div>

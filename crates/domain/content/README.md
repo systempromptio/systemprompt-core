@@ -1,33 +1,39 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
-
 
 # systemprompt-content
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/domain-content.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/domain-content.svg">
-    <img alt="systemprompt-content terminal demo" src="../../../assets/readme/terminals/dark/domain-content.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/domain-content.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/domain-content.svg">
+    <img alt="systemprompt-content terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/domain-content.svg" width="100%">
   </picture>
 </div>
 
-Content module for systemprompt.io with content management, analytics, and event tracking.
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-content.svg?style=flat-square)](https://crates.io/crates/systemprompt-content)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-content?style=flat-square)](https://docs.rs/systemprompt-content)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-content.svg)](https://crates.io/crates/systemprompt-content)
-[![Documentation](https://docs.rs/systemprompt-content/badge.svg)](https://docs.rs/systemprompt-content)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+Markdown content management, sources, and event tracking for systemprompt.io AI governance dashboards. Governed publishing pipeline for the MCP governance platform with content ingestion, full-text search, link tracking, and UTM analytics.
+
+**Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Domain layer in the systemprompt.io architecture.**
 **Integrations** · [Skill Marketplace](https://systemprompt.io/features/skill-marketplace)
 
 This crate handles all content-related functionality:
@@ -37,6 +43,45 @@ This crate handles all content-related functionality:
 - **Search**: Full-text search across content with category filtering
 - **Link Tracking**: Campaign links with UTM parameters and click analytics
 - **Configuration**: Validated content source configuration with routing
+
+## Usage
+
+```toml
+[dependencies]
+systemprompt-content = "0.2.1"
+```
+
+```rust
+use systemprompt_content::{
+    // Models
+    Content, ContentMetadata, IngestionOptions, IngestionReport,
+    IngestionSource, SearchFilters, SearchRequest, SearchResponse,
+    SearchResult, UpdateContentParams,
+
+    // Repositories
+    ContentRepository, LinkAnalyticsRepository, SearchRepository,
+
+    // Services
+    DefaultContentProvider, IngestionService, LinkAnalyticsService, SearchService,
+
+    // Jobs
+    ContentIngestionJob,
+
+    // Config
+    ContentConfigValidated, ContentReady, ContentSourceConfigValidated,
+    LoadStats, ParsedContent, ValidationResult,
+
+    // API
+    router, get_content_handler, list_content_by_source_handler, query_handler,
+
+    // Error
+    ContentError,
+
+    // Validation
+    validate_content_metadata, validate_paper_metadata,
+    validate_paper_section_ids_unique,
+};
+```
 
 ## File Structure
 
@@ -146,55 +191,22 @@ Business logic layer. Services coordinate repositories and implement domain oper
 - `systemprompt-logging` - Logging infrastructure
 - `systemprompt-config` - Configuration management
 
-## Public Exports
-
-```rust
-use systemprompt_content::{
-    // Models
-    Content, ContentMetadata, IngestionOptions, IngestionReport,
-    IngestionSource, SearchFilters, SearchRequest, SearchResponse,
-    SearchResult, UpdateContentParams,
-
-    // Repositories
-    ContentRepository, LinkAnalyticsRepository, SearchRepository,
-
-    // Services
-    DefaultContentProvider, IngestionService, LinkAnalyticsService, SearchService,
-
-    // Jobs
-    ContentIngestionJob,
-
-    // Config
-    ContentConfigValidated, ContentReady, ContentSourceConfigValidated,
-    LoadStats, ParsedContent, ValidationResult,
-
-    // API
-    router, get_content_handler, list_content_by_source_handler, query_handler,
-
-    // Error
-    ContentError,
-
-    // Validation
-    validate_content_metadata, validate_paper_metadata,
-    validate_paper_section_ids_unique,
-};
-```
-
 ## Traits Implemented
 
 - `ContentProvider` (systemprompt-traits) - `DefaultContentProvider`
 - `Job` (systemprompt-traits) - `ContentIngestionJob`
 - `ContentRouting` (systemprompt-models) - `ContentConfigValidated`, `ContentReady`
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-content = "0.0.1"
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-content)** · **[docs.rs](https://docs.rs/systemprompt-content)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Domain layer · Own how your organization uses AI.</sub>
+
+</div>

@@ -1,29 +1,40 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
-
 
 # systemprompt-sync
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/app-sync.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/app-sync.svg">
-    <img alt="systemprompt-sync terminal demo" src="../../../assets/readme/terminals/dark/app-sync.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-sync.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/app-sync.svg">
+    <img alt="systemprompt-sync terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-sync.svg" width="100%">
   </picture>
 </div>
 
-Synchronization services for systemprompt.io - file, database, and crate deployment synchronization between local and cloud environments.
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-sync.svg?style=flat-square)](https://crates.io/crates/systemprompt-sync)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-sync?style=flat-square)](https://docs.rs/systemprompt-sync)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Cloud sync services for systemprompt.io AI governance infrastructure. Provides file, database, and crate deployment synchronization across governance tenants — bidirectional sync between local and cloud environments.
+
+**Layer**: App — orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the App layer in the systemprompt.io architecture.**
+Part of the App layer in the systemprompt.io architecture.
 **Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate provides bidirectional sync capabilities for:
@@ -33,7 +44,7 @@ This crate provides bidirectional sync capabilities for:
 - **Local Sync** - Synchronize content and skills between disk and local database
 - **Crate Deploy** - Build and deploy Docker images to Fly.io
 
-## File Structure
+## Architecture
 
 ```
 src/
@@ -62,7 +73,7 @@ src/
     └── local_sync.rs         # Sync direction, diff items, and result types
 ```
 
-## Module Details
+### Module Details
 
 | Module | Purpose |
 |--------|---------|
@@ -76,7 +87,7 @@ src/
 | `ContentLocalSync` | Syncs content to/from disk using ingestion services |
 | `SkillsLocalSync` | Syncs skills to/from disk using ingestion services |
 
-## Sync Directions
+### Sync Directions
 
 | Direction | Description |
 |-----------|-------------|
@@ -86,6 +97,11 @@ src/
 | `ToDatabase` | Local files to database |
 
 ## Usage
+
+```toml
+[dependencies]
+systemprompt-sync = "0.2.1"
+```
 
 ```rust
 use systemprompt_sync::{SyncConfig, SyncService, SyncDirection};
@@ -125,15 +141,16 @@ The crate uses `SyncError` for all error conditions:
 | `systemprompt-identifiers` | Typed identifiers (SkillId, SourceId, etc.) |
 | `systemprompt-logging` | Tracing integration |
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-sync = "0.0.1"
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-sync)** · **[docs.rs](https://docs.rs/systemprompt-sync)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>App layer · Own how your organization uses AI.</sub>
+
+</div>

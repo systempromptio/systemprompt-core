@@ -1,29 +1,40 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
-
 
 # systemprompt-generator
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/app-generator.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/app-generator.svg">
-    <img alt="systemprompt-generator terminal demo" src="../../../assets/readme/terminals/dark/app-generator.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-generator.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/app-generator.svg">
+    <img alt="systemprompt-generator terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-generator.svg" width="100%">
   </picture>
 </div>
 
-Static site generation and content publishing orchestrator for systemprompt.io. Coordinates domain services to generate prerendered HTML pages, sitemaps, RSS feeds, and optimized assets.
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-generator.svg?style=flat-square)](https://crates.io/crates/systemprompt-generator)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-generator?style=flat-square)](https://docs.rs/systemprompt-generator)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Static site generation, theme rendering, and asset bundling for systemprompt.io AI governance dashboards. Coordinates domain services to generate prerendered HTML pages, sitemaps, RSS feeds, and optimized assets via a Handlebars and Markdown pipeline.
+
+**Layer**: App — orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the App layer in the systemprompt.io architecture.**
+Part of the App layer in the systemprompt.io architecture.
 **Integrations** · [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
 
 This application-layer crate orchestrates the full content publishing pipeline:
@@ -33,7 +44,7 @@ This application-layer crate orchestrates the full content publishing pipeline:
 3. **Asset Organization** - Copies and organizes CSS, JS, fonts, and images
 4. **Feed Generation** - Creates sitemaps and RSS feeds for SEO
 
-## File Structure
+## Architecture
 
 ```
 src/
@@ -91,7 +102,7 @@ src/
         └── builders.rs      # JSON template building
 ```
 
-## Module Descriptions
+### Module Descriptions
 
 | Module | Purpose |
 |--------|---------|
@@ -103,7 +114,7 @@ src/
 | `sitemap` | XML sitemap generation with chunking for large sites |
 | `templates` | Template data preparation and HTML fragment generation |
 
-## Key Types
+### Key Types
 
 | Type | Description |
 |------|-------------|
@@ -115,7 +126,14 @@ src/
 | `RssChannel` / `RssItem` | RSS feed data structures |
 | `TemplateDataParams` | Parameters for preparing template data |
 
-## Public Exports
+## Usage
+
+```toml
+[dependencies]
+systemprompt-generator = "0.2.1"
+```
+
+### Public Exports
 
 ```rust
 pub use assets::{copy_implementation_assets, organize_css_files, organize_js_files};
@@ -153,15 +171,16 @@ This crate follows the application layer pattern:
 - **Template delegation** - Uses `TemplateRegistry` from domain layer
 - **Config via models** - Uses `Config::get()` instead of direct `env::var()`
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-generator = "0.0.1"
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-generator)** · **[docs.rs](https://docs.rs/systemprompt-generator)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>App layer · Own how your organization uses AI.</sub>
+
+</div>

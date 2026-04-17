@@ -1,30 +1,42 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-cloud
 
-systemprompt.io Cloud infrastructure - API client, credentials, OAuth.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-cloud — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-cloud.svg)](https://crates.io/crates/systemprompt-cloud)
-[![Documentation](https://docs.rs/systemprompt-cloud/badge.svg)](https://docs.rs/systemprompt-cloud)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-cloud.svg?style=flat-square)](https://crates.io/crates/systemprompt-cloud)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-cloud?style=flat-square)](https://docs.rs/systemprompt-cloud)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Cloud API client, credentials, OAuth, and tenant management for systemprompt.io AI governance deployments. Remote sync and multi-tenant orchestration for the MCP governance pipeline. Includes API client, credentials, OAuth, and tenant management.
+
+**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Infra layer in the systemprompt.io architecture.**
-**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
-
 Cloud infrastructure services including API client, credentials, OAuth, and tenant management.
 
-## Structure
+## Architecture
 
 ```
 cloud/
@@ -72,7 +84,7 @@ cloud/
         └── project.rs              # ProjectPath, ProfilePath, ProjectContext
 ```
 
-## Module Overview
+### Module Overview
 
 | Module | Purpose |
 |--------|---------|
@@ -87,6 +99,25 @@ cloud/
 | `oauth` | OAuth authentication flow with local callback server |
 | `paths` | Path resolution for credentials, tenants, profiles, and projects |
 | `tenants` | Local tenant cache storage and management |
+
+## Usage
+
+```toml
+[dependencies]
+systemprompt-cloud = "0.2.1"
+```
+
+```rust
+use systemprompt_cloud::{CloudApiClient, CloudCredentials, Environment};
+
+async fn whoami() -> anyhow::Result<()> {
+    let creds = CloudCredentials::load()?;
+    let client = CloudApiClient::new(Environment::Production, creds);
+    let me = client.user_me().await?;
+    println!("Logged in as {}", me.user.email);
+    Ok(())
+}
+```
 
 ## Public API
 
@@ -166,29 +197,16 @@ cloud/
 - `clap` - CLI argument parsing
 - `validator` - Struct validation
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-cloud = "0.0.1"
-```
-
-## Usage
-
-```rust
-use systemprompt_cloud::{CloudApiClient, CloudCredentials, Environment};
-
-async fn whoami() -> anyhow::Result<()> {
-    let creds = CloudCredentials::load()?;
-    let client = CloudApiClient::new(Environment::Production, creds);
-    let me = client.user_me().await?;
-    println!("Logged in as {}", me.user.email);
-    Ok(())
-}
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-cloud)** · **[docs.rs](https://docs.rs/systemprompt-cloud)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Infra layer · Own how your organization uses AI.</sub>
+
+</div>

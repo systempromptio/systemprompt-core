@@ -1,40 +1,53 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-extension
 
-Extension framework for systemprompt.io - register custom modules, providers, and APIs.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-extension — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-extension.svg)](https://crates.io/crates/systemprompt-extension)
-[![Documentation](https://docs.rs/systemprompt-extension/badge.svg)](https://docs.rs/systemprompt-extension)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-extension.svg?style=flat-square)](https://crates.io/crates/systemprompt-extension)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-extension?style=flat-square)](https://docs.rs/systemprompt-extension)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Compile-time extension framework for systemprompt.io AI governance infrastructure. Built on the `inventory` crate — registers schemas, API routes, jobs, and providers in the MCP governance pipeline. Extensions can add new routes, services, and capabilities to the platform.
+
+**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Shared layer in the systemprompt.io architecture.**
-**Integrations** · [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
+Provides the infrastructure for building and loading systemprompt.io extensions. Extensions can add new routes, services, and capabilities to the platform.
 
-Provides the infrastructure for building and loading systemprompt.io extensions.
-Extensions can add new routes, services, and capabilities to the platform.
+## Architecture
 
-## Installation
+- `ExtensionContext` — Runtime context for extensions
+- `ExtensionError` — Error types for extension operations
+- `ExtensionLoader` — Registration and loading system
 
-Add to your `Cargo.toml`:
+## Usage
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.0.1"
+systemprompt-extension = "0.2.1"
 ```
-
-## Quick Example
 
 ```rust
 use systemprompt_extension::prelude::*;
@@ -49,28 +62,6 @@ impl Extension for MyExtension {
 
 register_extension!(MyExtension);
 ```
-
-## Feature Flags
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `web` | Yes | HTTP API routes via Axum |
-| `plugin-discovery` | No | Dynamic plugin loading |
-
-## Key Types
-
-- `ExtensionContext` - Runtime context for extensions
-- `ExtensionError` - Error types for extension operations
-- `ExtensionLoader` - Registration and loading system
-
-## Dependencies
-
-- `async-trait` - Async trait support
-- `axum` - Router types (optional, with `web` feature)
-- `inventory` - Compile-time extension registration
-- `reqwest` - HTTP client (optional, with `web` feature)
-
-## Usage
 
 ```rust
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRole};
@@ -89,6 +80,30 @@ impl Extension for MyExtension {
 }
 ```
 
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `web` | Yes | HTTP API routes via Axum |
+| `plugin-discovery` | No | Dynamic plugin loading |
+
+## Dependencies
+
+- `async-trait` — Async trait support
+- `axum` — Router types (optional, with `web` feature)
+- `inventory` — Compile-time extension registration
+- `reqwest` — HTTP client (optional, with `web` feature)
+
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-extension)** · **[docs.rs](https://docs.rs/systemprompt-extension)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Shared layer · Own how your organization uses AI.</sub>
+
+</div>

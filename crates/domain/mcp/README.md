@@ -1,47 +1,53 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
-
 
 # systemprompt-mcp
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/domain-mcp.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/domain-mcp.svg">
-    <img alt="systemprompt-mcp terminal demo" src="../../../assets/readme/terminals/dark/domain-mcp.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/domain-mcp.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/domain-mcp.svg">
+    <img alt="systemprompt-mcp terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/domain-mcp.svg" width="100%">
   </picture>
 </div>
 
-Core MCP (Model Context Protocol) functionality for systemprompt.io OS.
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-mcp.svg?style=flat-square)](https://crates.io/crates/systemprompt-mcp)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-mcp?style=flat-square)](https://docs.rs/systemprompt-mcp)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-mcp.svg)](https://crates.io/crates/systemprompt-mcp)
-[![Documentation](https://docs.rs/systemprompt-mcp/badge.svg)](https://docs.rs/systemprompt-mcp)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+Native Model Context Protocol (MCP) implementation for systemprompt.io. Orchestration, per-server OAuth2, RBAC middleware, and tool-call governance — the core of the AI governance pipeline.
+
+**Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Domain layer in the systemprompt.io architecture.**
 **Capabilities** · [MCP Governance](https://systemprompt.io/features/mcp-governance)
 
 MCP (Model Context Protocol) server lifecycle management module.
 
-## Installation
-
-Add to your `Cargo.toml`:
+## Usage
 
 ```toml
 [dependencies]
-systemprompt-mcp = "0.0.1"
+systemprompt-mcp = "0.2.1"
 ```
 
-## Trait Implementations
+## Architecture
+
+### Trait Implementations
 
 | Trait | Implementation | Location |
 |-------|----------------|----------|
@@ -148,4 +154,14 @@ Uses `ToolUsageRepository` for tool execution tracking.
 
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-mcp)** · **[docs.rs](https://docs.rs/systemprompt-mcp)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Domain layer · Own how your organization uses AI.</sub>
+
+</div>

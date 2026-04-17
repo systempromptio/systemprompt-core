@@ -1,30 +1,42 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-events
 
-Events module for systemprompt.io - event broadcasting and routing.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-events — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-events.svg)](https://crates.io/crates/systemprompt-events)
-[![Documentation](https://docs.rs/systemprompt-events/badge.svg)](https://docs.rs/systemprompt-events)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-events.svg?style=flat-square)](https://crates.io/crates/systemprompt-events)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-events?style=flat-square)](https://docs.rs/systemprompt-events)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Event bus, SSE broadcasters, and fan-out routing for systemprompt.io AI governance infrastructure. A2A, analytics, and context stream wiring for the MCP governance pipeline. Manages connection lifecycles, routes events to appropriate channels, and handles automatic cleanup of disconnected clients.
+
+**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Infra layer in the systemprompt.io architecture.**
-**Capabilities** · [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
-
 This crate provides a type-safe, generic event broadcasting system for real-time communication with connected clients via SSE (Server-Sent Events). It manages connection lifecycles, routes events to appropriate channels, and handles automatic cleanup of disconnected clients.
 
-## File Structure
+## Architecture
 
 ```
 crates/infra/events/
@@ -38,8 +50,6 @@ crates/infra/events/
         ├── broadcaster.rs          # 191 lines - GenericBroadcaster implementation
         └── routing.rs              # 51 lines  - EventRouter, global singletons
 ```
-
-## Modules
 
 ### `lib.rs`
 Entry point defining core abstractions:
@@ -57,6 +67,42 @@ Generic broadcaster implementation:
 Event routing and global state:
 - `EventRouter` - Routes events to appropriate broadcaster(s)
 - Global singletons: `AGUI_BROADCASTER`, `A2A_BROADCASTER`, `CONTEXT_BROADCASTER`, `ANALYTICS_BROADCASTER`
+
+### Event Flow
+
+```
+                    ┌─────────────────┐
+                    │   EventRouter   │
+                    └────────┬────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│AGUI_BROADCASTER│    │A2A_BROADCASTER│    │CONTEXT_BROADCASTER│
+└───────┬───────┘    └───────┬───────┘    └───────┬───────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+   SSE Clients          SSE Clients          SSE Clients
+```
+
+AgUI and A2A events are routed to both their primary broadcaster AND the context broadcaster for aggregation.
+
+## Usage
+
+```toml
+[dependencies]
+systemprompt-events = "0.2.1"
+```
+
+```rust
+use systemprompt_events::{AGUI_BROADCASTER, Broadcaster};
+use systemprompt_identifiers::UserId;
+
+async fn active_listeners(user_id: &UserId) -> usize {
+    AGUI_BROADCASTER.connection_count(user_id).await
+}
+```
 
 ## Public API
 
@@ -91,25 +137,9 @@ Event routing and global state:
 | `CONTEXT_BROADCASTER` | `LazyLock<ContextBroadcaster>` | Aggregated context events |
 | `ANALYTICS_BROADCASTER` | `LazyLock<AnalyticsBroadcaster>` | Analytics event tracking |
 
-## Event Flow
+## Tests
 
-```
-                    ┌─────────────────┐
-                    │   EventRouter   │
-                    └────────┬────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│AGUI_BROADCASTER│    │A2A_BROADCASTER│    │CONTEXT_BROADCASTER│
-└───────┬───────┘    └───────┬───────┘    └───────┬───────┘
-        │                    │                    │
-        ▼                    ▼                    ▼
-   SSE Clients          SSE Clients          SSE Clients
-```
-
-AgUI and A2A events are routed to both their primary broadcaster AND the context broadcaster for aggregation.
+Tests are located in `crates/tests/unit/infra/events/` following the project convention of separating tests from source files.
 
 ## Dependencies
 
@@ -122,30 +152,16 @@ AgUI and A2A events are routed to both their primary broadcaster AND the context
 | `async-trait` | Async trait support |
 | `tracing` | Structured logging |
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-events = "0.0.1"
-```
-
-## Tests
-
-Tests are located in `crates/tests/unit/infra/events/` following the project convention of separating tests from source files.
-
-## Usage
-
-```rust
-use systemprompt_events::{AGUI_BROADCASTER, Broadcaster};
-use systemprompt_identifiers::UserId;
-
-async fn active_listeners(user_id: &UserId) -> usize {
-    AGUI_BROADCASTER.connection_count(user_id).await
-}
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-events)** · **[docs.rs](https://docs.rs/systemprompt-events)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Infra layer · Own how your organization uses AI.</sub>
+
+</div>

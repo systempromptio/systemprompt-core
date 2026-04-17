@@ -1,52 +1,42 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
 # systemprompt-database
 
-Database abstraction layer for systemprompt.io supporting SQLite, PostgreSQL, and MySQL.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
+    <img alt="systemprompt-database — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
+  </picture>
+</div>
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-database.svg)](https://crates.io/crates/systemprompt-database)
-[![Documentation](https://docs.rs/systemprompt-database/badge.svg)](https://docs.rs/systemprompt-database)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-database.svg?style=flat-square)](https://crates.io/crates/systemprompt-database)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-database?style=flat-square)](https://docs.rs/systemprompt-database)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+PostgreSQL infrastructure for systemprompt.io AI governance. SQLx-backed pool, generic repository traits, and compile-time query verification. Provides database abstraction via SQLx with repository patterns, transaction helpers, and administrative utilities.
+
+**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Infra layer in the systemprompt.io architecture.**
-**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
-
 Provides database abstraction via SQLx with repository patterns, transaction helpers, and administrative utilities.
 
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-database = "0.0.1"
-```
-
-## Quick Example
-
-```rust
-use systemprompt_database::{DbPool, Repository, with_transaction};
-
-async fn example(pool: &DbPool) -> anyhow::Result<()> {
-    with_transaction(pool, |tx| Box::pin(async move {
-        // Execute queries within transaction
-        Ok(())
-    })).await
-}
-```
-
-## Structure
+## Architecture
 
 ```
 database/
@@ -94,8 +84,6 @@ database/
             ├── introspection.rs
             └── transaction.rs
 ```
-
-## Modules
 
 ### `admin/`
 Administrative database utilities for introspection and query execution.
@@ -155,6 +143,38 @@ PostgreSQL-specific implementations.
 | `ext.rs` | `DatabaseProviderExt` implementation |
 | `introspection.rs` | `get_database_info` for schema introspection |
 | `transaction.rs` | `PostgresTransaction` implementation |
+
+## Usage
+
+```toml
+[dependencies]
+systemprompt-database = "0.2.1"
+```
+
+```rust
+use systemprompt_database::{DbPool, Repository, with_transaction};
+
+async fn example(pool: &DbPool) -> anyhow::Result<()> {
+    with_transaction(pool, |tx| Box::pin(async move {
+        // Execute queries within transaction
+        Ok(())
+    })).await
+}
+```
+
+```rust
+use systemprompt_database::{Database, DbPool, with_transaction};
+
+async fn count_users(pool: &DbPool) -> anyhow::Result<i64> {
+    with_transaction(pool, |tx| Box::pin(async move {
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+            .fetch_one(&mut **tx)
+            .await?;
+        Ok(row.0)
+    }))
+    .await
+}
+```
 
 ## Public API
 
@@ -227,22 +247,16 @@ From `sqlx`: `PgPool`, `Pool`, `Postgres`, `Transaction`, `Json`
 - `thiserror` - Error derivation
 - `async-trait` - Async traits
 
-## Usage
-
-```rust
-use systemprompt_database::{Database, DbPool, with_transaction};
-
-async fn count_users(pool: &DbPool) -> anyhow::Result<i64> {
-    with_transaction(pool, |tx| Box::pin(async move {
-        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
-            .fetch_one(&mut **tx)
-            .await?;
-        Ok(row.0)
-    }))
-    .await
-}
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-database)** · **[docs.rs](https://docs.rs/systemprompt-database)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Infra layer · Own how your organization uses AI.</sub>
+
+</div>

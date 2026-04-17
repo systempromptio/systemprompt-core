@@ -1,34 +1,40 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
 
-
-# systemprompt.io CLI
+# systemprompt-cli
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/entry-cli.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/entry-cli.svg">
-    <img alt="systemprompt-cli terminal demo" src="../../../assets/readme/terminals/dark/entry-cli.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/entry-cli.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/entry-cli.svg">
+    <img alt="systemprompt-cli terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/entry-cli.svg" width="100%">
   </picture>
 </div>
 
-**Layer:** Entry
-**Binary:** `systemprompt`
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-cli.svg?style=flat-square)](https://crates.io/crates/systemprompt-cli)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-cli?style=flat-square)](https://docs.rs/systemprompt-cli)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Command-line interface for systemprompt.io OS. Every command supports both human-friendly interactive mode and agent-friendly non-interactive mode.
+Unified CLI for systemprompt.io AI governance: agent orchestration, MCP governance, analytics, profiles, cloud deploy, and self-hosted operations. Every command supports both human-friendly interactive mode and agent-friendly non-interactive mode.
 
----
+**Layer**: Entry — application boundary. Binary: `systemprompt`. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Entry layer in the systemprompt.io architecture.**
+Part of the Entry layer in the systemprompt.io architecture.
 **Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 The CLI provides comprehensive management of systemprompt.io OS including:
@@ -40,9 +46,7 @@ The CLI provides comprehensive management of systemprompt.io OS including:
 - **Analytics** - Usage metrics, costs, and performance insights
 - **Plugin System** - MCP servers and capability extensions
 
----
-
-## File Structure
+## Architecture
 
 ```
 src/
@@ -483,10 +487,6 @@ src/
     └── web.rs                  # Web utilities
 ```
 
----
-
-## Module Explanations
-
 ### Core Modules
 
 | Module | Purpose |
@@ -533,10 +533,6 @@ src/
 | `routing/` | Remote CLI execution via SSE streaming |
 | `shared/` | Utilities: parsers, paths, docker, profile resolution |
 
----
-
-## Architecture
-
 ### Command Requirements System
 
 Commands declare initialization needs via the `HasRequirements` trait:
@@ -570,7 +566,16 @@ CommandResult::table(data)
 
 Artifact types: `Table`, `List`, `Card`, `Text`, `CopyPasteText`, `Chart`, `Form`, `Dashboard`
 
----
+## Usage
+
+```toml
+[dependencies]
+systemprompt-cli = "0.2.1"
+```
+
+```bash
+cargo install systemprompt-cli
+```
 
 ## Dual-Mode Operation
 
@@ -589,8 +594,6 @@ systemprompt admin agents create
 systemprompt --non-interactive --json admin agents create --name myagent
 ```
 
----
-
 ## Standard Flags
 
 | Flag | Short | Purpose |
@@ -604,27 +607,21 @@ systemprompt --non-interactive --json admin agents create --name myagent
 | `--quiet` | | Minimal output |
 | `--verbose` | | Detailed output |
 
----
-
 ## Related Documentation
 
 - [Validation Checklist](./validation.md)
-- [Rust Standards](/instructions/rust/rust.md)
 - [Compliance Status](./status.md)
-
-## Installation
-
-```bash
-cargo install systemprompt-cli
-```
-
-Or add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-cli = "0.0.1"
-```
 
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-cli)** · **[docs.rs](https://docs.rs/systemprompt-cli)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Entry layer · Own how your organization uses AI.</sub>
+
+</div>

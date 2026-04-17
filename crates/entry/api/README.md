@@ -1,29 +1,40 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
-
 
 # systemprompt-api
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/entry-api.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/entry-api.svg">
-    <img alt="systemprompt-api terminal demo" src="../../../assets/readme/terminals/dark/entry-api.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/entry-api.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/entry-api.svg">
+    <img alt="systemprompt-api terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/entry-api.svg" width="100%">
   </picture>
 </div>
 
-HTTP API gateway for systemprompt.io OS.
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-api.svg?style=flat-square)](https://crates.io/crates/systemprompt-api)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-api?style=flat-square)](https://docs.rs/systemprompt-api)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+
+Axum-based HTTP server and API gateway for systemprompt.io AI governance infrastructure. Exposes governed agents, MCP, A2A, and admin endpoints with rate limiting and RBAC. Serves as the entry point for all HTTP requests to systemprompt.io OS.
+
+**Layer**: Entry — application boundary. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the Entry layer in the systemprompt.io architecture.**
+Part of the Entry layer in the systemprompt.io architecture.
 **Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 This crate serves as the entry point for all HTTP requests to systemprompt.io OS. It provides:
@@ -40,8 +51,6 @@ The API crate follows the Entry layer pattern:
 - Handlers extract request data and delegate to domain services
 - No direct database access (uses repositories through injected services)
 - Middleware handles cross-cutting concerns
-
-## File Structure
 
 ```
 src/
@@ -138,8 +147,6 @@ src/
         └── vite.rs                           # Vite asset serving
 ```
 
-## Module Descriptions
-
 ### Routes
 
 | Module | Description |
@@ -161,6 +168,38 @@ src/
 | `proxy` | HTTP client pooling and request transformation |
 | `server` | Server lifecycle, route mounting, and startup coordination |
 | `static_content` | SPA serving, content matching, and session handling |
+
+## Usage
+
+```toml
+[dependencies]
+systemprompt-api = "0.2.1"
+```
+
+```rust
+use systemprompt_api::services::server::{run_server, setup_api_server};
+use systemprompt_runtime::AppContext;
+
+// Initialize and run
+let ctx = AppContext::new().await?;
+run_server(ctx, None).await?;
+```
+
+## Configuration
+
+The API server is configured through `systemprompt-runtime::Config`:
+
+- `api_external_url` - Public URL for the API
+- `rate_limits` - Per-endpoint rate limit configuration
+- `jwt_secret` - JWT signing secret
+- `cors` - CORS allowed origins
+
+## Notes
+
+- No direct repository access in handlers (uses service injection)
+- All routes mounted through `services/server/routes.rs`
+- Middleware order is significant (see `services/server/builder.rs`)
+- Static content requires prebuilt web assets in `WEB_DIR`
 
 ## Dependencies
 
@@ -193,42 +232,16 @@ src/
 - `jsonwebtoken` - JWT handling
 - `governor` - Rate limiting
 
-## Usage
-
-```rust
-use systemprompt_api::services::server::{run_server, setup_api_server};
-use systemprompt_runtime::AppContext;
-
-// Initialize and run
-let ctx = AppContext::new().await?;
-run_server(ctx, None).await?;
-```
-
-## Configuration
-
-The API server is configured through `systemprompt-runtime::Config`:
-
-- `api_external_url` - Public URL for the API
-- `rate_limits` - Per-endpoint rate limit configuration
-- `jwt_secret` - JWT signing secret
-- `cors` - CORS allowed origins
-
-## Notes
-
-- No direct repository access in handlers (uses service injection)
-- All routes mounted through `services/server/routes.rs`
-- Middleware order is significant (see `services/server/builder.rs`)
-- Static content requires prebuilt web assets in `WEB_DIR`
-
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-api = "0.0.1"
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-api)** · **[docs.rs](https://docs.rs/systemprompt-api)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>Entry layer · Own how your organization uses AI.</sub>
+
+</div>

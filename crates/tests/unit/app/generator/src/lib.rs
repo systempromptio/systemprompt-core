@@ -14,10 +14,18 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod asset_tests;
+#[cfg(test)]
 mod build;
+#[cfg(test)]
+mod build_tests;
 #[cfg(test)]
 mod content;
 #[cfg(test)]
+mod markdown_tests;
+#[cfg(test)]
 mod sitemap;
+#[cfg(test)]
+mod sitemap_tests;
 #[cfg(test)]
 mod templates;

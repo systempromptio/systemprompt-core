@@ -179,7 +179,7 @@ A 30-crate Rust workspace that compiles into a single ~50 MB binary. Dependencie
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-All 30 crates publish on crates.io at matching workspace versions. Domain crates communicate via traits and the event bus, not direct dependencies. Database-touching crates ship a per-crate `.sqlx/` query cache (committed) so downstream consumers compile offline — see [`instructions/information/crates-publishing.md`](instructions/information/crates-publishing.md) for the two-level cache convention.
+All 30 crates publish on crates.io at matching workspace versions. Domain crates communicate via traits and the event bus, not direct dependencies. Database-touching crates ship a per-crate `.sqlx/` query cache (committed) so downstream consumers compile offline.
 
 | Layer | Crates |
 |---|---|

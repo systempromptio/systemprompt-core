@@ -1,38 +1,45 @@
 <div align="center">
-  <a href="https://systemprompt.io">
-    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
-  </a>
-  <p><strong>Production infrastructure for AI agents</strong></p>
-  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://systemprompt.io/documentation">Documentation</a> • <a href="https://github.com/systempromptio/systemprompt-core">Core</a> • <a href="https://github.com/systempromptio/systemprompt-template">Template</a></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
+</picture>
+
+### Production infrastructure for AI agents
+
+[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
+
 </div>
 
 ---
-
 
 # systemprompt-scheduler
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../../assets/readme/terminals/dark/app-scheduler.svg">
-    <source media="(prefers-color-scheme: light)" srcset="../../../assets/readme/terminals/light/app-scheduler.svg">
-    <img alt="systemprompt-scheduler terminal demo" src="../../../assets/readme/terminals/dark/app-scheduler.svg" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-scheduler.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/app-scheduler.svg">
+    <img alt="systemprompt-scheduler terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-scheduler.svg" width="100%">
   </picture>
 </div>
 
-Core scheduler module for systemprompt.io OS - background jobs and cron tasks.
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-scheduler.svg?style=flat-square)](https://crates.io/crates/systemprompt-scheduler)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-scheduler?style=flat-square)](https://docs.rs/systemprompt-scheduler)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-scheduler.svg)](https://crates.io/crates/systemprompt-scheduler)
-[![Documentation](https://docs.rs/systemprompt-scheduler/badge.svg)](https://docs.rs/systemprompt-scheduler)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+Background jobs, cron tasks, and job-extension dispatch for systemprompt.io AI governance infrastructure. Tokio-backed scheduling discovers jobs via the `inventory` crate and executes them on configurable cron schedules.
+
+**Layer**: App — orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-**Part of the App layer in the systemprompt.io architecture.**
+Part of the App layer in the systemprompt.io architecture.
 **Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
 Background job scheduling and execution module. Discovers jobs via the `inventory` crate and executes them on configurable cron schedules.
 
-## File Structure
+## Architecture
 
 ```
 src/
@@ -67,8 +74,6 @@ src/
         ├── state_types.rs                    # DesiredStatus, RuntimeStatus, ServiceAction
         └── verified_state.rs                 # VerifiedServiceState with builder pattern
 ```
-
-## Modules
 
 ### jobs/
 
@@ -130,7 +135,14 @@ State types:
 - **RuntimeStatus** - `Running` | `Starting` | `Stopped` | `Crashed` | `Orphaned`
 - **ServiceAction** - `None` | `Start` | `Stop` | `Restart` | `CleanupDb` | `CleanupProcess`
 
-## Job Discovery
+## Usage
+
+```toml
+[dependencies]
+systemprompt-scheduler = "0.2.1"
+```
+
+### Job Discovery
 
 Jobs are discovered via the `inventory` crate. Any crate can register jobs:
 
@@ -139,6 +151,14 @@ inventory::submit! { &MyCustomJob }
 ```
 
 The scheduler discovers all registered jobs at startup and schedules them based on configuration.
+
+```rust
+use systemprompt_scheduler::{SchedulerService, SchedulerConfig};
+
+let config = SchedulerConfig::from_context(&app_context);
+let service = SchedulerService::new(config, db_pool, app_context)?;
+service.start().await?;
+```
 
 ## Dependencies
 
@@ -153,25 +173,16 @@ The scheduler discovers all registered jobs at startup and schedules them based 
 | `systemprompt-identifiers` | ScheduledJobId |
 | `systemprompt-models` | Config types |
 
-## Usage
-
-```rust
-use systemprompt_scheduler::{SchedulerService, SchedulerConfig};
-
-let config = SchedulerConfig::from_context(&app_context);
-let service = SchedulerService::new(config, db_pool, app_context)?;
-service.start().await?;
-```
-
-## Installation
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-systemprompt-scheduler = "0.0.1"
-```
-
 ## License
 
-Business Source License 1.1 - See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for details.
+BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-scheduler)** · **[docs.rs](https://docs.rs/systemprompt-scheduler)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
+<sub>App layer · Own how your organization uses AI.</sub>
+
+</div>
