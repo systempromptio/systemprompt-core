@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.2] - 2026-04-17
+
+### Fixed
+- macOS build — `statvfs` type mismatch in `get_disk_usage()` (`services/server/health.rs`). `nix::sys::statvfs` returns `u32` for `blocks()`/`blocks_available()`/`blocks_free()` on Darwin but `u64` on Linux, and `fragment_size()` is platform-varying. Added explicit `u64::from()` casts so the `saturating_mul` arithmetic is portable.
+
 ## [0.2.0] - 2026-04-15
 
 ### Fixed
