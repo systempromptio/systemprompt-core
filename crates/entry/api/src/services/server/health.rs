@@ -68,10 +68,10 @@ fn human_bytes(bytes: i64) -> String {
 fn get_disk_usage() -> Option<serde_json::Value> {
     let stat = nix::sys::statvfs::statvfs(".").ok()?;
 
-    let block_size = stat.fragment_size();
-    let total = stat.blocks().saturating_mul(block_size);
-    let available = stat.blocks_available().saturating_mul(block_size);
-    let free = stat.blocks_free().saturating_mul(block_size);
+    let block_size = u64::from(stat.fragment_size());
+    let total = u64::from(stat.blocks()).saturating_mul(block_size);
+    let available = u64::from(stat.blocks_available()).saturating_mul(block_size);
+    let free = u64::from(stat.blocks_free()).saturating_mul(block_size);
     let used = total.saturating_sub(free);
 
     let usage_pct = if total > 0 {

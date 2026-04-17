@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.2] - 2026-04-17
+
+### Fixed
+- **macOS build fix — `statvfs` type mismatch in health endpoint.** `get_disk_usage()` in `systemprompt-api` failed to compile on macOS (Darwin) because `nix::sys::statvfs` returns `u32` for `blocks()`, `blocks_available()`, and `blocks_free()` on macOS but `u64` on Linux, while `fragment_size()` returns platform-varying types. The `saturating_mul` calls required matching types. Fix: explicit `u64::from()` casts on all `statvfs` field accesses so the arithmetic is platform-independent.
+
 ## [0.2.1] - 2026-04-16
 
 ### Fixed
