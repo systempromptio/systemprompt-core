@@ -96,5 +96,14 @@ instructions/*
 # Report files
 report/*
 
+# Local-only scripts
+scripts/
+
+# Local-only review notes
+review/
+
+# Scheduler unit tests (local-only)
+crates/app/scheduler/tests/
+
 # Coverage reports
 coverage-report/
