@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.4] - 2026-04-20
+
+### Fixed
+- `admin agents registry` now defaults to the active profile's `api_external_url` instead of the hard-coded `http://localhost:8080`. Honors `--url` as an override and falls back to `localhost:8080` only when no profile is loaded.
+
 ## [0.2.3] - 2026-04-20
 
 ### Fixed

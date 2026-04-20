@@ -2,16 +2,17 @@ use anyhow::{Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::Deserialize;
+use systemprompt_models::ProfileBootstrap;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
 use crate::CliConfig;
 use crate::shared::{CommandResult, truncate_with_ellipsis};
 
-const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
+const FALLBACK_GATEWAY_URL: &str = "http://localhost:8080";
 
 #[derive(Debug, Args)]
 pub struct RegistryArgs {
-    #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
+    #[arg(long, help = "Gateway URL (default: active profile's api_external_url)")]
     pub url: Option<String>,
 
     #[arg(long, help = "Show only running agents")]
@@ -70,7 +71,14 @@ pub async fn execute(
     args: RegistryArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<RegistryOutput>> {
-    let base_url = args.url.as_deref().unwrap_or(DEFAULT_GATEWAY_URL);
+    let profile_url = ProfileBootstrap::get()
+        .ok()
+        .map(|p| p.server.api_external_url.clone());
+    let base_url = args
+        .url
+        .clone()
+        .or(profile_url)
+        .unwrap_or_else(|| FALLBACK_GATEWAY_URL.to_string());
     let registry_url = format!("{}/api/v1/agents/registry", base_url.trim_end_matches('/'));
 
     let client = Client::new();
@@ -132,7 +140,7 @@ pub async fn execute(
         .collect();
 
     let output = RegistryOutput {
-        gateway_url: base_url.to_string(),
+        gateway_url: base_url.clone(),
         agents_count: agents.len(),
         agents,
     };

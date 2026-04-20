@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.4] - 2026-04-20
+
+### Fixed
+- **`admin agents registry` now defaults to the active profile's `api_external_url`.** Previously the command hard-coded `http://localhost:8080` as its gateway URL, so `systemprompt admin agents registry` failed with `Connection refused` on any profile that used a non-default port (e.g. `just setup-local ... 8081 5434`). The hint string on `--url` still advertised "default: http://localhost:8080" even after a user pointed a profile at a different host. Fix: read the active `ProfileBootstrap::get().server.api_external_url` first; fall back to `http://localhost:8080` only if no profile is loaded. `--url` still overrides both.
+
 ## [0.2.3] - 2026-04-20
 
 ### Fixed
