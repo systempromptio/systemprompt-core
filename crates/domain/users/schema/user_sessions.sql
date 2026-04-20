@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     utm_source VARCHAR(100),
     utm_medium VARCHAR(100),
     utm_campaign VARCHAR(100),
+    utm_content VARCHAR(100),
+    utm_term VARCHAR(100),
     endpoints_accessed TEXT DEFAULT '[]',
     fingerprint_hash TEXT,
     is_bot BOOLEAN NOT NULL DEFAULT false,

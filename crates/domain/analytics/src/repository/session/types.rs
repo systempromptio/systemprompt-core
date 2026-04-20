@@ -23,6 +23,8 @@ pub struct CreateSessionParams<'a> {
     pub utm_source: Option<&'a str>,
     pub utm_medium: Option<&'a str>,
     pub utm_campaign: Option<&'a str>,
+    pub utm_content: Option<&'a str>,
+    pub utm_term: Option<&'a str>,
     pub is_bot: bool,
     pub expires_at: DateTime<Utc>,
 }

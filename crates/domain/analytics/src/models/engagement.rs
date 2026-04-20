@@ -46,6 +46,8 @@ pub struct CreateEngagementEventInput {
     pub max_scroll_depth: i32,
     #[serde(default)]
     pub click_count: i32,
+    #[serde(default)]
+    pub event_data: Option<serde_json::Value>,
     #[serde(flatten)]
     pub optional_metrics: EngagementOptionalMetrics,
 }
@@ -58,6 +60,7 @@ impl Default for CreateEngagementEventInput {
             time_on_page_ms: 0,
             max_scroll_depth: 0,
             click_count: 0,
+            event_data: None,
             optional_metrics: EngagementOptionalMetrics::default(),
         }
     }

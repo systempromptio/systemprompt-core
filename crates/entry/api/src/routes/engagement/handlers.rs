@@ -12,7 +12,12 @@ use systemprompt_models::ContentRouting;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
 
-const CONVERSION_EVENT_TYPE: &str = "github_click";
+const CONVERSION_EVENT_TYPES: &[&str] = &[
+    "github_click",
+    "evaluate_click",
+    "demo_click",
+    "pricing_click",
+];
 
 #[derive(Debug, Deserialize)]
 pub struct EngagementBatchInput {
@@ -37,7 +42,7 @@ async fn mark_converted_if_applicable(
     session_id: &SessionId,
     event_type: &str,
 ) {
-    if event_type != CONVERSION_EVENT_TYPE {
+    if !CONVERSION_EVENT_TYPES.contains(&event_type) {
         return;
     }
     if let Err(e) = session_repo.mark_converted(session_id).await {

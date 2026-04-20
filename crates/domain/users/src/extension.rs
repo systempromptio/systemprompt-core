@@ -1,5 +1,13 @@
 use systemprompt_extension::prelude::*;
 
+const MIGRATION_001_UTM_CONTENT_TERM: &str = r"
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS utm_source VARCHAR(100);
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS utm_medium VARCHAR(100);
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS utm_campaign VARCHAR(100);
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS utm_content VARCHAR(100);
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS utm_term VARCHAR(100);
+";
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct UsersExtension;
 
@@ -54,6 +62,14 @@ impl Extension for UsersExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec![]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(
+            1,
+            "add_user_sessions_utm_content_term",
+            MIGRATION_001_UTM_CONTENT_TERM,
+        )]
     }
 }
 

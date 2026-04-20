@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS engagement_events (
     is_dead_click BOOLEAN DEFAULT FALSE,
     reading_pattern VARCHAR(50),
 
+    event_data JSONB,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     -- FK removed: session tracking doesn't require session to exist in user_sessions

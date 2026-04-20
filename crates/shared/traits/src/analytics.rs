@@ -50,6 +50,8 @@ pub struct SessionAnalytics {
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,
     pub utm_campaign: Option<String>,
+    pub utm_content: Option<String>,
+    pub utm_term: Option<String>,
 }
 
 impl SessionAnalytics {

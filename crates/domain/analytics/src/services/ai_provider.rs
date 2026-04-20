@@ -55,6 +55,8 @@ impl AiSessionProvider for AnalyticsAiSessionProvider {
             utm_source: None,
             utm_medium: None,
             utm_campaign: None,
+            utm_content: None,
+            utm_term: None,
             is_bot: false,
             expires_at: params.expires_at,
         };

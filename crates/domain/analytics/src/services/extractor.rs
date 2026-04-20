@@ -27,6 +27,8 @@ pub struct SessionAnalytics {
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,
     pub utm_campaign: Option<String>,
+    pub utm_content: Option<String>,
+    pub utm_term: Option<String>,
 }
 
 impl SessionAnalytics {
@@ -111,6 +113,8 @@ impl SessionAnalytics {
             utm_source: None,
             utm_medium: None,
             utm_campaign: None,
+            utm_content: None,
+            utm_term: None,
         }
     }
 
@@ -128,6 +132,8 @@ impl SessionAnalytics {
             analytics.utm_source = query_params.get("utm_source").cloned();
             analytics.utm_medium = query_params.get("utm_medium").cloned();
             analytics.utm_campaign = query_params.get("utm_campaign").cloned();
+            analytics.utm_content = query_params.get("utm_content").cloned();
+            analytics.utm_term = query_params.get("utm_term").cloned();
 
             let is_html_page =
                 content_routing.is_some_and(|routing| routing.is_html_page(uri.path()));

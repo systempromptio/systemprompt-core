@@ -115,6 +115,8 @@ impl AnalyticsService {
             entry_url: input.analytics.entry_url.as_deref(),
             utm_source: input.analytics.utm_source.as_deref(),
             utm_medium: input.analytics.utm_medium.as_deref(),
+            utm_content: input.analytics.utm_content.as_deref(),
+            utm_term: input.analytics.utm_term.as_deref(),
             utm_campaign: input.analytics.utm_campaign.as_deref(),
             is_bot: input.is_bot,
             expires_at: input.expires_at,

@@ -16,7 +16,8 @@ pub async fn find_by_id(pool: &PgPool, session_id: &SessionId) -> Result<Option<
                user_id as "user_id?: UserId",
                fingerprint_hash, ip_address, user_agent, device_type,
                browser, os, country, city, referrer_url, utm_source, utm_medium,
-               utm_campaign, is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
+               utm_campaign, utm_content, utm_term,
+               is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
                started_at, last_activity_at, ended_at, request_count, task_count,
                ai_request_count, message_count
         FROM user_sessions
@@ -42,7 +43,8 @@ pub async fn find_by_fingerprint(
                user_id as "user_id?: UserId",
                fingerprint_hash, ip_address, user_agent, device_type,
                browser, os, country, city, referrer_url, utm_source, utm_medium,
-               utm_campaign, is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
+               utm_campaign, utm_content, utm_term,
+               is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
                started_at, last_activity_at, ended_at, request_count, task_count,
                ai_request_count, message_count
         FROM user_sessions
@@ -67,7 +69,8 @@ pub async fn list_active_by_user(pool: &PgPool, user_id: &UserId) -> Result<Vec<
                user_id as "user_id?: UserId",
                fingerprint_hash, ip_address, user_agent, device_type,
                browser, os, country, city, referrer_url, utm_source, utm_medium,
-               utm_campaign, is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
+               utm_campaign, utm_content, utm_term,
+               is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
                started_at, last_activity_at, ended_at, request_count, task_count,
                ai_request_count, message_count
         FROM user_sessions

@@ -38,11 +38,11 @@ impl EngagementRepository {
                 scroll_velocity_avg, scroll_direction_changes,
                 mouse_move_distance_px, keyboard_events, copy_events,
                 focus_time_ms, blur_count, tab_switches, visible_time_ms, hidden_time_ms,
-                is_rage_click, is_dead_click, reading_pattern
+                is_rage_click, is_dead_click, reading_pattern, event_data
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-                $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+                $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
             )
             "#,
             id.as_str(),
@@ -68,7 +68,8 @@ impl EngagementRepository {
             input.optional_metrics.hidden_time_ms.unwrap_or(0),
             input.optional_metrics.is_rage_click,
             input.optional_metrics.is_dead_click,
-            input.optional_metrics.reading_pattern
+            input.optional_metrics.reading_pattern,
+            input.event_data.clone()
         )
         .execute(&*self.write_pool)
         .await?;

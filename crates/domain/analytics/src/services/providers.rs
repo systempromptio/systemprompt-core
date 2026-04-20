@@ -40,6 +40,8 @@ impl AnalyticsProvider for AnalyticsService {
             utm_source: local.utm_source,
             utm_medium: local.utm_medium,
             utm_campaign: local.utm_campaign,
+            utm_content: local.utm_content,
+            utm_term: local.utm_term,
         }
     }
 
@@ -74,6 +76,8 @@ impl AnalyticsProvider for AnalyticsService {
             utm_source: input.analytics.utm_source.clone(),
             utm_medium: input.analytics.utm_medium.clone(),
             utm_campaign: input.analytics.utm_campaign.clone(),
+            utm_content: input.analytics.utm_content.clone(),
+            utm_term: input.analytics.utm_term.clone(),
         };
 
         let local_input = super::service::CreateAnalyticsSessionInput {

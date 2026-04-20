@@ -162,6 +162,7 @@ async fn fan_out_engagement(
         time_on_page_ms: time_on_page,
         max_scroll_depth: get_i32("max_scroll_depth").unwrap_or(0),
         click_count: get_i32("click_count").unwrap_or(0),
+        event_data: None,
         optional_metrics: EngagementOptionalMetrics {
             time_to_first_interaction_ms: get_i32("time_to_first_interaction_ms"),
             time_to_first_scroll_ms: get_i32("time_to_first_scroll_ms"),

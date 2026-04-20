@@ -5,6 +5,10 @@ ALTER TABLE engagement_events ADD COLUMN IF NOT EXISTS event_type VARCHAR(50) NO
 CREATE INDEX IF NOT EXISTS idx_engagement_events_event_type ON engagement_events(event_type);
 ";
 
+const MIGRATION_002_EVENT_DATA: &str = r"
+ALTER TABLE engagement_events ADD COLUMN IF NOT EXISTS event_data JSONB;
+";
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
 
@@ -61,11 +65,10 @@ impl Extension for AnalyticsExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(
-            1,
-            "add_engagement_event_type",
-            MIGRATION_001_EVENT_TYPE,
-        )]
+        vec![
+            Migration::new(1, "add_engagement_event_type", MIGRATION_001_EVENT_TYPE),
+            Migration::new(2, "add_engagement_event_data", MIGRATION_002_EVENT_DATA),
+        ]
     }
 }
 
