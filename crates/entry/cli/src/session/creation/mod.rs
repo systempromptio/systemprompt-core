@@ -25,7 +25,7 @@ pub(super) async fn create_local_session(
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
-    let user_email = resolve_local_user_email(session_email_hint).await?;
+    let user_email = resolve_local_user_email(profile, session_email_hint).await?;
     let secrets = load_secrets().context("Failed to load secrets")?;
 
     if config.is_interactive() {

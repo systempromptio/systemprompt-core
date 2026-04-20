@@ -122,6 +122,11 @@ pub struct Profile {
 }
 
 impl Profile {
+    #[must_use]
+    pub fn is_local_trial(&self) -> bool {
+        self.cloud.as_ref().is_none_or(CloudConfig::is_local_trial)
+    }
+
     pub fn parse(content: &str, profile_path: &Path) -> Result<Self> {
         let content = substitute_env_vars(content);
 

@@ -5,9 +5,7 @@ use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError, Sessio
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
-use systemprompt_models::{
-    AppPaths, CloudValidationMode, Config, Profile, ProfileBootstrap, SecretsBootstrap,
-};
+use systemprompt_models::{AppPaths, Config, Profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
@@ -168,16 +166,7 @@ pub fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvironment
 
     let is_local_profile = ProfileBootstrap::get()
         .ok()
-        .and_then(|p| p.cloud.as_ref())
-        .is_none_or(|c| {
-            c.tenant_id
-                .as_deref()
-                .is_some_and(|t| t.starts_with("local_"))
-                || matches!(
-                    c.validation,
-                    CloudValidationMode::Warn | CloudValidationMode::Skip
-                )
-        });
+        .is_none_or(Profile::is_local_trial);
 
     match CredentialsBootstrap::get() {
         Ok(Some(creds)) => {

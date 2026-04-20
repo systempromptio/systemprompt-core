@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3] - 2026-04-20
+
+### Fixed
+- **Local-trial profiles no longer require cloud credentials for local-capable operations.** `create_new_session` now routes `SessionKey::Tenant("local_*")` profiles to the local-session path, and `resolve_local_user_email` falls back to `admin@localhost.dev` (matching `demo/00-preflight.sh`) when no `session_email_hint` is provided. Downstream commands previously broken on a fresh `just setup-local` clone (`admin agents tools`, `plugins mcp tools/call`, `core contexts list`, agent trace lookups) now work without running `systemprompt cloud auth login`. Cloud-only entrypoints (`cloud sync`, `cloud tenant select`, `admin session login`, `admin session switch`) are unchanged.
+
+### Changed
+- `bootstrap.rs` `is_local_profile` predicate now delegates to `Profile::is_local_trial()` — the duplicated 12-line inline check is gone.
+
 ## [0.2.0] - 2026-04-15
 
 ### Changed

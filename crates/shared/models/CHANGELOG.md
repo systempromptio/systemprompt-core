@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.3] - 2026-04-20
+
+### Added
+- `CloudConfig::is_local_trial()` and `Profile::is_local_trial()` — shared predicate identifying local-trial profiles (no `cloud` block, `tenant_id` starts with `local_`, or `validation ∈ {Warn, Skip}`). Consumed by the CLI to skip cloud-credential requirements for local-only operations.
+
 ## [0.2.0] - 2026-04-15
 
 ### Added

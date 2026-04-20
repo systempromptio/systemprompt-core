@@ -6,8 +6,8 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, SessionKey};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
-use systemprompt_models::SecretsBootstrap;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
+use systemprompt_models::{Profile, SecretsBootstrap};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::UserService;
 
@@ -147,9 +147,16 @@ pub(super) fn build_cli_session(
     .build())
 }
 
-pub(super) async fn resolve_local_user_email(session_email_hint: Option<&str>) -> Result<String> {
+pub(super) async fn resolve_local_user_email(
+    profile: &Profile,
+    session_email_hint: Option<&str>,
+) -> Result<String> {
     if let Some(email) = session_email_hint {
         return Ok(email.to_string());
+    }
+
+    if profile.is_local_trial() {
+        return Ok("admin@localhost.dev".to_string());
     }
 
     CredentialsBootstrap::try_init()

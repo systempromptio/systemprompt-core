@@ -61,7 +61,7 @@ pub(super) async fn create_new_session(
     config: &crate::CliConfig,
     session_email_hint: Option<&str>,
 ) -> Result<CliSession> {
-    if session_key.is_local() {
+    if session_key.is_local() || profile.is_local_trial() {
         return crate::session::creation::create_local_session(
             profile,
             profile_ctx,
