@@ -10,7 +10,6 @@ use crate::error::CloudError;
 
 #[derive(Debug)]
 pub struct NewCloudTenantParams {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub app_id: Option<String>,
@@ -32,7 +31,6 @@ pub enum TenantType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct StoredTenant {
-    // JSON: external vendor identifier
     #[validate(length(min = 1, message = "Tenant ID cannot be empty"))]
     pub id: String,
 

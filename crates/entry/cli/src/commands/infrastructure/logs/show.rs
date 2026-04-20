@@ -12,7 +12,6 @@ use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    // CLI: user-provided partial lookup
     #[arg(help = "Log entry ID or trace ID (can be partial)")]
     pub id: String,
 

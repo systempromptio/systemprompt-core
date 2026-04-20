@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+// JSON: trace artifact payloads — heterogeneous structured content
 use serde_json::Value;
 use systemprompt_identifiers::{
     AiRequestId, ArtifactId, ContextId, ExecutionStepId, LogId, McpExecutionId, SessionId, TaskId,

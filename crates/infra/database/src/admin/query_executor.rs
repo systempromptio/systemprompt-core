@@ -81,6 +81,7 @@ impl QueryExecutor {
             && !unsafe_ops.iter().any(|op| trimmed.contains(op))
     }
 
+    // JSON: admin SQL query results — column shape unknown at compile time
     fn extract_value(row: &sqlx::postgres::PgRow, column_index: usize) -> serde_json::Value {
         if let Ok(val) = row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>(column_index) {
             return val.map_or(serde_json::Value::Null, |dt| {

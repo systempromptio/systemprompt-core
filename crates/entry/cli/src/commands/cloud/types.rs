@@ -14,7 +14,6 @@ pub struct CredentialsInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TenantStatusInfo {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub status: String,
@@ -42,7 +41,6 @@ pub struct TenantPlanInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoginTenantInfo {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -57,7 +55,6 @@ pub struct LoginTenantInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoginUserInfo {
-    // JSON: external vendor identifier
     pub id: String,
     pub email: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,7 +63,6 @@ pub struct LoginUserInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoginCustomerInfo {
-    // JSON: external vendor identifier
     pub id: String,
 }
 
@@ -99,7 +95,6 @@ pub struct LogoutOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TenantSummary {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub tenant_type: String,
@@ -114,7 +109,6 @@ pub struct TenantListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TenantDetailOutput {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub tenant_type: String,
@@ -129,7 +123,6 @@ pub struct TenantDetailOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TenantCreateOutput {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub tenant_type: String,

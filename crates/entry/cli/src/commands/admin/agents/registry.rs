@@ -12,7 +12,10 @@ const FALLBACK_GATEWAY_URL: &str = "http://localhost:8080";
 
 #[derive(Debug, Args)]
 pub struct RegistryArgs {
-    #[arg(long, help = "Gateway URL (default: active profile's api_external_url)")]
+    #[arg(
+        long,
+        help = "Gateway URL (default: active profile's api_external_url)"
+    )]
     pub url: Option<String>,
 
     #[arg(long, help = "Show only running agents")]
@@ -119,8 +122,7 @@ pub async fn execute(
             let url = agent
                 .supported_interfaces
                 .first()
-                .map(|i| i.url.clone())
-                .unwrap_or_default();
+                .map_or_else(String::new, |i| i.url.clone());
 
             RegistryAgentInfo {
                 name: agent.name,

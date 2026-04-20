@@ -33,8 +33,7 @@ pub async fn rows_to_artifacts_batch(
     for row in rows {
         let parts = parts_by_artifact
             .get(&row.artifact_id)
-            .cloned()
-            .unwrap_or_default();
+            .map_or_else(Vec::new, Clone::clone);
         artifacts.push(row_to_artifact_with_parts(row, parts));
     }
 

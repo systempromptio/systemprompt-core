@@ -15,6 +15,7 @@ mod field_names {
 #[derive(Debug, Default)]
 pub struct FieldVisitor {
     pub message: String,
+    // JSON: tracing field visitor — heterogeneous structured log payload
     pub fields: Option<serde_json::Value>,
 }
 

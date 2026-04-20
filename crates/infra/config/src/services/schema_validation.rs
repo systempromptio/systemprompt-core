@@ -23,6 +23,7 @@ pub fn validate_config<T: DeserializeOwned + JsonSchema>(
     Ok(config)
 }
 
+// JSON: JSON Schema generator output — Value is the schema format
 pub fn generate_schema<T: JsonSchema>() -> Result<serde_json::Value, serde_json::Error> {
     let schema = schemars::schema_for!(T);
     serde_json::to_value(schema)

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.5] - 2026-04-20
+
+### Changed
+- **Workspace-wide Rust-standards sweep.** Executed a full audit against `instructions/prompt/rust.md` and the `rust-coding-standards` skill across `crates/{shared,infra,domain,app,entry}/**/src/`. Five parallel layer agents fixed every zero-tolerance violation they found; a final pass closed the clippy-exposed stragglers. `cargo clippy --workspace --all-targets -- -D warnings` now passes clean, `cargo fmt --all -- --check` is clean, `cargo build --workspace` succeeds. Changes:
+  - **Deleted** `crates/shared/models/src/validation_report.rs` — dead 9-line backward-compat re-export, not declared in `lib.rs`, zero importers (all call sites already used `systemprompt_traits::validation_report` directly).
+  - **Replaced every `unwrap_or_default()` in src code** (13 occurrences across 7 files). Fixes range from propagating a `Result` (`MarkdownResponse::to_markdown()` now returns `Result<String, serde_yaml::Error>`; its `IntoResponse` impl logs + returns 500 on failure) to idiomatic combinators (`map_or_else(Vec::new, Clone::clone)` in oauth/agent repositories) to explicit `if let Ok(...)` env-var inheritance in agent subprocess spawn. The schema sanitizer's `.next().unwrap_or_default()` became a proper `if let Some(Value::Object(inner))` after an invariant check.
+  - **Deleted 19 inline `//` comments** across infra/cloud (4), domain/{ai,agent,analytics,oauth} (14), and entry/cli (15). Per rust.md §3, code documents itself through naming; the only retained `//` annotations are the `// JSON: …` markers on `serde_json::Value` protocol-boundary sites (explicit exception per the `rust-coding-standards` skill).
+  - **Annotated ~82 `serde_json::Value` sites in infra** as protocol/schemaless boundaries (A2A JSON-RPC, MCP schemas, webhook payloads, dynamic DB admin queries, log visitors, JSON-Schema trees). Triage reports for all five layers written to `reports/audit/{shared,infra,domain,app,entry}-json-triage.md` (gitignored) with counts of Keep+annotate / Refactor / Defer categories; ~24 refactorable sites and ~106 deferred (API-surface) sites enumerated there for follow-up PRs.
+- **Regenerated workspace `.sqlx` offline cache.** Commit `a55b1570e` (analytics conversion + utm) added `utm_content`, `utm_term`, and `event_data` columns to the live DB but the workspace-level sqlx query cache was not regenerated, so `cargo check -p systemprompt-analytics` failed with `SQLX_OFFLINE=true`. Cache now reflects current schema; analytics crate compiles clean again.
+
+### Fixed
+- `MarkdownResponse::to_markdown()` signature changed from `fn(&self) -> String` to `fn(&self) -> Result<String, serde_yaml::Error>`. The previous version silently swallowed frontmatter serialization failures via `unwrap_or_default()` and produced a response with no frontmatter. Callers now see the error or (at the HTTP boundary) a logged 500. Breaking for any external consumer of `MarkdownResponse::to_markdown()`; there are none in this repository.
+
+### Audit
+- Post-sweep verification greps confirm **zero** occurrences of `.unwrap()`, `unwrap_or_default()`, `panic!`, `todo!`, `unimplemented!`, `unsafe`, `///` doc comments, and `TODO|FIXME|HACK` in any non-test `src/` file across the workspace. `println!`/`eprintln!` retained only at legitimate CLI-output boundaries and in the `config/schema_validation` build-script helper (already guarded with `#[allow(clippy::print_stderr, clippy::print_stdout)]`).
+
 ## [0.2.4] - 2026-04-20
 
 ### Fixed

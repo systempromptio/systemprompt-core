@@ -11,7 +11,6 @@ use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    // CLI: user-provided partial lookup
     #[arg(help = "Link ID")]
     pub link_id: String,
 

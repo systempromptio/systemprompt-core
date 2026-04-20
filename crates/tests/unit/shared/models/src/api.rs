@@ -438,7 +438,7 @@ fn markdown_frontmatter_builder_chain() {
 fn markdown_response_to_markdown_format() {
     let fm = MarkdownFrontmatter::new("Title", "slug");
     let response = MarkdownResponse::new(fm, "Body content here");
-    let md = response.to_markdown();
+    let md = response.to_markdown().expect("infallible");
     assert!(md.starts_with("---\n"));
     assert!(md.contains("Body content here"));
 }

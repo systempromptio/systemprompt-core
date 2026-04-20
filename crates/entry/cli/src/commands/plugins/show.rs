@@ -11,7 +11,6 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
-    // CLI: user-provided partial lookup
     #[arg(help = "Extension ID to show")]
     pub id: String,
 }

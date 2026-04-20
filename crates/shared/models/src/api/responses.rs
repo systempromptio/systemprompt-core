@@ -384,21 +384,26 @@ impl MarkdownResponse {
         }
     }
 
-    pub fn to_markdown(&self) -> String {
-        let yaml = self.frontmatter.to_yaml().unwrap_or_default();
-        format!("---\n{}---\n\n{}", yaml, self.body)
+    pub fn to_markdown(&self) -> Result<String, serde_yaml::Error> {
+        let yaml = self.frontmatter.to_yaml()?;
+        Ok(format!("---\n{}---\n\n{}", yaml, self.body))
     }
 }
 
 #[cfg(feature = "web")]
 impl IntoResponse for MarkdownResponse {
     fn into_response(self) -> axum::response::Response {
-        let body = self.to_markdown();
-        (
-            StatusCode::OK,
-            [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
-            body,
-        )
-            .into_response()
+        match self.to_markdown() {
+            Ok(body) => (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+                body,
+            )
+                .into_response(),
+            Err(e) => {
+                tracing::error!(error = %e, "MarkdownResponse frontmatter serialization failed");
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            },
+        }
     }
 }

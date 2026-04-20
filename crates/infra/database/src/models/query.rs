@@ -55,6 +55,7 @@ pub struct QueryResult {
     pub execution_time_ms: u64,
 }
 
+// JSON: dynamic query result rows — column shape unknown at compile time
 pub type QueryRow = HashMap<String, Value>;
 
 impl QueryResult {

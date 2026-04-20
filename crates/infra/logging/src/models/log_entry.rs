@@ -11,6 +11,7 @@ pub struct LogEntry {
     pub level: LogLevel,
     pub module: String,
     pub message: String,
+    // JSON: structured log metadata — heterogeneous by design
     pub metadata: Option<serde_json::Value>,
     pub user_id: systemprompt_identifiers::UserId,
     pub session_id: systemprompt_identifiers::SessionId,

@@ -33,7 +33,6 @@ struct StatusResponse {
 #[derive(Debug, Clone)]
 pub struct CheckoutCallbackResult {
     pub transaction_id: String,
-    // JSON: external vendor identifier
     pub tenant_id: String,
     pub fly_app_name: Option<String>,
     pub needs_deploy: bool,

@@ -30,6 +30,7 @@ pub fn rows_to_result(rows: Vec<sqlx::postgres::PgRow>, start: std::time::Instan
     }
 }
 
+// JSON: Postgres row-to-JSON conversion — column shape unknown at compile time
 pub fn row_to_json(row: &sqlx::postgres::PgRow) -> HashMap<String, serde_json::Value> {
     row.columns()
         .iter()

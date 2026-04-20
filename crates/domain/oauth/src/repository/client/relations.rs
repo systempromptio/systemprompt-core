@@ -42,10 +42,10 @@ impl ClientRepository {
         for row in rows {
             let cid = row.client_id.to_string();
             let relations = ClientRelations {
-                redirect_uris: redirect_uris.get(&cid).cloned().unwrap_or_default(),
-                grant_types: grant_types.get(&cid).cloned().unwrap_or_default(),
-                response_types: response_types.get(&cid).cloned().unwrap_or_default(),
-                scopes: scopes.get(&cid).cloned().unwrap_or_default(),
+                redirect_uris: redirect_uris.get(&cid).map_or_else(Vec::new, Clone::clone),
+                grant_types: grant_types.get(&cid).map_or_else(Vec::new, Clone::clone),
+                response_types: response_types.get(&cid).map_or_else(Vec::new, Clone::clone),
+                scopes: scopes.get(&cid).map_or_else(Vec::new, Clone::clone),
                 contacts: contacts.get(&cid).cloned(),
             };
             clients.push(OAuthClient::from_row_with_relations(row, relations));

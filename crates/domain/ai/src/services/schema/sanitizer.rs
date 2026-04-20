@@ -59,7 +59,7 @@ impl SchemaSanitizer {
                     .collect();
                 if non_null.len() == 1 {
                     obj.remove("anyOf");
-                    if let Value::Object(inner) = non_null.into_iter().next().unwrap_or_default() {
+                    if let Some(Value::Object(inner)) = non_null.into_iter().next() {
                         for (k, v) in inner {
                             obj.insert(k, v);
                         }

@@ -14,7 +14,6 @@ use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct AuditArgs {
-    // CLI: user-provided partial lookup
     #[arg(help = "AI request ID, task ID, or trace ID")]
     pub id: String,
 

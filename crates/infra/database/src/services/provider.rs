@@ -54,6 +54,7 @@ pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
 
     async fn query_raw(&self, query: &dyn QuerySelector) -> Result<QueryResult>;
 
+    // JSON: dynamic query params — type-erased for heterogeneous admin queries
     async fn query_raw_with(
         &self,
         query: &dyn QuerySelector,

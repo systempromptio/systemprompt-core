@@ -15,7 +15,6 @@ use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    // CLI: user-provided partial lookup
     #[arg(help = "Trace ID or Task ID (can be partial)")]
     pub id: String,
 

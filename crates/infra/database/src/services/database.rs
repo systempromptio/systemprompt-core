@@ -98,6 +98,7 @@ impl Database {
         self.provider.query_raw(sql).await
     }
 
+    // JSON: dynamic query params — type-erased for heterogeneous admin queries
     pub async fn query_with(
         &self,
         sql: &dyn crate::models::QuerySelector,

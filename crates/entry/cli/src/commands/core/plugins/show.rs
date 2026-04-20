@@ -9,7 +9,6 @@ use super::types::{PluginComponentRef, PluginDetailOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
-    // CLI: user-provided partial lookup
     #[arg(help = "Plugin ID (directory name)")]
     pub id: String,
 }

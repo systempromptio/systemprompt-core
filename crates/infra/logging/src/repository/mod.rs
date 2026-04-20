@@ -70,6 +70,7 @@ impl LoggingRepository {
         self.log(entry).await
     }
 
+    // JSON: structured log metadata — heterogeneous by design
     pub async fn log_message_with_metadata(
         &self,
         level: LogLevel,

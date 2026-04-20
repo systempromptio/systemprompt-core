@@ -45,8 +45,7 @@ pub async fn get_messages_by_task(
     for row in message_rows {
         let parts = parts_by_message
             .get(&row.message_id)
-            .cloned()
-            .unwrap_or_default();
+            .map_or_else(Vec::new, Clone::clone);
 
         let reference_task_ids = row
             .reference_task_ids
@@ -112,8 +111,7 @@ pub async fn get_messages_by_context(
     for row in message_rows {
         let parts = parts_by_message
             .get(&row.message_id)
-            .cloned()
-            .unwrap_or_default();
+            .map_or_else(Vec::new, Clone::clone);
 
         let role = match row.role.as_str() {
             "user" | "ROLE_USER" => MessageRole::User,
