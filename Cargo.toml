@@ -50,7 +50,7 @@ resolver = "2"
 edition = "2024"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
-version = "0.2.2"
+version = "0.2.3"
 repository = "https://github.com/systempromptio/systemprompt-core"
 homepage = "https://systemprompt.io"
 documentation = "https://systemprompt.io/documentation"
@@ -243,35 +243,35 @@ webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"]
 
 
 # Internal workspace crates (use workspace = true in dependencies)
-systemprompt-identifiers = { path = "crates/shared/identifiers", version = "=0.2.2" }
-systemprompt-provider-contracts = { path = "crates/shared/provider-contracts", version = "=0.2.2" }
-systemprompt-traits = { path = "crates/shared/traits", version = "=0.2.2" }
-systemprompt-extension = { path = "crates/shared/extension", version = "=0.2.2" }
-systemprompt-models = { path = "crates/shared/models", version = "=0.2.2" }
-systemprompt-client = { path = "crates/shared/client", version = "=0.2.2" }
-systemprompt-template-provider = { path = "crates/shared/template-provider", version = "=0.2.2" }
-systemprompt-database = { path = "crates/infra/database", version = "=0.2.2" }
-systemprompt-logging = { path = "crates/infra/logging", version = "=0.2.2" }
-systemprompt-config = { path = "crates/infra/config", version = "=0.2.2" }
-systemprompt-events = { path = "crates/infra/events", version = "=0.2.2" }
-systemprompt-security = { path = "crates/infra/security", version = "=0.2.2" }
-systemprompt-cloud = { path = "crates/infra/cloud", version = "=0.2.2" }
-systemprompt-loader = { path = "crates/infra/loader", version = "=0.2.2" }
-systemprompt-users = { path = "crates/domain/users", version = "=0.2.2" }
-systemprompt-oauth = { path = "crates/domain/oauth", version = "=0.2.2" }
-systemprompt-files = { path = "crates/domain/files", version = "=0.2.2" }
-systemprompt-analytics = { path = "crates/domain/analytics", version = "=0.2.2" }
-systemprompt-content = { path = "crates/domain/content", version = "=0.2.2" }
-systemprompt-mcp = { path = "crates/domain/mcp", version = "=0.2.2" }
-systemprompt-ai = { path = "crates/domain/ai", version = "=0.2.2" }
-systemprompt-agent = { path = "crates/domain/agent", version = "=0.2.2" }
-systemprompt-templates = { path = "crates/domain/templates", version = "=0.2.2" }
-systemprompt-runtime = { path = "crates/app/runtime", version = "=0.2.2" }
-systemprompt-scheduler = { path = "crates/app/scheduler", version = "=0.2.2" }
-systemprompt-generator = { path = "crates/app/generator", version = "=0.2.2" }
-systemprompt-sync = { path = "crates/app/sync", version = "=0.2.2" }
-systemprompt-api = { path = "crates/entry/api", version = "=0.2.2" }
-systemprompt-cli = { path = "crates/entry/cli", version = "=0.2.2" }
+systemprompt-identifiers = { path = "crates/shared/identifiers", version = "0.2.3" }
+systemprompt-provider-contracts = { path = "crates/shared/provider-contracts", version = "0.2.3" }
+systemprompt-traits = { path = "crates/shared/traits", version = "0.2.3" }
+systemprompt-extension = { path = "crates/shared/extension", version = "0.2.3" }
+systemprompt-models = { path = "crates/shared/models", version = "0.2.3" }
+systemprompt-client = { path = "crates/shared/client", version = "0.2.3" }
+systemprompt-template-provider = { path = "crates/shared/template-provider", version = "0.2.3" }
+systemprompt-database = { path = "crates/infra/database", version = "0.2.3" }
+systemprompt-logging = { path = "crates/infra/logging", version = "0.2.3" }
+systemprompt-config = { path = "crates/infra/config", version = "0.2.3" }
+systemprompt-events = { path = "crates/infra/events", version = "0.2.3" }
+systemprompt-security = { path = "crates/infra/security", version = "0.2.3" }
+systemprompt-cloud = { path = "crates/infra/cloud", version = "0.2.3" }
+systemprompt-loader = { path = "crates/infra/loader", version = "0.2.3" }
+systemprompt-users = { path = "crates/domain/users", version = "0.2.3" }
+systemprompt-oauth = { path = "crates/domain/oauth", version = "0.2.3" }
+systemprompt-files = { path = "crates/domain/files", version = "0.2.3" }
+systemprompt-analytics = { path = "crates/domain/analytics", version = "0.2.3" }
+systemprompt-content = { path = "crates/domain/content", version = "0.2.3" }
+systemprompt-mcp = { path = "crates/domain/mcp", version = "0.2.3" }
+systemprompt-ai = { path = "crates/domain/ai", version = "0.2.3" }
+systemprompt-agent = { path = "crates/domain/agent", version = "0.2.3" }
+systemprompt-templates = { path = "crates/domain/templates", version = "0.2.3" }
+systemprompt-runtime = { path = "crates/app/runtime", version = "0.2.3" }
+systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.2.3" }
+systemprompt-generator = { path = "crates/app/generator", version = "0.2.3" }
+systemprompt-sync = { path = "crates/app/sync", version = "0.2.3" }
+systemprompt-api = { path = "crates/entry/api", version = "0.2.3" }
+systemprompt-cli = { path = "crates/entry/cli", version = "0.2.3" }
 
 [profile.release]
 # Use thin LTO instead of full LTO to preserve inventory crate registrations.
