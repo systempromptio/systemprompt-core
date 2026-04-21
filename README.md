@@ -28,6 +28,8 @@
 
 [**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Live Demo**](https://systemprompt.io/features/demo) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
 
+Building with this? [⭐ Star the repo](https://github.com/systempromptio/systemprompt-core) — helps other Rust developers find it.
+
 </div>
 
 ---
