@@ -31,6 +31,11 @@ pub use models::image_generation::{
 pub use services::providers::{GeminiImageProvider, ImageProvider, ImageProviderCapabilities};
 
 pub use repository::AiRequestRepository;
+pub use repository::{
+    AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestPayloadRepository,
+    AiSafetyFindingRepository, GatewayPolicyRow, InsertSafetyFinding, QuotaBucketDelta,
+    QuotaBucketState,
+};
 
 pub use services::tooled::ToolResultFormatter;
 

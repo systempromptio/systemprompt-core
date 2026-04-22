@@ -1,16 +1,26 @@
 use axum::body::Body;
 use axum::extract::Request;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::Response;
 use std::sync::Arc;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{
+    AiRequestId, JwtToken, SessionId, TenantId, TraceId, UserId, headers as sp_headers,
+};
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
 use crate::services::gateway::GatewayService;
+use crate::services::gateway::audit::GatewayRequestContext;
 use crate::services::gateway::models::AnthropicGatewayRequest;
 use crate::services::middleware::JwtContextExtractor;
+
+struct AuthedPrincipal {
+    user_id: UserId,
+    tenant_id: Option<TenantId>,
+    session_id: Option<SessionId>,
+    trace_id: Option<TraceId>,
+}
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
@@ -51,7 +61,14 @@ async fn handle_inner(
         )
     })?;
 
-    authenticate(&presented, &jwt_extractor, &ctx).await?;
+    let tenant_id = request
+        .headers()
+        .get(sp_headers::TENANT_ID)
+        .and_then(|v| v.to_str().ok())
+        .filter(|s| !s.is_empty())
+        .map(|s| TenantId::new(s.to_string()));
+
+    let principal = authenticate(&presented, &jwt_extractor, &ctx, tenant_id).await?;
 
     let body_bytes = axum::body::to_bytes(request.into_body(), 8 * 1024 * 1024)
         .await
@@ -70,16 +87,65 @@ async fn handle_inner(
             )
         })?;
 
-    GatewayService::dispatch(gateway_config, gateway_request, body_bytes)
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))
+    let route = gateway_config
+        .find_route(&gateway_request.model)
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                format!(
+                    "No gateway route matches model '{}'",
+                    gateway_request.model
+                ),
+            )
+        })?;
+
+    let gateway_ctx = GatewayRequestContext {
+        ai_request_id: AiRequestId::generate(),
+        user_id: principal.user_id,
+        tenant_id: principal.tenant_id,
+        session_id: principal.session_id,
+        trace_id: principal.trace_id,
+        provider: route.provider.clone(),
+        model: gateway_request.model.clone(),
+        max_tokens: Some(gateway_request.max_tokens),
+        is_streaming: gateway_request.stream.unwrap_or(false),
+    };
+
+    match GatewayService::dispatch(
+        gateway_config,
+        gateway_request,
+        body_bytes,
+        gateway_ctx,
+        ctx.db_pool(),
+    )
+    .await
+    {
+        Ok(resp) => Ok(resp),
+        Err(e) => {
+            if let Some(denied) = e.downcast_ref::<crate::services::gateway::service::PolicyDenied>()
+            {
+                return Err((StatusCode::FORBIDDEN, denied.to_string()));
+            }
+            if let Some(quota) =
+                e.downcast_ref::<crate::services::gateway::service::QuotaExceeded>()
+            {
+                let mut resp = build_error_response(StatusCode::TOO_MANY_REQUESTS, &quota.message);
+                if let Ok(v) = HeaderValue::from_str(&quota.retry_after_seconds.to_string()) {
+                    resp.headers_mut().insert("retry-after", v);
+                }
+                return Ok(resp);
+            }
+            Err((StatusCode::BAD_GATEWAY, e.to_string()))
+        },
+    }
 }
 
 async fn authenticate(
     credential: &str,
     jwt_extractor: &JwtContextExtractor,
     ctx: &AppContext,
-) -> Result<(), (StatusCode, String)> {
+    tenant_id: Option<TenantId>,
+) -> Result<AuthedPrincipal, (StatusCode, String)> {
     if credential.starts_with(API_KEY_PREFIX) {
         let service = ApiKeyService::new(ctx.db_pool()).map_err(|e| {
             (
@@ -94,7 +160,12 @@ async fn authenticate(
             )
         })?;
         return match record {
-            Some(_) => Ok(()),
+            Some(rec) => Ok(AuthedPrincipal {
+                user_id: rec.user_id,
+                tenant_id,
+                session_id: None,
+                trace_id: Some(TraceId::generate()),
+            }),
             None => Err((
                 StatusCode::UNAUTHORIZED,
                 "Invalid or revoked API key".to_string(),
@@ -103,11 +174,21 @@ async fn authenticate(
     }
 
     let jwt_token = JwtToken::new(credential);
-    jwt_extractor
+    let rc = jwt_extractor
         .extract_for_gateway(&jwt_token)
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-    Ok(())
+
+    Ok(AuthedPrincipal {
+        user_id: rc.auth.user_id.clone(),
+        tenant_id,
+        session_id: if rc.request.session_id.as_str().is_empty() {
+            None
+        } else {
+            Some(rc.request.session_id.clone())
+        },
+        trace_id: Some(rc.execution.trace_id.clone()),
+    })
 }
 
 fn build_error_response(status: StatusCode, message: &str) -> Response<Body> {

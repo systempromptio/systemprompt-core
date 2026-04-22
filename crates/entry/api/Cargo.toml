@@ -82,6 +82,7 @@ systemprompt-database = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-analytics = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-security = { workspace = true }
 
 # API registry

@@ -4433,6 +4433,7 @@ dependencies = [
  "sqlx",
  "subtle",
  "systemprompt-agent",
+ "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-content",
  "systemprompt-database",

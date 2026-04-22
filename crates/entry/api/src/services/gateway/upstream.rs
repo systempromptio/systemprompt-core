@@ -21,9 +21,30 @@ pub struct UpstreamCtx<'a> {
     pub is_streaming: bool,
 }
 
+#[allow(missing_debug_implementations)]
+pub enum UpstreamOutcome {
+    Buffered {
+        status: http::StatusCode,
+        content_type: String,
+        body: Bytes,
+    },
+    Streaming {
+        status: http::StatusCode,
+        stream: futures_util::stream::BoxStream<'static, Result<Bytes, std::io::Error>>,
+    },
+}
+
+impl UpstreamOutcome {
+    pub fn status(&self) -> http::StatusCode {
+        match self {
+            Self::Buffered { status, .. } | Self::Streaming { status, .. } => *status,
+        }
+    }
+}
+
 #[async_trait]
 pub trait GatewayUpstream: Send + Sync {
-    async fn proxy(&self, ctx: UpstreamCtx<'_>) -> Result<Response<Body>>;
+    async fn proxy(&self, ctx: UpstreamCtx<'_>) -> Result<UpstreamOutcome>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,7 +52,7 @@ pub struct AnthropicCompatibleUpstream;
 
 #[async_trait]
 impl GatewayUpstream for AnthropicCompatibleUpstream {
-    async fn proxy(&self, ctx: UpstreamCtx<'_>) -> Result<Response<Body>> {
+    async fn proxy(&self, ctx: UpstreamCtx<'_>) -> Result<UpstreamOutcome> {
         let client = reqwest::Client::new();
         let url = format!("{}/messages", ctx.route.endpoint.trim_end_matches('/'));
 
@@ -66,15 +87,10 @@ impl GatewayUpstream for AnthropicCompatibleUpstream {
                     std::io::Error::new(std::io::ErrorKind::BrokenPipe, e)
                 })
             });
-
-            let body = Body::from_stream(stream);
-            return Response::builder()
-                .status(status)
-                .header(CONTENT_TYPE, "text/event-stream")
-                .header("cache-control", "no-cache")
-                .header("x-accel-buffering", "no")
-                .body(body)
-                .map_err(|e| anyhow!("Response build error: {e}"));
+            return Ok(UpstreamOutcome::Streaming {
+                status,
+                stream: stream.boxed(),
+            });
         }
 
         let response_bytes = upstream_response
@@ -82,11 +98,11 @@ impl GatewayUpstream for AnthropicCompatibleUpstream {
             .await
             .map_err(|e| anyhow!("Failed to read Anthropic response: {e}"))?;
 
-        Response::builder()
-            .status(status)
-            .header(CONTENT_TYPE, upstream_content_type)
-            .body(Body::from(response_bytes))
-            .map_err(|e| anyhow!("Response build error: {e}"))
+        Ok(UpstreamOutcome::Buffered {
+            status,
+            content_type: upstream_content_type,
+            body: response_bytes,
+        })
     }
 }
 
@@ -95,7 +111,7 @@ pub struct OpenAiCompatibleUpstream;
 
 #[async_trait]
 impl GatewayUpstream for OpenAiCompatibleUpstream {
-    async fn proxy(&self, ctx: UpstreamCtx<'_>) -> Result<Response<Body>> {
+    async fn proxy(&self, ctx: UpstreamCtx<'_>) -> Result<UpstreamOutcome> {
         let upstream_model = ctx.route.effective_upstream_model(&ctx.request.model);
         let openai_request = converter::to_openai_request(ctx.request, upstream_model);
         let model = ctx.request.model.as_str();
@@ -136,15 +152,10 @@ impl GatewayUpstream for OpenAiCompatibleUpstream {
                     Ok(bytes) => Ok(openai_sse_to_anthropic_sse(&bytes, &model_str)),
                     Err(e) => Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, e)),
                 });
-
-            let body = Body::from_stream(stream);
-            return Response::builder()
-                .status(200)
-                .header(CONTENT_TYPE, "text/event-stream")
-                .header("cache-control", "no-cache")
-                .header("x-accel-buffering", "no")
-                .body(body)
-                .map_err(|e| anyhow!("Response build error: {e}"));
+            return Ok(UpstreamOutcome::Streaming {
+                status: http::StatusCode::OK,
+                stream: stream.boxed(),
+            });
         }
 
         if !status.is_success() {
@@ -160,14 +171,14 @@ impl GatewayUpstream for OpenAiCompatibleUpstream {
         let anthropic_resp: AnthropicGatewayResponse =
             converter::from_openai_response(openai_resp, model);
 
-        let body_bytes =
-            serde_json::to_vec(&anthropic_resp).map_err(|e| anyhow!("Serialization error: {e}"))?;
+        let body_bytes = serde_json::to_vec(&anthropic_resp)
+            .map_err(|e| anyhow!("Serialization error: {e}"))?;
 
-        Response::builder()
-            .status(200)
-            .header(CONTENT_TYPE, "application/json")
-            .body(Body::from(body_bytes))
-            .map_err(|e| anyhow!("Response build error: {e}"))
+        Ok(UpstreamOutcome::Buffered {
+            status: http::StatusCode::OK,
+            content_type: "application/json".to_string(),
+            body: Bytes::from(body_bytes),
+        })
     }
 }
 
@@ -178,6 +189,27 @@ pub struct GatewayUpstreamRegistration {
 }
 
 inventory::collect!(GatewayUpstreamRegistration);
+
+pub fn build_response(outcome: UpstreamOutcome) -> Response<Body> {
+    match outcome {
+        UpstreamOutcome::Buffered {
+            status,
+            content_type,
+            body,
+        } => Response::builder()
+            .status(status)
+            .header(CONTENT_TYPE, content_type)
+            .body(Body::from(body))
+            .unwrap_or_else(|_| Response::new(Body::empty())),
+        UpstreamOutcome::Streaming { status, stream } => Response::builder()
+            .status(status)
+            .header(CONTENT_TYPE, "text/event-stream")
+            .header("cache-control", "no-cache")
+            .header("x-accel-buffering", "no")
+            .body(Body::from_stream(stream))
+            .unwrap_or_else(|_| Response::new(Body::empty())),
+    }
+}
 
 fn openai_sse_to_anthropic_sse(bytes: &Bytes, model: &str) -> Bytes {
     let text = String::from_utf8_lossy(bytes);
