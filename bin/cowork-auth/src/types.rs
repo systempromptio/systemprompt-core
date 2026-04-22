@@ -2,9 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthRequest {
+pub struct MtlsRequest {
     pub device_cert_fingerprint: String,
-    pub user_assertion: String,
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionExchangeRequest {
+    pub code: String,
     pub session_id: String,
 }
 

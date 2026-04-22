@@ -9,7 +9,10 @@ pub mod templating;
 pub mod validation;
 pub mod webauthn;
 
-pub use cowork::{CoworkAuthResult, issue_cowork_access, issue_cowork_access_with};
+pub use cowork::{
+    CoworkAuthResult, CoworkExchangeCode, exchange_cowork_session_code, hash_exchange_code,
+    issue_cowork_access, issue_cowork_access_with, issue_cowork_exchange_code,
+};
 pub use http::is_browser_request;
 pub use jwt::{AuthService, TokenValidator, extract_bearer_token, extract_cookie_token};
 pub use session::{

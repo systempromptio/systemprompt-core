@@ -80,7 +80,38 @@
 
 - **`systemprompt_identifiers::headers::TENANT_ID` / `POLICY_VERSION`** — new canonical header constants (`x-tenant-id`, `x-policy-version`) alongside the existing `USER_ID`, `SESSION_ID`, `TRACE_ID`, `CLIENT_ID` family. All Cowork-issued tokens carry the full set in the response body's `headers` map.
 
+- **Gateway provider registry — extensions can register custom upstreams.** `GatewayProvider` is no longer a closed enum; `GatewayRoute.provider` is now a free-form string tag resolved at dispatch time against a registry built at startup. Extension crates register new providers with:
+
+  ```rust
+  inventory::submit! {
+      systemprompt_api::services::gateway::GatewayUpstreamRegistration {
+          tag: "my-provider",
+          factory: || std::sync::Arc::new(MyUpstream),
+      }
+  }
+  ```
+
+  The new `GatewayUpstream` trait (`async fn proxy(&self, ctx: UpstreamCtx<'_>)`) is the single integration seam. Built-in tags seeded automatically: `anthropic`, `minimax`, `openai`, `moonshot`, `qwen`. Extension-registered tags may shadow built-ins (logged as a warning).
+
+- **MiniMax provider.** MiniMax ships an Anthropic-compatible endpoint at `https://api.minimax.io/anthropic`, so the new `minimax` tag reuses the Anthropic-compatible upstream verbatim — streaming, tool use, and `thinking` blocks pass through untouched. Example route:
+
+  ```yaml
+  gateway:
+    enabled: true
+    routes:
+      - model_pattern: "MiniMax-*"
+        provider: minimax
+        endpoint: https://api.minimax.io/anthropic
+        api_key_secret: minimax
+  ```
+
+  The `api_key_secret` resolves through `Secrets.custom`, so no changes to the secrets schema are required.
+
 ### Changed
+
+### Changed
+
+- **Gateway dispatch rewritten around the registry.** `GatewayService::dispatch` is now a thin shim: resolve route → resolve API key → look up the registered upstream → hand off to `upstream.proxy(ctx)`. The old hard-coded `match route.provider { ... }` is gone. The `GatewayProvider` enum (and its `is_openai_compatible()` / `as_str()` methods) have been removed; `GatewayRoute.provider` is a `String`. Anthropic-passthrough and OpenAI-compatible behaviours are preserved — their bodies were moved verbatim into `AnthropicCompatibleUpstream` and `OpenAiCompatibleUpstream` in the new `upstream.rs`. Unknown provider tags now fail fast with `Gateway provider 'xxx' is not registered`.
 
 - **Analytics: broader conversion events + UTM expansion.** `event_data` column on `analytics_events` changed to `JSONB` (was `TEXT`) to support structured payload inspection. Added `utm_content` and `utm_term` UTM parameter columns to complete the full UTM dimension set. Conversion event definitions broadened to cover a wider range of funnel actions (subscription starts, trial activations, feature adoptions).
 

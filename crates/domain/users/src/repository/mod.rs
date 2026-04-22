@@ -1,11 +1,13 @@
 mod api_key;
 mod banned_ip;
+mod device_cert;
 mod user;
 
 pub use api_key::CreateApiKeyParams;
 pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };
+pub use device_cert::EnrollDeviceCertParams;
 pub use user::{MergeResult, UpdateUserParams};
 
 use anyhow::Result;

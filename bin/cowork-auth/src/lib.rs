@@ -1,11 +1,11 @@
-mod cache;
-mod config;
-mod http;
-mod keystore;
-mod output;
-mod providers;
-mod sso;
-mod types;
+pub mod cache;
+pub mod config;
+pub mod http;
+pub mod keystore;
+pub mod loopback;
+pub mod output;
+pub mod providers;
+pub mod types;
 
 use std::process::ExitCode;
 
@@ -15,7 +15,7 @@ use crate::providers::pat::PatProvider;
 use crate::providers::session::SessionProvider;
 use crate::providers::{AuthError, AuthProvider};
 
-fn main() -> ExitCode {
+pub fn run() -> ExitCode {
     if let Some(cached) = cache::read_valid() {
         if emit(&cached).is_err() {
             return ExitCode::from(2);

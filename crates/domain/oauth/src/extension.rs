@@ -94,6 +94,15 @@ impl Extension for OauthExtension {
                 "user_id".into(),
                 "token_hash".into(),
             ]),
+            SchemaDefinition::inline(
+                "cowork_exchange_codes",
+                include_str!("../schema/cowork_exchange_codes.sql"),
+            )
+            .with_required_columns(vec![
+                "code_hash".into(),
+                "user_id".into(),
+                "expires_at".into(),
+            ]),
         ]
     }
 

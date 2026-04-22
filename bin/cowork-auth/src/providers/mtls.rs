@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::http::GatewayClient;
+use crate::keystore;
 use crate::providers::{AuthError, AuthProvider};
-use crate::types::{AuthRequest, HelperOutput};
-use crate::{keystore, sso};
+use crate::types::{HelperOutput, MtlsRequest};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct MtlsProvider {
@@ -17,7 +17,9 @@ impl MtlsProvider {
             .as_ref()
             .and_then(|m| m.cert_keystore_ref.as_ref())
             .is_some()
-            || std::env::var("SP_COWORK_DEVICE_CERT").is_ok();
+            || std::env::var("SP_COWORK_DEVICE_CERT").is_ok()
+            || std::env::var("SP_COWORK_DEVICE_CERT_LABEL").is_ok()
+            || std::env::var("SP_COWORK_DEVICE_CERT_SHA256").is_ok();
         Self {
             base_url: config.gateway_url.clone(),
             configured,
@@ -38,11 +40,9 @@ impl AuthProvider for MtlsProvider {
         let cert = keystore::platform_source()
             .load()
             .map_err(AuthError::Failed)?;
-        let assertion = sso::fetch_user_assertion().map_err(AuthError::Failed)?;
 
-        let req = AuthRequest {
+        let req = MtlsRequest {
             device_cert_fingerprint: cert.fingerprint,
-            user_assertion: assertion,
             session_id: new_session_id(),
         };
         let client = GatewayClient::new(self.base_url.clone());

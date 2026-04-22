@@ -34,7 +34,7 @@ pub mod macros;
 
 pub use agent::{AgentId, AgentName};
 pub use ai::{AiRequestId, ConfigId, MessageId};
-pub use auth::{ApiKeyId, ApiKeySecret, CloudAuthToken, JwtToken, SessionToken};
+pub use auth::{ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, JwtToken, SessionToken};
 pub use client::{ClientId, ClientType};
 pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;

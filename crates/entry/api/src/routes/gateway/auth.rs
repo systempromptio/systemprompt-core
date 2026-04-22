@@ -1,13 +1,15 @@
 use axum::Json;
 use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use systemprompt_identifiers::headers;
 use systemprompt_models::auth::BEARER_PREFIX;
-use systemprompt_oauth::services::{CoworkAuthResult, issue_cowork_access};
+use systemprompt_oauth::services::{
+    CoworkAuthResult, exchange_cowork_session_code, issue_cowork_access,
+};
 use systemprompt_runtime::AppContext;
-use systemprompt_users::ApiKeyService;
+use systemprompt_users::{ApiKeyService, DeviceCertService};
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
@@ -32,7 +34,23 @@ pub struct Capabilities {
 }
 
 pub async fn capabilities() -> Json<Capabilities> {
-    Json(Capabilities { modes: vec!["pat"] })
+    Json(Capabilities {
+        modes: vec!["pat", "session", "mtls"],
+    })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MtlsRequestBody {
+    pub device_cert_fingerprint: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SessionExchangeBody {
+    pub code: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 pub async fn pat(
@@ -63,23 +81,60 @@ pub async fn pat(
 }
 
 pub async fn session(
-    _ctx: AppContext,
-    _request: Request,
+    ctx: AppContext,
+    Json(body): Json<SessionExchangeBody>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    Err((
-        StatusCode::NOT_IMPLEMENTED,
-        "Dashboard-session auth not yet wired. Use PAT provider.".into(),
-    ))
+    if body.code.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "missing exchange code".into(),
+        ));
+    }
+
+    let result = exchange_cowork_session_code(ctx.db_pool(), body.code.trim())
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "exchange code invalid, expired, or already consumed".into(),
+            )
+        })?;
+
+    Ok(Json(result.into()))
 }
 
 pub async fn mtls(
-    _ctx: AppContext,
-    _request: Request,
+    ctx: AppContext,
+    Json(body): Json<MtlsRequestBody>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    Err((
-        StatusCode::NOT_IMPLEMENTED,
-        "mTLS device-cert auth not yet wired. Use PAT provider.".into(),
-    ))
+    let fingerprint = body.device_cert_fingerprint.trim();
+    if fingerprint.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "missing device_cert_fingerprint".into(),
+        ));
+    }
+
+    let service = DeviceCertService::new(ctx.db_pool())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let record = service
+        .verify(fingerprint)
+        .await
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "device certificate not enrolled or revoked".into(),
+            )
+        })?;
+
+    let result = issue_cowork_access(ctx.db_pool(), &record.user_id)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(result.into()))
 }
 
 fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {

@@ -25,7 +25,7 @@ pub struct PatConfig {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct SessionConfig {
     #[serde(default)]
-    pub keystore_service: Option<String>,
+    pub enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

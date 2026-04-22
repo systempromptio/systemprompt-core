@@ -1,4 +1,4 @@
-use crate::types::{AuthRequest, AuthResponse};
+use crate::types::{AuthResponse, MtlsRequest, SessionExchangeRequest};
 use std::time::Duration;
 
 pub struct GatewayClient {
@@ -14,15 +14,22 @@ impl GatewayClient {
         Self { base_url, agent }
     }
 
-    pub fn mtls_exchange(&self, req: &AuthRequest) -> Result<AuthResponse, String> {
+    pub fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, String> {
         self.post_json(
-            "/v1/gateway/auth/cowork/mtls",
+            "/v1/auth/cowork/mtls",
+            serde_json::to_value(req).map_err(|e| e.to_string())?,
+        )
+    }
+
+    pub fn session_exchange(&self, req: &SessionExchangeRequest) -> Result<AuthResponse, String> {
+        self.post_json(
+            "/v1/auth/cowork/session",
             serde_json::to_value(req).map_err(|e| e.to_string())?,
         )
     }
 
     pub fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, String> {
-        let url = self.url("/v1/gateway/auth/cowork/pat");
+        let url = self.url("/v1/auth/cowork/pat");
         let resp = self
             .agent
             .post(&url)

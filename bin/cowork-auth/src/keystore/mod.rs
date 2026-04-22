@@ -1,9 +1,21 @@
+use sha2::{Digest, Sha256};
+use std::fmt::Write;
+
 pub struct DeviceCert {
     pub fingerprint: String,
 }
 
 pub trait DeviceCertSource {
     fn load(&self) -> Result<DeviceCert, String>;
+}
+
+pub fn sha256_der(der: &[u8]) -> String {
+    let digest = Sha256::digest(der);
+    let mut out = String::with_capacity(64);
+    for byte in digest {
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
 }
 
 #[cfg(target_os = "macos")]

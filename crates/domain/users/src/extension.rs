@@ -64,6 +64,16 @@ impl Extension for UsersExtension {
                     "key_prefix".into(),
                     "key_hash".into(),
                 ]),
+            SchemaDefinition::inline(
+                "user_device_certs",
+                include_str!("../schema/user_device_certs.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "user_id".into(),
+                "fingerprint".into(),
+                "label".into(),
+            ]),
         ]
     }
 

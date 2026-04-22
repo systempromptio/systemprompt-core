@@ -18,7 +18,7 @@ impl GatewayConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayRoute {
     pub model_pattern: String,
-    pub provider: GatewayProvider,
+    pub provider: String,
     pub endpoint: String,
     pub api_key_secret: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -34,33 +34,6 @@ impl GatewayRoute {
 
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
         self.upstream_model.as_deref().unwrap_or(requested)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum GatewayProvider {
-    Anthropic,
-    #[serde(rename = "openai")]
-    OpenAI,
-    Gemini,
-    Moonshot,
-    Qwen,
-}
-
-impl GatewayProvider {
-    pub const fn is_openai_compatible(self) -> bool {
-        matches!(self, Self::OpenAI | Self::Moonshot | Self::Qwen)
-    }
-
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Anthropic => "anthropic",
-            Self::OpenAI => "openai",
-            Self::Gemini => "gemini",
-            Self::Moonshot => "moonshot",
-            Self::Qwen => "qwen",
-        }
     }
 }
 
@@ -104,7 +77,7 @@ mod tests {
             enabled: true,
             routes: vec![GatewayRoute {
                 model_pattern: "kimi-*".to_string(),
-                provider: GatewayProvider::Moonshot,
+                provider: "moonshot".to_string(),
                 endpoint: "https://api.moonshot.ai/v1".to_string(),
                 api_key_secret: "moonshot".to_string(),
                 upstream_model: Some("moonshot-v1-32k".to_string()),
@@ -114,19 +87,10 @@ mod tests {
         let route = config.find_route("kimi-latest");
         assert!(route.is_some(), "route must match");
         let route = route.unwrap_or_else(|| unreachable!());
-        assert_eq!(route.provider, GatewayProvider::Moonshot);
+        assert_eq!(route.provider, "moonshot");
         assert_eq!(
             route.effective_upstream_model("kimi-latest"),
             "moonshot-v1-32k"
         );
-    }
-
-    #[test]
-    fn provider_openai_compatibility() {
-        assert!(GatewayProvider::OpenAI.is_openai_compatible());
-        assert!(GatewayProvider::Moonshot.is_openai_compatible());
-        assert!(GatewayProvider::Qwen.is_openai_compatible());
-        assert!(!GatewayProvider::Anthropic.is_openai_compatible());
-        assert!(!GatewayProvider::Gemini.is_openai_compatible());
     }
 }

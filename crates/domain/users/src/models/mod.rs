@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{ApiKeyId, SessionId, UserId};
+use systemprompt_identifiers::{ApiKeyId, DeviceCertId, SessionId, UserId};
 
 pub use systemprompt_models::auth::{UserRole, UserStatus};
 
@@ -172,6 +172,24 @@ impl UserApiKey {
 pub struct NewApiKey {
     pub record: UserApiKey,
     pub secret: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserDeviceCert {
+    #[sqlx(try_from = "String")]
+    pub id: DeviceCertId,
+    #[sqlx(try_from = "String")]
+    pub user_id: UserId,
+    pub fingerprint: String,
+    pub label: String,
+    pub enrolled_at: Option<DateTime<Utc>>,
+    pub revoked_at: Option<DateTime<Utc>>,
+}
+
+impl UserDeviceCert {
+    pub const fn is_active(&self) -> bool {
+        self.revoked_at.is_none()
+    }
 }
 
 impl From<User> for UserExport {

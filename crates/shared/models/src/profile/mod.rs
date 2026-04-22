@@ -17,7 +17,7 @@ mod validation;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
-pub use gateway::{GatewayConfig, GatewayProvider, GatewayRoute};
+pub use gateway::{GatewayConfig, GatewayRoute};
 pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{

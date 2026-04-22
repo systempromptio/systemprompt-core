@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod config;
+pub mod cowork;
 pub mod session;
 pub mod setup;
 pub mod users;
@@ -27,6 +28,9 @@ pub enum AdminCommands {
 
     #[command(subcommand, about = "Manage CLI session and profile switching")]
     Session(session::SessionCommands),
+
+    #[command(subcommand, about = "Cowork helper enrollment (device certs, exchange codes)")]
+    Cowork(cowork::CoworkCommands),
 }
 
 pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
@@ -40,6 +44,7 @@ pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         AdminCommands::Session(cmd) => session::execute(cmd, config).await,
+        AdminCommands::Cowork(cmd) => cowork::execute(cmd, config).await,
     }
 }
 
