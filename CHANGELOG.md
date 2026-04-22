@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Gateway tracing — six bugs overstating cost ~130× and hiding every downstream observability surface.** End-to-end audit (documented in `cowork-tracing.md`) of a live minimax gateway request found that cost reporting and every CLI read path (`audit --full`, `trace list`, `trace show`, `analytics conversations list`) was broken for gateway traffic. Root fixes in dependency order:
+
+  - **`AnthropicCompatibleUpstream` honours `upstream_model`** (`crates/entry/api/src/services/gateway/upstream.rs`). Previously forwarded the raw request body unchanged, sending the client's `claude-sonnet-4-6` string to minimax regardless of `route.upstream_model`. Now computes `ctx.route.effective_upstream_model(&ctx.request.model)`, rewrites `body.model` only if it differs (pass-through stays zero-copy), and captures `response.model` into a new `UpstreamOutcome::Buffered { served_model, .. }` field so the audit layer learns what minimax actually served.
+
+  - **`ai_requests.model` now stores the served model, not the client request** (`crates/entry/api/src/routes/gateway/messages.rs`, `crates/entry/api/src/services/gateway/audit.rs`). `GatewayRequestContext.model` is seeded from `route.effective_upstream_model()` at handler entry. `GatewayAudit::set_served_model()` overwrites `ai_requests.model` via new `AiRequestRepository::update_model` when the upstream response's `model` field differs from the route guess. Streaming path captures this from the `message_start` SSE frame via `stream_tap`.
+
+  - **Real minimax pricing + unreachable match arm removed** (`crates/entry/api/src/services/gateway/pricing.rs`). The previous minimax branch had two identical `ModelPricing { 0.2, 1.1 }` arms (dead pattern match) at rates ~130× actual MiniMax API pricing. Replaced with per-family rates (`minimax-text-01` / `abab6.5` at $0.0002/$0.0011 per 1k, `minimax-m1` / `abab7-chat-preview` at $0.0004/$0.0022). Unknown models now fall through to `unknown()` which logs a warning and returns zero cost — missing entries are loud instead of silently overbilling. Pricing lookup moved from `GatewayAudit::new()` to `GatewayAudit::complete()` so the served model drives the rate.
+
+  - **`ai_request_messages` populated from gateway path** (`crates/entry/api/src/services/gateway/audit.rs`, `crates/entry/api/src/services/gateway/parse.rs`). `GatewayAudit::open()` now parses the `AnthropicGatewayRequest` and inserts each message (plus any `system` prompt at `sequence_number=0`) via `AiRequestRepository::insert_message`. New `flatten_system_prompt` / `flatten_message_content` helpers join text blocks and JSON-encode tool_use / tool_result blocks. `complete()` appends the assistant response via `add_response_message`, extracted by new `parse::extract_assistant_text`. `audit <id> --full` now shows the full conversation turn instead of `"messages": []`.
+
+  - **Gateway traces visible in `trace list` / `trace show`** (`crates/infra/logging/src/trace/list_queries.rs`). The `require_tracked` filter required `status IS NOT NULL`, which comes from `agent_tasks` — gateway requests don't create task rows, so their traces were hidden unless `--include-system` was passed. Filter dropped; `exclude_system` still drops the literal `"system"` bucket. `trace show` already renders AI summary when log events are empty, so it surfaces gateway traces as soon as they're discoverable.
+
+  - **Gateway sessions in `analytics conversations list`** (`crates/domain/analytics/src/repository/conversations.rs`). `list_conversations` was `user_contexts`-only, populated exclusively by the agent path. Query rewritten as UNION of two CTEs: the original `agent_convs` (unchanged semantics) and a new `gateway_convs` that synthesizes rows from `ai_requests` where `task_id IS NULL`, grouped by `session_id`, counting `ai_request_messages` (populated by the Bug 3 fix). A `NOT EXISTS` guard prevents double-counting sessions that also have a `user_contexts` row.
+
+  Added new `AiRequestRepository::update_model(id, model)` method (`crates/domain/ai/src/repository/ai_requests/mutations.rs`). Verification: `cargo check --workspace` + `cargo clippy --workspace --all-targets` clean; `systemprompt-api-tests` (429 passing) and `systemprompt-logging-tests` green. Expected end-to-end behavior: a minimax request now records cost within ±5% of the real MiniMax invoice, `audit --full` shows the full conversation, and the trace/analytics CLI commands surface gateway traffic without flags.
+
+---
+
 ## [0.3.0] - 2026-04-22
 
 ### Added

@@ -331,12 +331,21 @@ fn flatten_message_content(content: &Value) -> String {
                     if !out.is_empty() {
                         out.push('\n');
                     }
-                    out.push_str(&serde_json::to_string(block).unwrap_or_default());
+                    match serde_json::to_string(block) {
+                        Ok(s) => out.push_str(&s),
+                        Err(e) => tracing::warn!(error = %e, "flatten: block serialize failed"),
+                    }
                 }
             }
             out
         },
-        _ => serde_json::to_string(content).unwrap_or_default(),
+        _ => match serde_json::to_string(content) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!(error = %e, "flatten: content serialize failed");
+                String::new()
+            },
+        },
     }
 }
 
