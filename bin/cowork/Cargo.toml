@@ -1,18 +1,18 @@
 [package]
-name = "sp-cowork-auth"
-version = "0.1.0"
+name = "systemprompt-cowork"
+version = "0.2.0"
 edition = "2024"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
-description = "Credential helper binary for Cowork/Claude Code clients targeting the systemprompt.io gateway."
+description = "Credential helper + plugin/MCP sync agent for Anthropic's Claude Cowork, targeting the systemprompt.io gateway."
 publish = false
 
 [lib]
-name = "sp_cowork_auth"
+name = "systemprompt_cowork"
 path = "src/lib.rs"
 
 [[bin]]
-name = "sp-cowork-auth"
+name = "systemprompt-cowork"
 path = "src/main.rs"
 
 [dependencies]
@@ -20,11 +20,13 @@ ureq = { version = "2", default-features = false, features = ["tls", "json"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-native-certs = "0.8"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 toml = "0.8"
 time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 dirs = "5"
 sha2 = "0.10"
+ed25519-dalek = { version = "2", default-features = false, features = ["std", "pkcs8"] }
+base64 = "0.22"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3"

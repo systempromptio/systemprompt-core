@@ -52,6 +52,8 @@ regex = { workspace = true }
 indexmap = { workspace = true }
 sha2 = { workspace = true }
 subtle = { workspace = true }
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+base64 = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }

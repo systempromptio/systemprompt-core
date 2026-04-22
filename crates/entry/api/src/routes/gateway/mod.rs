@@ -1,7 +1,8 @@
 pub mod auth;
+pub mod cowork;
 pub mod messages;
 
-use axum::Router;
+use axum::{Extension, Router};
 use axum::routing::{get, post};
 use std::sync::Arc;
 use systemprompt_models::SecretsBootstrap;
@@ -55,7 +56,10 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
                 async move { auth::mtls(context, request).await }
             }),
         )
-        .route("/auth/cowork/capabilities", get(auth::capabilities));
+        .route("/auth/cowork/capabilities", get(auth::capabilities))
+        .route("/cowork/pubkey", get(cowork::pubkey))
+        .route("/cowork/manifest", get(cowork::manifest))
+        .layer(Extension(ctx.clone()));
 
     Some(router)
 }

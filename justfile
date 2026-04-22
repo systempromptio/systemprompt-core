@@ -29,21 +29,22 @@ cli:
 cli-offline:
     SQLX_OFFLINE=true cargo build --bin systemprompt
 
-# Build the Cowork auth helper (standalone binary, not in workspace)
-build-cowork-auth TARGET="":
+# Build the Cowork helper + sync agent (credential helper, plugin/MCP sync)
+build-cowork TARGET="":
     #!/usr/bin/env bash
     set -e
     if [ -n "{{TARGET}}" ]; then
-        cargo build --manifest-path crates/helpers/cowork-auth/Cargo.toml --release --target {{TARGET}}
+        cargo build --manifest-path bin/cowork/Cargo.toml --release --target {{TARGET}}
     else
-        cargo build --manifest-path crates/helpers/cowork-auth/Cargo.toml --release
+        cargo build --manifest-path bin/cowork/Cargo.toml --release
     fi
 
-# Build the Cowork auth helper for all supported release targets
-build-cowork-auth-all:
-    just build-cowork-auth aarch64-apple-darwin
-    just build-cowork-auth x86_64-apple-darwin
-    just build-cowork-auth x86_64-pc-windows-msvc
+# Build systemprompt-cowork for all supported release targets
+build-cowork-all:
+    just build-cowork aarch64-apple-darwin
+    just build-cowork x86_64-apple-darwin
+    just build-cowork x86_64-pc-windows-msvc
+    just build-cowork x86_64-unknown-linux-gnu
 
 # Prepare sqlx offline cache (requires running database)
 sqlx-prepare:

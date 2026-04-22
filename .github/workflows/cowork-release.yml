@@ -1,9 +1,9 @@
-name: cowork-auth release
+name: systemprompt-cowork release
 
 on:
   push:
     tags:
-      - 'cowork-auth-v*'
+      - 'cowork-v*'
 
 jobs:
   build:
@@ -17,6 +17,8 @@ jobs:
             target: x86_64-apple-darwin
           - os: windows-2022
             target: x86_64-pc-windows-msvc
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -25,21 +27,21 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       - name: Build release binary
-        run: cargo build --manifest-path crates/helpers/cowork-auth/Cargo.toml --release --target ${{ matrix.target }}
+        run: cargo build --manifest-path bin/cowork/Cargo.toml --release --target ${{ matrix.target }}
 
       - name: Stage artifact (unix)
         if: runner.os != 'Windows'
         run: |
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/sp-cowork-auth dist/sp-cowork-auth-${{ matrix.target }}
-          shasum -a 256 dist/sp-cowork-auth-${{ matrix.target }} > dist/sp-cowork-auth-${{ matrix.target }}.sha256
+          cp target/${{ matrix.target }}/release/systemprompt-cowork dist/systemprompt-cowork-${{ matrix.target }}
+          shasum -a 256 dist/systemprompt-cowork-${{ matrix.target }} > dist/systemprompt-cowork-${{ matrix.target }}.sha256
 
       - name: Stage artifact (windows)
         if: runner.os == 'Windows'
         run: |
           mkdir dist
-          copy target\${{ matrix.target }}\release\sp-cowork-auth.exe dist\sp-cowork-auth-${{ matrix.target }}.exe
-          certutil -hashfile dist\sp-cowork-auth-${{ matrix.target }}.exe SHA256 > dist\sp-cowork-auth-${{ matrix.target }}.exe.sha256
+          copy target\${{ matrix.target }}\release\systemprompt-cowork.exe dist\systemprompt-cowork-${{ matrix.target }}.exe
+          certutil -hashfile dist\systemprompt-cowork-${{ matrix.target }}.exe SHA256 > dist\systemprompt-cowork-${{ matrix.target }}.exe.sha256
         shell: cmd
 
       - name: Upload to release

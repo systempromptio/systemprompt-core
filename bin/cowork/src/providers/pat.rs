@@ -20,7 +20,7 @@ impl PatProvider {
                 .map(|s| s.trim().to_string())
         });
         Self {
-            base_url: config.gateway_url.clone(),
+            base_url: crate::config::gateway_url_or_default(config),
             pat_source,
         }
     }

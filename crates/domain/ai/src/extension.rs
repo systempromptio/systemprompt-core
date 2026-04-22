@@ -43,7 +43,43 @@ impl Extension for AiExtension {
                 "request_id".into(),
                 "tool_name".into(),
             ]),
+            SchemaDefinition::inline(
+                "ai_request_payloads",
+                include_str!("../schema/ai_request_payloads.sql"),
+            )
+            .with_required_columns(vec!["ai_request_id".into()]),
+            SchemaDefinition::inline(
+                "ai_safety_findings",
+                include_str!("../schema/ai_safety_findings.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "ai_request_id".into(),
+                "severity".into(),
+            ]),
+            SchemaDefinition::inline(
+                "ai_quota_buckets",
+                include_str!("../schema/ai_quota_buckets.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "user_id".into(),
+                "window_start".into(),
+            ]),
+            SchemaDefinition::inline(
+                "ai_gateway_policies",
+                include_str!("../schema/ai_gateway_policies.sql"),
+            )
+            .with_required_columns(vec!["id".into(), "name".into(), "spec".into()]),
         ]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(
+            1,
+            "gateway_governance",
+            include_str!("../schema/migrations/001_gateway_governance.sql"),
+        )]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

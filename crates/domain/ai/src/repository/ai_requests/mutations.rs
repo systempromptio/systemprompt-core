@@ -89,9 +89,19 @@ impl AiRequestRepository {
 
     #[must_use = "this returns a Result that should not be ignored"]
     pub async fn insert(&self, record: &AiRequestRecord) -> Result<AiRequestId, RepositoryError> {
-        use systemprompt_identifiers::{ContextId, McpExecutionId, SessionId, TaskId, TraceId};
+        self.insert_with_id(&AiRequestId::generate(), record).await
+    }
 
-        let id = AiRequestId::generate();
+    #[must_use = "this returns a Result that should not be ignored"]
+    pub async fn insert_with_id(
+        &self,
+        id: &AiRequestId,
+        record: &AiRequestRecord,
+    ) -> Result<AiRequestId, RepositoryError> {
+        use systemprompt_identifiers::{
+            ContextId, McpExecutionId, SessionId, TaskId, TenantId, TraceId,
+        };
+
         let status = record.status.as_str();
 
         let use_completed_at = matches!(
@@ -102,7 +112,7 @@ impl AiRequestRepository {
         sqlx::query!(
             r#"
             INSERT INTO ai_requests (
-                id, request_id, user_id, session_id, task_id, context_id, trace_id,
+                id, request_id, user_id, tenant_id, session_id, task_id, context_id, trace_id,
                 mcp_execution_id, provider, model, max_tokens, tokens_used, input_tokens, output_tokens,
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
                 cost_microdollars, latency_ms, status, error_message,
@@ -110,14 +120,15 @@ impl AiRequestRepository {
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                $15, $16, $17, $18, $19, $20, $21, $22,
+                $15, $16, $17, $18, $19, $20, $21, $22, $23,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                CASE WHEN $23 THEN CURRENT_TIMESTAMP ELSE NULL END
+                CASE WHEN $24 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
             "#,
             id.as_str(),
             record.request_id,
             record.user_id.as_str(),
+            record.tenant_id.as_ref().map(TenantId::as_str),
             record.session_id.as_ref().map(SessionId::as_str),
             record.task_id.as_ref().map(TaskId::as_str),
             record.context_id.as_ref().map(ContextId::as_str),
@@ -141,6 +152,6 @@ impl AiRequestRepository {
         )
         .execute(self.write_pool())
         .await?;
-        Ok(id)
+        Ok(id.clone())
     }
 }

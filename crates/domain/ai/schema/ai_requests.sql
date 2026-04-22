@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     id TEXT PRIMARY KEY,
     request_id VARCHAR(255) NOT NULL UNIQUE,
     user_id VARCHAR(255) NOT NULL,
+    tenant_id VARCHAR(255),
     session_id VARCHAR(255),
     task_id TEXT,
     context_id VARCHAR(255),

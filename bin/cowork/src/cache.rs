@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const CACHE_DIR_NAME: &str = "systemprompt-cowork-auth";
+const CACHE_DIR_NAME: &str = "systemprompt-cowork";
 const CACHE_FILE: &str = "cache.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -10,5 +10,5 @@ pub fn emit(output: &HelperOutput) -> std::io::Result<()> {
 }
 
 pub fn diag(msg: &str) {
-    eprintln!("[sp-cowork-auth] {msg}");
+    eprintln!("[systemprompt-cowork] {msg}");
 }

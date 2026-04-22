@@ -19,7 +19,7 @@ impl SessionProvider {
             .as_ref()
             .is_some_and(|s| s.enabled.unwrap_or(true));
         Self {
-            base_url: config.gateway_url.clone(),
+            base_url: crate::config::gateway_url_or_default(config),
             configured,
         }
     }
@@ -62,7 +62,7 @@ impl AuthProvider for SessionProvider {
 fn build_auth_url(base: &str, callback: &str) -> String {
     let encoded = encode_component(callback);
     format!(
-        "{}/cowork-auth/device-link?redirect={encoded}",
+        "{}/cowork/device-link?redirect={encoded}",
         base.trim_end_matches('/')
     )
 }

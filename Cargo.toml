@@ -44,7 +44,7 @@ members = [
 # Standalone binaries with their own release cadence.
 exclude = [
     "crates/tests",
-    "bin/cowork-auth",
+    "bin/cowork",
 ]
 resolver = "2"
 

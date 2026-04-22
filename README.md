@@ -6,17 +6,19 @@
   <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
 </picture>
 
-# Own how your organization uses AI.
+# Run Claude for Work on your own infrastructure, with your own choice of inference.
 
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/dark/int-benchmark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/light/int-benchmark.svg">
-    <img alt="Governance benchmark: 3,308 req/s" src="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/dark/int-benchmark.svg" width="100%">
-  </picture>
-</div>
+### `systemprompt-core` is the Rust library that compiles into a single ~50 MB binary. Install it, point your Claude-for-Work fleet's `api_external_url` at it, and every Claude Desktop request now flows through a `/v1/messages` gateway **you operate** — on your network, in your air-gap, under your audit table.
 
-### systemprompt-core is the Rust library behind [systemprompt.io](https://systemprompt.io) — the narrow waist between your AI and everything it touches.
+### Pick the upstream per model pattern: Anthropic, OpenAI, Gemini, Moonshot (Kimi), Qwen, MiniMax, or a custom provider you register yourself via the `inventory` crate. One YAML block swaps it. Every tool call authenticated, scoped, secret-scanned, rate-limited, and audited.
+
+### Compile-time plugin model. Compile-time verified SQL. Zero-raw-String IDs. BSL-1.1 source-available; Apache 2.0 after four years.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/dark/int-benchmark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/light/int-benchmark.svg">
+  <img alt="Governance benchmark: 3,308 req/s" src="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/dark/int-benchmark.svg" width="100%">
+</picture>
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg?style=flat-square)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt?style=flat-square)](https://docs.rs/systemprompt)
@@ -34,18 +36,17 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 
 ---
 
-**AI governance infrastructure for agentic systems.** Every tool call authenticated, authorised, rate-limited, logged, and costed. Self-hosted. Air-gap capable. Provider-agnostic. One language. One database (PostgreSQL). One binary (~50 MB). No microservices. No Kubernetes. No Redis. No Kafka.
+- **Embed it** — `systemprompt = { version = "0.3.0", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
+- **Evaluate it running** — clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) for a turnkey demo. `just build && just setup-local <key> && just start` runs 40+ scripted demos against the live binary.
 
-**AI infrastructure built for AI agents.** A production-ready Rust library with auth, MCP servers, A2A orchestration, and playbooks for deterministic execution. 30 crates published on crates.io under `systemprompt-*` and the `systemprompt` facade. Compile-time extensions via the `inventory` crate. Zero-raw-String-ID policy. Compile-time verified SQL via `sqlx::query!` macros. Typed identifiers across every boundary.
+---
 
-> **Evaluating?** Clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) and run `just build && just setup-local <key> && just start`. 40+ scripted demos exercise every claim below against your own machine in three commands.
->
-> **Building on it?** Add `systemprompt = "0.2.1"` to your `Cargo.toml` and jump to [Extensions](#extensions-technical).
+## Contents
 
-## Table of Contents
-
-- [Infrastructure](#infrastructure)
+- [What's new in v0.3.0](#whats-new-in-v030)
 - [Capabilities](#capabilities)
+- [Quick Start](#quick-start)
+- [Infrastructure](#infrastructure)
 - [Integrations](#integrations)
 - [Architecture](#architecture)
 - [Extensions (technical)](#extensions-technical)
@@ -53,39 +54,95 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 - [Database & repositories](#database--repositories)
 - [Facade crate & feature flags](#facade-crate--feature-flags)
 - [Performance](#performance)
-- [Quick Start](#quick-start)
 - [License](#license)
 
 ---
 
-## Infrastructure
+## What's new in v0.3.0
 
-**One binary. One database. Deploys anywhere.** The same surface local and remote. Config-as-code: agents, MCP servers, skills, AI providers, content, scheduler jobs, and web theme all live as YAML or Markdown under `services/`. Built on open standards: **MCP** (Model Context Protocol), **A2A** (Agent-to-Agent), **OAuth2/OIDC** with PKCE, **WebAuthn**.
+**LLM Gateway — `/v1/messages` inference routing.** Organisations using Claude for Work (formerly Claude Cowork) can set `api_external_url` in their fleet MDM configuration to a systemprompt-backed host and have every Claude Desktop inference request flow through the gateway. The gateway:
 
-**Where in the code**
+- Exposes `POST /v1/messages` at the Anthropic wire format — fully compatible with the Claude API SDK, Claude Desktop, and any Anthropic-SDK client.
+- Authenticates with a systemprompt JWT in the `x-api-key` header (falls back to `Authorization: Bearer`). No new credential type — existing user JWTs serve as the gateway credential.
+- Routes by `model_pattern` to any configured upstream. Built-in provider tags: `anthropic`, `openai` (OpenAI-compatible), `moonshot` (Kimi), `qwen`, `gemini` (stub), `minimax`.
+- **Anthropic upstream**: transparent byte proxy. Raw request bytes forwarded verbatim to the upstream endpoint with the upstream API key substituted; the response stream is piped back unmodified. Preserves extended thinking blocks, cache-control headers, and all Anthropic-specific SSE events exactly.
+- **OpenAI-compatible upstream**: converts Anthropic request format → OpenAI `/v1/chat/completions`, proxies to the upstream, converts the response back to Anthropic format. Streaming maps OpenAI SSE delta events to Anthropic `message_start` / `content_block_start` / `content_block_delta` / `message_delta` / `message_stop` SSE frames.
+- **API key resolution**: upstream API keys resolve from the existing secrets file by secret name (`api_key_secret` in the route config). No new credential storage mechanism.
+- **Conditional mount**: the `/v1` router mounts only when `gateway.enabled: true` in the active profile — zero overhead for deployments that don't use the gateway.
 
-| Concern | File |
-|---|---|
-| Bootstrap sequence | `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext` |
-| AppContext wiring | [`crates/app/runtime/src/context.rs`](crates/app/runtime/src/context.rs) · [`builder.rs`](crates/app/runtime/src/builder.rs) |
-| Provider traits (`LlmProvider`, `ToolProvider`, …) | [`crates/shared/provider-contracts/src/lib.rs`](crates/shared/provider-contracts/src/lib.rs) |
-| CLI entry point (8 domains) | [`crates/entry/cli/src/commands/`](crates/entry/cli/src/commands/) |
+**Gateway profile configuration schema.** New `gateway` block in profile YAML (all fields optional; block absent = gateway disabled):
 
-One binary, eight domains. Every command is discoverable — `systemprompt <domain> --help` works everywhere.
+```yaml
+gateway:
+  enabled: true
+  routes:
+    - model_pattern: "claude-*"
+      provider: anthropic
+      endpoint: "https://api.anthropic.com/v1"
+      api_key_secret: "anthropic_api_key"
+    - model_pattern: "moonshot-*"
+      provider: moonshot
+      endpoint: "https://api.moonshot.cn/v1"
+      api_key_secret: "kimi_api_key"
+      upstream_model: "moonshot-v1-8k"
+    - model_pattern: "qwen-*"
+      provider: qwen
+      endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      api_key_secret: "qwen_api_key"
+    - model_pattern: "MiniMax-*"
+      provider: minimax
+      endpoint: "https://api.minimax.io/anthropic"
+      api_key_secret: "minimax"
+    - model_pattern: "*"
+      provider: anthropic
+      endpoint: "https://api.anthropic.com/v1"
+      api_key_secret: "anthropic_api_key"
+```
 
-| Domain | Source | Purpose |
-|---|---|---|
-| `core` | [`crates/entry/cli/src/commands/core/`](crates/entry/cli/src/commands/core/) | Skills, content, files, contexts, plugins, hooks, artifacts |
-| `infra` | [`crates/entry/cli/src/commands/infrastructure/`](crates/entry/cli/src/commands/infrastructure/) | Services, database, jobs, logs |
-| `admin` | [`crates/entry/cli/src/commands/admin/`](crates/entry/cli/src/commands/admin/) | Users, agents, config, setup, session, rate limits |
-| `cloud` | [`crates/entry/cli/src/commands/cloud/`](crates/entry/cli/src/commands/cloud/) | Auth, deploy, sync, secrets, tenant, domain |
-| `analytics` | [`crates/entry/cli/src/commands/analytics/`](crates/entry/cli/src/commands/analytics/) | Overview, conversations, agents, tools, requests, sessions, content, traffic, costs |
-| `web` | [`crates/entry/cli/src/commands/web/`](crates/entry/cli/src/commands/web/) | Content types, templates, assets, sitemap, validate |
-| `plugins` | [`crates/entry/cli/src/commands/plugins/`](crates/entry/cli/src/commands/plugins/) | Extensions, MCP servers, capabilities |
-| `build` | [`crates/entry/cli/src/commands/build/`](crates/entry/cli/src/commands/build/) | Build core workspace and MCP extensions |
+Routes evaluate in order; first `model_pattern` match wins. Patterns support `*` wildcard prefix/suffix matching. `extra_headers` map is available per route for provider-specific requirements.
 
-- [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
-- [No Vendor Lock-In](https://systemprompt.io/features/no-vendor-lock-in)
+**Cowork credential-helper auth path.** Claude for Work clients configure a "Credential helper script" that prints a bearer token on stdout; core now ships the helper binary plus the matching gateway endpoints that exchange a lower-privilege credential for a short-lived JWT carrying canonical identity headers. Endpoints mounted under `/v1/gateway/auth/cowork/` when `gateway.enabled: true`:
+
+- `POST /pat` — `Authorization: Bearer <pat>` → verifies via `ApiKeyService`, loads the user via `OAuthRepository::get_authenticated_user`, returns `{token, ttl, headers}` with a fresh JWT and the canonical header map.
+- `POST /session` — `501` (dashboard-cookie exchange not yet wired).
+- `POST /mtls` — `501` (device-cert exchange not yet wired).
+- `GET /capabilities` — `{"modes":["pat"]}`; probes advertise which exchange modes the deployment accepts.
+
+The JWT-assembly + header map live in `systemprompt_oauth::services::cowork` (`issue_cowork_access`, `issue_cowork_access_with`, `CoworkAuthResult`). Response headers use core's canonical constants from `systemprompt_identifiers::headers::*` (`x-user-id`, `x-session-id`, `x-trace-id`, `x-client-id`, `x-tenant-id`, `x-policy-version`, `x-call-source`) so Cowork merges them into every subsequent `/v1/messages` call and the gateway middleware reads real identity on every request.
+
+**`systemprompt-cowork` credential helper + sync agent.** Standalone crate at `bin/cowork/` (excluded from the workspace so it does not compile during `cargo build --workspace` and does not land in the `systemprompt` crates.io package). Dependency footprint is deliberately minimal (`ureq` + `rustls` + `serde` + `toml` + `ed25519-dalek`) — no `tokio`, `sqlx`, or `axum`.
+
+- **Progressive capability ladder**: mTLS → dashboard session → PAT. First provider that returns a token wins; absent providers return `NotConfigured` and the chain falls through. No user-facing "pick a mode" step.
+- **Providers** (`src/providers/{mtls,session,pat}.rs`) share a single `AuthProvider` trait returning `Result<HelperOutput, AuthError>` where `AuthError::NotConfigured` silently advances the chain.
+- **Config**: TOML at `~/.config/systemprompt/systemprompt-cowork.toml` (or `$SP_COWORK_CONFIG`). All sections optional — absent sections mean the provider is skipped. Dev overrides: `$SP_COWORK_GATEWAY_URL`, `$SP_COWORK_PAT`, `$SP_COWORK_DEVICE_CERT`, `$SP_COWORK_USER_ASSERTION`.
+- **Cache**: signed JWT + expiry written to the OS cache dir with mode `0600` on unix. Cached token is emitted directly if valid; only on cache miss does the probe chain run.
+- **Stdout contract**: exactly one JSON object matching `{token, ttl, headers}` — Anthropic's `inferenceCredentialHelper` format. All diagnostics go to stderr. Exit 0 on success, non-zero on failure.
+- **Sync commands**: `install`, `sync`, `validate`, `uninstall` manage the Cowork `org-plugins/` mount (macOS `/Library/Application Support/Claude/org-plugins/`, Windows `C:\ProgramData\Claude\org-plugins\`, Linux `${XDG_DATA_HOME:-$HOME/.local/share}/Claude/org-plugins/`) — pulling signed plugin manifests and managed MCP allowlists from the gateway.
+- **Release cadence**: tagged `cowork-v*`; `.github/workflows/cowork-release.yml` builds binaries for `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-pc-windows-msvc`, and `x86_64-unknown-linux-gnu`, attaches them to a GitHub Release with SHA256SUMS.
+- **Build targets**: `just build-cowork [target]` and `just build-cowork-all`.
+
+**Gateway provider registry — extensions can register custom upstreams.** `GatewayProvider` is no longer a closed enum; `GatewayRoute.provider` is a free-form string tag resolved at dispatch time against a registry built at startup. Extension crates register new providers with:
+
+```rust
+inventory::submit! {
+    systemprompt_api::services::gateway::GatewayUpstreamRegistration {
+        tag: "my-provider",
+        factory: || std::sync::Arc::new(MyUpstream),
+    }
+}
+```
+
+The new `GatewayUpstream` trait (`async fn proxy(&self, ctx: UpstreamCtx<'_>)`) is the single integration seam. Built-in tags seeded automatically: `anthropic`, `minimax`, `openai`, `moonshot`, `qwen`. Extension-registered tags may shadow built-ins (logged as a warning).
+
+**MiniMax provider.** MiniMax ships an Anthropic-compatible endpoint at `https://api.minimax.io/anthropic`, so the new `minimax` tag reuses the Anthropic-compatible upstream verbatim — streaming, tool use, and `thinking` blocks pass through untouched. The `api_key_secret` resolves through `Secrets.custom`, so no changes to the secrets schema are required.
+
+**New typed identifiers and constants.** `ClientId::cowork()` returns `sp_cowork` (first-party via the `sp_` prefix rule). `SessionSource::Cowork` variant with `SessionSource::from_client_id("sp_cowork") → Cowork`. `systemprompt_identifiers::PolicyVersion` newtype with `PolicyVersion::unversioned()` constructor. New canonical header constants `systemprompt_identifiers::headers::TENANT_ID` and `POLICY_VERSION` alongside the existing `USER_ID`, `SESSION_ID`, `TRACE_ID`, `CLIENT_ID` family. `JwtContextExtractor::extract_for_gateway(jwt_token: &JwtToken)` accepts a typed `JwtToken` (not `&str`), validates it, and returns a `RequestContext`. `ApiPaths::GATEWAY_BASE` constant is `/v1`.
+
+**Changed.** Gateway dispatch rewritten around the registry — `GatewayService::dispatch` is now a thin shim: resolve route → resolve API key → look up the registered upstream → hand off to `upstream.proxy(ctx)`. The old hard-coded `match route.provider { ... }` is gone. The `GatewayProvider` enum (and its `is_openai_compatible()` / `as_str()` methods) have been removed; `GatewayRoute.provider` is a `String`. Anthropic-passthrough and OpenAI-compatible behaviours are preserved — their bodies were moved verbatim into `AnthropicCompatibleUpstream` and `OpenAiCompatibleUpstream` in the new `upstream.rs`. Unknown provider tags fail fast with `Gateway provider 'xxx' is not registered`. Analytics: `event_data` column on `analytics_events` changed to `JSONB` (was `TEXT`); added `utm_content` and `utm_term` UTM parameter columns; conversion event definitions broadened to cover subscription starts, trial activations, and feature adoptions.
+
+Full changelog: [`CHANGELOG.md`](CHANGELOG.md).
+
+---
 
 ## Capabilities
 
@@ -150,7 +207,71 @@ One binary, eight domains. Every command is discoverable — `systemprompt <doma
 - [Closed-Loop Agents](https://systemprompt.io/features/closed-loop-agents)
 - [Compliance](https://systemprompt.io/features/compliance)
 
-## Integrations
+---
+
+## Quick Start
+
+**Evaluation path** — you get 40+ runnable demos:
+
+```bash
+gh repo create my-eval --template systempromptio/systemprompt-template --clone
+cd my-eval
+just build
+just setup-local <anthropic-or-openai-or-gemini-key>
+just start
+```
+
+Open **http://localhost:8080**, point Claude Code / Claude Desktop at it, and walk through [`demo/`](https://github.com/systempromptio/systemprompt-template/tree/main/demo). Prerequisites: Rust 1.75+, [`just`](https://just.systems), Docker, `jq`, `yq`, ports `8080` and `5432` free.
+
+**Library path** — add the facade to your own Rust workspace:
+
+```toml
+[dependencies]
+systemprompt = { version = "0.3.0", features = ["full"] }
+```
+
+See [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
+
+---
+
+<details>
+<summary><strong>Infrastructure</strong></summary>
+
+<br>
+
+**One binary. One database. Deploys anywhere.** The same surface local and remote. Config-as-code: agents, MCP servers, skills, AI providers, content, scheduler jobs, and web theme all live as YAML or Markdown under `services/`. Built on open standards: **MCP** (Model Context Protocol), **A2A** (Agent-to-Agent), **OAuth2/OIDC** with PKCE, **WebAuthn**.
+
+**Where in the code**
+
+| Concern | File |
+|---|---|
+| Bootstrap sequence | `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext` |
+| AppContext wiring | [`crates/app/runtime/src/context.rs`](crates/app/runtime/src/context.rs) · [`builder.rs`](crates/app/runtime/src/builder.rs) |
+| Provider traits (`LlmProvider`, `ToolProvider`, …) | [`crates/shared/provider-contracts/src/lib.rs`](crates/shared/provider-contracts/src/lib.rs) |
+| CLI entry point (8 domains) | [`crates/entry/cli/src/commands/`](crates/entry/cli/src/commands/) |
+
+One binary, eight domains. Every command is discoverable — `systemprompt <domain> --help` works everywhere.
+
+| Domain | Source | Purpose |
+|---|---|---|
+| `core` | [`crates/entry/cli/src/commands/core/`](crates/entry/cli/src/commands/core/) | Skills, content, files, contexts, plugins, hooks, artifacts |
+| `infra` | [`crates/entry/cli/src/commands/infrastructure/`](crates/entry/cli/src/commands/infrastructure/) | Services, database, jobs, logs |
+| `admin` | [`crates/entry/cli/src/commands/admin/`](crates/entry/cli/src/commands/admin/) | Users, agents, config, setup, session, rate limits |
+| `cloud` | [`crates/entry/cli/src/commands/cloud/`](crates/entry/cli/src/commands/cloud/) | Auth, deploy, sync, secrets, tenant, domain |
+| `analytics` | [`crates/entry/cli/src/commands/analytics/`](crates/entry/cli/src/commands/analytics/) | Overview, conversations, agents, tools, requests, sessions, content, traffic, costs |
+| `web` | [`crates/entry/cli/src/commands/web/`](crates/entry/cli/src/commands/web/) | Content types, templates, assets, sitemap, validate |
+| `plugins` | [`crates/entry/cli/src/commands/plugins/`](crates/entry/cli/src/commands/plugins/) | Extensions, MCP servers, capabilities |
+| `build` | [`crates/entry/cli/src/commands/build/`](crates/entry/cli/src/commands/build/) | Build core workspace and MCP extensions |
+
+- [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
+- [No Vendor Lock-In](https://systemprompt.io/features/no-vendor-lock-in)
+
+</details>
+
+<details>
+<summary><strong>Integrations</strong></summary>
+
+<br>
 
 **Provider-agnostic. Protocol-native. Fully extensible.** Provider-agnostic by trait, not by adapter — swap **Anthropic / OpenAI / Gemini** at the profile level.
 
@@ -158,9 +279,12 @@ One binary, eight domains. Every command is discoverable — `systemprompt <doma
 - [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
 - [Skill Marketplace](https://systemprompt.io/features/skill-marketplace)
 
----
+</details>
 
-## Architecture
+<details>
+<summary><strong>Architecture</strong></summary>
+
+<br>
 
 A 30-crate Rust workspace that compiles into a single ~50 MB binary. Dependencies flow downward only — no circular references.
 
@@ -192,7 +316,12 @@ All 30 crates publish on crates.io at matching workspace versions. Domain crates
 | Entry | [`systemprompt-api`](https://docs.rs/systemprompt-api) · [`systemprompt-cli`](https://docs.rs/systemprompt-cli) |
 | Facade | [`systemprompt`](https://docs.rs/systemprompt) |
 
-## Extensions (technical)
+</details>
+
+<details>
+<summary><strong>Extensions (technical)</strong></summary>
+
+<br>
 
 Extensions are discovered at **compile time** via the [`inventory`](https://crates.io/crates/inventory) crate — no runtime plugin loading, no `dlopen`. Your code compiles straight into your binary. Typed traits cover the full surface:
 
@@ -209,7 +338,7 @@ Registration is a single macro — `register_extension!` lives in [`crates/share
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.2.1", features = ["full"] }
+systemprompt = { version = "0.3.0", features = ["full"] }
 ```
 
 ```rust
@@ -235,13 +364,23 @@ impl Extension for MyExtension {
 register_extension!(MyExtension);
 ```
 
-## Typed identifiers
+</details>
+
+<details>
+<summary><strong>Typed identifiers</strong></summary>
+
+<br>
 
 **Zero raw-String IDs.** Every identifier that crosses a boundary is a newtype in [`crates/shared/identifiers`](crates/shared/identifiers/src/lib.rs) — the compiler prevents passing a `UserId` where an `AgentId` is expected.
 
-`UserId` · `SessionId` · `TraceId` · `ContextId` · `TaskId` · `AgentId` · `TenantId` · `McpServerId` · `McpExecutionId` · `AiRequestId` · `PluginId` · `SkillId` · `ArtifactId` · `FileId` · `ContentId` · `MessageId` · `TokenId` · `ClientId` · `RoleId` · `ProfileName` · `Email` · `ValidatedUrl` · `ValidatedFilePath`
+`UserId` · `SessionId` · `TraceId` · `ContextId` · `TaskId` · `AgentId` · `TenantId` · `McpServerId` · `McpExecutionId` · `AiRequestId` · `PluginId` · `SkillId` · `ArtifactId` · `FileId` · `ContentId` · `MessageId` · `TokenId` · `ClientId` · `RoleId` · `ProfileName` · `Email` · `ValidatedUrl` · `ValidatedFilePath` · `PolicyVersion`
 
-## Database & repositories
+</details>
+
+<details>
+<summary><strong>Database & repositories</strong></summary>
+
+<br>
 
 Services call repositories, repositories issue SQL. All queries go through **compile-time verified macros** — `sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()`. No unverified `sqlx::query()`.
 
@@ -263,7 +402,12 @@ impl UserRepository {
 }
 ```
 
-## Facade crate & feature flags
+</details>
+
+<details>
+<summary><strong>Facade crate & feature flags</strong></summary>
+
+<br>
 
 Pull in only what you need through the `systemprompt` facade.
 
@@ -282,10 +426,10 @@ Pull in only what you need through the `systemprompt` facade.
 
 ```toml
 # Embedded library usage
-systemprompt = { version = "0.2.1", features = ["core", "database"] }
+systemprompt = { version = "0.3.0", features = ["core", "database"] }
 
 # Building a product binary
-systemprompt = { version = "0.2.1", features = ["full"] }
+systemprompt = { version = "0.3.0", features = ["full"] }
 ```
 
 ```rust
@@ -293,7 +437,12 @@ use systemprompt::prelude::*;
 use systemprompt::database::DbPool;
 ```
 
-## Performance
+</details>
+
+<details>
+<summary><strong>Performance</strong></summary>
+
+<br>
 
 Sub-5 ms governance overhead, benchmarked. Each request performs JWT validation, scope resolution, three rule evaluations, and an async database write.
 
@@ -304,28 +453,9 @@ Sub-5 ms governance overhead, benchmarked. Each request performs JWT validation,
 
 Numbers measured on the author's laptop. Reproduce with `./demo/performance/02-benchmark.sh` in the template. Full results and a live load test: [systemprompt.io/features/demo](https://systemprompt.io/features/demo).
 
-## Quick Start
+</details>
 
-**Evaluation path** — you get 40+ runnable demos:
-
-```bash
-gh repo create my-eval --template systempromptio/systemprompt-template --clone
-cd my-eval
-just build
-just setup-local <anthropic-or-openai-or-gemini-key>
-just start
-```
-
-Open **http://localhost:8080**, point Claude Code / Claude Desktop at it, and walk through [`demo/`](https://github.com/systempromptio/systemprompt-template/tree/main/demo). Prerequisites: Rust 1.75+, [`just`](https://just.systems), Docker, `jq`, `yq`, ports `8080` and `5432` free.
-
-**Library path** — add the facade to your own Rust workspace:
-
-```toml
-[dependencies]
-systemprompt = { version = "0.2.1", features = ["full"] }
-```
-
-See [Extensions](#extensions-technical) for the compile-time plugin model.
+---
 
 ## License
 
