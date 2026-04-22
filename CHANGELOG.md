@@ -18,7 +18,13 @@
 
   - **Gateway sessions in `analytics conversations list`** (`crates/domain/analytics/src/repository/conversations.rs`). `list_conversations` was `user_contexts`-only, populated exclusively by the agent path. Query rewritten as UNION of two CTEs: the original `agent_convs` (unchanged semantics) and a new `gateway_convs` that synthesizes rows from `ai_requests` where `task_id IS NULL`, grouped by `session_id`, counting `ai_request_messages` (populated by the Bug 3 fix). A `NOT EXISTS` guard prevents double-counting sessions that also have a `user_contexts` row.
 
-  Added new `AiRequestRepository::update_model(id, model)` method (`crates/domain/ai/src/repository/ai_requests/mutations.rs`). Verification: `cargo check --workspace` + `cargo clippy --workspace --all-targets` clean; `systemprompt-api-tests` (429 passing) and `systemprompt-logging-tests` green. Expected end-to-end behavior: a minimax request now records cost within ±5% of the real MiniMax invoice, `audit --full` shows the full conversation, and the trace/analytics CLI commands surface gateway traffic without flags.
+  Added new `AiRequestRepository::update_model(id, model)` method (`crates/domain/ai/src/repository/ai_requests/mutations.rs`).
+
+### Changed
+
+- **Gateway helpers extracted to `gateway::flatten`** (`crates/entry/api/src/services/gateway/flatten.rs`, new). Consolidates `flatten_system_prompt`, `flatten_message_content`, `rewrite_request_model` (body JSON substitution for Anthropic-compatible upstream), and `parse_served_model` (response-body model extraction) into one module. Keeps `audit.rs` and `upstream.rs` near the 300-line coding-standards cap and isolates the JSON-at-protocol-boundary surface. Audit `build_record`, `persist_request_messages`, `persist_tool_calls` split into dedicated methods for function-length discipline.
+
+  Verification: `cargo check --workspace` + `cargo clippy --workspace --all-targets` clean with `-D warnings`; `cargo fmt --all -- --check` clean; `systemprompt-api-tests` (429 passing) and `systemprompt-logging-tests` green. Expected end-to-end behavior: a minimax request now records cost within ±5% of the real MiniMax invoice, `audit --full` shows the full conversation, and the trace/analytics CLI commands surface gateway traffic without flags.
 
 ---
 

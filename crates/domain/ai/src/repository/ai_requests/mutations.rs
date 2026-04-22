@@ -88,11 +88,7 @@ impl AiRequestRepository {
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
-    pub async fn update_model(
-        &self,
-        id: &AiRequestId,
-        model: &str,
-    ) -> Result<(), RepositoryError> {
+    pub async fn update_model(&self, id: &AiRequestId, model: &str) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"UPDATE ai_requests SET model = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
             model,

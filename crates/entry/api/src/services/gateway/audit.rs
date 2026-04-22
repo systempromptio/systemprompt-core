@@ -94,33 +94,33 @@ impl GatewayAudit {
             .unwrap_or_else(|| self.ctx.model.clone())
     }
 
-    pub async fn open(&self, request: &AnthropicGatewayRequest, request_body: &Bytes) -> Result<()> {
-        let record =
+    fn build_record(&self) -> Result<AiRequestRecord> {
+        let mut record =
             AiRequestRecord::builder(self.ctx.ai_request_id.as_str(), self.ctx.user_id.clone())
                 .provider(self.ctx.provider.clone())
                 .model(self.ctx.model.clone())
                 .streaming(self.ctx.is_streaming);
-        let record = if let Some(t) = &self.ctx.tenant_id {
-            record.tenant_id(t.clone())
-        } else {
-            record
-        };
-        let record = if let Some(s) = &self.ctx.session_id {
-            record.session_id(s.clone())
-        } else {
-            record
-        };
-        let record = if let Some(t) = &self.ctx.trace_id {
-            record.trace_id(t.clone())
-        } else {
-            record
-        };
-        let record = if let Some(mt) = self.ctx.max_tokens {
-            record.max_tokens(mt)
-        } else {
-            record
-        };
-        let record = record.build()?;
+        if let Some(t) = &self.ctx.tenant_id {
+            record = record.tenant_id(t.clone());
+        }
+        if let Some(s) = &self.ctx.session_id {
+            record = record.session_id(s.clone());
+        }
+        if let Some(t) = &self.ctx.trace_id {
+            record = record.trace_id(t.clone());
+        }
+        if let Some(mt) = self.ctx.max_tokens {
+            record = record.max_tokens(mt);
+        }
+        record.build().map_err(anyhow::Error::from)
+    }
+
+    pub async fn open(
+        &self,
+        request: &AnthropicGatewayRequest,
+        request_body: &Bytes,
+    ) -> Result<()> {
+        let record = self.build_record()?;
 
         self.requests
             .insert_with_id(&self.ctx.ai_request_id, &record)
@@ -150,7 +150,7 @@ impl GatewayAudit {
     async fn persist_request_messages(&self, request: &AnthropicGatewayRequest) {
         let mut seq = 0i32;
         if let Some(system) = request.system.as_ref() {
-            if let Some(text) = flatten_system_prompt(system) {
+            if let Some(text) = super::flatten::flatten_system_prompt(system) {
                 if let Err(e) = self
                     .requests
                     .insert_message(&self.ctx.ai_request_id, "system", &text, seq)
@@ -162,7 +162,7 @@ impl GatewayAudit {
             }
         }
         for msg in &request.messages {
-            let text = flatten_message_content(&msg.content);
+            let text = super::flatten::flatten_message_content(&msg.content);
             if let Err(e) = self
                 .requests
                 .insert_message(&self.ctx.ai_request_id, &msg.role, &text, seq)
@@ -197,23 +197,7 @@ impl GatewayAudit {
             })
             .await?;
 
-        for (idx, tool) in tool_calls.iter().enumerate() {
-            let seq = idx as i32 + 1;
-            let trimmed = truncate_for_tool_input(&tool.tool_input);
-            if let Err(e) = self
-                .requests
-                .insert_tool_call(InsertToolCallParams {
-                    request_id: &self.ctx.ai_request_id,
-                    ai_tool_call_id: &tool.ai_tool_call_id,
-                    tool_name: &tool.tool_name,
-                    tool_input: &trimmed,
-                    sequence_number: seq,
-                })
-                .await
-            {
-                tracing::warn!(error = %e, seq, "tool_call insert failed");
-            }
-        }
+        self.persist_tool_calls(&tool_calls).await;
 
         let (body_json, excerpt, truncated, bytes) = slice_payload(response_body);
         if let Err(e) = self
@@ -257,6 +241,26 @@ impl GatewayAudit {
         Ok(())
     }
 
+    async fn persist_tool_calls(&self, tool_calls: &[CapturedToolUse]) {
+        for (idx, tool) in tool_calls.iter().enumerate() {
+            let seq = idx as i32 + 1;
+            let trimmed = truncate_for_tool_input(&tool.tool_input);
+            if let Err(e) = self
+                .requests
+                .insert_tool_call(InsertToolCallParams {
+                    request_id: &self.ctx.ai_request_id,
+                    ai_tool_call_id: &tool.ai_tool_call_id,
+                    tool_name: &tool.tool_name,
+                    tool_input: &trimmed,
+                    sequence_number: seq,
+                })
+                .await
+            {
+                tracing::warn!(error = %e, seq, "tool_call insert failed");
+            }
+        }
+    }
+
     pub async fn fail(&self, error: &str) -> Result<()> {
         if let Err(e) = self
             .requests
@@ -295,57 +299,6 @@ fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bool, i32) {
         let tail = String::from_utf8_lossy(&bytes[tail_start..]).to_string();
         let excerpt = format!("{head}\n...<truncated {} bytes>...\n{tail}", len - head_len);
         (None, Some(excerpt), true, len_i32)
-    }
-}
-
-fn flatten_system_prompt(system: &Value) -> Option<String> {
-    match system {
-        Value::String(s) if !s.is_empty() => Some(s.clone()),
-        Value::Array(arr) => {
-            let joined = arr
-                .iter()
-                .filter_map(|block| block.get("text").and_then(Value::as_str))
-                .collect::<Vec<_>>()
-                .join("\n");
-            if joined.is_empty() { None } else { Some(joined) }
-        },
-        _ => None,
-    }
-}
-
-fn flatten_message_content(content: &Value) -> String {
-    match content {
-        Value::String(s) => s.clone(),
-        Value::Array(blocks) => {
-            let mut out = String::new();
-            for block in blocks {
-                let kind = block.get("type").and_then(Value::as_str).unwrap_or("");
-                if kind == "text" {
-                    if let Some(text) = block.get("text").and_then(Value::as_str) {
-                        if !out.is_empty() {
-                            out.push('\n');
-                        }
-                        out.push_str(text);
-                    }
-                } else {
-                    if !out.is_empty() {
-                        out.push('\n');
-                    }
-                    match serde_json::to_string(block) {
-                        Ok(s) => out.push_str(&s),
-                        Err(e) => tracing::warn!(error = %e, "flatten: block serialize failed"),
-                    }
-                }
-            }
-            out
-        },
-        _ => match serde_json::to_string(content) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::warn!(error = %e, "flatten: content serialize failed");
-                String::new()
-            },
-        },
     }
 }
 

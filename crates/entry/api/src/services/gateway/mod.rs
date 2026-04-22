@@ -1,5 +1,6 @@
 pub mod audit;
 pub mod converter;
+pub mod flatten;
 pub mod models;
 pub mod parse;
 pub mod policy;

@@ -61,20 +61,7 @@ impl GatewayUpstream for AnthropicCompatibleUpstream {
         let body_to_send: Bytes = if upstream_model == ctx.request.model {
             ctx.raw_body
         } else {
-            match serde_json::from_slice::<serde_json::Value>(&ctx.raw_body) {
-                Ok(mut v) => {
-                    if let Some(obj) = v.as_object_mut() {
-                        obj.insert(
-                            "model".to_string(),
-                            serde_json::Value::String(upstream_model.to_string()),
-                        );
-                    }
-                    Bytes::from(serde_json::to_vec(&v).map_err(|e| {
-                        anyhow!("Failed to re-serialize request body with upstream model: {e}")
-                    })?)
-                },
-                Err(_) => ctx.raw_body,
-            }
+            super::flatten::rewrite_request_model(ctx.raw_body, upstream_model)?
         };
 
         let mut req = client
@@ -119,13 +106,7 @@ impl GatewayUpstream for AnthropicCompatibleUpstream {
             .await
             .map_err(|e| anyhow!("Failed to read Anthropic response: {e}"))?;
 
-        let served_model = serde_json::from_slice::<serde_json::Value>(&response_bytes)
-            .ok()
-            .and_then(|v| {
-                v.get("model")
-                    .and_then(|m| m.as_str())
-                    .map(ToString::to_string)
-            });
+        let served_model = super::flatten::parse_served_model(&response_bytes);
 
         Ok(UpstreamOutcome::Buffered {
             status,
