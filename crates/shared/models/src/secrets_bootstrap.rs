@@ -125,6 +125,14 @@ impl SecretsBootstrap {
                 .ok()
                 .filter(|s| !s.is_empty()),
             github: std::env::var("GITHUB_TOKEN").ok().filter(|s| !s.is_empty()),
+            moonshot: std::env::var("MOONSHOT_API_KEY")
+                .ok()
+                .or_else(|| std::env::var("KIMI_API_KEY").ok())
+                .filter(|s| !s.is_empty()),
+            qwen: std::env::var("QWEN_API_KEY")
+                .ok()
+                .or_else(|| std::env::var("DASHSCOPE_API_KEY").ok())
+                .filter(|s| !s.is_empty()),
             custom,
         };
 

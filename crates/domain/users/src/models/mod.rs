@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{ApiKeyId, SessionId, UserId};
 
 pub use systemprompt_models::auth::{UserRole, UserStatus};
 
@@ -137,6 +137,41 @@ pub struct UserExport {
     pub is_scanner: bool,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserApiKey {
+    #[sqlx(try_from = "String")]
+    pub id: ApiKeyId,
+    #[sqlx(try_from = "String")]
+    pub user_id: UserId,
+    pub name: String,
+    pub key_prefix: String,
+    pub key_hash: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub last_used_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub revoked_at: Option<DateTime<Utc>>,
+}
+
+impl UserApiKey {
+    pub fn is_active(&self, now: DateTime<Utc>) -> bool {
+        if self.revoked_at.is_some() {
+            return false;
+        }
+        if let Some(expires_at) = self.expires_at {
+            if now >= expires_at {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NewApiKey {
+    pub record: UserApiKey,
+    pub secret: String,
 }
 
 impl From<User> for UserExport {

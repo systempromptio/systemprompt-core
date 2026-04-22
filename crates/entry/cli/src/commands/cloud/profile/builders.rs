@@ -114,6 +114,7 @@ impl LocalProfileBuilder {
                 source: SecretsSource::File,
             }),
             extensions: ExtensionsConfig::default(),
+            gateway: None,
         }
     }
 }
@@ -225,6 +226,7 @@ impl CloudProfileBuilder {
                 source: SecretsSource::Env,
             }),
             extensions: ExtensionsConfig::default(),
+            gateway: None,
         }
     }
 }

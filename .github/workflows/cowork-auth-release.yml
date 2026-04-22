@@ -1,0 +1,50 @@
+name: cowork-auth release
+
+on:
+  push:
+    tags:
+      - 'cowork-auth-v*'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-13
+            target: x86_64-apple-darwin
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --manifest-path crates/helpers/cowork-auth/Cargo.toml --release --target ${{ matrix.target }}
+
+      - name: Stage artifact (unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/sp-cowork-auth dist/sp-cowork-auth-${{ matrix.target }}
+          shasum -a 256 dist/sp-cowork-auth-${{ matrix.target }} > dist/sp-cowork-auth-${{ matrix.target }}.sha256
+
+      - name: Stage artifact (windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir dist
+          copy target\${{ matrix.target }}\release\sp-cowork-auth.exe dist\sp-cowork-auth-${{ matrix.target }}.exe
+          certutil -hashfile dist\sp-cowork-auth-${{ matrix.target }}.exe SHA256 > dist\sp-cowork-auth-${{ matrix.target }}.exe.sha256
+        shell: cmd
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          draft: true
+          fail_on_unmatched_files: true

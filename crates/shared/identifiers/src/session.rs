@@ -20,6 +20,7 @@ pub enum SessionSource {
     Cli,
     Oauth,
     Mcp,
+    Cowork,
     #[default]
     Unknown,
 }
@@ -32,6 +33,7 @@ impl SessionSource {
             Self::Cli => "cli",
             Self::Oauth => "oauth",
             Self::Mcp => "mcp",
+            Self::Cowork => "cowork",
             Self::Unknown => "unknown",
         }
     }
@@ -40,6 +42,7 @@ impl SessionSource {
         match client_id {
             "sp_web" => Self::Web,
             "sp_cli" => Self::Cli,
+            "sp_cowork" => Self::Cowork,
             _ => Self::Unknown,
         }
     }
@@ -61,6 +64,7 @@ impl std::str::FromStr for SessionSource {
             "cli" => Self::Cli,
             "oauth" => Self::Oauth,
             "mcp" => Self::Mcp,
+            "cowork" => Self::Cowork,
             _ => Self::Unknown,
         })
     }

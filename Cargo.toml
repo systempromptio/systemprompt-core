@@ -41,8 +41,10 @@ members = [
 # Test crates are excluded from the workspace so they don't compile
 # when systemprompt-core is used as a git dependency.
 # Run tests with: cargo test --manifest-path crates/tests/Cargo.toml
+# Helpers are standalone binaries with their own release cadence.
 exclude = [
     "crates/tests",
+    "crates/helpers/cowork-auth",
 ]
 resolver = "2"
 

@@ -39,6 +39,7 @@ impl Profile {
             cloud: None,
             secrets: None,
             extensions: ExtensionsConfig::default(),
+            gateway: None,
         })
     }
 }

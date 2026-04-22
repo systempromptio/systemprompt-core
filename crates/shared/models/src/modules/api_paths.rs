@@ -4,6 +4,8 @@
 pub struct ApiPaths;
 
 impl ApiPaths {
+    pub const GATEWAY_BASE: &'static str = "/v1";
+
     pub const API_BASE: &'static str = "/api";
     pub const API_V1: &'static str = "/api/v1";
     pub const CORE_BASE: &'static str = "/api/v1/core";

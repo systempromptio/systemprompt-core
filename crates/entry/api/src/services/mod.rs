@@ -1,3 +1,4 @@
+pub mod gateway;
 pub mod health;
 pub mod middleware;
 pub mod proxy;

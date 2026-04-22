@@ -195,6 +195,10 @@ pub fn configure_routes(
             .with_auth_middleware(user_middleware.clone()),
     );
 
+    if let Some(gateway) = crate::routes::gateway::gateway_router(ctx) {
+        router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
+    }
+
     router = mount_extension_routes(router, ctx, &user_middleware, events)?;
 
     let paths = match AppPaths::get() {

@@ -1,4 +1,5 @@
 pub mod cimd;
+pub mod cowork;
 pub mod generation;
 pub mod http;
 pub mod jwt;
@@ -8,6 +9,7 @@ pub mod templating;
 pub mod validation;
 pub mod webauthn;
 
+pub use cowork::{CoworkAuthResult, issue_cowork_access, issue_cowork_access_with};
 pub use http::is_browser_request;
 pub use jwt::{AuthService, TokenValidator, extract_bearer_token, extract_cookie_token};
 pub use session::{

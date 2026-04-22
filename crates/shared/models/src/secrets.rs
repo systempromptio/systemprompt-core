@@ -38,6 +38,12 @@ pub struct Secrets {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<String>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub moonshot: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qwen: Option<String>,
+
     #[serde(default, flatten)]
     pub custom: HashMap<String, String>,
 }
@@ -80,7 +86,11 @@ impl Secrets {
     }
 
     pub const fn has_ai_provider(&self) -> bool {
-        self.gemini.is_some() || self.anthropic.is_some() || self.openai.is_some()
+        self.gemini.is_some()
+            || self.anthropic.is_some()
+            || self.openai.is_some()
+            || self.moonshot.is_some()
+            || self.qwen.is_some()
     }
 
     pub fn get(&self, key: &str) -> Option<&String> {
@@ -99,6 +109,8 @@ impl Secrets {
             "anthropic" | "ANTHROPIC_API_KEY" => self.anthropic.as_ref(),
             "openai" | "OPENAI_API_KEY" => self.openai.as_ref(),
             "github" | "GITHUB_TOKEN" => self.github.as_ref(),
+            "moonshot" | "MOONSHOT_API_KEY" | "kimi" | "KIMI_API_KEY" => self.moonshot.as_ref(),
+            "qwen" | "QWEN_API_KEY" | "dashscope" | "DASHSCOPE_API_KEY" => self.qwen.as_ref(),
             other => self.custom.get(other).or_else(|| {
                 let alternate = if other.chars().any(char::is_uppercase) {
                     other.to_lowercase()
@@ -116,6 +128,8 @@ impl Secrets {
             self.anthropic.as_ref().map(|_| "anthropic"),
             self.openai.as_ref().map(|_| "openai"),
             self.github.as_ref().map(|_| "github"),
+            self.moonshot.as_ref().map(|_| "moonshot"),
+            self.qwen.as_ref().map(|_| "qwen"),
         ]
         .into_iter()
         .flatten()

@@ -1,0 +1,35 @@
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthRequest {
+    pub device_cert_fingerprint: String,
+    pub user_assertion: String,
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthResponse {
+    pub token: String,
+    pub ttl: u64,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HelperOutput {
+    pub token: String,
+    pub ttl: u64,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
+}
+
+impl From<AuthResponse> for HelperOutput {
+    fn from(r: AuthResponse) -> Self {
+        Self {
+            token: r.token,
+            ttl: r.ttl,
+            headers: r.headers,
+        }
+    }
+}

@@ -119,6 +119,7 @@ pub fn build(
             source: SecretsSource::File,
         }),
         extensions: ExtensionsConfig::default(),
+        gateway: None,
     };
 
     validate_profile(&profile)?;

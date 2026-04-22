@@ -1,5 +1,95 @@
 # Changelog
 
+## [0.3.0] - 2026-04-22
+
+### Added
+
+- **LLM Gateway — `/v1/messages` inference routing.** Organisations using Claude for Work (formerly Claude Cowork) can now set `api_external_url` in their fleet MDM configuration to `https://systemprompt.io` and have every Claude Desktop inference request flow through the gateway. The gateway:
+  - Exposes `POST /v1/messages` at the Anthropic wire format — fully compatible with the Claude API SDK, Claude Desktop, and any Anthropic-SDK client.
+  - Authenticates with a systemprompt JWT carried in the `x-api-key` header (falls back to `Authorization: Bearer`). No additional API key is issued; the organisation's existing user JWTs serve as the credential.
+  - Routes requests to any configured upstream provider based on `model_pattern` rules in the profile YAML. Supported provider types: `anthropic`, `openai` (OpenAI-compatible), `moonshot` (Kimi), `qwen`, `gemini` (stub — not yet dispatched).
+  - **Anthropic upstream**: transparent byte proxy. Raw request bytes forwarded verbatim to the upstream endpoint with the upstream API key substituted; the response stream is piped back unmodified. Preserves extended thinking blocks, cache-control headers, and all Anthropic-specific SSE events exactly.
+  - **OpenAI-compatible upstream**: converts Anthropic request format → OpenAI `/v1/chat/completions` format, proxies to the upstream, converts the response back to Anthropic format. For streaming, maps OpenAI SSE delta events to Anthropic `message_start` / `content_block_start` / `content_block_delta` / `message_delta` / `message_stop` SSE frames.
+  - **API key resolution**: upstream API keys are resolved from the existing secrets file by secret name (`api_key_secret` in the route config). No new credential storage mechanism.
+  - **Conditional mount**: the `/v1` router is only registered when `gateway.enabled: true` in the active profile — zero overhead for deployments that don't use the gateway.
+
+- **Gateway profile configuration schema.** New `gateway` block in profile YAML (all fields optional; block absent = gateway disabled):
+
+  ```yaml
+  gateway:
+    enabled: true
+    routes:
+      - model_pattern: "claude-*"
+        provider: anthropic
+        endpoint: "https://api.anthropic.com/v1"
+        api_key_secret: "anthropic_api_key"
+      - model_pattern: "moonshot-*"
+        provider: moonshot
+        endpoint: "https://api.moonshot.cn/v1"
+        api_key_secret: "kimi_api_key"
+        upstream_model: "moonshot-v1-8k"   # optional: override model name sent upstream
+      - model_pattern: "qwen-*"
+        provider: qwen
+        endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        api_key_secret: "qwen_api_key"
+      - model_pattern: "*"                  # fallback route
+        provider: anthropic
+        endpoint: "https://api.anthropic.com/v1"
+        api_key_secret: "anthropic_api_key"
+  ```
+
+  Routes are evaluated in order; first `model_pattern` match wins. Patterns support `*` wildcard prefix/suffix matching. `extra_headers` map is available per route for provider-specific requirements.
+
+- **`GatewayProvider::is_openai_compatible()`** — `const fn` on the provider enum; returns `true` for `OpenAI`, `Moonshot`, `Qwen`. Used internally to select the conversion path.
+
+- **`GatewayRoute::find_route(model)`** — resolves the first matching route for a given model name from a `GatewayConfig`. Returns `None` if no route matches (handler returns 404).
+
+- **`GatewayRoute::effective_upstream_model(model)`** — returns `upstream_model` if set, otherwise echoes the client-provided model name. Enables transparent model aliasing (e.g. client requests `moonshot-v1-8k`; gateway can remap to a different upstream model name without the client knowing).
+
+- **`JwtContextExtractor::extract_for_gateway(jwt_token: &JwtToken)`** — new method on the JWT middleware extractor. Accepts a typed `JwtToken` identifier (not a raw `&str`), validates it, and returns a `RequestContext`. Used by the gateway handler to validate the `x-api-key` credential without relying on the standard `Authorization: Bearer` middleware layer.
+
+- **`ApiPaths::GATEWAY_BASE`** constant — `/v1` path prefix for the gateway router.
+
+- **Cowork credential-helper auth path.** Claude for Work clients configure a `Credential helper script` that prints a bearer token on stdout; core now ships the helper binary plus the matching gateway endpoints that exchange a lower-privilege credential for a short-lived JWT carrying canonical identity headers.
+
+  Gateway endpoints (mounted under `/v1/gateway/auth/cowork/` when `gateway.enabled: true`):
+
+  - `POST /pat` — `Authorization: Bearer <pat>` → verifies the PAT via `systemprompt_users::ApiKeyService::verify`, loads the user via `systemprompt_oauth::repository::OAuthRepository::get_authenticated_user`, returns `{token, ttl, headers}` with a fresh JWT and the canonical header map.
+  - `POST /session` — stub returning `501` (dashboard-cookie exchange not yet wired).
+  - `POST /mtls` — stub returning `501` (device-cert exchange not yet wired).
+  - `GET /capabilities` — returns `{"modes":["pat"]}`; probes advertise which exchange modes the deployment accepts.
+
+  The JWT-assembly + header map live in `systemprompt_oauth::services::cowork` (`issue_cowork_access`, `issue_cowork_access_with`, `CoworkAuthResult`) so the route handler in `entry/api` stays thin — it only extracts the bearer, verifies via `ApiKeyService`, and calls the oauth-domain service. Headers returned in the response body use core's canonical constants from `systemprompt_identifiers::headers::*` (`x-user-id`, `x-session-id`, `x-trace-id`, `x-client-id`, `x-tenant-id`, `x-policy-version`, `x-call-source`) so Cowork merges them into every subsequent `/v1/messages` call and the gateway middleware reads real identity on every request.
+
+- **`sp-cowork-auth` credential-helper binary.** New standalone crate at `crates/helpers/cowork-auth/` (excluded from the workspace so it does not compile during `cargo build --workspace` and does not land in the `systemprompt` crates.io package). Dependency footprint is deliberately minimal (`ureq` + `rustls` + `serde` + `toml`) — no `tokio`, `sqlx`, or `axum` — producing a ~2.3MB stripped binary.
+
+  - **Progressive capability ladder**: probes credential providers in descending strength (mTLS → dashboard session → PAT). First provider that returns a token wins; absent providers return `NotConfigured` and the chain falls through. No user-facing "pick a mode" step.
+  - **Providers** (`src/providers/{mtls,session,pat}.rs`) share a single `AuthProvider` trait returning `Result<HelperOutput, AuthError>` where `AuthError::NotConfigured` silently advances the chain.
+  - **Config**: TOML at `~/.config/systemprompt/cowork-auth.toml` (or `$SP_COWORK_CONFIG`). All sections optional — absent sections mean the provider is skipped. Dev overrides: `$SP_COWORK_GATEWAY_URL`, `$SP_COWORK_PAT`, `$SP_COWORK_DEVICE_CERT`, `$SP_COWORK_USER_ASSERTION`.
+  - **Cache**: signed JWT + expiry written to the OS cache dir with mode `0600` on unix. Cached token is emitted directly if valid; only on cache miss does the probe chain run.
+  - **Stdout contract**: exactly one JSON object matching `{token, ttl, headers}`. All diagnostics go to stderr. Exit 0 on success, non-zero on failure.
+  - **Keystore stubs**: `macos.rs` / `windows.rs` return `Err("not yet implemented")`; `linux.rs` reads a file path from `$SP_COWORK_DEVICE_CERT` for dev/testing. Real `SecItemCopyMatching` / `CertFindCertificateInStore` integrations are scheduled for a follow-up tag.
+  - **Release cadence**: tagged `cowork-auth-v*`; `.github/workflows/cowork-auth-release.yml` builds binaries for `aarch64-apple-darwin`, `x86_64-apple-darwin`, and `x86_64-pc-windows-msvc`, attaches them to a GitHub Release with SHA256SUMS. Triggered only by the helper tag pattern; core's normal CI is untouched.
+  - **Build targets**: `just build-cowork-auth [target]` and `just build-cowork-auth-all`.
+
+- **`ClientId::cowork()`** constructor — returns `sp_cowork`, recognised as `ClientType::FirstParty` via the existing `sp_` prefix rule. Used by the Cowork JWT issuance path so every token issued to a Cowork session can be identified as first-party Cowork traffic in audit logs.
+
+- **`SessionSource::Cowork`** variant + `SessionSource::from_client_id("sp_cowork") → Cowork`. Used as the `x-call-source` header value on Cowork-issued tokens so downstream middleware and analytics can distinguish Cowork sessions from Web / CLI / API / OAuth / MCP sessions.
+
+- **`systemprompt_identifiers::PolicyVersion`** — new typed ID with `PolicyVersion::unversioned()` constructor. Exposed in the Cowork helper's header response as `x-policy-version` so a future policy-bundle-hash propagation feature plugs in without changing the wire contract.
+
+- **`systemprompt_identifiers::headers::TENANT_ID` / `POLICY_VERSION`** — new canonical header constants (`x-tenant-id`, `x-policy-version`) alongside the existing `USER_ID`, `SESSION_ID`, `TRACE_ID`, `CLIENT_ID` family. All Cowork-issued tokens carry the full set in the response body's `headers` map.
+
+### Changed
+
+- **Analytics: broader conversion events + UTM expansion.** `event_data` column on `analytics_events` changed to `JSONB` (was `TEXT`) to support structured payload inspection. Added `utm_content` and `utm_term` UTM parameter columns to complete the full UTM dimension set. Conversion event definitions broadened to cover a wider range of funnel actions (subscription starts, trial activations, feature adoptions).
+
+### Included from 0.2.5
+
+- Workspace-wide Rust-standards sweep (see [0.2.5] entry below for full detail): zero inline comments, zero `unwrap_or_default()`, annotated `serde_json::Value` protocol boundaries, regenerated SQLx offline cache.
+
+---
+
 ## [0.2.5] - 2026-04-20
 
 ### Changed

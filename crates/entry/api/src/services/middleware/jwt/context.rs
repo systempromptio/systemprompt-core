@@ -278,6 +278,39 @@ impl JwtContextExtractor {
         self.extract_standard(headers).await
     }
 
+    pub async fn extract_for_gateway(
+        &self,
+        jwt_token: &systemprompt_identifiers::JwtToken,
+    ) -> Result<RequestContext, ContextExtractionError> {
+        let jwt_context = self
+            .jwt_extractor
+            .extract_user_context(jwt_token.as_str())
+            .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
+
+        if jwt_context.session_id.as_str().is_empty() {
+            return Err(ContextExtractionError::MissingSessionId);
+        }
+        if jwt_context.user_id.as_str().is_empty() {
+            return Err(ContextExtractionError::MissingUserId);
+        }
+
+        self.validate_user_exists(&jwt_context, "gateway").await?;
+
+        let session_id = jwt_context.session_id.clone();
+        let user_id = jwt_context.user_id.clone();
+
+        Ok(Self::build_context(BuildContextParams {
+            jwt_context,
+            session_id,
+            user_id,
+            trace_id: TraceId::generate(),
+            context_id: ContextId::new(String::new()),
+            agent_name: AgentName::system(),
+            task_id: None,
+            auth_token: Some(jwt_token.as_str().to_string()),
+        }))
+    }
+
     async fn extract_from_request_impl(
         &self,
         request: Request<Body>,

@@ -3,6 +3,7 @@
 mod cloud;
 mod database;
 mod from_env;
+mod gateway;
 mod info;
 mod paths;
 mod rate_limits;
@@ -16,6 +17,7 @@ mod validation;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
+pub use gateway::{GatewayConfig, GatewayProvider, GatewayRoute};
 pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
@@ -119,6 +121,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub extensions: ExtensionsConfig,
+
+    #[serde(default)]
+    pub gateway: Option<GatewayConfig>,
 }
 
 impl Profile {

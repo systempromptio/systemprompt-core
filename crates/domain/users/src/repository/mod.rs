@@ -1,6 +1,8 @@
+mod api_key;
 mod banned_ip;
 mod user;
 
+pub use api_key::CreateApiKeyParams;
 pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };

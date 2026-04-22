@@ -57,6 +57,13 @@ impl Extension for UsersExtension {
                 "bot_analytics_views",
                 include_str!("../schema/bot_analytics_views.sql"),
             ),
+            SchemaDefinition::inline("user_api_keys", include_str!("../schema/user_api_keys.sql"))
+                .with_required_columns(vec![
+                    "id".into(),
+                    "user_id".into(),
+                    "key_prefix".into(),
+                    "key_hash".into(),
+                ]),
         ]
     }
 
