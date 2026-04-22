@@ -1,6 +1,6 @@
 use axum::{
     Extension, Json,
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, header::AUTHORIZATION},
     response::IntoResponse,
 };
 use base64::Engine;
@@ -11,10 +11,14 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use systemprompt_identifiers::headers as sp_headers;
+use systemprompt_identifiers::UserId;
 use systemprompt_mcp::services::RegistryManager;
+use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_models::{AppPaths, SecretsBootstrap};
 use systemprompt_runtime::AppContext;
+use systemprompt_users::UserService;
+
+use crate::services::middleware::jwt::JwtExtractor;
 
 #[derive(Serialize)]
 struct PluginFileEntry {
@@ -29,6 +33,45 @@ struct PluginEntry {
     version: String,
     sha256: String,
     files: Vec<PluginFileEntry>,
+}
+
+#[derive(Serialize)]
+struct SkillEntry {
+    id: String,
+    name: String,
+    description: String,
+    file_path: String,
+    tags: Vec<String>,
+    sha256: String,
+    instructions: String,
+}
+
+#[derive(Serialize)]
+struct AgentEntry {
+    id: String,
+    name: String,
+    display_name: String,
+    description: String,
+    version: String,
+    endpoint: String,
+    enabled: bool,
+    is_default: bool,
+    is_primary: bool,
+    provider: Option<String>,
+    model: Option<String>,
+    mcp_servers: Vec<String>,
+    skills: Vec<String>,
+    tags: Vec<String>,
+    card: serde_json::Value,
+}
+
+#[derive(Serialize)]
+struct UserSection {
+    id: String,
+    name: String,
+    email: String,
+    display_name: Option<String>,
+    roles: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -60,20 +103,59 @@ pub async fn pubkey() -> impl IntoResponse {
     }
 }
 
+pub async fn whoami(
+    Extension(ctx): Extension<AppContext>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let user_id = match resolve_user_id(&headers) {
+        Ok(id) => id,
+        Err((status, msg)) => {
+            return (status, Json(json!({ "error": msg }))).into_response();
+        },
+    };
+
+    let user = match load_user_section(&ctx, &user_id).await {
+        Ok(u) => u,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e })),
+            )
+                .into_response();
+        },
+    };
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "user": user,
+            "capabilities": ["plugins", "skills", "agents", "mcp", "user"],
+        })),
+    )
+        .into_response()
+}
+
 pub async fn manifest(
     Extension(ctx): Extension<AppContext>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let _ = ctx;
-    let user_id = headers
-        .get(sp_headers::USER_ID)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("anonymous")
-        .to_string();
-    let tenant_id = headers
-        .get(sp_headers::TENANT_ID)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
+    let user_id = match resolve_user_id(&headers) {
+        Ok(id) => id,
+        Err((status, msg)) => {
+            return (status, Json(json!({ "error": msg }))).into_response();
+        },
+    };
+
+    let user_section = match load_user_section(&ctx, &user_id).await {
+        Ok(u) => u,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e })),
+            )
+                .into_response();
+        },
+    };
 
     let plugins = match enumerate_plugins() {
         Ok(p) => p,
@@ -86,6 +168,8 @@ pub async fn manifest(
         },
     };
 
+    let skills = enumerate_skills(&ctx).await;
+
     let mcp_servers = match enumerate_mcp_servers() {
         Ok(s) => s,
         Err(e) => {
@@ -97,21 +181,26 @@ pub async fn manifest(
         },
     };
 
+    let agents = enumerate_agents(&ctx).await;
+
     let manifest_version = format!(
         "{}-{}",
         chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"),
-        &short_hash_json(&plugins, &mcp_servers)
+        &short_hash(&plugins, &mcp_servers, &skills, &agents)
     );
     let issued_at = chrono::Utc::now().to_rfc3339();
 
     let payload = json!({
         "manifest_version": manifest_version,
         "issued_at": issued_at,
-        "user_id": user_id,
-        "tenant_id": tenant_id,
+        "user_id": user_section.id,
+        "tenant_id": serde_json::Value::Null,
+        "user": user_section,
         "plugins": plugins,
+        "skills": skills,
+        "agents": agents,
         "managed_mcp_servers": mcp_servers,
-        "revocations": Vec::<String>::new(),
+        "revocations": revocations(),
     });
 
     let canonical = match serde_json::to_string(&payload) {
@@ -145,6 +234,57 @@ pub async fn manifest(
     }
 
     (StatusCode::OK, Json(response)).into_response()
+}
+
+fn resolve_user_id(headers: &HeaderMap) -> Result<UserId, (StatusCode, String)> {
+    let auth = headers
+        .get(AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "missing Authorization header".to_string(),
+            )
+        })?;
+
+    let token = auth.strip_prefix(BEARER_PREFIX).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Authorization must use Bearer scheme".to_string(),
+        )
+    })?;
+
+    let secret = SecretsBootstrap::jwt_secret().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("jwt secret unavailable: {e}"),
+        )
+    })?;
+    let extractor = JwtExtractor::new(&secret);
+    let ctx = extractor.extract_user_context(token.trim()).map_err(|e| {
+        (
+            StatusCode::UNAUTHORIZED,
+            format!("invalid bearer token: {e}"),
+        )
+    })?;
+    Ok(ctx.user_id)
+}
+
+async fn load_user_section(ctx: &AppContext, user_id: &UserId) -> Result<UserSection, String> {
+    let svc =
+        UserService::new(ctx.db_pool()).map_err(|e| format!("user service init failed: {e}"))?;
+    let user = svc
+        .find_by_id(user_id)
+        .await
+        .map_err(|e| format!("user lookup failed: {e}"))?
+        .ok_or_else(|| format!("user {} not found", user_id.as_str()))?;
+    Ok(UserSection {
+        id: user.id.as_str().to_string(),
+        name: user.name,
+        email: user.email,
+        display_name: user.display_name,
+        roles: user.roles,
+    })
 }
 
 fn signing_key() -> Result<&'static SigningKey, String> {
@@ -195,6 +335,71 @@ fn enumerate_plugins() -> Result<Vec<PluginEntry>, String> {
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(out)
+}
+
+async fn enumerate_skills(ctx: &AppContext) -> Vec<SkillEntry> {
+    let repo = match systemprompt_agent::repository::content::SkillRepository::new(ctx.db_pool()) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    let skills = match repo.list_enabled().await {
+        Ok(rs) => rs,
+        Err(_) => return Vec::new(),
+    };
+    let mut out: Vec<SkillEntry> = skills
+        .into_iter()
+        .map(|s| {
+            let mut h = Sha256::new();
+            h.update(s.id.as_str().as_bytes());
+            h.update(b"\0");
+            h.update(s.instructions.as_bytes());
+            let sha256 = hex_encode(&h.finalize());
+            SkillEntry {
+                id: s.id.as_str().to_string(),
+                name: s.name,
+                description: s.description,
+                file_path: s.file_path,
+                tags: s.tags,
+                sha256,
+                instructions: s.instructions,
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out
+}
+
+async fn enumerate_agents(ctx: &AppContext) -> Vec<AgentEntry> {
+    let repo = match systemprompt_agent::repository::content::AgentRepository::new(ctx.db_pool()) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    let agents = match repo.list_enabled().await {
+        Ok(rs) => rs,
+        Err(_) => return Vec::new(),
+    };
+    let mut out: Vec<AgentEntry> = agents
+        .into_iter()
+        .map(|a| AgentEntry {
+            id: a.id.as_str().to_string(),
+            name: a.name,
+            display_name: a.display_name,
+            description: a.description,
+            version: a.version,
+            endpoint: a.endpoint,
+            enabled: a.enabled,
+            is_default: a.is_default,
+            is_primary: a.is_primary,
+            provider: a.provider,
+            model: a.model,
+            mcp_servers: a.mcp_servers,
+            skills: a.skills,
+            tags: a.tags,
+            card: a.card_json,
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
 }
 
 const BLOCKED: &[&str] = &["config.yaml", "config.yml"];
@@ -286,13 +491,30 @@ fn enumerate_mcp_servers() -> Result<Vec<ManagedMcpServer>, String> {
     Ok(out)
 }
 
-fn short_hash_json<T: Serialize, U: Serialize>(a: &[T], b: &[U]) -> String {
+fn revocations() -> Vec<String> {
+    Vec::new()
+}
+
+fn short_hash(
+    plugins: &[PluginEntry],
+    mcp: &[ManagedMcpServer],
+    skills: &[SkillEntry],
+    agents: &[AgentEntry],
+) -> String {
     let mut h = Sha256::new();
-    if let Ok(s) = serde_json::to_string(a) {
+    if let Ok(s) = serde_json::to_string(plugins) {
         h.update(s.as_bytes());
     }
     h.update(b"|");
-    if let Ok(s) = serde_json::to_string(b) {
+    if let Ok(s) = serde_json::to_string(mcp) {
+        h.update(s.as_bytes());
+    }
+    h.update(b"|");
+    if let Ok(s) = serde_json::to_string(skills) {
+        h.update(s.as_bytes());
+    }
+    h.update(b"|");
+    if let Ok(s) = serde_json::to_string(agents) {
         h.update(s.as_bytes());
     }
     let digest = h.finalize();

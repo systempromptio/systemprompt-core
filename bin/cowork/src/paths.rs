@@ -4,6 +4,9 @@ pub const METADATA_DIR: &str = ".systemprompt-cowork";
 pub const VERSION_SENTINEL: &str = "version.json";
 pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
 pub const MANAGED_MCP_FRAGMENT: &str = "managed-mcp.json";
+pub const SKILLS_DIR: &str = "skills";
+pub const AGENTS_DIR: &str = "agents";
+pub const USER_FRAGMENT: &str = "user.json";
 pub const STAGING_DIR: &str = ".staging";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

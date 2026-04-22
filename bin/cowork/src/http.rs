@@ -69,6 +69,18 @@ impl GatewayClient {
         Ok(buf)
     }
 
+    pub fn fetch_whoami(&self, bearer: &str) -> Result<serde_json::Value, String> {
+        let url = self.url("/v1/cowork/whoami");
+        let resp = self
+            .agent
+            .get(&url)
+            .set("authorization", &format!("Bearer {bearer}"))
+            .call()
+            .map_err(|e| format!("whoami fetch failed: {e}"))?;
+        resp.into_json::<serde_json::Value>()
+            .map_err(|e| format!("malformed whoami response: {e}"))
+    }
+
     pub fn health(&self) -> Result<(), String> {
         let url = self.url("/health");
         self.agent

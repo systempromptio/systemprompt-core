@@ -9,10 +9,27 @@ pub struct SignedManifest {
     pub issued_at: String,
     pub user_id: String,
     pub tenant_id: Option<String>,
+    #[serde(default)]
+    pub user: Option<UserInfo>,
     pub plugins: Vec<PluginEntry>,
+    #[serde(default)]
+    pub skills: Vec<SkillEntry>,
+    #[serde(default)]
+    pub agents: Vec<AgentEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub revocations: Vec<String>,
     pub signature: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserInfo {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
+    #[serde(default)]
+    pub roles: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +45,42 @@ pub struct PluginFile {
     pub path: String,
     pub sha256: String,
     pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillEntry {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub file_path: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub sha256: String,
+    pub instructions: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentEntry {
+    pub id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub version: String,
+    pub endpoint: String,
+    pub enabled: bool,
+    pub is_default: bool,
+    pub is_primary: bool,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub mcp_servers: Vec<String>,
+    #[serde(default)]
+    pub skills: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub card: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,7 +141,10 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, String> {
         "issued_at": m.issued_at,
         "user_id": m.user_id,
         "tenant_id": m.tenant_id,
+        "user": m.user,
         "plugins": m.plugins,
+        "skills": m.skills,
+        "agents": m.agents,
         "managed_mcp_servers": m.managed_mcp_servers,
         "revocations": m.revocations,
     });
@@ -106,7 +162,10 @@ mod tests {
             issued_at: "2026-04-22T00:00:00Z".into(),
             user_id: "u1".into(),
             tenant_id: None,
+            user: None,
             plugins: vec![],
+            skills: vec![],
+            agents: vec![],
             managed_mcp_servers: vec![],
             revocations: vec![],
             signature: "SHOULD-NOT-APPEAR".into(),
@@ -114,5 +173,56 @@ mod tests {
         let payload = canonical_payload(&m).unwrap();
         assert!(!payload.contains("SHOULD-NOT-APPEAR"));
         assert!(payload.contains("v1"));
+    }
+
+    #[test]
+    fn canonical_payload_includes_user_skills_agents() {
+        let m = SignedManifest {
+            manifest_version: "v2".into(),
+            issued_at: "2026-04-22T00:00:00Z".into(),
+            user_id: "u1".into(),
+            tenant_id: None,
+            user: Some(UserInfo {
+                id: "u1".into(),
+                name: "alice".into(),
+                email: "a@e.com".into(),
+                display_name: Some("Alice".into()),
+                roles: vec!["admin".into()],
+            }),
+            plugins: vec![],
+            skills: vec![SkillEntry {
+                id: "s1".into(),
+                name: "Skill 1".into(),
+                description: "desc".into(),
+                file_path: "/skills/s1.md".into(),
+                tags: vec![],
+                sha256: "abc".into(),
+                instructions: "do the thing".into(),
+            }],
+            agents: vec![AgentEntry {
+                id: "a1".into(),
+                name: "agent1".into(),
+                display_name: "Agent 1".into(),
+                description: "d".into(),
+                version: "1.0".into(),
+                endpoint: "/api/agent1".into(),
+                enabled: true,
+                is_default: false,
+                is_primary: true,
+                provider: Some("anthropic".into()),
+                model: Some("claude".into()),
+                mcp_servers: vec!["github".into()],
+                skills: vec!["s1".into()],
+                tags: vec![],
+                card: serde_json::json!({}),
+            }],
+            managed_mcp_servers: vec![],
+            revocations: vec![],
+            signature: "x".into(),
+        };
+        let payload = canonical_payload(&m).unwrap();
+        assert!(payload.contains("alice"));
+        assert!(payload.contains("Skill 1"));
+        assert!(payload.contains("agent1"));
     }
 }

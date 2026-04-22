@@ -1,6 +1,8 @@
 use crate::config;
 use crate::http::GatewayClient;
-use crate::manifest::{ManagedMcpServer, PluginEntry, SignedManifest};
+use crate::manifest::{
+    AgentEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
+};
 use crate::output::diag;
 use crate::paths::{self, OrgPluginsLocation};
 use sha2::{Digest, Sha256};
@@ -105,14 +107,26 @@ fn run_once(allow_unsigned: bool) -> ExitCode {
                     "updated_plugins": report.updated,
                     "removed_plugins": report.removed,
                     "mcp_server_count": manifest.managed_mcp_servers.len(),
+                    "skill_count": manifest.skills.len(),
+                    "agent_count": manifest.agents.len(),
+                    "user": manifest.user.as_ref().map(|u| &u.email),
                 }))
                 .unwrap_or_default(),
             );
+            let identity = manifest
+                .user
+                .as_ref()
+                .map(|u| u.email.as_str())
+                .unwrap_or(manifest.user_id.as_str());
             println!(
-                "sync ok: {} installed, {} updated, {} removed ({} MCP servers, manifest {})",
+                "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} MCP — manifest {}",
+                identity,
+                manifest.plugins.len(),
                 report.installed.len(),
                 report.updated.len(),
                 report.removed.len(),
+                manifest.skills.len(),
+                manifest.agents.len(),
                 manifest.managed_mcp_servers.len(),
                 manifest.manifest_version,
             );
@@ -205,12 +219,120 @@ fn apply_manifest(
     let _ = fs::remove_dir_all(&staging_root);
 
     write_managed_mcp_fragment(&meta_dir, &manifest.managed_mcp_servers)?;
+    write_skills(&meta_dir, &manifest.skills)?;
+    write_agents(&meta_dir, &manifest.agents)?;
+    write_user(&meta_dir, manifest.user.as_ref())?;
 
     Ok(ApplyReport {
         installed,
         updated,
         removed,
     })
+}
+
+fn write_skills(meta_dir: &Path, skills: &[SkillEntry]) -> Result<(), String> {
+    let dir = meta_dir.join(paths::SKILLS_DIR);
+    if dir.exists() {
+        fs::remove_dir_all(&dir).map_err(|e| format!("clear skills dir: {e}"))?;
+    }
+    fs::create_dir_all(&dir).map_err(|e| format!("create skills dir: {e}"))?;
+    let index: Vec<serde_json::Value> = skills
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "id": s.id,
+                "name": s.name,
+                "description": s.description,
+                "file_path": s.file_path,
+                "tags": s.tags,
+                "sha256": s.sha256,
+            })
+        })
+        .collect();
+    let index_path = dir.join("index.json");
+    fs::write(
+        &index_path,
+        serde_json::to_vec_pretty(&index).unwrap_or_default(),
+    )
+    .map_err(|e| format!("write {}: {e}", index_path.display()))?;
+    for skill in skills {
+        if !safe_id_segment(&skill.id) {
+            return Err(format!("manifest contained unsafe skill id: {}", skill.id));
+        }
+        let skill_dir = dir.join(&skill.id);
+        fs::create_dir_all(&skill_dir).map_err(|e| format!("create {}: {e}", skill_dir.display()))?;
+        let meta = serde_json::json!({
+            "id": skill.id,
+            "name": skill.name,
+            "description": skill.description,
+            "file_path": skill.file_path,
+            "tags": skill.tags,
+            "sha256": skill.sha256,
+        });
+        fs::write(
+            skill_dir.join("metadata.json"),
+            serde_json::to_vec_pretty(&meta).unwrap_or_default(),
+        )
+        .map_err(|e| format!("write skill metadata for {}: {e}", skill.id))?;
+        fs::write(skill_dir.join("SKILL.md"), &skill.instructions)
+            .map_err(|e| format!("write SKILL.md for {}: {e}", skill.id))?;
+    }
+    Ok(())
+}
+
+fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), String> {
+    let dir = meta_dir.join(paths::AGENTS_DIR);
+    if dir.exists() {
+        fs::remove_dir_all(&dir).map_err(|e| format!("clear agents dir: {e}"))?;
+    }
+    fs::create_dir_all(&dir).map_err(|e| format!("create agents dir: {e}"))?;
+    let index: Vec<serde_json::Value> = agents
+        .iter()
+        .map(|a| {
+            serde_json::json!({
+                "id": a.id,
+                "name": a.name,
+                "display_name": a.display_name,
+                "version": a.version,
+                "endpoint": a.endpoint,
+                "is_default": a.is_default,
+                "is_primary": a.is_primary,
+            })
+        })
+        .collect();
+    fs::write(
+        dir.join("index.json"),
+        serde_json::to_vec_pretty(&index).unwrap_or_default(),
+    )
+    .map_err(|e| format!("write agents index: {e}"))?;
+    for agent in agents {
+        if !safe_id_segment(&agent.name) {
+            return Err(format!("manifest contained unsafe agent name: {}", agent.name));
+        }
+        let path = dir.join(format!("{}.json", agent.name));
+        fs::write(&path, serde_json::to_vec_pretty(agent).unwrap_or_default())
+            .map_err(|e| format!("write {}: {e}", path.display()))?;
+    }
+    Ok(())
+}
+
+fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), String> {
+    let path = meta_dir.join(paths::USER_FRAGMENT);
+    let bytes = match user {
+        Some(u) => serde_json::to_vec_pretty(u)
+            .map_err(|e| format!("serialize user: {e}"))?,
+        None => b"null".to_vec(),
+    };
+    fs::write(&path, bytes).map_err(|e| format!("write {}: {e}", path.display()))
+}
+
+fn safe_id_segment(s: &str) -> bool {
+    !s.is_empty()
+        && !s.contains("..")
+        && !s.contains('/')
+        && !s.contains('\\')
+        && !s.starts_with('.')
+        && s.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
 }
 
 fn fetch_plugin_into_staging(

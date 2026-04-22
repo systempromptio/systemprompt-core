@@ -74,8 +74,14 @@ pub fn install(opts: InstallOptions) -> ExitCode {
         Scope::System => "system-wide",
         Scope::User => "per-user",
     });
-    println!("  metadata:    {}", paths::metadata_dir(&location.path).display());
+    let meta = paths::metadata_dir(&location.path);
+    println!("  metadata:    {}", meta.display());
+    println!("    user.json:    {}", meta.join(paths::USER_FRAGMENT).display());
+    println!("    skills/:      {}", meta.join(paths::SKILLS_DIR).display());
+    println!("    agents/:      {}", meta.join(paths::AGENTS_DIR).display());
+    println!("    managed-mcp:  {}", meta.join(paths::MANAGED_MCP_FRAGMENT).display());
     println!("  binary:      {}", binary.display());
+    println!("  Run `systemprompt-cowork sync` to populate user identity, skills, agents, and MCP servers.");
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
     let gateway_for_mdm = opts
