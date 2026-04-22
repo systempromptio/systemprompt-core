@@ -27,7 +27,11 @@ pub fn extract_from_anthropic_value(value: &Value) -> (CapturedUsage, Vec<Captur
     if let Some(content) = value.get("content").and_then(Value::as_array) {
         for block in content {
             if block.get("type").and_then(Value::as_str) == Some("tool_use") {
-                let id = block.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+                let id = block
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string();
                 let name = block
                     .get("name")
                     .and_then(Value::as_str)

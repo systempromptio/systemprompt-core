@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0] - 2026-04-22
+
+### Changed
+- `AiQuotaBucketRepository::increment` now takes `IncrementParams` struct (groups `tenant_id`, `user_id`, `window_seconds`, `window_start`, `delta`)
+- `AiRequestPayloadRepository::upsert_request` and `upsert_response` now take `UpsertPayloadParams` struct (groups `body`, `excerpt`, `truncated`, `bytes`)
+- New public types: `IncrementParams`, `UpsertPayloadParams` exported from crate root
+
 ## [0.1.3] - 2026-03-20
 
 ### Added

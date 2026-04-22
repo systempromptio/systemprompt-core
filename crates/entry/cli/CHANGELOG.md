@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] - 2026-04-22
+
+### Changed
+- Formatting cleanup in `admin cowork` commands
+- Updated SQLx offline query cache
+
 ## [0.2.4] - 2026-04-20
 
 ### Fixed

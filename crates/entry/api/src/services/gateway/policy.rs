@@ -44,10 +44,9 @@ impl GatewayPolicySpec {
     }
 
     pub fn model_allowed(&self, model: &str) -> bool {
-        match &self.allowed_models {
-            None => true,
-            Some(list) => list.iter().any(|m| m == model),
-        }
+        self.allowed_models
+            .as_deref()
+            .is_none_or(|list| list.iter().any(|m| m == model))
     }
 }
 
@@ -83,7 +82,9 @@ impl PolicyResolver {
     }
 
     pub async fn resolve(&self, tenant_id: Option<&TenantId>) -> GatewayPolicySpec {
-        let key = tenant_id.map(|t| t.as_str().to_string()).unwrap_or_default();
+        let key = tenant_id
+            .map(|t| t.as_str().to_string())
+            .unwrap_or_default();
 
         if let Ok(cache) = self.cache.read() {
             if let Some(entry) = cache.get(&key) {

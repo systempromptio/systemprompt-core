@@ -15,6 +15,7 @@ use crate::services::gateway::audit::GatewayRequestContext;
 use crate::services::gateway::models::AnthropicGatewayRequest;
 use crate::services::middleware::JwtContextExtractor;
 
+#[allow(clippy::struct_field_names)]
 struct AuthedPrincipal {
     user_id: UserId,
     tenant_id: Option<TenantId>,
@@ -92,10 +93,7 @@ async fn handle_inner(
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
-                format!(
-                    "No gateway route matches model '{}'",
-                    gateway_request.model
-                ),
+                format!("No gateway route matches model '{}'", gateway_request.model),
             )
         })?;
 
@@ -122,7 +120,8 @@ async fn handle_inner(
     {
         Ok(resp) => Ok(resp),
         Err(e) => {
-            if let Some(denied) = e.downcast_ref::<crate::services::gateway::service::PolicyDenied>()
+            if let Some(denied) =
+                e.downcast_ref::<crate::services::gateway::service::PolicyDenied>()
             {
                 return Err((StatusCode::FORBIDDEN, denied.to_string()));
             }
@@ -187,7 +186,7 @@ async fn authenticate(
         } else {
             Some(rc.request.session_id.clone())
         },
-        trace_id: Some(rc.execution.trace_id.clone()),
+        trace_id: Some(rc.execution.trace_id),
     })
 }
 

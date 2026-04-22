@@ -2,8 +2,8 @@ pub mod auth;
 pub mod cowork;
 pub mod messages;
 
-use axum::{Extension, Router};
 use axum::routing::{get, post};
+use axum::{Extension, Router};
 use std::sync::Arc;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_runtime::AppContext;

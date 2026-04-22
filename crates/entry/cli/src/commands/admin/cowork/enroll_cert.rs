@@ -16,7 +16,11 @@ pub struct EnrollCertArgs {
     #[arg(long, help = "SHA-256 fingerprint of the device certificate (hex)")]
     pub fingerprint: String,
 
-    #[arg(long, help = "Human-readable label for the cert", default_value = "device")]
+    #[arg(
+        long,
+        help = "Human-readable label for the cert",
+        default_value = "device"
+    )]
     pub label: String,
 }
 

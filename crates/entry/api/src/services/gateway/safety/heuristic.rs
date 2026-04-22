@@ -139,12 +139,7 @@ fn detect_email(text: &str) -> bool {
                 .iter()
                 .take_while(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-'))
                 .count();
-            if before >= 2
-                && after >= 4
-                && bytes[i + 1..i + 1 + after]
-                    .iter()
-                    .any(|b| *b == b'.')
-            {
+            if before >= 2 && after >= 4 && bytes[i + 1..i + 1 + after].contains(&b'.') {
                 return true;
             }
         }
@@ -154,7 +149,7 @@ fn detect_email(text: &str) -> bool {
 }
 
 fn detect_credit_card(text: &str) -> bool {
-    let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
+    let digits: String = text.chars().filter(char::is_ascii_digit).collect();
     if digits.len() < 13 {
         return false;
     }
@@ -164,7 +159,7 @@ fn detect_credit_card(text: &str) -> bool {
 fn luhn_16(window: &[u8]) -> bool {
     let mut sum = 0i32;
     for (i, b) in window.iter().rev().enumerate() {
-        let mut d = (b - b'0') as i32;
+        let mut d = i32::from(b - b'0');
         if i % 2 == 1 {
             d *= 2;
             if d > 9 {

@@ -1,3 +1,4 @@
+#![allow(clippy::clone_on_ref_ptr)]
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
@@ -5,21 +6,19 @@ use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
 use http::HeaderValue;
-use systemprompt_ai::repository::AiSafetyFindingRepository;
 use systemprompt_ai::InsertSafetyFinding;
+use systemprompt_ai::repository::AiSafetyFindingRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::profile::GatewayConfig;
 
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::models::AnthropicGatewayRequest;
-use super::parse;
 use super::policy::{GatewayPolicySpec, PolicyResolver};
-use super::quota;
 use super::registry::GatewayUpstreamRegistry;
 use super::safety::{HeuristicScanner, SafetyScanner};
-use super::stream_tap;
 use super::upstream::{UpstreamCtx, UpstreamOutcome, build_response};
+use super::{parse, quota, stream_tap};
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 
@@ -58,7 +57,7 @@ impl GatewayService {
         tracing::info!(
             ai_request_id = %ai_request_id,
             user_id = %ctx.user_id,
-            tenant_id = ctx.tenant_id.as_ref().map(|t| t.as_str()).unwrap_or("-"),
+            tenant_id = ctx.tenant_id.as_ref().map_or("-", |t| t.as_str()),
             model = %request.model,
             provider = %route.provider,
             upstream = %route.endpoint,
@@ -83,8 +82,7 @@ impl GatewayService {
         }
 
         let audit = Arc::new(
-            GatewayAudit::new(db, ctx.clone())
-                .map_err(|e| anyhow!("audit init failed: {e}"))?,
+            GatewayAudit::new(db, ctx.clone()).map_err(|e| anyhow!("audit init failed: {e}"))?,
         );
 
         if let Err(e) = audit.open(&raw_body).await {
@@ -169,9 +167,6 @@ async fn finalize(
         } => {
             let body_clone = body.clone();
             let audit_clone = Arc::clone(&audit);
-            let db_clone = db.clone();
-            let id_clone = ai_request_id.clone();
-            let policy_clone = policy.clone();
             tokio::spawn(async move {
                 if status.is_success() {
                     let (usage, tool_calls) = parse::extract_from_anthropic_response(&body_clone);
@@ -179,15 +174,17 @@ async fn finalize(
                         tracing::warn!(error = %e, "buffered audit complete failed");
                     }
                     quota::post_update_tokens(
-                        &db_clone,
-                        audit_clone.ctx.tenant_id.as_ref(),
-                        &audit_clone.ctx.user_id,
-                        &policy_clone.quota_windows,
-                        usage.input_tokens,
-                        usage.output_tokens,
+                        &db,
+                        quota::PostUpdateParams {
+                            tenant_id: audit_clone.ctx.tenant_id.as_ref(),
+                            user_id: &audit_clone.ctx.user_id,
+                            windows: &policy.quota_windows,
+                            input_tokens: usage.input_tokens,
+                            output_tokens: usage.output_tokens,
+                        },
                     )
                     .await;
-                    run_response_safety_scan(&db_clone, &id_clone, &body_clone).await;
+                    run_response_safety_scan(&db, &ai_request_id, &body_clone).await;
                 } else {
                     let err_msg = format!(
                         "upstream status {}: {}",

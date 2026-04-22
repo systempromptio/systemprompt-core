@@ -29,7 +29,10 @@ pub enum AdminCommands {
     #[command(subcommand, about = "Manage CLI session and profile switching")]
     Session(session::SessionCommands),
 
-    #[command(subcommand, about = "Cowork helper enrollment (device certs, exchange codes)")]
+    #[command(
+        subcommand,
+        about = "Cowork helper enrollment (device certs, exchange codes)"
+    )]
     Cowork(cowork::CoworkCommands),
 }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] - 2026-04-22
+
+### Changed
+- Formatting cleanup in `device_cert` repository
+
 ## [0.1.21] - 2026-04-02
 
 ### Added

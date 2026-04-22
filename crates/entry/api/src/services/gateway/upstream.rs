@@ -35,7 +35,7 @@ pub enum UpstreamOutcome {
 }
 
 impl UpstreamOutcome {
-    pub fn status(&self) -> http::StatusCode {
+    pub const fn status(&self) -> http::StatusCode {
         match self {
             Self::Buffered { status, .. } | Self::Streaming { status, .. } => *status,
         }
@@ -171,8 +171,8 @@ impl GatewayUpstream for OpenAiCompatibleUpstream {
         let anthropic_resp: AnthropicGatewayResponse =
             converter::from_openai_response(openai_resp, model);
 
-        let body_bytes = serde_json::to_vec(&anthropic_resp)
-            .map_err(|e| anyhow!("Serialization error: {e}"))?;
+        let body_bytes =
+            serde_json::to_vec(&anthropic_resp).map_err(|e| anyhow!("Serialization error: {e}"))?;
 
         Ok(UpstreamOutcome::Buffered {
             status: http::StatusCode::OK,

@@ -70,11 +70,7 @@ impl UserRepository {
         Ok(rows)
     }
 
-    pub async fn revoke_device_cert(
-        &self,
-        id: &DeviceCertId,
-        user_id: &UserId,
-    ) -> Result<bool> {
+    pub async fn revoke_device_cert(&self, id: &DeviceCertId, user_id: &UserId) -> Result<bool> {
         let result = sqlx::query!(
             r#"
             UPDATE user_device_certs

@@ -35,10 +35,7 @@ impl AiRequestPayloadRepository {
     pub async fn upsert_request(
         &self,
         ai_request_id: &AiRequestId,
-        body: Option<&Value>,
-        excerpt: Option<&str>,
-        truncated: bool,
-        bytes: Option<i32>,
+        params: UpsertPayloadParams<'_>,
     ) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
@@ -55,10 +52,10 @@ impl AiRequestPayloadRepository {
                 updated_at = CURRENT_TIMESTAMP
             "#,
             ai_request_id.as_str(),
-            body,
-            excerpt,
-            truncated,
-            bytes
+            params.body,
+            params.excerpt,
+            params.truncated,
+            params.bytes
         )
         .execute(self.write_pool.as_ref())
         .await?;
@@ -68,10 +65,7 @@ impl AiRequestPayloadRepository {
     pub async fn upsert_response(
         &self,
         ai_request_id: &AiRequestId,
-        body: Option<&Value>,
-        excerpt: Option<&str>,
-        truncated: bool,
-        bytes: Option<i32>,
+        params: UpsertPayloadParams<'_>,
     ) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
@@ -88,13 +82,21 @@ impl AiRequestPayloadRepository {
                 updated_at = CURRENT_TIMESTAMP
             "#,
             ai_request_id.as_str(),
-            body,
-            excerpt,
-            truncated,
-            bytes
+            params.body,
+            params.excerpt,
+            params.truncated,
+            params.bytes
         )
         .execute(self.write_pool.as_ref())
         .await?;
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct UpsertPayloadParams<'a> {
+    pub body: Option<&'a Value>,
+    pub excerpt: Option<&'a str>,
+    pub truncated: bool,
+    pub bytes: Option<i32>,
 }

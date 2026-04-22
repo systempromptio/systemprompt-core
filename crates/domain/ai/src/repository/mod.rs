@@ -5,7 +5,9 @@ pub mod ai_requests;
 pub mod ai_safety_findings;
 
 pub use ai_gateway_policies::{AiGatewayPolicyRepository, GatewayPolicyRow};
-pub use ai_quota_buckets::{AiQuotaBucketRepository, QuotaBucketDelta, QuotaBucketState};
-pub use ai_request_payloads::{AiRequestPayload, AiRequestPayloadRepository};
+pub use ai_quota_buckets::{
+    AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta, QuotaBucketState,
+};
+pub use ai_request_payloads::{AiRequestPayload, AiRequestPayloadRepository, UpsertPayloadParams};
 pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
 pub use ai_safety_findings::{AiSafetyFindingRepository, InsertSafetyFinding};

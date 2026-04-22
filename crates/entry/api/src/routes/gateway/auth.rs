@@ -85,10 +85,7 @@ pub async fn session(
     Json(body): Json<SessionExchangeBody>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
     if body.code.trim().is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "missing exchange code".into(),
-        ));
+        return Err((StatusCode::BAD_REQUEST, "missing exchange code".into()));
     }
 
     let result = exchange_cowork_session_code(ctx.db_pool(), body.code.trim())

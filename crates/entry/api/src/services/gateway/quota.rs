@@ -1,6 +1,8 @@
 use anyhow::Result;
 use chrono::{DateTime, TimeZone, Utc};
-use systemprompt_ai::repository::{AiQuotaBucketRepository, QuotaBucketDelta, QuotaBucketState};
+use systemprompt_ai::repository::{
+    AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta, QuotaBucketState,
+};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{TenantId, UserId};
 
@@ -25,24 +27,24 @@ pub async fn precheck_and_reserve(
     if windows.is_empty() {
         return Ok(None);
     }
-    let repo = AiQuotaBucketRepository::new(db)
-        .map_err(|e| anyhow::anyhow!("quota repo init: {e}"))?;
+    let repo =
+        AiQuotaBucketRepository::new(db).map_err(|e| anyhow::anyhow!("quota repo init: {e}"))?;
 
     let now = Utc::now();
     for window in windows {
         let window_start = align_window(now, window.window_seconds);
         let state = repo
-            .increment(
+            .increment(IncrementParams {
                 tenant_id,
                 user_id,
-                window.window_seconds,
+                window_seconds: window.window_seconds,
                 window_start,
-                QuotaBucketDelta {
+                delta: QuotaBucketDelta {
                     requests: 1,
                     input_tokens: 0,
                     output_tokens: 0,
                 },
-            )
+            })
             .await?;
 
         if let Some(max) = window.max_requests {
@@ -61,15 +63,17 @@ pub async fn precheck_and_reserve(
     Ok(None)
 }
 
-pub async fn post_update_tokens(
-    db: &DbPool,
-    tenant_id: Option<&TenantId>,
-    user_id: &UserId,
-    windows: &[QuotaWindow],
-    input_tokens: u32,
-    output_tokens: u32,
-) {
-    if windows.is_empty() {
+#[derive(Debug)]
+pub struct PostUpdateParams<'a> {
+    pub tenant_id: Option<&'a TenantId>,
+    pub user_id: &'a UserId,
+    pub windows: &'a [QuotaWindow],
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+}
+
+pub async fn post_update_tokens(db: &DbPool, params: PostUpdateParams<'_>) {
+    if params.windows.is_empty() {
         return;
     }
     let repo = match AiQuotaBucketRepository::new(db) {
@@ -80,20 +84,20 @@ pub async fn post_update_tokens(
         },
     };
     let now = Utc::now();
-    for window in windows {
+    for window in params.windows {
         let window_start = align_window(now, window.window_seconds);
         if let Err(e) = repo
-            .increment(
-                tenant_id,
-                user_id,
-                window.window_seconds,
+            .increment(IncrementParams {
+                tenant_id: params.tenant_id,
+                user_id: params.user_id,
+                window_seconds: window.window_seconds,
                 window_start,
-                QuotaBucketDelta {
+                delta: QuotaBucketDelta {
                     requests: 0,
-                    input_tokens: i64::from(input_tokens),
-                    output_tokens: i64::from(output_tokens),
+                    input_tokens: i64::from(params.input_tokens),
+                    output_tokens: i64::from(params.output_tokens),
                 },
-            )
+            })
             .await
         {
             tracing::warn!(error = %e, window_seconds = window.window_seconds, "quota post_update failed");

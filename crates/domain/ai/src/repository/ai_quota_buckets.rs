@@ -19,6 +19,15 @@ pub struct QuotaBucketDelta {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct IncrementParams<'a> {
+    pub tenant_id: Option<&'a TenantId>,
+    pub user_id: &'a UserId,
+    pub window_seconds: i32,
+    pub window_start: DateTime<Utc>,
+    pub delta: QuotaBucketDelta,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct QuotaBucketState {
     pub requests: i64,
     pub input_tokens: i64,
@@ -35,12 +44,15 @@ impl AiQuotaBucketRepository {
 
     pub async fn increment(
         &self,
-        tenant_id: Option<&TenantId>,
-        user_id: &UserId,
-        window_seconds: i32,
-        window_start: DateTime<Utc>,
-        delta: QuotaBucketDelta,
+        params: IncrementParams<'_>,
     ) -> Result<QuotaBucketState, RepositoryError> {
+        let IncrementParams {
+            tenant_id,
+            user_id,
+            window_seconds,
+            window_start,
+            delta,
+        } = params;
         let id = AiQuotaBucketId::generate();
         let row = sqlx::query!(
             r#"

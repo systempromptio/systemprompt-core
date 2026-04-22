@@ -18,8 +18,10 @@ pub fn signing_key() -> Result<&'static SigningKey, String> {
     hasher.update(secret.as_bytes());
     let seed: [u8; 32] = hasher.finalize().into();
     let key = SigningKey::from_bytes(&seed);
-    let _ = CELL.set(key.clone());
-    Ok(CELL.get().expect("just set"))
+    match CELL.set(key) {
+        Ok(()) => Ok(CELL.get().ok_or("key missing after set")?),
+        Err(_) => Ok(CELL.get().ok_or("key missing after concurrent set")?),
+    }
 }
 
 pub fn sign_payload(bytes: &[u8]) -> Result<String, String> {

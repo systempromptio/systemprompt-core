@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-04-22
+
+### Changed
+- Gateway service: `quota::post_update_tokens` now takes `PostUpdateParams` struct
+- Gateway service: reduced redundant clones in `finalize` by moving owned values directly into spawn tasks
+- Gateway quota, audit, safety, stream_tap, upstream: clippy and formatting cleanup
+- `manifest_signing::signing_key` handles concurrent initialization without `expect`
+
 ## [0.2.2] - 2026-04-17
 
 ### Fixed

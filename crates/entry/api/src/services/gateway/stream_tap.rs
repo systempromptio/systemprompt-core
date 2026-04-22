@@ -72,7 +72,10 @@ where
             },
             Poll::Ready(None) => {
                 let (usage, tools, body, error) = {
-                    let mut s = self.state.lock().expect("poisoned");
+                    let mut s = self
+                        .state
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
                     finalize_partials(&mut s);
                     (
                         CapturedUsage {
@@ -80,7 +83,7 @@ where
                             output_tokens: s.output_tokens,
                         },
                         std::mem::take(&mut s.tool_uses_done),
-                        Bytes::from(std::mem::take(&mut s.response_buffer).freeze()),
+                        std::mem::take(&mut s.response_buffer).freeze(),
                         s.error.take(),
                     )
                 };
@@ -89,10 +92,8 @@ where
                 tokio::spawn(async move {
                     if let Some(err) = error {
                         let _ = audit.fail(&err).await;
-                    } else {
-                        if let Err(e) = audit.complete(usage, tools, &body).await {
-                            tracing::warn!(error = %e, "stream audit complete failed");
-                        }
+                    } else if let Err(e) = audit.complete(usage, tools, &body).await {
+                        tracing::warn!(error = %e, "stream audit complete failed");
                     }
                 });
                 Poll::Ready(None)
@@ -132,10 +133,7 @@ fn handle_sse_event(state: &mut TapState, event: &Value) {
     };
     match kind {
         "message_start" => {
-            if let Some(usage) = event
-                .get("message")
-                .and_then(|m| m.get("usage"))
-            {
+            if let Some(usage) = event.get("message").and_then(|m| m.get("usage")) {
                 if let Some(v) = usage.get("input_tokens").and_then(Value::as_u64) {
                     state.input_tokens = v as u32;
                 }
@@ -158,8 +156,16 @@ fn handle_sse_event(state: &mut TapState, event: &Value) {
             let index = event.get("index").and_then(Value::as_i64).unwrap_or(-1);
             if let Some(block) = event.get("content_block") {
                 if block.get("type").and_then(Value::as_str) == Some("tool_use") {
-                    let id = block.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-                    let name = block.get("name").and_then(Value::as_str).unwrap_or("").to_string();
+                    let id = block
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
+                    let name = block
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
                     state.tool_uses_in_progress.push(PartialToolUse {
                         index,
                         id,
@@ -174,8 +180,10 @@ fn handle_sse_event(state: &mut TapState, event: &Value) {
             if let Some(delta) = event.get("delta") {
                 if delta.get("type").and_then(Value::as_str) == Some("input_json_delta") {
                     if let Some(partial) = delta.get("partial_json").and_then(Value::as_str) {
-                        if let Some(pt) =
-                            state.tool_uses_in_progress.iter_mut().find(|p| p.index == index)
+                        if let Some(pt) = state
+                            .tool_uses_in_progress
+                            .iter_mut()
+                            .find(|p| p.index == index)
                         {
                             pt.input_json.push_str(partial);
                         }
@@ -185,7 +193,10 @@ fn handle_sse_event(state: &mut TapState, event: &Value) {
         },
         "content_block_stop" => {
             let index = event.get("index").and_then(Value::as_i64).unwrap_or(-1);
-            if let Some(pos) = state.tool_uses_in_progress.iter().position(|p| p.index == index)
+            if let Some(pos) = state
+                .tool_uses_in_progress
+                .iter()
+                .position(|p| p.index == index)
             {
                 let done = state.tool_uses_in_progress.remove(pos);
                 state.tool_uses_done.push(CapturedToolUse {

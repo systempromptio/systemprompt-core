@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] - 2026-04-22
+
+### Fixed
+- `signing_key`: removes redundant clone and replaces `expect` with proper concurrent-init handling via `OnceLock::set` match
+
 ## [0.1.18] - 2026-03-27
 
 ### Added
