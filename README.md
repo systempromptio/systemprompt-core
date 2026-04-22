@@ -8,11 +8,9 @@
 
 # Run Claude for Work on your own infrastructure, with your own choice of inference.
 
-### `systemprompt-core` is the Rust library that compiles into a single ~50 MB binary. Install it, point your Claude-for-Work fleet's `api_external_url` at it, and every Claude Desktop request now flows through a `/v1/messages` gateway **you operate** — on your network, in your air-gap, under your audit table.
+`systemprompt-core` is the Rust library that compiles into a single ~50 MB binary. Install it, point your Claude-for-Work fleet's `api_external_url` at it, and every Claude Desktop request lands on a host **you operate** — on your network, in your air-gap, under your audit table. Pick the upstream per model pattern: Anthropic, OpenAI, Gemini, Moonshot (Kimi), Qwen, MiniMax, or a custom provider you register yourself via the `inventory` crate. One YAML block swaps it.
 
-### Pick the upstream per model pattern: Anthropic, OpenAI, Gemini, Moonshot (Kimi), Qwen, MiniMax, or a custom provider you register yourself via the `inventory` crate. One YAML block swaps it. Every tool call authenticated, scoped, secret-scanned, rate-limited, and audited.
-
-### Compile-time plugin model. Compile-time verified SQL. Zero-raw-String IDs. BSL-1.1 source-available; Apache 2.0 after four years.
+Every tool call authenticated, scoped, secret-scanned, rate-limited, and audited. Compile-time plugin model, compile-time verified SQL, zero-raw-String IDs. BSL-1.1 source-available; Apache 2.0 after four years.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/dark/int-benchmark.svg">
@@ -38,24 +36,6 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 
 - **Embed it** — `systemprompt = { version = "0.3.0", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
 - **Evaluate it running** — clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) for a turnkey demo. `just build && just setup-local <key> && just start` runs 40+ scripted demos against the live binary.
-
----
-
-## Contents
-
-- [What's new in v0.3.0](#whats-new-in-v030)
-- [Cowork — install the credential helper](#cowork--install-the-credential-helper)
-- [Capabilities](#capabilities)
-- [Quick Start](#quick-start)
-- [Infrastructure](#infrastructure)
-- [Integrations](#integrations)
-- [Architecture](#architecture)
-- [Extensions (technical)](#extensions-technical)
-- [Typed identifiers](#typed-identifiers)
-- [Database & repositories](#database--repositories)
-- [Facade crate & feature flags](#facade-crate--feature-flags)
-- [Performance](#performance)
-- [License](#license)
 
 ---
 
