@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod extraction;
 pub mod jwt;
+pub mod manifest_signing;
 pub mod services;
 pub mod session;
 

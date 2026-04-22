@@ -58,8 +58,6 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         )
         .route("/auth/cowork/capabilities", get(auth::capabilities))
         .route("/cowork/pubkey", get(cowork::pubkey))
-        .route("/cowork/manifest", get(cowork::manifest))
-        .route("/cowork/whoami", get(cowork::whoami))
         .layer(Extension(ctx.clone()));
 
     Some(router)
