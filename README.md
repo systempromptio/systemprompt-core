@@ -125,7 +125,10 @@ Full changelog: [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
-## Cowork — install the credential helper
+<details>
+<summary><strong>Cowork — install the credential helper</strong> — only if you're pointing Claude for Work at this binary</summary>
+
+<br>
 
 The `systemprompt-cowork` binary is Claude for Work's "Credential helper script". It exchanges a PAT (or, in a future release, a dashboard session or device certificate) for a short-lived JWT + canonical identity headers, then prints one JSON object to stdout that Claude Desktop merges into every `/v1/messages` request to the gateway.
 
@@ -214,6 +217,8 @@ systemprompt-cowork uninstall   # remove
 ```
 
 Mount locations: `/Library/Application Support/Claude/org-plugins/` (macOS), `C:\ProgramData\Claude\org-plugins\` (Windows), `${XDG_DATA_HOME:-$HOME/.local/share}/Claude/org-plugins/` (Linux).
+
+</details>
 
 ---
 
