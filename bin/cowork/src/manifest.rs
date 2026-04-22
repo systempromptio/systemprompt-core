@@ -80,7 +80,8 @@ pub struct AgentEntry {
     pub skills: Vec<String>,
     #[serde(default)]
     pub tags: Vec<String>,
-    pub card: serde_json::Value,
+    #[serde(default)]
+    pub system_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,7 +215,7 @@ mod tests {
                 mcp_servers: vec!["github".into()],
                 skills: vec!["s1".into()],
                 tags: vec![],
-                card: serde_json::json!({}),
+                system_prompt: None,
             }],
             managed_mcp_servers: vec![],
             revocations: vec![],
