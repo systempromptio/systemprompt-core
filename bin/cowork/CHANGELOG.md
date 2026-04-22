@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-04-22
+
+Breaking: signed-manifest wire format extended with `user`, `skills`, `agents`. AgentEntry replaces `card: object` with `system_prompt: string?`. 0.2.x clients cannot deserialise 0.3.x manifests.
+
+- `whoami` subcommand prints authenticated identity from gateway.
+- `sync` materialises `user.json`, `skills/<id>/{metadata.json, SKILL.md}`, `agents/<name>.json` under `.systemprompt-cowork/`.
+- `status` surfaces identity + skill/agent counts from on-disk fragments.
+- Manifest signing primitive moved to `systemprompt-security::manifest_signing` (no behaviour change; same SHA-256 derivation from JWT secret, same pubkey).
+- Per-user manifest assembly relocated from `systemprompt-core` gateway into the template admin extension (boundary fix — per-user tables live in the extension).
+
 ## 0.2.0 - 2026-04-22
 
 - Renamed crate to `systemprompt-cowork` (binary `systemprompt-cowork`, lib `systemprompt_cowork`).

@@ -99,7 +99,7 @@ The JWT-assembly + header map live in `systemprompt_oauth::services::cowork` (`i
 - **Cache**: signed JWT + expiry written to the OS cache dir with mode `0600` on unix. Cached token is emitted directly if valid; only on cache miss does the probe chain run.
 - **Stdout contract**: exactly one JSON object matching `{token, ttl, headers}` — Anthropic's `inferenceCredentialHelper` format. All diagnostics go to stderr. Exit 0 on success, non-zero on failure.
 - **Sync commands**: `install`, `sync`, `validate`, `uninstall` manage the Cowork `org-plugins/` mount (macOS `/Library/Application Support/Claude/org-plugins/`, Windows `C:\ProgramData\Claude\org-plugins\`, Linux `${XDG_DATA_HOME:-$HOME/.local/share}/Claude/org-plugins/`) — pulling signed plugin manifests and managed MCP allowlists from the gateway.
-- **Release cadence**: tagged `cowork-v*`; binaries published manually via `cargo-zigbuild` + `gh release create`. v0.2.0 at [releases/cowork-v0.2.0](https://github.com/systempromptio/systemprompt-core/releases/tag/cowork-v0.2.0) ships Linux x86_64 and Windows x86_64 (mingw). macOS builds require a Mac host (Apple's `Security` / `CoreFoundation` frameworks can't cross-compile from Linux).
+- **Release cadence**: tagged `cowork-v*`; binaries published manually via `cargo-zigbuild` + `gh release create`. v0.3.0 at [releases/cowork-v0.3.0](https://github.com/systempromptio/systemprompt-core/releases/tag/cowork-v0.3.0) ships Linux x86_64 and Windows x86_64 (mingw). macOS builds require a Mac host (Apple's `Security` / `CoreFoundation` frameworks can't cross-compile from Linux).
 - **Build targets**: `just build-cowork [target]` and `just build-cowork-all` for local compilation.
 
 **Gateway provider registry — extensions can register custom upstreams.** `GatewayProvider` is no longer a closed enum; `GatewayRoute.provider` is a free-form string tag resolved at dispatch time against a registry built at startup. Extension crates register new providers with:
@@ -132,7 +132,7 @@ Full changelog: [`CHANGELOG.md`](CHANGELOG.md).
 
 The `systemprompt-cowork` binary is Claude for Work's "Credential helper script". It exchanges a PAT (or, in a future release, a dashboard session or device certificate) for a short-lived JWT + canonical identity headers, then prints one JSON object to stdout that Claude Desktop merges into every `/v1/messages` request to the gateway.
 
-Current release: **[cowork-v0.2.0](https://github.com/systempromptio/systemprompt-core/releases/tag/cowork-v0.2.0)** — Linux x86_64 and Windows x86_64 (mingw ABI). macOS pending a Mac-hosted build.
+Current release: **[cowork-v0.3.0](https://github.com/systempromptio/systemprompt-core/releases/tag/cowork-v0.3.0)** — Linux x86_64 and Windows x86_64 (mingw ABI). macOS pending a Mac-hosted build.
 
 ### 1. Download the binary
 
@@ -140,10 +140,10 @@ Current release: **[cowork-v0.2.0](https://github.com/systempromptio/systempromp
 
 ```bash
 curl -fsSL -o /usr/local/bin/systemprompt-cowork \
-  https://github.com/systempromptio/systemprompt-core/releases/download/cowork-v0.2.0/systemprompt-cowork-x86_64-unknown-linux-gnu
+  https://github.com/systempromptio/systemprompt-core/releases/download/cowork-v0.3.0/systemprompt-cowork-x86_64-unknown-linux-gnu
 chmod +x /usr/local/bin/systemprompt-cowork
 # verify
-curl -fsSL https://github.com/systempromptio/systemprompt-core/releases/download/cowork-v0.2.0/systemprompt-cowork-x86_64-unknown-linux-gnu.sha256 \
+curl -fsSL https://github.com/systempromptio/systemprompt-core/releases/download/cowork-v0.3.0/systemprompt-cowork-x86_64-unknown-linux-gnu.sha256 \
   | sha256sum -c --ignore-missing
 ```
 
@@ -153,7 +153,7 @@ curl -fsSL https://github.com/systempromptio/systemprompt-core/releases/download
 $dir = "C:\Program Files\systemprompt"
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 Invoke-WebRequest `
-  -Uri "https://github.com/systempromptio/systemprompt-core/releases/download/cowork-v0.2.0/systemprompt-cowork-x86_64-pc-windows-gnu.exe" `
+  -Uri "https://github.com/systempromptio/systemprompt-core/releases/download/cowork-v0.3.0/systemprompt-cowork-x86_64-pc-windows-gnu.exe" `
   -OutFile "$dir\systemprompt-cowork.exe"
 # (optional) add to PATH for current user
 [Environment]::SetEnvironmentVariable("PATH", "$env:PATH;$dir", "User")
