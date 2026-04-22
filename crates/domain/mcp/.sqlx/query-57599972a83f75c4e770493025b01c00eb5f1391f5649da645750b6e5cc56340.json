@@ -56,7 +56,7 @@
       {
         "ordinal": 10,
         "name": "task_id",
-        "type_info": "Varchar"
+        "type_info": "Text"
       },
       {
         "ordinal": 11,
