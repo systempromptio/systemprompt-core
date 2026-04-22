@@ -6,9 +6,9 @@
   <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
 </picture>
 
-# Run Claude for Work on your own infrastructure, with your own choice of inference.
+# Run your AI agent fleet on your own infrastructure, with your own choice of inference.
 
-`systemprompt-core` is the Rust library that compiles into a single ~50 MB binary. Install it, point your Claude-for-Work fleet's `api_external_url` at it, and every Claude Desktop request lands on a host **you operate** — on your network, in your air-gap, under your audit table. Pick the upstream per model pattern: Anthropic, OpenAI, Gemini, Moonshot (Kimi), Qwen, MiniMax, or a custom provider you register yourself via the `inventory` crate. One YAML block swaps it.
+`systemprompt-core` is the Rust library that compiles into a single ~50 MB binary. Install it, point Claude for Work, Claude Code, any Anthropic-SDK client, or any MCP host at it, and every request lands on a host **you operate** — on your network, in your air-gap, under your audit table. Pick the upstream per model pattern: Anthropic, OpenAI, Gemini, Moonshot (Kimi), Qwen, MiniMax, or a custom provider you register yourself via the `inventory` crate. One YAML block swaps it.
 
 Every tool call authenticated, scoped, secret-scanned, rate-limited, and audited. Compile-time plugin model, compile-time verified SQL, zero-raw-String IDs. BSL-1.1 source-available; Apache 2.0 after four years.
 
