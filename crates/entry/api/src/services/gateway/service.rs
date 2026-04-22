@@ -85,7 +85,7 @@ impl GatewayService {
             GatewayAudit::new(db, ctx.clone()).map_err(|e| anyhow!("audit init failed: {e}"))?,
         );
 
-        if let Err(e) = audit.open(&raw_body).await {
+        if let Err(e) = audit.open(&request, &raw_body).await {
             tracing::error!(error = %e, "audit open failed — proceeding without audit row");
         }
 
@@ -164,11 +164,16 @@ async fn finalize(
             status,
             content_type,
             body,
+            served_model,
         } => {
             let body_clone = body.clone();
             let audit_clone = Arc::clone(&audit);
+            let served_model_clone = served_model.clone();
             tokio::spawn(async move {
                 if status.is_success() {
+                    if let Some(model) = served_model_clone.as_deref() {
+                        audit_clone.set_served_model(model).await;
+                    }
                     let (usage, tool_calls) = parse::extract_from_anthropic_response(&body_clone);
                     if let Err(e) = audit_clone.complete(usage, tool_calls, &body_clone).await {
                         tracing::warn!(error = %e, "buffered audit complete failed");
@@ -200,6 +205,7 @@ async fn finalize(
                 status,
                 content_type,
                 body,
+                served_model,
             })
         },
         UpstreamOutcome::Streaming { status, stream } => {

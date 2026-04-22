@@ -104,7 +104,9 @@ async fn handle_inner(
         session_id: principal.session_id,
         trace_id: principal.trace_id,
         provider: route.provider.clone(),
-        model: gateway_request.model.clone(),
+        model: route
+            .effective_upstream_model(&gateway_request.model)
+            .to_string(),
         max_tokens: Some(gateway_request.max_tokens),
         is_streaming: gateway_request.stream.unwrap_or(false),
     };

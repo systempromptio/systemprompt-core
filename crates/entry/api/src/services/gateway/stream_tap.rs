@@ -17,6 +17,7 @@ struct TapState {
     output_tokens: u32,
     tool_uses_in_progress: Vec<PartialToolUse>,
     tool_uses_done: Vec<CapturedToolUse>,
+    served_model: Option<String>,
     error: Option<String>,
 }
 
@@ -71,7 +72,7 @@ where
                 Poll::Ready(Some(Err(e)))
             },
             Poll::Ready(None) => {
-                let (usage, tools, body, error) = {
+                let (usage, tools, body, served_model, error) = {
                     let mut s = self
                         .state
                         .lock()
@@ -84,6 +85,7 @@ where
                         },
                         std::mem::take(&mut s.tool_uses_done),
                         std::mem::take(&mut s.response_buffer).freeze(),
+                        s.served_model.take(),
                         s.error.take(),
                     )
                 };
@@ -92,8 +94,13 @@ where
                 tokio::spawn(async move {
                     if let Some(err) = error {
                         let _ = audit.fail(&err).await;
-                    } else if let Err(e) = audit.complete(usage, tools, &body).await {
-                        tracing::warn!(error = %e, "stream audit complete failed");
+                    } else {
+                        if let Some(model) = served_model.as_deref() {
+                            audit.set_served_model(model).await;
+                        }
+                        if let Err(e) = audit.complete(usage, tools, &body).await {
+                            tracing::warn!(error = %e, "stream audit complete failed");
+                        }
                     }
                 });
                 Poll::Ready(None)
@@ -133,12 +140,19 @@ fn handle_sse_event(state: &mut TapState, event: &Value) {
     };
     match kind {
         "message_start" => {
-            if let Some(usage) = event.get("message").and_then(|m| m.get("usage")) {
-                if let Some(v) = usage.get("input_tokens").and_then(Value::as_u64) {
-                    state.input_tokens = v as u32;
+            if let Some(message) = event.get("message") {
+                if let Some(model) = message.get("model").and_then(Value::as_str) {
+                    if !model.is_empty() {
+                        state.served_model = Some(model.to_string());
+                    }
                 }
-                if let Some(v) = usage.get("output_tokens").and_then(Value::as_u64) {
-                    state.output_tokens = v as u32;
+                if let Some(usage) = message.get("usage") {
+                    if let Some(v) = usage.get("input_tokens").and_then(Value::as_u64) {
+                        state.input_tokens = v as u32;
+                    }
+                    if let Some(v) = usage.get("output_tokens").and_then(Value::as_u64) {
+                        state.output_tokens = v as u32;
+                    }
                 }
             }
         },

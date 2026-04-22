@@ -41,14 +41,15 @@ pub fn lookup(provider: &str, model: &str) -> ModelPricing {
 
     if provider.eq_ignore_ascii_case("minimax") {
         return match m {
-            x if x.contains("minimax-m") => ModelPricing {
-                input_cost_per_1k: 0.2,
-                output_cost_per_1k: 1.1,
+            x if x.starts_with("minimax-m1") || x == "abab7-chat-preview" => ModelPricing {
+                input_cost_per_1k: 0.0004,
+                output_cost_per_1k: 0.0022,
             },
-            _ => ModelPricing {
-                input_cost_per_1k: 0.2,
-                output_cost_per_1k: 1.1,
+            x if x.starts_with("minimax-text-01") || x.starts_with("abab6.5") => ModelPricing {
+                input_cost_per_1k: 0.0002,
+                output_cost_per_1k: 0.0011,
             },
+            _ => unknown(provider, model),
         };
     }
 

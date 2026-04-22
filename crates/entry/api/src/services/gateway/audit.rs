@@ -12,7 +12,9 @@ use systemprompt_ai::repository::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, SessionId, TenantId, TraceId, UserId};
 
-use super::pricing::{self, ModelPricing};
+use super::models::AnthropicGatewayRequest;
+use super::pricing;
+use std::sync::Mutex;
 
 const PAYLOAD_CAP_BYTES: usize = 256 * 1024;
 const EXCERPT_BYTES: usize = 8 * 1024;
@@ -43,12 +45,12 @@ pub struct CapturedToolUse {
     pub tool_input: String,
 }
 
-#[derive(Clone, Debug)]
+#[allow(missing_debug_implementations)]
 pub struct GatewayAudit {
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
     pub ctx: GatewayRequestContext,
-    pricing: ModelPricing,
+    served_model: Mutex<Option<String>>,
     started_at: Instant,
 }
 
@@ -59,17 +61,40 @@ impl GatewayAudit {
     ) -> Result<Self, systemprompt_ai::error::RepositoryError> {
         let requests = Arc::new(AiRequestRepository::new(db)?);
         let payloads = Arc::new(AiRequestPayloadRepository::new(db)?);
-        let pricing = pricing::lookup(&ctx.provider, &ctx.model);
         Ok(Self {
             requests,
             payloads,
             ctx,
-            pricing,
+            served_model: Mutex::new(None),
             started_at: Instant::now(),
         })
     }
 
-    pub async fn open(&self, request_body: &Bytes) -> Result<()> {
+    pub async fn set_served_model(&self, model: &str) {
+        if model.is_empty() || model == self.ctx.model {
+            return;
+        }
+        if let Ok(mut slot) = self.served_model.lock() {
+            *slot = Some(model.to_string());
+        }
+        if let Err(e) = self
+            .requests
+            .update_model(&self.ctx.ai_request_id, model)
+            .await
+        {
+            tracing::warn!(error = %e, "update_model failed");
+        }
+    }
+
+    fn effective_model(&self) -> String {
+        self.served_model
+            .lock()
+            .ok()
+            .and_then(|s| s.clone())
+            .unwrap_or_else(|| self.ctx.model.clone())
+    }
+
+    pub async fn open(&self, request: &AnthropicGatewayRequest, request_body: &Bytes) -> Result<()> {
         let record =
             AiRequestRecord::builder(self.ctx.ai_request_id.as_str(), self.ctx.user_id.clone())
                 .provider(self.ctx.provider.clone())
@@ -117,7 +142,36 @@ impl GatewayAudit {
         {
             tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "payload insert (request) failed");
         }
+
+        self.persist_request_messages(request).await;
         Ok(())
+    }
+
+    async fn persist_request_messages(&self, request: &AnthropicGatewayRequest) {
+        let mut seq = 0i32;
+        if let Some(system) = request.system.as_ref() {
+            if let Some(text) = flatten_system_prompt(system) {
+                if let Err(e) = self
+                    .requests
+                    .insert_message(&self.ctx.ai_request_id, "system", &text, seq)
+                    .await
+                {
+                    tracing::warn!(error = %e, "insert system message failed");
+                }
+                seq += 1;
+            }
+        }
+        for msg in &request.messages {
+            let text = flatten_message_content(&msg.content);
+            if let Err(e) = self
+                .requests
+                .insert_message(&self.ctx.ai_request_id, &msg.role, &text, seq)
+                .await
+            {
+                tracing::warn!(error = %e, seq, "insert message failed");
+            }
+            seq += 1;
+        }
     }
 
     pub async fn complete(
@@ -127,8 +181,10 @@ impl GatewayAudit {
         response_body: &Bytes,
     ) -> Result<()> {
         let latency_ms = self.started_at.elapsed().as_millis().min(i32::MAX as u128) as i32;
+        let effective_model = self.effective_model();
+        let pricing_rates = pricing::lookup(&self.ctx.provider, &effective_model);
         let cost =
-            pricing::cost_microdollars(self.pricing, usage.input_tokens, usage.output_tokens);
+            pricing::cost_microdollars(pricing_rates, usage.input_tokens, usage.output_tokens);
 
         self.requests
             .update_completion(UpdateCompletionParams {
@@ -176,11 +232,21 @@ impl GatewayAudit {
             tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "payload insert (response) failed");
         }
 
+        if let Some(assistant_text) = super::parse::extract_assistant_text(response_body) {
+            if let Err(e) = self
+                .requests
+                .add_response_message(&self.ctx.ai_request_id, &assistant_text)
+                .await
+            {
+                tracing::warn!(error = %e, "assistant response message insert failed");
+            }
+        }
+
         tracing::info!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,
             provider = %self.ctx.provider,
-            model = %self.ctx.model,
+            model = %effective_model,
             input_tokens = usage.input_tokens,
             output_tokens = usage.output_tokens,
             cost_microdollars = cost,
@@ -229,6 +295,48 @@ fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bool, i32) {
         let tail = String::from_utf8_lossy(&bytes[tail_start..]).to_string();
         let excerpt = format!("{head}\n...<truncated {} bytes>...\n{tail}", len - head_len);
         (None, Some(excerpt), true, len_i32)
+    }
+}
+
+fn flatten_system_prompt(system: &Value) -> Option<String> {
+    match system {
+        Value::String(s) if !s.is_empty() => Some(s.clone()),
+        Value::Array(arr) => {
+            let joined = arr
+                .iter()
+                .filter_map(|block| block.get("text").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if joined.is_empty() { None } else { Some(joined) }
+        },
+        _ => None,
+    }
+}
+
+fn flatten_message_content(content: &Value) -> String {
+    match content {
+        Value::String(s) => s.clone(),
+        Value::Array(blocks) => {
+            let mut out = String::new();
+            for block in blocks {
+                let kind = block.get("type").and_then(Value::as_str).unwrap_or("");
+                if kind == "text" {
+                    if let Some(text) = block.get("text").and_then(Value::as_str) {
+                        if !out.is_empty() {
+                            out.push('\n');
+                        }
+                        out.push_str(text);
+                    }
+                } else {
+                    if !out.is_empty() {
+                        out.push('\n');
+                    }
+                    out.push_str(&serde_json::to_string(block).unwrap_or_default());
+                }
+            }
+            out
+        },
+        _ => serde_json::to_string(content).unwrap_or_default(),
     }
 }
 

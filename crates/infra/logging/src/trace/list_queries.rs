@@ -29,11 +29,7 @@ pub async fn list_traces(
     } else {
         Some("1")
     };
-    let require_tracked = if filter.include_system {
-        None
-    } else {
-        Some("1")
-    };
+    let require_tracked: Option<&str> = None;
 
     let rows = sqlx::query_as!(
         TraceRow,

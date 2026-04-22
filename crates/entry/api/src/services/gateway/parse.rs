@@ -9,6 +9,23 @@ pub fn extract_from_anthropic_response(bytes: &[u8]) -> (CapturedUsage, Vec<Capt
     extract_from_anthropic_value(&value)
 }
 
+pub fn extract_assistant_text(bytes: &[u8]) -> Option<String> {
+    let value = serde_json::from_slice::<Value>(bytes).ok()?;
+    let content = value.get("content")?.as_array()?;
+    let mut out = String::new();
+    for block in content {
+        if block.get("type").and_then(Value::as_str) == Some("text") {
+            if let Some(text) = block.get("text").and_then(Value::as_str) {
+                if !out.is_empty() {
+                    out.push('\n');
+                }
+                out.push_str(text);
+            }
+        }
+    }
+    if out.is_empty() { None } else { Some(out) }
+}
+
 pub fn extract_from_anthropic_value(value: &Value) -> (CapturedUsage, Vec<CapturedToolUse>) {
     let usage = CapturedUsage {
         input_tokens: value

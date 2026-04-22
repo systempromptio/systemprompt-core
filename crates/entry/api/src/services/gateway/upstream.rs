@@ -27,6 +27,7 @@ pub enum UpstreamOutcome {
         status: http::StatusCode,
         content_type: String,
         body: Bytes,
+        served_model: Option<String>,
     },
     Streaming {
         status: http::StatusCode,
@@ -56,12 +57,32 @@ impl GatewayUpstream for AnthropicCompatibleUpstream {
         let client = reqwest::Client::new();
         let url = format!("{}/messages", ctx.route.endpoint.trim_end_matches('/'));
 
+        let upstream_model = ctx.route.effective_upstream_model(&ctx.request.model);
+        let body_to_send: Bytes = if upstream_model == ctx.request.model {
+            ctx.raw_body
+        } else {
+            match serde_json::from_slice::<serde_json::Value>(&ctx.raw_body) {
+                Ok(mut v) => {
+                    if let Some(obj) = v.as_object_mut() {
+                        obj.insert(
+                            "model".to_string(),
+                            serde_json::Value::String(upstream_model.to_string()),
+                        );
+                    }
+                    Bytes::from(serde_json::to_vec(&v).map_err(|e| {
+                        anyhow!("Failed to re-serialize request body with upstream model: {e}")
+                    })?)
+                },
+                Err(_) => ctx.raw_body,
+            }
+        };
+
         let mut req = client
             .post(&url)
             .header("x-api-key", ctx.api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
-            .body(ctx.raw_body);
+            .body(body_to_send);
 
         for (name, value) in &ctx.route.extra_headers {
             req = req.header(name.as_str(), value.as_str());
@@ -98,10 +119,19 @@ impl GatewayUpstream for AnthropicCompatibleUpstream {
             .await
             .map_err(|e| anyhow!("Failed to read Anthropic response: {e}"))?;
 
+        let served_model = serde_json::from_slice::<serde_json::Value>(&response_bytes)
+            .ok()
+            .and_then(|v| {
+                v.get("model")
+                    .and_then(|m| m.as_str())
+                    .map(ToString::to_string)
+            });
+
         Ok(UpstreamOutcome::Buffered {
             status,
             content_type: upstream_content_type,
             body: response_bytes,
+            served_model,
         })
     }
 }
@@ -168,6 +198,8 @@ impl GatewayUpstream for OpenAiCompatibleUpstream {
             .await
             .map_err(|e| anyhow!("Failed to deserialize upstream response: {e}"))?;
 
+        let served_model = Some(openai_resp.model.clone());
+
         let anthropic_resp: AnthropicGatewayResponse =
             converter::from_openai_response(openai_resp, model);
 
@@ -178,6 +210,7 @@ impl GatewayUpstream for OpenAiCompatibleUpstream {
             status: http::StatusCode::OK,
             content_type: "application/json".to_string(),
             body: Bytes::from(body_bytes),
+            served_model,
         })
     }
 }
@@ -196,6 +229,7 @@ pub fn build_response(outcome: UpstreamOutcome) -> Response<Body> {
             status,
             content_type,
             body,
+            served_model: _,
         } => Response::builder()
             .status(status)
             .header(CONTENT_TYPE, content_type)
