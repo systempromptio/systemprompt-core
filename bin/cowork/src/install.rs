@@ -158,6 +158,17 @@ pub fn uninstall(purge: bool) -> ExitCode {
         let _ = fs::remove_dir_all(&staging);
     }
 
+    #[cfg(target_os = "macos")]
+    {
+        match remove_macos_profile() {
+            Ok(true) => println!("Removed managed profile {MACOS_PAYLOAD_IDENTIFIER}"),
+            Ok(false) => println!(
+                "No managed profile {MACOS_PAYLOAD_IDENTIFIER} installed (nothing to remove)"
+            ),
+            Err(e) => diag(&format!("profile remove failed: {e}")),
+        }
+    }
+
     if purge {
         match crate::setup::logout() {
             Ok(p) => println!("Purged credentials: {}", p.pat_file.display()),
@@ -167,6 +178,25 @@ pub fn uninstall(purge: bool) -> ExitCode {
         println!("Credentials left intact. Use `systemprompt-cowork uninstall --purge` to also clear them.");
     }
     ExitCode::SUCCESS
+}
+
+#[cfg(target_os = "macos")]
+fn remove_macos_profile() -> Result<bool, String> {
+    use std::process::Command;
+    if !Path::new(MACOS_MANAGED_PREFS_PATH).exists() {
+        return Ok(false);
+    }
+    let status = Command::new("sudo")
+        .args(["profiles", "remove", "-identifier", MACOS_PAYLOAD_IDENTIFIER])
+        .status()
+        .map_err(|e| format!("sudo profiles remove: {e}"))?;
+    if !status.success() {
+        return Err(format!(
+            "sudo profiles remove exited with {}",
+            status.code().unwrap_or(-1)
+        ));
+    }
+    Ok(true)
 }
 
 fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {
@@ -254,39 +284,130 @@ fn apply_windows(_binary: &Path, _gateway: &str) -> Result<Vec<String>, String> 
 }
 
 #[cfg(target_os = "macos")]
+pub(crate) const MACOS_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.cowork.mdm";
+#[cfg(target_os = "macos")]
+const MACOS_INNER_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.cowork.mdm.inference";
+#[cfg(target_os = "macos")]
+const MACOS_MANAGED_PREFS_PATH: &str =
+    "/Library/Managed Preferences/com.anthropic.claudefordesktop.plist";
+
+#[cfg(target_os = "macos")]
 fn apply_macos(binary: &Path, gateway: &str) -> Result<Vec<String>, String> {
     use std::process::Command;
-    let domain = "com.anthropic.claudefordesktop";
-    let binary_str = binary.to_string_lossy();
-    let values: &[(&str, &str, String)] = &[
-        ("inferenceProvider", "-string", "gateway".into()),
-        ("inferenceGatewayBaseUrl", "-string", gateway.into()),
-        ("inferenceCredentialHelper", "-string", binary_str.into_owned()),
-        ("inferenceCredentialHelperTtlSec", "-int", "3600".into()),
-        ("inferenceGatewayAuthScheme", "-string", "bearer".into()),
-    ];
-    let mut summary = Vec::with_capacity(values.len() + 2);
-    summary.push(format!("defaults domain: {domain}"));
-    for (name, kind, data) in values {
-        let status = Command::new("defaults")
-            .args(["write", domain, name, kind, data])
-            .status()
-            .map_err(|e| format!("defaults write {name}: {e}"))?;
-        if !status.success() {
-            return Err(format!(
-                "defaults write {name} exited with {}",
-                status.code().unwrap_or(-1)
-            ));
-        }
-        summary.push(format!("wrote {name} ({kind})"));
+
+    if gateway.starts_with("http://")
+        && !gateway.contains("://127.0.0.1")
+        && !gateway.contains("://localhost")
+    {
+        return Err(format!(
+            "gateway url {gateway} uses http:// for a non-loopback host; \
+             Cowork rejects this. Use https:// or http://127.0.0.1:<port>."
+        ));
     }
+
+    let mobileconfig = build_macos_mobileconfig(binary, gateway);
+    let tmp_path = std::env::temp_dir().join("systemprompt-cowork.mobileconfig");
+    fs::write(&tmp_path, mobileconfig.as_bytes())
+        .map_err(|e| format!("write {}: {e}", tmp_path.display()))?;
+
+    let status = Command::new("sudo")
+        .args(["profiles", "install", "-path"])
+        .arg(&tmp_path)
+        .status()
+        .map_err(|e| format!("sudo profiles install: {e}"))?;
+    let _ = fs::remove_file(&tmp_path);
+    if !status.success() {
+        return Err(format!(
+            "sudo profiles install exited with {}. \
+             Re-run `systemprompt-cowork install --apply` and approve the sudo prompt.",
+            status.code().unwrap_or(-1)
+        ));
+    }
+
+    let mut summary = Vec::with_capacity(6);
+    summary.push(format!("installed profile: {MACOS_PAYLOAD_IDENTIFIER}"));
+    summary.push(format!(
+        "managed prefs:     {MACOS_MANAGED_PREFS_PATH} (Cowork reads from here)"
+    ));
+    summary.push(format!("gateway:           {gateway}"));
+    summary.push(format!("credential helper: {}", binary.display()));
     summary.push(
-        "Note: `defaults write` sets per-user preferences. For managed-fleet deployment, export a .mobileconfig and distribute via MDM.".into(),
+        "Verify: defaults read /Library/Managed\\ Preferences/com.anthropic.claudefordesktop"
+            .into(),
     );
-    summary.push(
-        "Fully quit Cowork (Cmd+Q) and relaunch to pick up new preferences.".into(),
-    );
+    summary.push("Fully quit Cowork (Cmd+Q) and relaunch to pick up the new policy.".into());
     Ok(summary)
+}
+
+#[cfg(target_os = "macos")]
+fn build_macos_mobileconfig(binary: &Path, gateway: &str) -> String {
+    let binary_esc = xml_escape(&binary.to_string_lossy());
+    let gateway_esc = xml_escape(gateway);
+    let inner_uuid = stable_uuid(MACOS_INNER_PAYLOAD_IDENTIFIER);
+    let outer_uuid = stable_uuid(MACOS_PAYLOAD_IDENTIFIER);
+
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key><string>com.anthropic.claudefordesktop</string>
+      <key>PayloadIdentifier</key><string>{MACOS_INNER_PAYLOAD_IDENTIFIER}</string>
+      <key>PayloadUUID</key><string>{inner_uuid}</string>
+      <key>PayloadDisplayName</key><string>Claude Cowork Inference Gateway</string>
+      <key>PayloadEnabled</key><true/>
+      <key>PayloadVersion</key><integer>1</integer>
+      <key>inferenceProvider</key><string>gateway</string>
+      <key>inferenceGatewayBaseUrl</key><string>{gateway_esc}</string>
+      <key>inferenceCredentialHelper</key><string>{binary_esc}</string>
+      <key>inferenceCredentialHelperTtlSec</key><integer>3600</integer>
+      <key>inferenceGatewayAuthScheme</key><string>bearer</string>
+    </dict>
+  </array>
+  <key>PayloadType</key><string>Configuration</string>
+  <key>PayloadIdentifier</key><string>{MACOS_PAYLOAD_IDENTIFIER}</string>
+  <key>PayloadUUID</key><string>{outer_uuid}</string>
+  <key>PayloadDisplayName</key><string>systemprompt-cowork inference routing</string>
+  <key>PayloadDescription</key><string>Routes Claude Cowork inference through the configured gateway and credential helper.</string>
+  <key>PayloadOrganization</key><string>systemprompt.io</string>
+  <key>PayloadScope</key><string>System</string>
+  <key>PayloadVersion</key><integer>1</integer>
+  <key>PayloadRemovalDisallowed</key><false/>
+</dict>
+</plist>
+"#
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn xml_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&apos;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+#[cfg(target_os = "macos")]
+fn stable_uuid(seed: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(seed.as_bytes());
+    let b = &digest[..16];
+    format!(
+        "{:02X}{:02X}{:02X}{:02X}-{:02X}{:02X}-{:02X}{:02X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
+        b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+        b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]
+    )
 }
 
 #[cfg(not(target_os = "macos"))]

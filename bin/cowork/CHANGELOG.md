@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 - 2026-04-23
+
+Fix: `install --apply` on macOS now installs a `.mobileconfig` into `/Library/Managed Preferences/` via `sudo profiles install`, which is the domain Cowork actually reads. Previously wrote to per-user defaults, which Cowork ignored.
+
+- `apply_macos`: build mobileconfig plist with `PayloadScope=System`, write to tempfile, `sudo profiles install -path`. Rejects `http://` for non-loopback hosts up front.
+- `uninstall` on macOS: runs `sudo profiles remove -identifier io.systemprompt.cowork.mdm` to restore cloud mode.
+- Stable PayloadIdentifier `io.systemprompt.cowork.mdm` + deterministic UUIDs keep re-applies idempotent.
+
 ## 0.3.0 - 2026-04-22
 
 Breaking: signed-manifest wire format extended with `user`, `skills`, `agents`. AgentEntry replaces `card: object` with `system_prompt: string?`. 0.2.x clients cannot deserialise 0.3.x manifests.
