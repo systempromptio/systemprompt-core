@@ -20,9 +20,9 @@ systemprompt.io is **source-available infrastructure**, not a managed service. T
 | §164.312(a)(1) Access control | Unique user identification | Every request is authenticated; identity propagated as typed user ID through every layer | `crates/shared/identifiers/src/lib.rs` (typed `UserId`), `crates/infra/security/` (JWT verification) |
 | §164.312(a)(1) Access control | Emergency access procedure | Operational; deployment guide describes break-glass role provisioning | [deployment-reference-architecture.md §6](deployment-reference-architecture.md) |
 | §164.312(a)(1) Access control | Automatic logoff | Session / token TTL enforced; configurable per IdP | `crates/domain/oauth/` token expiry |
-| §164.312(a)(2) Encryption and decryption | Encryption of ePHI at rest and in transit | TLS 1.2+ enforced at entry; secrets-at-rest via ChaCha20-Poly1305; prompt/response content not persisted unless customer opts in; DB-level encryption at rest is customer-managed | `crates/infra/security/` (cipher), [threat-model.md §4.4](threat-model.md) |
-| §164.312(b) Audit controls | Record and examine activity | Every governed request produces a structured audit event with identity, rule trace, outcome, timestamp | `crates/infra/events/` |
-| §164.312(c) Integrity | ePHI not altered or destroyed improperly | Audit tables are append-only at the schema level; DB role for systemprompt has `INSERT`, `SELECT` only on audit tables | `crates/infra/events/schema/*.sql`, [threat-model.md §4.2](threat-model.md) |
+| §164.312(a)(2) Encryption and decryption | Encryption of ePHI at rest and in transit | TLS 1.2+ enforced at entry. Prompt and response content not persisted by default. For secrets-at-rest (provider API keys, JWT secret): the binary loads secrets from a profile-referenced file or environment; the expected deployment pattern is that the customer uses their existing envelope-encryption infrastructure (HashiCorp Vault, AWS/GCP/Azure KMS, sops + age) to protect the secrets file — the master key never enters the binary. DB-level encryption at rest is customer-managed (RDS/AKS storage encryption, dm-crypt, etc.) | `crates/shared/models/src/secrets_bootstrap.rs`, [deployment-reference-architecture.md §2](deployment-reference-architecture.md) |
+| §164.312(b) Audit controls | Record and examine activity | Every governed request produces a structured log or analytics event with identity, endpoint, outcome, timestamp | `crates/infra/logging/schema/*.sql`, `crates/domain/analytics/schema/*.sql` |
+| §164.312(c) Integrity | ePHI not altered or destroyed improperly | Append-only discipline enforced by DB role least-privilege (`INSERT, SELECT` only; no `UPDATE, DELETE`). No schema-level immutability triggers are shipped; recommended hardening DDL (BEFORE UPDATE/DELETE trigger) is published in the deployment guide for customers whose programme requires defense-in-depth | [deployment-reference-architecture.md §4](deployment-reference-architecture.md), [threat-model.md §4.2](threat-model.md) |
 | §164.312(d) Person or entity authentication | Verify identity of user | OAuth2/OIDC with PKCE; JWT signature, issuer, and audience validation; rejects `alg: none` | `crates/infra/security/`, `crates/domain/oauth/` |
 | §164.312(e)(1) Transmission security | Integrity + encryption in transit | TLS at entry; outbound provider requests over HTTPS; no plaintext listener | `crates/entry/api/` |
 
@@ -90,10 +90,10 @@ Common Criteria mappings. Mirrors the 2017 TSC revision (effective through curre
 | A.8.8 Management of technical vulnerabilities | Patch management | SECURITY.md triage + fix SLAs |
 | A.8.9 Configuration management | Manage securely | Profile-based config, version-controlled, signed manifests for MCP allowlist |
 | A.8.12 Data leakage prevention | Detect and prevent | Secrets tagged and redacted in logs; prompt/response persistence off by default |
-| A.8.15 Logging | Produce, protect, analyse logs | Structured JSON audit stream, append-only schema, SIEM integration |
+| A.8.15 Logging | Produce, protect, analyse logs | Structured JSON audit stream, append-only via DB role least-privilege (optional schema-level trigger published for defense-in-depth), SIEM integration |
 | A.8.16 Monitoring activities | Monitor for anomalies | Prometheus metrics, documented alert thresholds |
 | A.8.23 Web filtering | Control outbound content | Per-provider `base_url` config supports egress proxy |
-| A.8.24 Use of cryptography | Policy + controls | ChaCha20-Poly1305 for secrets-at-rest; TLS 1.2+ only; JWT verification rejects `alg: none` |
+| A.8.24 Use of cryptography | Policy + controls | TLS 1.2+ required at entry; JWT verification via `jsonwebtoken::Validation::new(Algorithm::HS256)` — only HS256 accepted, `alg: none` rejected by library default. PKCE `S256` enforced for OAuth2 code flow. MCP manifest signatures via HMAC-SHA256. Secrets-at-rest expected via customer envelope encryption (Vault / KMS / sops) — the binary does not perform its own symmetric at-rest encryption |
 | A.8.25 Secure development lifecycle | Apply secure SDLC | Compile-time SQL verification, fmt/clippy/tests in CI, threat model maintained |
 | A.8.26 Application security requirements | Identify and apply | This document + threat model |
 | A.8.28 Secure coding | Apply principles | Rust memory safety; no unsafe blocks outside crypto primitives; coding standards enforced (`instructions/rust.md` referenced internally) |
@@ -111,7 +111,7 @@ Pre-answers to the questions an enterprise security questionnaire (CAIQ, SIG, SI
 | Are you HITRUST certified? | Not at this time. HITRUST inherits HIPAA + ISO mappings from §1 and §3. |
 | Do you sign BAAs? | A BAA is not applicable to this deployment model. See "Framing" above. |
 | Where is customer data stored? | In the customer's Postgres instance, under the customer's control. systemprompt.io as a vendor does not receive or store customer data. |
-| Do you encrypt data at rest? | Secrets are encrypted at rest with ChaCha20-Poly1305. Customer data in Postgres is encrypted via customer-configured storage / TDE. |
+| Do you encrypt data at rest? | The binary itself does not perform symmetric at-rest encryption of secrets; the deployment model expects the customer to use their existing envelope-encryption infrastructure (Vault / AWS KMS / GCP KMS / Azure Key Vault / sops) to protect the secrets file on disk. This keeps master-key management inside the customer's HSM/KMS rather than in a vendor-supplied binary. Customer data in Postgres is encrypted via customer-configured storage encryption (RDS / Cloud SQL / dm-crypt / TDE). Deployment guide §2 documents the supported patterns. |
 | Do you encrypt data in transit? | TLS 1.2+ required at entry; all outbound provider calls over HTTPS. |
 | What authentication methods do you support? | OAuth2 / OIDC with PKCE. Customer-supplied IdP. |
 | Do you support SSO? | Yes — OIDC-based SSO through the customer's IdP. |

@@ -43,18 +43,20 @@ A production deployment consists of:
 Configuration is loaded from a profile directory (see `crates/shared/models/src/config.rs` for the `Config` shape). Bootstrap order:
 
 1. `ProfileBootstrap` — load YAML profile
-2. `SecretsBootstrap` — decrypt secrets file (ChaCha20-Poly1305) using master key from environment, file, or KMS
+2. `SecretsBootstrap` — load secrets from a profile-referenced JSON file or from environment variables into process memory (see `crates/shared/models/src/secrets_bootstrap.rs`)
 3. `CredentialsBootstrap` — materialise provider credentials into in-memory handles
 4. `Config` — construct validated config
 5. `AppContext` — assemble service graph (see `crates/app/runtime/src/context.rs`)
 
-Master key sources, in order of preference for production:
+The binary does **not** itself perform symmetric at-rest encryption of the secrets file. The deployment model is that the customer owns the master-key lifecycle end-to-end using their existing key-management programme, and the binary receives plaintext secrets only after the customer's tooling has opened the envelope. The master key never enters the binary. Supported patterns, in order of preference for regulated production:
 
-- **KMS / HSM** (AWS KMS, GCP Cloud KMS, Azure Key Vault, on-prem HSM) — key never leaves the boundary; binary receives a short-lived decryption grant
-- **Sealed file with external unsealer** — HashiCorp Vault transit engine, sops+age with KMS backend
-- **Environment variable** — acceptable for non-regulated deployments, not for PHI workloads
+- **KMS / HSM envelope** (AWS KMS, GCP Cloud KMS, Azure Key Vault, on-prem HSM) — the secrets file is ciphertext at rest; a short-lived decryption grant produces plaintext that is either written to a tmpfs-mounted file the binary reads, or exported into the binary's environment. Preferred for regulated workloads.
+- **HashiCorp Vault** — Vault Agent sidecar renders secrets to a file or environment; lease renewal and revocation are Vault's responsibility.
+- **sops + age / sops + KMS** — secrets file encrypted in place; CI / deploy pipeline decrypts at launch, materialising plaintext to tmpfs.
+- **Kubernetes Secret with envelope encryption enabled** — acceptable when the cluster has `--encryption-provider-config` with a KMS provider configured. Plain Kubernetes Secrets without KMS envelope are not acceptable for PHI workloads.
+- **Environment variable** (no envelope) — acceptable for non-regulated deployments only; not for PHI.
 
-Never check secrets into git. The `.systemprompt/secrets/*.secrets.json` files are designed to be encrypted in place.
+Plain JSON secrets files on disk should carry `0600` permissions and be owned by the dedicated service account. Never check secrets into git.
 
 ## 3. High Availability
 
@@ -100,6 +102,30 @@ Patroni, Stolon, or a cloud-managed Postgres (RDS Multi-AZ, Cloud SQL HA, Azure 
 | Secrets file (encrypted) | On change | Versioned in customer secrets-management system | KMS / Vault |
 | Configuration profile | On change | Git-versioned | customer's IaC repo |
 
+### 4.1.1 Optional Hardening: Schema-Level Append-Only on Audit Tables
+
+By default, the systemprompt binary uses a DB role with `INSERT, SELECT` only on audit tables (`logs`, `analytics_events`) — no `UPDATE` or `DELETE`. This is the primary append-only control. Customers whose compliance programme requires defense-in-depth at the schema level can install the following trigger under a database superuser role that systemprompt does not use day-to-day:
+
+```sql
+CREATE OR REPLACE FUNCTION audit_tables_deny_update_delete()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'Audit tables are append-only: % on % denied',
+        TG_OP, TG_TABLE_NAME;
+END;
+$$;
+
+CREATE TRIGGER logs_append_only
+    BEFORE UPDATE OR DELETE ON logs
+    FOR EACH ROW EXECUTE FUNCTION audit_tables_deny_update_delete();
+
+CREATE TRIGGER analytics_events_append_only
+    BEFORE UPDATE OR DELETE ON analytics_events
+    FOR EACH ROW EXECUTE FUNCTION audit_tables_deny_update_delete();
+```
+
+Once installed, even a compromised systemprompt role (or any non-superuser) cannot mutate audit history. Rotate the superuser credentials afterwards and keep them offline. This trigger does not interfere with normal operation because systemprompt never issues UPDATE / DELETE on these tables.
+
 ### 4.2 Restore Procedure
 
 Point-in-time recovery example using `wal-g`:
@@ -141,11 +167,12 @@ Run a DR drill annually. Capture the timing of each step and update the runbook.
 
 | Key | Rotation cadence | Procedure |
 |-----|------------------|-----------|
-| ChaCha20-Poly1305 master key (secrets-at-rest) | Annual, or on suspicion of compromise | Generate new key; re-encrypt secrets file with both old + new keys in a transition window; decommission old key. Binary accepts a primary + previous key during transition. |
-| OAuth signing keys (if systemprompt issues tokens) | Per IdP policy, typically 90 days | JWKS rotation with overlap window; old `kid` remains valid until expiry of longest-lived token |
-| Database credentials | Per customer policy | Create new role, grant minimum privileges, update profile secrets, rolling restart, revoke old role |
-| TLS certificates | Per PKI policy | Reverse-proxy responsibility; no binary action required |
-| MCP manifest-signing key | On compromise, otherwise annual | Re-sign manifest with new key; deploy both pubkeys during transition |
+| Secrets-file envelope key (customer KMS / Vault / sops) | Per customer key-management programme | Rotate inside the customer's existing KMS rotation workflow. Re-wrap the secrets file with the new key; the binary sees plaintext in both cases and does not participate directly in rotation. |
+| JWT signing secret (HS256) | Annual, or on suspicion of compromise | Generate a new HMAC secret; update the secrets source (KMS/Vault/sops); rolling restart of replicas. Outstanding JWTs signed with the old secret are invalidated on rotation — plan a short maintenance window or issue shorter-lived tokens in the week leading up to rotation. |
+| OAuth signing keys (when systemprompt issues tokens to MCP servers via the code-flow authoriser) | 90 days recommended | Rotate through the `jwt_secret` rotation above; the OAuth issuer shares the same signing material in the current implementation. |
+| Database credentials | Per customer policy | Create new role, grant minimum privileges, update secrets source, rolling restart, revoke old role. |
+| TLS certificates | Per PKI policy | Reverse-proxy responsibility; no binary action required. |
+| MCP manifest-signing secret | On compromise, otherwise annual | Re-sign the manifest with the new secret; deploy the secret atomically alongside the new manifest (verification uses the same HMAC). |
 
 ## 7. Monitoring
 

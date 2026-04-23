@@ -226,7 +226,7 @@ Mount locations: `/Library/Application Support/Claude/org-plugins/` (macOS), `C:
 
 **Every tool call governed.** Synchronous evaluation before execution, not after. Four layers of enforcement in the request path: **scope check → secret detection → blocklist → rate limit**. Deny reasons are structured and auditable. Single-digit milliseconds overhead. No sidecar. No proxy. Compliance that survives an audit: **SOC 2 Type II**, **ISO 27001**, **HIPAA**, **OWASP Top 10 for Agentic Applications**.
 
-**Secrets never touch inference** — the agent calls the tool, the MCP service injects the credential server-side, the LLM never sees it. Per-user key hierarchy encrypted with **ChaCha20-Poly1305**. Every tool call produces a **five-point audit trace**: *Identity → Agent Context → Permissions → Tool Execution → Result*. Everything linked by `trace_id`. Structured JSON events for Splunk, ELK, Datadog, Sumo Logic. Cost tracking in microdollars by model, agent, and department.
+**Secrets never touch inference** — the agent calls the tool, the MCP service injects the credential server-side, the LLM never sees it. Secrets-at-rest are protected via the customer's envelope-encryption infrastructure (KMS / Vault / sops) — the binary sees plaintext only after the customer's tooling opens the envelope, so the master key never enters the binary. Every tool call produces a **five-point audit trace**: *Identity → Agent Context → Permissions → Tool Execution → Result*. Everything linked by `trace_id`. Structured JSON events for Splunk, ELK, Datadog, Sumo Logic. Cost tracking in microdollars by model, agent, and department.
 
 **Where in the code**
 
@@ -238,7 +238,7 @@ Mount locations: `/Library/Application Support/Claude/org-plugins/` (macOS), `C:
 | Rate limit middleware (`tower_governor`) | [`crates/infra/security/src/`](crates/infra/security/src/) |
 | Audit queries | [`crates/infra/logging/src/trace/audit_queries.rs`](crates/infra/logging/src/trace/audit_queries.rs) |
 | Event broadcasters | [`crates/infra/events/src/services/broadcaster.rs`](crates/infra/events/src/services/broadcaster.rs) |
-| Secret storage (ChaCha20-Poly1305) | [`crates/infra/security/src/`](crates/infra/security/src/) |
+| Secrets bootstrap (customer envelope encryption: KMS / Vault / sops) | [`crates/shared/models/src/secrets_bootstrap.rs`](crates/shared/models/src/secrets_bootstrap.rs) |
 | Typed IDs (`TraceId`, `ContextId`, `TaskId` …) | [`crates/shared/identifiers/src/lib.rs`](crates/shared/identifiers/src/lib.rs) |
 
 **MCP** ([`crates/domain/mcp`](crates/domain/mcp)) is implemented natively — not proxied. Per-server OAuth2, scoped tool exposure, central registry with health monitoring, end-to-end access logs. Works with Claude Code, Claude Desktop, ChatGPT, Cursor, and any other MCP-compatible client.
