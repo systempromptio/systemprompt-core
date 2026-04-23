@@ -125,15 +125,17 @@ jobs:
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload artifacts to GitHub release
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         working-directory: dist
         run: |
           tag="${{ steps.tag.outputs.tag }}"
-          if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" \
-              --title "systemprompt-cowork $tag" \
-              --notes "systemprompt-cowork $tag — signed binaries (Linux x86_64, Windows x86_64, macOS aarch64). Cowork CHANGELOG: bin/cowork/CHANGELOG.md. Intel Mac builds from source; see README."
+          notes="systemprompt-cowork $tag — signed binaries (Linux x86_64, Windows x86_64, macOS aarch64). Cowork CHANGELOG: bin/cowork/CHANGELOG.md. Intel Mac builds from source; see README."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --yes
           fi
-          gh release upload "$tag" --clobber *
+          gh release create "$tag" \
+            --title "systemprompt-cowork $tag" \
+            --notes "$notes" \
+            *
