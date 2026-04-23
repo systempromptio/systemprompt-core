@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Static content route handler scoped slug lookup by `source_id`** (`crates/entry/api/src/services/static_content/static_files.rs`). `serve_static_content` extracted `(slug, source_id)` from the route matcher but discarded the source, then called `ContentRepository::get_by_slug(slug)` — a slug-only query. Any slug present in a different source (e.g. `about` as a page) caused `/guides/about`, `/documentation/about`, etc. to match a foreign record and return the "Content Not Prerendered" 500 page instead of 404. `source_id` is now threaded through `ContentPageRequest` and lookup uses `get_by_source_and_slug`.
+
 ## [0.3.1] - 2026-04-22
 
 ### Fixed

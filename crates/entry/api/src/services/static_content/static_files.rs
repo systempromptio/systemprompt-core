@@ -7,6 +7,7 @@ use std::sync::Arc;
 use super::config::StaticContentMatcher;
 use systemprompt_content::ContentRepository;
 use systemprompt_files::FilesConfig;
+use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, RouteClassifier, RouteType};
 use systemprompt_runtime::AppContext;
 
@@ -145,11 +146,12 @@ pub async fn serve_static_content(
         return serve_cached_file(&parent_route_path, &headers, "text/html", CACHE_HTML).await;
     }
 
-    if let Some((slug, _source_id)) = state.matcher.matches(path) {
+    if let Some((slug, source_id)) = state.matcher.matches(path) {
         let req = ContentPageRequest {
             path,
             trimmed_path,
             slug: &slug,
+            source_id: &source_id,
             dist_dir: &dist_dir,
             headers: &headers,
         };
@@ -213,6 +215,7 @@ struct ContentPageRequest<'a> {
     path: &'a str,
     trimmed_path: &'a str,
     slug: &'a str,
+    source_id: &'a str,
     dist_dir: &'a std::path::Path,
     headers: &'a HeaderMap,
 }
@@ -239,7 +242,11 @@ async fn serve_content_page(
             .into_response();
     };
 
-    match content_repo.get_by_slug(req.slug).await {
+    let source_id = SourceId::new(req.source_id);
+    match content_repo
+        .get_by_source_and_slug(&source_id, req.slug)
+        .await
+    {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),
         Ok(None) => not_found_response(req.dist_dir, req.headers).await,
         Err(e) => {
