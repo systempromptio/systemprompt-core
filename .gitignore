@@ -107,3 +107,6 @@ crates/app/scheduler/tests/
 
 # Coverage reports
 coverage-report/
+
+# Status files (local-only crate status docs)
+**/status.md
