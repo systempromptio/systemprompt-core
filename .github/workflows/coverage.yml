@@ -41,18 +41,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Disable cranelift / sccache in root .cargo/config.toml
+      - name: Strip [unstable] and [profile.dev] from cargo configs
         run: |
           python3 - <<'PY'
           import re, pathlib
-          p = pathlib.Path(".cargo/config.toml")
-          s = p.read_text()
-          # Drop the unstable + profile.dev cranelift override for CI runs.
-          s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
-          s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
-          s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
-          p.write_text(s)
-          print(p.read_text())
+          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
+              p = pathlib.Path(path)
+              if not p.exists():
+                  continue
+              s = p.read_text()
+              # Drop sections that trigger the unstable `codegen-backend` feature
+              # and anything forcing sccache. CI uses stable LLVM default.
+              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
+              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
+              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
+              p.write_text(s)
+              print(f"--- {path} ---")
+              print(p.read_text())
           PY
 
       - uses: dtolnay/rust-toolchain@stable
