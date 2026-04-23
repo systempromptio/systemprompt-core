@@ -70,9 +70,6 @@ jobs:
             .
             crates/tests
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
       - name: Migrate coverage test database
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
@@ -82,40 +79,48 @@ jobs:
             -p systemprompt-test-migrate \
             --release
 
-      - name: Run test workspace (instrumented) and render
+      - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
+          LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage-profraw/%p-%m.profraw
+          RUSTFLAGS: "-C instrument-coverage"
         run: |
-          # Single cargo-llvm-cov run that writes JSON + LCOV + text
-          # summary. Multiple output formats require re-invoking with
-          # --no-run so the profdata that the first run produced stays
-          # intact.
-          cargo llvm-cov \
+          mkdir -p "${{ github.workspace }}/coverage-profraw"
+          cargo test \
             --manifest-path crates/tests/Cargo.toml \
-            --workspace --lib \
-            --no-report
-          cargo llvm-cov report \
-            --manifest-path crates/tests/Cargo.toml \
-            --summary-only \
-            | tee coverage-summary-full.txt
-          cargo llvm-cov report \
-            --manifest-path crates/tests/Cargo.toml \
-            --ignore-filename-regex '(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
+            --workspace --lib
+          echo "profraw count: $(find ${{ github.workspace }}/coverage-profraw -name '*.profraw' | wc -l)"
+
+      - name: Merge profdata and render
+        run: |
+          LLVM_PROFDATA=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata
+          LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
+          "$LLVM_PROFDATA" merge -sparse \
+            "${{ github.workspace }}/coverage-profraw"/*.profraw \
+            -o coverage-merged.profdata
+
+          # Collect every test binary produced (strip dedup-by-cratename).
+          BINS=$(find crates/tests/target/debug/deps -maxdepth 1 -executable -type f -name 'systemprompt_*' ! -name '*.d' -printf '%T@ %p\n' \
+            | sort -rn \
+            | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
+          OBJ_ARGS=""
+          for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
+
+          # Unfiltered first so we can see raw paths llvm-cov emits.
+          "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
             --summary-only \
             | tee coverage-summary.txt
-          cargo llvm-cov report \
-            --manifest-path crates/tests/Cargo.toml \
-            --ignore-filename-regex '(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
-            --summary-only \
-            --json \
-            --output-path coverage-summary.json
-          cargo llvm-cov report \
-            --manifest-path crates/tests/Cargo.toml \
-            --ignore-filename-regex '(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
-            --lcov \
-            --output-path lcov.info
-          echo "=== first 80 lines of UNFILTERED summary ==="
-          head -80 coverage-summary-full.txt
+
+          "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
+            --format=text --summary-only \
+            > coverage-summary.json
+
+          "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
+            --format=lcov \
+            > lcov.info
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
@@ -123,7 +128,6 @@ jobs:
           name: coverage
           path: |
             coverage-summary.txt
-            coverage-summary-full.txt
             coverage-summary.json
             lcov.info
 
