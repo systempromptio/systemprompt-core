@@ -73,18 +73,22 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
+      - name: Migrate coverage test database
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+        run: |
+          cargo run \
+            --manifest-path crates/tests/Cargo.toml \
+            -p systemprompt-test-migrate \
+            --release
+
       - name: Run test workspace with coverage
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
         run: |
-          # `--ignore-run-fail` keeps the run going when a handful of
-          # DB-backed lib tests can't resolve their schema in the bare CI
-          # Postgres service. Coverage is reported against every test that
-          # did run — which is the vast majority of the workspace.
           cargo llvm-cov \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib \
-            --ignore-run-fail \
             --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
             --summary-only \
             --json \

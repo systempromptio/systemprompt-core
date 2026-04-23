@@ -1,0 +1,33 @@
+[package]
+name = "systemprompt-test-migrate"
+version = "0.0.1"
+edition = "2024"
+publish = false
+description = "Test helper: applies all extension schemas to a Postgres instance via install_extension_schemas."
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "systemprompt-test-migrate"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+
+# Force every schema-bearing extension to link into this binary so
+# ExtensionRegistry::discover() picks up their inventory entries.
+systemprompt-agent = { workspace = true }
+systemprompt-ai = { workspace = true }
+systemprompt-analytics = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-files = { workspace = true }
+systemprompt-logging = { workspace = true }
+systemprompt-mcp = { workspace = true }
+systemprompt-oauth = { workspace = true }
+systemprompt-scheduler = { workspace = true }
+systemprompt-sync = { workspace = true }
+systemprompt-users = { workspace = true }

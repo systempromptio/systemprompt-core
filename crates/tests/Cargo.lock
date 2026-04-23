@@ -5400,6 +5400,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-test-migrate"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "systemprompt-agent",
+ "systemprompt-ai",
+ "systemprompt-analytics",
+ "systemprompt-content",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-logging",
+ "systemprompt-mcp",
+ "systemprompt-oauth",
+ "systemprompt-scheduler",
+ "systemprompt-sync",
+ "systemprompt-users",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-test-mocks"
 version = "0.1.0"
 dependencies = [

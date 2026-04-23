@@ -48,6 +48,7 @@ members = [
     "unit/entry/cli",
     # Common test utilities
     "common/mocks",
+    "common/migrate",
     # Advanced testing - Phase 6
     "property",
     "contract",
