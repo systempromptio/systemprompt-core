@@ -110,3 +110,5 @@ coverage-report/
 
 # Status files (local-only crate status docs)
 **/status.md
+*.cdx.json
+systemprompt-sbom*

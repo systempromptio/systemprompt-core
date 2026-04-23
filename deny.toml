@@ -7,8 +7,10 @@ feature-depth = 1
 
 [advisories]
 version = 2
-ignore = []
 yanked = "warn"
+ignore = [
+    { id = "RUSTSEC-2023-0071", reason = "Marvin Attack in `rsa` crate. Transitively pulled by `jsonwebtoken` for RSA-family JWT verification. No upstream fix available — the `rsa` crate does not yet provide constant-time implementations. Systemprompt mitigations: (1) recommended signing algorithms for customer IdP tokens are ES256 / ES384 / EdDSA, which do not execute the vulnerable RSA path; (2) JWT verification is CPU-bounded and not exposed as an unauthenticated high-throughput endpoint, limiting exploitability of the timing side-channel; (3) tracked — we will drop the ignore as soon as a fixed `rsa` release is available. See documentation/security/threat-model.md §4.1." },
+]
 
 [licenses]
 version = 2
@@ -29,6 +31,7 @@ allow = [
     "CC0-1.0",
     "MPL-2.0",
     "OpenSSL",
+    "CDLA-Permissive-2.0",
 ]
 exceptions = []
 
