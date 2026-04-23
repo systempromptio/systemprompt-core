@@ -63,6 +63,7 @@ fn make_profile(name: &str) -> Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
+        gateway: None,
     }
 }
 

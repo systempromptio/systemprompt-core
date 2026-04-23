@@ -80,11 +80,11 @@ mod extension_schema_tests {
     use super::*;
 
     #[test]
-    fn schemas_returns_six_definitions() {
+    fn schemas_returns_expected_definitions() {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        assert_eq!(schemas.len(), 6);
+        assert_eq!(schemas.len(), 8);
     }
 
     #[test]

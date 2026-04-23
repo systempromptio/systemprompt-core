@@ -32,10 +32,10 @@ mod ai_extension_tests {
     }
 
     #[test]
-    fn schemas_returns_three_tables() {
+    fn schemas_returns_expected_tables() {
         let ext = AiExtension;
         let schemas = Extension::schemas(&ext);
-        assert_eq!(schemas.len(), 3);
+        assert_eq!(schemas.len(), 7);
     }
 
     #[test]
