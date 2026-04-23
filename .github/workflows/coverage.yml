@@ -82,17 +82,16 @@ jobs:
             -p systemprompt-test-migrate \
             --release
 
-      - name: Run test workspace with coverage
+      - name: Run test workspace (instrumented)
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
         run: |
+          # Run tests but defer report generation — keeps profdata alive
+          # for the three render steps that follow.
           cargo llvm-cov \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib \
-            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
-            --summary-only \
-            --json \
-            --output-path coverage-summary.json
+            --no-report
 
       - name: Generate text summary
         run: |
@@ -101,6 +100,15 @@ jobs:
             --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
             --summary-only \
             | tee coverage-summary.txt
+
+      - name: Generate JSON summary
+        run: |
+          cargo llvm-cov report \
+            --manifest-path crates/tests/Cargo.toml \
+            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
+            --summary-only \
+            --json \
+            --output-path coverage-summary.json
 
       - name: Generate LCOV (for downstream tools)
         run: |
