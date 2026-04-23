@@ -92,6 +92,7 @@ pub fn install(opts: InstallOptions) -> ExitCode {
         .unwrap_or_else(|| "https://gateway.systemprompt.io".into());
 
     if opts.apply_mobileconfig {
+        #[cfg(target_os = "macos")]
         match apply_macos_mobileconfig(&binary, &gateway_for_mdm) {
             Ok(summary) => {
                 println!();
@@ -104,6 +105,11 @@ pub fn install(opts: InstallOptions) -> ExitCode {
                 diag(&format!("apply --mobileconfig failed: {e}"));
                 return ExitCode::from(1);
             },
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            diag("--apply-mobileconfig is only supported on macOS");
+            return ExitCode::from(1);
         }
     } else if opts.apply {
         match apply_mdm(target_os, &binary, &gateway_for_mdm) {
