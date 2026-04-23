@@ -17,7 +17,6 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_PROFILE_DEV_CODEGEN_BACKEND: llvm
   RUSTC_WRAPPER: ""
   SQLX_OFFLINE: "true"
 
@@ -42,7 +41,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Disable cranelift / sccache in root .cargo/config.toml
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path(".cargo/config.toml")
+          s = p.read_text()
+          # Drop the unstable + profile.dev cranelift override for CI runs.
+          s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
+          s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
+          s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
+          p.write_text(s)
+          print(p.read_text())
+          PY
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
 
