@@ -543,6 +543,26 @@ See [LICENSE](LICENSE) for the full terms. Licensing enquiries: [ed@systemprompt
 
 ---
 
+## Security
+
+Vulnerability disclosure, triage SLAs, and supply-chain integrity are documented in [SECURITY.md](SECURITY.md). Report vulnerabilities to **ed@systemprompt.io** — not via public issues.
+
+Release binaries are built in GitHub-hosted CI and signed with Sigstore `cosign` keyless. A CycloneDX SBOM is attached to every release.
+
+## Enterprise Documentation
+
+The [`documentation/`](documentation/) directory is the public evaluation pack for prospective customers, security reviewers, and RFI / procurement teams.
+
+- [Compliance Control Matrix](documentation/security/compliance-control-matrix.md) — HIPAA, SOC 2, ISO 27001 mappings
+- [Threat Model](documentation/security/threat-model.md) — STRIDE analysis with code paths
+- [Deployment Reference Architecture](documentation/security/deployment-reference-architecture.md) — HA, backup, DR, key rotation, monitoring, air-gap
+- [Stability Contract](documentation/security/stability-contract.md) — what is stable vs. what tracks upstream
+- [Compatibility Matrix](documentation/security/compatibility-matrix.md) — providers, protocols, runtime versions
+
+RFI and licensing contact: [ed@systemprompt.io](mailto:ed@systemprompt.io).
+
+---
+
 <div align="center">
 
 **[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt)** · **[docs.rs](https://docs.rs/systemprompt)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
