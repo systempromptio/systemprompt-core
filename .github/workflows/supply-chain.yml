@@ -16,16 +16,6 @@ permissions:
   contents: read
 
 jobs:
-  audit:
-    name: cargo audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo install cargo-audit --locked
-      - run: cargo audit --deny warnings
-
   deny:
     name: cargo deny
     runs-on: ubuntu-latest

@@ -246,13 +246,7 @@ impl SessionAnalytics {
         url::Url::parse(url)
             .ok()
             .and_then(|parsed_url| parsed_url.host_str().map(ToString::to_string))
-            .and_then(|host| {
-                if host.parse::<std::net::IpAddr>().is_ok() {
-                    None
-                } else {
-                    Some(host)
-                }
-            })
+            .filter(|host| host.parse::<std::net::IpAddr>().is_err())
     }
 
     pub fn is_bot(&self) -> bool {
