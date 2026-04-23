@@ -37,8 +37,13 @@ Commands (credential helper):
 Commands (plugin + MCP sync):
   install                    Bootstrap Cowork integration on this machine
     [--gateway <url>]                     Persist gateway URL + pin signing pubkey
-    [--apply]                             Write MDM keys directly (Windows registry /
-                                          macOS defaults) — skip the manual .reg step
+    [--apply]                             Apply locally (Windows registry / macOS
+                                          Managed Preferences direct-write). No MDM
+                                          needed — works for a single-user dev setup.
+    [--apply-mobileconfig]                (macOS) Build .mobileconfig and open System
+                                          Settings → Profiles for user approval.
+                                          Use when the fleet is MDM-managed or Apple's
+                                          approval UI is required.
     [--print-mdm macos|windows|linux]     Print MDM snippet for target OS (default: current OS)
     [--emit-schedule-template macos|windows|linux]
                                           Write an OS scheduler template to CWD
@@ -274,12 +279,14 @@ fn dispatch_install(args: &[String]) -> ExitCode {
     let gateway = parse_opt_flag(args, "--gateway");
     let no_pubkey_fetch = has_flag(args, "--no-pubkey-fetch");
     let apply = has_flag(args, "--apply");
+    let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
     install::install(install::InstallOptions {
         print_mdm,
         emit_schedule_template: emit_sched,
         gateway_url: gateway,
         no_pubkey_fetch,
         apply,
+        apply_mobileconfig,
     })
 }
 

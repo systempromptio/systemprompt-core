@@ -1,12 +1,17 @@
 # Changelog
 
+## 0.3.2 - 2026-04-23
+
+`install --apply` on macOS supports both MDM and non-MDM workflows. `profiles install` was deprecated by Apple (macOS 11+) for CLI-initiated installs, so the default `--apply` now does a direct-write to `/Library/Managed Preferences/` — works standalone with just a sudo prompt, no profile approval UI. `--apply-mobileconfig` is the new opt-in for the MDM/System-Settings path.
+
+- `--apply` (default): writes raw prefs plist to `/Library/Managed Preferences/com.anthropic.claudefordesktop.plist` (+ per-user path), restarts `cfprefsd`. Single sudo call.
+- `--apply-mobileconfig`: builds `.mobileconfig` and `open`s System Settings → Profiles for user approval. Use this for fleet deploys via Jamf/Intune/Mosyle (distribute the file; don't try to `profiles install` it locally).
+- `uninstall` mirrors: tries `profiles remove`, then sudo-removes both managed-prefs plists and kicks `cfprefsd`.
+- Rejects `http://` for non-loopback gateways up front (Cowork rejects it too).
+
 ## 0.3.1 - 2026-04-23
 
-Fix: `install --apply` on macOS now installs a `.mobileconfig` into `/Library/Managed Preferences/` via `sudo profiles install`, which is the domain Cowork actually reads. Previously wrote to per-user defaults, which Cowork ignored.
-
-- `apply_macos`: build mobileconfig plist with `PayloadScope=System`, write to tempfile, `sudo profiles install -path`. Rejects `http://` for non-loopback hosts up front.
-- `uninstall` on macOS: runs `sudo profiles remove -identifier io.systemprompt.cowork.mdm` to restore cloud mode.
-- Stable PayloadIdentifier `io.systemprompt.cowork.mdm` + deterministic UUIDs keep re-applies idempotent.
+Superseded by 0.3.2 — did not ship; `profiles install` is deprecated on modern macOS.
 
 ## 0.3.0 - 2026-04-22
 

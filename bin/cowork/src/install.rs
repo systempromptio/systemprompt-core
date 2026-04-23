@@ -13,6 +13,7 @@ pub struct InstallOptions {
     pub gateway_url: Option<String>,
     pub no_pubkey_fetch: bool,
     pub apply: bool,
+    pub apply_mobileconfig: bool,
 }
 
 pub fn install(opts: InstallOptions) -> ExitCode {
@@ -90,11 +91,25 @@ pub fn install(opts: InstallOptions) -> ExitCode {
         .or_else(|| config::load().gateway_url)
         .unwrap_or_else(|| "https://gateway.systemprompt.io".into());
 
-    if opts.apply {
+    if opts.apply_mobileconfig {
+        match apply_macos_mobileconfig(&binary, &gateway_for_mdm) {
+            Ok(summary) => {
+                println!();
+                println!("--- mobileconfig applied (macOS) ---");
+                for line in summary {
+                    println!("  {line}");
+                }
+            },
+            Err(e) => {
+                diag(&format!("apply --mobileconfig failed: {e}"));
+                return ExitCode::from(1);
+            },
+        }
+    } else if opts.apply {
         match apply_mdm(target_os, &binary, &gateway_for_mdm) {
             Ok(summary) => {
                 println!();
-                println!("--- MDM applied ({}) ---", os_label(target_os));
+                println!("--- policy applied ({}) ---", os_label(target_os));
                 for line in summary {
                     println!("  {line}");
                 }
@@ -183,16 +198,40 @@ pub fn uninstall(purge: bool) -> ExitCode {
 #[cfg(target_os = "macos")]
 fn remove_macos_profile() -> Result<bool, String> {
     use std::process::Command;
-    if !Path::new(MACOS_MANAGED_PREFS_PATH).exists() {
+    let user = std::env::var("USER").unwrap_or_default();
+    let user_path = format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
+    let sys_exists = Path::new(MACOS_MANAGED_PREFS_PATH).exists();
+    let user_exists = !user.is_empty() && Path::new(&user_path).exists();
+
+    // Try `profiles remove` first (cleans mobileconfig-installed payloads) — ok if it fails.
+    let _ = Command::new("sudo")
+        .args(["profiles", "remove", "-identifier", MACOS_PAYLOAD_IDENTIFIER])
+        .status();
+
+    if !sys_exists && !user_exists {
         return Ok(false);
     }
+
+    let script = if user_exists {
+        format!(
+            r#"rm -f "{MACOS_MANAGED_PREFS_PATH}" "{user_path}"
+/usr/bin/killall cfprefsd 2>/dev/null || true
+"#
+        )
+    } else {
+        format!(
+            r#"rm -f "{MACOS_MANAGED_PREFS_PATH}"
+/usr/bin/killall cfprefsd 2>/dev/null || true
+"#
+        )
+    };
     let status = Command::new("sudo")
-        .args(["profiles", "remove", "-identifier", MACOS_PAYLOAD_IDENTIFIER])
+        .args(["sh", "-c", &script])
         .status()
-        .map_err(|e| format!("sudo profiles remove: {e}"))?;
+        .map_err(|e| format!("sudo sh: {e}"))?;
     if !status.success() {
         return Err(format!(
-            "sudo profiles remove exited with {}",
+            "sudo direct-remove exited with {}",
             status.code().unwrap_or(-1)
         ));
     }
@@ -295,6 +334,104 @@ const MACOS_MANAGED_PREFS_PATH: &str =
 fn apply_macos(binary: &Path, gateway: &str) -> Result<Vec<String>, String> {
     use std::process::Command;
 
+    validate_macos_gateway(gateway)?;
+
+    // Direct-write path: bypasses `profiles install` (deprecated on macOS 11+ for
+    // CLI-initiated installs; Apple now requires MDM channel or System Settings UI).
+    // We write the raw prefs plist directly to the Managed Preferences location that
+    // cfprefsd reads — works for a single-machine dev install with no MDM.
+    let plist = build_macos_prefs_plist(binary, gateway);
+    let tmp_path = std::env::temp_dir().join("systemprompt-cowork.prefs.plist");
+    fs::write(&tmp_path, plist.as_bytes())
+        .map_err(|e| format!("write {}: {e}", tmp_path.display()))?;
+
+    let user = std::env::var("USER").unwrap_or_default();
+    let tmp_str = tmp_path.to_string_lossy();
+    let dest_system = MACOS_MANAGED_PREFS_PATH;
+    let dest_user = format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
+    let script = if user.is_empty() {
+        format!(
+            r#"set -e
+mkdir -p "/Library/Managed Preferences"
+/usr/bin/install -m 0644 "{tmp_str}" "{dest_system}"
+/usr/bin/killall cfprefsd 2>/dev/null || true
+"#
+        )
+    } else {
+        format!(
+            r#"set -e
+mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
+/usr/bin/install -m 0644 "{tmp_str}" "{dest_system}"
+/usr/bin/install -m 0644 "{tmp_str}" "{dest_user}"
+/usr/bin/killall cfprefsd 2>/dev/null || true
+"#
+        )
+    };
+
+    let status = Command::new("sudo")
+        .args(["sh", "-c", &script])
+        .status()
+        .map_err(|e| format!("sudo sh: {e}"))?;
+    let _ = fs::remove_file(&tmp_path);
+    if !status.success() {
+        return Err(format!(
+            "sudo direct-write exited with {}. \
+             Re-run `systemprompt-cowork install --apply` and approve the sudo prompt, \
+             or try `--apply-mobileconfig` for the MDM/System-Settings path.",
+            status.code().unwrap_or(-1)
+        ));
+    }
+
+    let mut summary = Vec::with_capacity(6);
+    summary.push(format!("wrote: {dest_system}"));
+    if !user.is_empty() {
+        summary.push(format!("wrote: {dest_user}"));
+    }
+    summary.push(format!("gateway:           {gateway}"));
+    summary.push(format!("credential helper: {}", binary.display()));
+    summary.push("restarted cfprefsd (managed prefs picked up on next app launch)".into());
+    summary.push(
+        "Verify: defaults read /Library/Managed\\ Preferences/com.anthropic.claudefordesktop"
+            .into(),
+    );
+    summary.push("Fully quit Cowork (Cmd+Q) and relaunch to pick up the new policy.".into());
+    Ok(summary)
+}
+
+#[cfg(target_os = "macos")]
+fn apply_macos_mobileconfig(binary: &Path, gateway: &str) -> Result<Vec<String>, String> {
+    use std::process::Command;
+
+    validate_macos_gateway(gateway)?;
+
+    let mobileconfig = build_macos_mobileconfig(binary, gateway);
+    let out_path = std::env::temp_dir().join("systemprompt-cowork.mobileconfig");
+    fs::write(&out_path, mobileconfig.as_bytes())
+        .map_err(|e| format!("write {}: {e}", out_path.display()))?;
+
+    let opened = Command::new("open").arg(&out_path).status();
+
+    let mut summary = Vec::with_capacity(5);
+    summary.push(format!("wrote mobileconfig: {}", out_path.display()));
+    summary.push(format!("payload identifier: {MACOS_PAYLOAD_IDENTIFIER}"));
+    match opened {
+        Ok(s) if s.success() => summary.push(
+            "opened System Settings → Profiles — approve the profile there, then relaunch Cowork."
+                .into(),
+        ),
+        _ => summary.push(format!(
+            "could not auto-open System Settings; double-click {} manually.",
+            out_path.display()
+        )),
+    }
+    summary.push(
+        "For fleet deployment, distribute this file via Jamf/Intune/Mosyle instead.".into(),
+    );
+    Ok(summary)
+}
+
+#[cfg(target_os = "macos")]
+fn validate_macos_gateway(gateway: &str) -> Result<(), String> {
     if gateway.starts_with("http://")
         && !gateway.contains("://127.0.0.1")
         && !gateway.contains("://localhost")
@@ -304,39 +441,27 @@ fn apply_macos(binary: &Path, gateway: &str) -> Result<Vec<String>, String> {
              Cowork rejects this. Use https:// or http://127.0.0.1:<port>."
         ));
     }
+    Ok(())
+}
 
-    let mobileconfig = build_macos_mobileconfig(binary, gateway);
-    let tmp_path = std::env::temp_dir().join("systemprompt-cowork.mobileconfig");
-    fs::write(&tmp_path, mobileconfig.as_bytes())
-        .map_err(|e| format!("write {}: {e}", tmp_path.display()))?;
-
-    let status = Command::new("sudo")
-        .args(["profiles", "install", "-path"])
-        .arg(&tmp_path)
-        .status()
-        .map_err(|e| format!("sudo profiles install: {e}"))?;
-    let _ = fs::remove_file(&tmp_path);
-    if !status.success() {
-        return Err(format!(
-            "sudo profiles install exited with {}. \
-             Re-run `systemprompt-cowork install --apply` and approve the sudo prompt.",
-            status.code().unwrap_or(-1)
-        ));
-    }
-
-    let mut summary = Vec::with_capacity(6);
-    summary.push(format!("installed profile: {MACOS_PAYLOAD_IDENTIFIER}"));
-    summary.push(format!(
-        "managed prefs:     {MACOS_MANAGED_PREFS_PATH} (Cowork reads from here)"
-    ));
-    summary.push(format!("gateway:           {gateway}"));
-    summary.push(format!("credential helper: {}", binary.display()));
-    summary.push(
-        "Verify: defaults read /Library/Managed\\ Preferences/com.anthropic.claudefordesktop"
-            .into(),
-    );
-    summary.push("Fully quit Cowork (Cmd+Q) and relaunch to pick up the new policy.".into());
-    Ok(summary)
+#[cfg(target_os = "macos")]
+fn build_macos_prefs_plist(binary: &Path, gateway: &str) -> String {
+    let binary_esc = xml_escape(&binary.to_string_lossy());
+    let gateway_esc = xml_escape(gateway);
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>inferenceProvider</key><string>gateway</string>
+  <key>inferenceGatewayBaseUrl</key><string>{gateway_esc}</string>
+  <key>inferenceCredentialHelper</key><string>{binary_esc}</string>
+  <key>inferenceCredentialHelperTtlSec</key><integer>3600</integer>
+  <key>inferenceGatewayAuthScheme</key><string>bearer</string>
+</dict>
+</plist>
+"#
+    )
 }
 
 #[cfg(target_os = "macos")]
