@@ -48,7 +48,7 @@ Developer / Agent
 PostgreSQL (customer-managed)
 ```
 
-Architectural detail: [../../instructions/information/architecture.md is internal; see crate layout in the repository root].
+Architectural detail: see the crate layout described in the repository-root `README.md` and `CLAUDE.md`.
 
 ## 2. Trust Boundaries
 
