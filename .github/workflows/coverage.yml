@@ -1,0 +1,104 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "23 6 * * 1"
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_DEV_CODEGEN_BACKEND: llvm
+  RUSTC_WRAPPER: ""
+  SQLX_OFFLINE: "true"
+
+jobs:
+  coverage:
+    name: Line coverage (cargo-llvm-cov)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            crates/tests
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run test workspace with coverage
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+        run: |
+          cargo llvm-cov \
+            --manifest-path crates/tests/Cargo.toml \
+            --workspace --lib \
+            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
+            --summary-only \
+            --json \
+            --output-path coverage-summary.json
+
+      - name: Generate text summary
+        run: |
+          cargo llvm-cov report \
+            --manifest-path crates/tests/Cargo.toml \
+            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
+            --summary-only \
+            | tee coverage-summary.txt
+
+      - name: Generate LCOV (for downstream tools)
+        run: |
+          cargo llvm-cov report \
+            --manifest-path crates/tests/Cargo.toml \
+            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
+            --lcov \
+            --output-path lcov.info
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage-summary.txt
+            coverage-summary.json
+            lcov.info
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Line coverage"
+            echo ""
+            echo '```'
+            tail -30 coverage-summary.txt 2>/dev/null || echo "(coverage summary not produced)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
