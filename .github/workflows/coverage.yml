@@ -82,41 +82,40 @@ jobs:
             -p systemprompt-test-migrate \
             --release
 
-      - name: Run test workspace (instrumented)
+      - name: Run test workspace (instrumented) and render
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
         run: |
-          # Run tests but defer report generation — keeps profdata alive
-          # for the three render steps that follow.
+          # Single cargo-llvm-cov run that writes JSON + LCOV + text
+          # summary. Multiple output formats require re-invoking with
+          # --no-run so the profdata that the first run produced stays
+          # intact.
           cargo llvm-cov \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib \
             --no-report
-
-      - name: Generate text summary
-        run: |
           cargo llvm-cov report \
             --manifest-path crates/tests/Cargo.toml \
-            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
+            --summary-only \
+            | tee coverage-summary-full.txt
+          cargo llvm-cov report \
+            --manifest-path crates/tests/Cargo.toml \
+            --ignore-filename-regex '(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
             --summary-only \
             | tee coverage-summary.txt
-
-      - name: Generate JSON summary
-        run: |
           cargo llvm-cov report \
             --manifest-path crates/tests/Cargo.toml \
-            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
+            --ignore-filename-regex '(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
             --summary-only \
             --json \
             --output-path coverage-summary.json
-
-      - name: Generate LCOV (for downstream tools)
-        run: |
           cargo llvm-cov report \
             --manifest-path crates/tests/Cargo.toml \
-            --ignore-filename-regex '(\.cargo|rustc|crates/tests)' \
+            --ignore-filename-regex '(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
             --lcov \
             --output-path lcov.info
+          echo "=== first 80 lines of UNFILTERED summary ==="
+          head -80 coverage-summary-full.txt
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
@@ -124,6 +123,7 @@ jobs:
           name: coverage
           path: |
             coverage-summary.txt
+            coverage-summary-full.txt
             coverage-summary.json
             lcov.info
 
