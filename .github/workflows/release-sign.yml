@@ -130,6 +130,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         working-directory: dist
         run: |
-          gh release upload "${{ steps.tag.outputs.tag }}" \
-            --clobber \
-            *
+          tag="${{ steps.tag.outputs.tag }}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --title "systemprompt-cowork $tag" \
+              --notes "systemprompt-cowork $tag — signed binaries (Linux x86_64, Windows x86_64, macOS aarch64). Cowork CHANGELOG: bin/cowork/CHANGELOG.md. Intel Mac builds from source; see README."
+          fi
+          gh release upload "$tag" --clobber *
