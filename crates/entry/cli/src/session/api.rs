@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
 
 #[derive(Debug, Serialize)]
 struct CliSessionRequest {
@@ -20,7 +21,7 @@ pub(super) async fn request_session_id(
     email: &str,
 ) -> Result<SessionId> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
         .build()
         .context("Failed to create HTTP client")?;
 

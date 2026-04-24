@@ -17,6 +17,7 @@ pub mod execution;
 pub mod extension;
 pub mod mcp;
 pub mod modules;
+pub mod net;
 pub mod oauth;
 pub mod paths;
 pub mod profile;

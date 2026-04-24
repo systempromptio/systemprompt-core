@@ -3,6 +3,7 @@ use std::time::Duration;
 use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_SYNC_DEPLOY_TIMEOUT};
 use tokio::time::sleep;
 
 use crate::error::{SyncError, SyncResult};
@@ -58,8 +59,8 @@ impl SyncApiClient {
     pub fn new(api_url: &str, token: &str) -> SyncResult<Self> {
         Ok(Self {
             client: Client::builder()
-                .connect_timeout(Duration::from_secs(10))
-                .timeout(Duration::from_secs(60))
+                .connect_timeout(HTTP_CONNECT_TIMEOUT)
+                .timeout(HTTP_SYNC_DEPLOY_TIMEOUT)
                 .build()?,
             api_url: api_url.to_string(),
             token: token.to_string(),

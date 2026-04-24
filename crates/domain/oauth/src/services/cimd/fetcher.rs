@@ -1,8 +1,8 @@
 use crate::models::cimd::CimdMetadata;
 use anyhow::{Result, anyhow};
 use reqwest::Client;
-use std::time::Duration;
 use systemprompt_identifiers::ClientId;
+use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
 
 #[derive(Debug)]
 pub struct CimdFetcher {
@@ -12,7 +12,7 @@ pub struct CimdFetcher {
 impl CimdFetcher {
     pub fn new() -> Result<Self> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(10))
+            .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
             .user_agent(concat!("systemprompt.io-OS/", env!("CARGO_PKG_VERSION")))
             .redirect(reqwest::redirect::Policy::limited(3))
             .build()

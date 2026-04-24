@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::CloudAuthToken;
 use systemprompt_logging::CliService;
+use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
 use validator::Validate;
 
 use crate::auth;
@@ -81,7 +82,7 @@ impl CloudCredentials {
         let response = client
             .get(format!("{}/api/v1/auth/me", self.api_url))
             .header("Authorization", format!("Bearer {}", self.api_token))
-            .timeout(std::time::Duration::from_secs(10))
+            .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
             .send()
             .await?;
 

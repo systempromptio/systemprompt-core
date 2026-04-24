@@ -14,6 +14,9 @@ use sse_stream::{Error as SseError, Sse, SseStream};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
+use systemprompt_models::net::{
+    HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT,
+};
 use systemprompt_traits::ContextPropagation;
 
 #[derive(Clone, Debug)]
@@ -25,9 +28,9 @@ pub struct HttpClientWithContext {
 impl HttpClientWithContext {
     pub fn new(context: RequestContext) -> Self {
         let client = reqwest::Client::builder()
-            .connect_timeout(std::time::Duration::from_secs(30))
-            .tcp_keepalive(Some(std::time::Duration::from_secs(60)))
-            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT)
+            .tcp_keepalive(Some(HTTP_KEEPALIVE))
+            .pool_idle_timeout(HTTP_POOL_IDLE_TIMEOUT)
             .build()
             .unwrap_or_else(|_| reqwest::Client::default());
 

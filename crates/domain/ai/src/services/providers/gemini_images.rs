@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_TIMEOUT};
 use systemprompt_models::services::ModelDefinition;
 use tracing::error;
 
@@ -26,8 +27,8 @@ pub struct GeminiImageProvider {
 impl GeminiImageProvider {
     pub fn new(api_key: String) -> Self {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(300))
-            .connect_timeout(std::time::Duration::from_secs(30))
+            .timeout(IMAGE_GEN_LONG_POLL_TIMEOUT)
+            .connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT)
             .build()
             .unwrap_or_else(|e| {
                 error!(error = %e, "Failed to build HTTP client for GeminiImageProvider, using default");

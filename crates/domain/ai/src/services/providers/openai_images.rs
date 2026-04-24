@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
+use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
 
 #[derive(Debug)]
 pub struct OpenAiImageProvider {
@@ -20,7 +21,7 @@ pub struct OpenAiImageProvider {
 impl OpenAiImageProvider {
     pub fn new(api_key: String) -> Self {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(IMAGE_GEN_OPENAI_TIMEOUT)
             .build()
             .unwrap_or_else(|_| Client::new());
 

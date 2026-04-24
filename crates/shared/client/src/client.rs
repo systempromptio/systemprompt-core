@@ -6,12 +6,13 @@ use std::time::Duration;
 use systemprompt_identifiers::{ContextId, JwtToken};
 use systemprompt_models::a2a::{Task, methods};
 use systemprompt_models::admin::{AnalyticsData, LogEntry, UserInfo};
+use systemprompt_models::net::{
+    HTTP_AUTH_VERIFY_TIMEOUT, HTTP_DEFAULT_TIMEOUT, HTTP_HEALTH_CHECK_TIMEOUT,
+};
 use systemprompt_models::{
     AgentCard, ApiPaths, CollectionResponse, CreateContextRequest, SingleResponse, UserContext,
     UserContextWithStats,
 };
-
-const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Clone)]
 pub struct SystempromptClient {
@@ -22,9 +23,7 @@ pub struct SystempromptClient {
 
 impl SystempromptClient {
     pub fn new(base_url: &str) -> ClientResult<Self> {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
-            .build()?;
+        let client = Client::builder().timeout(HTTP_DEFAULT_TIMEOUT).build()?;
 
         Ok(Self {
             base_url: base_url.trim_end_matches('/').to_string(),
@@ -175,7 +174,7 @@ impl SystempromptClient {
         let url = format!("{}{}", self.base_url, ApiPaths::HEALTH);
         self.client
             .get(&url)
-            .timeout(Duration::from_secs(5))
+            .timeout(HTTP_HEALTH_CHECK_TIMEOUT)
             .send()
             .await
             .is_ok()
@@ -187,7 +186,7 @@ impl SystempromptClient {
         let response = self
             .client
             .get(&url)
-            .timeout(Duration::from_secs(10))
+            .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
             .header("Authorization", auth)
             .send()
             .await?;

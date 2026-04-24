@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use systemprompt_models::net::AGENT_READINESS_TCP_TIMEOUT;
+
 use super::AgentLifecycle;
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationError, OrchestrationResult, process,
@@ -42,12 +44,14 @@ impl AgentLifecycle {
     ) -> OrchestrationResult<()> {
         const MAX_ATTEMPTS: u32 = 5;
         const SLEEP_MS: u64 = 1000;
-        const TCP_TIMEOUT_SECS: u64 = 2;
 
         for attempt in 1..=MAX_ATTEMPTS {
             tokio::time::sleep(Duration::from_millis(SLEEP_MS)).await;
 
-            match self.check_port_responsiveness(port, TCP_TIMEOUT_SECS).await {
+            match self
+                .check_port_responsiveness(port, AGENT_READINESS_TCP_TIMEOUT.as_secs())
+                .await
+            {
                 Ok(true) => return Ok(()),
                 Ok(false) => {
                     tracing::debug!(

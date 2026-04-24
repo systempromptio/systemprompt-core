@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::time::Duration;
 use systemprompt_database::DbPool;
+use systemprompt_models::net::AGENT_MONITOR_TCP_TIMEOUT;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
@@ -169,7 +170,7 @@ async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckRe
 
     tracing::trace!(address = %address, "Attempting TCP health check");
 
-    match timeout(Duration::from_secs(15), TcpStream::connect(&address)).await {
+    match timeout(AGENT_MONITOR_TCP_TIMEOUT, TcpStream::connect(&address)).await {
         Ok(Ok(_)) => {
             let response_time = start.elapsed().as_millis() as u64;
             tracing::trace!(address = %address, response_time_ms = %response_time, "Health check passed");

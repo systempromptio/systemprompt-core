@@ -1,11 +1,10 @@
-use std::time::Duration;
-
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
 use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 
 use super::types::{
     ActivityRequest, ApiError, CheckoutRequest, CheckoutResponse, ListResponse, Plan, Tenant,
@@ -23,8 +22,8 @@ impl CloudApiClient {
     pub fn new(api_url: &str, token: &str) -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: Client::builder()
-                .connect_timeout(Duration::from_secs(10))
-                .timeout(Duration::from_secs(30))
+                .connect_timeout(HTTP_CONNECT_TIMEOUT)
+                .timeout(HTTP_DEFAULT_TIMEOUT)
                 .build()?,
             api_url: api_url.to_string(),
             token: token.to_string(),

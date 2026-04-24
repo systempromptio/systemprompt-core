@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use std::time::Duration;
+use systemprompt_models::net::HTTP_HEALTH_CHECK_TIMEOUT;
 use tokio::time::sleep;
 use tracing::{info, warn};
 
@@ -33,7 +34,7 @@ impl HealthChecker {
         info!("Performing health checks");
 
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(5))
+            .timeout(HTTP_HEALTH_CHECK_TIMEOUT)
             .build()?;
 
         for attempt in 0..self.max_retries {
