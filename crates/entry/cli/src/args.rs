@@ -77,7 +77,7 @@ pub struct ProfileOpts {
 #[derive(Parser)]
 #[command(name = "systemprompt")]
 #[command(about = "Agent orchestration and AI operations.")]
-#[command(version = "0.1.0")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(
     before_help = "\x1b[38;5;208m</\x1b[1;37mSYSTEMPROMPT\x1b[38;5;208m.\x1b[0;37mio\x1b[38;5;\
                    208m>\x1b[0m"

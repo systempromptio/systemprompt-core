@@ -57,7 +57,7 @@ pub fn generate_marketplace_json(plugins_path: &Path, system_path: &Path) -> Res
         "owner": { "name": "systemprompt.io" },
         "metadata": {
             "description": "systemprompt.io plugin marketplace",
-            "version": "0.1.0"
+            "version": env!("CARGO_PKG_VERSION")
         },
         "plugins": plugin_entries
     });

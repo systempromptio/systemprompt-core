@@ -18,6 +18,8 @@ pub use extension::McpExtension;
 
 pub use error::McpError as McpDomainError;
 pub use rmcp::ErrorData as McpError;
+
+pub const MCP_PROTOCOL_VERSION: &str = "2024-11-05";
 pub type McpResult<T> = Result<T, McpError>;
 
 pub use capabilities::{

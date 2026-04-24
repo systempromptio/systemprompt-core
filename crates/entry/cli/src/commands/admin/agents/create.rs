@@ -91,7 +91,7 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
         default: args.agent.default,
         tags: Vec::new(),
         card: AgentCardConfig {
-            protocol_version: "0.3.0".to_string(),
+            protocol_version: systemprompt_agent::A2A_PROTOCOL_VERSION.to_string(),
             name: Some(name.clone()),
             display_name,
             description,

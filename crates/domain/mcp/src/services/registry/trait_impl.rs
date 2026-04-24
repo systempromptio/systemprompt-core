@@ -84,7 +84,7 @@ impl McpDeploymentProvider for McpDeploymentProviderImpl {
     }
 
     fn protocol_version(&self) -> &'static str {
-        "2024-11-05"
+        crate::MCP_PROTOCOL_VERSION
     }
 }
 

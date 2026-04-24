@@ -28,5 +28,5 @@ pub struct AgentCardInput {
 }
 
 pub fn default_protocol_version() -> String {
-    "0.3.0".to_string()
+    crate::A2A_PROTOCOL_VERSION.to_string()
 }

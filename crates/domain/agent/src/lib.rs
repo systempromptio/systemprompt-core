@@ -18,6 +18,8 @@ pub use models::a2a::{
 
 pub use error::{AgentError, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError};
 
+pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
+
 pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus,
     ContextService, SkillIngestionService, SkillService,

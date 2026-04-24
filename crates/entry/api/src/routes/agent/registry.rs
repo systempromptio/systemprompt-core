@@ -124,7 +124,7 @@ pub fn create_mcp_extensions_from_config(
         })
         .collect();
 
-    let mcp_protocol_version = "2024-11-05".to_string();
+    let mcp_protocol_version = systemprompt_mcp::MCP_PROTOCOL_VERSION.to_string();
 
     vec![AgentExtension {
         uri: "systemprompt:mcp-tools".to_string(),
