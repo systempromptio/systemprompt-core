@@ -12,7 +12,21 @@
 
 ### Breaking
 
-- **Removed `systemprompt::prelude::{Entity, EntityId, GenericRepository, RepositoryExt}`.** The generic repository composed SQL at runtime from `E::TABLE`/`E::COLUMNS` and cannot satisfy the project's MANDATORY "SQLX macros only" rule (`query!` requires a string literal at compile time). No internal callers, no `impl Entity for` sites — the abstraction was dormant. Downstreams using the facade should migrate to per-entity repositories with `sqlx::query!()` / `query_as!()` (see `ServiceRepository`, `CleanupRepository` in `crates/infra/database/src/repository/` for the pattern). `crates/infra/database/src/repository/entity.rs` deleted.
+- **Removed `systemprompt::prelude::{Entity, EntityId, GenericRepository, RepositoryExt}`** (#5). The generic repository composed SQL at runtime from `E::TABLE`/`E::COLUMNS` and cannot satisfy the project's MANDATORY "SQLX macros only" rule (`query!` requires a string literal at compile time). No internal callers, no `impl Entity for` sites — the abstraction was dormant. Downstreams using the facade should migrate to per-entity repositories with `sqlx::query!()` / `query_as!()` (see `ServiceRepository`, `CleanupRepository` in `crates/infra/database/src/repository/` for the pattern). `crates/infra/database/src/repository/entity.rs` deleted.
+
+- **`QueryExecutor::execute_query(sql, read_only)` replaced by `execute_readonly(sql, row_limit)` and `execute_write(sql)`** (#7). The old API passed a `bool` to switch modes; the new API encodes the mode in the entry point and returns the new `AdminSql` newtype's error variants if validation fails. Old callers using `executor.execute_query(sql, true)` become `executor.execute_readonly(sql, None)`; `executor.execute_query(sql, false)` becomes `executor.execute_write(sql)`.
+
+### Changed
+
+- **`DatabaseAdminService::{describe_table, get_table_indexes, count_rows}` now take `&SafeIdentifier` instead of `&str`** (#6). New `SafeIdentifier` newtype (exported from `systemprompt_database`) validates PostgreSQL identifiers at the boundary: 63-byte length cap, ASCII-letter-or-underscore lead, `[A-Za-z0-9_]` body only. Inline alphanumeric checks scattered across three admin methods removed; the invariant now rides the type. CLI callers (`db describe`, `db count`, `db indexes`) parse user input into a `SafeIdentifier` once at the CLI boundary and propagate it.
+
+- **Admin SQL query executor hardened with `AdminSql` newtype and row cap** (#7). `AdminSql::parse_readonly(raw)` strips SQL line (`-- ...`) and block (`/* ... */`) comments, rejects multi-statement queries (any non-trailing `;`), requires a read-only prefix (`SELECT | WITH | EXPLAIN | SHOW | TABLE | VALUES`), and rejects forbidden keywords anywhere (drop, delete, insert, update, alter, create, truncate, grant, revoke, copy, vacuum, call, lock, set, reset, rename). Default row cap of 1000 on the read-only path, configurable per-call. Replaces the previous lowercase prefix + substring block-list, which missed comment-smuggled keywords and had no multi-statement guard.
+
+### CI
+
+- **New `ci/check-sqlx.sh` allowlist guard** (#8) fails if an unverified `sqlx::query*(...)` call appears outside a short list of structurally-dynamic sites (admin introspection, postgres driver, CLI bootstrap, integration test fixtures). Verified macros (`query!`, `query_as!`, `query_scalar!`) are unaffected. Wired into `just lint-sqlx` and `just style-check` step 4. Prevents regressions after this release tightens the unverified-query surface.
+
+- **Regenerated per-crate `.sqlx/` offline caches** (#9) so `SQLX_OFFLINE=true cargo build --workspace` produces byte-identical output against the current live schema. Required for crates.io publishing.
 
 ## [0.3.2] - 2026-04-24
 
