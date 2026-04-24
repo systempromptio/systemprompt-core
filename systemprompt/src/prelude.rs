@@ -17,10 +17,7 @@ pub use systemprompt_traits::{Job, JobContext, JobResult};
 pub use systemprompt_traits::{LlmProvider, LlmProviderResult, ToolProvider, ToolProviderResult};
 
 #[cfg(feature = "database")]
-pub use systemprompt_database::{
-    DatabaseProvider, DbPool,
-    repository::{Entity, EntityId, GenericRepository, RepositoryExt},
-};
+pub use systemprompt_database::{DatabaseProvider, DbPool};
 
 #[cfg(feature = "api")]
 pub use systemprompt_runtime::{AppContext, AppContextBuilder};
