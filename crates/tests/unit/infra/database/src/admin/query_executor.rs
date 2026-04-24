@@ -1,10 +1,6 @@
-//! Unit tests for QueryExecutorError and QueryExecutor
+//! Unit tests for QueryExecutorError display
 
 use systemprompt_database::QueryExecutorError;
-
-// ============================================================================
-// QueryExecutorError Display Tests
-// ============================================================================
 
 #[test]
 fn test_write_query_not_allowed_display() {
@@ -19,36 +15,24 @@ fn test_write_query_not_allowed_display() {
 #[test]
 fn test_write_query_not_allowed_mentions_with() {
     let error = QueryExecutorError::WriteQueryNotAllowed;
-    let display = error.to_string();
-
-    assert!(display.contains("WITH"));
+    assert!(error.to_string().contains("WITH"));
 }
 
 #[test]
 fn test_write_query_not_allowed_mentions_explain() {
     let error = QueryExecutorError::WriteQueryNotAllowed;
-    let display = error.to_string();
-
-    assert!(display.contains("EXPLAIN"));
+    assert!(error.to_string().contains("EXPLAIN"));
 }
 
 #[test]
-fn test_write_query_not_allowed_mentions_pragma() {
+fn test_write_query_not_allowed_mentions_show() {
     let error = QueryExecutorError::WriteQueryNotAllowed;
-    let display = error.to_string();
-
-    assert!(display.contains("PRAGMA"));
+    assert!(error.to_string().contains("SHOW"));
 }
-
-// ============================================================================
-// QueryExecutorError Debug Tests
-// ============================================================================
 
 #[test]
 fn test_write_query_not_allowed_debug() {
     let error = QueryExecutorError::WriteQueryNotAllowed;
     let debug = format!("{:?}", error);
-
     assert!(debug.contains("WriteQueryNotAllowed"));
 }
-
