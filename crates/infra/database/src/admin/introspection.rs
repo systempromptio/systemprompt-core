@@ -4,6 +4,7 @@ use anyhow::Result;
 use sqlx::Row;
 use sqlx::postgres::PgPool;
 
+use crate::admin::identifier::SafeIdentifier;
 use crate::models::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 
 #[derive(Debug)]
@@ -50,21 +51,20 @@ impl DatabaseAdminService {
         Ok(tables)
     }
 
-    pub async fn describe_table(&self, table_name: &str) -> Result<(Vec<ColumnInfo>, i64)> {
-        if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
-            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
-        }
-
+    pub async fn describe_table(
+        &self,
+        table_name: &SafeIdentifier,
+    ) -> Result<(Vec<ColumnInfo>, i64)> {
         let rows = sqlx::query(
             "SELECT column_name, data_type, is_nullable, column_default FROM \
              information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position",
         )
-        .bind(table_name)
+        .bind(table_name.as_str())
         .fetch_all(&*self.pool)
         .await?;
 
         if rows.is_empty() {
-            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
+            return Err(anyhow::anyhow!("Table '{table_name}' not found"));
         }
 
         let pk_rows = sqlx::query(
@@ -75,7 +75,7 @@ impl DatabaseAdminService {
             WHERE i.indrelid = $1::regclass AND i.indisprimary
             ",
         )
-        .bind(table_name)
+        .bind(table_name.as_str())
         .fetch_all(&*self.pool)
         .await?;
 
@@ -109,11 +109,10 @@ impl DatabaseAdminService {
         Ok((columns, row_count))
     }
 
-    pub async fn get_table_indexes(&self, table_name: &str) -> Result<Vec<IndexInfo>> {
-        if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
-            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
-        }
-
+    pub async fn get_table_indexes(
+        &self,
+        table_name: &SafeIdentifier,
+    ) -> Result<Vec<IndexInfo>> {
         let rows = sqlx::query(
             r"
             SELECT
@@ -129,7 +128,7 @@ impl DatabaseAdminService {
             ORDER BY i.relname
             ",
         )
-        .bind(table_name)
+        .bind(table_name.as_str())
         .fetch_all(&*self.pool)
         .await?;
 
@@ -150,12 +149,8 @@ impl DatabaseAdminService {
         Ok(indexes)
     }
 
-    pub async fn count_rows(&self, table_name: &str) -> Result<i64> {
-        if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
-            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
-        }
-
-        let quoted_table = quote_identifier(table_name);
+    pub async fn count_rows(&self, table_name: &SafeIdentifier) -> Result<i64> {
+        let quoted_table = quote_identifier(table_name.as_str());
         let count_query = format!("SELECT COUNT(*) as count FROM {quoted_table}");
         let row_count: i64 = sqlx::query_scalar(&count_query)
             .fetch_one(&*self.pool)

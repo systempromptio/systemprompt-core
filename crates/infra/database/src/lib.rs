@@ -34,7 +34,9 @@ pub use repository::{
     ServiceRepository,
 };
 
-pub use admin::{DatabaseAdminService, QueryExecutor, QueryExecutorError};
+pub use admin::{
+    DatabaseAdminService, IdentifierError, QueryExecutor, QueryExecutorError, SafeIdentifier,
+};
 pub use sqlx::types::Json;
 pub use sqlx::{PgPool, Pool, Postgres, Transaction};
 

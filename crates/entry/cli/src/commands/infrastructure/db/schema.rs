@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use std::collections::HashSet;
-use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay};
+use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay, SafeIdentifier};
 use systemprompt_logging::CliService;
 use tabled::{Table, Tabled};
 
@@ -87,7 +87,10 @@ pub async fn execute_describe(
     table_name: &str,
     config: &CliConfig,
 ) -> Result<()> {
-    let (columns, row_count) = admin.describe_table(table_name).await.map_err(|e| {
+    let table_id = SafeIdentifier::parse(table_name)
+        .map_err(|e| anyhow!("Invalid table name '{}': {}", table_name, e))?;
+
+    let (columns, row_count) = admin.describe_table(&table_id).await.map_err(|e| {
         let msg = e.to_string();
         if msg.contains("not found") || msg.contains("does not exist") {
             anyhow!("Table '{}' not found", table_name)
@@ -97,7 +100,7 @@ pub async fn execute_describe(
     })?;
 
     let indexes = admin
-        .get_table_indexes(table_name)
+        .get_table_indexes(&table_id)
         .await
         .unwrap_or_else(|e| {
             tracing::warn!(table = %table_name, error = %e, "Failed to get table indexes");
@@ -267,7 +270,10 @@ pub async fn execute_count(
     table_name: &str,
     config: &CliConfig,
 ) -> Result<()> {
-    let count = admin.count_rows(table_name).await.map_err(|e| {
+    let table_id = SafeIdentifier::parse(table_name)
+        .map_err(|e| anyhow!("Invalid table name '{}': {}", table_name, e))?;
+
+    let count = admin.count_rows(&table_id).await.map_err(|e| {
         let msg = e.to_string();
         if msg.contains("not found") || msg.contains("does not exist") {
             anyhow!("Table '{}' not found", table_name)
