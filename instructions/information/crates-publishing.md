@@ -232,9 +232,7 @@ All inter-crate dependencies use workspace inheritance for clean version managem
 
 ---
 
-## Publishing with cargo-workspaces (Recommended)
-
-We use `cargo-workspaces` for lock-step versioning and publishing all crates together.
+## Publishing
 
 ### Install
 
@@ -242,52 +240,46 @@ We use `cargo-workspaces` for lock-step versioning and publishing all crates tog
 cargo install cargo-workspaces
 ```
 
-### Complete Publish Workflow
+### The one-liner
+
+Everything below is automated by `ci/release.sh` and wired into the justfile.
 
 ```bash
-# 1. Make code changes and update CHANGELOG.md in affected crates
-
-# 2. Commit code changes first
-git add -A
-git commit -m "feat: description of changes"
-
-# 3. Ensure database is running (for SQLx cache)
+# Pre-release prep (commit changes, regenerate SQLx cache if schema moved)
 just postgres-start
-
-# 4. Generate SQLx caches for all crates
 just sqlx-prepare-publish
+git add crates/*/.sqlx && git commit -m "chore: update SQLx cache for release"
 
-# 5. Commit SQLx caches
-git add crates/*/.sqlx
-git commit -m "chore: update SQLx cache for release"
-
-# 6. Bump version (updates root + all workspace deps automatically)
-cargo ws version --all patch --no-git-push --yes  # or minor/major
-
-# 7. Push version bump commit and the semver tag only
-#    Do NOT use `git push --tags` — it tries to push all local per-crate
-#    tags created by past `cargo ws version` runs, which blow up with
-#    non-fast-forward rejections against the remote.
-git push && git push origin "v$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
-
-# 8. Publish all crates
-cargo ws publish --no-verify --publish-as-is --yes
+# Full release — bump, sync, tag, push, publish
+just release patch   # or: minor | major
 ```
+
+`ci/release.sh` runs:
+
+1. Refuses to run on a dirty tree or off `main`.
+2. `cargo fmt --all -- --check`.
+3. `SQLX_OFFLINE=true cargo check --workspace --all-targets`.
+4. `cargo ws version --all <bump> --no-git-push --yes --no-individual-tags`.
+5. **`ci/sync-workspace-deps.sh`** — rewrites every `systemprompt-*` pin in `[workspace.dependencies]` to the new `[workspace.package].version`. This catches the pins cargo-ws silently skips (see gotcha below).
+6. `cargo update --workspace` to refresh `Cargo.lock`.
+7. Amends the cargo-ws bump commit with the pin + lockfile fixups so history stays as one atomic commit.
+8. Creates the `vX.Y.Z` tag on the amended commit.
+9. **Pushes `main` + only the semver tag** (never `git push --tags`).
+10. `cargo ws publish --no-verify --publish-as-is --yes --from-git`.
 
 ### Version Types
 
-- `patch`: 0.0.7 → 0.0.8 (bug fixes, small changes)
-- `minor`: 0.0.7 → 0.1.0 (new features, backward compatible)
-- `major`: 0.0.7 → 1.0.0 (breaking changes)
+- `patch`: 0.4.0 → 0.4.1 (bug fixes)
+- `minor`: 0.4.0 → 0.5.0 (new features, backward compatible)
+- `major`: 0.4.0 → 1.0.0 (breaking changes)
 
-### What cargo-ws Does
+### Known gotchas (fixed by release.sh)
 
-1. Bumps version in root `[workspace.package]`
-2. Updates all `[workspace.dependencies]` versions automatically
-3. Creates a git commit with version bump
-4. Creates git tags for each crate
-5. Publishes all crates in correct dependency order
-6. Handles crates.io rate limits with retries
+**cargo-ws skips "unchanged" crates in `[workspace.dependencies]`.**
+When a shared-layer crate (e.g. `systemprompt-identifiers`) has no git changes since the previous tag, `cargo ws version` leaves its pinned `version = "X.Y.Z"` entry in root `Cargo.toml` untouched — even though the crate itself bumps via `version.workspace = true`. The next `cargo update` then fails with `candidate versions found which didn't match`. `ci/sync-workspace-deps.sh` rewrites every pin to the workspace version and is called automatically by `release.sh`.
+
+**`git push --tags` is destructive.**
+Past `cargo ws version` runs created hundreds of `<crate>@<version>` local tags. `--tags` tries to push all of them and fails non-fast-forward against the remote, producing a scary wall of rejection output. `release.sh` pushes only `vX.Y.Z` explicitly. To prune existing junk tags locally: `git tag -l '*@*' | xargs -r git tag -d`.
 
 ---
 
