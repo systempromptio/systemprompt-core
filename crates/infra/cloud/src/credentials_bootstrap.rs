@@ -109,7 +109,7 @@ impl CredentialsBootstrap {
             api_url: std::env::var("SYSTEMPROMPT_API_URL")
                 .ok()
                 .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| "https://api.systemprompt.io".into()),
+                .unwrap_or_else(|| crate::constants::api::PRODUCTION_URL.into()),
             authenticated_at: Utc::now(),
             user_email,
         })
@@ -235,7 +235,7 @@ pub mod test_helpers {
     pub fn minimal_credentials() -> CloudCredentials {
         CloudCredentials {
             api_token: "minimal_test_token".into(),
-            api_url: "https://api.systemprompt.io".into(),
+            api_url: crate::constants::api::PRODUCTION_URL.into(),
             authenticated_at: Utc::now(),
             user_email: "minimal@example.com".into(),
         }

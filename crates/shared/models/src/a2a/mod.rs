@@ -11,8 +11,8 @@ pub mod task_metadata;
 pub mod transport;
 
 pub use agent_card::{
-    AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature, AgentExtension,
-    AgentInterface, AgentProvider, AgentSkill,
+    ARTIFACT_RENDERING_URI, AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature,
+    AgentExtension, AgentInterface, AgentProvider, AgentSkill,
 };
 pub use artifact::Artifact;
 pub use artifact_metadata::ArtifactMetadata;

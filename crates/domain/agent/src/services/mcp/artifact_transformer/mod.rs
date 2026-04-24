@@ -149,9 +149,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
         description: None,
         parts,
         metadata,
-        extensions: vec![json!(
-            "https://systemprompt.io/extensions/artifact-rendering/v1"
-        )],
+        extensions: vec![json!(systemprompt_models::a2a::ARTIFACT_RENDERING_URI)],
     })
 }
 

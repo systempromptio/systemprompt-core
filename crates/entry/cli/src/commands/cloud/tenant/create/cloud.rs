@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Select};
+use systemprompt_cloud::constants::api::{DB_PRODUCTION_HOST, DB_SANDBOX_HOST};
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
 use systemprompt_cloud::constants::regions::AVAILABLE;
 use systemprompt_cloud::{
@@ -237,9 +238,9 @@ pub fn swap_to_external_host(url: &str) -> String {
 
     let host = parsed.host_str().unwrap_or("");
     let external_host = if host.contains("sandbox") {
-        "db-sandbox.systemprompt.io"
+        DB_SANDBOX_HOST
     } else {
-        "db.systemprompt.io"
+        DB_PRODUCTION_HOST
     };
 
     url.replace(host, external_host)

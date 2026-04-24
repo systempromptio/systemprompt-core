@@ -17,14 +17,16 @@ pub mod container {
     pub const ASSETS: &str = cloud_container::ASSETS;
 }
 
+pub const CALLBACK_TIMEOUT_SECS: u64 = 300;
+
 pub mod oauth {
     pub const CALLBACK_PORT: u16 = 8765;
-    pub const CALLBACK_TIMEOUT_SECS: u64 = 300;
+    pub const CALLBACK_TIMEOUT_SECS: u64 = super::CALLBACK_TIMEOUT_SECS;
 }
 
 pub mod checkout {
     pub const CALLBACK_PORT: u16 = 8766;
-    pub const CALLBACK_TIMEOUT_SECS: u64 = 300;
+    pub const CALLBACK_TIMEOUT_SECS: u64 = super::CALLBACK_TIMEOUT_SECS;
     pub const PROVISIONING_POLL_INTERVAL_MS: u64 = 2000;
 }
 
@@ -61,6 +63,8 @@ pub mod docker {
 pub mod api {
     pub const PRODUCTION_URL: &str = "https://api.systemprompt.io";
     pub const SANDBOX_URL: &str = "https://api-sandbox.systemprompt.io";
+    pub const DB_PRODUCTION_HOST: &str = "db.systemprompt.io";
+    pub const DB_SANDBOX_HOST: &str = "db-sandbox.systemprompt.io";
 }
 
 pub mod regions {

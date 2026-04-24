@@ -3,6 +3,8 @@ use super::transport::ProtocolBinding;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub const ARTIFACT_RENDERING_URI: &str = "https://systemprompt.io/extensions/artifact-rendering/v1";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentInterface {
@@ -106,7 +108,7 @@ impl AgentExtension {
 
     pub fn artifact_rendering_extension() -> Self {
         Self {
-            uri: "https://systemprompt.io/extensions/artifact-rendering/v1".to_string(),
+            uri: ARTIFACT_RENDERING_URI.to_string(),
             description: Some(
                 "MCP tool results rendered as typed artifacts with UI hints".to_string(),
             ),

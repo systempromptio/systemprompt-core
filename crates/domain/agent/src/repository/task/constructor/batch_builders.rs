@@ -178,7 +178,7 @@ fn build_artifact(
         .cloned()
         .unwrap_or_else(|| {
             vec![serde_json::json!(
-                "https://systemprompt.io/extensions/artifact-rendering/v1"
+                systemprompt_models::a2a::ARTIFACT_RENDERING_URI
             )]
         });
 
