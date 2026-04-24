@@ -35,7 +35,8 @@ pub use repository::{
 };
 
 pub use admin::{
-    DatabaseAdminService, IdentifierError, QueryExecutor, QueryExecutorError, SafeIdentifier,
+    AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,
+    QueryExecutor, QueryExecutorError, SafeIdentifier,
 };
 pub use sqlx::types::Json;
 pub use sqlx::{PgPool, Pool, Postgres, Transaction};

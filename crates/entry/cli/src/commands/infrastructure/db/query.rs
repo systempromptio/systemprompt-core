@@ -33,7 +33,7 @@ pub async fn execute_query(
     };
 
     let result = executor
-        .execute_query(&final_sql, true)
+        .execute_readonly(&final_sql, None)
         .await
         .map_err(|e| {
             let msg = e.to_string();
@@ -68,7 +68,7 @@ pub async fn execute_write(
     sql: &str,
     _config: &CliConfig,
 ) -> Result<CommandResult<DbExecuteOutput>> {
-    let result = executor.execute_query(sql, false).await.map_err(|e| {
+    let result = executor.execute_write(sql).await.map_err(|e| {
         let msg = e.to_string();
         if msg.contains("does not exist") {
             anyhow!("Table or column not found: {}", extract_relation_name(&msg))
