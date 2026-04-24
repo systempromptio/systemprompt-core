@@ -46,6 +46,23 @@ build-cowork-all:
     just build-cowork x86_64-pc-windows-msvc
     just build-cowork x86_64-unknown-linux-gnu
 
+# =============================================================================
+# RELEASE
+# =============================================================================
+
+# Sync every `systemprompt-*` pin in [workspace.dependencies] to the current
+# [workspace.package].version. Run after `cargo ws version` to catch the
+# pins cargo-ws silently skips.
+sync-workspace-deps:
+    ./ci/sync-workspace-deps.sh Cargo.toml
+
+# Full release cycle: fmt, check, bump, sync, tag, push, publish.
+#   just release patch    # 0.4.0 -> 0.4.1
+#   just release minor    # 0.4.0 -> 0.5.0
+#   just release major    # 0.4.0 -> 1.0.0
+release BUMP:
+    ./ci/release.sh {{BUMP}}
+
 # Prepare sqlx offline cache (requires running database)
 sqlx-prepare:
     cargo sqlx prepare --workspace
