@@ -1,6 +1,5 @@
 use anyhow::{Context, Result, anyhow};
 use futures::stream::{Stream, StreamExt};
-use reqwest::Client;
 use reqwest_eventsource::{Event, EventSource};
 use std::pin::Pin;
 use systemprompt_models::modules::ApiPaths;
@@ -15,9 +14,10 @@ impl CloudApiClient {
     ) -> Pin<Box<dyn Stream<Item = Result<ProvisioningEvent>> + Send + '_>> {
         let url = format!("{}{}", self.api_url(), ApiPaths::tenant_events(tenant_id));
         let token = self.token().to_string();
+        let client = self.client.clone();
 
         let stream = async_stream::stream! {
-            let request = Client::new()
+            let request = client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", token))
                 .header("Accept", "text/event-stream");
@@ -67,10 +67,11 @@ impl CloudApiClient {
             checkout_session_id
         );
         let token = self.token().to_string();
+        let client = self.client.clone();
 
         let stream = async_stream::stream! {
             tracing::debug!(url = %url, "Building SSE request");
-            let request = Client::new()
+            let request = client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", token))
                 .header("Accept", "text/event-stream");

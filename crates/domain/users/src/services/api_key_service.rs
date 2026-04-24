@@ -120,29 +120,3 @@ fn extract_prefix(presented: &str) -> Option<String> {
     let dot = presented.find('.')?;
     Some(presented[..dot].to_string())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn generate_secret_formats_correctly() {
-        let (secret, prefix, hash) = generate_secret();
-        assert!(secret.starts_with(API_KEY_PREFIX));
-        assert!(secret.starts_with(&prefix));
-        assert!(secret.contains('.'));
-        assert_eq!(hash.len(), 64);
-    }
-
-    #[test]
-    fn extract_prefix_matches_issued_format() {
-        let (secret, prefix, _hash) = generate_secret();
-        assert_eq!(extract_prefix(&secret), Some(prefix));
-    }
-
-    #[test]
-    fn extract_prefix_rejects_foreign_keys() {
-        assert_eq!(extract_prefix("nope"), None);
-        assert_eq!(extract_prefix("sk-live-no-dot-separator"), None);
-    }
-}

@@ -1,6 +1,8 @@
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
 use crate::models::{AiRequestRecord, AiRequestRecordBuilder, RequestStatus};
-use systemprompt_identifiers::{ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiRequestId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::RequestContext;
 
 pub struct MessageData {
@@ -29,21 +31,24 @@ pub struct BuildRecordParams<'a> {
 pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     let user_id = UserId::new(params.context.user_id().as_str());
 
-    let mut builder = AiRequestRecordBuilder::new(params.response.request_id.to_string(), user_id)
-        .provider(&params.response.provider)
-        .model(&params.response.model)
-        .tokens(
-            params.response.input_tokens.map(|t| t as i32),
-            params.response.output_tokens.map(|t| t as i32),
-        )
-        .cache(
-            params.response.cache_hit,
-            params.response.cache_read_tokens.map(|t| t as i32),
-            params.response.cache_creation_tokens.map(|t| t as i32),
-        )
-        .streaming(params.response.is_streaming)
-        .cost(params.cost_microdollars)
-        .latency(params.response.latency_ms as i32);
+    let mut builder = AiRequestRecordBuilder::new(
+        AiRequestId::new(params.response.request_id.to_string()),
+        user_id,
+    )
+    .provider(&params.response.provider)
+    .model(&params.response.model)
+    .tokens(
+        params.response.input_tokens.map(|t| t as i32),
+        params.response.output_tokens.map(|t| t as i32),
+    )
+    .cache(
+        params.response.cache_hit,
+        params.response.cache_read_tokens.map(|t| t as i32),
+        params.response.cache_creation_tokens.map(|t| t as i32),
+    )
+    .streaming(params.response.is_streaming)
+    .cost(params.cost_microdollars)
+    .latency(params.response.latency_ms as i32);
 
     builder = builder.max_tokens(params.request.max_output_tokens());
 
@@ -78,7 +83,7 @@ pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
 
     builder.build().unwrap_or_else(|_| {
         AiRequestRecordBuilder::new(
-            params.response.request_id.to_string(),
+            AiRequestId::new(params.response.request_id.to_string()),
             UserId::new("unknown"),
         )
         .provider("unknown")

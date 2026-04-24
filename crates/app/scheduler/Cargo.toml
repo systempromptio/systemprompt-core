@@ -52,6 +52,9 @@ systemprompt-users = { workspace = true }
 # Job registration and discovery
 inventory = { workspace = true }
 
+# Panic isolation for spawned jobs
+futures = { workspace = true }
+
 # Traits
 async-trait = { workspace = true }
 thiserror = { workspace = true }

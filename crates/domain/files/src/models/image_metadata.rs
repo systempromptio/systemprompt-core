@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AiRequestId;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ImageMetadata {
@@ -111,8 +112,8 @@ impl ImageGenerationInfo {
         self
     }
 
-    pub fn with_request_id(mut self, request_id: impl Into<String>) -> Self {
-        self.request_id = Some(request_id.into());
+    pub fn with_request_id(mut self, request_id: &AiRequestId) -> Self {
+        self.request_id = Some(request_id.as_str().to_string());
         self
     }
 }

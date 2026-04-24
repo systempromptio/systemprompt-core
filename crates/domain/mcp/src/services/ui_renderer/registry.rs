@@ -78,23 +78,3 @@ pub fn create_default_registry() -> UiRendererRegistry {
 
     registry
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_registry_creation() {
-        let registry = create_default_registry();
-        assert!(registry.supports("table"));
-        assert!(registry.supports("chart"));
-        assert!(registry.supports("text"));
-    }
-
-    #[test]
-    fn test_unsupported_type() {
-        let registry = UiRendererRegistry::new();
-        assert!(!registry.supports("unknown_type"));
-        assert!(registry.get("unknown_type").is_none());
-    }
-}

@@ -27,8 +27,8 @@ pub use traits::Extension;
 pub use any::{AnyExtension, ApiExtensionWrapper, ExtensionWrapper, SchemaExtensionWrapper};
 pub use builder::ExtensionBuilder;
 pub use capabilities::{
-    CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
-    HasHttpClient,
+    CapabilityContext, FullContext, HasAnalytics, HasConfig, HasDatabase, HasEventBus,
+    HasExtension, HasFingerprint, HasHttpClient, HasRouteClassifier, HasUserService,
 };
 pub use hlist::{Contains, NotSame, Subset, TypeList};
 pub use typed::{

@@ -51,8 +51,7 @@ impl Job for GhostSessionCleanupJob {
             ",
         )
         .fetch_one(pool.as_ref())
-        .await
-        .unwrap_or(0);
+        .await?;
 
         let marked = result as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;

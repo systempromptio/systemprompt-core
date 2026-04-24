@@ -1,8 +1,10 @@
-use axum::extract::Request;
-use axum::http::HeaderMap;
+use axum::extract::{FromRequestParts, Request};
+use axum::http::request::Parts;
+use axum::http::{HeaderMap, StatusCode};
 use axum::middleware;
 use axum::middleware::Next;
 use axum::response::Response;
+use systemprompt_models::AuthenticatedUser;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_security::TokenExtractor;
 
@@ -50,15 +52,15 @@ impl ApiAuthMiddlewareConfig {
 pub struct AuthMiddleware;
 
 impl AuthMiddleware {
-    pub fn apply_auth_layer(router: axum::Router) -> axum::Router {
+    pub fn apply_auth_enrichment_layer(router: axum::Router) -> axum::Router {
         router.layer(middleware::from_fn(move |req, next| {
             let config = ApiAuthMiddlewareConfig::default();
-            async move { auth_middleware(config, req, next).await }
+            async move { auth_enrichment_middleware(config, req, next).await }
         }))
     }
 }
 
-pub async fn auth_middleware(
+pub async fn auth_enrichment_middleware(
     config: ApiAuthMiddlewareConfig,
     mut req: Request,
     next: Next,
@@ -76,7 +78,23 @@ pub async fn auth_middleware(
     next.run(req).await
 }
 
-fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::AuthenticatedUser> {
+#[derive(Debug, Clone)]
+pub struct RequireAuth(pub AuthenticatedUser);
+
+impl<S: Send + Sync> FromRequestParts<S> for RequireAuth {
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+        parts
+            .extensions
+            .get::<AuthenticatedUser>()
+            .cloned()
+            .map(RequireAuth)
+            .ok_or((StatusCode::UNAUTHORIZED, "authentication required"))
+    }
+}
+
+fn extract_optional_user(headers: &HeaderMap) -> Option<AuthenticatedUser> {
     use systemprompt_models::SecretsBootstrap;
     use systemprompt_oauth::validate_jwt_token;
     use uuid::Uuid;
@@ -107,7 +125,7 @@ fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::Aut
     let permissions = claims.scope;
     let roles = claims.roles;
 
-    Some(systemprompt_models::AuthenticatedUser::new_with_roles(
+    Some(AuthenticatedUser::new_with_roles(
         user_id,
         claims.username,
         claims.email,

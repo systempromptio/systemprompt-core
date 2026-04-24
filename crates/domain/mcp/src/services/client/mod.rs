@@ -63,15 +63,13 @@ pub struct McpClient;
 
 impl McpClient {
     pub async fn list_tools(
-        service_id: impl Into<String>,
+        service_id: &str,
         context: &systemprompt_models::RequestContext,
     ) -> Result<Vec<McpTool>> {
         use crate::services::registry::RegistryManager;
 
-        let service_id = service_id.into();
-
         RegistryManager::validate()?;
-        let server_config = RegistryManager::find_server(&service_id)?
+        let server_config = RegistryManager::find_server(service_id)?
             .ok_or_else(|| anyhow::anyhow!("MCP server '{service_id}' not found in registry"))?;
 
         let url = server_config.endpoint(&Config::get()?.api_server_url);
@@ -131,7 +129,7 @@ impl McpClient {
                 description: tool.description.map(|d| d.to_string()),
                 input_schema: Some(input_schema),
                 output_schema,
-                service_id: McpServerId::new(service_id.clone()),
+                service_id: McpServerId::new(service_id),
                 terminal_on_success,
                 model_config,
             });

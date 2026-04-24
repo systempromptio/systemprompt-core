@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0] - 2026-04-24
+
+### Security
+
+- **Fly.io cloud credentials now fail closed on API validation error** (`crates/infra/cloud/src/credentials_bootstrap.rs`). Previously, `CredentialsBootstrap::init()` demoted a validation error to `tracing::warn!` on Fly.io and continued with unvalidated credentials, so expired/revoked tokens only surfaced at the first downstream API call. Now propagates `CredentialsBootstrapError::ApiValidationFailed` unless the operator opts into fail-open behaviour with `SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1`. Non-Fly.io paths already failed closed and are unchanged.
+
+- **Tarball extraction in `systemprompt-sync` hardened against path traversal** (`crates/app/sync/src/file_bundler.rs`). `extract_tarball` and `extract_tarball_selective` now reject symlinks and hard links, absolute paths, and any path containing `..`; enforce that the first path component is in the `INCLUDE_DIRS` allowlist (`agents`, `skills`, `content`, `web`, `config`, `profiles`, `plugins`, `hooks`); and canonicalise the destination parent, rejecting the entry if it escapes the target directory. Both entry points now funnel through a single `extract_tarball_filtered` helper. New `SyncError::TarballUnsafe(String)` variant. Pair with the equivalent hardening already in `crates/entry/api/src/routes/sync/files.rs`.
+
+- **Auth middleware renamed to reflect its advisory role, `RequireAuth` extractor added** (`crates/entry/api/src/services/middleware/auth.rs`). `auth_middleware` → `auth_enrichment_middleware` and `AuthMiddleware::apply_auth_layer` → `apply_auth_enrichment_layer`. The middleware only attaches `Extension<AuthenticatedUser>` on successful JWT extraction and never rejects requests — enforcement lives in `ContextMiddleware`. New `RequireAuth(pub AuthenticatedUser)` extractor with `FromRequestParts` impl returns `401 Unauthorized` when the extension is absent, giving handlers a compile-time-checked auth primitive independent of `ContextMiddleware`. Neither the old function nor `apply_auth_layer` had external callers, so no downstream churn.
+
+### Breaking (pending — Step 1 of follow-up)
+
+- `systemprompt::prelude::{Entity, EntityId, GenericRepository, RepositoryExt}` will be removed in a subsequent 0.4.0 release slice. The generic repository composes SQL at runtime from `E::TABLE`/`E::COLUMNS` and cannot satisfy the project's MANDATORY "SQLX macros only" rule (`query!` requires a string literal at compile time). No internal callers; no `impl Entity for` sites. Downstreams using the facade should migrate to per-entity repositories with `sqlx::query!()` / `query_as!()` (see `ServiceRepository`, `CleanupRepository` for the pattern).
+
 ## [0.3.2] - 2026-04-24
 
 ### Fixed

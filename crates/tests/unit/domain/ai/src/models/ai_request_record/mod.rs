@@ -4,7 +4,7 @@ use systemprompt_ai::models::{
     AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, CacheInfo, RequestStatus,
     TokenInfo,
 };
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
 
 mod token_info_tests {
     use super::*;
@@ -82,7 +82,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_requires_provider() {
-        let result = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let result = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .model("gpt-4")
             .build();
 
@@ -91,7 +91,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_requires_model() {
-        let result = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let result = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .build();
 
@@ -100,7 +100,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_creates_record_with_required_fields() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .build()
@@ -115,7 +115,7 @@ mod ai_request_record_builder_tests {
     #[test]
     fn builder_sets_session_id() {
         let session_id = SessionId::new("session-456");
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("anthropic")
             .model("claude-3")
             .session_id(session_id.clone())
@@ -128,7 +128,7 @@ mod ai_request_record_builder_tests {
     #[test]
     fn builder_sets_task_id() {
         let task_id = TaskId::new("task-789");
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("gemini")
             .model("gemini-pro")
             .task_id(task_id.clone())
@@ -141,7 +141,7 @@ mod ai_request_record_builder_tests {
     #[test]
     fn builder_sets_context_id() {
         let context_id = ContextId::new("ctx-abc");
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .context_id(context_id.clone())
@@ -154,7 +154,7 @@ mod ai_request_record_builder_tests {
     #[test]
     fn builder_sets_trace_id() {
         let trace_id = TraceId::new("trace-xyz");
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .trace_id(trace_id.clone())
@@ -166,7 +166,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_max_tokens() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .max_tokens(4096)
@@ -178,7 +178,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_tokens() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .tokens(Some(1000), Some(500))
@@ -192,7 +192,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_tokens_with_only_input() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .tokens(Some(1000), None)
@@ -206,7 +206,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_tokens_with_only_output() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .tokens(None, Some(500))
@@ -220,7 +220,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_cache_info() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("anthropic")
             .model("claude-3")
             .cache(true, Some(500), Some(100))
@@ -234,7 +234,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_streaming() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .streaming(true)
@@ -246,7 +246,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_cost() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .cost(150)
@@ -258,7 +258,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_latency() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .latency(250)
@@ -270,7 +270,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_completed_status() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .completed()
@@ -283,7 +283,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_failed_status_with_message() {
-        let record = AiRequestRecordBuilder::new("req-123", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
             .failed("Rate limit exceeded")
@@ -301,7 +301,7 @@ mod ai_request_record_builder_tests {
         let context_id = ContextId::new("context");
         let trace_id = TraceId::new("trace");
 
-        let record = AiRequestRecordBuilder::new("req-full", test_user_id())
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-full"), test_user_id())
             .provider("anthropic")
             .model("claude-3-opus")
             .session_id(session_id)
@@ -354,7 +354,7 @@ mod ai_request_record_tests {
     #[test]
     fn builder_method_creates_builder() {
         let user_id = UserId::new("user-123");
-        let builder = AiRequestRecord::builder("req-456", user_id);
+        let builder = AiRequestRecord::builder(AiRequestId::new("req-456"), user_id);
 
         let record = builder.provider("test").model("test-model").build().unwrap();
 

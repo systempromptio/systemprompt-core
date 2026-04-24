@@ -140,8 +140,7 @@ async fn initialize_post_routing(
     }
 
     if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_fly {
-        let secrets = SecretsBootstrap::get()
-            .map_err(|e| anyhow::anyhow!("Secrets required for external DB access: {}", e))?;
+        let secrets = SecretsBootstrap::get().context("Secrets required for external DB access")?;
         let db_url = secrets.effective_database_url(true).to_string();
         return Ok(RoutingAction::ExternalDbUrl(db_url));
     }
@@ -174,7 +173,7 @@ async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Prof
                 routing::remote::execute_remote(&hostname, &token, context.as_str(), &args, 300)
                     .await?;
             if exit_code != 0 {
-                anyhow::bail!("Remote command exited with code {}", exit_code);
+                bail!("Remote command exited with code {}", exit_code);
             }
             return Ok(());
         },

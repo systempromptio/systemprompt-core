@@ -96,7 +96,7 @@ impl GatewayAudit {
 
     fn build_record(&self) -> Result<AiRequestRecord> {
         let mut record =
-            AiRequestRecord::builder(self.ctx.ai_request_id.as_str(), self.ctx.user_id.clone())
+            AiRequestRecord::builder(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone())
                 .provider(self.ctx.provider.clone())
                 .model(self.ctx.model.clone())
                 .streaming(self.ctx.is_streaming);

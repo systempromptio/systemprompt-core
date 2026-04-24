@@ -4,7 +4,10 @@ use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_database::DbPool;
-use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
+use systemprompt_extension::{
+    Extension, ExtensionContext, ExtensionRegistry, HasAnalytics, HasFingerprint,
+    HasRouteClassifier, HasUserService,
+};
 use systemprompt_logging::CliService;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_traits::{
@@ -276,5 +279,37 @@ impl ExtensionContext for AppContext {
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.extension_registry.get(id).cloned()
+    }
+}
+
+impl HasAnalytics for AppContext {
+    type Analytics = Arc<AnalyticsService>;
+
+    fn analytics(&self) -> &Self::Analytics {
+        &self.analytics_service
+    }
+}
+
+impl HasFingerprint for AppContext {
+    type Fingerprint = Arc<FingerprintRepository>;
+
+    fn fingerprint(&self) -> Option<&Self::Fingerprint> {
+        self.fingerprint_repo.as_ref()
+    }
+}
+
+impl HasUserService for AppContext {
+    type UserService = Arc<UserService>;
+
+    fn user_service(&self) -> Option<&Self::UserService> {
+        self.user_service.as_ref()
+    }
+}
+
+impl HasRouteClassifier for AppContext {
+    type RouteClassifier = Arc<RouteClassifier>;
+
+    fn route_classifier(&self) -> &Self::RouteClassifier {
+        &self.route_classifier
     }
 }

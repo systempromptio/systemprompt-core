@@ -77,8 +77,7 @@ impl DatabaseAdminService {
         )
         .bind(table_name)
         .fetch_all(&*self.pool)
-        .await
-        .unwrap_or_else(|_| Vec::new());
+        .await?;
 
         let pk_columns: Vec<String> = pk_rows
             .iter()
@@ -174,11 +173,14 @@ impl DatabaseAdminService {
             .fetch_one(&*self.pool)
             .await?;
 
+        let size = u64::try_from(size)
+            .map_err(|_| anyhow::anyhow!("pg_database_size returned negative value: {size}"))?;
+
         let tables = self.list_tables().await?;
 
         Ok(DatabaseInfo {
             path: "PostgreSQL".to_string(),
-            size: u64::try_from(size).unwrap_or(0),
+            size,
             version,
             tables,
         })

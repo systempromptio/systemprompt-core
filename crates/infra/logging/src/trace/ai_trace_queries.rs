@@ -2,7 +2,7 @@ use anyhow::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{AiRequestId, ExecutionStepId};
+use systemprompt_identifiers::{AiRequestId, ExecutionStepId, TaskId};
 
 use super::models::{AiRequestInfo, ConversationMessage, ExecutionStep, TaskInfo};
 
@@ -22,12 +22,12 @@ pub async fn resolve_task_id(pool: &Arc<PgPool>, partial_id: &str) -> Result<Opt
     Ok(row.map(|r| r.task_id))
 }
 
-pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &str) -> Result<TaskInfo> {
+pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<TaskInfo> {
     let row = sqlx::query!(
         r#"SELECT task_id, context_id, agent_name, status, created_at, started_at, completed_at,
                   execution_time_ms, error_message
            FROM agent_tasks WHERE task_id = $1"#,
-        task_id
+        task_id.as_str()
     )
     .fetch_one(&**pool)
     .await?;
@@ -45,14 +45,14 @@ pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &str) -> Result<TaskIn
     })
 }
 
-pub async fn fetch_user_input(pool: &Arc<PgPool>, task_id: &str) -> Result<Option<String>> {
+pub async fn fetch_user_input(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Option<String>> {
     let row = sqlx::query!(
         r#"SELECT mp.text_content
            FROM task_messages tm
            JOIN message_parts mp ON mp.message_id = tm.message_id AND mp.task_id = tm.task_id
            WHERE tm.task_id = $1 AND tm.role = 'user' AND mp.part_kind = 'text'
            ORDER BY tm.sequence_number DESC LIMIT 1"#,
-        task_id
+        task_id.as_str()
     )
     .fetch_optional(&**pool)
     .await?;
@@ -60,14 +60,14 @@ pub async fn fetch_user_input(pool: &Arc<PgPool>, task_id: &str) -> Result<Optio
     Ok(row.and_then(|r| r.text_content))
 }
 
-pub async fn fetch_agent_response(pool: &Arc<PgPool>, task_id: &str) -> Result<Option<String>> {
+pub async fn fetch_agent_response(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Option<String>> {
     let row = sqlx::query!(
         r#"SELECT mp.text_content
            FROM task_messages tm
            JOIN message_parts mp ON mp.message_id = tm.message_id AND mp.task_id = tm.task_id
            WHERE tm.task_id = $1 AND tm.role = 'agent' AND mp.part_kind = 'text'
            ORDER BY tm.sequence_number DESC LIMIT 1"#,
-        task_id
+        task_id.as_str()
     )
     .fetch_optional(&**pool)
     .await?;
@@ -77,7 +77,7 @@ pub async fn fetch_agent_response(pool: &Arc<PgPool>, task_id: &str) -> Result<O
 
 pub async fn fetch_execution_steps(
     pool: &Arc<PgPool>,
-    task_id: &str,
+    task_id: &TaskId,
 ) -> Result<Vec<ExecutionStep>> {
     let rows = sqlx::query!(
         r#"SELECT
@@ -90,7 +90,7 @@ pub async fn fetch_execution_steps(
            FROM task_execution_steps
            WHERE task_id = $1
            ORDER BY started_at"#,
-        task_id
+        task_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -108,13 +108,13 @@ pub async fn fetch_execution_steps(
         .collect())
 }
 
-pub async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &str) -> Result<Vec<AiRequestInfo>> {
+pub async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Vec<AiRequestInfo>> {
     let rows = sqlx::query!(
         r#"SELECT id, model, provider, max_tokens, input_tokens, output_tokens, cost_microdollars, latency_ms
            FROM ai_requests
            WHERE task_id = $1
            ORDER BY created_at"#,
-        task_id
+        task_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;

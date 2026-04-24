@@ -6,6 +6,7 @@ use axum::routing::get;
 use reqwest::Client;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
+use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use tokio::sync::{Mutex, oneshot};
 
 use crate::OAuthProvider;
@@ -89,7 +90,11 @@ pub async fn run_oauth_flow(
 
     CliService::info("Fetching authorization URL...");
 
-    let client = Client::new();
+    let client = Client::builder()
+        .connect_timeout(HTTP_CONNECT_TIMEOUT)
+        .timeout(HTTP_DEFAULT_TIMEOUT)
+        .build()
+        .context("Failed to build OAuth HTTP client")?;
     let oauth_endpoint = format!(
         "{}/api/v1/auth/oauth/{}?redirect_uri={}",
         api_url,

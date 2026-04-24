@@ -81,21 +81,7 @@ pub fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8
 }
 
 pub fn extract_tarball(data: &[u8], target: &Path) -> SyncResult<usize> {
-    let decoder = GzDecoder::new(data);
-    let mut archive = Archive::new(decoder);
-    let mut count = 0;
-
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path = target.join(entry.path()?);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        entry.unpack(&path)?;
-        count += 1;
-    }
-
-    Ok(count)
+    extract_tarball_filtered(data, target, |_| true)
 }
 
 pub fn extract_tarball_selective(
@@ -105,24 +91,72 @@ pub fn extract_tarball_selective(
 ) -> SyncResult<usize> {
     let allowed: std::collections::HashSet<&str> =
         paths_to_sync.iter().map(String::as_str).collect();
+    extract_tarball_filtered(data, target, |p| allowed.contains(p))
+}
 
+fn extract_tarball_filtered<F>(data: &[u8], target: &Path, accept: F) -> SyncResult<usize>
+where
+    F: Fn(&str) -> bool,
+{
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut count = 0;
 
     for entry in archive.entries()? {
         let mut entry = entry?;
-        let entry_path = entry.path()?.to_string_lossy().to_string();
 
-        if !allowed.contains(entry_path.as_str()) {
+        let entry_type = entry.header().entry_type();
+        if entry_type.is_symlink() || entry_type.is_hard_link() {
+            return Err(SyncError::TarballUnsafe(format!(
+                "symlinks not allowed in tarball: {}",
+                entry.path()?.to_string_lossy()
+            )));
+        }
+
+        let entry_path = entry.path()?.into_owned();
+        let entry_path_str = entry_path.to_string_lossy();
+
+        if entry_path.is_absolute()
+            || entry_path
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            return Err(SyncError::TarballUnsafe(format!(
+                "invalid path in tarball: {entry_path_str}"
+            )));
+        }
+
+        let first_component = entry_path
+            .components()
+            .find_map(|c| match c {
+                std::path::Component::Normal(s) => s.to_str(),
+                _ => None,
+            })
+            .unwrap_or("");
+        if !INCLUDE_DIRS.contains(&first_component) {
+            return Err(SyncError::TarballUnsafe(format!(
+                "path not in allowed top-level directory: {entry_path_str}"
+            )));
+        }
+
+        if !accept(&entry_path_str) {
             continue;
         }
 
-        let path = target.join(&entry_path);
-        if let Some(parent) = path.parent() {
+        let dest_path = target.join(&entry_path);
+
+        if let Some(parent) = dest_path.parent() {
             fs::create_dir_all(parent)?;
+            let canonical_parent = parent.canonicalize()?;
+            let canonical_target = target.canonicalize()?;
+            if !canonical_parent.starts_with(&canonical_target) {
+                return Err(SyncError::TarballUnsafe(format!(
+                    "path escapes target directory: {entry_path_str}"
+                )));
+            }
         }
-        entry.unpack(&path)?;
+
+        entry.unpack(&dest_path)?;
         count += 1;
     }
 

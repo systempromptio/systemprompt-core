@@ -45,10 +45,7 @@ impl ProcessCleanup {
             return None;
         }
 
-        let output = match Command::new("netstat")
-            .args(["-ano", "-p", "TCP"])
-            .output()
-        {
+        let output = match Command::new("netstat").args(["-ano", "-p", "TCP"]).output() {
             Ok(output) => output,
             Err(e) => {
                 tracing::warn!(

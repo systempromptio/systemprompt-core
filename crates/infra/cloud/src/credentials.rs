@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::CloudAuthToken;
 use systemprompt_logging::CliService;
-use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
+use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_CONNECT_TIMEOUT};
 use validator::Validate;
 
 use crate::auth;
@@ -77,12 +77,15 @@ impl CloudCredentials {
     }
 
     pub async fn validate_with_api(&self) -> Result<bool> {
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .connect_timeout(HTTP_CONNECT_TIMEOUT)
+            .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
+            .build()
+            .context("Failed to build credentials validation HTTP client")?;
 
         let response = client
             .get(format!("{}/api/v1/auth/me", self.api_url))
             .header("Authorization", format!("Bearer {}", self.api_token))
-            .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
             .send()
             .await?;
 

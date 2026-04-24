@@ -244,6 +244,9 @@ impl SchedulerService {
         db_pool: DbPool,
         app_context: Arc<AppContext>,
     ) -> Result<systemprompt_traits::JobResult> {
+        use futures::FutureExt;
+        use std::panic::AssertUnwindSafe;
+
         let job = Self::find_job(job_name).ok_or_else(|| {
             error!(job_name = %job_name, "Job not found in inventory");
             anyhow::anyhow!("Job not found: {}", job_name)
@@ -252,7 +255,19 @@ impl SchedulerService {
         let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
         let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_context);
         let ctx = JobContext::new(db_pool_any, app_context_any);
-        job.execute(&ctx).await
+
+        match AssertUnwindSafe(job.execute(&ctx)).catch_unwind().await {
+            Ok(result) => result,
+            Err(payload) => {
+                let msg = payload
+                    .downcast_ref::<&'static str>()
+                    .map(|s| (*s).to_string())
+                    .or_else(|| payload.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "<non-string panic payload>".to_string());
+                error!(job_name = %job_name, panic = %msg, "Job panicked");
+                Err(anyhow::anyhow!("job panicked: {}", msg))
+            },
+        }
     }
 
     async fn handle_job_result(

@@ -42,7 +42,7 @@ async fn persist_ai_request(
         .clone()
         .unwrap_or_else(|| UserId::new("anonymous"));
 
-    let mut builder = AiRequestRecordBuilder::new(&response.request_id, user_id)
+    let mut builder = AiRequestRecordBuilder::new(response.request_id.clone(), user_id)
         .provider(&response.provider)
         .model(&response.model)
         .cost(response.cost_estimate.map_or(0, |c| c.round() as i64))

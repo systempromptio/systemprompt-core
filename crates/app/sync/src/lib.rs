@@ -147,6 +147,16 @@ impl SyncConfig {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SyncOpState {
+    NotStarted,
+    Partial { completed: usize, total: usize },
+    #[default]
+    Completed,
+    Failed,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncOperationResult {
     pub operation: String,
@@ -155,6 +165,8 @@ pub struct SyncOperationResult {
     pub items_skipped: usize,
     pub errors: Vec<String>,
     pub details: Option<serde_json::Value>,
+    #[serde(default)]
+    pub state: SyncOpState,
 }
 
 impl SyncOperationResult {
@@ -166,6 +178,7 @@ impl SyncOperationResult {
             items_skipped: 0,
             errors: vec![],
             details: None,
+            state: SyncOpState::Completed,
         }
     }
 
@@ -182,6 +195,7 @@ impl SyncOperationResult {
             items_skipped,
             errors: vec![],
             details: Some(details),
+            state: SyncOpState::Completed,
         }
     }
 }
@@ -238,13 +252,27 @@ impl SyncService {
             Ok(db_result) => results.push(db_result),
             Err(e) => {
                 tracing::warn!(error = %e, "Database sync failed");
+                let (state, items_synced) = match &e {
+                    SyncError::MissingConfig(_) => (SyncOpState::NotStarted, 0),
+                    SyncError::PartialImport {
+                        completed, total, ..
+                    } => (
+                        SyncOpState::Partial {
+                            completed: *completed,
+                            total: *total,
+                        },
+                        *completed,
+                    ),
+                    _ => (SyncOpState::Failed, 0),
+                };
                 results.push(SyncOperationResult {
                     operation: "database".to_string(),
                     success: false,
-                    items_synced: 0,
+                    items_synced,
                     items_skipped: 0,
                     errors: vec![e.to_string()],
                     details: None,
+                    state,
                 });
             },
         }

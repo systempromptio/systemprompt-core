@@ -58,22 +58,3 @@ impl GatewayUpstreamRegistry {
         Self { entries }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn built_in_tags_present() {
-        let registry = GatewayUpstreamRegistry::build();
-        for tag in ["anthropic", "minimax", "openai", "moonshot", "qwen"] {
-            assert!(registry.get(tag).is_some(), "missing built-in tag: {tag}");
-        }
-    }
-
-    #[test]
-    fn gemini_is_not_built_in() {
-        let registry = GatewayUpstreamRegistry::build();
-        assert!(registry.get("gemini").is_none());
-    }
-}

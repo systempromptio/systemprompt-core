@@ -189,23 +189,58 @@ async fn import_to_database(
     let pool = PgPool::connect(database_url).await?;
     let mut created = 0;
     let mut updated = 0;
+    let mut completed = 0usize;
+    let total = export.users.len() + export.skills.len() + export.contexts.len();
 
     for user in &export.users {
-        let (c, u) = upsert_user(&pool, user).await?;
-        created += c;
-        updated += u;
+        match upsert_user(&pool, user).await {
+            Ok((c, u)) => {
+                created += c;
+                updated += u;
+                completed += 1;
+            },
+            Err(err) => {
+                return Err(crate::error::SyncError::PartialImport {
+                    completed,
+                    total,
+                    message: format!("user upsert failed: {err}"),
+                });
+            },
+        }
     }
 
     for skill in &export.skills {
-        let (c, u) = upsert_skill(&pool, skill).await?;
-        created += c;
-        updated += u;
+        match upsert_skill(&pool, skill).await {
+            Ok((c, u)) => {
+                created += c;
+                updated += u;
+                completed += 1;
+            },
+            Err(err) => {
+                return Err(crate::error::SyncError::PartialImport {
+                    completed,
+                    total,
+                    message: format!("skill upsert failed: {err}"),
+                });
+            },
+        }
     }
 
     for context in &export.contexts {
-        let (c, u) = upsert_context(&pool, context).await?;
-        created += c;
-        updated += u;
+        match upsert_context(&pool, context).await {
+            Ok((c, u)) => {
+                created += c;
+                updated += u;
+                completed += 1;
+            },
+            Err(err) => {
+                return Err(crate::error::SyncError::PartialImport {
+                    completed,
+                    total,
+                    message: format!("context upsert failed: {err}"),
+                });
+            },
+        }
     }
 
     Ok(ImportResult {

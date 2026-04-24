@@ -1,6 +1,7 @@
 //! Unit tests for ImageMetadata and ImageGenerationInfo
 
 use systemprompt_files::{ImageGenerationInfo, ImageMetadata};
+use systemprompt_identifiers::AiRequestId;
 
 // ============================================================================
 // ImageMetadata Tests
@@ -162,7 +163,8 @@ fn test_image_generation_info_with_cost_estimate() {
 #[test]
 fn test_image_generation_info_with_request_id() {
     let gen_info =
-        ImageGenerationInfo::new("prompt", "model", "provider").with_request_id("req_abc123");
+        ImageGenerationInfo::new("prompt", "model", "provider")
+            .with_request_id(&AiRequestId::new("req_abc123"));
 
     assert_eq!(gen_info.request_id, Some("req_abc123".to_string()));
 }
@@ -174,7 +176,7 @@ fn test_image_generation_info_builder_chain() {
         .with_aspect_ratio("1:1")
         .with_generation_time(3000)
         .with_cost_estimate(0.01)
-        .with_request_id("req_xyz789");
+        .with_request_id(&AiRequestId::new("req_xyz789"));
 
     assert_eq!(gen_info.prompt, "Create a logo");
     assert_eq!(gen_info.model, "stable-diffusion");

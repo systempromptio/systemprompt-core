@@ -243,10 +243,16 @@ impl SessionAnalytics {
     }
 
     fn parse_referrer_source(url: &str) -> Option<String> {
-        url::Url::parse(url)
-            .ok()
-            .and_then(|parsed_url| parsed_url.host_str().map(ToString::to_string))
-            .filter(|host| host.parse::<std::net::IpAddr>().is_err())
+        match url::Url::parse(url) {
+            Ok(parsed_url) => parsed_url
+                .host_str()
+                .map(ToString::to_string)
+                .filter(|host| host.parse::<std::net::IpAddr>().is_err()),
+            Err(err) => {
+                tracing::debug!(url = %url, error = %err, "failed to parse referrer URL");
+                None
+            },
+        }
     }
 
     pub fn is_bot(&self) -> bool {

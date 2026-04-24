@@ -8,7 +8,7 @@ use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
-use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
+use systemprompt_sync::{SyncConfig, SyncDirection, SyncOpState, SyncOperationResult, SyncService};
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::get_credentials;
@@ -236,20 +236,38 @@ fn print_header(direction: &SyncDirection, dry_run: bool) {
 
 fn print_results(results: &[SyncOperationResult]) {
     for result in results {
-        if result.success {
-            CliService::success(&format!(
-                "{} - Synced {} items",
-                result.operation, result.items_synced
-            ));
-        } else {
-            CliService::error(&format!(
-                "{} - Failed with {} errors",
-                result.operation,
-                result.errors.len()
-            ));
-            for err in &result.errors {
-                CliService::error(&format!("  - {}", err));
-            }
+        match &result.state {
+            SyncOpState::Completed => {
+                CliService::success(&format!(
+                    "{} - Synced {} items",
+                    result.operation, result.items_synced
+                ));
+            },
+            SyncOpState::NotStarted => {
+                CliService::error(&format!("{} - did not run", result.operation));
+                for err in &result.errors {
+                    CliService::error(&format!("  - {}", err));
+                }
+            },
+            SyncOpState::Partial { completed, total } => {
+                CliService::warning(&format!(
+                    "{} - partial: {} of {} items completed",
+                    result.operation, completed, total
+                ));
+                for err in &result.errors {
+                    CliService::error(&format!("  - {}", err));
+                }
+            },
+            SyncOpState::Failed => {
+                CliService::error(&format!(
+                    "{} - failed with {} errors",
+                    result.operation,
+                    result.errors.len()
+                ));
+                for err in &result.errors {
+                    CliService::error(&format!("  - {}", err));
+                }
+            },
         }
     }
 }

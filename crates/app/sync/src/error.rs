@@ -40,6 +40,16 @@ pub enum SyncError {
     #[error("Missing configuration: {0}")]
     MissingConfig(String),
 
+    #[error("Partial import failure after {completed}/{total} items: {message}")]
+    PartialImport {
+        completed: usize,
+        total: usize,
+        message: String,
+    },
+
+    #[error("Unsafe tarball entry rejected: {0}")]
+    TarballUnsafe(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

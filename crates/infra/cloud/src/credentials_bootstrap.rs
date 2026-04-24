@@ -48,10 +48,18 @@ impl CredentialsBootstrap {
             let creds = Self::load_from_env();
             if let Some(ref c) = creds {
                 if let Err(e) = Self::validate_with_api(c).await {
-                    tracing::warn!(
-                        error = %e,
-                        "Cloud credential validation failed on Fly.io, continuing with unvalidated credentials"
-                    );
+                    if Self::allow_unvalidated() {
+                        tracing::warn!(
+                            error = %e,
+                            "cloud credentials unvalidated; proceeding under SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1"
+                        );
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            CredentialsBootstrapError::ApiValidationFailed {
+                                message: e.to_string()
+                            }
+                        ));
+                    }
                 }
             }
             CREDENTIALS
@@ -91,6 +99,10 @@ impl CredentialsBootstrap {
 
     fn is_fly_container() -> bool {
         std::env::var("FLY_APP_NAME").is_ok()
+    }
+
+    fn allow_unvalidated() -> bool {
+        std::env::var("SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS").as_deref() == Ok("1")
     }
 
     fn load_from_env() -> Option<CloudCredentials> {
@@ -202,42 +214,5 @@ impl CredentialsBootstrap {
         );
 
         Ok(creds)
-    }
-}
-
-#[cfg(test)]
-pub mod test_helpers {
-    use chrono::{Duration, Utc};
-
-    use crate::CloudCredentials;
-
-    pub fn valid_credentials() -> CloudCredentials {
-        CloudCredentials {
-            api_token: "test_token_valid_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9".into(),
-            api_url: "https://api.test.systemprompt.io".into(),
-            authenticated_at: Utc::now(),
-            user_email: "test@example.com".into(),
-        }
-    }
-
-    pub fn expired_credentials() -> CloudCredentials {
-        let mut creds = valid_credentials();
-        creds.authenticated_at = Utc::now() - Duration::days(30);
-        creds
-    }
-
-    pub fn expiring_soon_credentials() -> CloudCredentials {
-        let mut creds = valid_credentials();
-        creds.authenticated_at = Utc::now() - Duration::hours(23);
-        creds
-    }
-
-    pub fn minimal_credentials() -> CloudCredentials {
-        CloudCredentials {
-            api_token: "minimal_test_token".into(),
-            api_url: crate::constants::api::PRODUCTION_URL.into(),
-            authenticated_at: Utc::now(),
-            user_email: "minimal@example.com".into(),
-        }
     }
 }

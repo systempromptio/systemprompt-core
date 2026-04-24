@@ -46,6 +46,9 @@ mod validators;
 mod profile;
 
 #[cfg(test)]
+mod profile_gateway;
+
+#[cfg(test)]
 mod agui;
 
 #[cfg(test)]

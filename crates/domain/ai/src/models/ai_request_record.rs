@@ -1,5 +1,5 @@
 use systemprompt_identifiers::{
-    ContextId, McpExecutionId, SessionId, TaskId, TenantId, TraceId, UserId,
+    AiRequestId, ContextId, McpExecutionId, SessionId, TaskId, TenantId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -56,7 +56,7 @@ pub struct AiRequestRecord {
 }
 
 impl AiRequestRecord {
-    pub fn builder(request_id: impl Into<String>, user_id: UserId) -> AiRequestRecordBuilder {
+    pub fn builder(request_id: AiRequestId, user_id: UserId) -> AiRequestRecordBuilder {
         AiRequestRecordBuilder::new(request_id, user_id)
     }
 
@@ -107,7 +107,7 @@ pub struct AiRequestRecordBuilder {
 }
 
 impl AiRequestRecordBuilder {
-    pub fn new(request_id: impl Into<String>, user_id: UserId) -> Self {
+    pub fn new(request_id: AiRequestId, user_id: UserId) -> Self {
         Self {
             request_id: request_id.into(),
             user_id,

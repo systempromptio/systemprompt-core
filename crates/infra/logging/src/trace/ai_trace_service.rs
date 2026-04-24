@@ -26,25 +26,25 @@ impl AiTraceService {
             .ok_or_else(|| anyhow::anyhow!("No task found matching: {}", partial_id))
     }
 
-    pub async fn get_task_info(&self, task_id: &str) -> Result<TaskInfo> {
+    pub async fn get_task_info(&self, task_id: &TaskId) -> Result<TaskInfo> {
         ai_trace_queries::fetch_task_info(&self.pool, task_id)
             .await
             .context("Failed to fetch task info")
     }
 
-    pub async fn get_user_input(&self, task_id: &str) -> Result<Option<String>> {
+    pub async fn get_user_input(&self, task_id: &TaskId) -> Result<Option<String>> {
         ai_trace_queries::fetch_user_input(&self.pool, task_id).await
     }
 
-    pub async fn get_agent_response(&self, task_id: &str) -> Result<Option<String>> {
+    pub async fn get_agent_response(&self, task_id: &TaskId) -> Result<Option<String>> {
         ai_trace_queries::fetch_agent_response(&self.pool, task_id).await
     }
 
-    pub async fn get_execution_steps(&self, task_id: &str) -> Result<Vec<ExecutionStep>> {
+    pub async fn get_execution_steps(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
         ai_trace_queries::fetch_execution_steps(&self.pool, task_id).await
     }
 
-    pub async fn get_ai_requests(&self, task_id: &str) -> Result<Vec<AiRequestInfo>> {
+    pub async fn get_ai_requests(&self, task_id: &TaskId) -> Result<Vec<AiRequestInfo>> {
         ai_trace_queries::fetch_ai_requests(&self.pool, task_id).await
     }
 

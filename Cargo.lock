@@ -4988,6 +4988,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "futures",
  "inventory",
  "nix",
  "serde",

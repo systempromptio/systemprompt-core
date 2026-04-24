@@ -39,7 +39,10 @@ pub fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str
         ])
         .output()
         .with_context(|| {
-            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` checking for database {safe_db_name}")
+            format!(
+                "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` checking for database \
+                 {safe_db_name}"
+            )
         })?;
 
     let exists = !String::from_utf8_lossy(&check_output.stdout)
@@ -63,7 +66,10 @@ pub fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str
         ])
         .status()
         .with_context(|| {
-            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` creating database {safe_db_name}")
+            format!(
+                "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` creating database \
+                 {safe_db_name}"
+            )
         })?;
 
     if !status.success() {
@@ -116,7 +122,10 @@ pub fn drop_database_for_tenant(admin_password: &str, port: u16, db_name: &str) 
         ])
         .status()
         .with_context(|| {
-            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` dropping database {safe_db_name}")
+            format!(
+                "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` dropping database \
+                 {safe_db_name}"
+            )
         })?;
 
     if !status.success() {
@@ -172,7 +181,10 @@ pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
             ])
             .status()
             .with_context(|| {
-                format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` updating admin role password")
+                format!(
+                    "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` updating admin role \
+                     password"
+                )
             })?;
 
         if !status.success() {

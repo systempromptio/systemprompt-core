@@ -21,26 +21,26 @@ pub async fn execute_ai_trace(
         CliService::section(&format!("Trace: {}", task_id.as_str()));
     }
 
-    let task_info = service.get_task_info(task_id.as_str()).await?;
+    let task_info = service.get_task_info(task_id).await?;
     let context_id: ContextId = task_info.context_id.clone();
 
     if !args.json {
         print_task_info(&task_info);
     }
 
-    let user_input = service.get_user_input(task_id.as_str()).await?;
+    let user_input = service.get_user_input(task_id).await?;
     if !args.json {
         print_user_input(user_input.as_ref());
     }
 
     let show_all = args.sections.all;
 
-    let steps = service.get_execution_steps(task_id.as_str()).await?;
+    let steps = service.get_execution_steps(task_id).await?;
     if (show_all || args.sections.steps) && !args.json {
         print_execution_steps(&steps);
     }
 
-    let ai_requests = service.get_ai_requests(task_id.as_str()).await?;
+    let ai_requests = service.get_ai_requests(task_id).await?;
     if (show_all || args.sections.ai) && !args.json {
         print_ai_requests(&ai_requests);
     }
@@ -61,7 +61,7 @@ pub async fn execute_ai_trace(
         }
     }
 
-    let response = service.get_agent_response(task_id.as_str()).await?;
+    let response = service.get_agent_response(task_id).await?;
     if !args.json {
         print_agent_response(response.as_ref());
         CliService::info(&"═".repeat(60));

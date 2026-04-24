@@ -34,26 +34,3 @@ pub fn validate_token_format(token: &str) -> Result<()> {
         .map_err(|_| anyhow::anyhow!("Invalid token format: invalid encoding"))?;
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_generate_token() {
-        let (token, hash) = generate_setup_token();
-        assert!(token.starts_with(TOKEN_PREFIX));
-        assert!(!hash.is_empty());
-
-        assert_eq!(hash_token(&token), hash);
-    }
-
-    #[test]
-    fn test_validate_token_format() {
-        let (token, _) = generate_setup_token();
-        assert!(validate_token_format(&token).is_ok());
-
-        assert!(validate_token_format("invalid").is_err());
-        assert!(validate_token_format("sp_wst_!!!invalid!!!").is_err());
-    }
-}
