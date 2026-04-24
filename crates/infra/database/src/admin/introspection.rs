@@ -109,10 +109,7 @@ impl DatabaseAdminService {
         Ok((columns, row_count))
     }
 
-    pub async fn get_table_indexes(
-        &self,
-        table_name: &SafeIdentifier,
-    ) -> Result<Vec<IndexInfo>> {
+    pub async fn get_table_indexes(&self, table_name: &SafeIdentifier) -> Result<Vec<IndexInfo>> {
         let rows = sqlx::query(
             r"
             SELECT

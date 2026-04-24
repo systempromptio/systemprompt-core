@@ -151,7 +151,10 @@ impl SyncConfig {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SyncOpState {
     NotStarted,
-    Partial { completed: usize, total: usize },
+    Partial {
+        completed: usize,
+        total: usize,
+    },
     #[default]
     Completed,
     Failed,
