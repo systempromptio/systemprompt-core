@@ -10,9 +10,9 @@
 
 - **Auth middleware renamed to reflect its advisory role, `RequireAuth` extractor added** (`crates/entry/api/src/services/middleware/auth.rs`). `auth_middleware` → `auth_enrichment_middleware` and `AuthMiddleware::apply_auth_layer` → `apply_auth_enrichment_layer`. The middleware only attaches `Extension<AuthenticatedUser>` on successful JWT extraction and never rejects requests — enforcement lives in `ContextMiddleware`. New `RequireAuth(pub AuthenticatedUser)` extractor with `FromRequestParts` impl returns `401 Unauthorized` when the extension is absent, giving handlers a compile-time-checked auth primitive independent of `ContextMiddleware`. Neither the old function nor `apply_auth_layer` had external callers, so no downstream churn.
 
-### Breaking (pending — Step 1 of follow-up)
+### Breaking
 
-- `systemprompt::prelude::{Entity, EntityId, GenericRepository, RepositoryExt}` will be removed in a subsequent 0.4.0 release slice. The generic repository composes SQL at runtime from `E::TABLE`/`E::COLUMNS` and cannot satisfy the project's MANDATORY "SQLX macros only" rule (`query!` requires a string literal at compile time). No internal callers; no `impl Entity for` sites. Downstreams using the facade should migrate to per-entity repositories with `sqlx::query!()` / `query_as!()` (see `ServiceRepository`, `CleanupRepository` for the pattern).
+- **Removed `systemprompt::prelude::{Entity, EntityId, GenericRepository, RepositoryExt}`.** The generic repository composed SQL at runtime from `E::TABLE`/`E::COLUMNS` and cannot satisfy the project's MANDATORY "SQLX macros only" rule (`query!` requires a string literal at compile time). No internal callers, no `impl Entity for` sites — the abstraction was dormant. Downstreams using the facade should migrate to per-entity repositories with `sqlx::query!()` / `query_as!()` (see `ServiceRepository`, `CleanupRepository` in `crates/infra/database/src/repository/` for the pattern). `crates/infra/database/src/repository/entity.rs` deleted.
 
 ## [0.3.2] - 2026-04-24
 
