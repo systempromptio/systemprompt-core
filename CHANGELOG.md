@@ -1,20 +1,16 @@
 # Changelog
 
-## [0.3.3] - 2026-04-24
+## [0.3.2] - 2026-04-24
 
 ### Fixed
+
+- **Static content route handler scoped slug lookup by `source_id`** (`crates/entry/api/src/services/static_content/static_files.rs`). `serve_static_content` extracted `(slug, source_id)` from the route matcher but discarded the source, then called `ContentRepository::get_by_slug(slug)` — a slug-only query. Any slug present in a different source (e.g. `about` as a page) caused `/guides/about`, `/documentation/about`, etc. to match a foreign record and return the "Content Not Prerendered" 500 page instead of 404. `source_id` is now threaded through `ContentPageRequest` and lookup uses `get_by_source_and_slug`.
 
 - **Surface binary name and domain identifier on `Command::new` and `File::open` spawn errors across MCP, scheduler, sync, agent, and CLI paths.** The MCP port-manager reconciliation (`crates/domain/mcp/src/services/network/port_manager.rs`) shelled out to `lsof -ti :<port>` with bare `?` propagation. When `lsof` was missing from the runtime image, the ENOENT on `execve("lsof")` surfaced as a contextless `No such file or directory (os error 2)` and required `strace` to diagnose. Root fix is adding `lsof` to the runtime apt list, but the diagnosability gap is systemic: ~30% of `Command::new` sites discarded the binary name, args, and relevant identifier (port/pid/pattern/path) from the error path.
 
   Wrapped every flagged spawn site with `anyhow::Context::with_context` (or `tracing::warn!` where the return type is `Option`/`bool` and changing the signature would ripple through callers). Error messages now name the invocation (`failed to run \`lsof -ti :{port}\` for port {port}`) plus the domain identifier so operators don't have to re-derive context.
 
   Files touched: `crates/domain/mcp/src/services/network/port_manager.rs` (primary incident), `crates/domain/mcp/src/services/process/{pid_manager,cleanup,monitor,utils}.rs`, `crates/app/scheduler/src/services/orchestration/process_cleanup.rs` (previously silent `.ok()?` / `.is_ok_and(...)` converted to logging on failure), `crates/domain/agent/src/services/agent_orchestration/{port_manager,process}.rs`, `crates/domain/agent/src/services/agent_orchestration/orchestrator/cleanup.rs`, `crates/entry/cli/src/commands/cloud/tenant/docker/database.rs` (7 `docker exec psql` sites), `crates/entry/cli/src/shared/docker.rs`, `crates/app/sync/src/crate_deploy.rs` (new `SyncError::CommandSpawnFailed` variant), `crates/app/sync/src/file_bundler.rs` (new `SyncError::FileOpenFailed` variant), `crates/entry/cli/src/commands/web/templates/show.rs`.
-
-## [0.3.2] - 2026-04-23
-
-### Fixed
-
-- **Static content route handler scoped slug lookup by `source_id`** (`crates/entry/api/src/services/static_content/static_files.rs`). `serve_static_content` extracted `(slug, source_id)` from the route matcher but discarded the source, then called `ContentRepository::get_by_slug(slug)` — a slug-only query. Any slug present in a different source (e.g. `about` as a page) caused `/guides/about`, `/documentation/about`, etc. to match a foreign record and return the "Content Not Prerendered" 500 page instead of 404. `source_id` is now threaded through `ContentPageRequest` and lookup uses `get_by_source_and_slug`.
 
 ## [0.3.1] - 2026-04-22
 
