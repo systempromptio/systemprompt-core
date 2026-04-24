@@ -93,6 +93,7 @@ fn resolve_mime_type(path: &std::path::Path) -> &'static str {
         Some("svg") => "image/svg+xml",
         Some("ico") => "image/x-icon",
         Some("json") => "application/json",
+        Some("pdf") => "application/pdf",
         _ => "application/octet-stream",
     }
 }
