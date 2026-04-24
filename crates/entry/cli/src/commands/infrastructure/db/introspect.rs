@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use systemprompt_database::DatabaseAdminService;
+use systemprompt_database::{DatabaseAdminService, SafeIdentifier};
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
@@ -24,7 +24,14 @@ pub async fn execute_indexes(
     let mut all_indexes = Vec::new();
 
     for table in &filtered_tables {
-        match admin.get_table_indexes(&table.name).await {
+        let table_id = match SafeIdentifier::parse(&table.name) {
+            Ok(id) => id,
+            Err(e) => {
+                tracing::warn!(table = %table.name, error = %e, "skipping table with invalid identifier");
+                continue;
+            },
+        };
+        match admin.get_table_indexes(&table_id).await {
             Ok(indexes) => {
                 for idx in indexes {
                     all_indexes.push(TableIndexInfo {
