@@ -106,9 +106,14 @@ format-check:
 lint:
     cargo clippy --workspace -- -D warnings
 
+# Reject unverified sqlx::query calls outside the allowlist
+lint-sqlx:
+    ./ci/check-sqlx.sh
+
 # Run custom style validators
 validate:
     ./tests/validator/validate.sh
+    ./ci/check-sqlx.sh
 
 # Run all style checks (format + lint + validate)
 style-check:
@@ -124,6 +129,9 @@ style-check:
     echo ""
     echo "3️⃣  Running custom validators..."
     ./tests/validator/validate.sh
+    echo ""
+    echo "4️⃣  Checking sqlx::query allowlist..."
+    ./ci/check-sqlx.sh
     echo ""
     echo "✅ All style checks passed!"
 
