@@ -17,6 +17,20 @@ pub enum SyncError {
     #[error("Command failed: {command}")]
     CommandFailed { command: String },
 
+    #[error("Failed to spawn `{command}`: {source}")]
+    CommandSpawnFailed {
+        command: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to open file {path}: {source}")]
+    FileOpenFailed {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
     #[error("Docker login failed")]
     DockerLoginFailed,
 

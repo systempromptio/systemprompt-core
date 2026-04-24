@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
@@ -26,12 +26,16 @@ pub fn docker_login(registry: &str, username: &str, token: &str) -> Result<()> {
     command.args(["login", registry, "-u", username, "--password-stdin"]);
     command.stdin(std::process::Stdio::piped());
 
-    let mut child = command.spawn()?;
+    let mut child = command
+        .spawn()
+        .with_context(|| format!("failed to spawn `docker login {registry}`"))?;
     if let Some(mut stdin) = child.stdin.take() {
         stdin.write_all(token.as_bytes())?;
     }
 
-    let status = child.wait()?;
+    let status = child
+        .wait()
+        .with_context(|| format!("failed waiting on `docker login {registry}`"))?;
     if !status.success() {
         return Err(anyhow!("Docker login failed"));
     }
@@ -40,7 +44,10 @@ pub fn docker_login(registry: &str, username: &str, token: &str) -> Result<()> {
 }
 
 pub fn docker_push(image: &str) -> Result<()> {
-    let status = Command::new("docker").args(["push", image]).status()?;
+    let status = Command::new("docker")
+        .args(["push", image])
+        .status()
+        .with_context(|| format!("failed to spawn `docker push {image}`"))?;
 
     if !status.success() {
         return Err(anyhow!("Docker push failed for image: {}", image));

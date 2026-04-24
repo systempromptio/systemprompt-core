@@ -25,7 +25,7 @@ impl PortManager {
             .arg("-ti")
             .arg(format!(":{port}"))
             .output()
-            .context("Failed to run lsof command")?;
+            .with_context(|| format!("failed to run `lsof -ti :{port}` for port {port}"))?;
 
         if !output.status.success() {
             return Ok(None);
@@ -50,7 +50,7 @@ impl PortManager {
         let output = Command::new("netstat")
             .args(["-ano", "-p", "TCP"])
             .output()
-            .context("Failed to run netstat command")?;
+            .with_context(|| format!("failed to run `netstat -ano -p TCP` for port {port}"))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let port_pattern = format!(":{port} ");
@@ -77,7 +77,7 @@ impl PortManager {
             .arg("-o")
             .arg("pid,comm,args")
             .output()
-            .context("Failed to run ps command")?;
+            .with_context(|| format!("failed to run `ps -p {pid} -o pid,comm,args`"))?;
 
         if !output.status.success() {
             return Ok(None);
@@ -113,7 +113,7 @@ impl PortManager {
         let output = Command::new("tasklist")
             .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
             .output()
-            .context("Failed to run tasklist command")?;
+            .with_context(|| format!("failed to run `tasklist /FI PID eq {pid}`"))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let line = stdout.trim();

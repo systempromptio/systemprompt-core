@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::process::Command;
 use std::time::Duration;
 
@@ -32,7 +32,8 @@ pub fn is_process_running(pid: u32) -> bool {
 pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
     let output = Command::new("ps")
         .args(["-p", &pid.to_string(), "-o", "pid,ppid,cmd"])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `ps -p {pid} -o pid,ppid,cmd`"))?;
 
     if !output.status.success() {
         return Ok(None);

@@ -206,14 +206,23 @@ pub fn process_exists(pid: u32) -> bool {
 
 #[cfg(windows)]
 pub fn process_exists(pid: u32) -> bool {
-    Command::new("tasklist")
+    match Command::new("tasklist")
         .args(["/FI", &format!("PID eq {}", pid), "/NH"])
         .output()
-        .map(|o| {
+    {
+        Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout);
             !stdout.contains("INFO: No tasks") && !stdout.trim().is_empty()
-        })
-        .unwrap_or(false)
+        },
+        Err(e) => {
+            tracing::warn!(
+                pid = pid,
+                error = %e,
+                "failed to run `tasklist` while checking process; assuming dead",
+            );
+            false
+        },
+    }
 }
 
 #[cfg(unix)]

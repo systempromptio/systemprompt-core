@@ -14,10 +14,20 @@ impl ProcessCleanup {
             return None;
         }
 
-        let output = Command::new("lsof")
+        let output = match Command::new("lsof")
             .args(["-ti", &format!(":{}", port)])
             .output()
-            .ok()?;
+        {
+            Ok(output) => output,
+            Err(e) => {
+                tracing::warn!(
+                    port = port,
+                    error = %e,
+                    "failed to run `lsof -ti :{port}` while checking port; treating as unknown",
+                );
+                return None;
+            },
+        };
 
         if output.stdout.is_empty() {
             None
@@ -35,10 +45,20 @@ impl ProcessCleanup {
             return None;
         }
 
-        let output = Command::new("netstat")
+        let output = match Command::new("netstat")
             .args(["-ano", "-p", "TCP"])
             .output()
-            .ok()?;
+        {
+            Ok(output) => output,
+            Err(e) => {
+                tracing::warn!(
+                    port = port,
+                    error = %e,
+                    "failed to run `netstat -ano -p TCP` while checking port; treating as unknown",
+                );
+                return None;
+            },
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let port_pattern = format!(":{} ", port);
@@ -81,10 +101,16 @@ impl ProcessCleanup {
 
     #[cfg(windows)]
     pub fn kill_process(pid: u32) -> bool {
-        Command::new("taskkill")
+        match Command::new("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
             .output()
-            .is_ok_and(|output| output.status.success())
+        {
+            Ok(output) => output.status.success(),
+            Err(e) => {
+                tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid} /F`");
+                false
+            },
+        }
     }
 
     #[cfg(unix)]
@@ -107,11 +133,11 @@ impl ProcessCleanup {
 
     #[cfg(windows)]
     pub async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
-        if Command::new("taskkill")
+        if let Err(e) = Command::new("taskkill")
             .args(["/PID", &pid.to_string()])
             .output()
-            .is_err()
         {
+            tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid}`");
             return false;
         }
 
@@ -133,14 +159,23 @@ impl ProcessCleanup {
 
     #[cfg(windows)]
     pub fn process_exists(pid: u32) -> bool {
-        Command::new("tasklist")
+        match Command::new("tasklist")
             .args(["/FI", &format!("PID eq {}", pid), "/NH"])
             .output()
-            .map(|o| {
+        {
+            Ok(o) => {
                 let stdout = String::from_utf8_lossy(&o.stdout);
                 !stdout.contains("INFO: No tasks") && !stdout.trim().is_empty()
-            })
-            .is_ok_and(|exists| exists)
+            },
+            Err(e) => {
+                tracing::warn!(
+                    pid = pid,
+                    error = %e,
+                    "failed to run `tasklist` while checking process; assuming dead",
+                );
+                false
+            },
+        }
     }
 
     #[cfg(unix)]
@@ -151,12 +186,17 @@ impl ProcessCleanup {
             }
         }
 
-        usize::from(
-            Command::new("pkill")
-                .args(["-9", "-f", pattern])
-                .output()
-                .is_ok_and(|output| output.status.success()),
-        )
+        match Command::new("pkill").args(["-9", "-f", pattern]).output() {
+            Ok(output) => usize::from(output.status.success()),
+            Err(e) => {
+                tracing::warn!(
+                    pattern = %pattern,
+                    error = %e,
+                    "failed to run `pkill -9 -f {pattern}`",
+                );
+                0
+            },
+        }
     }
 
     #[cfg(windows)]
@@ -167,12 +207,20 @@ impl ProcessCleanup {
             }
         }
 
-        usize::from(
-            Command::new("taskkill")
-                .args(["/IM", &format!("*{}*", pattern), "/F"])
-                .output()
-                .is_ok_and(|output| output.status.success()),
-        )
+        match Command::new("taskkill")
+            .args(["/IM", &format!("*{}*", pattern), "/F"])
+            .output()
+        {
+            Ok(output) => usize::from(output.status.success()),
+            Err(e) => {
+                tracing::warn!(
+                    pattern = %pattern,
+                    error = %e,
+                    "failed to run `taskkill /IM *{pattern}* /F`",
+                );
+                0
+            },
+        }
     }
 
     pub async fn wait_for_port_free(port: u16, max_retries: u8, retry_delay_ms: u64) -> Result<()> {
@@ -203,10 +251,20 @@ impl ProcessCleanup {
 
     #[cfg(unix)]
     pub fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
-        let output = Command::new("lsof")
+        let output = match Command::new("lsof")
             .args(["-ti", &format!(":{}", port)])
             .output()
-            .ok()?;
+        {
+            Ok(output) => output,
+            Err(e) => {
+                tracing::warn!(
+                    port = port,
+                    error = %e,
+                    "failed to run `lsof -ti :{port}` while inspecting port; treating as unknown",
+                );
+                return None;
+            },
+        };
 
         let pid: u32 = String::from_utf8_lossy(&output.stdout)
             .lines()
@@ -215,10 +273,20 @@ impl ProcessCleanup {
             .parse()
             .ok()?;
 
-        let comm_output = Command::new("ps")
+        let comm_output = match Command::new("ps")
             .args(["-p", &pid.to_string(), "-o", "comm="])
             .output()
-            .ok()?;
+        {
+            Ok(output) => output,
+            Err(e) => {
+                tracing::warn!(
+                    pid = pid,
+                    error = %e,
+                    "failed to run `ps -p {pid} -o comm=` while inspecting process",
+                );
+                return None;
+            },
+        };
 
         let name = String::from_utf8_lossy(&comm_output.stdout)
             .trim()
@@ -231,10 +299,20 @@ impl ProcessCleanup {
     pub fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
         let pid = Self::check_port(port)?;
 
-        let output = Command::new("tasklist")
+        let output = match Command::new("tasklist")
             .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
             .output()
-            .ok()?;
+        {
+            Ok(output) => output,
+            Err(e) => {
+                tracing::warn!(
+                    pid = pid,
+                    error = %e,
+                    "failed to run `tasklist` while inspecting process",
+                );
+                return None;
+            },
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let parts: Vec<&str> = stdout.trim().split(',').collect();

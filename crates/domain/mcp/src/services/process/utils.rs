@@ -10,14 +10,23 @@ pub fn process_exists(pid: u32) -> bool {
 
 #[cfg(windows)]
 pub fn process_exists(pid: u32) -> bool {
-    Command::new("tasklist")
+    match Command::new("tasklist")
         .args(["/FI", &format!("PID eq {}", pid), "/NH"])
         .output()
-        .map(|o| {
+    {
+        Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout);
             !stdout.contains("INFO: No tasks") && !stdout.trim().is_empty()
-        })
-        .unwrap_or(false)
+        },
+        Err(e) => {
+            tracing::warn!(
+                pid = pid,
+                error = %e,
+                "failed to run `tasklist` while checking process; assuming dead",
+            );
+            false
+        },
+    }
 }
 
 #[cfg(unix)]
@@ -29,10 +38,16 @@ pub fn kill_process(pid: u32) -> bool {
 
 #[cfg(windows)]
 pub fn kill_process(pid: u32) -> bool {
-    Command::new("taskkill")
+    match Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/F"])
         .output()
-        .is_ok_and(|output| output.status.success())
+    {
+        Ok(output) => output.status.success(),
+        Err(e) => {
+            tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid} /F`");
+            false
+        },
+    }
 }
 
 #[cfg(unix)]
@@ -55,11 +70,11 @@ pub async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
 
 #[cfg(windows)]
 pub async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
-    if Command::new("taskkill")
+    if let Err(e) = Command::new("taskkill")
         .args(["/PID", &pid.to_string()])
         .output()
-        .is_err()
     {
+        tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid}`");
         return false;
     }
 

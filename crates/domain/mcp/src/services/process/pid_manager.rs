@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
@@ -104,7 +104,8 @@ pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
 fn find_pid_by_port_lsof(port: u16) -> Result<Option<u32>> {
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `lsof -ti :{port}` for port {port}"))?;
 
     if output.stdout.is_empty() {
         return Ok(None);
@@ -120,7 +121,8 @@ fn find_pid_by_port_lsof(port: u16) -> Result<Option<u32>> {
 pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `netstat -ano -p TCP` for port {port}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let port_pattern = format!(":{port} ");
@@ -141,7 +143,10 @@ pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
 
 #[cfg(unix)]
 pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
-    let output = Command::new("pgrep").args(["-f", process_name]).output()?;
+    let output = Command::new("pgrep")
+        .args(["-f", process_name])
+        .output()
+        .with_context(|| format!("failed to run `pgrep -f {process_name}`"))?;
 
     if output.stdout.is_empty() {
         return Ok(vec![]);
@@ -159,7 +164,8 @@ pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
 pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
     let output = Command::new("tasklist")
         .args(["/FO", "CSV", "/NH"])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `tasklist` searching for {process_name}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut pids = Vec::new();
@@ -242,7 +248,8 @@ pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
 fn get_port_by_pid_lsof(pid: u32) -> Result<Option<u16>> {
     let output = Command::new("lsof")
         .args(["-p", &pid.to_string(), "-P", "-n"])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `lsof -p {pid} -P -n` for pid {pid}"))?;
 
     if !output.status.success() {
         return Ok(None);
@@ -265,7 +272,8 @@ fn get_port_by_pid_lsof(pid: u32) -> Result<Option<u16>> {
 pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `netstat -ano -p TCP` for pid {pid}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let pid_str = pid.to_string();

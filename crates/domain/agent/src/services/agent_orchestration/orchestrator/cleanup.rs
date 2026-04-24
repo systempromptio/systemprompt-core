@@ -57,7 +57,9 @@ impl AgentOrchestrator {
             .arg("agent-worker")
             .output()
             .map_err(|e| {
-                OrchestrationError::ProcessSpawnFailed(format!("Failed to run pgrep: {e}"))
+                OrchestrationError::ProcessSpawnFailed(format!(
+                    "failed to run `pgrep -f agent-worker`: {e}"
+                ))
             })?;
 
         if !output.status.success() {
@@ -77,7 +79,9 @@ impl AgentOrchestrator {
             .args(["/FI", "IMAGENAME eq systemprompt*", "/FO", "CSV", "/NH"])
             .output()
             .map_err(|e| {
-                OrchestrationError::ProcessSpawnFailed(format!("Failed to run tasklist: {e}"))
+                OrchestrationError::ProcessSpawnFailed(format!(
+                    "failed to run `tasklist /FI IMAGENAME eq systemprompt*`: {e}"
+                ))
             })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -203,10 +207,20 @@ impl AgentOrchestrator {
 
     #[cfg(not(target_os = "linux"))]
     pub(super) fn identify_orphaned_process(pid: u32) -> Option<(String, u16)> {
-        let output = std::process::Command::new("ps")
+        let output = match std::process::Command::new("ps")
             .args(["-p", &pid.to_string(), "-o", "args="])
             .output()
-            .ok();
+        {
+            Ok(output) => Some(output),
+            Err(e) => {
+                tracing::warn!(
+                    pid = pid,
+                    error = %e,
+                    "failed to run `ps -p {pid} -o args=` while identifying orphan",
+                );
+                None
+            },
+        };
 
         if let Some(output) = output {
             let cmd = String::from_utf8_lossy(&output.stdout);

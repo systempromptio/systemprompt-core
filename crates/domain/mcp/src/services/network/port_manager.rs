@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::process::Command;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
@@ -32,7 +32,8 @@ pub async fn cleanup_port_processes(port: u16) -> Result<()> {
 
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `lsof -ti :{port}` for port {port}"))?;
 
     if !output.stdout.is_empty() {
         let pids = String::from_utf8_lossy(&output.stdout);
@@ -62,7 +63,8 @@ pub async fn cleanup_port_processes(port: u16) -> Result<()> {
 pub async fn cleanup_port_processes(port: u16) -> Result<()> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
-        .output()?;
+        .output()
+        .with_context(|| format!("failed to run `netstat -ano -p TCP` for port {port}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let port_pattern = format!(":{port} ");

@@ -38,7 +38,9 @@ pub fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str
             &check_query,
         ])
         .output()
-        .context("Failed to check if database exists")?;
+        .with_context(|| {
+            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` checking for database {safe_db_name}")
+        })?;
 
     let exists = !String::from_utf8_lossy(&check_output.stdout)
         .trim()
@@ -60,7 +62,9 @@ pub fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str
             &create_query,
         ])
         .status()
-        .context("Failed to create database")?;
+        .with_context(|| {
+            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` creating database {safe_db_name}")
+        })?;
 
     if !status.success() {
         bail!("Failed to create database '{}'", safe_db_name);
@@ -93,7 +97,11 @@ pub fn drop_database_for_tenant(admin_password: &str, port: u16, db_name: &str) 
         ])
         .status()
     {
-        tracing::debug!(error = %e, "Failed to terminate existing connections");
+        tracing::debug!(
+            error = %e,
+            db = %safe_db_name,
+            "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` terminating existing connections",
+        );
     }
 
     let drop_query = format!("DROP DATABASE IF EXISTS \"{}\"", safe_db_name);
@@ -107,7 +115,9 @@ pub fn drop_database_for_tenant(admin_password: &str, port: u16, db_name: &str) 
             &drop_query,
         ])
         .status()
-        .context("Failed to drop database")?;
+        .with_context(|| {
+            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` dropping database {safe_db_name}")
+        })?;
 
     if !status.success() {
         bail!("Failed to drop database '{}'", safe_db_name);
@@ -134,7 +144,9 @@ pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
             &role_check_query,
         ])
         .output()
-        .context("Failed to check if admin role exists")?;
+        .with_context(|| {
+            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` checking admin role")
+        })?;
 
     let role_exists = !String::from_utf8_lossy(&check_output.stdout)
         .trim()
@@ -159,7 +171,9 @@ pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
                 &alter_password_sql,
             ])
             .status()
-            .context("Failed to update admin role password")?;
+            .with_context(|| {
+                format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` updating admin role password")
+            })?;
 
         if !status.success() {
             bail!("Failed to update password for role '{}'", SHARED_ADMIN_USER);
@@ -186,7 +200,9 @@ pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
             &create_role_sql,
         ])
         .status()
-        .context("Failed to create admin role")?;
+        .with_context(|| {
+            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` creating admin role")
+        })?;
 
     if !status.success() {
         bail!("Failed to create role '{}'", SHARED_ADMIN_USER);

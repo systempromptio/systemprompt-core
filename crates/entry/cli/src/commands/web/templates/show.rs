@@ -60,7 +60,8 @@ pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<Templ
 
         let variables = extract_template_variables(&file_content);
 
-        let file = fs::File::open(&file_path)?;
+        let file = fs::File::open(&file_path)
+            .with_context(|| format!("Failed to open template file at {}", file_path.display()))?;
         let reader = BufReader::new(file);
         let preview: Vec<String> = reader
             .lines()

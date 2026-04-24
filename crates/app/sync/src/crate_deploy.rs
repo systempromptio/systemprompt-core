@@ -81,7 +81,11 @@ impl CrateDeployService {
     fn get_git_sha() -> SyncResult<String> {
         let output = Command::new("git")
             .args(["rev-parse", "--short", "HEAD"])
-            .output()?;
+            .output()
+            .map_err(|source| SyncError::CommandSpawnFailed {
+                command: "git rev-parse --short HEAD".into(),
+                source,
+            })?;
 
         String::from_utf8(output.stdout)
             .map(|sha| sha.trim().to_string())
@@ -122,7 +126,12 @@ impl CrateDeployService {
         command.args(["login", registry, "-u", username, "--password-stdin"]);
         command.stdin(std::process::Stdio::piped());
 
-        let mut child = command.spawn()?;
+        let mut child = command
+            .spawn()
+            .map_err(|source| SyncError::CommandSpawnFailed {
+                command: format!("docker login {registry}"),
+                source,
+            })?;
         if let Some(mut stdin) = child.stdin.take() {
             stdin.write_all(token.as_bytes())?;
         }
@@ -139,11 +148,19 @@ impl CrateDeployService {
     }
 
     fn run_command(cmd: &str, args: &[&str], dir: &PathBuf) -> SyncResult<()> {
-        let status = Command::new(cmd).args(args).current_dir(dir).status()?;
+        let command_str = format!("{cmd} {}", args.join(" "));
+        let status = Command::new(cmd)
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .map_err(|source| SyncError::CommandSpawnFailed {
+                command: command_str.clone(),
+                source,
+            })?;
 
         if !status.success() {
             return Err(SyncError::CommandFailed {
-                command: format!("{cmd} {}", args.join(" ")),
+                command: command_str,
             });
         }
         Ok(())
