@@ -6682,6 +6682,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-cowork-manifest-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-cowork",
+]
+
+[[package]]
 name = "systemprompt-database"
 version = "0.4.0"
 dependencies = [

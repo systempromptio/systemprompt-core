@@ -46,6 +46,8 @@ members = [
     # Unit tests - entry layer
     "unit/entry/api",
     "unit/entry/cli",
+    # Unit tests - cowork binary
+    "unit/cowork/manifest",
     # Common test utilities
     "common/mocks",
     "common/migrate",
