@@ -35,9 +35,10 @@
       $("plugins-dir").textContent = snap.plugins_dir || "—";
       $("last-sync").textContent = snap.last_sync_summary || "never";
       $("last-sync").classList.toggle("muted", !snap.last_sync_summary);
-      $("card-skills").textContent = snap.skill_count ?? "—";
-      $("card-agents").textContent = snap.agent_count ?? "—";
-      $("card-mcp").textContent    = snap.mcp_count ?? "—";
+      $("card-plugins").textContent = snap.plugin_count ?? "—";
+      $("card-skills").textContent  = snap.skill_count ?? "—";
+      $("card-agents").textContent  = snap.agent_count ?? "—";
+      $("card-mcp").textContent     = snap.mcp_count ?? "—";
       $("config-path").textContent = snap.config_file || "";
 
       const tokenState = snap.cached_token

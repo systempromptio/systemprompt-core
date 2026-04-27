@@ -30,6 +30,21 @@ fn read_index_count(path: &std::path::Path) -> Option<usize> {
     Some(entries.len())
 }
 
+fn count_plugin_dirs(root: &std::path::Path) -> Option<usize> {
+    let mut n = 0usize;
+    for entry in std::fs::read_dir(root).ok()?.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.starts_with('.') {
+            continue;
+        }
+        if entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+            n += 1;
+        }
+    }
+    Some(n)
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct AppStateSnapshot {
     pub identity: Option<String>,
@@ -46,6 +61,7 @@ pub struct AppStateSnapshot {
     pub last_action_message: Option<String>,
     pub last_validation: Option<ValidationReport>,
     pub cached_token: Option<CachedToken>,
+    pub plugin_count: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +132,7 @@ impl AppState {
         snap.last_sync_summary = None;
         snap.skill_count = None;
         snap.agent_count = None;
+        snap.plugin_count = None;
         snap.cached_token = cache::read_valid().map(|out| CachedToken {
             ttl_seconds: out.ttl,
             length: out.token.len(),
@@ -124,9 +141,13 @@ impl AppState {
         if let Some(loc) = loc {
             let meta = paths::metadata_dir(&loc.path);
 
-            if let Ok(bytes) = std::fs::read(meta.join(paths::USER_FRAGMENT)) {
-                if let Ok(user) = serde_json::from_slice::<UserFragment>(&bytes) {
-                    snap.identity = user.email;
+            snap.plugin_count = count_plugin_dirs(&loc.path);
+
+            if snap.pat_present {
+                if let Ok(bytes) = std::fs::read(meta.join(paths::USER_FRAGMENT)) {
+                    if let Ok(user) = serde_json::from_slice::<UserFragment>(&bytes) {
+                        snap.identity = user.email;
+                    }
                 }
             }
 

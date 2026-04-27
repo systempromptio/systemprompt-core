@@ -177,6 +177,7 @@ fn snapshot_to_json(snap: &AppStateSnapshot) -> String {
         "last_sync_summary": snap.last_sync_summary,
         "skill_count": snap.skill_count,
         "agent_count": snap.agent_count,
+        "plugin_count": snap.plugin_count,
         "sync_in_flight": snap.sync_in_flight,
         "last_action_message": snap.last_action_message,
         "cached_token": snap.cached_token.as_ref().map(cached_token_json),

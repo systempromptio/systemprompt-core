@@ -175,9 +175,13 @@ impl GuiApp {
             UiEvent::LoginFinished(result) => {
                 match result {
                     Ok(()) => {
-                        self.window.log("PAT stored.");
+                        self.window.log("PAT stored. Pulling manifest…");
                         self.state.set_message("PAT stored.");
                         self.fetch_whoami_async();
+                        self.state.reload();
+                        self.refresh_ui();
+                        self.dispatch(event_loop, UiEvent::SyncRequested);
+                        return;
                     },
                     Err(e) => {
                         let line = format!("login failed: {e}");
