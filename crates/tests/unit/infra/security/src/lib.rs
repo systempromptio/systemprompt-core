@@ -2,7 +2,8 @@
 //!
 //! Tests cover:
 //! - auth: AuthMode, AuthValidationService, TokenClaims
-//! - extraction: TokenExtractor, CookieExtractor, HeaderExtractor, HeaderInjector
+//! - extraction: TokenExtractor, CookieExtractor, HeaderExtractor,
+//!   HeaderInjector
 //! - jwt: JwtService, AdminTokenParams
 //! - services: ScannerDetector
 //! - session: SessionGenerator, SessionParams, ValidatedSessionClaims
@@ -15,6 +16,8 @@ mod auth;
 mod extraction;
 #[cfg(test)]
 mod jwt;
+#[cfg(test)]
+mod manifest_signing_jcs;
 #[cfg(test)]
 mod services;
 #[cfg(test)]

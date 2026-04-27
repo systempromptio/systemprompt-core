@@ -1,0 +1,16 @@
+[package]
+name = "systemprompt-cowork-manifest-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-cowork manifest verifier"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-cowork = { workspace = true }
+
+[dev-dependencies]

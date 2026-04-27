@@ -138,96 +138,35 @@ impl SignedManifest {
     }
 }
 
-pub fn canonical_payload(m: &SignedManifest) -> Result<String, String> {
-    let view = serde_json::json!({
-        "manifest_version": m.manifest_version,
-        "issued_at": m.issued_at,
-        "user_id": m.user_id,
-        "tenant_id": m.tenant_id,
-        "user": m.user,
-        "plugins": m.plugins,
-        "skills": m.skills,
-        "agents": m.agents,
-        "managed_mcp_servers": m.managed_mcp_servers,
-        "revocations": m.revocations,
-    });
-    serde_json::to_string(&view).map_err(|e| format!("canonical serialize: {e}"))
+#[derive(Serialize)]
+struct CanonicalView<'a> {
+    manifest_version: &'a str,
+    issued_at: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    not_before: Option<&'a str>,
+    user_id: &'a str,
+    tenant_id: Option<&'a str>,
+    user: Option<&'a UserInfo>,
+    plugins: &'a [PluginEntry],
+    skills: &'a [SkillEntry],
+    agents: &'a [AgentEntry],
+    managed_mcp_servers: &'a [ManagedMcpServer],
+    revocations: &'a [String],
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn canonical_payload_excludes_signature() {
-        let m = SignedManifest {
-            manifest_version: "v1".into(),
-            issued_at: "2026-04-22T00:00:00Z".into(),
-            not_before: None,
-            user_id: "u1".into(),
-            tenant_id: None,
-            user: None,
-            plugins: vec![],
-            skills: vec![],
-            agents: vec![],
-            managed_mcp_servers: vec![],
-            revocations: vec![],
-            signature: "SHOULD-NOT-APPEAR".into(),
-        };
-        let payload = canonical_payload(&m).unwrap();
-        assert!(!payload.contains("SHOULD-NOT-APPEAR"));
-        assert!(payload.contains("v1"));
-    }
-
-    #[test]
-    fn canonical_payload_includes_user_skills_agents() {
-        let m = SignedManifest {
-            manifest_version: "v2".into(),
-            issued_at: "2026-04-22T00:00:00Z".into(),
-            not_before: None,
-            user_id: "u1".into(),
-            tenant_id: None,
-            user: Some(UserInfo {
-                id: "u1".into(),
-                name: "alice".into(),
-                email: "a@e.com".into(),
-                display_name: Some("Alice".into()),
-                roles: vec!["admin".into()],
-            }),
-            plugins: vec![],
-            skills: vec![SkillEntry {
-                id: "s1".into(),
-                name: "Skill 1".into(),
-                description: "desc".into(),
-                file_path: "/skills/s1.md".into(),
-                tags: vec![],
-                sha256: "abc".into(),
-                instructions: "do the thing".into(),
-            }],
-            agents: vec![AgentEntry {
-                id: "a1".into(),
-                name: "agent1".into(),
-                display_name: "Agent 1".into(),
-                description: "d".into(),
-                version: "1.0".into(),
-                endpoint: "/api/agent1".into(),
-                enabled: true,
-                is_default: false,
-                is_primary: true,
-                provider: Some("anthropic".into()),
-                model: Some("claude".into()),
-                mcp_servers: vec!["github".into()],
-                skills: vec!["s1".into()],
-                tags: vec![],
-                system_prompt: None,
-            }],
-            managed_mcp_servers: vec![],
-            revocations: vec![],
-            signature: "x".into(),
-        };
-        let payload = canonical_payload(&m).unwrap();
-        assert!(payload.contains("alice"));
-        assert!(payload.contains("Skill 1"));
-        assert!(payload.contains("agent1"));
-    }
+pub fn canonical_payload(m: &SignedManifest) -> Result<String, String> {
+    let view = CanonicalView {
+        manifest_version: &m.manifest_version,
+        issued_at: &m.issued_at,
+        not_before: m.not_before.as_deref(),
+        user_id: &m.user_id,
+        tenant_id: m.tenant_id.as_deref(),
+        user: m.user.as_ref(),
+        plugins: &m.plugins,
+        skills: &m.skills,
+        agents: &m.agents,
+        managed_mcp_servers: &m.managed_mcp_servers,
+        revocations: &m.revocations,
+    };
+    serde_jcs::to_string(&view).map_err(|e| format!("canonical serialize: {e}"))
 }
