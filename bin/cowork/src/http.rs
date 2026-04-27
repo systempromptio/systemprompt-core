@@ -2,6 +2,48 @@ use crate::manifest::SignedManifest;
 use crate::types::{AuthResponse, MtlsRequest, SessionExchangeRequest};
 use std::time::Duration;
 
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayError {
+    #[error("pubkey fetch failed: {0}")]
+    PubkeyFetch(Box<ureq::Error>),
+    #[error("malformed pubkey response: {0}")]
+    PubkeyDecode(std::io::Error),
+    #[error("pubkey field missing in response")]
+    PubkeyMissing,
+    #[error("manifest fetch failed: {0}")]
+    ManifestFetch(Box<ureq::Error>),
+    #[error("malformed manifest response: {0}")]
+    ManifestDecode(std::io::Error),
+    #[error("refused unsafe path: {0}")]
+    UnsafePath(String),
+    #[error("plugin fetch {plugin_id}:{path} failed: {source}")]
+    PluginFetch {
+        plugin_id: String,
+        path: String,
+        source: Box<ureq::Error>,
+    },
+    #[error("plugin read {plugin_id}:{path} failed: {source}")]
+    PluginRead {
+        plugin_id: String,
+        path: String,
+        source: std::io::Error,
+    },
+    #[error("whoami fetch failed: {0}")]
+    WhoamiFetch(Box<ureq::Error>),
+    #[error("malformed whoami response: {0}")]
+    WhoamiDecode(std::io::Error),
+    #[error("health check failed: {0}")]
+    HealthCheck(Box<ureq::Error>),
+    #[error("gateway PAT request failed: {0}")]
+    PatRequest(Box<ureq::Error>),
+    #[error("gateway request failed: {0}")]
+    PostRequest(Box<ureq::Error>),
+    #[error("malformed gateway response: {0}")]
+    AuthDecode(std::io::Error),
+    #[error("{0}")]
+    Serialize(String),
+}
+
 pub struct GatewayClient {
     base_url: String,
     agent: ureq::Agent,
@@ -19,32 +61,32 @@ impl GatewayClient {
         &self.base_url
     }
 
-    pub fn fetch_pubkey(&self) -> Result<String, String> {
+    pub fn fetch_pubkey(&self) -> Result<String, GatewayError> {
         let url = self.url("/v1/cowork/pubkey");
         let resp = self
             .agent
             .get(&url)
             .call()
-            .map_err(|e| format!("pubkey fetch failed: {e}"))?;
+            .map_err(|e| GatewayError::PubkeyFetch(Box::new(e)))?;
         let body: serde_json::Value = resp
             .into_json()
-            .map_err(|e| format!("malformed pubkey response: {e}"))?;
+            .map_err(GatewayError::PubkeyDecode)?;
         body.get("pubkey")
             .and_then(|v| v.as_str())
             .map(str::to_string)
-            .ok_or_else(|| "pubkey field missing in response".to_string())
+            .ok_or(GatewayError::PubkeyMissing)
     }
 
-    pub fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, String> {
+    pub fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
         let url = self.url("/v1/cowork/manifest");
         let resp = self
             .agent
             .get(&url)
             .set("authorization", &format!("Bearer {bearer}"))
             .call()
-            .map_err(|e| format!("manifest fetch failed: {e}"))?;
+            .map_err(|e| GatewayError::ManifestFetch(Box::new(e)))?;
         resp.into_json::<SignedManifest>()
-            .map_err(|e| format!("malformed manifest response: {e}"))
+            .map_err(GatewayError::ManifestDecode)
     }
 
     pub fn fetch_plugin_file(
@@ -52,9 +94,9 @@ impl GatewayClient {
         bearer: &str,
         plugin_id: &str,
         relative_path: &str,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, GatewayError> {
         if relative_path.contains("..") || relative_path.starts_with('/') {
-            return Err(format!("refused unsafe path: {relative_path}"));
+            return Err(GatewayError::UnsafePath(relative_path.to_string()));
         }
         let url = self.url(&format!("/v1/cowork/plugins/{plugin_id}/{relative_path}"));
         let resp = self
@@ -62,49 +104,60 @@ impl GatewayClient {
             .get(&url)
             .set("authorization", &format!("Bearer {bearer}"))
             .call()
-            .map_err(|e| format!("plugin fetch {plugin_id}:{relative_path} failed: {e}"))?;
+            .map_err(|e| GatewayError::PluginFetch {
+                plugin_id: plugin_id.to_string(),
+                path: relative_path.to_string(),
+                source: Box::new(e),
+            })?;
         let mut buf = Vec::with_capacity(4096);
         std::io::copy(&mut resp.into_reader(), &mut buf)
-            .map_err(|e| format!("plugin read {plugin_id}:{relative_path} failed: {e}"))?;
+            .map_err(|e| GatewayError::PluginRead {
+                plugin_id: plugin_id.to_string(),
+                path: relative_path.to_string(),
+                source: e,
+            })?;
         Ok(buf)
     }
 
-    pub fn fetch_whoami(&self, bearer: &str) -> Result<serde_json::Value, String> {
+    pub fn fetch_whoami(&self, bearer: &str) -> Result<serde_json::Value, GatewayError> {
         let url = self.url("/v1/cowork/whoami");
         let resp = self
             .agent
             .get(&url)
             .set("authorization", &format!("Bearer {bearer}"))
             .call()
-            .map_err(|e| format!("whoami fetch failed: {e}"))?;
+            .map_err(|e| GatewayError::WhoamiFetch(Box::new(e)))?;
         resp.into_json::<serde_json::Value>()
-            .map_err(|e| format!("malformed whoami response: {e}"))
+            .map_err(GatewayError::WhoamiDecode)
     }
 
-    pub fn health(&self) -> Result<(), String> {
+    pub fn health(&self) -> Result<(), GatewayError> {
         let url = self.url("/health");
         self.agent
             .get(&url)
             .call()
-            .map_err(|e| format!("health check failed: {e}"))?;
+            .map_err(|e| GatewayError::HealthCheck(Box::new(e)))?;
         Ok(())
     }
 
-    pub fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, String> {
+    pub fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
         self.post_json(
             "/v1/auth/cowork/mtls",
-            serde_json::to_value(req).map_err(|e| e.to_string())?,
+            serde_json::to_value(req).map_err(|e| GatewayError::Serialize(e.to_string()))?,
         )
     }
 
-    pub fn session_exchange(&self, req: &SessionExchangeRequest) -> Result<AuthResponse, String> {
+    pub fn session_exchange(
+        &self,
+        req: &SessionExchangeRequest,
+    ) -> Result<AuthResponse, GatewayError> {
         self.post_json(
             "/v1/auth/cowork/session",
-            serde_json::to_value(req).map_err(|e| e.to_string())?,
+            serde_json::to_value(req).map_err(|e| GatewayError::Serialize(e.to_string()))?,
         )
     }
 
-    pub fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, String> {
+    pub fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
         let url = self.url("/v1/auth/cowork/pat");
         let resp = self
             .agent
@@ -112,21 +165,25 @@ impl GatewayClient {
             .set("authorization", &format!("Bearer {pat}"))
             .set("content-type", "application/json")
             .send_string("{}")
-            .map_err(|e| format!("gateway PAT request failed: {e}"))?;
+            .map_err(|e| GatewayError::PatRequest(Box::new(e)))?;
         resp.into_json::<AuthResponse>()
-            .map_err(|e| format!("malformed gateway response: {e}"))
+            .map_err(GatewayError::AuthDecode)
     }
 
-    fn post_json(&self, path: &str, body: serde_json::Value) -> Result<AuthResponse, String> {
+    fn post_json(
+        &self,
+        path: &str,
+        body: serde_json::Value,
+    ) -> Result<AuthResponse, GatewayError> {
         let url = self.url(path);
         let resp = self
             .agent
             .post(&url)
             .set("content-type", "application/json")
             .send_json(body)
-            .map_err(|e| format!("gateway request failed: {e}"))?;
+            .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
         resp.into_json::<AuthResponse>()
-            .map_err(|e| format!("malformed gateway response: {e}"))
+            .map_err(GatewayError::AuthDecode)
     }
 
     fn url(&self, path: &str) -> String {

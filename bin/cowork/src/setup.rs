@@ -7,15 +7,26 @@ const CONFIG_FILENAME: &str = "systemprompt-cowork.toml";
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 const PAT_PREFIX: &str = "sp-live-";
 
+#[derive(Debug, thiserror::Error)]
+pub enum SetupError {
+    #[error("{0}")]
+    Token(String),
+    #[error("{0}")]
+    Path(String),
+    #[error("{0}")]
+    Io(String),
+}
+
 pub struct PathLayout {
     pub config_dir: PathBuf,
     pub config_file: PathBuf,
     pub pat_file: PathBuf,
 }
 
-pub fn resolve_paths() -> Result<PathLayout, String> {
-    let base = dirs::config_dir()
-        .ok_or_else(|| "no OS config directory available on this platform".to_string())?;
+pub fn resolve_paths() -> Result<PathLayout, SetupError> {
+    let base = dirs::config_dir().ok_or_else(|| {
+        SetupError::Path("no OS config directory available on this platform".to_string())
+    })?;
     let config_dir = base.join("systemprompt");
     let config_file = config_dir.join(CONFIG_FILENAME);
     let pat_file = config_dir.join(PAT_FILENAME);
@@ -26,7 +37,7 @@ pub fn resolve_paths() -> Result<PathLayout, String> {
     })
 }
 
-pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, String> {
+pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, SetupError> {
     validate_token(token)?;
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
@@ -35,7 +46,7 @@ pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, Strin
     Ok(paths)
 }
 
-pub fn logout() -> Result<PathLayout, String> {
+pub fn logout() -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
     if paths.config_file.exists() {
@@ -48,13 +59,13 @@ pub fn logout() -> Result<PathLayout, String> {
                     atomic_write(&paths.config_file, stripped.as_bytes(), false)?;
                 }
             },
-            Err(e) => return Err(format!("read config: {e}")),
+            Err(e) => return Err(SetupError::Io(format!("read config: {e}"))),
         }
     }
     Ok(paths)
 }
 
-pub fn status() -> Result<StatusReport, String> {
+pub fn status() -> Result<StatusReport, SetupError> {
     let paths = resolve_paths()?;
     let config_present = paths.config_file.exists();
     let pat_present = paths.pat_file.exists();
@@ -71,35 +82,43 @@ pub struct StatusReport {
     pub pat_present: bool,
 }
 
-fn validate_token(token: &str) -> Result<(), String> {
+fn validate_token(token: &str) -> Result<(), SetupError> {
     let trimmed = token.trim();
     if !trimmed.starts_with(PAT_PREFIX) {
-        return Err(format!("token must start with `{PAT_PREFIX}`"));
+        return Err(SetupError::Token(format!(
+            "token must start with `{PAT_PREFIX}`"
+        )));
     }
     if !trimmed.contains('.') {
-        return Err("token must contain a `.` separator (sp-live-<prefix>.<secret>)".into());
+        return Err(SetupError::Token(
+            "token must contain a `.` separator (sp-live-<prefix>.<secret>)".into(),
+        ));
     }
     if trimmed.len() < 40 {
-        return Err("token looks too short — did the copy get truncated?".into());
+        return Err(SetupError::Token(
+            "token looks too short — did the copy get truncated?".into(),
+        ));
     }
     Ok(())
 }
 
-fn ensure_dir(dir: &Path) -> Result<(), String> {
-    fs::create_dir_all(dir).map_err(|e| format!("create config dir {}: {e}", dir.display()))?;
+fn ensure_dir(dir: &Path) -> Result<(), SetupError> {
+    fs::create_dir_all(dir)
+        .map_err(|e| SetupError::Io(format!("create config dir {}: {e}", dir.display())))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let mut perms = fs::metadata(dir)
-            .map_err(|e| format!("stat dir: {e}"))?
+            .map_err(|e| SetupError::Io(format!("stat dir: {e}")))?
             .permissions();
         perms.set_mode(0o700);
-        fs::set_permissions(dir, perms).map_err(|e| format!("chmod dir: {e}"))?;
+        fs::set_permissions(dir, perms)
+            .map_err(|e| SetupError::Io(format!("chmod dir: {e}")))?;
     }
     Ok(())
 }
 
-fn write_pat_file(path: &Path, token: &str) -> Result<(), String> {
+fn write_pat_file(path: &Path, token: &str) -> Result<(), SetupError> {
     atomic_write(path, token.trim().as_bytes(), true)
 }
 
@@ -107,7 +126,7 @@ fn write_config_file(
     path: &Path,
     pat_file: &Path,
     gateway_url_override: Option<&str>,
-) -> Result<(), String> {
+) -> Result<(), SetupError> {
     let existing_gateway =
         fs::read_to_string(path)
             .ok()
@@ -140,10 +159,10 @@ fn write_config_file(
     atomic_write(path, contents.as_bytes(), false)
 }
 
-fn atomic_write(target: &Path, bytes: &[u8], secret: bool) -> Result<(), String> {
-    let parent = target
-        .parent()
-        .ok_or_else(|| format!("no parent dir for {}", target.display()))?;
+fn atomic_write(target: &Path, bytes: &[u8], secret: bool) -> Result<(), SetupError> {
+    let parent = target.parent().ok_or_else(|| {
+        SetupError::Path(format!("no parent dir for {}", target.display()))
+    })?;
     let tmp = parent.join(format!(
         ".{}.tmp",
         target
@@ -154,17 +173,22 @@ fn atomic_write(target: &Path, bytes: &[u8], secret: bool) -> Result<(), String>
     {
         let mut f = create_restricted(&tmp, secret)?;
         f.write_all(bytes)
-            .map_err(|e| format!("write {}: {e}", tmp.display()))?;
+            .map_err(|e| SetupError::Io(format!("write {}: {e}", tmp.display())))?;
         f.sync_all()
-            .map_err(|e| format!("fsync {}: {e}", tmp.display()))?;
+            .map_err(|e| SetupError::Io(format!("fsync {}: {e}", tmp.display())))?;
     }
-    fs::rename(&tmp, target)
-        .map_err(|e| format!("rename {} -> {}: {e}", tmp.display(), target.display()))?;
+    fs::rename(&tmp, target).map_err(|e| {
+        SetupError::Io(format!(
+            "rename {} -> {}: {e}",
+            tmp.display(),
+            target.display()
+        ))
+    })?;
     Ok(())
 }
 
 #[cfg(unix)]
-fn create_restricted(path: &Path, secret: bool) -> Result<File, String> {
+fn create_restricted(path: &Path, secret: bool) -> Result<File, SetupError> {
     use std::os::unix::fs::OpenOptionsExt;
     let mode = if secret { 0o600 } else { 0o644 };
     OpenOptions::new()
@@ -173,24 +197,24 @@ fn create_restricted(path: &Path, secret: bool) -> Result<File, String> {
         .truncate(true)
         .mode(mode)
         .open(path)
-        .map_err(|e| format!("open {}: {e}", path.display()))
+        .map_err(|e| SetupError::Io(format!("open {}: {e}", path.display())))
 }
 
 #[cfg(not(unix))]
-fn create_restricted(path: &Path, _secret: bool) -> Result<File, String> {
+fn create_restricted(path: &Path, _secret: bool) -> Result<File, SetupError> {
     OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .open(path)
-        .map_err(|e| format!("open {}: {e}", path.display()))
+        .map_err(|e| SetupError::Io(format!("open {}: {e}", path.display())))
 }
 
-fn remove_if_exists(path: &Path) -> Result<(), String> {
+fn remove_if_exists(path: &Path) -> Result<(), SetupError> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(format!("remove {}: {e}", path.display())),
+        Err(e) => Err(SetupError::Io(format!("remove {}: {e}", path.display()))),
     }
 }
 

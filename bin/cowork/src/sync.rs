@@ -3,7 +3,6 @@ use crate::http::GatewayClient;
 use crate::manifest::{
     AgentEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
 };
-use crate::output::diag;
 use crate::paths::{self, OrgPluginsLocation};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -53,33 +52,34 @@ impl SyncSummary {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum SyncErrorKind {
+#[derive(Debug, thiserror::Error)]
+pub enum SyncError {
+    #[error("no valid credential available; run `systemprompt-cowork login` first")]
     NoCredential,
-    Network,
-    SignatureFailed,
+    #[error("{0}")]
+    Network(String),
+    #[error("manifest signature verification failed: {0}")]
+    SignatureFailed(String),
+    #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
-    ApplyFailed,
+    #[error("sync apply failed: {0}")]
+    ApplyFailed(String),
+    #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
     ReplayedManifest { last: String, incoming: String },
+    #[error("manifest clock skew rejected: not_before {not_before} outside +/- 5m of now {now}")]
     ManifestSkew { not_before: String, now: String },
-}
-
-#[derive(Debug, Clone)]
-pub struct SyncError {
-    pub kind: SyncErrorKind,
-    pub message: String,
 }
 
 impl SyncError {
     fn exit_code(&self) -> ExitCode {
-        match self.kind {
-            SyncErrorKind::NoCredential => ExitCode::from(5),
-            SyncErrorKind::Network => ExitCode::from(3),
-            SyncErrorKind::SignatureFailed => ExitCode::from(4),
-            SyncErrorKind::PathUnresolvable => ExitCode::from(1),
-            SyncErrorKind::ApplyFailed => ExitCode::from(1),
-            SyncErrorKind::ReplayedManifest { .. } => ExitCode::from(6),
-            SyncErrorKind::ManifestSkew { .. } => ExitCode::from(7),
+        match self {
+            SyncError::NoCredential => ExitCode::from(5),
+            SyncError::Network(_) => ExitCode::from(3),
+            SyncError::SignatureFailed(_) => ExitCode::from(4),
+            SyncError::PathUnresolvable => ExitCode::from(1),
+            SyncError::ApplyFailed(_) => ExitCode::from(1),
+            SyncError::ReplayedManifest { .. } => ExitCode::from(6),
+            SyncError::ManifestSkew { .. } => ExitCode::from(7),
         }
     }
 }
@@ -96,9 +96,7 @@ pub fn sync(opts: SyncOptions) -> ExitCode {
     loop {
         let code = run_once_cli(opts.allow_unsigned, opts.force_replay);
         if code != ExitCode::SUCCESS {
-            eprintln!(
-                "sync: non-zero exit; retrying in {interval}s",
-            );
+            eprintln!("sync: non-zero exit; retrying in {interval}s");
         }
         std::thread::sleep(Duration::from_secs(interval));
     }
@@ -117,22 +115,9 @@ fn run_once_cli(allow_unsigned: bool, force_replay: bool) -> ExitCode {
             ExitCode::SUCCESS
         },
         Err(err) => {
-            diag(&match err.kind {
-                SyncErrorKind::NoCredential => err.message.clone(),
-                SyncErrorKind::Network => err.message.clone(),
-                SyncErrorKind::SignatureFailed => {
-                    format!("manifest signature verification failed: {}", err.message)
-                },
-                SyncErrorKind::PathUnresolvable => err.message.clone(),
-                SyncErrorKind::ApplyFailed => format!("sync apply failed: {}", err.message),
-                SyncErrorKind::ReplayedManifest { ref last, ref incoming } => format!(
-                    "manifest replay rejected: incoming {incoming} is not newer than last applied {last}"
-                ),
-                SyncErrorKind::ManifestSkew { ref not_before, ref now } => format!(
-                    "manifest clock skew rejected: not_before {not_before} outside +/- {SKEW_WINDOW_MINUTES}m of now {now}"
-                ),
-            });
-            err.exit_code()
+            let exit = err.exit_code();
+            tracing::error!("{err}");
+            exit
         },
     }
 }
@@ -145,22 +130,14 @@ pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary,
         Some(out) => out.token,
         None => match fetch_fresh_token() {
             Some(t) => t,
-            None => {
-                return Err(SyncError {
-                    kind: SyncErrorKind::NoCredential,
-                    message:
-                        "no valid credential available; run `systemprompt-cowork login` first"
-                            .to_string(),
-                });
-            },
+            None => return Err(SyncError::NoCredential),
         },
     };
 
     let client = GatewayClient::new(gateway.clone());
-    let manifest = client.fetch_manifest(&bearer).map_err(|e| SyncError {
-        kind: SyncErrorKind::Network,
-        message: e,
-    })?;
+    let manifest = client
+        .fetch_manifest(&bearer)
+        .map_err(|e| SyncError::Network(e.to_string()))?;
 
     if !allow_unsigned {
         let pubkey = match config::pinned_pubkey() {
@@ -171,25 +148,18 @@ pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary,
                     k
                 },
                 Err(e) => {
-                    return Err(SyncError {
-                        kind: SyncErrorKind::Network,
-                        message: format!("no pinned pubkey and live fetch failed: {e}"),
-                    });
+                    return Err(SyncError::Network(format!(
+                        "no pinned pubkey and live fetch failed: {e}"
+                    )));
                 },
             },
         };
         if let Err(e) = manifest.verify(&pubkey) {
-            return Err(SyncError {
-                kind: SyncErrorKind::SignatureFailed,
-                message: e,
-            });
+            return Err(SyncError::SignatureFailed(e.to_string()));
         }
     }
 
-    let location = paths::org_plugins_effective().ok_or_else(|| SyncError {
-        kind: SyncErrorKind::PathUnresolvable,
-        message: "org-plugins directory not resolvable".to_string(),
-    })?;
+    let location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
 
     let last_sync_path = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
     let last_state = read_last_sync(&last_sync_path);
@@ -199,12 +169,8 @@ pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary,
         check_skew(&manifest.not_before, now)?;
     }
 
-    let report = apply_manifest(&client, &bearer, &manifest, &location).map_err(|e| {
-        SyncError {
-            kind: SyncErrorKind::ApplyFailed,
-            message: e,
-        }
-    })?;
+    let report = apply_manifest(&client, &bearer, &manifest, &location)
+        .map_err(SyncError::ApplyFailed)?;
 
     let _ = fs::create_dir_all(paths::metadata_dir(&location.path));
     let applied_at = now.to_rfc3339();
@@ -456,7 +422,9 @@ fn fetch_plugin_into_staging(
             fs::create_dir_all(parent)
                 .map_err(|e| format!("create parent {}: {e}", parent.display()))?;
         }
-        let bytes = client.fetch_plugin_file(bearer, &plugin.id, &file.path)?;
+        let bytes = client
+            .fetch_plugin_file(bearer, &plugin.id, &file.path)
+            .map_err(|e| e.to_string())?;
         let actual = sha256_hex(&bytes);
         if actual != file.sha256 {
             return Err(format!(
@@ -557,7 +525,7 @@ fn fetch_fresh_token() -> Option<String> {
             },
             Err(AuthError::NotConfigured) => continue,
             Err(AuthError::Failed(msg)) => {
-                diag(&format!("{}: {msg}", p.name()));
+                crate::output::diag(&format!("{}: {msg}", p.name()));
             },
         }
     }
@@ -597,12 +565,9 @@ pub fn check_replay(
 ) -> Result<(), SyncError> {
     if let Some(prev) = last.last_applied_manifest_version.as_deref() {
         if incoming <= prev {
-            return Err(SyncError {
-                kind: SyncErrorKind::ReplayedManifest {
-                    last: prev.to_string(),
-                    incoming: incoming.to_string(),
-                },
-                message: format!("incoming {incoming} <= last applied {prev}"),
+            return Err(SyncError::ReplayedManifest {
+                last: prev.to_string(),
+                incoming: incoming.to_string(),
             });
         }
     }
@@ -613,26 +578,19 @@ pub fn check_skew(
     not_before: &str,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Result<(), SyncError> {
-    let parsed = chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_| SyncError {
-        kind: SyncErrorKind::ManifestSkew {
+    let parsed = chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_| {
+        SyncError::ManifestSkew {
             not_before: not_before.to_string(),
             now: now.to_rfc3339(),
-        },
-        message: format!("not_before is not RFC3339: {not_before}"),
+        }
     })?;
     let nb_utc = parsed.with_timezone(&chrono::Utc);
     let window = chrono::Duration::minutes(SKEW_WINDOW_MINUTES);
     let delta = nb_utc.signed_duration_since(now);
     if delta > window || delta < -window {
-        return Err(SyncError {
-            kind: SyncErrorKind::ManifestSkew {
-                not_before: not_before.to_string(),
-                now: now.to_rfc3339(),
-            },
-            message: format!(
-                "not_before {not_before} outside +/- {SKEW_WINDOW_MINUTES}m of now {}",
-                now.to_rfc3339()
-            ),
+        return Err(SyncError::ManifestSkew {
+            not_before: not_before.to_string(),
+            now: now.to_rfc3339(),
         });
     }
     Ok(())

@@ -117,7 +117,7 @@ pub fn run() -> ValidationReport {
             let client = GatewayClient::new(url.to_string());
             match client.health() {
                 Ok(()) => report.ok("gateway /health", "reachable"),
-                Err(e) => report.fail("gateway /health", &e),
+                Err(e) => report.fail("gateway /health", &e.to_string()),
             }
         },
         None => report.fail("gateway_url", "not set in config"),

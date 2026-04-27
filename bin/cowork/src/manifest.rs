@@ -3,6 +3,28 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[derive(Debug, thiserror::Error)]
+pub enum ManifestError {
+    #[error("pubkey base64 decode: {0}")]
+    PubkeyBase64(base64::DecodeError),
+    #[error("pubkey must be 32 bytes (ed25519), got {0}")]
+    PubkeyLength(usize),
+    #[error("pubkey length mismatch")]
+    PubkeyLengthMismatch,
+    #[error("pubkey parse: {0}")]
+    PubkeyParse(ed25519_dalek::SignatureError),
+    #[error("signature base64 decode: {0}")]
+    SignatureBase64(base64::DecodeError),
+    #[error("signature must be 64 bytes (ed25519), got {0}")]
+    SignatureLength(usize),
+    #[error("signature length mismatch")]
+    SignatureLengthMismatch,
+    #[error("signature verification failed: {0}")]
+    Verify(ed25519_dalek::SignatureError),
+    #[error("canonical serialize: {0}")]
+    CanonicalSerialize(serde_json::Error),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedManifest {
     pub manifest_version: String,
@@ -100,40 +122,34 @@ pub struct ManagedMcpServer {
 }
 
 impl SignedManifest {
-    pub fn verify(&self, pubkey_b64: &str) -> Result<(), String> {
+    pub fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError> {
         let pubkey_bytes = base64::engine::general_purpose::STANDARD
             .decode(pubkey_b64.trim())
-            .map_err(|e| format!("pubkey base64 decode: {e}"))?;
+            .map_err(ManifestError::PubkeyBase64)?;
         if pubkey_bytes.len() != 32 {
-            return Err(format!(
-                "pubkey must be 32 bytes (ed25519), got {}",
-                pubkey_bytes.len()
-            ));
+            return Err(ManifestError::PubkeyLength(pubkey_bytes.len()));
         }
         let arr: [u8; 32] = pubkey_bytes
             .as_slice()
             .try_into()
-            .map_err(|_| "pubkey length mismatch".to_string())?;
-        let key = VerifyingKey::from_bytes(&arr).map_err(|e| format!("pubkey parse: {e}"))?;
+            .map_err(|_| ManifestError::PubkeyLengthMismatch)?;
+        let key = VerifyingKey::from_bytes(&arr).map_err(ManifestError::PubkeyParse)?;
 
         let sig_bytes = base64::engine::general_purpose::STANDARD
             .decode(self.signature.trim())
-            .map_err(|e| format!("signature base64 decode: {e}"))?;
+            .map_err(ManifestError::SignatureBase64)?;
         if sig_bytes.len() != 64 {
-            return Err(format!(
-                "signature must be 64 bytes (ed25519), got {}",
-                sig_bytes.len()
-            ));
+            return Err(ManifestError::SignatureLength(sig_bytes.len()));
         }
         let sig_arr: [u8; 64] = sig_bytes
             .as_slice()
             .try_into()
-            .map_err(|_| "signature length mismatch".to_string())?;
+            .map_err(|_| ManifestError::SignatureLengthMismatch)?;
         let signature = Signature::from_bytes(&sig_arr);
 
         let payload = canonical_payload(self)?;
         key.verify(payload.as_bytes(), &signature)
-            .map_err(|e| format!("signature verification failed: {e}"))
+            .map_err(ManifestError::Verify)
     }
 }
 
@@ -152,7 +168,7 @@ struct CanonicalView<'a> {
     revocations: &'a [String],
 }
 
-pub fn canonical_payload(m: &SignedManifest) -> Result<String, String> {
+pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
     let view = CanonicalView {
         manifest_version: &m.manifest_version,
         issued_at: &m.issued_at,
@@ -166,5 +182,5 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, String> {
         managed_mcp_servers: &m.managed_mcp_servers,
         revocations: &m.revocations,
     };
-    serde_jcs::to_string(&view).map_err(|e| format!("canonical serialize: {e}"))
+    serde_jcs::to_string(&view).map_err(ManifestError::CanonicalSerialize)
 }
