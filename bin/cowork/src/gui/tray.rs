@@ -4,7 +4,7 @@ use muda::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 use super::events::UiEvent;
-use super::state::AppStateSnapshot;
+use super::state::{AppStateSnapshot, GatewayStatus};
 
 pub struct TrayHandles {
     pub _tray: TrayIcon,
@@ -97,10 +97,21 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
 }
 
 fn format_identity(snap: &AppStateSnapshot) -> String {
-    match snap.identity.as_deref() {
-        Some(id) => format!("Signed in as {id}"),
-        None if snap.pat_present => "PAT stored — fetch identity".to_string(),
-        None => "Not signed in".to_string(),
+    match &snap.gateway_status {
+        GatewayStatus::Unknown | GatewayStatus::Probing => "Checking gateway…".to_string(),
+        GatewayStatus::Unreachable { .. } => "Gateway unreachable".to_string(),
+        GatewayStatus::Reachable { .. } => match snap.verified_identity.as_ref() {
+            Some(id) => {
+                let label = id
+                    .email
+                    .as_deref()
+                    .or(id.user_id.as_deref())
+                    .unwrap_or("(verified)");
+                format!("Signed in as {label}")
+            },
+            None if snap.pat_present => "PAT stored — verifying…".to_string(),
+            None => "Not signed in".to_string(),
+        },
     }
 }
 

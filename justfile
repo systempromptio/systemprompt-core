@@ -46,6 +46,18 @@ build-cowork-all:
     just build-cowork x86_64-pc-windows-msvc
     just build-cowork x86_64-unknown-linux-gnu
 
+# Wrap the cowork binary in a macOS .app bundle (Info.plist + AppIcon.icns)
+bundle-cowork-mac TARGET="":
+    #!/usr/bin/env bash
+    set -e
+    if [ -n "{{TARGET}}" ]; then
+        just build-cowork {{TARGET}}
+        bin/cowork/scripts/make-mac-app.sh --target {{TARGET}}
+    else
+        just build-cowork
+        bin/cowork/scripts/make-mac-app.sh
+    fi
+
 # Prepare sqlx offline cache (requires running database)
 sqlx-prepare:
     cargo sqlx prepare --workspace

@@ -1,7 +1,7 @@
 pub mod events;
+pub mod server;
 pub mod state;
 pub mod tray;
-pub mod web;
 pub mod window;
 
 use std::process::ExitCode;
@@ -15,11 +15,15 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy}
 use winit::window::WindowId;
 
 use crate::gui::events::UiEvent;
-use crate::gui::state::AppState;
-use crate::gui::web::WebWindow;
+use crate::gui::server::{ActivityLog, Server};
+use crate::gui::state::{
+    AppState, GatewayProbeOutcome, GatewayStatus, decode_jwt_identity, now_unix,
+};
 use crate::http::GatewayClient;
 use crate::output::diag;
 use crate::{config, paths, setup, sync, validate};
+
+const PROBE_INTERVAL_SECS: u64 = 30;
 
 pub fn run() -> ExitCode {
     let event_loop = match EventLoop::<UiEvent>::with_user_event().build() {
@@ -55,9 +59,10 @@ pub fn run() -> ExitCode {
 
 struct GuiApp {
     state: Arc<AppState>,
+    tx: Sender<UiEvent>,
     proxy: EventLoopProxy<UiEvent>,
     tray: Option<tray::TrayHandles>,
-    window: WebWindow,
+    server: Option<Server>,
 }
 
 impl GuiApp {
@@ -66,12 +71,12 @@ impl GuiApp {
         tx: Sender<UiEvent>,
         proxy: EventLoopProxy<UiEvent>,
     ) -> Self {
-        let window = WebWindow::new(tx);
         Self {
             state,
+            tx,
             proxy,
             tray: None,
-            window,
+            server: None,
         }
     }
 
@@ -80,14 +85,43 @@ impl GuiApp {
         if let Some(handles) = &self.tray {
             tray::refresh(handles, &snap);
         }
-        self.window.refresh(&snap);
     }
 
-    fn dispatch(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
+    fn ensure_server(&mut self) -> Option<&Server> {
+        if self.server.is_none() {
+            match Server::start(self.state.clone(), self.tx.clone()) {
+                Ok(s) => {
+                    s.log()
+                        .append(format!("settings ui served at {}", s.url()));
+                    self.server = Some(s);
+                },
+                Err(e) => {
+                    diag(&format!("gui: failed to start settings server: {e}"));
+                    return None;
+                },
+            }
+        }
+        self.server.as_ref()
+    }
+
+    fn log(&self) -> Option<&ActivityLog> {
+        self.server.as_ref().map(|s| s.log())
+    }
+
+    fn append_log(&self, line: impl Into<String>) {
+        if let Some(log) = self.log() {
+            log.append(line);
+        }
+    }
+
+    fn dispatch(&mut self, _event_loop: &ActiveEventLoop, event: UiEvent) {
         match event {
             UiEvent::OpenSettings => {
-                let snap = self.state.snapshot();
-                self.window.show(event_loop, &snap);
+                if let Some(server) = self.ensure_server() {
+                    let url = server.url();
+                    self.append_log(format!("opening {url}"));
+                    window::open_url(&url);
+                }
             },
             UiEvent::SyncRequested => {
                 if self.state.snapshot().sync_in_flight {
@@ -95,7 +129,7 @@ impl GuiApp {
                 }
                 self.state.set_sync_in_flight(true);
                 self.state.set_message("Sync started…");
-                self.window.log("Sync started…");
+                self.append_log("Sync started…");
                 self.refresh_ui();
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
@@ -104,7 +138,7 @@ impl GuiApp {
                 });
             },
             UiEvent::ValidateRequested => {
-                self.window.log("Running validation…");
+                self.append_log("Running validation…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let report = validate::run();
@@ -122,11 +156,11 @@ impl GuiApp {
                 let token = token.trim().to_string();
                 if token.is_empty() {
                     self.state.set_message("Login: PAT is empty");
-                    self.window.log("Login: PAT is empty");
+                    self.append_log("Login: PAT is empty");
                     self.refresh_ui();
                     return;
                 }
-                self.window.log("Saving PAT…");
+                self.append_log("Saving PAT…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let result = setup::login(&token, gateway.as_deref())
@@ -136,7 +170,7 @@ impl GuiApp {
                 });
             },
             UiEvent::LogoutRequested => {
-                self.window.log("Logging out…");
+                self.append_log("Logging out…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let result = setup::logout().map(|_| ()).map_err(|e| e.to_string());
@@ -157,12 +191,12 @@ impl GuiApp {
                     Ok(summary) => {
                         let line = summary.one_line();
                         self.state.set_message(line.clone());
-                        self.window.log(&line);
+                        self.append_log(&line);
                     },
                     Err(msg) => {
                         let line = format!("sync failed: {msg}");
                         self.state.set_message(line.clone());
-                        self.window.log(&line);
+                        self.append_log(&line);
                     },
                 }
                 self.state.reload();
@@ -170,24 +204,24 @@ impl GuiApp {
             },
             UiEvent::ValidateFinished(report) => {
                 let rendered = report.rendered();
-                self.window.log(&rendered);
+                self.append_log(rendered);
                 self.state.set_validation(report);
                 self.refresh_ui();
             },
             UiEvent::LoginFinished(result) => {
                 match result {
                     Ok(()) => {
-                        self.window.log("PAT stored. Pulling manifest…");
+                        self.append_log("PAT stored. Pulling manifest…");
                         self.state.set_message("PAT stored.");
-                        self.fetch_whoami_async();
+                        self.probe_gateway_async();
                         self.state.reload();
                         self.refresh_ui();
-                        self.dispatch(event_loop, UiEvent::SyncRequested);
+                        let _ = self.proxy.send_event(UiEvent::SyncRequested);
                         return;
                     },
                     Err(e) => {
                         let line = format!("login failed: {e}");
-                        self.window.log(&line);
+                        self.append_log(&line);
                         self.state.set_message(line);
                     },
                 }
@@ -197,16 +231,25 @@ impl GuiApp {
             UiEvent::LogoutFinished(result) => {
                 match result {
                     Ok(()) => {
-                        self.window.log("Logged out.");
+                        self.append_log("Logged out.");
                         self.state.set_message("Logged out.");
                     },
                     Err(e) => {
                         let line = format!("logout failed: {e}");
-                        self.window.log(&line);
+                        self.append_log(&line);
                         self.state.set_message(line);
                     },
                 }
                 self.state.reload();
+                self.refresh_ui();
+            },
+            UiEvent::GatewayProbeRequested => {
+                self.state.mark_probing();
+                self.refresh_ui();
+                self.probe_gateway_async();
+            },
+            UiEvent::GatewayProbeFinished(outcome) => {
+                self.state.apply_probe(outcome);
                 self.refresh_ui();
             },
             UiEvent::StateRefreshed => {
@@ -216,44 +259,59 @@ impl GuiApp {
         }
     }
 
-    fn fetch_whoami_async(&self) {
+    fn probe_gateway_async(&self) {
         let proxy = self.proxy.clone();
         std::thread::spawn(move || {
             let cfg = config::load();
             let gateway = config::gateway_url_or_default(&cfg);
-            let bearer = match crate::cache::read_valid() {
-                Some(out) => out.token,
-                None => {
-                    use crate::providers::{AuthError, AuthProvider};
-                    let chain: Vec<Box<dyn AuthProvider>> = vec![
-                        Box::new(crate::providers::mtls::MtlsProvider::new(&cfg)),
-                        Box::new(crate::providers::session::SessionProvider::new(&cfg)),
-                        Box::new(crate::providers::pat::PatProvider::new(&cfg)),
-                    ];
-                    let mut token = None;
-                    for p in &chain {
-                        match p.authenticate() {
-                            Ok(out) => {
-                                let _ = crate::cache::write(&out);
-                                token = Some(out.token);
-                                break;
-                            },
-                            Err(AuthError::NotConfigured) => continue,
-                            Err(AuthError::Failed(_)) => {},
-                        }
-                    }
-                    match token {
-                        Some(t) => t,
-                        None => return,
-                    }
+            let client = GatewayClient::new(gateway);
+
+            let started = std::time::Instant::now();
+            let status = match client.health() {
+                Ok(()) => GatewayStatus::Reachable {
+                    latency_ms: started.elapsed().as_millis() as u64,
+                },
+                Err(e) => GatewayStatus::Unreachable {
+                    reason: e.to_string(),
                 },
             };
-            let client = GatewayClient::new(gateway);
-            if let Ok(_value) = client.fetch_whoami(&bearer) {
-                let _ = proxy.send_event(UiEvent::StateRefreshed);
-            }
+
+            let identity = if matches!(status, GatewayStatus::Reachable { .. }) {
+                obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity(&tok))
+            } else {
+                None
+            };
+
+            let _ = proxy.send_event(UiEvent::GatewayProbeFinished(GatewayProbeOutcome {
+                status,
+                identity,
+                at_unix: now_unix(),
+            }));
         });
     }
+}
+
+fn obtain_live_token(cfg: &config::Config) -> Option<String> {
+    if let Some(out) = crate::cache::read_valid() {
+        return Some(out.token);
+    }
+    use crate::providers::{AuthError, AuthProvider};
+    let chain: Vec<Box<dyn AuthProvider>> = vec![
+        Box::new(crate::providers::mtls::MtlsProvider::new(cfg)),
+        Box::new(crate::providers::session::SessionProvider::new(cfg)),
+        Box::new(crate::providers::pat::PatProvider::new(cfg)),
+    ];
+    for p in &chain {
+        match p.authenticate() {
+            Ok(out) => {
+                let _ = crate::cache::write(&out);
+                return Some(out.token);
+            },
+            Err(AuthError::NotConfigured) => continue,
+            Err(AuthError::Failed(_)) => {},
+        }
+    }
+    None
 }
 
 impl ApplicationHandler<UiEvent> for GuiApp {
@@ -278,6 +336,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         }
         self.refresh_ui();
         self.dispatch(event_loop, UiEvent::OpenSettings);
+        let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
@@ -287,21 +346,26 @@ impl ApplicationHandler<UiEvent> for GuiApp {
     fn window_event(
         &mut self,
         _event_loop: &ActiveEventLoop,
-        id: WindowId,
-        event: WindowEvent,
+        _id: WindowId,
+        _event: WindowEvent,
     ) {
-        if self.window.owns(id) {
-            self.window.handle_window_event(&event);
-        }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(handles) = &self.tray {
-            let drained = tray::drain(handles);
-            for ev in drained {
-                self.dispatch(event_loop, ev);
+            for ev in tray::drain(handles) {
+                let _ = self.proxy.send_event(ev);
             }
         }
-        event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_millis(250)));
+        let snap = self.state.snapshot();
+        let needs_probe = matches!(snap.gateway_status, GatewayStatus::Unknown)
+            || snap
+                .last_probe_at_unix
+                .map(|t| now_unix().saturating_sub(t) >= PROBE_INTERVAL_SECS)
+                .unwrap_or(true);
+        if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
+            let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
+        }
+        event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));
     }
 }

@@ -38,49 +38,13 @@ security-framework = "3"
 tray-icon = "0.19"
 muda = "0.15"
 winit = "0.30"
-wry = "0.45"
 image = { version = "0.25", default-features = false, features = ["png"] }
-objc2 = "0.5"
-objc2-foundation = { version = "0.2", features = ["NSString", "NSURL", "NSGeometry", "NSArray", "NSObject"] }
-objc2-app-kit = { version = "0.2", features = [
-    "NSApplication",
-    "NSWindow",
-    "NSResponder",
-    "NSView",
-    "NSWorkspace",
-    "NSRunningApplication",
-] }
-
-[target.'cfg(target_os = "windows")'.dependencies.tray-icon]
-version = "0.19"
-
-[target.'cfg(target_os = "windows")'.dependencies.muda]
-version = "0.15"
-
-[target.'cfg(target_os = "windows")'.dependencies.winit]
-version = "0.30"
-
-[target.'cfg(target_os = "windows")'.dependencies.wry]
-version = "0.45"
-
-[target.'cfg(target_os = "windows")'.dependencies.image]
-version = "0.25"
-default-features = false
-features = ["png"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.59", features = [
-    "Win32_Security_Credentials",
-    "Win32_Security_Cryptography",
-    "Win32_Foundation",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_UI_Controls",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_Graphics_Gdi",
-    "Win32_System_LibraryLoader",
-    "Win32_System_Console",
-    "Win32_UI_Shell",
-] }
+tray-icon = "0.19"
+muda = "0.15"
+winit = "0.30"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [profile.release]
 opt-level = "z"
@@ -88,3 +52,9 @@ lto = "fat"
 codegen-units = 1
 strip = "symbols"
 panic = "abort"
+
+[profile.release-debug]
+inherits = "release"
+strip = "none"
+debug = "line-tables-only"
+panic = "unwind"

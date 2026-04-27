@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::Deserialize;
 
 use crate::cache;
@@ -9,12 +11,6 @@ use crate::setup;
 use crate::validate::ValidationReport;
 
 const POISONED: &str = "AppState mutex poisoned";
-
-#[derive(Debug, Deserialize)]
-struct UserFragment {
-    #[serde(default)]
-    email: Option<String>,
-}
 
 #[derive(Debug, Deserialize)]
 struct LastSyncRecord {
@@ -45,9 +41,44 @@ fn count_plugin_dirs(root: &std::path::Path) -> Option<usize> {
     Some(n)
 }
 
+#[derive(Debug, Clone)]
+pub enum GatewayStatus {
+    Unknown,
+    Probing,
+    Reachable { latency_ms: u64 },
+    Unreachable { reason: String },
+}
+
+impl Default for GatewayStatus {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+impl GatewayStatus {
+    pub fn is_reachable(&self) -> bool {
+        matches!(self, Self::Reachable { .. })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifiedIdentity {
+    pub email: Option<String>,
+    pub user_id: Option<String>,
+    pub tenant_id: Option<String>,
+    pub exp_unix: Option<u64>,
+    pub verified_at_unix: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct GatewayProbeOutcome {
+    pub status: GatewayStatus,
+    pub identity: Option<VerifiedIdentity>,
+    pub at_unix: u64,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct AppStateSnapshot {
-    pub identity: Option<String>,
     pub gateway_url: String,
     pub config_file: String,
     pub pat_file: String,
@@ -62,6 +93,15 @@ pub struct AppStateSnapshot {
     pub last_validation: Option<ValidationReport>,
     pub cached_token: Option<CachedToken>,
     pub plugin_count: Option<usize>,
+    pub gateway_status: GatewayStatus,
+    pub verified_identity: Option<VerifiedIdentity>,
+    pub last_probe_at_unix: Option<u64>,
+}
+
+impl AppStateSnapshot {
+    pub fn signed_in(&self) -> bool {
+        self.gateway_status.is_reachable() && self.verified_identity.is_some()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -107,6 +147,23 @@ impl AppState {
         guard.last_validation = Some(report);
     }
 
+    pub fn mark_probing(&self) {
+        let mut guard = self.inner.lock().expect(POISONED);
+        guard.gateway_status = GatewayStatus::Probing;
+    }
+
+    pub fn apply_probe(&self, outcome: GatewayProbeOutcome) {
+        let mut guard = self.inner.lock().expect(POISONED);
+        guard.gateway_status = outcome.status;
+        guard.verified_identity = outcome.identity;
+        guard.last_probe_at_unix = Some(outcome.at_unix);
+    }
+
+    pub fn clear_verified_identity(&self) {
+        let mut guard = self.inner.lock().expect(POISONED);
+        guard.verified_identity = None;
+    }
+
     fn reload_into(snap: &mut AppStateSnapshot) {
         let cfg = config::load();
         snap.gateway_url = config::gateway_url_or_default(&cfg);
@@ -128,7 +185,6 @@ impl AppState {
 
         let loc = paths::org_plugins_effective();
         snap.plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
-        snap.identity = None;
         snap.last_sync_summary = None;
         snap.skill_count = None;
         snap.agent_count = None;
@@ -142,14 +198,6 @@ impl AppState {
             let meta = paths::metadata_dir(&loc.path);
 
             snap.plugin_count = count_plugin_dirs(&loc.path);
-
-            if snap.pat_present {
-                if let Ok(bytes) = std::fs::read(meta.join(paths::USER_FRAGMENT)) {
-                    if let Ok(user) = serde_json::from_slice::<UserFragment>(&bytes) {
-                        snap.identity = user.email;
-                    }
-                }
-            }
 
             if let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL)) {
                 if let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes) {
@@ -167,4 +215,38 @@ impl AppState {
                 read_index_count(&meta.join(paths::AGENTS_DIR).join("index.json"));
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct JwtClaims {
+    #[serde(default)]
+    email: Option<String>,
+    #[serde(default)]
+    sub: Option<String>,
+    #[serde(default)]
+    tenant_id: Option<String>,
+    #[serde(default)]
+    exp: Option<u64>,
+}
+
+pub fn decode_jwt_identity(token: &str) -> Option<VerifiedIdentity> {
+    let mut parts = token.split('.');
+    let _header = parts.next()?;
+    let payload = parts.next()?;
+    let bytes = URL_SAFE_NO_PAD.decode(payload.as_bytes()).ok()?;
+    let claims: JwtClaims = serde_json::from_slice(&bytes).ok()?;
+    Some(VerifiedIdentity {
+        email: claims.email,
+        user_id: claims.sub,
+        tenant_id: claims.tenant_id,
+        exp_unix: claims.exp,
+        verified_at_unix: now_unix(),
+    })
+}
+
+pub fn now_unix() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
