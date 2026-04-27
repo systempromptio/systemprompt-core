@@ -280,6 +280,28 @@ For maintainers upgrading existing profiles or tooling:
 
 ---
 
+## Secrets File Schema
+
+The secrets file resolved by `SecretsBootstrap` is a JSON object. Required fields are `jwt_secret` and `database_url`. Phase 2 Track F adds a dedicated, independent manifest signing seed:
+
+| Field | Type | Required | Purpose |
+|---|---|---|---|
+| `jwt_secret` | string (≥ 32 bytes) | yes | HMAC secret for API/cowork JWTs |
+| `database_url` | string | yes | Primary Postgres connection URL |
+| `manifest_signing_secret_seed` | string (base64-encoded 32 bytes) | auto-generated | ed25519 seed for cowork manifest signing |
+
+If `manifest_signing_secret_seed` is missing on bootstrap and the secrets source is a writable file, a fresh 32-byte seed is generated via `OsRng` and persisted in place. The accessor `SecretsBootstrap::manifest_signing_secret_seed()` returns `SecretsBootstrapError::ManifestSeedUnavailable` when neither the field nor a writable secrets file is available.
+
+The signing seed is fully independent of `jwt_secret` — rotating the JWT HMAC secret does not change the cowork manifest pubkey, and compromise of `jwt_secret` does not compromise manifest signatures. To rotate the signing seed, run:
+
+```bash
+systemprompt admin cowork rotate-signing-key
+```
+
+This generates a fresh 32-byte seed, overwrites `manifest_signing_secret_seed` in the secrets file, and prints the new base64 ed25519 pubkey. Operators must repin the new pubkey via `cowork install --pubkey <value>` before upgrading their hosts.
+
+---
+
 ## Key Source Files
 
 | File | Purpose |
@@ -290,6 +312,10 @@ For maintainers upgrading existing profiles or tooling:
 | `crates/shared/models/src/services/skills.rs` | `SkillsConfig`, `SkillConfig` |
 | `crates/shared/models/src/services/content.rs` | `ContentConfig` |
 | `crates/shared/provider-contracts/src/web.rs` | Canonical `WebConfig` |
+| `crates/shared/models/src/secrets.rs` | `Secrets` struct (file schema) |
+| `crates/shared/models/src/secrets_bootstrap.rs` | `SecretsBootstrap`: load, init, manifest seed accessor + rotation |
+| `crates/shared/models/src/manifest_seed.rs` | Manifest signing seed: generate / decode / persist atomically |
+| `crates/infra/security/src/manifest_signing.rs` | `signing_key`, `sign_value`, `pubkey_b64` |
 
 ---
 

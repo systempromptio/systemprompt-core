@@ -19,3 +19,9 @@ pub struct ExchangeCodeIssuedOutput {
     pub expires_at: DateTime<Utc>,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SigningKeyRotatedOutput {
+    pub pubkey_b64: String,
+    pub message: String,
+}

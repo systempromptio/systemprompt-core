@@ -1,4 +1,5 @@
 pub mod macros;
+pub mod manifest_seed;
 
 pub mod a2a;
 pub mod admin;
