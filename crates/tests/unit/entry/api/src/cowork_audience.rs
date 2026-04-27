@@ -1,8 +1,8 @@
-//! Track B — distinct cowork JWT audience with 30-day Api grace window.
+//! Track B — distinct cowork JWT audience.
 //!
 //! Mirrors the validation contract enforced by the template's
-//! `validate_cowork_jwt`: PRIMARY = `Cowork`, GRACE = `Api` (until 2026-05-27),
-//! everything else rejected.
+//! `validate_cowork_jwt`: only `Cowork` is accepted; every other audience
+//! (including the legacy `Api`) is rejected.
 
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
@@ -64,26 +64,18 @@ fn cowork_audience_token_accepted_by_cowork_validator() {
 }
 
 #[test]
-fn legacy_api_audience_token_accepted_during_grace_window() {
+fn legacy_api_audience_token_rejected() {
     let token = mint_token(JwtAudience::Api.as_str());
-    let primary = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Cowork]);
+    let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Cowork]);
     assert!(
-        primary.is_err(),
-        "Cowork-only validator must reject Api-aud token (forces fallback path)"
+        result.is_err(),
+        "Api-aud token must be rejected by Cowork-only validator (no grace fallback)"
     );
-    let fallback = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api])
-        .expect("Api-aud token must still validate during grace window (until 2026-05-27)");
-    assert!(fallback.aud.contains(&JwtAudience::Api));
 }
 
 #[test]
 fn non_cowork_non_api_audience_rejected() {
     let token = mint_token(JwtAudience::Mcp.as_str());
-    let primary = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Cowork]);
-    assert!(primary.is_err(), "Mcp-aud token must be rejected by Cowork validator");
-    let fallback = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
-    assert!(
-        fallback.is_err(),
-        "Mcp-aud token must be rejected by Api fallback validator"
-    );
+    let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Cowork]);
+    assert!(result.is_err(), "Mcp-aud token must be rejected by Cowork validator");
 }
