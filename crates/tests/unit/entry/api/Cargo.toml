@@ -22,3 +22,6 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+chrono = { workspace = true }
+jsonwebtoken = { workspace = true }
+serde = { workspace = true }
