@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 - 2026-04-27
+
+Native GUI (Windows + macOS). Double-clicking the binary now opens a branded settings window — gateway URL (editable), PAT input + cached-JWT state, marketplace counters (skills / agents / MCP), plugins-directory path, last-sync timestamp, Sync/Validate/Open-folder actions, and a live activity log. Tray stays native; the window is rendered via `wry`'s embedded WebView2/WKWebView using systemprompt.io's canonical brand (orange `#fb9b34` palette, real wordmark + favicon shipped from `storage/files/images`).
+
+- `gui` subcommand explicitly launches the UI on Windows and macOS; Linux returns exit 64 with `gui not supported on this platform`.
+- Default routing falls through to `gui` when the binary is launched without an attached terminal (Explorer / Finder double-click — detected via `GetConsoleProcessList==1` on Windows). Terminal invocations (`systemprompt-cowork`, `systemprompt-cowork run`) keep emitting the JWT envelope to stdout, so the credential-helper contract is unchanged.
+- Tray icon left/right click and dedicated menu items (Sync now, Validate, Open settings…, Open config folder, Quit) feed the same event pipeline used by the window.
+- `sync::run_once` now returns a structured `SyncSummary` / `SyncError`; `validate::run` returns a structured `ValidationReport`. CLI wrappers preserve the previous stdout text byte-for-byte.
+
 ## 0.3.3 - 2026-04-23
 
 Release-only bump — v0.3.2 tag was consumed by GitHub's immutable-releases feature before a successful publish (macos-13 runner queue, then HTTP 422 after release delete). No code changes vs 0.3.2. `release-sign.yml` now drops the Intel-mac matrix entry and creates releases atomically.
