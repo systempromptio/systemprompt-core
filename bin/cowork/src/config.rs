@@ -58,7 +58,28 @@ pub fn load() -> Config {
     if cfg.gateway_url.is_none() {
         cfg.gateway_url = Some(DEFAULT_GATEWAY_URL.to_string());
     }
+
+    apply_policy_pubkey(&mut cfg);
     cfg
+}
+
+fn apply_policy_pubkey(cfg: &mut Config) {
+    let Some(policy_value) = policy_pubkey() else {
+        return;
+    };
+    let sync = cfg.sync.get_or_insert_with(SyncConfig::default);
+    match sync.pinned_pubkey.as_deref() {
+        None => sync.pinned_pubkey = Some(policy_value),
+        Some(existing) if existing == policy_value => {},
+        Some(existing) => {
+            tracing::warn!(
+                operator_pubkey_prefix = %existing.chars().take(12).collect::<String>(),
+                policy_pubkey_prefix = %policy_value.chars().take(12).collect::<String>(),
+                "policy-provided manifest pubkey overrides operator-set value"
+            );
+            sync.pinned_pubkey = Some(policy_value);
+        },
+    }
 }
 
 pub fn gateway_url_or_default(cfg: &Config) -> String {
@@ -77,10 +98,7 @@ pub fn config_path() -> Option<PathBuf> {
 
 pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
     let path = config_path().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "config path unresolvable",
-        )
+        std::io::Error::new(std::io::ErrorKind::NotFound, "config path unresolvable")
     })?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -101,12 +119,71 @@ pub fn pinned_pubkey() -> Option<String> {
     load().sync.and_then(|s| s.pinned_pubkey)
 }
 
+pub fn policy_pubkey() -> Option<String> {
+    if let Ok(value) = env::var("SP_COWORK_POLICY_PUBKEY") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
+    }
+    read_policy_pubkey_native()
+}
+
+#[cfg(target_os = "windows")]
+fn read_policy_pubkey_native() -> Option<String> {
+    use std::process::Command;
+    let output = Command::new("reg")
+        .args([
+            "query",
+            r"HKCU\SOFTWARE\Policies\Claude",
+            "/v",
+            "inferenceManifestPubkey",
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("inferenceManifestPubkey") {
+            let rest = rest.trim_start();
+            let rest = rest.strip_prefix("REG_SZ").unwrap_or(rest).trim();
+            if !rest.is_empty() {
+                return Some(rest.to_string());
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn read_policy_pubkey_native() -> Option<String> {
+    use std::process::Command;
+    let output = Command::new("defaults")
+        .args([
+            "read",
+            "/Library/Managed Preferences/com.anthropic.claudefordesktop",
+            "inferenceManifestPubkey",
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if value.is_empty() { None } else { Some(value) }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn read_policy_pubkey_native() -> Option<String> {
+    None
+}
+
 pub fn persist_pinned_pubkey(pubkey: &str) -> std::io::Result<()> {
     let path = config_path().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "config path unresolvable",
-        )
+        std::io::Error::new(std::io::ErrorKind::NotFound, "config path unresolvable")
     })?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;

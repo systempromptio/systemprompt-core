@@ -133,7 +133,7 @@ impl GuiApp {
                 self.refresh_ui();
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
-                    let result = sync::run_once(false, false).map_err(|e| e.to_string());
+                    let result = sync::run_once(false, false, false).map_err(|e| e.to_string());
                     let _ = proxy.send_event(UiEvent::SyncFinished(result));
                 });
             },
