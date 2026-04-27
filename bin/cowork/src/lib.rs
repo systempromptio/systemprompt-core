@@ -1,5 +1,7 @@
 pub mod cache;
 pub mod config;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub mod gui;
 pub mod http;
 pub mod install;
 pub mod keystore;
@@ -53,6 +55,7 @@ Commands (plugin + MCP sync):
   validate                   End-to-end self-check (paths, gateway, creds, signatures)
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
+  gui                        Launch the native settings UI (Windows + macOS)
   help                       Show this help
 
 Env overrides:
@@ -73,6 +76,7 @@ pub fn run() -> ExitCode {
         Some("sync") => dispatch_sync(&args),
         Some("validate") => validate::validate(),
         Some("uninstall") => dispatch_uninstall(&args),
+        Some("gui") => dispatch_gui(),
         Some("help" | "--help" | "-h") => {
             print!("{HELP}");
             ExitCode::SUCCESS
@@ -304,6 +308,21 @@ fn dispatch_sync(args: &[String]) -> ExitCode {
 fn dispatch_uninstall(args: &[String]) -> ExitCode {
     let purge = has_flag(args, "--purge");
     install::uninstall(purge)
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn dispatch_gui() -> ExitCode {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        windows_sys::Win32::System::Console::FreeConsole();
+    }
+    gui::run()
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn dispatch_gui() -> ExitCode {
+    diag("gui not supported on this platform");
+    ExitCode::from(64)
 }
 
 fn parse_opt_flag(args: &[String], flag: &str) -> Option<String> {

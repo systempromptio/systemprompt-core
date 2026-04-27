@@ -20,9 +20,66 @@ pub struct SyncOptions {
     pub allow_unsigned: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct SyncSummary {
+    pub identity: String,
+    pub manifest_version: String,
+    pub plugin_count: usize,
+    pub skill_count: usize,
+    pub agent_count: usize,
+    pub mcp_count: usize,
+    pub installed: Vec<String>,
+    pub updated: Vec<String>,
+    pub removed: Vec<String>,
+}
+
+impl SyncSummary {
+    pub fn one_line(&self) -> String {
+        format!(
+            "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} MCP — manifest {}",
+            self.identity,
+            self.plugin_count,
+            self.installed.len(),
+            self.updated.len(),
+            self.removed.len(),
+            self.skill_count,
+            self.agent_count,
+            self.mcp_count,
+            self.manifest_version,
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum SyncErrorKind {
+    NoCredential,
+    Network,
+    SignatureFailed,
+    PathUnresolvable,
+    ApplyFailed,
+}
+
+#[derive(Debug, Clone)]
+pub struct SyncError {
+    pub kind: SyncErrorKind,
+    pub message: String,
+}
+
+impl SyncError {
+    fn exit_code(&self) -> ExitCode {
+        match self.kind {
+            SyncErrorKind::NoCredential => ExitCode::from(5),
+            SyncErrorKind::Network => ExitCode::from(3),
+            SyncErrorKind::SignatureFailed => ExitCode::from(4),
+            SyncErrorKind::PathUnresolvable => ExitCode::from(1),
+            SyncErrorKind::ApplyFailed => ExitCode::from(1),
+        }
+    }
+}
+
 pub fn sync(opts: SyncOptions) -> ExitCode {
     if !opts.watch {
-        return run_once(opts.allow_unsigned);
+        return run_once_cli(opts.allow_unsigned);
     }
 
     let interval = opts
@@ -30,7 +87,7 @@ pub fn sync(opts: SyncOptions) -> ExitCode {
         .unwrap_or(1800)
         .max(WATCH_FLOOR_SECS);
     loop {
-        let code = run_once(opts.allow_unsigned);
+        let code = run_once_cli(opts.allow_unsigned);
         if code != ExitCode::SUCCESS {
             eprintln!(
                 "sync: non-zero exit; retrying in {interval}s",
@@ -40,7 +97,31 @@ pub fn sync(opts: SyncOptions) -> ExitCode {
     }
 }
 
-fn run_once(allow_unsigned: bool) -> ExitCode {
+fn run_once_cli(allow_unsigned: bool) -> ExitCode {
+    if allow_unsigned {
+        eprintln!("warning: --allow-unsigned bypasses signature verification");
+    }
+    match run_once(allow_unsigned) {
+        Ok(summary) => {
+            println!("{}", summary.one_line());
+            ExitCode::SUCCESS
+        },
+        Err(err) => {
+            diag(&match err.kind {
+                SyncErrorKind::NoCredential => err.message.clone(),
+                SyncErrorKind::Network => err.message.clone(),
+                SyncErrorKind::SignatureFailed => {
+                    format!("manifest signature verification failed: {}", err.message)
+                },
+                SyncErrorKind::PathUnresolvable => err.message.clone(),
+                SyncErrorKind::ApplyFailed => format!("sync apply failed: {}", err.message),
+            });
+            err.exit_code()
+        },
+    }
+}
+
+pub fn run_once(allow_unsigned: bool) -> Result<SyncSummary, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
 
@@ -49,20 +130,21 @@ fn run_once(allow_unsigned: bool) -> ExitCode {
         None => match fetch_fresh_token() {
             Some(t) => t,
             None => {
-                diag("no valid credential available; run `systemprompt-cowork login` first");
-                return ExitCode::from(5);
+                return Err(SyncError {
+                    kind: SyncErrorKind::NoCredential,
+                    message:
+                        "no valid credential available; run `systemprompt-cowork login` first"
+                            .to_string(),
+                });
             },
         },
     };
 
     let client = GatewayClient::new(gateway.clone());
-    let manifest = match client.fetch_manifest(&bearer) {
-        Ok(m) => m,
-        Err(e) => {
-            diag(&e);
-            return ExitCode::from(3);
-        },
-    };
+    let manifest = client.fetch_manifest(&bearer).map_err(|e| SyncError {
+        kind: SyncErrorKind::Network,
+        message: e,
+    })?;
 
     if !allow_unsigned {
         let pubkey = match config::pinned_pubkey() {
@@ -73,70 +155,67 @@ fn run_once(allow_unsigned: bool) -> ExitCode {
                     k
                 },
                 Err(e) => {
-                    diag(&format!("no pinned pubkey and live fetch failed: {e}"));
-                    return ExitCode::from(3);
+                    return Err(SyncError {
+                        kind: SyncErrorKind::Network,
+                        message: format!("no pinned pubkey and live fetch failed: {e}"),
+                    });
                 },
             },
         };
         if let Err(e) = manifest.verify(&pubkey) {
-            diag(&format!("manifest signature verification failed: {e}"));
-            return ExitCode::from(4);
+            return Err(SyncError {
+                kind: SyncErrorKind::SignatureFailed,
+                message: e,
+            });
         }
-    } else {
-        eprintln!("warning: --allow-unsigned bypasses signature verification");
     }
 
-    let location = match paths::org_plugins_effective() {
-        Some(l) => l,
-        None => {
-            diag("org-plugins directory not resolvable");
-            return ExitCode::from(1);
-        },
-    };
+    let location = paths::org_plugins_effective().ok_or_else(|| SyncError {
+        kind: SyncErrorKind::PathUnresolvable,
+        message: "org-plugins directory not resolvable".to_string(),
+    })?;
 
-    match apply_manifest(&client, &bearer, &manifest, &location) {
-        Ok(report) => {
-            let last_sync = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
-            let _ = fs::create_dir_all(paths::metadata_dir(&location.path));
-            let _ = fs::write(
-                &last_sync,
-                serde_json::to_vec_pretty(&serde_json::json!({
-                    "synced_at": current_iso8601(),
-                    "manifest_version": manifest.manifest_version,
-                    "installed_plugins": report.installed,
-                    "updated_plugins": report.updated,
-                    "removed_plugins": report.removed,
-                    "mcp_server_count": manifest.managed_mcp_servers.len(),
-                    "skill_count": manifest.skills.len(),
-                    "agent_count": manifest.agents.len(),
-                    "user": manifest.user.as_ref().map(|u| &u.email),
-                }))
-                .unwrap_or_default(),
-            );
-            let identity = manifest
-                .user
-                .as_ref()
-                .map(|u| u.email.as_str())
-                .unwrap_or(manifest.user_id.as_str());
-            println!(
-                "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} MCP — manifest {}",
-                identity,
-                manifest.plugins.len(),
-                report.installed.len(),
-                report.updated.len(),
-                report.removed.len(),
-                manifest.skills.len(),
-                manifest.agents.len(),
-                manifest.managed_mcp_servers.len(),
-                manifest.manifest_version,
-            );
-            ExitCode::SUCCESS
-        },
-        Err(e) => {
-            diag(&format!("sync apply failed: {e}"));
-            ExitCode::from(1)
-        },
-    }
+    let report = apply_manifest(&client, &bearer, &manifest, &location).map_err(|e| {
+        SyncError {
+            kind: SyncErrorKind::ApplyFailed,
+            message: e,
+        }
+    })?;
+
+    let last_sync = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
+    let _ = fs::create_dir_all(paths::metadata_dir(&location.path));
+    let _ = fs::write(
+        &last_sync,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "synced_at": current_iso8601(),
+            "manifest_version": manifest.manifest_version,
+            "installed_plugins": report.installed,
+            "updated_plugins": report.updated,
+            "removed_plugins": report.removed,
+            "mcp_server_count": manifest.managed_mcp_servers.len(),
+            "skill_count": manifest.skills.len(),
+            "agent_count": manifest.agents.len(),
+            "user": manifest.user.as_ref().map(|u| &u.email),
+        }))
+        .unwrap_or_default(),
+    );
+    let identity = manifest
+        .user
+        .as_ref()
+        .map(|u| u.email.clone())
+        .unwrap_or_else(|| manifest.user_id.clone());
+
+    Ok(SyncSummary {
+        identity,
+        manifest_version: manifest.manifest_version.clone(),
+        plugin_count: manifest.plugins.len(),
+        skill_count: manifest.skills.len(),
+        agent_count: manifest.agents.len(),
+        mcp_count: manifest.managed_mcp_servers.len(),
+        installed: report.installed,
+        updated: report.updated,
+        removed: report.removed,
+    })
 }
 
 struct ApplyReport {
