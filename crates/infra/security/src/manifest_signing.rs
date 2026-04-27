@@ -1,5 +1,6 @@
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::sync::OnceLock;
 use systemprompt_models::SecretsBootstrap;
@@ -28,6 +29,15 @@ pub fn sign_payload(bytes: &[u8]) -> Result<String, String> {
     let key = signing_key()?;
     let sig = key.sign(bytes);
     Ok(base64::engine::general_purpose::STANDARD.encode(sig.to_bytes()))
+}
+
+pub fn canonicalize<T: Serialize>(value: &T) -> Result<String, String> {
+    serde_jcs::to_string(value).map_err(|e| format!("jcs canonicalize: {e}"))
+}
+
+pub fn sign_value<T: Serialize>(value: &T) -> Result<String, String> {
+    let canonical = canonicalize(value)?;
+    sign_payload(canonical.as_bytes())
 }
 
 pub fn pubkey_b64() -> Result<String, String> {

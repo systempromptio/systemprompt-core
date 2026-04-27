@@ -151,7 +151,7 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, String> {
         "managed_mcp_servers": m.managed_mcp_servers,
         "revocations": m.revocations,
     });
-    serde_json::to_string(&view).map_err(|e| format!("canonical serialize: {e}"))
+    serde_jcs::to_string(&view).map_err(|e| format!("canonical serialize: {e}"))
 }
 
 #[cfg(test)]
