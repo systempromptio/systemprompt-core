@@ -99,7 +99,7 @@ impl GuiApp {
                 self.refresh_ui();
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
-                    let result = sync::run_once(false, false).map_err(|e| e.message);
+                    let result = sync::run_once(false, false).map_err(|e| e.to_string());
                     let _ = proxy.send_event(UiEvent::SyncFinished(result));
                 });
             },
@@ -129,7 +129,9 @@ impl GuiApp {
                 self.window.log("Saving PAT…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
-                    let result = setup::login(&token, gateway.as_deref()).map(|_| ());
+                    let result = setup::login(&token, gateway.as_deref())
+                        .map(|_| ())
+                        .map_err(|e| e.to_string());
                     let _ = proxy.send_event(UiEvent::LoginFinished(result));
                 });
             },
@@ -137,7 +139,7 @@ impl GuiApp {
                 self.window.log("Logging out…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
-                    let result = setup::logout().map(|_| ());
+                    let result = setup::logout().map(|_| ()).map_err(|e| e.to_string());
                     let _ = proxy.send_event(UiEvent::LogoutFinished(result));
                 });
             },

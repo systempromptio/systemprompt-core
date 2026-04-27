@@ -37,7 +37,9 @@ impl AuthProvider for PatProvider {
             return Err(AuthError::NotConfigured);
         }
         let client = GatewayClient::new(self.base_url.clone());
-        let resp = client.pat_exchange(pat).map_err(AuthError::Failed)?;
+        let resp = client
+            .pat_exchange(pat)
+            .map_err(|e| AuthError::Failed(e.to_string()))?;
         Ok(resp.into())
     }
 }

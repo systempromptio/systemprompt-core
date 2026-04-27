@@ -54,7 +54,9 @@ impl AuthProvider for SessionProvider {
             session_id: new_session_id(),
         };
         let client = GatewayClient::new(self.base_url.clone());
-        let resp = client.session_exchange(&req).map_err(AuthError::Failed)?;
+        let resp = client
+            .session_exchange(&req)
+            .map_err(|e| AuthError::Failed(e.to_string()))?;
         Ok(resp.into())
     }
 }

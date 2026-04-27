@@ -13,6 +13,7 @@ pub mod providers;
 pub mod schedule;
 pub mod setup;
 pub mod sync;
+pub mod tracing_init;
 pub mod types;
 pub mod validate;
 
@@ -65,6 +66,7 @@ Env overrides:
 ";
 
 pub fn run() -> ExitCode {
+    tracing_init::init();
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 && launched_without_terminal() {
         return dispatch_gui();

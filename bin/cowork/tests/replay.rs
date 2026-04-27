@@ -2,7 +2,7 @@ use std::fs;
 
 use systemprompt_cowork::manifest::{SignedManifest, canonical_payload};
 use systemprompt_cowork::sync::{
-    LastSyncState, SyncErrorKind, check_replay, check_skew, read_last_sync,
+    LastSyncState, SyncError, check_replay, check_skew, read_last_sync,
 };
 
 #[test]
@@ -40,14 +40,14 @@ fn last(version: &str) -> LastSyncState {
 fn stale_replay_same_version_rejected() {
     let s = last("2026-04-22T10:00:00Z-abcd");
     let err = check_replay(&s, "2026-04-22T10:00:00Z-abcd").expect_err("expected reject");
-    assert!(matches!(err.kind, SyncErrorKind::ReplayedManifest { .. }));
+    assert!(matches!(err, SyncError::ReplayedManifest { .. }));
 }
 
 #[test]
 fn older_version_rejected() {
     let s = last("2026-04-22T10:00:00Z-abcd");
     let err = check_replay(&s, "2026-04-21T09:00:00Z-zzzz").expect_err("expected reject");
-    assert!(matches!(err.kind, SyncErrorKind::ReplayedManifest { .. }));
+    assert!(matches!(err, SyncError::ReplayedManifest { .. }));
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn not_before_ten_minutes_in_past_rejected() {
     let now = chrono::Utc::now();
     let nb = (now - chrono::Duration::minutes(10)).to_rfc3339();
     let err = check_skew(&nb, now).expect_err("10m past should reject");
-    assert!(matches!(err.kind, SyncErrorKind::ManifestSkew { .. }));
+    assert!(matches!(err, SyncError::ManifestSkew { .. }));
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn not_before_ten_minutes_in_future_rejected() {
     let now = chrono::Utc::now();
     let nb = (now + chrono::Duration::minutes(10)).to_rfc3339();
     let err = check_skew(&nb, now).expect_err("10m future should reject");
-    assert!(matches!(err.kind, SyncErrorKind::ManifestSkew { .. }));
+    assert!(matches!(err, SyncError::ManifestSkew { .. }));
 }
 
 #[test]

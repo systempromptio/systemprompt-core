@@ -10,5 +10,5 @@ pub fn emit(output: &HelperOutput) -> std::io::Result<()> {
 }
 
 pub fn diag(msg: &str) {
-    eprintln!("[systemprompt-cowork] {msg}");
+    tracing::warn!(target: "systemprompt_cowork", "{msg}");
 }
