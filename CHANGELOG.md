@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Phase 0 of the cowork sync + auth pipeline hardening (shared prep, no-op behaviourally).** Lands the cross-cutting glue every Phase 1 track depends on so the parallel work doesn't fight over a handful of files.
+  - `JwtAudience::Cowork` variant added to `crates/shared/models/src/auth/enums.rs` (covers `as_str` and `FromStr`). Issuance switches in Phase 1 Track B.
+  - `SecretsBootstrap::manifest_signing_secret_seed() -> Result<[u8; 32], _>` accessor added in `crates/shared/models/src/secrets_bootstrap.rs`. Returns the existing JWT-derived seed as a fallback so signature semantics are unchanged; Phase 2 Track F will swap the source to a dedicated secret without changing call sites.
+  - `not_before: Option<String>` stub added to `SignedManifest` (`bin/cowork/src/manifest.rs`) and `Manifest` (`systemprompt-template/extensions/web/admin/src/handlers/cowork/types.rs`) with `#[serde(default)]` / `skip_serializing_if`. Not yet included in the canonical signing payload — Phase 1 Track D promotes it to required.
+  - `serde_jcs = "0.1"` added to `crates/infra/security/Cargo.toml` (consumed by Phase 1 Track A) and to `bin/cowork/Cargo.toml`. `thiserror`, `tracing`, and `tracing-subscriber` added to `bin/cowork/Cargo.toml` (Phase 1 Track E).
+  - Workspace `sha2` added to `crates/shared/models/Cargo.toml` for the seed-derivation helper.
+
 ## [0.4.0] - 2026-04-24
 
 ### Security

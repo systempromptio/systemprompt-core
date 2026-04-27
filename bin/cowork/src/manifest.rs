@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 pub struct SignedManifest {
     pub manifest_version: String,
     pub issued_at: String,
+    #[serde(default)]
+    pub not_before: Option<String>,
     pub user_id: String,
     pub tenant_id: Option<String>,
     #[serde(default)]
@@ -161,6 +163,7 @@ mod tests {
         let m = SignedManifest {
             manifest_version: "v1".into(),
             issued_at: "2026-04-22T00:00:00Z".into(),
+            not_before: None,
             user_id: "u1".into(),
             tenant_id: None,
             user: None,
@@ -181,6 +184,7 @@ mod tests {
         let m = SignedManifest {
             manifest_version: "v2".into(),
             issued_at: "2026-04-22T00:00:00Z".into(),
+            not_before: None,
             user_id: "u1".into(),
             tenant_id: None,
             user: Some(UserInfo {

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+Phase 0 of the cowork sync + auth pipeline hardening — shared prep, no behavioural change. Lands the cross-cutting glue every Phase 1 track depends on so the five parallel worktree branches (JCS, audience, plugin route, replay, thiserror) don't fight over the same files.
+
+- `serde_jcs`, `thiserror`, `tracing`, and `tracing-subscriber` added as direct dependencies. JCS canonicalisation flips on in Phase 1 Track A; `thiserror` + `tracing` adoption follows in Track E.
+- `SignedManifest` gains a `not_before: Option<String>` field with `#[serde(default)]`. Not yet wired into `canonical_payload` (Phase 1 Track D promotes it to a required, signed field with monotonic-version + skew enforcement).
+
 ## 0.4.0 - 2026-04-27
 
 Native GUI (Windows + macOS). Double-clicking the binary now opens a branded settings window — gateway URL (editable), PAT input + cached-JWT state, marketplace counters (skills / agents / MCP), plugins-directory path, last-sync timestamp, Sync/Validate/Open-folder actions, and a live activity log. Tray stays native; the window is rendered via `wry`'s embedded WebView2/WKWebView using systemprompt.io's canonical brand (orange `#fb9b34` palette, real wordmark + favicon shipped from `storage/files/images`).
