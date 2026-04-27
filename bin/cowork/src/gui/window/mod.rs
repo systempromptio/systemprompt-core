@@ -41,9 +41,8 @@ fn open_macos(path: &Path) {
 
     unsafe {
         let url_str = NSString::from_str(&path.display().to_string());
-        if let Some(url) = NSURL::fileURLWithPath(&url_str) {
-            let workspace = NSWorkspace::sharedWorkspace();
-            workspace.openURL(&url);
-        }
+        let url = NSURL::fileURLWithPath(&url_str);
+        let workspace = NSWorkspace::sharedWorkspace();
+        workspace.openURL(&url);
     }
 }
