@@ -5046,6 +5046,7 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "jsonwebtoken",
+ "serde",
  "serde_jcs",
  "serde_json",
  "sha2",
