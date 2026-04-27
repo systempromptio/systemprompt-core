@@ -193,3 +193,42 @@ button.ghost { background: transparent; }
   color: var(--muted);
 }
 .footer .version { color: var(--brand); }
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.15);
+}
+.dot-unknown { background: #64748b; }
+.dot-probing { background: #f59e0b; animation: pulse 1.2s ease-in-out infinite; }
+.dot-ok      { background: #16a34a; }
+.dot-err     { background: #dc2626; }
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1.0; }
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+.badge-muted { background: rgba(100,116,139,0.2); color: #94a3b8; }
+.badge-ok    { background: rgba(22,163,74,0.18);  color: #4ade80; }
+.badge-warn  { background: rgba(245,158,11,0.18); color: #fbbf24; }
+.badge-err   { background: rgba(220,38,38,0.18);  color: #f87171; }
+
+.pill-ok  { background: rgba(22,163,74,0.18);  color: #4ade80; }
+.pill-err { background: rgba(220,38,38,0.18);  color: #f87171; }
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }

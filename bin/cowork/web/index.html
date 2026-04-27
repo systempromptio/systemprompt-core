@@ -20,10 +20,40 @@
 
   <main class="layout">
     <section class="panel">
+      <h2>Server</h2>
+      <div class="kv">
+        <label>Gateway status</label>
+        <div id="server-status" class="value">
+          <span id="server-dot" class="dot dot-unknown" aria-hidden="true"></span>
+          <span id="server-state-text">checking…</span>
+        </div>
+      </div>
+      <div class="kv">
+        <label>Endpoint</label>
+        <div id="server-endpoint" class="value mono muted">—</div>
+      </div>
+      <div class="kv">
+        <label>Last probe</label>
+        <div id="server-probe" class="value muted">—</div>
+      </div>
+      <div class="row">
+        <button id="btn-recheck" class="ghost" type="button">Re-check now</button>
+      </div>
+    </section>
+
+    <section class="panel">
       <h2>Identity</h2>
       <div class="kv">
         <label>Signed in as</label>
         <div id="identity" class="value muted">(not signed in)</div>
+      </div>
+      <div class="kv">
+        <label>User</label>
+        <div id="identity-user" class="value mono muted">—</div>
+      </div>
+      <div class="kv">
+        <label>Tenant</label>
+        <div id="identity-tenant" class="value mono muted">—</div>
       </div>
       <div class="kv">
         <label for="gateway">Gateway URL</label>
@@ -43,8 +73,10 @@
       </div>
     </section>
 
-    <section class="panel">
-      <h2>Marketplace</h2>
+    <section class="panel" id="panel-marketplace">
+      <h2>Marketplace
+        <span id="marketplace-status" class="badge badge-muted">—</span>
+      </h2>
       <div class="cards">
         <div class="card"><div class="card-num" id="card-plugins">—</div><div class="card-label">plugins</div></div>
         <div class="card"><div class="card-num" id="card-skills">—</div><div class="card-label">skills</div></div>
