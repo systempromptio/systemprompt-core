@@ -1,5 +1,8 @@
 use std::collections::HashSet;
+use std::sync::Mutex;
 use systemprompt_identifiers::{AiToolCallId, DbValue, McpExecutionId, McpServerId, ToDbValue};
+
+static MCP_SERVICE_ID_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn mcp_server_id_valid_value() {
@@ -68,6 +71,7 @@ fn mcp_server_id_equality_across_construction() {
 
 #[test]
 fn mcp_server_id_from_env_missing() {
+    let _guard = MCP_SERVICE_ID_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     unsafe { std::env::remove_var("MCP_SERVICE_ID") };
     let err = McpServerId::from_env().unwrap_err();
     assert!(err.to_string().contains("not set"));
@@ -76,6 +80,7 @@ fn mcp_server_id_from_env_missing() {
 #[test]
 #[allow(unsafe_code)]
 fn mcp_server_id_from_env_empty() {
+    let _guard = MCP_SERVICE_ID_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     unsafe { std::env::set_var("MCP_SERVICE_ID", "") };
     let err = McpServerId::from_env().unwrap_err();
     assert!(err.to_string().contains("empty"));
@@ -85,6 +90,7 @@ fn mcp_server_id_from_env_empty() {
 #[test]
 #[allow(unsafe_code)]
 fn mcp_server_id_from_env_valid() {
+    let _guard = MCP_SERVICE_ID_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     unsafe { std::env::set_var("MCP_SERVICE_ID", "test-mcp-server") };
     let id = McpServerId::from_env().unwrap();
     assert_eq!(id.as_str(), "test-mcp-server");
