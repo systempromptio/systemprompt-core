@@ -39,7 +39,12 @@ Commands (credential helper):
 
 Commands (plugin + MCP sync):
   install                    Bootstrap Cowork integration on this machine
-    [--gateway <url>]                     Persist gateway URL + pin signing pubkey
+    [--gateway <url>]                     Persist gateway URL
+    [--pubkey <base64>]                   Pin manifest signing pubkey out of band.
+                                          With --apply, also written to
+                                          HKCU\\SOFTWARE\\Policies\\Claude
+                                          (Windows) or the Managed Preferences plist
+                                          (macOS) so MDM can roll it to a fleet.
     [--apply]                             Apply locally (Windows registry / macOS
                                           Managed Preferences direct-write). No MDM
                                           needed — works for a single-user dev setup.
@@ -50,9 +55,11 @@ Commands (plugin + MCP sync):
     [--print-mdm macos|windows|linux]     Print MDM snippet for target OS (default: current OS)
     [--emit-schedule-template macos|windows|linux]
                                           Write an OS scheduler template to CWD
-    [--no-pubkey-fetch]                   Skip live fetch of manifest signing pubkey
   sync                       Pull plugins + MCP allowlist from gateway into org-plugins
-    [--watch] [--interval <secs>] [--allow-unsigned] [--force-replay]
+    [--watch] [--interval <secs>] [--allow-unsigned] [--force-replay] [--allow-tofu]
+                                          --allow-tofu opts back into trust-on-first-use
+                                          pubkey fetch when no pinned key is available;
+                                          required only if MDM rollout is unavailable.
   validate                   End-to-end self-check (paths, gateway, creds, signatures)
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
@@ -286,14 +293,14 @@ fn dispatch_install(args: &[String]) -> ExitCode {
         .as_deref()
         .and_then(Os::parse);
     let gateway = parse_opt_flag(args, "--gateway");
-    let no_pubkey_fetch = has_flag(args, "--no-pubkey-fetch");
+    let pubkey = parse_opt_flag(args, "--pubkey");
     let apply = has_flag(args, "--apply");
     let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
     install::install(install::InstallOptions {
         print_mdm,
         emit_schedule_template: emit_sched,
         gateway_url: gateway,
-        no_pubkey_fetch,
+        pubkey,
         apply,
         apply_mobileconfig,
     })
@@ -304,11 +311,13 @@ fn dispatch_sync(args: &[String]) -> ExitCode {
     let interval = parse_opt_flag(args, "--interval").and_then(|s| s.parse().ok());
     let allow_unsigned = has_flag(args, "--allow-unsigned");
     let force_replay = has_flag(args, "--force-replay");
+    let allow_tofu = has_flag(args, "--allow-tofu");
     sync::sync(sync::SyncOptions {
         watch,
         interval,
         allow_unsigned,
         force_replay,
+        allow_tofu,
     })
 }
 

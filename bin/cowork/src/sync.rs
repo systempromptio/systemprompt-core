@@ -18,6 +18,7 @@ pub struct SyncOptions {
     pub interval: Option<u64>,
     pub allow_unsigned: bool,
     pub force_replay: bool,
+    pub allow_tofu: bool,
 }
 
 pub const SKEW_WINDOW_MINUTES: i64 = 5;
@@ -38,7 +39,8 @@ pub struct SyncSummary {
 impl SyncSummary {
     pub fn one_line(&self) -> String {
         format!(
-            "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} MCP — manifest {}",
+            "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} \
+             MCP — manifest {}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
@@ -68,6 +70,12 @@ pub enum SyncError {
     ReplayedManifest { last: String, incoming: String },
     #[error("manifest clock skew rejected: not_before {not_before} outside +/- 5m of now {now}")]
     ManifestSkew { not_before: String, now: String },
+    #[error(
+        "manifest signing pubkey is not pinned; provide it out of band via MDM (`install --apply \
+         --pubkey <base64>`) or rerun with `--allow-tofu` to fetch over the wire (insecure \
+         first-run)"
+    )]
+    PubkeyNotPinned,
 }
 
 impl SyncError {
@@ -80,36 +88,40 @@ impl SyncError {
             SyncError::ApplyFailed(_) => ExitCode::from(1),
             SyncError::ReplayedManifest { .. } => ExitCode::from(6),
             SyncError::ManifestSkew { .. } => ExitCode::from(7),
+            SyncError::PubkeyNotPinned => ExitCode::from(8),
         }
     }
 }
 
 pub fn sync(opts: SyncOptions) -> ExitCode {
     if !opts.watch {
-        return run_once_cli(opts.allow_unsigned, opts.force_replay);
+        return run_once_cli(opts.allow_unsigned, opts.force_replay, opts.allow_tofu);
     }
 
-    let interval = opts
-        .interval
-        .unwrap_or(1800)
-        .max(WATCH_FLOOR_SECS);
+    let interval = opts.interval.unwrap_or(1800).max(WATCH_FLOOR_SECS);
     loop {
-        let code = run_once_cli(opts.allow_unsigned, opts.force_replay);
+        let code = run_once_cli(opts.allow_unsigned, opts.force_replay, opts.allow_tofu);
         if code != ExitCode::SUCCESS {
-            eprintln!("sync: non-zero exit; retrying in {interval}s");
+            tracing::warn!(retry_in_secs = interval, "sync: non-zero exit; retrying");
         }
         std::thread::sleep(Duration::from_secs(interval));
     }
 }
 
-fn run_once_cli(allow_unsigned: bool, force_replay: bool) -> ExitCode {
+fn run_once_cli(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) -> ExitCode {
     if allow_unsigned {
-        eprintln!("warning: --allow-unsigned bypasses signature verification");
+        tracing::warn!("--allow-unsigned bypasses signature verification");
     }
     if force_replay {
         tracing::warn!("--force-replay bypasses manifest version + skew checks");
     }
-    match run_once(allow_unsigned, force_replay) {
+    if allow_tofu {
+        tracing::warn!(
+            "--allow-tofu enables trust-on-first-use pubkey fetch over the gateway channel; this \
+             is insecure if the gateway is not authenticated yet"
+        );
+    }
+    match run_once(allow_unsigned, force_replay, allow_tofu) {
         Ok(summary) => {
             println!("{}", summary.one_line());
             ExitCode::SUCCESS
@@ -122,7 +134,11 @@ fn run_once_cli(allow_unsigned: bool, force_replay: bool) -> ExitCode {
     }
 }
 
-pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary, SyncError> {
+pub fn run_once(
+    allow_unsigned: bool,
+    force_replay: bool,
+    allow_tofu: bool,
+) -> Result<SyncSummary, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
 
@@ -142,16 +158,19 @@ pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary,
     if !allow_unsigned {
         let pubkey = match config::pinned_pubkey() {
             Some(k) => k,
-            None => match client.fetch_pubkey() {
-                Ok(k) => {
-                    let _ = config::persist_pinned_pubkey(&k);
-                    k
-                },
-                Err(e) => {
-                    return Err(SyncError::Network(format!(
-                        "no pinned pubkey and live fetch failed: {e}"
-                    )));
-                },
+            None => {
+                if !allow_tofu {
+                    return Err(SyncError::PubkeyNotPinned);
+                }
+                tracing::warn!(
+                    "no pinned manifest pubkey; --allow-tofu enabled, fetching from gateway over \
+                     the same channel that's about to be authenticated"
+                );
+                let fetched = client
+                    .fetch_pubkey()
+                    .map_err(|e| SyncError::Network(e.to_string()))?;
+                let _ = config::persist_pinned_pubkey(&fetched);
+                fetched
             },
         };
         if let Err(e) = manifest.verify(&pubkey) {
@@ -169,8 +188,8 @@ pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary,
         check_skew(&manifest.not_before, now)?;
     }
 
-    let report = apply_manifest(&client, &bearer, &manifest, &location)
-        .map_err(SyncError::ApplyFailed)?;
+    let report =
+        apply_manifest(&client, &bearer, &manifest, &location).map_err(SyncError::ApplyFailed)?;
 
     let _ = fs::create_dir_all(paths::metadata_dir(&location.path));
     let applied_at = now.to_rfc3339();
@@ -232,15 +251,20 @@ fn apply_manifest(
 
     let mut installed = Vec::new();
     let mut updated = Vec::new();
-    let expected_ids: HashSet<&str> =
-        manifest.plugins.iter().map(|p| p.id.as_str()).collect();
+    let expected_ids: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
 
     for plugin in &manifest.plugins {
         if !safe_plugin_id(&plugin.id) {
-            return Err(format!("manifest contained unsafe plugin id: {}", plugin.id));
+            return Err(format!(
+                "manifest contained unsafe plugin id: {}",
+                plugin.id
+            ));
         }
         let target = root.join(&plugin.id);
-        let current_hash = target.is_dir().then(|| directory_hash(&target).ok()).flatten();
+        let current_hash = target
+            .is_dir()
+            .then(|| directory_hash(&target).ok())
+            .flatten();
         if current_hash.as_deref() == Some(plugin.sha256.as_str()) {
             continue;
         }
@@ -248,8 +272,8 @@ fn apply_manifest(
         let stage = staging_root.join(&plugin.id);
         fetch_plugin_into_staging(client, bearer, plugin, &stage)?;
 
-        let staged_hash = directory_hash(&stage)
-            .map_err(|e| format!("hash staged {}: {e}", plugin.id))?;
+        let staged_hash =
+            directory_hash(&stage).map_err(|e| format!("hash staged {}: {e}", plugin.id))?;
         if staged_hash != plugin.sha256 {
             return Err(format!(
                 "plugin {} hash mismatch (expected {}, got {})",
@@ -261,7 +285,8 @@ fn apply_manifest(
         if was_present {
             fs::remove_dir_all(&target).map_err(|e| format!("remove old {}: {e}", plugin.id))?;
         }
-        fs::rename(&stage, &target).map_err(|e| format!("rename stage→target for {}: {e}", plugin.id))?;
+        fs::rename(&stage, &target)
+            .map_err(|e| format!("rename stage→target for {}: {e}", plugin.id))?;
 
         if was_present {
             updated.push(plugin.id.clone());
@@ -274,7 +299,9 @@ fn apply_manifest(
     if let Ok(entries) = fs::read_dir(root) {
         for entry in entries.flatten() {
             let name = entry.file_name();
-            let Some(name_str) = name.to_str() else { continue };
+            let Some(name_str) = name.to_str() else {
+                continue;
+            };
             if name_str.starts_with('.') {
                 continue;
             }
@@ -331,7 +358,8 @@ fn write_skills(meta_dir: &Path, skills: &[SkillEntry]) -> Result<(), String> {
             return Err(format!("manifest contained unsafe skill id: {}", skill.id));
         }
         let skill_dir = dir.join(&skill.id);
-        fs::create_dir_all(&skill_dir).map_err(|e| format!("create {}: {e}", skill_dir.display()))?;
+        fs::create_dir_all(&skill_dir)
+            .map_err(|e| format!("create {}: {e}", skill_dir.display()))?;
         let meta = serde_json::json!({
             "id": skill.id,
             "name": skill.name,
@@ -378,7 +406,10 @@ fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), String> {
     .map_err(|e| format!("write agents index: {e}"))?;
     for agent in agents {
         if !safe_id_segment(&agent.name) {
-            return Err(format!("manifest contained unsafe agent name: {}", agent.name));
+            return Err(format!(
+                "manifest contained unsafe agent name: {}",
+                agent.name
+            ));
         }
         let path = dir.join(format!("{}.json", agent.name));
         fs::write(&path, serde_json::to_vec_pretty(agent).unwrap_or_default())
@@ -390,8 +421,7 @@ fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), String> {
 fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), String> {
     let path = meta_dir.join(paths::USER_FRAGMENT);
     let bytes = match user {
-        Some(u) => serde_json::to_vec_pretty(u)
-            .map_err(|e| format!("serialize user: {e}"))?,
+        Some(u) => serde_json::to_vec_pretty(u).map_err(|e| format!("serialize user: {e}"))?,
         None => b"null".to_vec(),
     };
     fs::write(&path, bytes).map_err(|e| format!("write {}: {e}", path.display()))
@@ -403,7 +433,8 @@ fn safe_id_segment(s: &str) -> bool {
         && !s.contains('/')
         && !s.contains('\\')
         && !s.starts_with('.')
-        && s.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
 }
 
 fn fetch_plugin_into_staging(
@@ -437,13 +468,10 @@ fn fetch_plugin_into_staging(
     Ok(())
 }
 
-fn write_managed_mcp_fragment(
-    meta_dir: &Path,
-    servers: &[ManagedMcpServer],
-) -> Result<(), String> {
+fn write_managed_mcp_fragment(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<(), String> {
     let out = meta_dir.join(paths::MANAGED_MCP_FRAGMENT);
-    let bytes = serde_json::to_vec_pretty(servers)
-        .map_err(|e| format!("serialize managed-mcp: {e}"))?;
+    let bytes =
+        serde_json::to_vec_pretty(servers).map_err(|e| format!("serialize managed-mcp: {e}"))?;
     fs::write(&out, bytes).map_err(|e| format!("write {}: {e}", out.display()))
 }
 
@@ -559,10 +587,7 @@ pub fn read_last_sync(path: &Path) -> LastSyncState {
     }
 }
 
-pub fn check_replay(
-    last: &LastSyncState,
-    incoming: &str,
-) -> Result<(), SyncError> {
+pub fn check_replay(last: &LastSyncState, incoming: &str) -> Result<(), SyncError> {
     if let Some(prev) = last.last_applied_manifest_version.as_deref() {
         if incoming <= prev {
             return Err(SyncError::ReplayedManifest {
@@ -574,16 +599,12 @@ pub fn check_replay(
     Ok(())
 }
 
-pub fn check_skew(
-    not_before: &str,
-    now: chrono::DateTime<chrono::Utc>,
-) -> Result<(), SyncError> {
-    let parsed = chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_| {
-        SyncError::ManifestSkew {
+pub fn check_skew(not_before: &str, now: chrono::DateTime<chrono::Utc>) -> Result<(), SyncError> {
+    let parsed =
+        chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_| SyncError::ManifestSkew {
             not_before: not_before.to_string(),
             now: now.to_rfc3339(),
-        }
-    })?;
+        })?;
     let nb_utc = parsed.with_timezone(&chrono::Utc);
     let window = chrono::Duration::minutes(SKEW_WINDOW_MINUTES);
     let delta = nb_utc.signed_duration_since(now);

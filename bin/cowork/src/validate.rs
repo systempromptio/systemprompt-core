@@ -1,7 +1,6 @@
-use crate::cache;
-use crate::config;
 use crate::http::GatewayClient;
 use crate::paths::{self, Scope};
+use crate::{cache, config};
 use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,9 +139,10 @@ pub fn run() -> ValidationReport {
 
     match config::pinned_pubkey() {
         Some(k) => report.ok("pinned manifest pubkey", &format!("{} chars", k.len())),
-        None => report.warn(
+        None => report.fail(
             "pinned manifest pubkey",
-            "not pinned — run `install` or first sync will pin",
+            "not pinned — provide it out of band via MDM (`install --apply --pubkey <base64>`) or \
+             rerun `sync --allow-tofu`",
         ),
     }
 
