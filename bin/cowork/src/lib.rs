@@ -314,7 +314,12 @@ fn dispatch_uninstall(args: &[String]) -> ExitCode {
 fn dispatch_gui() -> ExitCode {
     #[cfg(target_os = "windows")]
     unsafe {
-        windows_sys::Win32::System::Console::FreeConsole();
+        use windows_sys::Win32::System::Console::{FreeConsole, GetConsoleProcessList};
+        let mut pids = [0u32; 4];
+        let n = GetConsoleProcessList(pids.as_mut_ptr(), pids.len() as u32);
+        if n <= 1 {
+            FreeConsole();
+        }
     }
     gui::run()
 }

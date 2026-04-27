@@ -33,6 +33,7 @@ security-framework = "3"
 tray-icon = "0.19"
 muda = "0.15"
 winit = "0.30"
+wry = "0.45"
 image = { version = "0.25", default-features = false, features = ["png"] }
 objc2 = "0.5"
 objc2-foundation = { version = "0.2", features = ["NSString", "NSURL", "NSGeometry", "NSArray", "NSObject"] }
@@ -41,11 +42,6 @@ objc2-app-kit = { version = "0.2", features = [
     "NSWindow",
     "NSResponder",
     "NSView",
-    "NSControl",
-    "NSButton",
-    "NSTextField",
-    "NSSecureTextField",
-    "NSStackView",
     "NSWorkspace",
     "NSRunningApplication",
 ] }
@@ -58,6 +54,9 @@ version = "0.15"
 
 [target.'cfg(target_os = "windows")'.dependencies.winit]
 version = "0.30"
+
+[target.'cfg(target_os = "windows")'.dependencies.wry]
+version = "0.45"
 
 [target.'cfg(target_os = "windows")'.dependencies.image]
 version = "0.25"

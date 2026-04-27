@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>systemprompt cowork</title>
+  <link rel="icon" type="image/svg+xml" href="app://localhost/assets/icon.svg" />
+  <link rel="stylesheet" href="app://localhost/assets/style.css" />
+</head>
+<body>
+  <header class="topbar" role="banner">
+    <a class="brand" href="https://systemprompt.io" target="_blank" rel="noopener">
+      <img class="brand-mark"  src="app://localhost/assets/icon.svg" width="32" height="32" alt="" />
+      <img class="brand-word"  src="app://localhost/assets/logo.svg" alt="systemprompt" />
+    </a>
+    <div class="topbar-actions">
+      <span class="product-tag">cowork</span>
+      <span id="sync-pill" class="pill pill-idle" aria-live="polite">idle</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>Identity</h2>
+      <div class="kv">
+        <label for="identity">Signed in as</label>
+        <div id="identity" class="value muted">(not signed in)</div>
+      </div>
+      <div class="kv">
+        <label for="gateway">Gateway URL</label>
+        <input id="gateway" type="url" placeholder="https://gateway.example.com" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="kv">
+        <label for="pat">Personal access token</label>
+        <input id="pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="row">
+        <button id="btn-login"  class="primary" type="button">Save &amp; sign in</button>
+        <button id="btn-logout" class="ghost"   type="button">Log out</button>
+      </div>
+      <div class="kv">
+        <label>Token cache</label>
+        <div id="token-state" class="value muted">no cached JWT</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Marketplace</h2>
+      <div class="cards">
+        <div class="card"><div class="card-num" id="card-skills">—</div><div class="card-label">skills</div></div>
+        <div class="card"><div class="card-num" id="card-agents">—</div><div class="card-label">agents</div></div>
+        <div class="card"><div class="card-num" id="card-mcp">—</div><div class="card-label">MCP</div></div>
+      </div>
+      <div class="kv">
+        <label>Plugins directory</label>
+        <div id="plugins-dir" class="value mono">—</div>
+      </div>
+      <div class="kv">
+        <label>Last sync</label>
+        <div id="last-sync" class="value muted">never</div>
+      </div>
+      <div class="row">
+        <button id="btn-sync"        class="primary" type="button">Sync now</button>
+        <button id="btn-validate"    class="ghost"   type="button">Validate</button>
+        <button id="btn-open-folder" class="ghost"   type="button">Open folder</button>
+      </div>
+    </section>
+
+    <section class="panel panel-wide">
+      <h2>Activity</h2>
+      <pre id="log" class="log" aria-live="polite">Ready.</pre>
+    </section>
+  </main>
+
+  <footer class="footer" role="contentinfo">
+    <span id="config-path" class="mono muted">—</span>
+    <span class="version">v__VERSION__</span>
+  </footer>
+
+  <script src="app://localhost/assets/app.js" defer></script>
+</body>
+</html>

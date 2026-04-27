@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use muda::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
-use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
+use tray_icon::{Icon, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 use super::events::UiEvent;
 use super::state::AppStateSnapshot;
@@ -86,6 +86,11 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
     while let Ok(event) = MenuEvent::receiver().try_recv() {
         if let Some(ev) = handles.bindings.get(&event.id) {
             out.push(ev.clone());
+        }
+    }
+    while let Ok(event) = TrayIconEvent::receiver().try_recv() {
+        if matches!(event, TrayIconEvent::Click { .. } | TrayIconEvent::DoubleClick { .. }) {
+            out.push(UiEvent::OpenSettings);
         }
     }
     out
