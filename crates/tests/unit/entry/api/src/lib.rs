@@ -22,3 +22,5 @@ mod routes;
 mod services;
 #[cfg(test)]
 mod static_content;
+#[cfg(test)]
+mod cowork_audience;
