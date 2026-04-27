@@ -59,7 +59,7 @@ pub async fn issue_cowork_access_with(
     let ttl_hours = i64::try_from((ttl_seconds / 3600).max(1)).unwrap_or(1);
     let config = JwtConfig {
         permissions: auth_user.permissions().to_vec(),
-        audience: vec![JwtAudience::Api],
+        audience: vec![JwtAudience::Cowork],
         expires_in_hours: Some(ttl_hours),
         resource: None,
     };
