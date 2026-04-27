@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use crate::cache;
 use crate::config;
 use crate::paths;
 use crate::setup;
@@ -20,6 +21,13 @@ pub struct AppStateSnapshot {
     pub sync_in_flight: bool,
     pub last_action_message: Option<String>,
     pub last_validation: Option<ValidationReport>,
+    pub cached_token: Option<CachedToken>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CachedToken {
+    pub ttl_seconds: u64,
+    pub length: usize,
 }
 
 pub struct AppState {
@@ -84,6 +92,10 @@ impl AppState {
         snap.last_sync_summary = None;
         snap.skill_count = None;
         snap.agent_count = None;
+        snap.cached_token = cache::read_valid().map(|out| CachedToken {
+            ttl_seconds: out.ttl,
+            length: out.token.len(),
+        });
 
         if let Some(loc) = loc {
             let meta = paths::metadata_dir(&loc.path);

@@ -1,6 +1,7 @@
 pub mod events;
 pub mod state;
 pub mod tray;
+pub mod web;
 pub mod window;
 
 use std::process::ExitCode;
@@ -9,12 +10,13 @@ use std::sync::mpsc::{Sender, channel};
 use std::time::Duration;
 
 use winit::application::ApplicationHandler;
-use winit::event::StartCause;
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
+use winit::event::{StartCause, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
 use crate::gui::events::UiEvent;
 use crate::gui::state::AppState;
+use crate::gui::web::WebWindow;
 use crate::http::GatewayClient;
 use crate::{config, paths, setup, sync, validate};
 
@@ -41,13 +43,7 @@ pub fn run() -> ExitCode {
     });
 
     let app_state = AppState::new_loaded();
-    let mut app = match GuiApp::new(app_state, tx, proxy) {
-        Ok(app) => app,
-        Err(e) => {
-            eprintln!("gui: {e}");
-            return ExitCode::from(1);
-        },
-    };
+    let mut app = GuiApp::new(app_state, tx, proxy);
 
     if let Err(e) = event_loop.run_app(&mut app) {
         eprintln!("gui: event loop error: {e}");
@@ -58,10 +54,9 @@ pub fn run() -> ExitCode {
 
 struct GuiApp {
     state: Arc<AppState>,
-    tx: Sender<UiEvent>,
     proxy: EventLoopProxy<UiEvent>,
     tray: Option<tray::TrayHandles>,
-    window: Option<window::PlatformWindow>,
+    window: WebWindow,
 }
 
 impl GuiApp {
@@ -69,14 +64,14 @@ impl GuiApp {
         state: Arc<AppState>,
         tx: Sender<UiEvent>,
         proxy: EventLoopProxy<UiEvent>,
-    ) -> Result<Self, String> {
-        Ok(Self {
+    ) -> Self {
+        let window = WebWindow::new(tx);
+        Self {
             state,
-            tx,
             proxy,
             tray: None,
-            window: None,
-        })
+            window,
+        }
     }
 
     fn refresh_ui(&mut self) {
@@ -84,24 +79,14 @@ impl GuiApp {
         if let Some(handles) = &self.tray {
             tray::refresh(handles, &snap);
         }
-        if let Some(window) = &self.window {
-            window.refresh(&snap);
-        }
+        self.window.refresh(&snap);
     }
 
-    fn dispatch(&mut self, event: UiEvent) {
+    fn dispatch(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
         match event {
             UiEvent::OpenSettings => {
-                if self.window.is_none() {
-                    match window::PlatformWindow::new(self.tx.clone()) {
-                        Ok(w) => self.window = Some(w),
-                        Err(e) => self.state.set_message(format!("settings window: {e}")),
-                    }
-                }
                 let snap = self.state.snapshot();
-                if let Some(w) = &self.window {
-                    w.show(&snap);
-                }
+                self.window.show(event_loop, &snap);
             },
             UiEvent::SyncRequested => {
                 if self.state.snapshot().sync_in_flight {
@@ -109,6 +94,7 @@ impl GuiApp {
                 }
                 self.state.set_sync_in_flight(true);
                 self.state.set_message("Sync started…");
+                self.window.log("Sync started…");
                 self.refresh_ui();
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
@@ -117,6 +103,7 @@ impl GuiApp {
                 });
             },
             UiEvent::ValidateRequested => {
+                self.window.log("Running validation…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let report = validate::run();
@@ -133,11 +120,12 @@ impl GuiApp {
             UiEvent::LoginRequested { token, gateway } => {
                 let token = token.trim().to_string();
                 if token.is_empty() {
-                    self.state
-                        .set_message("Login: PAT is empty");
+                    self.state.set_message("Login: PAT is empty");
+                    self.window.log("Login: PAT is empty");
                     self.refresh_ui();
                     return;
                 }
+                self.window.log("Saving PAT…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let result = setup::login(&token, gateway.as_deref()).map(|_| ());
@@ -145,6 +133,7 @@ impl GuiApp {
                 });
             },
             UiEvent::LogoutRequested => {
+                self.window.log("Logging out…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let result = setup::logout().map(|_| ());
@@ -152,7 +141,6 @@ impl GuiApp {
                 });
             },
             UiEvent::Quit => {
-                self.proxy.send_event(UiEvent::StateRefreshed).ok();
                 std::process::exit(0);
             },
 
@@ -164,34 +152,52 @@ impl GuiApp {
                 self.state.set_sync_in_flight(false);
                 match result {
                     Ok(summary) => {
-                        self.state.set_message(summary.one_line());
+                        let line = summary.one_line();
+                        self.state.set_message(line.clone());
+                        self.window.log(&line);
                     },
                     Err(msg) => {
-                        self.state.set_message(format!("sync failed: {msg}"));
+                        let line = format!("sync failed: {msg}");
+                        self.state.set_message(line.clone());
+                        self.window.log(&line);
                     },
                 }
                 self.state.reload();
                 self.refresh_ui();
             },
             UiEvent::ValidateFinished(report) => {
+                let rendered = report.rendered();
+                self.window.log(&rendered);
                 self.state.set_validation(report);
                 self.refresh_ui();
             },
             UiEvent::LoginFinished(result) => {
                 match result {
                     Ok(()) => {
-                        self.state.set_message("Login: PAT stored.");
+                        self.window.log("PAT stored.");
+                        self.state.set_message("PAT stored.");
                         self.fetch_whoami_async();
                     },
-                    Err(e) => self.state.set_message(format!("login failed: {e}")),
+                    Err(e) => {
+                        let line = format!("login failed: {e}");
+                        self.window.log(&line);
+                        self.state.set_message(line);
+                    },
                 }
                 self.state.reload();
                 self.refresh_ui();
             },
             UiEvent::LogoutFinished(result) => {
                 match result {
-                    Ok(()) => self.state.set_message("Logout: PAT removed."),
-                    Err(e) => self.state.set_message(format!("logout failed: {e}")),
+                    Ok(()) => {
+                        self.window.log("Logged out.");
+                        self.state.set_message("Logged out.");
+                    },
+                    Err(e) => {
+                        let line = format!("logout failed: {e}");
+                        self.window.log(&line);
+                        self.state.set_message(line);
+                    },
                 }
                 self.state.reload();
                 self.refresh_ui();
@@ -244,19 +250,18 @@ impl GuiApp {
 }
 
 impl ApplicationHandler<UiEvent> for GuiApp {
-    fn new_events(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, cause: StartCause) {
-        let _ = event_loop;
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         if matches!(cause, StartCause::Init) {
             return;
         }
         if let Some(handles) = &self.tray {
             for ev in tray::drain(handles) {
-                self.dispatch(ev);
+                self.dispatch(event_loop, ev);
             }
         }
     }
 
-    fn resumed(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.tray.is_none() {
             let snap = self.state.snapshot();
             match tray::build(&snap) {
@@ -265,29 +270,29 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             }
         }
         self.refresh_ui();
+        self.dispatch(event_loop, UiEvent::OpenSettings);
     }
 
-    fn user_event(
-        &mut self,
-        _event_loop: &winit::event_loop::ActiveEventLoop,
-        event: UiEvent,
-    ) {
-        self.dispatch(event);
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
+        self.dispatch(event_loop, event);
     }
 
     fn window_event(
         &mut self,
-        _event_loop: &winit::event_loop::ActiveEventLoop,
-        _id: WindowId,
-        _event: winit::event::WindowEvent,
+        _event_loop: &ActiveEventLoop,
+        id: WindowId,
+        event: WindowEvent,
     ) {
+        if self.window.owns(id) {
+            self.window.handle_window_event(&event);
+        }
     }
 
-    fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(handles) = &self.tray {
             let drained = tray::drain(handles);
             for ev in drained {
-                self.dispatch(ev);
+                self.dispatch(event_loop, ev);
             }
         }
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_millis(250)));
