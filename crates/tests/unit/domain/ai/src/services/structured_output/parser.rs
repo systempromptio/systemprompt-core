@@ -228,7 +228,8 @@ mod complex_json_tests {
 
     #[test]
     fn handles_special_values() {
-        let content = r#"{"null_val": null, "bool_true": true, "bool_false": false, "number": 3.14}"#;
+        let content =
+            r#"{"null_val": null, "bool_true": true, "bool_false": false, "number": 3.14}"#;
         let result = JsonParser::extract_json(content, None).unwrap();
 
         assert!(result["null_val"].is_null());

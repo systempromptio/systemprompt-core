@@ -1,5 +1,7 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{SkillId, SourceId, CategoryId, ContentId, TagId, FileId, DbValue, ToDbValue};
+use systemprompt_identifiers::{
+    CategoryId, ContentId, DbValue, FileId, SkillId, SourceId, TagId, ToDbValue,
+};
 
 #[test]
 fn skill_id_generate_uuid_format() {
@@ -9,7 +11,9 @@ fn skill_id_generate_uuid_format() {
 
 #[test]
 fn skill_id_generate_unique() {
-    let ids: HashSet<String> = (0..10).map(|_| SkillId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..10)
+        .map(|_| SkillId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 10);
 }
 

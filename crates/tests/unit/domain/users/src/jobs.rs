@@ -6,8 +6,8 @@
 //! Note: The execute method requires database integration and is tested
 //! in integration tests.
 
-use systemprompt_users::jobs::CleanupAnonymousUsersJob;
 use systemprompt_traits::Job;
+use systemprompt_users::jobs::CleanupAnonymousUsersJob;
 
 // ============================================================================
 // CleanupAnonymousUsersJob Tests
@@ -49,7 +49,8 @@ mod cleanup_anonymous_users_job_tests {
         // Format: "0 0 * * * *" (at minute 0, every hour)
         assert!(!schedule.is_empty());
 
-        // Should have 6 fields (seconds, minutes, hours, day of month, month, day of week)
+        // Should have 6 fields (seconds, minutes, hours, day of month, month, day of
+        // week)
         let fields: Vec<&str> = schedule.split_whitespace().collect();
         assert_eq!(fields.len(), 6);
     }
@@ -93,5 +94,4 @@ mod cleanup_anonymous_users_job_tests {
         let schedule: &'static str = job.schedule();
         assert!(!schedule.is_empty());
     }
-
 }

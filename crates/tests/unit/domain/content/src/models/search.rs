@@ -230,10 +230,7 @@ fn test_search_response_with_results() {
         },
     ];
 
-    let response = SearchResponse {
-        results,
-        total: 2,
-    };
+    let response = SearchResponse { results, total: 2 };
 
     assert_eq!(response.results.len(), 2);
     assert_eq!(response.total, 2);

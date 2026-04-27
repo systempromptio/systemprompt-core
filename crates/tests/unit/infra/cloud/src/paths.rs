@@ -1,7 +1,7 @@
 //! Unit tests for CloudPath and CloudPaths
 
 use std::path::Path;
-use systemprompt_cloud::paths::{expand_home, resolve_path, CloudPath, CloudPaths};
+use systemprompt_cloud::paths::{CloudPath, CloudPaths, expand_home, resolve_path};
 use tempfile::TempDir;
 
 #[test]
@@ -154,11 +154,7 @@ fn test_cloud_paths_base_dir() {
 #[test]
 fn test_cloud_paths_from_config_with_custom_credentials() {
     let temp_dir = TempDir::new().unwrap();
-    let paths = CloudPaths::from_config(
-        temp_dir.path(),
-        "../custom/creds.json",
-        "",
-    );
+    let paths = CloudPaths::from_config(temp_dir.path(), "../custom/creds.json", "");
 
     let resolved = paths.resolve(CloudPath::Credentials);
     assert!(resolved.ends_with("creds.json"));
@@ -167,11 +163,7 @@ fn test_cloud_paths_from_config_with_custom_credentials() {
 #[test]
 fn test_cloud_paths_from_config_with_custom_tenants() {
     let temp_dir = TempDir::new().unwrap();
-    let paths = CloudPaths::from_config(
-        temp_dir.path(),
-        "",
-        "../custom/tenants.json",
-    );
+    let paths = CloudPaths::from_config(temp_dir.path(), "", "../custom/tenants.json");
 
     let resolved = paths.resolve(CloudPath::Tenants);
     assert!(resolved.ends_with("tenants.json"));

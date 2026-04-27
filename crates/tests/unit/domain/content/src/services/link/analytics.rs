@@ -1,4 +1,5 @@
-//! Tests for LinkPerformance, CampaignPerformance, ContentJourneyNode, LinkClick, and TrackClickParams
+//! Tests for LinkPerformance, CampaignPerformance, ContentJourneyNode,
+//! LinkClick, and TrackClickParams
 
 // ============================================================================
 // LinkPerformance Tests
@@ -143,7 +144,7 @@ fn test_content_journey_node_serialization() {
 #[test]
 fn test_link_click_creation_minimal() {
     use systemprompt_content::models::LinkClick;
-    use systemprompt_identifiers::{LinkId, LinkClickId, SessionId};
+    use systemprompt_identifiers::{LinkClickId, LinkId, SessionId};
 
     let click = LinkClick {
         id: LinkClickId::new("click-1"),
@@ -172,9 +173,9 @@ fn test_link_click_creation_minimal() {
 
 #[test]
 fn test_link_click_creation_full() {
-    use systemprompt_content::models::LinkClick;
-    use systemprompt_identifiers::{LinkId, LinkClickId, SessionId, UserId, ContextId, TaskId};
     use chrono::Utc;
+    use systemprompt_content::models::LinkClick;
+    use systemprompt_identifiers::{ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId};
 
     let now = Utc::now();
     let click = LinkClick {
@@ -207,7 +208,7 @@ fn test_link_click_creation_full() {
 #[test]
 fn test_link_click_serialization() {
     use systemprompt_content::models::LinkClick;
-    use systemprompt_identifiers::{LinkId, LinkClickId, SessionId};
+    use systemprompt_identifiers::{LinkClickId, LinkId, SessionId};
 
     let click = LinkClick {
         id: LinkClickId::new("click-3"),
@@ -265,7 +266,7 @@ fn test_track_click_params_creation() {
 #[test]
 fn test_track_click_params_with_context() {
     use systemprompt_content::models::TrackClickParams;
-    use systemprompt_identifiers::{LinkId, SessionId, UserId, ContextId};
+    use systemprompt_identifiers::{ContextId, LinkId, SessionId, UserId};
 
     let params = TrackClickParams {
         link_id: LinkId::new("link-ctx"),

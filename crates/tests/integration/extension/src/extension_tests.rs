@@ -1,4 +1,5 @@
-//! Tests for core extension types: SchemaDefinition, SchemaSource, ExtensionRouter, ExtensionMetadata.
+//! Tests for core extension types: SchemaDefinition, SchemaSource,
+//! ExtensionRouter, ExtensionMetadata.
 
 use std::path::PathBuf;
 
@@ -75,7 +76,7 @@ fn test_schema_source_inline() {
     match source {
         SchemaSource::Inline(sql) => {
             assert!(sql.contains("CREATE TABLE test"));
-        }
+        },
         SchemaSource::File(_) => panic!("Expected Inline variant"),
     }
 }
@@ -87,7 +88,7 @@ fn test_schema_source_file() {
     match source {
         SchemaSource::File(path) => {
             assert_eq!(path, PathBuf::from("/path/to/schema.sql"));
-        }
+        },
         SchemaSource::Inline(_) => panic!("Expected File variant"),
     }
 }
@@ -114,7 +115,7 @@ fn test_schema_source_clone() {
     match cloned {
         SchemaSource::Inline(sql) => {
             assert!(sql.contains("CREATE TABLE y"));
-        }
+        },
         _ => panic!("Expected Inline variant"),
     }
 }
@@ -147,7 +148,7 @@ fn test_schema_definition_inline() {
     match schema.sql {
         SchemaSource::Inline(sql) => {
             assert!(sql.contains("CREATE TABLE users"));
-        }
+        },
         _ => panic!("Expected Inline source"),
     }
 }
@@ -162,7 +163,7 @@ fn test_schema_definition_file() {
     match schema.sql {
         SchemaSource::File(path) => {
             assert_eq!(path, PathBuf::from("/db/orders.sql"));
-        }
+        },
         _ => panic!("Expected File source"),
     }
 }
@@ -180,16 +181,19 @@ fn test_schema_definition_with_required_columns() {
 
 #[test]
 fn test_schema_definition_chained_required_columns() {
-    let schema = SchemaDefinition::file("events", "events.sql")
-        .with_required_columns(vec!["id".to_string(), "timestamp".to_string(), "type".to_string()]);
+    let schema = SchemaDefinition::file("events", "events.sql").with_required_columns(vec![
+        "id".to_string(),
+        "timestamp".to_string(),
+        "type".to_string(),
+    ]);
 
     assert_eq!(schema.required_columns.len(), 3);
 }
 
 #[test]
 fn test_schema_definition_empty_required_columns() {
-    let schema = SchemaDefinition::inline("empty", "CREATE TABLE empty ()")
-        .with_required_columns(vec![]);
+    let schema =
+        SchemaDefinition::inline("empty", "CREATE TABLE empty ()").with_required_columns(vec![]);
 
     assert!(schema.required_columns.is_empty());
 }

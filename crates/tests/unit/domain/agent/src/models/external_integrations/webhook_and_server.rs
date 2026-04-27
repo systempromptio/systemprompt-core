@@ -1,11 +1,12 @@
-//! Unit tests for RegisteredMcpServer, ToolExecutionResult, WebhookEndpoint, WebhookRequest/Response
+//! Unit tests for RegisteredMcpServer, ToolExecutionResult, WebhookEndpoint,
+//! WebhookRequest/Response
 
+use chrono::Utc;
 use std::collections::HashMap;
 use systemprompt_agent::models::external_integrations::{
     RegisteredMcpServer, ToolExecutionResult, WebhookEndpoint, WebhookRequest, WebhookResponse,
 };
 use systemprompt_identifiers::McpServerId;
-use chrono::Utc;
 
 #[test]
 fn test_registered_mcp_server_serialize() {

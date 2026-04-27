@@ -1,5 +1,5 @@
-use systemprompt_api::routes::oauth::endpoints::token::validation::extract_required_field;
 use systemprompt_api::routes::oauth::endpoints::token::TokenError;
+use systemprompt_api::routes::oauth::endpoints::token::validation::extract_required_field;
 
 // ============================================================================
 // extract_required_field Tests
@@ -36,7 +36,7 @@ fn test_extract_required_field_captures_field_name_in_error() {
         TokenError::InvalidRequest { field, message } => {
             assert_eq!(field, "code_verifier");
             assert_eq!(message, "is required");
-        }
+        },
         _ => panic!("Expected InvalidRequest variant"),
     }
 }

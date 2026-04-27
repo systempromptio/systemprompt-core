@@ -1,7 +1,8 @@
 //! Unit tests for FileStats
 //!
 //! Note: FileRepository.get_stats() requires a database connection and is
-//! covered in integration tests. These unit tests focus on the FileStats struct.
+//! covered in integration tests. These unit tests focus on the FileStats
+//! struct.
 
 use systemprompt_files::FileStats;
 
@@ -164,8 +165,11 @@ fn test_file_stats_large_values() {
 #[test]
 fn test_file_stats_category_counts_sum() {
     let stats = create_test_stats();
-    let category_sum =
-        stats.image_count + stats.document_count + stats.audio_count + stats.video_count + stats.other_count;
+    let category_sum = stats.image_count
+        + stats.document_count
+        + stats.audio_count
+        + stats.video_count
+        + stats.other_count;
     assert_eq!(category_sum, stats.total_files);
 }
 

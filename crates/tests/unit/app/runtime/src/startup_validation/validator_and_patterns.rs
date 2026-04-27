@@ -1,4 +1,5 @@
-//! Tests for StartupValidator creation, domain validators, and validation patterns
+//! Tests for StartupValidator creation, domain validators, and validation
+//! patterns
 
 use systemprompt_runtime::StartupValidator;
 
@@ -63,7 +64,9 @@ fn test_validator_in_option() {
     assert!(maybe_validator.is_none());
 
     maybe_validator = Some(StartupValidator::new());
-    maybe_validator.as_ref().expect("Should contain a validator");
+    maybe_validator
+        .as_ref()
+        .expect("Should contain a validator");
 
     maybe_validator = None;
     assert!(maybe_validator.is_none());

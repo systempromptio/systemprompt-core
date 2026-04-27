@@ -3,9 +3,7 @@ use axum::http::StatusCode;
 use systemprompt_api::routes::oauth::endpoints::token::generation::{
     convert_token_result_to_response, resolve_user_permissions,
 };
-use systemprompt_api::routes::oauth::endpoints::token::{
-    TokenError, TokenResponse,
-};
+use systemprompt_api::routes::oauth::endpoints::token::{TokenError, TokenResponse};
 use systemprompt_models::auth::Permission;
 
 #[test]

@@ -5,7 +5,8 @@
 //! - AI service models (AiMessage, AiRequest, MessageRole)
 //! - Artifact types (ArtifactType, ChartType, ColumnType, etc.)
 //! - Artifact builders (Column, TableHints, DashboardHints, MetricCard, etc.)
-//! - API types (PaginationInfo, ApiResponse, CollectionResponse, ApiError, etc.)
+//! - API types (PaginationInfo, ApiResponse, CollectionResponse, ApiError,
+//!   etc.)
 //! - Configuration models (Environment)
 //! - Event system models (SystemEventType, A2AEventType)
 //! - Authentication models (BaseRoles, AuthError)

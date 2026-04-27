@@ -1,8 +1,8 @@
-use systemprompt_ai::services::tooled::ToolResultFormatter;
-use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
-use systemprompt_identifiers::AiToolCallId;
 use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
 use serde_json::json;
+use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
+use systemprompt_ai::services::tooled::ToolResultFormatter;
+use systemprompt_identifiers::AiToolCallId;
 
 fn create_tool_call(name: &str) -> ToolCall {
     ToolCall {
@@ -268,10 +268,7 @@ mod fallback_summary_edge_cases {
 
     #[test]
     fn multiple_tools_separated_by_double_newline() {
-        let calls = vec![
-            create_tool_call("tool_a"),
-            create_tool_call("tool_b"),
-        ];
+        let calls = vec![create_tool_call("tool_a"), create_tool_call("tool_b")];
         let results = vec![
             create_success_result("Result A"),
             create_success_result("Result B"),

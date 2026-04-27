@@ -1,6 +1,8 @@
 //! Unit tests for process monitoring types
 
-use systemprompt_mcp::services::process::monitor::{get_process_info, is_process_running, ProcessInfo};
+use systemprompt_mcp::services::process::monitor::{
+    ProcessInfo, get_process_info, is_process_running,
+};
 
 // ============================================================================
 // ProcessInfo Tests
@@ -49,7 +51,11 @@ fn test_process_info_debug() {
 
 #[test]
 fn test_process_info_with_long_command() {
-    let long_cmd = format!("{} {}", "/usr/bin/very-long-path/to/binary", "a".repeat(1000));
+    let long_cmd = format!(
+        "{} {}",
+        "/usr/bin/very-long-path/to/binary",
+        "a".repeat(1000)
+    );
     let info = ProcessInfo {
         pid: 1,
         ppid: 0,

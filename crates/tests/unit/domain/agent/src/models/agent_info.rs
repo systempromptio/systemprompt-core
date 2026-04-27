@@ -6,8 +6,8 @@
 //! - Builder pattern methods (with_skills, with_mcp_servers)
 //! - Count methods (skills_count, mcp_count)
 
-use systemprompt_agent::models::agent_info::AgentInfo;
 use systemprompt_agent::models::a2a::{AgentCard, AgentInterface};
+use systemprompt_agent::models::agent_info::AgentInfo;
 use systemprompt_identifiers::AgentId;
 use systemprompt_models::a2a::ProtocolBinding;
 

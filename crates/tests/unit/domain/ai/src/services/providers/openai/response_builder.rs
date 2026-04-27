@@ -47,7 +47,13 @@ mod build_response_tests {
             }),
         );
 
-        let result = build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now());
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        );
 
         let response = result.expect("should succeed");
         assert_eq!(response.request_id, request_id);
@@ -72,7 +78,13 @@ mod build_response_tests {
             usage: None,
         };
 
-        let result = build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now());
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        );
 
         let err = result.unwrap_err();
         assert!(err.to_string().contains("No response"));
@@ -83,8 +95,14 @@ mod build_response_tests {
         let request_id = Uuid::new_v4();
         let openai_response = create_test_response(None, Some("stop".to_string()), None);
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert_eq!(result.content, "");
     }
@@ -95,8 +113,14 @@ mod build_response_tests {
         let openai_response =
             create_test_response(Some("".to_string()), Some("stop".to_string()), None);
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert_eq!(result.content, "");
     }
@@ -107,8 +131,14 @@ mod build_response_tests {
         let openai_response =
             create_test_response(Some("Hello".to_string()), Some("stop".to_string()), None);
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert_eq!(result.tokens_used, None);
         assert_eq!(result.input_tokens, None);
@@ -131,8 +161,14 @@ mod build_response_tests {
             }),
         );
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert!(result.cache_hit);
         assert_eq!(result.cache_read_tokens, Some(80));
@@ -154,8 +190,14 @@ mod build_response_tests {
             }),
         );
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert!(!result.cache_hit);
     }
@@ -174,8 +216,14 @@ mod build_response_tests {
             }),
         );
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert!(!result.cache_hit);
         assert_eq!(result.cache_read_tokens, None);
@@ -187,8 +235,14 @@ mod build_response_tests {
         let openai_response =
             create_test_response(Some("Hello".to_string()), Some("stop".to_string()), None);
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert!(!result.is_streaming);
     }
@@ -202,7 +256,8 @@ mod build_response_tests {
         let start = Instant::now();
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let result = build_response(request_id, &openai_response, "openai", "gpt-4", start).unwrap();
+        let result =
+            build_response(request_id, &openai_response, "openai", "gpt-4", start).unwrap();
 
         assert!(result.latency_ms >= 10);
     }
@@ -213,8 +268,14 @@ mod build_response_tests {
         let openai_response =
             create_test_response(Some("Hello".to_string()), Some("stop".to_string()), None);
 
-        let result =
-            build_response(request_id, &openai_response, "openai", "gpt-4", Instant::now()).unwrap();
+        let result = build_response(
+            request_id,
+            &openai_response,
+            "openai",
+            "gpt-4",
+            Instant::now(),
+        )
+        .unwrap();
 
         assert!(result.tool_calls.is_empty());
         assert!(result.tool_results.is_empty());

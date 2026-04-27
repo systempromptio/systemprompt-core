@@ -2,7 +2,9 @@
 
 use serde_json::json;
 use systemprompt_ai::models::ai::{AiContentPart, AiMessage, MessageRole};
-use systemprompt_ai::models::providers::anthropic::{AnthropicContent, AnthropicContentBlock, AnthropicImageSource};
+use systemprompt_ai::models::providers::anthropic::{
+    AnthropicContent, AnthropicContentBlock, AnthropicImageSource,
+};
 use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::anthropic::converters::{
     convert_messages, convert_tools,
@@ -161,10 +163,7 @@ mod convert_messages_tests {
 
         let (system_prompt, anthropic_messages) = convert_messages(&messages);
 
-        assert_eq!(
-            system_prompt,
-            Some("Second system prompt.".to_string())
-        );
+        assert_eq!(system_prompt, Some("Second system prompt.".to_string()));
         assert!(anthropic_messages.is_empty());
     }
 
@@ -263,13 +262,11 @@ mod convert_messages_tests {
             AnthropicContent::Blocks(blocks) => {
                 assert_eq!(blocks.len(), 1);
                 match &blocks[0] {
-                    AnthropicContentBlock::Image { source } => {
-                        match source {
-                            AnthropicImageSource::Base64 { media_type, data } => {
-                                assert_eq!(media_type, "image/png");
-                                assert_eq!(data, "base64data");
-                            },
-                        }
+                    AnthropicContentBlock::Image { source } => match source {
+                        AnthropicImageSource::Base64 { media_type, data } => {
+                            assert_eq!(media_type, "image/png");
+                            assert_eq!(data, "base64data");
+                        },
                     },
                     _ => panic!("Expected Image block"),
                 }
@@ -571,7 +568,11 @@ mod convert_tools_tests {
             "required": ["file_path"]
         });
 
-        let tool = create_mcp_tool("file_op", Some("File operation"), Some(complex_schema.clone()));
+        let tool = create_mcp_tool(
+            "file_op",
+            Some("File operation"),
+            Some(complex_schema.clone()),
+        );
 
         let result = convert_tools(vec![tool]);
 

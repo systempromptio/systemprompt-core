@@ -7,12 +7,7 @@
 //! - CLI parsers
 //! - Profile utilities
 
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 mod command_result;
 mod parsers;

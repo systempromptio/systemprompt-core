@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     endpoints_accessed TEXT DEFAULT '[]',
     fingerprint_hash TEXT,
     is_bot BOOLEAN NOT NULL DEFAULT false,
+    is_ai_crawler BOOLEAN NOT NULL DEFAULT false,
     is_scanner BOOLEAN NOT NULL DEFAULT false,
     is_behavioral_bot BOOLEAN NOT NULL DEFAULT false,
     behavioral_bot_reason TEXT,
@@ -57,6 +58,7 @@ COMMENT ON COLUMN user_sessions.throttle_escalated_at IS 'Timestamp of last thro
 
 COMMENT ON COLUMN user_sessions.total_ai_cost_microdollars IS 'AI cost in microdollars (millionths of a dollar). Divide by 1,000,000 to get USD.';
 COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a bot/crawler (search engines, AI scrapers, social media bots, etc.)';
+COMMENT ON COLUMN user_sessions.is_ai_crawler IS 'Whether this session was created by a declared AI agent/crawler (NotebookLM, ChatGPT-User, ClaudeBot, etc.). Tracked separately from is_bot so AI citations are visible without polluting human metrics.';
 COMMENT ON COLUMN user_sessions.is_scanner IS 'Whether this session exhibits scanner/attacker behavior (accessing .php, .env, admin paths, high velocity)';
 COMMENT ON COLUMN user_sessions.is_behavioral_bot IS 'Whether this session exhibits bot-like behavior based on request patterns (high request count, page coverage, etc.)';
 COMMENT ON COLUMN user_sessions.behavioral_bot_reason IS 'Reason for behavioral bot classification (e.g., request_count_exceeded, high_page_coverage)';
@@ -81,6 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_referrer_source ON user_sessions(re
 CREATE INDEX IF NOT EXISTS idx_user_sessions_utm_source ON user_sessions(utm_source);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_landing_page ON user_sessions(landing_page);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_is_bot ON user_sessions(is_bot);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_is_ai_crawler ON user_sessions(is_ai_crawler) WHERE is_ai_crawler = true;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_human_activity ON user_sessions(is_bot, last_activity_at) WHERE is_bot = false;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_bot_activity ON user_sessions(is_bot, started_at) WHERE is_bot = true;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_human_sessions ON user_sessions(is_bot, started_at, user_id) WHERE is_bot = false;
@@ -174,6 +177,7 @@ DROP VIEW IF EXISTS v_clean_traffic CASCADE;
 CREATE VIEW v_clean_traffic AS
 SELECT * FROM user_sessions
 WHERE is_bot = false
+  AND is_ai_crawler = false
   AND is_scanner = false
   AND is_behavioral_bot = false;
 
@@ -181,9 +185,27 @@ DROP VIEW IF EXISTS v_clean_human_traffic CASCADE;
 CREATE VIEW v_clean_human_traffic AS
 SELECT * FROM user_sessions
 WHERE is_bot = false
+  AND is_ai_crawler = false
   AND is_scanner = false
   AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false)
   AND throttle_level < 3;
+
+DROP VIEW IF EXISTS v_ai_crawler_activity CASCADE;
+CREATE VIEW v_ai_crawler_activity AS
+SELECT
+    DATE(started_at) as date,
+    user_agent,
+    COUNT(*) as session_count,
+    COUNT(DISTINCT ip_address) as unique_ips,
+    SUM(request_count) as total_requests,
+    array_agg(DISTINCT landing_page) FILTER (WHERE landing_page IS NOT NULL) as landing_pages
+FROM user_sessions
+WHERE is_ai_crawler = true
+  AND started_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+GROUP BY DATE(started_at), user_agent
+ORDER BY date DESC, session_count DESC;
+
+COMMENT ON VIEW v_ai_crawler_activity IS 'AI agent / crawler citations per day. Tracked separately from human traffic and from generic bots so SEO can measure agent surface presence.';
 
 COMMENT ON VIEW v_clean_human_traffic IS 'Consolidated view of verified human traffic excluding all bot types and blocked sessions';
 
@@ -198,6 +220,7 @@ DROP VIEW IF EXISTS v_engaged_traffic CASCADE;
 CREATE VIEW v_engaged_traffic AS
 SELECT * FROM user_sessions
 WHERE is_bot = false
+  AND is_ai_crawler = false
   AND is_scanner = false
   AND is_behavioral_bot = false
   AND landing_page IS NOT NULL

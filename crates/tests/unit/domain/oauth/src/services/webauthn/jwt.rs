@@ -4,8 +4,8 @@ use chrono::Utc;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_oauth::services::JwtTokenValidator;
 use systemprompt_oauth::TokenValidator;
+use systemprompt_oauth::services::JwtTokenValidator;
 
 const TEST_SECRET: &str = "webauthn_jwt_test_secret_key_long_enough_12345";
 const TEST_ISSUER: &str = "https://test.systemprompt.io";
@@ -51,7 +51,12 @@ fn create_test_claims(exp_offset_secs: i64, issuer: &str, audiences: &[&str]) ->
 
 fn create_test_token(claims: &TestClaims, secret: &str) -> String {
     let header = Header::new(Algorithm::HS256);
-    encode(&header, claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap()
+    encode(
+        &header,
+        claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .unwrap()
 }
 
 fn create_validator() -> JwtTokenValidator {

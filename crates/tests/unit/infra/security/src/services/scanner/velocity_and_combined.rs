@@ -1,4 +1,5 @@
-//! Tests for high velocity detection, combined scanner detection, and struct tests
+//! Tests for high velocity detection, combined scanner detection, and struct
+//! tests
 
 use systemprompt_security::ScannerDetector;
 

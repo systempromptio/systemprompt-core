@@ -33,11 +33,7 @@ serde_roundtrip!(part_roundtrip, arb_part(), Part);
 serde_roundtrip!(message_roundtrip, arb_message(), Message);
 serde_roundtrip!(task_status_roundtrip, arb_task_status(), TaskStatus);
 serde_roundtrip!(task_type_roundtrip, arb_task_type(), TaskType);
-serde_roundtrip!(
-    task_metadata_roundtrip,
-    arb_task_metadata(),
-    TaskMetadata
-);
+serde_roundtrip!(task_metadata_roundtrip, arb_task_metadata(), TaskMetadata);
 serde_roundtrip!(
     artifact_metadata_roundtrip,
     arb_artifact_metadata(),

@@ -6,7 +6,7 @@
 //! - Debug, Clone, Copy trait implementations
 //! - get_wellknown_metadata lookup function
 
-use systemprompt_runtime::{get_wellknown_metadata, WellKnownMetadata};
+use systemprompt_runtime::{WellKnownMetadata, get_wellknown_metadata};
 
 // ============================================================================
 // WellKnownMetadata Construction Tests
@@ -72,7 +72,10 @@ fn test_wellknown_metadata_empty_values() {
 #[test]
 fn test_wellknown_metadata_long_description() {
     // WellKnownMetadata requires static strings, so we use a compile-time constant
-    const LONG_DESC: &str = "This is a longer description that tests the metadata can handle descriptions of various lengths. The description field is used to provide detailed information about the well-known endpoint and its purpose in the system.";
+    const LONG_DESC: &str = "This is a longer description that tests the metadata can handle \
+                             descriptions of various lengths. The description field is used to \
+                             provide detailed information about the well-known endpoint and its \
+                             purpose in the system.";
     let metadata = WellKnownMetadata::new("/.well-known/long", "Long", LONG_DESC);
 
     assert!(metadata.description.len() > 100);
@@ -236,11 +239,8 @@ fn test_wellknown_metadata_unicode_name() {
 
 #[test]
 fn test_wellknown_metadata_unicode_description() {
-    let metadata = WellKnownMetadata::new(
-        "/.well-known/unicode-desc",
-        "Unicode",
-        "Описание テスト 🚀",
-    );
+    let metadata =
+        WellKnownMetadata::new("/.well-known/unicode-desc", "Unicode", "Описание テスト 🚀");
 
     assert_eq!(metadata.description, "Описание テスト 🚀");
 }

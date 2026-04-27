@@ -225,21 +225,31 @@ fn test_log_entry_display_with_metadata() {
 
 #[test]
 fn test_log_entry_display_all_levels() {
-    assert!(LogEntry::new(LogLevel::Error, "m", "msg")
-        .to_string()
-        .contains("[ERROR]"));
-    assert!(LogEntry::new(LogLevel::Warn, "m", "msg")
-        .to_string()
-        .contains("[WARN ]"));
-    assert!(LogEntry::new(LogLevel::Info, "m", "msg")
-        .to_string()
-        .contains("[INFO ]"));
-    assert!(LogEntry::new(LogLevel::Debug, "m", "msg")
-        .to_string()
-        .contains("[DEBUG]"));
-    assert!(LogEntry::new(LogLevel::Trace, "m", "msg")
-        .to_string()
-        .contains("[TRACE]"));
+    assert!(
+        LogEntry::new(LogLevel::Error, "m", "msg")
+            .to_string()
+            .contains("[ERROR]")
+    );
+    assert!(
+        LogEntry::new(LogLevel::Warn, "m", "msg")
+            .to_string()
+            .contains("[WARN ]")
+    );
+    assert!(
+        LogEntry::new(LogLevel::Info, "m", "msg")
+            .to_string()
+            .contains("[INFO ]")
+    );
+    assert!(
+        LogEntry::new(LogLevel::Debug, "m", "msg")
+            .to_string()
+            .contains("[DEBUG]")
+    );
+    assert!(
+        LogEntry::new(LogLevel::Trace, "m", "msg")
+            .to_string()
+            .contains("[TRACE]")
+    );
 }
 
 // ============================================================================

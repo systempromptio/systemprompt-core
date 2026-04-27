@@ -1,8 +1,8 @@
 //! Unit tests for ToolExecution model
 
 use chrono::Utc;
-use systemprompt_mcp::models::ToolExecution;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
+use systemprompt_mcp::models::ToolExecution;
 
 fn create_test_execution() -> ToolExecution {
     ToolExecution {

@@ -1,8 +1,8 @@
 //! Tests for NoopToolProvider.
 
+use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
-use serde_json::json;
 
 mod noop_provider_tests {
     use super::*;
@@ -62,5 +62,4 @@ mod noop_provider_tests {
         let debug = format!("{:?}", provider);
         assert!(debug.contains("NoopToolProvider"));
     }
-
 }

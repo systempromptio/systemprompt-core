@@ -46,7 +46,8 @@ fn test_get_auth_required_nonexistent() {
     assert!(registry.get_auth_required("nonexistent-module").is_none());
 }
 
-// Note: get_registration returns a private type, so it cannot be tested from external crate
+// Note: get_registration returns a private type, so it cannot be tested from
+// external crate
 
 #[test]
 fn test_lookup_empty_module_name() {

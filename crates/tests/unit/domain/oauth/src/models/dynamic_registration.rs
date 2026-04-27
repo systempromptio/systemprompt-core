@@ -310,7 +310,8 @@ fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
     // Verify the required fields are present
     assert!(json.contains("client_id"));
     assert!(json.contains("client_secret"));
-    // Note: The implementation may or may not skip null optional fields depending on serde config
+    // Note: The implementation may or may not skip null optional fields
+    // depending on serde config
 }
 
 #[test]

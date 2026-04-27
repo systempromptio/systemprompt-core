@@ -1,4 +1,5 @@
-//! Tests for MCP proxy extraction, cookie extraction, fallback chain, and error display
+//! Tests for MCP proxy extraction, cookie extraction, fallback chain, and error
+//! display
 
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_security::{TokenExtractionError, TokenExtractor};
@@ -16,7 +17,8 @@ fn test_extract_from_mcp_proxy_success() {
         HeaderValue::from_static("Bearer mcp_token"),
     );
 
-    let token = extractor.extract_from_mcp_proxy(&headers)
+    let token = extractor
+        .extract_from_mcp_proxy(&headers)
         .expect("Should extract from MCP proxy header");
     assert_eq!(token, "mcp_token");
 }
@@ -56,7 +58,8 @@ fn test_extract_from_cookie_success() {
         HeaderValue::from_static("access_token=cookie_token_value"),
     );
 
-    let token = extractor.extract_from_cookie(&headers)
+    let token = extractor
+        .extract_from_cookie(&headers)
         .expect("Should extract from cookie");
     assert_eq!(token, "cookie_token_value");
 }
@@ -70,7 +73,8 @@ fn test_extract_from_cookie_multiple_cookies() {
         HeaderValue::from_static("session=abc123; access_token=the_token; other=value"),
     );
 
-    let token = extractor.extract_from_cookie(&headers)
+    let token = extractor
+        .extract_from_cookie(&headers)
         .expect("Should extract from multiple cookies");
     assert_eq!(token, "the_token");
 }
@@ -113,7 +117,8 @@ fn test_extract_from_cookie_with_spaces() {
         HeaderValue::from_static("  access_token=spaced_token  ; other=val"),
     );
 
-    let token = extractor.extract_from_cookie(&headers)
+    let token = extractor
+        .extract_from_cookie(&headers)
         .expect("Should extract from cookie with spaces");
     assert_eq!(token, "spaced_token");
 }
@@ -139,7 +144,9 @@ fn test_extract_fallback_authorization_first() {
         HeaderValue::from_static("access_token=cookie_token"),
     );
 
-    let token = extractor.extract(&headers).expect("Should extract from authorization first");
+    let token = extractor
+        .extract(&headers)
+        .expect("Should extract from authorization first");
     assert_eq!(token, "auth_token");
 }
 
@@ -156,7 +163,9 @@ fn test_extract_fallback_to_mcp_proxy() {
         HeaderValue::from_static("access_token=cookie_token"),
     );
 
-    let token = extractor.extract(&headers).expect("Should fallback to MCP proxy");
+    let token = extractor
+        .extract(&headers)
+        .expect("Should fallback to MCP proxy");
     assert_eq!(token, "mcp_token");
 }
 
@@ -169,7 +178,9 @@ fn test_extract_fallback_to_cookie() {
         HeaderValue::from_static("access_token=cookie_token"),
     );
 
-    let token = extractor.extract(&headers).expect("Should fallback to cookie");
+    let token = extractor
+        .extract(&headers)
+        .expect("Should fallback to cookie");
     assert_eq!(token, "cookie_token");
 }
 

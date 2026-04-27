@@ -1,10 +1,11 @@
-//! Tests for bot detection, bot IP detection, and miscellaneous analytics features.
+//! Tests for bot detection, bot IP detection, and miscellaneous analytics
+//! features.
 
 use axum::http::{HeaderMap, HeaderValue};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use systemprompt_analytics::SessionAnalytics;
 
-use super::{create_headers_with_user_agent, create_headers_with_ip, create_full_headers};
+use super::{create_full_headers, create_headers_with_ip, create_headers_with_user_agent};
 
 #[test]
 fn is_bot_returns_true_for_googlebot() {
@@ -125,7 +126,10 @@ fn is_bot_ip_returns_false_when_no_ip() {
 #[test]
 fn referrer_source_skips_ip_addresses() {
     let mut headers = HeaderMap::new();
-    headers.insert("referer", HeaderValue::from_static("http://192.168.1.1/page"));
+    headers.insert(
+        "referer",
+        HeaderValue::from_static("http://192.168.1.1/page"),
+    );
     let analytics = SessionAnalytics::from_headers(&headers);
     assert!(analytics.referrer_source.is_none());
 }
@@ -166,8 +170,7 @@ fn utm_fields_are_none_without_uri() {
 
 #[test]
 fn compatible_user_agent_without_browser_is_bot() {
-    let headers =
-        create_headers_with_user_agent("Mozilla/5.0 (compatible; SomeBot/1.0)");
+    let headers = create_headers_with_user_agent("Mozilla/5.0 (compatible; SomeBot/1.0)");
     let analytics = SessionAnalytics::from_headers(&headers);
     assert!(analytics.is_bot());
 }

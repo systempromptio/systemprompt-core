@@ -5,12 +5,12 @@ use std::collections::{HashMap, VecDeque};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use systemprompt_identifiers::AgentName;
+use systemprompt_models::ai::provider_trait::GenerateResponseParams;
+use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
 use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, GoogleSearchParams, McpTool, PlanningResult,
     SearchGroundedResponse, StreamChunk, ToolModelOverrides,
 };
-use systemprompt_models::ai::provider_trait::GenerateResponseParams;
-use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
 use systemprompt_models::execution::context::RequestContext;
 use uuid::Uuid;
 
@@ -314,10 +314,7 @@ impl MockAiProviderBuilder {
         self
     }
 
-    pub fn with_health_check_response(
-        mut self,
-        response: Result<HashMap<String, bool>>,
-    ) -> Self {
+    pub fn with_health_check_response(mut self, response: Result<HashMap<String, bool>>) -> Self {
         self.health_check_responses.push_back(response);
         self
     }
@@ -350,9 +347,7 @@ impl MockAiProviderBuilder {
     pub fn build(self) -> MockAiProvider {
         MockAiProvider {
             generate_responses: Arc::new(Mutex::new(self.generate_responses)),
-            generate_with_tools_responses: Arc::new(Mutex::new(
-                self.generate_with_tools_responses,
-            )),
+            generate_with_tools_responses: Arc::new(Mutex::new(self.generate_with_tools_responses)),
             single_turn_responses: Arc::new(Mutex::new(self.single_turn_responses)),
             health_check_responses: Arc::new(Mutex::new(self.health_check_responses)),
             plan_responses: Arc::new(Mutex::new(self.plan_responses)),

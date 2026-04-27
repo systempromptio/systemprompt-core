@@ -193,6 +193,59 @@ fn locale_extraction_with_semicolon_in_first_value() {
 }
 
 #[test]
+fn ai_crawler_chatgpt_user_is_classified_as_ai_crawler_not_bot() {
+    let headers = create_headers_with_user_agent("Mozilla/5.0 ChatGPT-User/1.0");
+    let analytics = SessionAnalytics::from_headers(&headers);
+    assert!(analytics.is_ai_crawler());
+    assert!(!analytics.is_bot());
+    assert!(!analytics.should_skip_tracking());
+}
+
+#[test]
+fn ai_crawler_claudebot_is_classified_as_ai_crawler_not_bot() {
+    let headers = create_headers_with_user_agent("Mozilla/5.0 (compatible; ClaudeBot/1.0)");
+    let analytics = SessionAnalytics::from_headers(&headers);
+    assert!(analytics.is_ai_crawler());
+    assert!(!analytics.is_bot());
+}
+
+#[test]
+fn ai_crawler_notebooklm_classified_correctly() {
+    let headers = create_headers_with_user_agent("Mozilla/5.0 (compatible; Google-NotebookLM)");
+    let analytics = SessionAnalytics::from_headers(&headers);
+    assert!(analytics.is_ai_crawler());
+    assert!(!analytics.is_bot());
+}
+
+#[test]
+fn malformed_user_agent_template_string_is_bot() {
+    let headers = create_headers_with_user_agent("{USER_AGENT}");
+    let analytics = SessionAnalytics::from_headers(&headers);
+    assert!(analytics.is_bot());
+}
+
+#[test]
+fn malformed_user_agent_dash_is_bot() {
+    let headers = create_headers_with_user_agent("-");
+    let analytics = SessionAnalytics::from_headers(&headers);
+    assert!(analytics.is_bot());
+}
+
+#[test]
+fn malformed_user_agent_curly_braces_is_bot() {
+    let headers = create_headers_with_user_agent("{some_template_var}");
+    let analytics = SessionAnalytics::from_headers(&headers);
+    assert!(analytics.is_bot());
+}
+
+#[test]
+fn malformed_user_agent_null_literal_is_bot() {
+    let headers = create_headers_with_user_agent("null");
+    let analytics = SessionAnalytics::from_headers(&headers);
+    assert!(analytics.is_bot());
+}
+
+#[test]
 fn socket_addr_v6() {
     use std::net::{IpAddr, Ipv6Addr, SocketAddr};
     let headers = HeaderMap::new();

@@ -150,12 +150,7 @@ async fn test_find_or_create_new_user() {
     let service = UserCreationService::new(provider.clone());
 
     let result = service
-        .find_or_create_user_with_webauthn_registration(
-            "newuser",
-            "new@example.com",
-            None,
-            None,
-        )
+        .find_or_create_user_with_webauthn_registration("newuser", "new@example.com", None, None)
         .await
         .expect("should succeed for new user");
 
@@ -256,7 +251,8 @@ async fn test_find_or_create_returns_created_user_id() {
     let created = provider.created_users.lock().expect("lock");
     assert_eq!(created.len(), 1);
     assert_eq!(
-        returned_id, created[0].id.as_str(),
+        returned_id,
+        created[0].id.as_str(),
         "returned ID should match the created user's ID"
     );
 }

@@ -1,8 +1,7 @@
-//! Unit tests for FileValidator error handling (disabled, too large, blocked, etc.)
+//! Unit tests for FileValidator error handling (disabled, too large, blocked,
+//! etc.)
 
-use systemprompt_files::{
-    AllowedFileTypes, FileUploadConfig, FileValidationError, FileValidator,
-};
+use systemprompt_files::{AllowedFileTypes, FileUploadConfig, FileValidationError, FileValidator};
 
 fn disabled_config() -> FileUploadConfig {
     FileUploadConfig {
@@ -39,7 +38,7 @@ fn test_file_validator_uploads_disabled() {
     let validator = FileValidator::new(disabled_config());
     let result = validator.validate("image/png", 1000);
     match result.unwrap_err() {
-        FileValidationError::UploadsDisabled => {}
+        FileValidationError::UploadsDisabled => {},
         _ => panic!("Expected UploadsDisabled error"),
     }
 }
@@ -52,7 +51,7 @@ fn test_file_validator_file_too_large() {
         FileValidationError::FileTooLarge { size, max } => {
             assert_eq!(size, 2000);
             assert_eq!(max, 1024);
-        }
+        },
         _ => panic!("Expected FileTooLarge error"),
     }
 }
@@ -64,7 +63,7 @@ fn test_file_validator_type_not_allowed() {
     match result.unwrap_err() {
         FileValidationError::TypeNotAllowed { mime_type } => {
             assert_eq!(mime_type, "application/octet-stream");
-        }
+        },
         _ => panic!("Expected TypeNotAllowed error"),
     }
 }
@@ -76,7 +75,7 @@ fn test_file_validator_blocked_executable() {
     match result.unwrap_err() {
         FileValidationError::TypeBlocked { mime_type } => {
             assert_eq!(mime_type, "application/x-executable");
-        }
+        },
         _ => panic!("Expected TypeBlocked error"),
     }
 }
@@ -86,7 +85,7 @@ fn test_file_validator_blocked_shell_script() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/x-sh", 1000);
     match result.unwrap_err() {
-        FileValidationError::TypeBlocked { .. } => {}
+        FileValidationError::TypeBlocked { .. } => {},
         _ => panic!("Expected TypeBlocked error"),
     }
 }
@@ -96,7 +95,7 @@ fn test_file_validator_blocked_javascript() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/javascript", 1000);
     match result.unwrap_err() {
-        FileValidationError::TypeBlocked { .. } => {}
+        FileValidationError::TypeBlocked { .. } => {},
         _ => panic!("Expected TypeBlocked error"),
     }
 }
@@ -106,7 +105,7 @@ fn test_file_validator_blocked_php() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/x-httpd-php", 1000);
     match result.unwrap_err() {
-        FileValidationError::TypeBlocked { .. } => {}
+        FileValidationError::TypeBlocked { .. } => {},
         _ => panic!("Expected TypeBlocked error"),
     }
 }
@@ -116,7 +115,7 @@ fn test_file_validator_blocked_java_class() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/x-java-class", 1000);
     match result.unwrap_err() {
-        FileValidationError::TypeBlocked { .. } => {}
+        FileValidationError::TypeBlocked { .. } => {},
         _ => panic!("Expected TypeBlocked error"),
     }
 }
@@ -128,7 +127,7 @@ fn test_file_validator_category_disabled_video() {
     match result.unwrap_err() {
         FileValidationError::CategoryDisabled { category } => {
             assert_eq!(category, "video");
-        }
+        },
         _ => panic!("Expected CategoryDisabled error"),
     }
 }
@@ -140,7 +139,7 @@ fn test_file_validator_category_disabled_documents() {
     match result.unwrap_err() {
         FileValidationError::CategoryDisabled { category } => {
             assert_eq!(category, "document");
-        }
+        },
         _ => panic!("Expected CategoryDisabled error"),
     }
 }
@@ -152,7 +151,7 @@ fn test_file_validator_category_disabled_audio() {
     match result.unwrap_err() {
         FileValidationError::CategoryDisabled { category } => {
             assert_eq!(category, "audio");
-        }
+        },
         _ => panic!("Expected CategoryDisabled error"),
     }
 }

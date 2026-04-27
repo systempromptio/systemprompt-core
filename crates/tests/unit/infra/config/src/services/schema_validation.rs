@@ -7,7 +7,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_config::{generate_schema, validate_yaml_str, ConfigValidationError};
+use systemprompt_config::{ConfigValidationError, generate_schema, validate_yaml_str};
 
 // ============================================================================
 // Test Structs
@@ -207,7 +207,9 @@ fn test_generate_schema_has_name_field() {
     result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    properties.get("name").expect("properties.get(\"name\") should be present");
+    properties
+        .get("name")
+        .expect("properties.get(\"name\") should be present");
 }
 
 #[test]
@@ -216,7 +218,9 @@ fn test_generate_schema_has_port_field() {
     result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    properties.get("port").expect("properties.get(\"port\") should be present");
+    properties
+        .get("port")
+        .expect("properties.get(\"port\") should be present");
 }
 
 #[test]
@@ -225,8 +229,12 @@ fn test_generate_schema_nested() {
     result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    properties.get("database").expect("properties.get(\"database\") should be present");
-    properties.get("server").expect("properties.get(\"server\") should be present");
+    properties
+        .get("database")
+        .expect("properties.get(\"database\") should be present");
+    properties
+        .get("server")
+        .expect("properties.get(\"server\") should be present");
 }
 
 #[test]
@@ -235,8 +243,12 @@ fn test_generate_schema_optional_fields() {
     result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
     let properties = schema.get("properties").unwrap();
-    properties.get("required_field").expect("properties.get(\"required_field\") should be present");
-    properties.get("optional_field").expect("properties.get(\"optional_field\") should be present");
+    properties
+        .get("required_field")
+        .expect("properties.get(\"required_field\") should be present");
+    properties
+        .get("optional_field")
+        .expect("properties.get(\"optional_field\") should be present");
 }
 
 #[test]
@@ -253,7 +265,9 @@ fn test_generate_schema_has_schema_field() {
     let result = generate_schema::<SimpleConfig>();
     result.as_ref().expect("result should succeed");
     let schema = result.unwrap();
-    schema.get("$schema").expect("schema.get(\"$schema\") should be present");
+    schema
+        .get("$schema")
+        .expect("schema.get(\"$schema\") should be present");
 }
 
 // ============================================================================

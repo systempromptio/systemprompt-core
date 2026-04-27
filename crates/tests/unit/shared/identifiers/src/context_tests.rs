@@ -44,7 +44,9 @@ fn generate_produces_uuid_format() {
 
 #[test]
 fn generate_unique_across_calls() {
-    let ids: HashSet<String> = (0..50).map(|_| ContextId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..50)
+        .map(|_| ContextId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 50);
 }
 

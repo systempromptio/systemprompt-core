@@ -145,12 +145,18 @@ fn test_prompt_debug() {
 
 #[test]
 fn test_token_auth_method_client_secret_post_as_str() {
-    assert_eq!(TokenAuthMethod::ClientSecretPost.as_str(), "client_secret_post");
+    assert_eq!(
+        TokenAuthMethod::ClientSecretPost.as_str(),
+        "client_secret_post"
+    );
 }
 
 #[test]
 fn test_token_auth_method_client_secret_basic_as_str() {
-    assert_eq!(TokenAuthMethod::ClientSecretBasic.as_str(), "client_secret_basic");
+    assert_eq!(
+        TokenAuthMethod::ClientSecretBasic.as_str(),
+        "client_secret_basic"
+    );
 }
 
 #[test]
@@ -184,13 +190,22 @@ fn test_token_auth_method_from_str_invalid() {
 
 #[test]
 fn test_token_auth_method_default() {
-    assert_eq!(TokenAuthMethod::default(), TokenAuthMethod::ClientSecretPost);
+    assert_eq!(
+        TokenAuthMethod::default(),
+        TokenAuthMethod::ClientSecretPost
+    );
 }
 
 #[test]
 fn test_token_auth_method_display() {
-    assert_eq!(format!("{}", TokenAuthMethod::ClientSecretPost), "client_secret_post");
-    assert_eq!(format!("{}", TokenAuthMethod::ClientSecretBasic), "client_secret_basic");
+    assert_eq!(
+        format!("{}", TokenAuthMethod::ClientSecretPost),
+        "client_secret_post"
+    );
+    assert_eq!(
+        format!("{}", TokenAuthMethod::ClientSecretBasic),
+        "client_secret_basic"
+    );
     assert_eq!(format!("{}", TokenAuthMethod::None), "none");
 }
 

@@ -1,7 +1,7 @@
 //! Tests for typed API extension traits.
 
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::typed::{ApiExtensionTyped, ApiExtensionTypedDyn};
@@ -178,10 +178,7 @@ fn test_filter_public_api_extensions() {
         &NestedPathApiExtension,
     ];
 
-    let public_exts: Vec<_> = extensions
-        .iter()
-        .filter(|e| !e.requires_auth())
-        .collect();
+    let public_exts: Vec<_> = extensions.iter().filter(|e| !e.requires_auth()).collect();
 
     assert_eq!(public_exts.len(), 1);
     assert_eq!(public_exts[0].base_path(), "/api/v1/public");
@@ -195,10 +192,7 @@ fn test_filter_authenticated_api_extensions() {
         &NestedPathApiExtension,
     ];
 
-    let auth_exts: Vec<_> = extensions
-        .iter()
-        .filter(|e| e.requires_auth())
-        .collect();
+    let auth_exts: Vec<_> = extensions.iter().filter(|e| e.requires_auth()).collect();
 
     assert_eq!(auth_exts.len(), 2);
 }

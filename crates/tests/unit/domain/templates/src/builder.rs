@@ -57,7 +57,6 @@ mod with_provider_tests {
 
         assert_eq!(registry.stats().providers, 3);
     }
-
 }
 
 mod with_loader_tests {
@@ -172,7 +171,6 @@ mod build_tests {
         assert_eq!(stats.components, 1);
         assert_eq!(stats.page_providers, 1);
     }
-
 }
 
 mod build_and_init_tests {
@@ -183,10 +181,7 @@ mod build_and_init_tests {
         let result = TemplateRegistryBuilder::new().build_and_init().await;
 
         let err = result.unwrap_err();
-        assert!(matches!(
-            err,
-            TemplateError::NotInitialized
-        ));
+        assert!(matches!(err, TemplateError::NotInitialized));
     }
 
     #[tokio::test]

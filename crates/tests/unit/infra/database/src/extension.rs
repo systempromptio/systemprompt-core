@@ -83,4 +83,3 @@ fn test_database_extension_default() {
     let ext = DatabaseExtension::default();
     assert_eq!(ext.metadata().id, "database");
 }
-

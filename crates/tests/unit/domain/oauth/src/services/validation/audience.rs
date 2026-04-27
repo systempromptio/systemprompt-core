@@ -1,7 +1,9 @@
 //! Tests for audience validation
 
-use systemprompt_oauth::services::{validate_any_audience, validate_required_audience, validate_service_access};
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_oauth::services::{
+    validate_any_audience, validate_required_audience, validate_service_access,
+};
 
 // ============================================================================
 // validate_service_access Tests
@@ -157,7 +159,12 @@ fn test_validate_any_audience_exact_match() {
 
 #[test]
 fn test_validate_any_audience_superset() {
-    let token_audiences = vec![JwtAudience::Api, JwtAudience::Mcp, JwtAudience::Web, JwtAudience::A2a];
+    let token_audiences = vec![
+        JwtAudience::Api,
+        JwtAudience::Mcp,
+        JwtAudience::Web,
+        JwtAudience::A2a,
+    ];
     let allowed = vec![JwtAudience::A2a];
     assert!(validate_any_audience(&token_audiences, &allowed));
 }

@@ -46,9 +46,7 @@ fn task_builder_with_task_id() {
 #[test]
 fn task_builder_with_state_working() {
     let ctx = ContextId::generate();
-    let task = TaskBuilder::new(ctx)
-        .with_state(TaskState::Working)
-        .build();
+    let task = TaskBuilder::new(ctx).with_state(TaskState::Working).build();
     assert_eq!(task.status.state, TaskState::Working);
 }
 
@@ -64,9 +62,7 @@ fn task_builder_with_state_canceled() {
 #[test]
 fn task_builder_with_state_failed() {
     let ctx = ContextId::generate();
-    let task = TaskBuilder::new(ctx)
-        .with_state(TaskState::Failed)
-        .build();
+    let task = TaskBuilder::new(ctx).with_state(TaskState::Failed).build();
     assert_eq!(task.status.state, TaskState::Failed);
 }
 
@@ -85,9 +81,7 @@ fn task_builder_with_response_text() {
 fn task_builder_with_message_id() {
     let ctx = ContextId::generate();
     let mid = MessageId::generate();
-    let task = TaskBuilder::new(ctx)
-        .with_message_id(mid.clone())
-        .build();
+    let task = TaskBuilder::new(ctx).with_message_id(mid.clone()).build();
     let status_msg = task.status.message.unwrap();
     assert_eq!(status_msg.message_id, mid);
 }

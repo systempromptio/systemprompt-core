@@ -183,16 +183,10 @@ fn test_context_event_a2a_to_sse_succeeds() {
 
 #[test]
 fn test_multiple_agui_events_serialize_independently() {
-    let event1 = AgUiEventBuilder::run_started(
-        ContextId::new("context-1"),
-        TaskId::new("task-1"),
-        None,
-    );
-    let event2 = AgUiEventBuilder::run_started(
-        ContextId::new("context-2"),
-        TaskId::new("task-2"),
-        None,
-    );
+    let event1 =
+        AgUiEventBuilder::run_started(ContextId::new("context-1"), TaskId::new("task-1"), None);
+    let event2 =
+        AgUiEventBuilder::run_started(ContextId::new("context-2"), TaskId::new("task-2"), None);
 
     let sse1 = event1.to_sse().expect("should serialize");
     let sse2 = event2.to_sse().expect("should serialize");
@@ -221,12 +215,8 @@ fn test_analytics_event_heartbeat() {
 
 #[test]
 fn test_analytics_event_session_ended() {
-    let event = AnalyticsEventBuilder::session_ended(
-        "test-session".to_string().into(),
-        60000,
-        5,
-        10,
-    );
+    let event =
+        AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 60000, 5, 10);
     let result = event.to_sse();
     let _ = result.expect("result should succeed");
 }

@@ -102,8 +102,7 @@ mod error_traits_tests {
 
     #[test]
     fn implements_std_error() {
-        let err: Box<dyn std::error::Error> =
-            Box::new(TemplateLoaderError::NoBasePaths);
+        let err: Box<dyn std::error::Error> = Box::new(TemplateLoaderError::NoBasePaths);
         assert!(!err.to_string().is_empty());
     }
 

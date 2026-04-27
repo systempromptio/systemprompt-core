@@ -36,7 +36,9 @@ mod create_analytics_event_input_tests {
         let input = CreateAnalyticsEventInput {
             event_type: AnalyticsEventType::Conversion,
             page_url: "/checkout".to_string(),
-            content_id: Some(systemprompt_identifiers::ContentId::new("cnt_123".to_string())),
+            content_id: Some(systemprompt_identifiers::ContentId::new(
+                "cnt_123".to_string(),
+            )),
             slug: Some("checkout-page".to_string()),
             referrer: Some("https://google.com".to_string()),
             data: Some(data.clone()),
@@ -67,7 +69,9 @@ mod create_analytics_event_input_tests {
 
         let input: CreateAnalyticsEventInput = serde_json::from_str(json).unwrap();
 
-        let data = input.data.expect("data should be present for conversion event");
+        let data = input
+            .data
+            .expect("data should be present for conversion event");
         assert_eq!(data["amount"], 199.99);
         assert_eq!(data["currency"], "USD");
     }

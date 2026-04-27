@@ -90,11 +90,7 @@ mod banned_ip_tests {
     #[test]
     fn banned_ip_with_many_session_ids() {
         let mut banned = create_test_banned_ip();
-        banned.associated_session_ids = Some(
-            (0..100)
-                .map(|i| format!("session-{}", i))
-                .collect(),
-        );
+        banned.associated_session_ids = Some((0..100).map(|i| format!("session-{}", i)).collect());
 
         assert_eq!(banned.associated_session_ids.as_ref().unwrap().len(), 100);
     }

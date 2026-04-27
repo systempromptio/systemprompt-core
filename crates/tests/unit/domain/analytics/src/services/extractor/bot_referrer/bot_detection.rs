@@ -13,19 +13,21 @@ mod bot_detection_tests {
     }
 
     #[test]
-    fn is_bot_detects_gptbot() {
+    fn ai_crawler_detects_gptbot() {
         let headers = create_headers_with_user_agent("GPTBot/1.0");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_ai_crawler());
+        assert!(!analytics.is_bot());
     }
 
     #[test]
-    fn is_bot_detects_claudeweb() {
+    fn ai_crawler_detects_claudeweb() {
         let headers = create_headers_with_user_agent("Claude-Web/1.0");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_ai_crawler());
+        assert!(!analytics.is_bot());
     }
 
     #[test]
@@ -213,19 +215,21 @@ mod bot_detection_tests {
     }
 
     #[test]
-    fn is_bot_detects_amazonbot() {
+    fn ai_crawler_detects_amazonbot() {
         let headers = create_headers_with_user_agent("Amazonbot/0.1");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_ai_crawler());
+        assert!(!analytics.is_bot());
     }
 
     #[test]
-    fn is_bot_detects_bytespider() {
+    fn ai_crawler_detects_bytespider() {
         let headers = create_headers_with_user_agent("Mozilla/5.0 Bytespider");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_ai_crawler());
+        assert!(!analytics.is_bot());
     }
 
     #[test]
@@ -237,27 +241,30 @@ mod bot_detection_tests {
     }
 
     #[test]
-    fn is_bot_detects_perplexitybot() {
+    fn ai_crawler_detects_perplexitybot() {
         let headers = create_headers_with_user_agent("PerplexityBot/1.0");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_ai_crawler());
+        assert!(!analytics.is_bot());
     }
 
     #[test]
-    fn is_bot_detects_chatgpt_user() {
+    fn ai_crawler_detects_chatgpt_user() {
         let headers = create_headers_with_user_agent("ChatGPT-User/1.0");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_ai_crawler());
+        assert!(!analytics.is_bot());
     }
 
     #[test]
-    fn is_bot_detects_anthropic_ai() {
+    fn ai_crawler_detects_anthropic_ai() {
         let headers = create_headers_with_user_agent("Anthropic-AI/1.0");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_ai_crawler());
+        assert!(!analytics.is_bot());
     }
 
     #[test]

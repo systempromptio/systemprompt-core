@@ -11,9 +11,12 @@ mod content_type_inference_tests {
     async fn infers_content_type_from_post_suffix() {
         let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
 
-        fs::write(temp_dir.path().join("article-post.html"), "<article></article>")
-            .await
-            .expect("failed to write");
+        fs::write(
+            temp_dir.path().join("article-post.html"),
+            "<article></article>",
+        )
+        .await
+        .expect("failed to write");
 
         let provider = CoreTemplateProvider::discover_from(temp_dir.path())
             .await
@@ -136,7 +139,7 @@ mod template_source_tests {
         match &template.source {
             systemprompt_templates::TemplateSource::File(path) => {
                 assert!(path.to_string_lossy().contains("test.html"));
-            }
+            },
             _ => panic!("Expected File source"),
         }
     }

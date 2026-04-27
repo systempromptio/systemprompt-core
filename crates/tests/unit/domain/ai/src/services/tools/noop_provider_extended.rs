@@ -1,6 +1,6 @@
+use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider, ToolProviderError};
-use serde_json::json;
 
 mod noop_default_tests {
     use super::*;
@@ -47,7 +47,10 @@ mod noop_error_details_tests {
             arguments: json!({}),
         };
 
-        let err = provider.call_tool(&request, "svc", &context).await.unwrap_err();
+        let err = provider
+            .call_tool(&request, "svc", &context)
+            .await
+            .unwrap_err();
 
         assert!(err.to_string().contains("specific_tool_name"));
     }
@@ -62,7 +65,10 @@ mod noop_error_details_tests {
             arguments: json!({"key": "value"}),
         };
 
-        let err = provider.call_tool(&request, "svc", &context).await.unwrap_err();
+        let err = provider
+            .call_tool(&request, "svc", &context)
+            .await
+            .unwrap_err();
 
         match err {
             ToolProviderError::ServiceNotFound(msg) => {
@@ -83,8 +89,14 @@ mod noop_error_details_tests {
             arguments: json!({}),
         };
 
-        let err1 = provider.call_tool(&request, "service-a", &context).await.unwrap_err();
-        let err2 = provider.call_tool(&request, "service-b", &context).await.unwrap_err();
+        let err1 = provider
+            .call_tool(&request, "service-a", &context)
+            .await
+            .unwrap_err();
+        let err2 = provider
+            .call_tool(&request, "service-b", &context)
+            .await
+            .unwrap_err();
 
         assert!(err1.to_string().contains("NoopToolProvider"));
         assert!(err2.to_string().contains("NoopToolProvider"));

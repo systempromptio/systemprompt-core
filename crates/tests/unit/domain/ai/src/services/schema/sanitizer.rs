@@ -1,7 +1,7 @@
 //! Tests for SchemaSanitizer.
 
-use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaSanitizer};
 use serde_json::json;
+use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaSanitizer};
 
 mod remove_unsupported_keywords_tests {
     use super::*;
@@ -51,7 +51,9 @@ mod remove_unsupported_keywords_tests {
         });
 
         let result = sanitizer.sanitize(schema);
-        result.get("anyOf").expect("non-null anyOf should be preserved");
+        result
+            .get("anyOf")
+            .expect("non-null anyOf should be preserved");
     }
 
     #[test]
@@ -113,7 +115,9 @@ mod remove_unsupported_keywords_tests {
         result.get("if").expect("if field should be present");
         result.get("then").expect("then field should be present");
         result.get("not").expect("not field should be present");
-        result.get("additionalProperties").expect("additionalProperties field should be present");
+        result
+            .get("additionalProperties")
+            .expect("additionalProperties field should be present");
     }
 }
 
@@ -256,8 +260,12 @@ mod remove_extension_fields_tests {
         });
 
         let result = sanitizer().sanitize(schema);
-        result.get("xProperty").expect("xProperty field should be present");
-        result.get("properties").expect("properties field should be present");
+        result
+            .get("xProperty")
+            .expect("xProperty field should be present");
+        result
+            .get("properties")
+            .expect("properties field should be present");
     }
 }
 
@@ -389,7 +397,9 @@ mod sanitize_nested_schemas_tests {
         let additional = result["additionalProperties"].as_object().unwrap();
         assert!(additional.get("$schema").is_none());
         assert!(additional.get("x-custom").is_none());
-        additional.get("type").expect("type field should be present");
+        additional
+            .get("type")
+            .expect("type field should be present");
     }
 
     #[test]

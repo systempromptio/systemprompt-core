@@ -55,10 +55,8 @@ mod available_content_types_tests {
         let mut registry = TemplateRegistry::new();
 
         let templates = vec![
-            TemplateDefinition::embedded("article-post", "<article>")
-                .for_content_type("article"),
-            TemplateDefinition::embedded("guide-post", "<guide>")
-                .for_content_type("guide"),
+            TemplateDefinition::embedded("article-post", "<article>").for_content_type("article"),
+            TemplateDefinition::embedded("guide-post", "<guide>").for_content_type("guide"),
         ];
         registry.register_provider(provider(MockProvider::with_templates("p", templates)));
         registry.register_loader(loader(MockLoader::new()));
@@ -77,8 +75,7 @@ mod available_content_types_tests {
             TemplateDefinition::embedded("template-a", "<a>")
                 .for_content_type("article")
                 .for_content_type("blog"),
-            TemplateDefinition::embedded("template-b", "<b>")
-                .for_content_type("article"),
+            TemplateDefinition::embedded("template-b", "<b>").for_content_type("article"),
         ];
         registry.register_provider(provider(MockProvider::with_templates("p", templates)));
         registry.register_loader(loader(MockLoader::new()));

@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 
+use systemprompt_models::profile::{expand_home, resolve_path, resolve_with_home};
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileStyle, ProfileType,
-    RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig, ServerConfig, SiteConfig,
+    RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig, ServerConfig,
+    SiteConfig,
 };
-use systemprompt_models::profile::{expand_home, resolve_path, resolve_with_home};
 
 fn make_paths_config(base: &str) -> PathsConfig {
     PathsConfig {
@@ -211,17 +212,23 @@ fn mask_database_url_at_sign_but_no_colon() {
 
 #[test]
 fn is_masked_database_url_with_triple_star() {
-    assert!(Profile::is_masked_database_url("postgres://user:***@localhost"));
+    assert!(Profile::is_masked_database_url(
+        "postgres://user:***@localhost"
+    ));
 }
 
 #[test]
 fn is_masked_database_url_with_eight_stars() {
-    assert!(Profile::is_masked_database_url("postgres://user:********@localhost"));
+    assert!(Profile::is_masked_database_url(
+        "postgres://user:********@localhost"
+    ));
 }
 
 #[test]
 fn is_masked_database_url_plain_url() {
-    assert!(!Profile::is_masked_database_url("postgres://user:pass@localhost"));
+    assert!(!Profile::is_masked_database_url(
+        "postgres://user:pass@localhost"
+    ));
 }
 
 #[test]
@@ -474,10 +481,19 @@ fn environment_display() {
 
 #[test]
 fn environment_from_str() {
-    assert_eq!("development".parse::<Environment>().unwrap(), Environment::Development);
-    assert_eq!("production".parse::<Environment>().unwrap(), Environment::Production);
+    assert_eq!(
+        "development".parse::<Environment>().unwrap(),
+        Environment::Development
+    );
+    assert_eq!(
+        "production".parse::<Environment>().unwrap(),
+        Environment::Production
+    );
     assert_eq!("test".parse::<Environment>().unwrap(), Environment::Test);
-    assert_eq!("staging".parse::<Environment>().unwrap(), Environment::Staging);
+    assert_eq!(
+        "staging".parse::<Environment>().unwrap(),
+        Environment::Staging
+    );
 }
 
 #[test]
@@ -583,7 +599,11 @@ fn cloud_validation_mode_default_is_strict() {
 
 #[test]
 fn cloud_validation_mode_serde_roundtrip() {
-    for mode in [CloudValidationMode::Strict, CloudValidationMode::Warn, CloudValidationMode::Skip] {
+    for mode in [
+        CloudValidationMode::Strict,
+        CloudValidationMode::Warn,
+        CloudValidationMode::Skip,
+    ] {
         let json = serde_json::to_string(&mode).unwrap();
         let deserialized: CloudValidationMode = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, mode);
@@ -664,7 +684,10 @@ fn site_config_serde_roundtrip() {
     let json = serde_json::to_string(&config).unwrap();
     let deserialized: SiteConfig = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.name, "My Site");
-    assert_eq!(deserialized.github_link.as_deref(), Some("https://github.com/example"));
+    assert_eq!(
+        deserialized.github_link.as_deref(),
+        Some("https://github.com/example")
+    );
 }
 
 #[test]

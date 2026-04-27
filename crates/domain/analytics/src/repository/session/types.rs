@@ -26,6 +26,7 @@ pub struct CreateSessionParams<'a> {
     pub utm_content: Option<&'a str>,
     pub utm_term: Option<&'a str>,
     pub is_bot: bool,
+    pub is_ai_crawler: bool,
     pub expires_at: DateTime<Utc>,
 }
 

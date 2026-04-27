@@ -16,7 +16,10 @@ async fn test_client_lifecycle() {
 
     let client_id = test_client_id();
     let redirect_uris = vec!["http://localhost:3000/callback".to_string()];
-    let grant_types = vec!["authorization_code".to_string(), "refresh_token".to_string()];
+    let grant_types = vec![
+        "authorization_code".to_string(),
+        "refresh_token".to_string(),
+    ];
     let response_types = vec!["code".to_string()];
     let scopes = vec!["openid".to_string(), "profile".to_string()];
 
@@ -192,7 +195,10 @@ async fn test_client_counting() {
     let client_id = test_client_id();
 
     let initial_count = repo.count().await.expect("Failed to count clients");
-    assert!(initial_count >= 0, "Count should return a non-negative value");
+    assert!(
+        initial_count >= 0,
+        "Count should return a non-negative value"
+    );
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
@@ -213,7 +219,10 @@ async fn test_client_counting() {
         .expect("Failed to create client");
 
     let count_after_create = repo.count().await.expect("Failed to count clients");
-    assert!(count_after_create > 0, "Count should be positive after creating client");
+    assert!(
+        count_after_create > 0,
+        "Count should be positive after creating client"
+    );
 
     let client_exists = repo
         .get_by_client_id(&client_id)
@@ -227,5 +236,8 @@ async fn test_client_counting() {
         .expect("Failed to delete client");
 
     let count_after_delete = repo.count().await.expect("Failed to count after delete");
-    assert!(count_after_delete >= 0, "Count should be non-negative after delete");
+    assert!(
+        count_after_delete >= 0,
+        "Count should be non-negative after delete"
+    );
 }

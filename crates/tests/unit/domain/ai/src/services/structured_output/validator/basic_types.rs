@@ -157,7 +157,8 @@ mod object_validation_tests {
             "additionalProperties": false
         });
 
-        SchemaValidator::validate(&value, &schema, false).expect("non-strict mode should allow additional properties");
+        SchemaValidator::validate(&value, &schema, false)
+            .expect("non-strict mode should allow additional properties");
     }
 
     #[test]

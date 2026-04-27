@@ -13,6 +13,9 @@ pub struct BehavioralAnalysisInput {
     pub endpoints_accessed: Vec<String>,
     pub total_site_pages: i64,
     pub fingerprint_session_count: i64,
+    pub fingerprint_unique_ip_count: i64,
+    pub fingerprint_engagement_event_count: i64,
+    pub fingerprint_session_starts: Vec<DateTime<Utc>>,
     pub request_timestamps: Vec<DateTime<Utc>>,
     pub has_javascript_events: bool,
     pub landing_page: Option<String>,
@@ -45,6 +48,10 @@ pub enum SignalType {
     OutdatedBrowser,
     NoJavaScriptEvents,
     GhostSession,
+    ResidentialProxyRotation,
+    NoEngagementAcrossSessions,
+    PeriodicCadence,
+    HomeTabWatcher,
 }
 
 impl std::fmt::Display for SignalType {
@@ -59,6 +66,10 @@ impl std::fmt::Display for SignalType {
             Self::OutdatedBrowser => write!(f, "outdated_browser"),
             Self::NoJavaScriptEvents => write!(f, "no_javascript_events"),
             Self::GhostSession => write!(f, "ghost_session"),
+            Self::ResidentialProxyRotation => write!(f, "residential_proxy_rotation"),
+            Self::NoEngagementAcrossSessions => write!(f, "no_js_engagement"),
+            Self::PeriodicCadence => write!(f, "periodic_cadence"),
+            Self::HomeTabWatcher => write!(f, "home_tab_watcher"),
         }
     }
 }

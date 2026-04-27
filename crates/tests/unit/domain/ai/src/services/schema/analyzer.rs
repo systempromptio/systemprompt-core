@@ -1,7 +1,7 @@
 //! Tests for DiscriminatedUnion detection and analysis.
 
-use systemprompt_ai::services::schema::DiscriminatedUnion;
 use serde_json::json;
+use systemprompt_ai::services::schema::DiscriminatedUnion;
 
 mod discriminated_union_tests {
     use super::*;

@@ -1,4 +1,5 @@
-//! Bot detection for compatible user agents, IP-based bot detection, and UTM extraction tests.
+//! Bot detection for compatible user agents, IP-based bot detection, and UTM
+//! extraction tests.
 
 use axum::http::{HeaderMap, HeaderValue, Uri};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -21,18 +22,29 @@ mod bot_ip_utm_tests {
 
     fn create_full_headers() -> HeaderMap {
         let mut headers = HeaderMap::new();
-        headers.insert("user-agent", HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"));
+        headers.insert(
+            "user-agent",
+            HeaderValue::from_static(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
+                 Chrome/120.0.0.0 Safari/537.36",
+            ),
+        );
         headers.insert("x-forwarded-for", HeaderValue::from_static("203.0.113.1"));
         headers.insert("x-fingerprint", HeaderValue::from_static("abc123"));
-        headers.insert("accept-language", HeaderValue::from_static("en-US,en;q=0.9"));
-        headers.insert("referer", HeaderValue::from_static("https://google.com/search?q=test"));
+        headers.insert(
+            "accept-language",
+            HeaderValue::from_static("en-US,en;q=0.9"),
+        );
+        headers.insert(
+            "referer",
+            HeaderValue::from_static("https://google.com/search?q=test"),
+        );
         headers
     }
 
     #[test]
     fn compatible_user_agent_without_browser_is_bot() {
-        let headers =
-            create_headers_with_user_agent("Mozilla/5.0 (compatible; SomeBot/1.0)");
+        let headers = create_headers_with_user_agent("Mozilla/5.0 (compatible; SomeBot/1.0)");
         let analytics = SessionAnalytics::from_headers(&headers);
 
         assert!(analytics.is_bot());
@@ -112,7 +124,9 @@ mod bot_ip_utm_tests {
     #[test]
     fn from_headers_and_uri_extracts_utm_source() {
         let headers = create_full_headers();
-        let uri: Uri = "https://example.com/page?utm_source=google".parse().unwrap();
+        let uri: Uri = "https://example.com/page?utm_source=google"
+            .parse()
+            .unwrap();
         let analytics = SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, None);
 
         assert_eq!(analytics.utm_source, Some("google".to_string()));

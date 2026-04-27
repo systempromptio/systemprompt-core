@@ -1,4 +1,5 @@
-//! Unit tests for ConfigValidator::validate() - required variables, URL format, unresolved variables
+//! Unit tests for ConfigValidator::validate() - required variables, URL format,
+//! unresolved variables
 
 use std::collections::HashMap;
 use systemprompt_config::{ConfigValidator, DeployEnvironment, EnvironmentConfig};
@@ -7,11 +8,20 @@ fn create_valid_config(environment: DeployEnvironment) -> EnvironmentConfig {
     let mut variables = HashMap::new();
     variables.insert("SERVICE_NAME".to_string(), "test-service".to_string());
     variables.insert("SYSTEM_PATH".to_string(), "/var/www/app".to_string());
-    variables.insert("DATABASE_URL".to_string(), "postgresql://localhost/test".to_string());
+    variables.insert(
+        "DATABASE_URL".to_string(),
+        "postgresql://localhost/test".to_string(),
+    );
     variables.insert("HOST".to_string(), "0.0.0.0".to_string());
     variables.insert("PORT".to_string(), "8080".to_string());
-    variables.insert("API_SERVER_URL".to_string(), "http://localhost:8080".to_string());
-    variables.insert("JWT_SECRET".to_string(), "super_secret_key_12345".to_string());
+    variables.insert(
+        "API_SERVER_URL".to_string(),
+        "http://localhost:8080".to_string(),
+    );
+    variables.insert(
+        "JWT_SECRET".to_string(),
+        "super_secret_key_12345".to_string(),
+    );
     variables.insert("JWT_ISSUER".to_string(), "test-issuer".to_string());
 
     EnvironmentConfig {
@@ -23,8 +33,7 @@ fn create_valid_config(environment: DeployEnvironment) -> EnvironmentConfig {
 #[test]
 fn test_validate_valid_config() {
     let config = create_valid_config(DeployEnvironment::Local);
-    let report = ConfigValidator::validate(&config)
-        .expect("valid config should pass validation");
+    let report = ConfigValidator::validate(&config).expect("valid config should pass validation");
     assert!(report.is_valid());
     assert!(report.errors.is_empty());
 }
@@ -32,7 +41,9 @@ fn test_validate_valid_config() {
 #[test]
 fn test_validate_detects_unresolved_variable() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("HOST".to_string(), "${UNDEFINED_HOST}".to_string());
+    config
+        .variables
+        .insert("HOST".to_string(), "${UNDEFINED_HOST}".to_string());
 
     let err_msg = ConfigValidator::validate(&config).unwrap_err().to_string();
     assert!(err_msg.contains("validation error"));
@@ -41,7 +52,9 @@ fn test_validate_detects_unresolved_variable() {
 #[test]
 fn test_validate_detects_unresolved_variable_with_default_syntax() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("TIMEOUT".to_string(), "${UNDEFINED:-}".to_string());
+    config
+        .variables
+        .insert("TIMEOUT".to_string(), "${UNDEFINED:-}".to_string());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -113,7 +126,9 @@ fn test_validate_missing_required_jwt_issuer() {
 #[test]
 fn test_validate_empty_database_url() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("DATABASE_URL".to_string(), String::new());
+    config
+        .variables
+        .insert("DATABASE_URL".to_string(), String::new());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -121,7 +136,9 @@ fn test_validate_empty_database_url() {
 #[test]
 fn test_validate_empty_jwt_secret() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("JWT_SECRET".to_string(), String::new());
+    config
+        .variables
+        .insert("JWT_SECRET".to_string(), String::new());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -129,7 +146,9 @@ fn test_validate_empty_jwt_secret() {
 #[test]
 fn test_validate_quoted_empty_database_url() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("DATABASE_URL".to_string(), "''".to_string());
+    config
+        .variables
+        .insert("DATABASE_URL".to_string(), "''".to_string());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -137,7 +156,9 @@ fn test_validate_quoted_empty_database_url() {
 #[test]
 fn test_validate_double_quoted_empty_jwt_secret() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("JWT_SECRET".to_string(), "\"\"".to_string());
+    config
+        .variables
+        .insert("JWT_SECRET".to_string(), "\"\"".to_string());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -145,7 +166,9 @@ fn test_validate_double_quoted_empty_jwt_secret() {
 #[test]
 fn test_validate_invalid_database_url_format() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("DATABASE_URL".to_string(), "not-a-valid-url".to_string());
+    config
+        .variables
+        .insert("DATABASE_URL".to_string(), "not-a-valid-url".to_string());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -153,7 +176,9 @@ fn test_validate_invalid_database_url_format() {
 #[test]
 fn test_validate_invalid_api_server_url_format() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("API_SERVER_URL".to_string(), "invalid-url".to_string());
+    config
+        .variables
+        .insert("API_SERVER_URL".to_string(), "invalid-url".to_string());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -161,7 +186,10 @@ fn test_validate_invalid_api_server_url_format() {
 #[test]
 fn test_validate_valid_postgresql_url() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("DATABASE_URL".to_string(), "postgresql://user:pass@localhost:5432/db".to_string());
+    config.variables.insert(
+        "DATABASE_URL".to_string(),
+        "postgresql://user:pass@localhost:5432/db".to_string(),
+    );
 
     ConfigValidator::validate(&config).expect("postgresql URL should be valid");
 }
@@ -169,7 +197,10 @@ fn test_validate_valid_postgresql_url() {
 #[test]
 fn test_validate_valid_mysql_url() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("DATABASE_URL".to_string(), "mysql://user:pass@localhost:3306/db".to_string());
+    config.variables.insert(
+        "DATABASE_URL".to_string(),
+        "mysql://user:pass@localhost:3306/db".to_string(),
+    );
 
     ConfigValidator::validate(&config).expect("mysql URL should be valid");
 }
@@ -177,7 +208,10 @@ fn test_validate_valid_mysql_url() {
 #[test]
 fn test_validate_valid_http_api_url() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("API_SERVER_URL".to_string(), "http://api.example.com".to_string());
+    config.variables.insert(
+        "API_SERVER_URL".to_string(),
+        "http://api.example.com".to_string(),
+    );
 
     ConfigValidator::validate(&config).expect("http API URL should be valid");
 }
@@ -185,7 +219,10 @@ fn test_validate_valid_http_api_url() {
 #[test]
 fn test_validate_valid_https_api_url() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("API_SERVER_URL".to_string(), "https://api.example.com".to_string());
+    config.variables.insert(
+        "API_SERVER_URL".to_string(),
+        "https://api.example.com".to_string(),
+    );
 
     ConfigValidator::validate(&config).expect("https API URL should be valid");
 }
@@ -195,7 +232,9 @@ fn test_validate_multiple_errors() {
     let mut config = create_valid_config(DeployEnvironment::Local);
     config.variables.remove("DATABASE_URL");
     config.variables.remove("JWT_SECRET");
-    config.variables.insert("PORT".to_string(), "invalid".to_string());
+    config
+        .variables
+        .insert("PORT".to_string(), "invalid".to_string());
 
     let err_msg = ConfigValidator::validate(&config).unwrap_err().to_string();
     assert!(err_msg.contains("validation error"));
@@ -204,7 +243,10 @@ fn test_validate_multiple_errors() {
 #[test]
 fn test_validate_api_external_url_valid() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("API_EXTERNAL_URL".to_string(), "https://api.external.com".to_string());
+    config.variables.insert(
+        "API_EXTERNAL_URL".to_string(),
+        "https://api.external.com".to_string(),
+    );
 
     ConfigValidator::validate(&config).expect("valid external URL should pass");
 }
@@ -212,7 +254,9 @@ fn test_validate_api_external_url_valid() {
 #[test]
 fn test_validate_api_external_url_invalid() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("API_EXTERNAL_URL".to_string(), "not-a-url".to_string());
+    config
+        .variables
+        .insert("API_EXTERNAL_URL".to_string(), "not-a-url".to_string());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -220,7 +264,9 @@ fn test_validate_api_external_url_invalid() {
 #[test]
 fn test_validate_empty_api_external_url_allowed() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.insert("API_EXTERNAL_URL".to_string(), String::new());
+    config
+        .variables
+        .insert("API_EXTERNAL_URL".to_string(), String::new());
 
     ConfigValidator::validate(&config).expect("empty external URL should be allowed");
 }
@@ -231,4 +277,3 @@ fn test_config_validator_debug() {
     let debug_str = format!("{:?}", validator);
     assert!(debug_str.contains("ConfigValidator"));
 }
-

@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{JwtToken, SessionToken, CloudAuthToken, DbValue, ToDbValue};
+use systemprompt_identifiers::{CloudAuthToken, DbValue, JwtToken, SessionToken, ToDbValue};
 
 #[test]
 fn jwt_token_redacted_short_token() {

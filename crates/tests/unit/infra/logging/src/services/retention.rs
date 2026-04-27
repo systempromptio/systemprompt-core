@@ -1,7 +1,7 @@
 //! Unit tests for RetentionPolicy and RetentionConfig
 
-use systemprompt_logging::services::retention::{RetentionConfig, RetentionPolicy};
 use systemprompt_logging::LogLevel;
+use systemprompt_logging::services::retention::{RetentionConfig, RetentionPolicy};
 
 // ============================================================================
 // RetentionPolicy Creation Tests
@@ -138,12 +138,15 @@ fn test_retention_config_default_schedule() {
 fn test_retention_config_default_policies() {
     let config = RetentionConfig::default();
 
-    // Default has 4 policies: debug (1 day), info (7 days), warnings (30 days), errors (90 days)
+    // Default has 4 policies: debug (1 day), info (7 days), warnings (30 days),
+    // errors (90 days)
     assert_eq!(config.policies.len(), 4);
 
     // Check debug logs policy
     let debug_policy = config.policies.iter().find(|p| p.name == "debug_logs");
-    debug_policy.as_ref().expect("debug_policy should be present");
+    debug_policy
+        .as_ref()
+        .expect("debug_policy should be present");
     let debug_policy = debug_policy.unwrap();
     assert_eq!(debug_policy.retention_days, 1);
     assert_eq!(debug_policy.level, Some(LogLevel::Debug));
@@ -164,7 +167,9 @@ fn test_retention_config_default_policies() {
 
     // Check errors policy
     let error_policy = config.policies.iter().find(|p| p.name == "errors");
-    error_policy.as_ref().expect("error_policy should be present");
+    error_policy
+        .as_ref()
+        .expect("error_policy should be present");
     let error_policy = error_policy.unwrap();
     assert_eq!(error_policy.retention_days, 90);
     assert_eq!(error_policy.level, Some(LogLevel::Error));

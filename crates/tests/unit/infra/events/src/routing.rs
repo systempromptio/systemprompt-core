@@ -1,6 +1,6 @@
 use systemprompt_events::{
-    Broadcaster, EventRouter, A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER,
-    CONTEXT_BROADCASTER,
+    A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
+    EventRouter,
 };
 use systemprompt_identifiers::{ContextId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
@@ -83,7 +83,10 @@ async fn test_route_agui_with_registered_connection() {
     let (agui_count, _context_count) = EventRouter::route_agui(&user_id, event).await;
 
     assert_eq!(agui_count, 1);
-    let _ = receiver.recv().await.expect("receiver.recv().await should be present");
+    let _ = receiver
+        .recv()
+        .await
+        .expect("receiver.recv().await should be present");
 
     AGUI_BROADCASTER.unregister(&user_id, "agui-conn").await;
 }
@@ -110,7 +113,10 @@ async fn test_route_a2a_with_registered_connection() {
     let (a2a_count, _context_count) = EventRouter::route_a2a(&user_id, event).await;
 
     assert_eq!(a2a_count, 1);
-    let _ = receiver.recv().await.expect("receiver.recv().await should be present");
+    let _ = receiver
+        .recv()
+        .await
+        .expect("receiver.recv().await should be present");
 
     A2A_BROADCASTER.unregister(&user_id, "a2a-conn").await;
 }
@@ -138,7 +144,10 @@ async fn test_route_system_with_registered_connection() {
     let count = EventRouter::route_system(&user_id, event).await;
 
     assert_eq!(count, 1);
-    let _ = receiver.recv().await.expect("receiver.recv().await should be present");
+    let _ = receiver
+        .recv()
+        .await
+        .expect("receiver.recv().await should be present");
 
     CONTEXT_BROADCASTER
         .unregister(&user_id, "context-conn")
@@ -158,7 +167,10 @@ async fn test_route_agui_broadcasts_to_context() {
     let (_agui_count, context_count) = EventRouter::route_agui(&user_id, event).await;
 
     assert_eq!(context_count, 1);
-    let _ = context_receiver.recv().await.expect("context_receiver.recv().await should be present");
+    let _ = context_receiver
+        .recv()
+        .await
+        .expect("context_receiver.recv().await should be present");
 
     CONTEXT_BROADCASTER
         .unregister(&user_id, "context-only-conn")
@@ -178,7 +190,10 @@ async fn test_route_a2a_broadcasts_to_context() {
     let (_a2a_count, context_count) = EventRouter::route_a2a(&user_id, event).await;
 
     assert_eq!(context_count, 1);
-    let _ = context_receiver.recv().await.expect("context_receiver.recv().await should be present");
+    let _ = context_receiver
+        .recv()
+        .await
+        .expect("context_receiver.recv().await should be present");
 
     CONTEXT_BROADCASTER
         .unregister(&user_id, "a2a-context-conn")
@@ -248,7 +263,10 @@ async fn test_route_analytics_with_registered_connection() {
     let count = EventRouter::route_analytics(&user_id, event).await;
 
     assert_eq!(count, 1);
-    let _ = receiver.recv().await.expect("receiver.recv().await should be present");
+    let _ = receiver
+        .recv()
+        .await
+        .expect("receiver.recv().await should be present");
 
     ANALYTICS_BROADCASTER
         .unregister(&user_id, "analytics-conn")
@@ -272,8 +290,14 @@ async fn test_route_analytics_multiple_connections() {
     let count = EventRouter::route_analytics(&user_id, event).await;
 
     assert_eq!(count, 2);
-    let _ = rx1.recv().await.expect("rx1.recv().await should be present");
-    let _ = rx2.recv().await.expect("rx2.recv().await should be present");
+    let _ = rx1
+        .recv()
+        .await
+        .expect("rx1.recv().await should be present");
+    let _ = rx2
+        .recv()
+        .await
+        .expect("rx2.recv().await should be present");
 
     ANALYTICS_BROADCASTER
         .unregister(&user_id, "analytics-conn-1")
@@ -320,7 +344,10 @@ async fn test_route_analytics_heartbeat_event() {
     let heartbeat = AnalyticsEventBuilder::heartbeat();
     let count = EventRouter::route_analytics(&user_id, heartbeat).await;
     assert_eq!(count, 1);
-    let _ = receiver.recv().await.expect("receiver.recv().await should be present");
+    let _ = receiver
+        .recv()
+        .await
+        .expect("receiver.recv().await should be present");
 
     ANALYTICS_BROADCASTER
         .unregister(&user_id, "heartbeat-conn")
@@ -336,15 +363,14 @@ async fn test_route_analytics_session_ended_event() {
         .register(&user_id, "session-end-conn", sender)
         .await;
 
-    let session_end = AnalyticsEventBuilder::session_ended(
-        "test-session".to_string().into(),
-        120000,
-        10,
-        20,
-    );
+    let session_end =
+        AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 120000, 10, 20);
     let count = EventRouter::route_analytics(&user_id, session_end).await;
     assert_eq!(count, 1);
-    let _ = receiver.recv().await.expect("receiver.recv().await should be present");
+    let _ = receiver
+        .recv()
+        .await
+        .expect("receiver.recv().await should be present");
 
     ANALYTICS_BROADCASTER
         .unregister(&user_id, "session-end-conn")

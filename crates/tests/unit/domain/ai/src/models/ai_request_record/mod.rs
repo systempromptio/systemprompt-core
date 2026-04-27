@@ -291,7 +291,10 @@ mod ai_request_record_builder_tests {
             .unwrap();
 
         assert_eq!(record.status, RequestStatus::Failed);
-        assert_eq!(record.error_message, Some("Rate limit exceeded".to_string()));
+        assert_eq!(
+            record.error_message,
+            Some("Rate limit exceeded".to_string())
+        );
     }
 
     #[test]
@@ -343,12 +346,17 @@ mod ai_request_record_tests {
         assert_eq!(record.provider, "unknown");
         assert_eq!(record.model, "unknown");
         assert_eq!(record.status, RequestStatus::Failed);
-        record.error_message.as_ref().expect("error_message should be present");
-        assert!(record
+        record
             .error_message
             .as_ref()
-            .unwrap()
-            .contains("construction failed"));
+            .expect("error_message should be present");
+        assert!(
+            record
+                .error_message
+                .as_ref()
+                .unwrap()
+                .contains("construction failed")
+        );
     }
 
     #[test]
@@ -356,7 +364,11 @@ mod ai_request_record_tests {
         let user_id = UserId::new("user-123");
         let builder = AiRequestRecord::builder(AiRequestId::new("req-456"), user_id);
 
-        let record = builder.provider("test").model("test-model").build().unwrap();
+        let record = builder
+            .provider("test")
+            .model("test-model")
+            .build()
+            .unwrap();
 
         assert_eq!(record.request_id, "req-456");
     }

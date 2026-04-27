@@ -1,8 +1,6 @@
 //! Unit tests for Colors and BrandColors
 
-use systemprompt_logging::services::cli::theme::{
-    BrandColors, Colors, ItemStatus, MessageLevel,
-};
+use systemprompt_logging::services::cli::theme::{BrandColors, Colors, ItemStatus, MessageLevel};
 
 // ============================================================================
 // Colors Tests

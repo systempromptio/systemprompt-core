@@ -46,7 +46,11 @@ fn test_cimd_fetcher_new_returns_debug_impl() {
 #[tokio::test]
 async fn test_cimd_fetcher_rejects_http_url() {
     let fetcher = CimdFetcher::new().unwrap();
-    let result = fetcher.fetch_metadata(&ClientId::new("http://example.com/.well-known/oauth-client")).await;
+    let result = fetcher
+        .fetch_metadata(&ClientId::new(
+            "http://example.com/.well-known/oauth-client",
+        ))
+        .await;
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("HTTPS"));
@@ -72,7 +76,9 @@ async fn test_cimd_fetcher_rejects_plain_domain() {
 #[tokio::test]
 async fn test_cimd_fetcher_rejects_ftp_url() {
     let fetcher = CimdFetcher::new().unwrap();
-    let result = fetcher.fetch_metadata(&ClientId::new("ftp://example.com/metadata")).await;
+    let result = fetcher
+        .fetch_metadata(&ClientId::new("ftp://example.com/metadata"))
+        .await;
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("HTTPS"));
@@ -81,7 +87,9 @@ async fn test_cimd_fetcher_rejects_ftp_url() {
 #[tokio::test]
 async fn test_cimd_fetcher_rejects_http_with_uppercase() {
     let fetcher = CimdFetcher::new().unwrap();
-    let result = fetcher.fetch_metadata(&ClientId::new("HTTP://example.com/metadata")).await;
+    let result = fetcher
+        .fetch_metadata(&ClientId::new("HTTP://example.com/metadata"))
+        .await;
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("HTTPS"));
@@ -90,7 +98,9 @@ async fn test_cimd_fetcher_rejects_http_with_uppercase() {
 #[tokio::test]
 async fn test_cimd_fetcher_rejects_javascript_url() {
     let fetcher = CimdFetcher::new().unwrap();
-    let result = fetcher.fetch_metadata(&ClientId::new("javascript:alert(1)")).await;
+    let result = fetcher
+        .fetch_metadata(&ClientId::new("javascript:alert(1)"))
+        .await;
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("HTTPS"));

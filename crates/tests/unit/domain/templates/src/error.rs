@@ -132,7 +132,13 @@ mod template_error_construction_tests {
 
     #[test]
     fn not_found_with_various_names() {
-        let names = ["simple", "multi-part-name", "UPPERCASE", "with.dots", "with/slashes"];
+        let names = [
+            "simple",
+            "multi-part-name",
+            "UPPERCASE",
+            "with.dots",
+            "with/slashes",
+        ];
 
         for name in names {
             let error = TemplateError::NotFound(name.to_string());

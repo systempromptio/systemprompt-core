@@ -2,8 +2,8 @@
 
 use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_sync::{
-    compute_content_hash, ContentDiffItem, ContentDiffResult, DiffStatus, LocalSyncDirection,
-    LocalSyncResult, SkillDiffItem, SkillsDiffResult,
+    ContentDiffItem, ContentDiffResult, DiffStatus, LocalSyncDirection, LocalSyncResult,
+    SkillDiffItem, SkillsDiffResult, compute_content_hash,
 };
 
 mod diff_status_tests {

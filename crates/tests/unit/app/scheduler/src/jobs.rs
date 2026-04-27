@@ -112,10 +112,7 @@ mod job_schedule_validation_tests {
         ];
 
         for job in jobs {
-            assert!(
-                !job.name().is_empty(),
-                "Job name should not be empty"
-            );
+            assert!(!job.name().is_empty(), "Job name should not be empty");
             assert!(
                 !job.description().is_empty(),
                 "Job description should not be empty for {}",

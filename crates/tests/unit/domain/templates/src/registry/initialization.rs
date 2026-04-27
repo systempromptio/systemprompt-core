@@ -22,7 +22,10 @@ mod initialization_tests {
         let mut registry = TemplateRegistry::new();
         registry.register_loader(loader(MockLoader::new()));
 
-        registry.initialize().await.expect("should initialize with loader and no templates");
+        registry
+            .initialize()
+            .await
+            .expect("should initialize with loader and no templates");
         assert_eq!(registry.stats().templates, 0);
     }
 
@@ -37,7 +40,10 @@ mod initialization_tests {
         registry.register_provider(provider(MockProvider::with_templates("test", templates)));
         registry.register_loader(loader(MockLoader::new()));
 
-        registry.initialize().await.expect("should initialize with templates");
+        registry
+            .initialize()
+            .await
+            .expect("should initialize with templates");
         assert_eq!(registry.stats().templates, 2);
         assert!(registry.has_template("template-1"));
         assert!(registry.has_template("template-2"));

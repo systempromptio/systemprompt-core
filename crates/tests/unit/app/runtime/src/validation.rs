@@ -12,8 +12,9 @@
 // Database Path Validation Pattern Tests
 // ============================================================================
 
-// These tests validate the expected behavior patterns for database path validation.
-// The actual implementation is private, but these tests document expected behavior.
+// These tests validate the expected behavior patterns for database path
+// validation. The actual implementation is private, but these tests document
+// expected behavior.
 
 #[test]
 fn test_empty_path_pattern() {
@@ -88,7 +89,9 @@ fn test_path_with_extension() {
 #[test]
 fn test_path_without_extension() {
     let path = "/data/database";
-    let has_extension = path.rsplit_once('/').map_or(false, |(_, name)| name.contains('.'));
+    let has_extension = path
+        .rsplit_once('/')
+        .map_or(false, |(_, name)| name.contains('.'));
     assert!(!has_extension);
 }
 

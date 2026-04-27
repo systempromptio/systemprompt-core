@@ -19,9 +19,11 @@ fn test_parse_message_send_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("1".to_string()),
     };
 
-    let parsed = request.parse_request().expect("should parse SendMessage request");
+    let parsed = request
+        .parse_request()
+        .expect("should parse SendMessage request");
     match parsed {
-        A2aRequestParams::SendMessage(_) => {}
+        A2aRequestParams::SendMessage(_) => {},
         _ => panic!("Expected SendMessage variant"),
     }
 }
@@ -37,11 +39,13 @@ fn test_parse_tasks_get_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("2".to_string()),
     };
 
-    let parsed = request.parse_request().expect("should parse GetTask request");
+    let parsed = request
+        .parse_request()
+        .expect("should parse GetTask request");
     match parsed {
         A2aRequestParams::GetTask(params) => {
             assert_eq!(params.id, "task-123");
-        }
+        },
         _ => panic!("Expected GetTask variant"),
     }
 }
@@ -57,11 +61,13 @@ fn test_parse_tasks_cancel_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::Number(3),
     };
 
-    let parsed = request.parse_request().expect("should parse CancelTask request");
+    let parsed = request
+        .parse_request()
+        .expect("should parse CancelTask request");
     match parsed {
         A2aRequestParams::CancelTask(params) => {
             assert_eq!(params.id, "task-456");
-        }
+        },
         _ => panic!("Expected CancelTask variant"),
     }
 }
@@ -82,9 +88,11 @@ fn test_parse_message_stream_request() {
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("4".to_string()),
     };
 
-    let parsed = request.parse_request().expect("should parse SendStreamingMessage request");
+    let parsed = request
+        .parse_request()
+        .expect("should parse SendStreamingMessage request");
     match parsed {
-        A2aRequestParams::SendStreamingMessage(_) => {}
+        A2aRequestParams::SendStreamingMessage(_) => {},
         _ => panic!("Expected SendStreamingMessage variant"),
     }
 }
@@ -157,9 +165,10 @@ fn test_a2a_response_send_message() {
     match response {
         A2aResponse::SendMessage(res) => {
             assert_eq!(res.jsonrpc, "2.0");
-            res.result.expect("send_message response should have result");
+            res.result
+                .expect("send_message response should have result");
             assert!(res.error.is_none());
-        }
+        },
         _ => panic!("Expected SendMessage variant"),
     }
 }
@@ -177,7 +186,7 @@ fn test_a2a_response_get_task() {
             assert_eq!(res.jsonrpc, "2.0");
             res.result.expect("get_task response should have result");
             assert!(res.error.is_none());
-        }
+        },
         _ => panic!("Expected GetTask variant"),
     }
 }
@@ -194,7 +203,7 @@ fn test_a2a_response_cancel_task() {
         A2aResponse::CancelTask(res) => {
             assert_eq!(res.jsonrpc, "2.0");
             res.result.expect("cancel_task response should have result");
-        }
+        },
         _ => panic!("Expected CancelTask variant"),
     }
 }
@@ -248,4 +257,3 @@ fn test_task_state_invalid_parsing() {
     let error = result.unwrap_err();
     assert!(error.contains("Invalid task state"));
 }
-

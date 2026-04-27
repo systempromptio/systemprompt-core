@@ -104,10 +104,7 @@ fn test_validation_result_type_parse_unknown_defaults_to_error() {
         ValidationResultType::parse("invalid"),
         ValidationResultType::Error
     );
-    assert_eq!(
-        ValidationResultType::parse(""),
-        ValidationResultType::Error
-    );
+    assert_eq!(ValidationResultType::parse(""), ValidationResultType::Error);
     assert_eq!(
         ValidationResultType::parse("random_string"),
         ValidationResultType::Error

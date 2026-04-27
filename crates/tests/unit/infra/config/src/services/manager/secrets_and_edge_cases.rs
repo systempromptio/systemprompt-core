@@ -30,8 +30,11 @@ name: test
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
 
-    fs::write(temp_dir.path().join(".env.secrets"), "TEST_SECRET=super_secret\n")
-        .expect("Failed to write secrets");
+    fs::write(
+        temp_dir.path().join(".env.secrets"),
+        "TEST_SECRET=super_secret\n",
+    )
+    .expect("Failed to write secrets");
 
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
@@ -142,7 +145,9 @@ fn test_generate_config_invalid_yaml() {
     fs::write(env_dir.join("config.yaml"), "name: test").expect("Failed to write config.yaml");
 
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
-    manager.generate_config(DeployEnvironment::Local).unwrap_err();
+    manager
+        .generate_config(DeployEnvironment::Local)
+        .unwrap_err();
 }
 
 #[test]
@@ -221,8 +226,5 @@ name: test
         config.variables.get("URL"),
         Some(&"https://example.com/path?query=1&other=2".to_string())
     );
-    assert_eq!(
-        config.variables.get("REGEX"),
-        Some(&"^[a-z]+$".to_string())
-    );
+    assert_eq!(config.variables.get("REGEX"), Some(&"^[a-z]+$".to_string()));
 }

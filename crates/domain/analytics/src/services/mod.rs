@@ -1,3 +1,4 @@
+pub mod ai_crawler_keywords;
 mod ai_provider;
 mod anomaly_detection;
 mod behavioral_detector;

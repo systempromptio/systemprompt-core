@@ -16,10 +16,7 @@ mod validation_error_tests {
 
     #[test]
     fn new_accepts_string_types() {
-        let err = ValidationError::new(
-            String::from("username"),
-            String::from("Too short"),
-        );
+        let err = ValidationError::new(String::from("username"), String::from("Too short"));
 
         assert_eq!(err.field, "username");
         assert_eq!(err.message, "Too short");
@@ -36,8 +33,7 @@ mod validation_error_tests {
 
     #[test]
     fn with_context_is_chainable() {
-        let err = ValidationError::new("field", "message")
-            .with_context("context");
+        let err = ValidationError::new("field", "message").with_context("context");
 
         assert_eq!(err.field, "field");
         assert_eq!(err.message, "message");
@@ -57,8 +53,8 @@ mod validation_error_tests {
 
     #[test]
     fn display_with_context() {
-        let err = ValidationError::new("age", "Must be positive")
-            .with_context("User registration form");
+        let err =
+            ValidationError::new("age", "Must be positive").with_context("User registration form");
         let display = format!("{}", err);
 
         assert!(display.contains("VALIDATION ERROR"));
@@ -147,7 +143,8 @@ mod metadata_validation_trait_tests {
             author: "Author Name".to_string(),
         };
 
-        meta.validate_required_fields().expect("required fields should pass");
+        meta.validate_required_fields()
+            .expect("required fields should pass");
     }
 
     #[test]

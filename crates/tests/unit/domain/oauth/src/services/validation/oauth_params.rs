@@ -1,11 +1,11 @@
 //! Tests for OAuth parameter validation
 
-use systemprompt_oauth::services::validation::{
-    get_audit_user, optional_param, required_param, scope_param, CsrfToken,
-    ValidatedClientRegistration,
-};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{AuthError, GrantType, ResponseType};
+use systemprompt_oauth::services::validation::{
+    CsrfToken, ValidatedClientRegistration, get_audit_user, optional_param, required_param,
+    scope_param,
+};
 
 #[test]
 fn test_required_param_success() {
@@ -20,7 +20,7 @@ fn test_required_param_none() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("client_id"));
             assert!(reason.contains("required"));
-        }
+        },
         _ => panic!("Expected InvalidRequest error"),
     }
 }
@@ -32,7 +32,7 @@ fn test_required_param_empty_string() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("scope"));
             assert!(reason.contains("required"));
-        }
+        },
         _ => panic!("Expected InvalidRequest error"),
     }
 }
@@ -113,7 +113,7 @@ fn test_scope_param_none() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("scope"));
             assert!(reason.contains("required"));
-        }
+        },
         _ => panic!("Expected InvalidRequest error"),
     }
 }
@@ -130,7 +130,7 @@ fn test_scope_param_whitespace_only() {
     match result.unwrap_err() {
         AuthError::InvalidScope { scope } => {
             assert_eq!(scope.trim(), "");
-        }
+        },
         _ => panic!("Expected InvalidScope error"),
     }
 }
@@ -155,7 +155,7 @@ fn test_get_audit_user_none() {
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("Authenticated user required"));
-        }
+        },
         _ => panic!("Expected InvalidRequest error"),
     }
 }
@@ -167,7 +167,7 @@ fn test_get_audit_user_empty() {
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("Authenticated user required"));
-        }
+        },
         _ => panic!("Expected InvalidRequest error"),
     }
 }
@@ -183,7 +183,10 @@ fn test_get_audit_user_whitespace() {
 fn test_get_audit_user_uuid_format() {
     let user = UserId::new("550e8400-e29b-41d4-a716-446655440000");
     let result = get_audit_user(Some(&user));
-    assert_eq!(result.expect("should succeed").as_str(), "550e8400-e29b-41d4-a716-446655440000");
+    assert_eq!(
+        result.expect("should succeed").as_str(),
+        "550e8400-e29b-41d4-a716-446655440000"
+    );
 }
 
 #[test]
@@ -217,7 +220,7 @@ fn test_csrf_token_too_short() {
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("16 characters"));
-        }
+        },
         _ => panic!("Expected InvalidRequest error for short state"),
     }
 }
@@ -225,13 +228,19 @@ fn test_csrf_token_too_short() {
 #[test]
 fn test_csrf_token_with_hyphen() {
     let result = CsrfToken::new("state-with-hyphens-ok");
-    assert_eq!(result.expect("should create token").as_str(), "state-with-hyphens-ok");
+    assert_eq!(
+        result.expect("should create token").as_str(),
+        "state-with-hyphens-ok"
+    );
 }
 
 #[test]
 fn test_csrf_token_with_underscore() {
     let result = CsrfToken::new("state_with_underscores");
-    assert_eq!(result.expect("should create token").as_str(), "state_with_underscores");
+    assert_eq!(
+        result.expect("should create token").as_str(),
+        "state_with_underscores"
+    );
 }
 
 #[test]
@@ -252,7 +261,7 @@ fn test_csrf_token_control_chars_invalid() {
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("printable ASCII"));
-        }
+        },
         _ => panic!("Expected InvalidRequest error"),
     }
 }
@@ -272,14 +281,20 @@ fn test_csrf_token_with_dot() {
 #[test]
 fn test_csrf_token_mcp_inspector_format() {
     let result = CsrfToken::new("~.RooIuIZ7Pn_SyRij7KTQLTZvx00Cxy");
-    assert_eq!(result.expect("should create token").as_str(), "~.RooIuIZ7Pn_SyRij7KTQLTZvx00Cxy");
+    assert_eq!(
+        result.expect("should create token").as_str(),
+        "~.RooIuIZ7Pn_SyRij7KTQLTZvx00Cxy"
+    );
 }
 
 #[test]
 fn test_csrf_token_from_string() {
     let state = String::from("string_state_valid");
     let result = CsrfToken::new(state);
-    assert_eq!(result.expect("should create token").as_str(), "string_state_valid");
+    assert_eq!(
+        result.expect("should create token").as_str(),
+        "string_state_valid"
+    );
 }
 
 #[test]

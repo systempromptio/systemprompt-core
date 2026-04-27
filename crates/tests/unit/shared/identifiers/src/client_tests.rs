@@ -105,7 +105,10 @@ fn client_type_as_str_values() {
 #[test]
 fn client_type_display_matches_as_str() {
     assert_eq!(format!("{}", ClientType::Cimd), ClientType::Cimd.as_str());
-    assert_eq!(format!("{}", ClientType::FirstParty), ClientType::FirstParty.as_str());
+    assert_eq!(
+        format!("{}", ClientType::FirstParty),
+        ClientType::FirstParty.as_str()
+    );
 }
 
 #[test]

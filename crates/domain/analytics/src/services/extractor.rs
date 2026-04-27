@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use axum::extract::Request;
 
+use super::ai_crawler_keywords::matches_ai_crawler;
 use super::bot_keywords::{matches_bot_ip_range, matches_bot_pattern};
 use super::detection;
 use super::user_agent::parse_user_agent;
@@ -256,9 +257,18 @@ impl SessionAnalytics {
     }
 
     pub fn is_bot(&self) -> bool {
+        if self.is_ai_crawler() {
+            return false;
+        }
         self.user_agent
             .as_ref()
             .is_none_or(|ua| ua.is_empty() || matches_bot_pattern(ua))
+    }
+
+    pub fn is_ai_crawler(&self) -> bool {
+        self.user_agent
+            .as_ref()
+            .is_some_and(|ua| matches_ai_crawler(ua))
     }
 
     pub fn is_bot_ip(&self) -> bool {
@@ -286,6 +296,9 @@ impl SessionAnalytics {
     }
 
     pub fn should_skip_tracking(&self) -> bool {
+        if self.is_ai_crawler() {
+            return false;
+        }
         self.is_bot()
             || self.is_bot_ip()
             || self.is_datacenter_ip()

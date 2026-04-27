@@ -1,7 +1,11 @@
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
-use systemprompt_cloud::cli_session::{CliSession, CliSessionBuilder, SessionKey, SessionStore, LOCAL_SESSION_KEY};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId};
+use systemprompt_cloud::cli_session::{
+    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionKey, SessionStore,
+};
+use systemprompt_identifiers::{
+    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+};
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
 
@@ -201,7 +205,10 @@ fn set_active_with_profile_path_updates_session() {
     store.set_active_with_profile_path(&key, "path-prof", PathBuf::from("/my/profile.yaml"));
 
     let session = store.get_session(&key).unwrap();
-    assert_eq!(session.profile_path, Some(PathBuf::from("/my/profile.yaml")));
+    assert_eq!(
+        session.profile_path,
+        Some(PathBuf::from("/my/profile.yaml"))
+    );
 }
 
 #[test]
@@ -357,10 +364,7 @@ fn find_by_profile_name_skips_expired() {
 fn all_sessions_returns_all_entries() {
     let mut store = SessionStore::new();
     store.upsert_session(&SessionKey::Local, build_session("a"));
-    store.upsert_session(
-        &SessionKey::Tenant(TenantId::new("t")),
-        build_session("b"),
-    );
+    store.upsert_session(&SessionKey::Tenant(TenantId::new("t")), build_session("b"));
 
     let all = store.all_sessions();
     assert_eq!(all.len(), 2);
@@ -380,10 +384,7 @@ fn len_tracks_insertions_and_removals() {
     store.upsert_session(&SessionKey::Local, build_session("x"));
     assert_eq!(store.len(), 1);
 
-    store.upsert_session(
-        &SessionKey::Tenant(TenantId::new("t1")),
-        build_session("y"),
-    );
+    store.upsert_session(&SessionKey::Tenant(TenantId::new("t1")), build_session("y"));
     assert_eq!(store.len(), 2);
 
     store.remove_session(&SessionKey::Local);

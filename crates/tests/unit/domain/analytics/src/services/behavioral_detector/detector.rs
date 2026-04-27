@@ -2,7 +2,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_analytics::{
-    BehavioralAnalysisInput, BehavioralBotDetector, SignalType, BEHAVIORAL_BOT_THRESHOLD,
+    BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralBotDetector, SignalType,
 };
 use systemprompt_identifiers::SessionId;
 
@@ -27,6 +27,9 @@ mod behavioral_bot_detector_tests {
             endpoints_accessed: endpoints,
             total_site_pages: total_pages,
             fingerprint_session_count: fingerprint_sessions,
+            fingerprint_unique_ip_count: 1,
+            fingerprint_engagement_event_count: 1,
+            fingerprint_session_starts: vec![],
             request_timestamps: vec![],
             has_javascript_events: true,
             landing_page: Some("/".to_string()),
@@ -49,6 +52,9 @@ mod behavioral_bot_detector_tests {
             endpoints_accessed: vec![],
             total_site_pages: 100,
             fingerprint_session_count: 1,
+            fingerprint_unique_ip_count: 1,
+            fingerprint_engagement_event_count: 1,
+            fingerprint_session_starts: vec![],
             request_timestamps: timestamps,
             has_javascript_events: true,
             landing_page: Some("/".to_string()),
@@ -68,6 +74,9 @@ mod behavioral_bot_detector_tests {
             endpoints_accessed: vec![],
             total_site_pages: 100,
             fingerprint_session_count: 1,
+            fingerprint_unique_ip_count: 1,
+            fingerprint_engagement_event_count: 1,
+            fingerprint_session_starts: vec![],
             request_timestamps: vec![],
             has_javascript_events: true,
             landing_page: Some("/".to_string()),
@@ -90,7 +99,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input(100, vec![], 100, 1, 10);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result.signals.iter().any(|s| s.signal_type == SignalType::HighRequestCount));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HighRequestCount)
+        );
     }
 
     #[test]
@@ -99,7 +113,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input(70, pages, 100, 1, 30);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result.signals.iter().any(|s| s.signal_type == SignalType::HighPageCoverage));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HighPageCoverage)
+        );
     }
 
     #[test]
@@ -107,10 +126,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input(10, vec![], 100, 10, 10);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result
-            .signals
-            .iter()
-            .any(|s| s.signal_type == SignalType::MultipleFingerPrintSessions));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::MultipleFingerPrintSessions)
+        );
     }
 
     #[test]
@@ -119,7 +140,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input(30, pages, 100, 1, 1);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result.signals.iter().any(|s| s.signal_type == SignalType::HighPagesPerMinute));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HighPagesPerMinute)
+        );
     }
 
     #[test]
@@ -127,7 +153,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input_with_user_agent(Some("Mozilla/5.0 Chrome/80.0".to_string()));
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result.signals.iter().any(|s| s.signal_type == SignalType::OutdatedBrowser));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::OutdatedBrowser)
+        );
     }
 
     #[test]
@@ -135,7 +166,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input_with_user_agent(Some("Mozilla/5.0 Firefox/80".to_string()));
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result.signals.iter().any(|s| s.signal_type == SignalType::OutdatedBrowser));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::OutdatedBrowser)
+        );
     }
 
     #[test]
@@ -143,7 +179,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input_with_user_agent(Some("Mozilla/5.0 Chrome/120.0".to_string()));
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::OutdatedBrowser));
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::OutdatedBrowser)
+        );
     }
 
     #[test]
@@ -155,7 +196,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input_with_timestamps(10, timestamps);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result.signals.iter().any(|s| s.signal_type == SignalType::RegularTiming));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::RegularTiming)
+        );
     }
 
     #[test]
@@ -166,7 +212,10 @@ mod behavioral_bot_detector_tests {
 
         assert!(result.is_suspicious);
         assert!(result.score >= BEHAVIORAL_BOT_THRESHOLD);
-        result.reason.as_ref().expect("suspicious result should have reason");
+        result
+            .reason
+            .as_ref()
+            .expect("suspicious result should have reason");
     }
 
     #[test]
@@ -187,7 +236,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input(10, pages, 100, 1, 10);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(result.signals.iter().any(|s| s.signal_type == SignalType::SequentialNavigation));
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::SequentialNavigation)
+        );
     }
 
     #[test]
@@ -202,7 +256,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input(5, pages, 100, 1, 10);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::SequentialNavigation));
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::SequentialNavigation)
+        );
     }
 
     #[test]
@@ -227,7 +286,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input(10, pages, 0, 1, 10);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::HighPageCoverage));
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HighPageCoverage)
+        );
     }
 
     #[test]
@@ -237,7 +301,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input_with_timestamps(2, timestamps);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::RegularTiming));
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::RegularTiming)
+        );
     }
 
     #[test]
@@ -254,6 +323,9 @@ mod behavioral_bot_detector_tests {
             endpoints_accessed: pages,
             total_site_pages: 100,
             fingerprint_session_count: 1,
+            fingerprint_unique_ip_count: 1,
+            fingerprint_engagement_event_count: 1,
+            fingerprint_session_starts: vec![],
             request_timestamps: vec![],
             has_javascript_events: true,
             landing_page: Some("/".to_string()),
@@ -261,7 +333,12 @@ mod behavioral_bot_detector_tests {
         };
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::HighPagesPerMinute));
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HighPagesPerMinute)
+        );
     }
 
     #[test]
@@ -269,7 +346,12 @@ mod behavioral_bot_detector_tests {
         let input = create_input_with_user_agent(None);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::OutdatedBrowser));
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::OutdatedBrowser)
+        );
     }
 
     #[test]
@@ -278,6 +360,89 @@ mod behavioral_bot_detector_tests {
         let input = create_input(2, pages, 100, 1, 10);
         let result = BehavioralBotDetector::analyze(&input);
 
-        assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::SequentialNavigation));
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::SequentialNavigation)
+        );
+    }
+
+    #[test]
+    fn analyze_residential_proxy_rotation_flags_when_ratio_high() {
+        let mut input = create_input(5, vec!["/".to_string()], 100, 8, 10);
+        input.fingerprint_unique_ip_count = 8;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::ResidentialProxyRotation)
+        );
+        assert!(result.is_suspicious);
+    }
+
+    #[test]
+    fn analyze_residential_proxy_skipped_below_min_sessions() {
+        let mut input = create_input(5, vec!["/".to_string()], 100, 4, 10);
+        input.fingerprint_unique_ip_count = 4;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::ResidentialProxyRotation)
+        );
+    }
+
+    #[test]
+    fn analyze_no_engagement_across_sessions_flags() {
+        let mut input = create_input(2, vec!["/".to_string()], 100, 12, 10);
+        input.fingerprint_engagement_event_count = 0;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::NoEngagementAcrossSessions)
+        );
+    }
+
+    #[test]
+    fn analyze_periodic_cadence_flags_constant_interval() {
+        let now = Utc::now();
+        let starts: Vec<chrono::DateTime<Utc>> =
+            (0..6).map(|i| now - Duration::hours(4 * (6 - i))).collect();
+        let mut input = create_input(2, vec!["/".to_string()], 100, 6, 10);
+        input.fingerprint_session_starts = starts;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::PeriodicCadence)
+        );
+    }
+
+    #[test]
+    fn analyze_home_tab_watcher_flags_daily_root_pings() {
+        let now = Utc::now();
+        let starts: Vec<chrono::DateTime<Utc>> = (0..6)
+            .map(|i| now - Duration::hours(24 * (6 - i)))
+            .collect();
+        let mut input = create_input(2, vec!["/".to_string()], 100, 6, 1);
+        input.fingerprint_session_starts = starts;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HomeTabWatcher)
+        );
     }
 }

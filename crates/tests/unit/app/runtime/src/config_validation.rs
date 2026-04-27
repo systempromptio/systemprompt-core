@@ -1,6 +1,6 @@
 use systemprompt_models::config::{
-    format_path_errors, validate_optional_path, validate_postgres_url, validate_required_optional_path,
-    validate_required_path,
+    format_path_errors, validate_optional_path, validate_postgres_url,
+    validate_required_optional_path, validate_required_path,
 };
 use systemprompt_traits::validation_report::{ValidationReport, ValidationWarning};
 use tempfile::TempDir;

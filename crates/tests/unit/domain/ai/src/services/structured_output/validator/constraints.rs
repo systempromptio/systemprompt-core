@@ -1,4 +1,5 @@
-//! Tests for string validation, number validation, enum validation, nested validation, and no-type validation
+//! Tests for string validation, number validation, enum validation, nested
+//! validation, and no-type validation
 
 use serde_json::json;
 use systemprompt_ai::services::structured_output::validator::SchemaValidator;
@@ -240,7 +241,9 @@ mod nested_validation_tests {
             }
         });
 
-        let error = SchemaValidator::validate(&value, &schema, true).unwrap_err().to_string();
+        let error = SchemaValidator::validate(&value, &schema, true)
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("users") || error.contains("[1]"));
     }
 }

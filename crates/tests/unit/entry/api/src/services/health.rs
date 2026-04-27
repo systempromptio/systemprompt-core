@@ -250,7 +250,8 @@ fn test_health_checker_new() {
 
 #[test]
 fn test_health_checker_with_max_retries() {
-    let checker = HealthChecker::new("http://localhost:8080/health".to_string()).with_max_retries(5);
+    let checker =
+        HealthChecker::new("http://localhost:8080/health".to_string()).with_max_retries(5);
     let debug_str = format!("{:?}", checker);
     assert!(debug_str.contains("HealthChecker"));
 }
@@ -297,7 +298,8 @@ fn test_health_checker_empty_url() {
 
 #[test]
 fn test_health_checker_max_retries_zero() {
-    let checker = HealthChecker::new("http://localhost:8080/health".to_string()).with_max_retries(0);
+    let checker =
+        HealthChecker::new("http://localhost:8080/health".to_string()).with_max_retries(0);
     let debug_str = format!("{:?}", checker);
     assert!(debug_str.contains("HealthChecker"));
 }

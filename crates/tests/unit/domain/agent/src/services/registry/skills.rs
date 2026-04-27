@@ -45,7 +45,8 @@ fn test_extract_description_empty_frontmatter() {
 
 #[test]
 fn test_extract_description_multiline_frontmatter() {
-    let content = "---\ntitle: Test\ndescription: Multi word description here\nversion: 1.0\n---\nContent";
+    let content =
+        "---\ntitle: Test\ndescription: Multi word description here\nversion: 1.0\n---\nContent";
     let result = extract_description(content);
     assert_eq!(result, Some("Multi word description here".to_string()));
 }
@@ -107,7 +108,10 @@ output_modes:
     assert_eq!(skill.name, "Blog Writer");
     assert_eq!(skill.description, "Writes blog posts");
     assert_eq!(skill.tags, vec!["writing", "content"]);
-    assert_eq!(skill.examples, Some(vec!["Write a blog post about Rust".to_string()]));
+    assert_eq!(
+        skill.examples,
+        Some(vec!["Write a blog post about Rust".to_string()])
+    );
     assert_eq!(skill.input_modes, Some(vec!["text/plain".to_string()]));
     assert_eq!(skill.output_modes, Some(vec!["text/markdown".to_string()]));
 }

@@ -157,7 +157,10 @@ async fn test_verify_token_success() {
         .unwrap()
         .with_token(token);
 
-    let is_valid = client.verify_token().await.expect("verify_token should succeed");
+    let is_valid = client
+        .verify_token()
+        .await
+        .expect("verify_token should succeed");
     assert!(is_valid);
 }
 
@@ -176,7 +179,10 @@ async fn test_verify_token_invalid() {
         .unwrap()
         .with_token(token);
 
-    let is_valid = client.verify_token().await.expect("verify_token should succeed");
+    let is_valid = client
+        .verify_token()
+        .await
+        .expect("verify_token should succeed");
     assert!(!is_valid);
 }
 

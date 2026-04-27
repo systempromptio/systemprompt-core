@@ -1,5 +1,5 @@
-//! Tests for StartupValidationReport, ValidationReport, ValidationError, ValidationWarning,
-//! and domain/expected domains
+//! Tests for StartupValidationReport, ValidationReport, ValidationError,
+//! ValidationWarning, and domain/expected domains
 
 use systemprompt_runtime::FilesConfigValidator;
 use systemprompt_traits::{DomainConfig, StartupValidationReport, ValidationReport};
@@ -20,9 +20,12 @@ fn test_startup_validation_report_new() {
 fn test_startup_validation_report_with_profile_path() {
     use std::path::PathBuf;
 
-    let report = StartupValidationReport::new()
-        .with_profile_path(PathBuf::from("/etc/config/profile.yaml"));
-    report.profile_path.as_ref().expect("Should have profile path");
+    let report =
+        StartupValidationReport::new().with_profile_path(PathBuf::from("/etc/config/profile.yaml"));
+    report
+        .profile_path
+        .as_ref()
+        .expect("Should have profile path");
 }
 
 #[test]
@@ -139,8 +142,7 @@ fn test_validation_error_with_path() {
     use std::path::PathBuf;
     use systemprompt_traits::validation_report::ValidationError;
 
-    let error = ValidationError::new("field", "message")
-        .with_path(PathBuf::from("/path/to/file"));
+    let error = ValidationError::new("field", "message").with_path(PathBuf::from("/path/to/file"));
     error.path.as_ref().expect("Should have path");
 }
 
@@ -148,9 +150,11 @@ fn test_validation_error_with_path() {
 fn test_validation_error_with_suggestion() {
     use systemprompt_traits::validation_report::ValidationError;
 
-    let error = ValidationError::new("field", "message")
-        .with_suggestion("Try this fix");
-    assert_eq!(error.suggestion.expect("Should have suggestion"), "Try this fix");
+    let error = ValidationError::new("field", "message").with_suggestion("Try this fix");
+    assert_eq!(
+        error.suggestion.expect("Should have suggestion"),
+        "Try this fix"
+    );
 }
 
 #[test]
@@ -164,7 +168,10 @@ fn test_validation_error_full_chain() {
     assert_eq!(error.field, "database_url");
     assert_eq!(error.message, "Connection failed");
     error.path.as_ref().expect("Should have path in full chain");
-    error.suggestion.as_ref().expect("Should have suggestion in full chain");
+    error
+        .suggestion
+        .as_ref()
+        .expect("Should have suggestion in full chain");
 }
 
 // ============================================================================
@@ -184,8 +191,7 @@ fn test_validation_warning_new() {
 fn test_validation_warning_with_suggestion() {
     use systemprompt_traits::validation_report::ValidationWarning;
 
-    let warning = ValidationWarning::new("field", "message")
-        .with_suggestion("Consider this");
+    let warning = ValidationWarning::new("field", "message").with_suggestion("Consider this");
     warning.suggestion.as_ref().expect("Should have suggestion");
 }
 
@@ -195,7 +201,15 @@ fn test_validation_warning_with_suggestion() {
 
 #[test]
 fn test_all_registered_domains() {
-    let expected_domains = vec!["files", "ratelimits", "web", "content", "agents", "mcp", "ai"];
+    let expected_domains = vec![
+        "files",
+        "ratelimits",
+        "web",
+        "content",
+        "agents",
+        "mcp",
+        "ai",
+    ];
     assert_eq!(expected_domains.len(), 7);
 }
 
@@ -208,7 +222,15 @@ fn test_files_domain_priority() {
 
 #[test]
 fn test_domain_id_formats() {
-    let domains = vec!["files", "ratelimits", "web", "content", "agents", "mcp", "ai"];
+    let domains = vec![
+        "files",
+        "ratelimits",
+        "web",
+        "content",
+        "agents",
+        "mcp",
+        "ai",
+    ];
     for domain in domains {
         assert!(!domain.is_empty());
         assert!(domain.chars().all(|c| c.is_lowercase() || c == '_'));

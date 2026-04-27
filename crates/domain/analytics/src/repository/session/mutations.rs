@@ -156,10 +156,10 @@ pub async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> 
             device_type, browser, os, country, region, city, preferred_locale,
             referrer_source, referrer_url, landing_page, entry_url,
             utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-            is_bot, expires_at,
+            is_bot, is_ai_crawler, expires_at,
             started_at, last_activity_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         "#,
         session_id,
         user_id,
@@ -184,6 +184,7 @@ pub async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> 
         params.utm_content,
         params.utm_term,
         params.is_bot,
+        params.is_ai_crawler,
         params.expires_at
     )
     .execute(pool)

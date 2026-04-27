@@ -6,8 +6,8 @@
 //! - Result type patterns
 
 use chrono::Utc;
-use systemprompt_users::{DemoteResult, PromoteResult, User};
 use systemprompt_identifiers::UserId;
+use systemprompt_users::{DemoteResult, PromoteResult, User};
 
 // Helper function to create a test user
 fn create_test_user(roles: Vec<String>) -> User {
@@ -45,7 +45,7 @@ mod promote_result_tests {
             PromoteResult::Promoted(u, roles) => {
                 assert_eq!(u.id.to_string(), user.id.to_string());
                 assert_eq!(roles, new_roles);
-            }
+            },
             _ => panic!("Expected Promoted variant"),
         }
     }
@@ -59,7 +59,7 @@ mod promote_result_tests {
             PromoteResult::AlreadyAdmin(u) => {
                 assert_eq!(u.id.to_string(), user.id.to_string());
                 assert!(u.roles.contains(&"admin".to_string()));
-            }
+            },
             _ => panic!("Expected AlreadyAdmin variant"),
         }
     }
@@ -117,7 +117,7 @@ mod promote_result_tests {
                 assert!(roles.contains(&"admin".to_string()));
                 assert!(roles.contains(&"user".to_string()));
                 assert!(roles.contains(&"moderator".to_string()));
-            }
+            },
             _ => panic!("Expected Promoted variant"),
         }
     }
@@ -130,7 +130,7 @@ mod promote_result_tests {
         match result {
             PromoteResult::Promoted(_, roles) => {
                 assert_eq!(roles.len(), 1);
-            }
+            },
             _ => panic!("Expected Promoted variant"),
         }
     }
@@ -153,7 +153,7 @@ mod demote_result_tests {
             DemoteResult::Demoted(u, roles) => {
                 assert_eq!(u.id.to_string(), user.id.to_string());
                 assert_eq!(roles, new_roles);
-            }
+            },
             _ => panic!("Expected Demoted variant"),
         }
     }
@@ -167,7 +167,7 @@ mod demote_result_tests {
             DemoteResult::NotAdmin(u) => {
                 assert_eq!(u.id.to_string(), user.id.to_string());
                 assert!(!u.roles.contains(&"admin".to_string()));
-            }
+            },
             _ => panic!("Expected NotAdmin variant"),
         }
     }
@@ -215,7 +215,7 @@ mod demote_result_tests {
             DemoteResult::Demoted(_, roles) => {
                 assert!(!roles.contains(&"admin".to_string()));
                 assert!(roles.contains(&"user".to_string()));
-            }
+            },
             _ => panic!("Expected Demoted variant"),
         }
     }
@@ -231,7 +231,7 @@ mod demote_result_tests {
                 assert_eq!(roles.len(), 2);
                 assert!(roles.contains(&"user".to_string()));
                 assert!(roles.contains(&"moderator".to_string()));
-            }
+            },
             _ => panic!("Expected Demoted variant"),
         }
     }

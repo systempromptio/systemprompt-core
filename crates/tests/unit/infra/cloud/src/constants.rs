@@ -145,7 +145,11 @@ fn test_regions_available_all_have_descriptions() {
 #[test]
 fn test_regions_available_codes_are_lowercase() {
     for (code, _) in regions::AVAILABLE {
-        assert_eq!(*code, code.to_lowercase(), "Region code should be lowercase");
+        assert_eq!(
+            *code,
+            code.to_lowercase(),
+            "Region code should be lowercase"
+        );
     }
 }
 

@@ -2,9 +2,7 @@ use crate::mocks::{component, extender, loader, page_provider, provider};
 
 use systemprompt_templates::{RegistryStats, TemplateDefinition, TemplateRegistry};
 
-use crate::mocks::{
-    MockComponent, MockExtender, MockLoader, MockPageProvider, MockProvider,
-};
+use crate::mocks::{MockComponent, MockExtender, MockLoader, MockPageProvider, MockProvider};
 
 mod render_tests {
     use super::*;
@@ -29,7 +27,8 @@ mod render_tests {
         registry.initialize().await.expect("should initialize");
 
         let data = serde_json::json!({"name": "World"});
-        let rendered = registry.render("greeting", &data)
+        let rendered = registry
+            .render("greeting", &data)
             .expect("should render greeting template");
         assert!(rendered.contains("Hello, World!"));
     }
@@ -44,7 +43,8 @@ mod render_tests {
         registry.initialize().await.expect("should initialize");
 
         let data = serde_json::json!({});
-        let rendered = registry.render("optional", &data)
+        let rendered = registry
+            .render("optional", &data)
             .expect("should render optional template");
         assert!(rendered.contains("Value:"));
     }
@@ -65,7 +65,8 @@ mod render_tests {
                 "email": "alice@example.com"
             }
         });
-        let rendered = registry.render("nested", &data)
+        let rendered = registry
+            .render("nested", &data)
             .expect("should render nested template");
         assert!(rendered.contains("Alice"));
         assert!(rendered.contains("alice@example.com"));
@@ -86,7 +87,8 @@ mod render_tests {
         let data = serde_json::json!({
             "items": ["one", "two", "three"]
         });
-        let rendered = registry.render("list", &data)
+        let rendered = registry
+            .render("list", &data)
             .expect("should render list template");
         assert!(rendered.contains("<li>one</li>"));
         assert!(rendered.contains("<li>two</li>"));
@@ -97,19 +99,20 @@ mod render_tests {
     async fn render_with_conditional() {
         let mut registry = TemplateRegistry::new();
 
-        let template =
-            TemplateDefinition::embedded("cond", "{{#if show}}<p>Visible</p>{{/if}}");
+        let template = TemplateDefinition::embedded("cond", "{{#if show}}<p>Visible</p>{{/if}}");
         registry.register_provider(provider(MockProvider::with_templates("p", vec![template])));
         registry.register_loader(loader(MockLoader::new()));
         registry.initialize().await.expect("should initialize");
 
         let data_visible = serde_json::json!({"show": true});
-        let rendered_visible = registry.render("cond", &data_visible)
+        let rendered_visible = registry
+            .render("cond", &data_visible)
             .expect("should render conditional with show=true");
         assert!(rendered_visible.contains("Visible"));
 
         let data_hidden = serde_json::json!({"show": false});
-        let rendered_hidden = registry.render("cond", &data_hidden)
+        let rendered_hidden = registry
+            .render("cond", &data_hidden)
             .expect("should render conditional with show=false");
         assert!(!rendered_hidden.contains("Visible"));
     }

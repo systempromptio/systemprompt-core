@@ -1,7 +1,9 @@
 //! Tests for startup_events event variants.
 
 use std::time::Duration;
-use systemprompt_traits::{ModuleInfo, Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent};
+use systemprompt_traits::{
+    ModuleInfo, Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent,
+};
 
 mod startup_event_tests {
     use super::*;
@@ -13,7 +15,9 @@ mod startup_event_tests {
         };
         assert!(matches!(
             event,
-            StartupEvent::PhaseStarted { phase: Phase::PreFlight }
+            StartupEvent::PhaseStarted {
+                phase: Phase::PreFlight
+            }
         ));
     }
 
@@ -24,7 +28,9 @@ mod startup_event_tests {
         };
         assert!(matches!(
             event,
-            StartupEvent::PhaseCompleted { phase: Phase::Database }
+            StartupEvent::PhaseCompleted {
+                phase: Phase::Database
+            }
         ));
     }
 
@@ -38,7 +44,7 @@ mod startup_event_tests {
             StartupEvent::PhaseFailed { phase, error } => {
                 assert_eq!(phase, Phase::McpServers);
                 assert_eq!(error, "Connection timeout");
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -46,7 +52,10 @@ mod startup_event_tests {
     #[test]
     fn port_check_started_variant() {
         let event = StartupEvent::PortCheckStarted { port: 8080 };
-        assert!(matches!(event, StartupEvent::PortCheckStarted { port: 8080 }));
+        assert!(matches!(
+            event,
+            StartupEvent::PortCheckStarted { port: 8080 }
+        ));
     }
 
     #[test]
@@ -57,12 +66,15 @@ mod startup_event_tests {
 
     #[test]
     fn port_conflict_variant() {
-        let event = StartupEvent::PortConflict { port: 5000, pid: 1234 };
+        let event = StartupEvent::PortConflict {
+            port: 5000,
+            pid: 1234,
+        };
         match event {
             StartupEvent::PortConflict { port, pid } => {
                 assert_eq!(port, 5000);
                 assert_eq!(pid, 1234);
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -77,7 +89,7 @@ mod startup_event_tests {
             StartupEvent::McpServerStarting { name, port } => {
                 assert_eq!(name, "mcp1");
                 assert_eq!(port, 5001);
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -101,7 +113,7 @@ mod startup_event_tests {
                 assert_eq!(port, 5001);
                 assert_eq!(startup_time, Duration::from_millis(500));
                 assert_eq!(tools, 10);
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -116,7 +128,7 @@ mod startup_event_tests {
             StartupEvent::McpServerFailed { name, error } => {
                 assert_eq!(name, "mcp1");
                 assert_eq!(error, "Failed to bind");
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -131,7 +143,7 @@ mod startup_event_tests {
             StartupEvent::AgentStarting { name, port } => {
                 assert_eq!(name, "agent1");
                 assert_eq!(port, 6001);
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -152,7 +164,7 @@ mod startup_event_tests {
                 assert_eq!(name, "agent1");
                 assert_eq!(port, 6001);
                 assert_eq!(startup_time, Duration::from_secs(1));
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -167,7 +179,7 @@ mod startup_event_tests {
             StartupEvent::ServerListening { address, pid } => {
                 assert_eq!(address, "0.0.0.0:8080");
                 assert_eq!(pid, 12345);
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -182,7 +194,7 @@ mod startup_event_tests {
             StartupEvent::Warning { message, context } => {
                 assert_eq!(message, "Config deprecated");
                 assert_eq!(context, Some("app.yaml:15".to_string()));
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -195,7 +207,7 @@ mod startup_event_tests {
         match event {
             StartupEvent::Info { message } => {
                 assert_eq!(message, "Loading modules");
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -225,7 +237,7 @@ mod startup_event_tests {
                 assert_eq!(duration, Duration::from_secs(10));
                 assert_eq!(api_url, "http://localhost:8080");
                 assert_eq!(services.len(), 1);
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -240,7 +252,7 @@ mod startup_event_tests {
             StartupEvent::StartupFailed { error, duration } => {
                 assert_eq!(error, "Database connection failed");
                 assert_eq!(duration, Duration::from_secs(5));
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }
@@ -257,18 +269,16 @@ mod startup_event_tests {
 
     #[test]
     fn modules_loaded_variant() {
-        let modules = vec![
-            ModuleInfo {
-                name: "mod1".to_string(),
-                category: "cat1".to_string(),
-            },
-        ];
+        let modules = vec![ModuleInfo {
+            name: "mod1".to_string(),
+            category: "cat1".to_string(),
+        }];
         let event = StartupEvent::ModulesLoaded { count: 1, modules };
         match event {
             StartupEvent::ModulesLoaded { count, modules } => {
                 assert_eq!(count, 1);
                 assert_eq!(modules.len(), 1);
-            }
+            },
             _ => panic!("Wrong variant"),
         }
     }

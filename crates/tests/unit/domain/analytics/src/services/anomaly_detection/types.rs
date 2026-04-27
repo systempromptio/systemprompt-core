@@ -1,6 +1,9 @@
-//! Tests for anomaly detection types: AnomalyThresholdConfig, AnomalyEvent, AnomalyLevel, AnomalyCheckResult
+//! Tests for anomaly detection types: AnomalyThresholdConfig, AnomalyEvent,
+//! AnomalyLevel, AnomalyCheckResult
 
-use systemprompt_analytics::{AnomalyCheckResult, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig};
+use systemprompt_analytics::{
+    AnomalyCheckResult, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
+};
 
 mod anomaly_threshold_config_tests {
     use super::*;
@@ -114,13 +117,19 @@ mod anomaly_check_result_tests {
     #[test]
     fn result_warning_has_message() {
         let result = create_result("metric", 15.0, AnomalyLevel::Warning);
-        result.message.as_ref().expect("warning should have message");
+        result
+            .message
+            .as_ref()
+            .expect("warning should have message");
     }
 
     #[test]
     fn result_critical_has_message() {
         let result = create_result("metric", 30.0, AnomalyLevel::Critical);
-        result.message.as_ref().expect("critical should have message");
+        result
+            .message
+            .as_ref()
+            .expect("critical should have message");
     }
 
     #[test]

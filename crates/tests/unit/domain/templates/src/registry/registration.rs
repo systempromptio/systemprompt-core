@@ -2,9 +2,7 @@ use crate::mocks::{component, extender, loader, page_provider, provider};
 
 use systemprompt_templates::TemplateDefinition;
 
-use crate::mocks::{
-    MockComponent, MockExtender, MockLoader, MockPageProvider, MockProvider,
-};
+use crate::mocks::{MockComponent, MockExtender, MockLoader, MockPageProvider, MockProvider};
 
 mod registry_creation_tests {
     use systemprompt_templates::TemplateRegistry;

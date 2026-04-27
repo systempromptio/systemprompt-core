@@ -66,7 +66,8 @@ fn test_validate_request_disabled_mode() {
     let service = create_test_service();
     let headers = HeaderMap::new();
 
-    let context = service.validate_request(&headers, AuthMode::Disabled)
+    let context = service
+        .validate_request(&headers, AuthMode::Disabled)
         .expect("Disabled mode should succeed without token");
     assert_eq!(context.request.session_id.as_str(), "test");
     assert_eq!(context.auth.user_id.as_str(), "test-user");
@@ -81,7 +82,8 @@ fn test_validate_request_disabled_ignores_token() {
         HeaderValue::from_static("Bearer invalid_token"),
     );
 
-    service.validate_request(&headers, AuthMode::Disabled)
+    service
+        .validate_request(&headers, AuthMode::Disabled)
         .expect("Disabled mode should ignore invalid token");
 }
 
@@ -94,7 +96,9 @@ fn test_validate_request_required_missing_auth() {
     let service = create_test_service();
     let headers = HeaderMap::new();
 
-    let err = service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    let err = service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
     assert!(err.to_string().contains("Missing authorization"));
 }
 
@@ -107,7 +111,9 @@ fn test_validate_request_required_invalid_token() {
         HeaderValue::from_static("Bearer invalid_token_format"),
     );
 
-    let err = service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    let err = service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
     assert!(err.to_string().contains("Invalid JWT"));
 }
 
@@ -126,7 +132,9 @@ fn test_validate_request_required_wrong_secret() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
 }
 
 #[test]
@@ -144,7 +152,9 @@ fn test_validate_request_required_wrong_issuer() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
 }
 
 #[test]
@@ -158,7 +168,9 @@ fn test_validate_request_required_expired_token() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    let err = service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    let err = service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
     assert!(err.to_string().contains("Invalid JWT"));
 }
 
@@ -173,7 +185,9 @@ fn test_validate_request_required_missing_session_id() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    let err = service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    let err = service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
     assert!(err.to_string().contains("session_id"));
 }
 
@@ -192,7 +206,8 @@ fn test_validate_request_required_valid_token() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    let context = service.validate_request(&headers, AuthMode::Required)
+    let context = service
+        .validate_request(&headers, AuthMode::Required)
         .expect("Valid token should succeed");
     assert_eq!(context.auth.user_id.as_str(), "user_123");
     assert_eq!(context.request.session_id.as_str(), "session_123");
@@ -209,7 +224,8 @@ fn test_validate_request_required_admin_token() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    let context = service.validate_request(&headers, AuthMode::Required)
+    let context = service
+        .validate_request(&headers, AuthMode::Required)
         .expect("Admin token should succeed");
     assert_eq!(context.auth.user_type, UserType::Admin);
 }

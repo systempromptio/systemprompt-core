@@ -25,7 +25,8 @@ fn test_task_info_creation() {
     assert_eq!(task.context_id, "ctx-456");
     assert_eq!(task.agent_name, Some("test-agent".to_string()));
     assert_eq!(task.status, "completed");
-    task.execution_time_ms.expect("task.execution_time_ms should be present");
+    task.execution_time_ms
+        .expect("task.execution_time_ms should be present");
 }
 
 #[test]
@@ -62,7 +63,9 @@ fn test_task_info_with_error() {
     };
 
     assert_eq!(task.status, "failed");
-    task.error_message.as_ref().expect("task.error_message should be present");
+    task.error_message
+        .as_ref()
+        .expect("task.error_message should be present");
     assert!(task.error_message.as_ref().unwrap().contains("timeout"));
 }
 
@@ -135,7 +138,8 @@ fn test_execution_step_with_error() {
     };
 
     assert_eq!(step.status, "failed");
-    step.error_message.expect("step.error_message should be present");
+    step.error_message
+        .expect("step.error_message should be present");
 }
 
 #[test]
@@ -252,7 +256,8 @@ fn test_mcp_tool_execution_with_error() {
     };
 
     assert_eq!(exec.status, "error");
-    exec.error_message.expect("exec.error_message should be present");
+    exec.error_message
+        .expect("exec.error_message should be present");
     assert!(exec.output.is_none());
 }
 

@@ -54,7 +54,9 @@ impl ConfigExtensionTyped for ValidatingConfigExtension {
             }
             Ok(())
         } else {
-            Err(ConfigError::ParseError("Config must be an object".to_string()))
+            Err(ConfigError::ParseError(
+                "Config must be an object".to_string(),
+            ))
         }
     }
 
@@ -107,7 +109,8 @@ fn test_config_extension_typed_nested_prefix() {
 fn test_config_extension_typed_default_validate_config() {
     let ext = BasicConfigExtension;
     let config = json!({ "anything": "goes" });
-    ext.validate_config(&config).expect("ext.validate_config(&config) should succeed");
+    ext.validate_config(&config)
+        .expect("ext.validate_config(&config) should succeed");
 }
 
 #[test]
@@ -137,7 +140,8 @@ fn test_config_extension_custom_validate_success() {
         "optional_field": 42
     });
 
-    ext.validate_config(&config).expect("ext.validate_config(&config) should succeed");
+    ext.validate_config(&config)
+        .expect("ext.validate_config(&config) should succeed");
 }
 
 #[test]
@@ -154,7 +158,7 @@ fn test_config_extension_custom_validate_missing_required() {
         Err(ConfigError::InvalidValue { key, message }) => {
             assert_eq!(key, "required_field");
             assert!(message.contains("mandatory"));
-        }
+        },
         _ => panic!("Expected InvalidValue error"),
     }
 }
@@ -170,7 +174,7 @@ fn test_config_extension_custom_validate_not_object() {
     match result {
         Err(ConfigError::ParseError(msg)) => {
             assert!(msg.contains("object"));
-        }
+        },
         _ => panic!("Expected ParseError"),
     }
 }
@@ -215,7 +219,9 @@ fn test_config_extension_schema_has_properties() {
     let ext = ValidatingConfigExtension;
     let schema = ext.config_schema().expect("schema exists");
 
-    let properties = schema["properties"].as_object().expect("properties is object");
+    let properties = schema["properties"]
+        .as_object()
+        .expect("properties is object");
     assert!(properties.contains_key("required_field"));
     assert!(properties.contains_key("optional_field"));
 }
@@ -243,7 +249,8 @@ fn test_config_extension_as_trait_object() {
 fn test_config_extension_boxed_trait_object() {
     let ext: Box<dyn ConfigExtensionTyped> = Box::new(ValidatingConfigExtension);
     assert_eq!(ext.config_prefix(), "validating");
-    ext.config_schema().expect("ext.config_schema() should be present");
+    ext.config_schema()
+        .expect("ext.config_schema() should be present");
 }
 
 // =============================================================================
@@ -323,7 +330,8 @@ fn test_validate_with_extra_fields() {
     });
 
     // Extra fields should be allowed
-    ext.validate_config(&config).expect("ext.validate_config(&config) should succeed");
+    ext.validate_config(&config)
+        .expect("ext.validate_config(&config) should succeed");
 }
 
 #[test]
@@ -336,7 +344,8 @@ fn test_validate_with_wrong_type_for_optional() {
 
     // The simple validator doesn't check types, so this passes
     // A real implementation would use JSON schema validation
-    ext.validate_config(&config).expect("ext.validate_config(&config) should succeed");
+    ext.validate_config(&config)
+        .expect("ext.validate_config(&config) should succeed");
 }
 
 // =============================================================================
@@ -352,11 +361,14 @@ fn test_config_extension_full_workflow() {
 
     // 2. Get schema
     let schema = ext.config_schema().expect("should have schema");
-    schema["required"].as_array().expect("schema[\"required\"].as_array() should be present");
+    schema["required"]
+        .as_array()
+        .expect("schema[\"required\"].as_array() should be present");
 
     // 3. Validate good config
     let good_config = json!({ "required_field": "test" });
-    ext.validate_config(&good_config).expect("ext.validate_config(&good_config) should succeed");
+    ext.validate_config(&good_config)
+        .expect("ext.validate_config(&good_config) should succeed");
 
     // 4. Validate bad config
     let bad_config = json!({});

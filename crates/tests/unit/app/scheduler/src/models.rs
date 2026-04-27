@@ -123,8 +123,7 @@ mod scheduler_error_tests {
 
     #[test]
     fn errors_implement_std_error() {
-        let error: Box<dyn std::error::Error> =
-            Box::new(SchedulerError::job_not_found("test"));
+        let error: Box<dyn std::error::Error> = Box::new(SchedulerError::job_not_found("test"));
         assert!(error.to_string().contains("test"));
     }
 

@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{Email, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, Email, ToDbValue};
 
 #[test]
 fn valid_simple_email() {
@@ -95,13 +95,19 @@ fn rejects_domain_without_dot() {
 #[test]
 fn rejects_domain_starting_with_dot() {
     let err = Email::try_new("user@.example.com").unwrap_err();
-    assert!(err.to_string().contains("domain cannot start or end with '.'"));
+    assert!(
+        err.to_string()
+            .contains("domain cannot start or end with '.'")
+    );
 }
 
 #[test]
 fn rejects_domain_ending_with_dot() {
     let err = Email::try_new("user@example.com.").unwrap_err();
-    assert!(err.to_string().contains("domain cannot start or end with '.'"));
+    assert!(
+        err.to_string()
+            .contains("domain cannot start or end with '.'")
+    );
 }
 
 #[test]
@@ -113,7 +119,10 @@ fn rejects_consecutive_dots_in_domain() {
 #[test]
 fn rejects_single_char_tld() {
     let err = Email::try_new("user@example.c").unwrap_err();
-    assert!(err.to_string().contains("TLD must be at least 2 characters"));
+    assert!(
+        err.to_string()
+            .contains("TLD must be at least 2 characters")
+    );
 }
 
 #[test]

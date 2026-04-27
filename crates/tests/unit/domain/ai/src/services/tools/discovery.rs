@@ -1,13 +1,12 @@
+use async_trait::async_trait;
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use async_trait::async_trait;
 use systemprompt_ai::services::tools::ToolDiscovery;
 use systemprompt_identifiers::AgentName;
 use systemprompt_traits::{
-    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider,
-    ToolProviderResult,
+    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderResult,
 };
-use serde_json::json;
 
 struct MockToolProvider {
     tools: Vec<ToolDefinition>,
@@ -23,7 +22,8 @@ impl MockToolProvider {
     }
 
     fn was_refresh_called(&self) -> bool {
-        self.refresh_called.load(std::sync::atomic::Ordering::SeqCst)
+        self.refresh_called
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
 }
 
@@ -52,7 +52,8 @@ impl ToolProvider for MockToolProvider {
     }
 
     async fn refresh_connections(&self, _agent_name: &str) -> ToolProviderResult<()> {
-        self.refresh_called.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.refresh_called
+            .store(true, std::sync::atomic::Ordering::SeqCst);
         Ok(())
     }
 
@@ -82,8 +83,8 @@ fn _create_test_context() -> ToolContext {
 
 mod tool_discovery_tests {
     use super::*;
+    use systemprompt_identifiers::{ContextId, SessionId, TraceId};
     use systemprompt_models::execution::context::RequestContext;
-    use systemprompt_identifiers::{SessionId, TraceId, ContextId};
 
     fn create_request_context() -> RequestContext {
         RequestContext::new(

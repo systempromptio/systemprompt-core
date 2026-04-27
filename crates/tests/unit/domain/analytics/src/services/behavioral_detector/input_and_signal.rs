@@ -24,6 +24,9 @@ mod behavioral_analysis_input_tests {
             endpoints_accessed: endpoints,
             total_site_pages: total_pages,
             fingerprint_session_count: fingerprint_sessions,
+            fingerprint_unique_ip_count: 1,
+            fingerprint_engagement_event_count: 1,
+            fingerprint_session_starts: vec![],
             request_timestamps: vec![],
             has_javascript_events: true,
             landing_page: Some("/".to_string()),
@@ -62,17 +65,26 @@ mod signal_type_tests {
 
     #[test]
     fn signal_type_display_high_request_count() {
-        assert_eq!(format!("{}", SignalType::HighRequestCount), "high_request_count");
+        assert_eq!(
+            format!("{}", SignalType::HighRequestCount),
+            "high_request_count"
+        );
     }
 
     #[test]
     fn signal_type_display_high_page_coverage() {
-        assert_eq!(format!("{}", SignalType::HighPageCoverage), "high_page_coverage");
+        assert_eq!(
+            format!("{}", SignalType::HighPageCoverage),
+            "high_page_coverage"
+        );
     }
 
     #[test]
     fn signal_type_display_sequential_navigation() {
-        assert_eq!(format!("{}", SignalType::SequentialNavigation), "sequential_navigation");
+        assert_eq!(
+            format!("{}", SignalType::SequentialNavigation),
+            "sequential_navigation"
+        );
     }
 
     #[test]
@@ -90,12 +102,18 @@ mod signal_type_tests {
 
     #[test]
     fn signal_type_display_high_pages_per_minute() {
-        assert_eq!(format!("{}", SignalType::HighPagesPerMinute), "high_pages_per_minute");
+        assert_eq!(
+            format!("{}", SignalType::HighPagesPerMinute),
+            "high_pages_per_minute"
+        );
     }
 
     #[test]
     fn signal_type_display_outdated_browser() {
-        assert_eq!(format!("{}", SignalType::OutdatedBrowser), "outdated_browser");
+        assert_eq!(
+            format!("{}", SignalType::OutdatedBrowser),
+            "outdated_browser"
+        );
     }
 
     #[test]
@@ -131,7 +149,11 @@ mod behavioral_signal_tests {
 
     #[test]
     fn signal_stores_details() {
-        let signal = create_signal(SignalType::HighRequestCount, 30, "Request count 100 exceeds 50");
+        let signal = create_signal(
+            SignalType::HighRequestCount,
+            30,
+            "Request count 100 exceeds 50",
+        );
         assert!(signal.details.contains("100"));
     }
 

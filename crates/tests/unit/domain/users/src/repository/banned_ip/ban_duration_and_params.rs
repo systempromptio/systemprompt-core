@@ -133,38 +133,23 @@ mod ban_ip_params_tests {
 
     #[test]
     fn new_with_permanent_duration() {
-        let params = BanIpParams::new(
-            "10.0.0.1",
-            "Permanent ban",
-            BanDuration::Permanent,
-            "admin",
-        );
+        let params = BanIpParams::new("10.0.0.1", "Permanent ban", BanDuration::Permanent, "admin");
 
         assert!(matches!(params.duration, BanDuration::Permanent));
     }
 
     #[test]
     fn with_source_fingerprint_sets_fingerprint() {
-        let params = BanIpParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Hours(1),
-            "test",
-        )
-        .with_source_fingerprint("fp123abc");
+        let params = BanIpParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
+            .with_source_fingerprint("fp123abc");
 
         assert_eq!(params.source_fingerprint, Some("fp123abc"));
     }
 
     #[test]
     fn with_source_fingerprint_can_be_chained() {
-        let params = BanIpParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Days(1),
-            "test",
-        )
-        .with_source_fingerprint("fingerprint-1");
+        let params = BanIpParams::new("192.168.1.1", "Test", BanDuration::Days(1), "test")
+            .with_source_fingerprint("fingerprint-1");
 
         assert_eq!(params.ip_address, "192.168.1.1");
         assert_eq!(params.source_fingerprint, Some("fingerprint-1"));

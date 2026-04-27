@@ -1,10 +1,10 @@
 //! Tests for OpenAI converter functions.
 
 use serde_json::json;
+use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::openai::converters::{
     convert_response_format, convert_tools,
 };
-use systemprompt_ai::models::tools::McpTool;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::ai::ResponseFormat;
 
@@ -64,7 +64,11 @@ mod convert_tools_tests {
     fn converts_multiple_tools() {
         let tools = vec![
             create_mcp_tool("tool1", Some("First tool"), Some(json!({"type": "object"}))),
-            create_mcp_tool("tool2", Some("Second tool"), Some(json!({"type": "object"}))),
+            create_mcp_tool(
+                "tool2",
+                Some("Second tool"),
+                Some(json!({"type": "object"})),
+            ),
         ];
 
         let result = convert_tools(tools).unwrap();
@@ -146,7 +150,11 @@ mod convert_tools_tests {
     fn first_tool_missing_schema_fails_entire_batch() {
         let tools = vec![
             create_mcp_tool("bad_tool", Some("No schema"), None),
-            create_mcp_tool("good_tool", Some("Has schema"), Some(json!({"type": "object"}))),
+            create_mcp_tool(
+                "good_tool",
+                Some("Has schema"),
+                Some(json!({"type": "object"})),
+            ),
         ];
 
         let result = convert_tools(tools);
@@ -157,7 +165,11 @@ mod convert_tools_tests {
     #[test]
     fn second_tool_missing_schema_fails_entire_batch() {
         let tools = vec![
-            create_mcp_tool("good_tool", Some("Has schema"), Some(json!({"type": "object"}))),
+            create_mcp_tool(
+                "good_tool",
+                Some("Has schema"),
+                Some(json!({"type": "object"})),
+            ),
             create_mcp_tool("bad_tool", Some("No schema"), None),
         ];
 

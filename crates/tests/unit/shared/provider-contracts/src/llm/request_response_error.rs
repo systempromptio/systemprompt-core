@@ -1,9 +1,10 @@
-//! Tests for ChatRequest, ChatResponse, LlmProviderError, and ToolExecutionContext.
+//! Tests for ChatRequest, ChatResponse, LlmProviderError, and
+//! ToolExecutionContext.
 
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_provider_contracts::{
-    ChatMessage, ChatRequest, ChatResponse, LlmProviderError, SamplingParameters,
-    TokenUsage, ToolExecutionContext,
+    ChatMessage, ChatRequest, ChatResponse, LlmProviderError, SamplingParameters, TokenUsage,
+    ToolExecutionContext,
 };
 
 mod chat_request_tests {
@@ -198,8 +199,7 @@ mod llm_provider_error_tests {
 
     #[test]
     fn implements_std_error() {
-        let err: Box<dyn std::error::Error> =
-            Box::new(LlmProviderError::RateLimitExceeded);
+        let err: Box<dyn std::error::Error> = Box::new(LlmProviderError::RateLimitExceeded);
         assert!(!err.to_string().is_empty());
     }
 

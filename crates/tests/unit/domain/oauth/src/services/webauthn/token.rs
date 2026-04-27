@@ -1,6 +1,8 @@
 //! Tests for WebAuthn setup token generation and validation
 
-use systemprompt_oauth::services::webauthn::{generate_setup_token, hash_token, validate_token_format};
+use systemprompt_oauth::services::webauthn::{
+    generate_setup_token, hash_token, validate_token_format,
+};
 
 const TOKEN_PREFIX: &str = "sp_wst_";
 

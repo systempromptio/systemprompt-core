@@ -54,8 +54,42 @@ pub struct SessionAnalytics {
     pub utm_term: Option<String>,
 }
 
+const AI_CRAWLER_TOKENS: &[&str] = &[
+    "notebooklm",
+    "gemini-deep-research",
+    "grammarly",
+    "chatgpt-user",
+    "oai-searchbot",
+    "gptbot",
+    "perplexitybot",
+    "perplexity-user",
+    "claudebot",
+    "claude-user",
+    "claude-web",
+    "anthropic-ai",
+    "applebot-extended",
+    "ccbot",
+    "bytespider",
+    "amazonbot",
+    "youbot",
+    "diffbot",
+    "cohere-ai",
+];
+
 impl SessionAnalytics {
+    pub fn is_ai_crawler(&self) -> bool {
+        self.user_agent.as_ref().is_some_and(|ua| {
+            let ua_lower = ua.to_lowercase();
+            AI_CRAWLER_TOKENS
+                .iter()
+                .any(|token| ua_lower.contains(token))
+        })
+    }
+
     pub fn is_bot(&self) -> bool {
+        if self.is_ai_crawler() {
+            return false;
+        }
         self.user_agent.as_ref().is_some_and(|ua| {
             let ua_lower = ua.to_lowercase();
             ua_lower.contains("bot")
@@ -100,6 +134,7 @@ pub struct CreateSessionInput<'a> {
     pub analytics: &'a SessionAnalytics,
     pub session_source: SessionSource,
     pub is_bot: bool,
+    pub is_ai_crawler: bool,
     pub expires_at: DateTime<Utc>,
 }
 

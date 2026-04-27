@@ -69,7 +69,8 @@ fn test_extract_bearer_token_lowercase_bearer_rejected() {
 
 #[test]
 fn test_extract_bearer_token_with_jwt_format() {
-    let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+    let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.\
+               dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
     let mut headers = HeaderMap::new();
     headers.insert("authorization", format!("Bearer {}", jwt).parse().unwrap());
 
@@ -178,7 +179,9 @@ fn test_extract_cookie_token_similar_cookie_name() {
     let mut headers = HeaderMap::new();
     headers.insert(
         "cookie",
-        "my_access_token=wrong; access_token=correct".parse().unwrap(),
+        "my_access_token=wrong; access_token=correct"
+            .parse()
+            .unwrap(),
     );
 
     let result = extract_cookie_token(&headers);

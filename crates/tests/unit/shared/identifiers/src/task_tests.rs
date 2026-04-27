@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{TaskId, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, TaskId, ToDbValue};
 
 #[test]
 fn generate_uuid_format() {
@@ -10,7 +10,9 @@ fn generate_uuid_format() {
 
 #[test]
 fn generate_unique() {
-    let ids: HashSet<String> = (0..20).map(|_| TaskId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..20)
+        .map(|_| TaskId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 20);
 }
 

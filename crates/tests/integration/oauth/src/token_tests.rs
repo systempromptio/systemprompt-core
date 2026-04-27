@@ -20,10 +20,7 @@ fn test_token_id() -> RefreshTokenId {
     RefreshTokenId::new(&format!("token_{}", Uuid::new_v4()))
 }
 
-async fn create_test_client(
-    db: &systemprompt_database::DbPool,
-    client_id: &ClientId,
-) -> ClientId {
+async fn create_test_client(db: &systemprompt_database::DbPool, client_id: &ClientId) -> ClientId {
     let repo = ClientRepository::new(db).expect("Failed to create client repo");
     let params = CreateClientParams {
         client_id: client_id.clone(),
@@ -38,7 +35,9 @@ async fn create_test_client(
         logo_uri: None,
         contacts: None,
     };
-    repo.create(params).await.expect("Failed to create test client");
+    repo.create(params)
+        .await
+        .expect("Failed to create test client");
     client_id.clone()
 }
 
@@ -160,7 +159,12 @@ async fn test_authorization_code_pkce_invalid_verifier() {
         .expect("Failed to store PKCE code");
 
     let invalid_verifier_result = repo
-        .validate_authorization_code(&code, &client_id, Some(redirect_uri), Some("wrong_verifier"))
+        .validate_authorization_code(
+            &code,
+            &client_id,
+            Some(redirect_uri),
+            Some("wrong_verifier"),
+        )
         .await;
 
     let err = invalid_verifier_result.expect_err("Invalid verifier should fail");
@@ -245,8 +249,7 @@ async fn test_refresh_token_expiration() {
 
     let err = validation.expect_err("Expired token should not validate");
     assert!(
-        err.to_string().contains("expired")
-            || err.to_string().contains("Invalid refresh token"),
+        err.to_string().contains("expired") || err.to_string().contains("Invalid refresh token"),
         "Expected expiration-related error, got: {}",
         err
     );

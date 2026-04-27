@@ -62,7 +62,10 @@ async fn test_get_request_with_auth_token() {
         .unwrap()
         .with_token(token);
 
-    client.list_agents().await.expect("request with auth should succeed");
+    client
+        .list_agents()
+        .await
+        .expect("request with auth should succeed");
 }
 
 #[tokio::test]
@@ -80,7 +83,11 @@ async fn test_get_request_401_unauthorized() {
 
     let err = result.unwrap_err();
     let err_str = err.to_string();
-    assert!(err_str.contains("401"), "Expected error to contain '401', got: {}", err_str);
+    assert!(
+        err_str.contains("401"),
+        "Expected error to contain '401', got: {}",
+        err_str
+    );
 }
 
 #[tokio::test]
@@ -209,18 +216,16 @@ async fn test_post_request_content_type_json() {
     Mock::given(method("POST"))
         .and(path("/api/v1/core/contexts"))
         .and(header("Content-Type", "application/json"))
-        .respond_with(
-            ResponseTemplate::new(201).set_body_json(serde_json::json!({
-                "data": {
-                    "context_id": "ctx-123",
-                    "user_id": "user-456",
-                    "name": "Test",
-                    "created_at": "2024-01-01T00:00:00Z",
-                    "updated_at": "2024-01-01T00:00:00Z"
-                },
-                "meta": response_meta()
-            })),
-        )
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "data": {
+                "context_id": "ctx-123",
+                "user_id": "user-456",
+                "name": "Test",
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            "meta": response_meta()
+        })))
         .mount(&mock_server)
         .await;
 

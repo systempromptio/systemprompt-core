@@ -40,7 +40,11 @@ fn standard_error_codes_have_messages() {
         JsonRpcError::internal_error(),
     ];
     for err in &errors {
-        assert!(!err.message.is_empty(), "Error code {} should have a message", err.code);
+        assert!(
+            !err.message.is_empty(),
+            "Error code {} should have a message",
+            err.code
+        );
     }
 }
 

@@ -6,8 +6,8 @@
 //! - Error conversions (From implementations)
 //! - Result type alias
 
-use systemprompt_users::UserError;
 use systemprompt_identifiers::UserId;
+use systemprompt_users::UserError;
 
 // ============================================================================
 // UserError Display Tests
@@ -292,7 +292,7 @@ mod result_type_tests {
             Ok(_) => panic!("Expected error"),
             Err(UserError::NotFound(id)) => {
                 assert_eq!(id.to_string(), "user-123");
-            }
+            },
             Err(_) => panic!("Expected NotFound error"),
         }
     }

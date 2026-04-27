@@ -81,14 +81,20 @@ fn test_file_validator_validate_image_microsoft_icon() {
 fn test_file_validator_validate_document_pdf() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/pdf", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_word() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/msword", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
@@ -98,14 +104,20 @@ fn test_file_validator_validate_document_docx() {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         1000,
     );
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_excel() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/vnd.ms-excel", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
@@ -115,14 +127,20 @@ fn test_file_validator_validate_document_xlsx() {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         1000,
     );
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_powerpoint() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/vnd.ms-powerpoint", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
@@ -132,63 +150,90 @@ fn test_file_validator_validate_document_pptx() {
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         1000,
     );
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_text() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("text/plain", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_csv() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("text/csv", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_markdown() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("text/markdown", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_html() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("text/html", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_json() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/json", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_xml() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/xml", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_text_xml() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("text/xml", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]
 fn test_file_validator_validate_document_rtf() {
     let validator = FileValidator::new(default_config());
     let result = validator.validate("application/rtf", 1000);
-    assert_eq!(result.expect("validation should pass"), FileCategory::Document);
+    assert_eq!(
+        result.expect("validation should pass"),
+        FileCategory::Document
+    );
 }
 
 #[test]

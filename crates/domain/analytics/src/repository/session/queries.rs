@@ -256,6 +256,72 @@ pub async fn has_analytics_events(pool: &PgPool, session_id: &SessionId) -> Resu
     Ok(result)
 }
 
+pub async fn count_unique_ips_by_fingerprint(
+    pool: &PgPool,
+    fingerprint_hash: &str,
+    window_days: i64,
+) -> Result<i64> {
+    let count = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(DISTINCT ip_address)::BIGINT as "count!"
+        FROM user_sessions
+        WHERE fingerprint_hash = $1
+          AND ip_address IS NOT NULL
+          AND started_at > CURRENT_TIMESTAMP - make_interval(days => $2)
+        "#,
+        fingerprint_hash,
+        window_days as i32
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(count)
+}
+
+pub async fn count_engagement_events_by_fingerprint(
+    pool: &PgPool,
+    fingerprint_hash: &str,
+    window_days: i64,
+) -> Result<i64> {
+    let count = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(e.id)::BIGINT as "count!"
+        FROM engagement_events e
+        JOIN user_sessions s ON s.session_id = e.session_id
+        WHERE s.fingerprint_hash = $1
+          AND s.started_at > CURRENT_TIMESTAMP - make_interval(days => $2)
+        "#,
+        fingerprint_hash,
+        window_days as i32
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(count)
+}
+
+pub async fn get_session_starts_by_fingerprint(
+    pool: &PgPool,
+    fingerprint_hash: &str,
+    window_days: i64,
+) -> Result<Vec<DateTime<Utc>>> {
+    let timestamps = sqlx::query_scalar!(
+        r#"
+        SELECT started_at as "started_at!"
+        FROM user_sessions
+        WHERE fingerprint_hash = $1
+          AND started_at > CURRENT_TIMESTAMP - make_interval(days => $2)
+        ORDER BY started_at ASC
+        "#,
+        fingerprint_hash,
+        window_days as i32
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(timestamps)
+}
+
 pub async fn get_session_velocity(
     pool: &PgPool,
     session_id: &SessionId,

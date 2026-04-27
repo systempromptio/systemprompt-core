@@ -1,5 +1,5 @@
 use systemprompt_agent::models::a2a::jsonrpc::{
-    JsonRpcError, JsonRpcResponse, Request, RequestId, JSON_RPC_VERSION_2_0,
+    JSON_RPC_VERSION_2_0, JsonRpcError, JsonRpcResponse, Request, RequestId,
 };
 
 #[test]
@@ -12,7 +12,9 @@ fn test_jsonrpc_response_with_result() {
     };
 
     assert_eq!(response.jsonrpc, "2.0");
-    response.result.expect("response with result should have result");
+    response
+        .result
+        .expect("response with result should have result");
     assert!(response.error.is_none());
 }
 
@@ -26,7 +28,9 @@ fn test_jsonrpc_response_with_error() {
     };
 
     assert!(response.result.is_none());
-    let error = response.error.expect("response with error should have error");
+    let error = response
+        .error
+        .expect("response with error should have error");
     assert_eq!(error.code, -32600);
 }
 

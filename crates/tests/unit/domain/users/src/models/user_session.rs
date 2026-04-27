@@ -1,8 +1,8 @@
 //! Unit tests for UserSession struct
 
 use chrono::Utc;
-use systemprompt_users::UserSession;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_users::UserSession;
 
 #[test]
 fn user_session_creation() {
@@ -12,7 +12,9 @@ fn user_session_creation() {
         ip_address: Some("192.168.1.1".to_string()),
         user_agent: Some("Mozilla/5.0".to_string()),
         device_type: Some("desktop".to_string()),
-        started_at: Some(Utc::now()), last_activity_at: Some(Utc::now()), ended_at: None,
+        started_at: Some(Utc::now()),
+        last_activity_at: Some(Utc::now()),
+        ended_at: None,
     };
     session.user_id.expect("expected Some value");
     assert!(session.ended_at.is_none());
@@ -21,9 +23,14 @@ fn user_session_creation() {
 #[test]
 fn user_session_debug() {
     let session = UserSession {
-        session_id: SessionId::new("session-123".to_string()), user_id: None,
-        ip_address: None, user_agent: None, device_type: None,
-        started_at: None, last_activity_at: None, ended_at: None,
+        session_id: SessionId::new("session-123".to_string()),
+        user_id: None,
+        ip_address: None,
+        user_agent: None,
+        device_type: None,
+        started_at: None,
+        last_activity_at: None,
+        ended_at: None,
     };
     assert!(format!("{:?}", session).contains("UserSession"));
 }
@@ -33,8 +40,12 @@ fn user_session_active_when_ended_at_none() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
         user_id: Some(UserId::new("user-123".to_string())),
-        ip_address: None, user_agent: None, device_type: None,
-        started_at: Some(Utc::now()), last_activity_at: Some(Utc::now()), ended_at: None,
+        ip_address: None,
+        user_agent: None,
+        device_type: None,
+        started_at: Some(Utc::now()),
+        last_activity_at: Some(Utc::now()),
+        ended_at: None,
     };
     assert!(session.ended_at.is_none());
 }
@@ -44,8 +55,12 @@ fn user_session_ended_when_ended_at_set() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
         user_id: Some(UserId::new("user-123".to_string())),
-        ip_address: None, user_agent: None, device_type: None,
-        started_at: Some(Utc::now()), last_activity_at: Some(Utc::now()), ended_at: Some(Utc::now()),
+        ip_address: None,
+        user_agent: None,
+        device_type: None,
+        started_at: Some(Utc::now()),
+        last_activity_at: Some(Utc::now()),
+        ended_at: Some(Utc::now()),
     };
     session.ended_at.expect("expected Some value");
 }
@@ -53,9 +68,14 @@ fn user_session_ended_when_ended_at_set() {
 #[test]
 fn user_session_anonymous_when_user_id_none() {
     let session = UserSession {
-        session_id: SessionId::new("session-anon".to_string()), user_id: None,
-        ip_address: Some("127.0.0.1".to_string()), user_agent: None, device_type: None,
-        started_at: Some(Utc::now()), last_activity_at: None, ended_at: None,
+        session_id: SessionId::new("session-anon".to_string()),
+        user_id: None,
+        ip_address: Some("127.0.0.1".to_string()),
+        user_agent: None,
+        device_type: None,
+        started_at: Some(Utc::now()),
+        last_activity_at: None,
+        ended_at: None,
     };
     assert!(session.user_id.is_none());
 }

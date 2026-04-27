@@ -3,7 +3,9 @@
 use std::path::PathBuf;
 
 use systemprompt_extension::prelude::*;
-use systemprompt_extension::typed::{SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped};
+use systemprompt_extension::typed::{
+    SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+};
 
 // =============================================================================
 // SchemaSourceTyped Tests
@@ -16,7 +18,7 @@ fn test_schema_source_typed_embedded() {
     match source {
         SchemaSourceTyped::Embedded(sql) => {
             assert!(sql.contains("CREATE TABLE test"));
-        }
+        },
         SchemaSourceTyped::File(_) => panic!("Expected Embedded variant"),
     }
 }
@@ -28,7 +30,7 @@ fn test_schema_source_typed_file() {
     match source {
         SchemaSourceTyped::File(path) => {
             assert_eq!(path, PathBuf::from("/schemas/test.sql"));
-        }
+        },
         SchemaSourceTyped::Embedded(_) => panic!("Expected File variant"),
     }
 }
@@ -58,7 +60,8 @@ fn test_schema_source_typed_serialize() {
 
 #[test]
 fn test_schema_definition_typed_embedded() {
-    let schema = SchemaDefinitionTyped::embedded("users", "CREATE TABLE users (id INT PRIMARY KEY)");
+    let schema =
+        SchemaDefinitionTyped::embedded("users", "CREATE TABLE users (id INT PRIMARY KEY)");
 
     assert_eq!(schema.table, "users");
     assert!(schema.required_columns.is_empty());
@@ -66,7 +69,7 @@ fn test_schema_definition_typed_embedded() {
     match schema.sql {
         SchemaSourceTyped::Embedded(sql) => {
             assert!(sql.contains("CREATE TABLE users"));
-        }
+        },
         _ => panic!("Expected Embedded source"),
     }
 }
@@ -81,15 +84,16 @@ fn test_schema_definition_typed_file() {
     match schema.sql {
         SchemaSourceTyped::File(path) => {
             assert_eq!(path, PathBuf::from("/db/products.sql"));
-        }
+        },
         _ => panic!("Expected File source"),
     }
 }
 
 #[test]
 fn test_schema_definition_typed_with_required_columns() {
-    let schema = SchemaDefinitionTyped::embedded("orders", "CREATE TABLE orders (id INT, customer_id INT)")
-        .with_required_columns(vec!["id".to_string(), "customer_id".to_string()]);
+    let schema =
+        SchemaDefinitionTyped::embedded("orders", "CREATE TABLE orders (id INT, customer_id INT)")
+            .with_required_columns(vec!["id".to_string(), "customer_id".to_string()]);
 
     assert_eq!(schema.table, "orders");
     assert_eq!(schema.required_columns.len(), 2);
@@ -165,7 +169,10 @@ impl NoDependencies for DefaultWeightExtension {}
 
 impl SchemaExtensionTyped for DefaultWeightExtension {
     fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::embedded("default_table", "CREATE TABLE default_table ()")]
+        vec![SchemaDefinitionTyped::embedded(
+            "default_table",
+            "CREATE TABLE default_table ()",
+        )]
     }
     // Uses default migration_weight() = 100
 }
@@ -219,7 +226,10 @@ impl NoDependencies for LowPrioritySchemaExt {}
 
 impl SchemaExtensionTyped for LowPrioritySchemaExt {
     fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::embedded("low", "CREATE TABLE low ()")]
+        vec![SchemaDefinitionTyped::embedded(
+            "low",
+            "CREATE TABLE low ()",
+        )]
     }
 
     fn migration_weight(&self) -> u32 {
@@ -240,7 +250,10 @@ impl NoDependencies for HighPrioritySchemaExt {}
 
 impl SchemaExtensionTyped for HighPrioritySchemaExt {
     fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::embedded("high", "CREATE TABLE high ()")]
+        vec![SchemaDefinitionTyped::embedded(
+            "high",
+            "CREATE TABLE high ()",
+        )]
     }
 
     fn migration_weight(&self) -> u32 {
@@ -278,7 +291,10 @@ fn test_schema_extension_with_file_source() {
 
     impl SchemaExtensionTyped for FileSchemaExtension {
         fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-            vec![SchemaDefinitionTyped::file("file_table", "/db/migrations/001_create_file_table.sql")]
+            vec![SchemaDefinitionTyped::file(
+                "file_table",
+                "/db/migrations/001_create_file_table.sql",
+            )]
         }
     }
 
@@ -289,7 +305,7 @@ fn test_schema_extension_with_file_source() {
     match &schemas[0].sql {
         SchemaSourceTyped::File(path) => {
             assert!(path.to_string_lossy().contains("001_create_file_table.sql"));
-        }
+        },
         _ => panic!("Expected File source"),
     }
 }
@@ -310,8 +326,11 @@ fn test_schema_extension_with_required_columns() {
     impl SchemaExtensionTyped for RequiredColumnsExtension {
         fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
             vec![
-                SchemaDefinitionTyped::embedded("accounts", "CREATE TABLE accounts (id INT, email TEXT)")
-                    .with_required_columns(vec!["id".to_string(), "email".to_string()]),
+                SchemaDefinitionTyped::embedded(
+                    "accounts",
+                    "CREATE TABLE accounts (id INT, email TEXT)",
+                )
+                .with_required_columns(vec!["id".to_string(), "email".to_string()]),
             ]
         }
     }

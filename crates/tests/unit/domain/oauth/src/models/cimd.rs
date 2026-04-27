@@ -1,7 +1,7 @@
 //! Tests for CIMD (Client ID Metadata Document) types
 
-use systemprompt_oauth::models::cimd::{CimdMetadata, ClientValidation};
 use systemprompt_identifiers::{ClientId, ClientType};
+use systemprompt_oauth::models::cimd::{CimdMetadata, ClientValidation};
 
 // ============================================================================
 // CimdMetadata Tests
@@ -125,7 +125,10 @@ fn test_cimd_metadata_deserialize() {
     }"#;
 
     let metadata: CimdMetadata = serde_json::from_str(json).unwrap();
-    assert_eq!(metadata.client_id.as_str(), "https://example.com/.well-known/oauth-client");
+    assert_eq!(
+        metadata.client_id.as_str(),
+        "https://example.com/.well-known/oauth-client"
+    );
     assert_eq!(metadata.redirect_uris.len(), 1);
     assert_eq!(metadata.client_name, Some("Test Client".to_string()));
 }
@@ -166,7 +169,9 @@ fn test_cimd_metadata_debug() {
 #[test]
 fn test_client_validation_dcr_client_id() {
     let client_id = ClientId::new("test-client-123");
-    let validation = ClientValidation::Dcr { client_id: client_id.clone() };
+    let validation = ClientValidation::Dcr {
+        client_id: client_id.clone(),
+    };
 
     assert_eq!(validation.client_id().as_str(), "test-client-123");
 }
@@ -175,15 +180,23 @@ fn test_client_validation_dcr_client_id() {
 fn test_client_validation_cimd_client_id() {
     let client_id = ClientId::new("https://example.com/client");
     let metadata = Box::new(create_valid_cimd_metadata());
-    let validation = ClientValidation::Cimd { client_id: client_id.clone(), metadata };
+    let validation = ClientValidation::Cimd {
+        client_id: client_id.clone(),
+        metadata,
+    };
 
-    assert_eq!(validation.client_id().as_str(), "https://example.com/client");
+    assert_eq!(
+        validation.client_id().as_str(),
+        "https://example.com/client"
+    );
 }
 
 #[test]
 fn test_client_validation_first_party_client_id() {
     let client_id = ClientId::new("fp_first-party-client");
-    let validation = ClientValidation::FirstParty { client_id: client_id.clone() };
+    let validation = ClientValidation::FirstParty {
+        client_id: client_id.clone(),
+    };
 
     assert_eq!(validation.client_id().as_str(), "fp_first-party-client");
 }
@@ -191,7 +204,9 @@ fn test_client_validation_first_party_client_id() {
 #[test]
 fn test_client_validation_system_client_id() {
     let client_id = ClientId::new("sys_system-client");
-    let validation = ClientValidation::System { client_id: client_id.clone() };
+    let validation = ClientValidation::System {
+        client_id: client_id.clone(),
+    };
 
     assert_eq!(validation.client_id().as_str(), "sys_system-client");
 }
@@ -202,15 +217,22 @@ fn test_client_validation_dcr_client_type() {
     let validation = ClientValidation::Dcr { client_id };
 
     let client_type = validation.client_type();
-    // DCR clients derive type from client_id - for non-prefixed IDs, it's ThirdParty or Unknown
-    assert!(matches!(client_type, ClientType::ThirdParty | ClientType::Unknown));
+    // DCR clients derive type from client_id - for non-prefixed IDs, it's
+    // ThirdParty or Unknown
+    assert!(matches!(
+        client_type,
+        ClientType::ThirdParty | ClientType::Unknown
+    ));
 }
 
 #[test]
 fn test_client_validation_cimd_client_type() {
     let client_id = ClientId::new("https://example.com/client");
     let metadata = Box::new(create_valid_cimd_metadata());
-    let validation = ClientValidation::Cimd { client_id, metadata };
+    let validation = ClientValidation::Cimd {
+        client_id,
+        metadata,
+    };
 
     assert_eq!(validation.client_type(), ClientType::Cimd);
 }

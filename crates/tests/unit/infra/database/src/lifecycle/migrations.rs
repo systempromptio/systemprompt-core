@@ -1,4 +1,5 @@
-//! Unit tests for AppliedMigration, MigrationResult, and MigrationStatus structs
+//! Unit tests for AppliedMigration, MigrationResult, and MigrationStatus
+//! structs
 
 use systemprompt_database::{AppliedMigration, MigrationResult, MigrationStatus};
 

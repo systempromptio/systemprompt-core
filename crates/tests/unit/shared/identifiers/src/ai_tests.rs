@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{AiRequestId, MessageId, ConfigId, DbValue, ToDbValue};
+use systemprompt_identifiers::{AiRequestId, ConfigId, DbValue, MessageId, ToDbValue};
 
 #[test]
 fn ai_request_id_generate_uuid_format() {
@@ -10,7 +10,9 @@ fn ai_request_id_generate_uuid_format() {
 
 #[test]
 fn ai_request_id_generate_unique() {
-    let ids: HashSet<String> = (0..20).map(|_| AiRequestId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..20)
+        .map(|_| AiRequestId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 20);
 }
 

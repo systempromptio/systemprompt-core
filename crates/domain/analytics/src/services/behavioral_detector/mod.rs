@@ -15,6 +15,10 @@ pub mod scoring {
     pub const OUTDATED_BROWSER: i32 = 25;
     pub const NO_JAVASCRIPT_EVENTS: i32 = 20;
     pub const GHOST_SESSION: i32 = 35;
+    pub const RESIDENTIAL_PROXY_ROTATION: i32 = 35;
+    pub const NO_ENGAGEMENT_ACROSS_SESSIONS: i32 = 25;
+    pub const PERIODIC_CADENCE: i32 = 35;
+    pub const HOME_TAB_WATCHER: i32 = 35;
 }
 
 pub mod thresholds {
@@ -27,6 +31,14 @@ pub mod thresholds {
     pub const FIREFOX_MIN_VERSION: i32 = 120;
     pub const NO_JS_MIN_REQUESTS: i64 = 2;
     pub const GHOST_SESSION_MIN_AGE_SECONDS: i64 = 30;
+    pub const RESIDENTIAL_PROXY_IP_RATIO: f64 = 0.8;
+    pub const RESIDENTIAL_PROXY_MIN_SESSIONS: i64 = 5;
+    pub const NO_ENGAGEMENT_MIN_SESSIONS: i64 = 10;
+    pub const PERIODIC_CADENCE_MIN_SESSIONS: usize = 5;
+    pub const PERIODIC_CADENCE_MAX_CV: f64 = 0.1;
+    pub const HOME_TAB_REQUEST_CEILING: i64 = 2;
+    pub const HOME_TAB_DAILY_GAP_SECONDS_MIN: f64 = 60.0 * 60.0 * 20.0;
+    pub const HOME_TAB_DAILY_GAP_SECONDS_MAX: f64 = 60.0 * 60.0 * 28.0;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -50,6 +62,10 @@ impl BehavioralBotDetector {
         Self::check_outdated_browser(input, &mut score, &mut signals);
         Self::check_no_javascript_events(input, &mut score, &mut signals);
         Self::check_ghost_session(input, &mut score, &mut signals);
+        Self::check_residential_proxy_rotation(input, &mut score, &mut signals);
+        Self::check_no_engagement_across_sessions(input, &mut score, &mut signals);
+        Self::check_periodic_cadence(input, &mut score, &mut signals);
+        Self::check_home_tab_watcher(input, &mut score, &mut signals);
 
         let is_suspicious = score >= BEHAVIORAL_BOT_THRESHOLD;
         let reason = is_suspicious.then(|| {

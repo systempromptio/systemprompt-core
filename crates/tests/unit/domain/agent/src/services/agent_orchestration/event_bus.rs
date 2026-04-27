@@ -46,7 +46,10 @@ async fn test_event_bus_publish_with_subscriber() {
     bus.publish(event);
 
     let received = receiver.recv().await.unwrap();
-    assert_eq!(received.agent_id().map(|a| a.as_str()), Some("pub-sub-test"));
+    assert_eq!(
+        received.agent_id().map(|a| a.as_str()),
+        Some("pub-sub-test")
+    );
 }
 
 #[tokio::test]
@@ -90,8 +93,14 @@ async fn test_event_bus_broadcast_to_multiple_subscribers() {
     let received1 = receiver1.recv().await.unwrap();
     let received2 = receiver2.recv().await.unwrap();
 
-    assert_eq!(received1.agent_id().map(|a| a.as_str()), Some("broadcast-test"));
-    assert_eq!(received2.agent_id().map(|a| a.as_str()), Some("broadcast-test"));
+    assert_eq!(
+        received1.agent_id().map(|a| a.as_str()),
+        Some("broadcast-test")
+    );
+    assert_eq!(
+        received2.agent_id().map(|a| a.as_str()),
+        Some("broadcast-test")
+    );
 }
 
 #[tokio::test]

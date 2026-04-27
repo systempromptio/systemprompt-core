@@ -19,7 +19,10 @@ fn default_config_has_public_paths() {
 fn new_produces_same_as_default() {
     let new_config = ApiAuthMiddlewareConfig::new();
     let default_config = ApiAuthMiddlewareConfig::default();
-    assert_eq!(new_config.public_paths.len(), default_config.public_paths.len());
+    assert_eq!(
+        new_config.public_paths.len(),
+        default_config.public_paths.len()
+    );
 }
 
 #[test]

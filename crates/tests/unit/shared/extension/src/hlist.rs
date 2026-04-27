@@ -97,5 +97,8 @@ fn single_element_subset_of_larger() {
 
 #[test]
 fn two_element_subset_of_superset() {
-    assert!(<(Alpha, (Beta, ())) as Subset<(Alpha, (Beta, (Gamma, ())))>>::is_subset_of());
+    assert!(<(Alpha, (Beta, ())) as Subset<(
+        Alpha,
+        (Beta, (Gamma, ()))
+    )>>::is_subset_of());
 }

@@ -129,6 +129,11 @@ impl Extension for AgentExtension {
                 "ai_requests_task_fk",
                 include_str!("../schema/migrations/004_ai_requests_task_fk.sql"),
             ),
+            Migration::new(
+                5,
+                "add_task_version",
+                include_str!("../schema/migrations/005_add_task_version.sql"),
+            ),
         ]
     }
 }

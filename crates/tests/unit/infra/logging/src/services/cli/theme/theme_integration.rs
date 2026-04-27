@@ -108,7 +108,11 @@ fn test_theme_all_item_statuses_produce_icons_matching_icons_for_status() {
     for status in statuses {
         let theme_icon = Theme::icon(status).to_string();
         let icons_icon = Icons::for_status(status).to_string();
-        assert_eq!(theme_icon, icons_icon, "Theme::icon and Icons::for_status should match for {:?}", status);
+        assert_eq!(
+            theme_icon, icons_icon,
+            "Theme::icon and Icons::for_status should match for {:?}",
+            status
+        );
     }
 }
 
@@ -124,7 +128,11 @@ fn test_theme_all_module_types_produce_icons_matching_icons_for_module_type() {
     for module in modules {
         let theme_icon = Theme::icon(module).to_string();
         let icons_icon = Icons::for_module_type(module).to_string();
-        assert_eq!(theme_icon, icons_icon, "Theme::icon and Icons::for_module_type should match for {:?}", module);
+        assert_eq!(
+            theme_icon, icons_icon,
+            "Theme::icon and Icons::for_module_type should match for {:?}",
+            module
+        );
     }
 }
 
@@ -140,7 +148,11 @@ fn test_theme_all_message_levels_produce_icons_matching_icons_for_message_level(
     for level in levels {
         let theme_icon = Theme::icon(level).to_string();
         let icons_icon = Icons::for_message_level(level).to_string();
-        assert_eq!(theme_icon, icons_icon, "Theme::icon and Icons::for_message_level should match for {:?}", level);
+        assert_eq!(
+            theme_icon, icons_icon,
+            "Theme::icon and Icons::for_message_level should match for {:?}",
+            level
+        );
     }
 }
 
@@ -157,7 +169,11 @@ fn test_theme_color_preserves_text_for_all_item_statuses() {
 
     for status in statuses {
         let styled = Theme::color("preserved", status);
-        assert!(styled.to_string().contains("preserved"), "Text should be preserved for status {:?}", status);
+        assert!(
+            styled.to_string().contains("preserved"),
+            "Text should be preserved for status {:?}",
+            status
+        );
     }
 }
 
@@ -172,7 +188,11 @@ fn test_theme_color_preserves_text_for_all_message_levels() {
 
     for level in levels {
         let styled = Theme::color("preserved", level);
-        assert!(styled.to_string().contains("preserved"), "Text should be preserved for level {:?}", level);
+        assert!(
+            styled.to_string().contains("preserved"),
+            "Text should be preserved for level {:?}",
+            level
+        );
     }
 }
 
@@ -187,6 +207,10 @@ fn test_theme_color_preserves_text_for_all_emphasis_types() {
 
     for emphasis in emphases {
         let styled = Theme::color("preserved", emphasis);
-        assert!(styled.to_string().contains("preserved"), "Text should be preserved for emphasis {:?}", emphasis);
+        assert!(
+            styled.to_string().contains("preserved"),
+            "Text should be preserved for emphasis {:?}",
+            emphasis
+        );
     }
 }

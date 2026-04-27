@@ -28,16 +28,8 @@ pub const BOT_KEYWORDS: &[&str] = &[
     "whatsapp",
     "telegrambot",
     "pinterestbot",
-    "chatgpt-user",
-    "gptbot",
-    "claude-web",
-    "anthropic-ai",
-    "perplexitybot",
-    "cohere-ai",
     "petalbot",
-    "bytespider",
     "sogou",
-    "amazonbot",
     "applebot",
     "dotbot",
     "semrushbot",
@@ -101,17 +93,31 @@ pub const BOT_IP_PREFIXES: &[&str] = &[
     "66.249.", "40.77.", "157.55.", "207.46.", "69.171.", "173.252.", "31.13.",
 ];
 
+pub fn is_malformed_user_agent(user_agent: &str) -> bool {
+    if user_agent.is_empty() || user_agent.len() < 10 {
+        return true;
+    }
+
+    let trimmed = user_agent.trim();
+    if trimmed.starts_with('{') || trimmed.ends_with('}') {
+        return true;
+    }
+
+    let lower = trimmed.to_lowercase();
+    matches!(lower.as_str(), "-" | "null" | "unknown")
+}
+
 pub fn matches_bot_pattern(user_agent: &str) -> bool {
+    if is_malformed_user_agent(user_agent) {
+        return true;
+    }
+
     let ua_lower = user_agent.to_lowercase();
 
     if BOT_KEYWORDS
         .iter()
         .any(|keyword| ua_lower.contains(keyword))
     {
-        return true;
-    }
-
-    if user_agent.len() < 10 {
         return true;
     }
 

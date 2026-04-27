@@ -1,2 +1,2 @@
-mod configuration;
 mod async_operations;
+mod configuration;

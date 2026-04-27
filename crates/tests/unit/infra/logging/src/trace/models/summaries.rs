@@ -1,4 +1,5 @@
-//! Tests for TraceEvent, AiRequestSummary, McpExecutionSummary, ExecutionStepSummary
+//! Tests for TraceEvent, AiRequestSummary, McpExecutionSummary,
+//! ExecutionStepSummary
 
 use chrono::Utc;
 use systemprompt_logging::{

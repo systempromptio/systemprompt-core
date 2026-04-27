@@ -5,12 +5,7 @@
 //! - parse_email function
 //! - Error cases for invalid inputs
 
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::shared::{parse_email, parse_profile_name};
 

@@ -3,10 +3,10 @@
 //! Tests the convert_form_to_query and is_user_consent_granted functions
 //! that support the authorize POST handler.
 
+use systemprompt_api::routes::oauth::endpoints::authorize::AuthorizeRequest;
 use systemprompt_api::routes::oauth::endpoints::authorize::response_builder::{
     convert_form_to_query, is_user_consent_granted,
 };
-use systemprompt_api::routes::oauth::endpoints::authorize::AuthorizeRequest;
 use systemprompt_identifiers::ClientId;
 
 // ============================================================================
@@ -80,7 +80,10 @@ fn test_convert_form_to_query_preserves_resource() {
     let form = create_full_authorize_request();
     let query = convert_form_to_query(&form);
 
-    assert_eq!(query.resource.as_deref(), Some("https://api.example.com/v1"));
+    assert_eq!(
+        query.resource.as_deref(),
+        Some("https://api.example.com/v1")
+    );
 }
 
 #[test]

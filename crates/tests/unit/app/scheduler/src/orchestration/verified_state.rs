@@ -3,10 +3,7 @@
 use systemprompt_models::{RuntimeStatus, ServiceType};
 use systemprompt_scheduler::{DesiredStatus, ServiceAction, VerifiedServiceState};
 
-fn build_state(
-    desired: DesiredStatus,
-    runtime: RuntimeStatus,
-) -> VerifiedServiceState {
+fn build_state(desired: DesiredStatus, runtime: RuntimeStatus) -> VerifiedServiceState {
     VerifiedServiceState::builder(
         "test-service".to_string(),
         ServiceType::Mcp,

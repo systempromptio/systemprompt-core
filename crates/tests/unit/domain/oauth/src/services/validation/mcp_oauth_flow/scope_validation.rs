@@ -26,9 +26,8 @@ fn test_validate_scopes_accepts_admin() {
 
 #[test]
 fn test_validate_scopes_accepts_user_and_admin() {
-    let scopes =
-        OAuthRepository::validate_scopes(&["user".to_string(), "admin".to_string()])
-            .expect("user and admin scopes should be valid");
+    let scopes = OAuthRepository::validate_scopes(&["user".to_string(), "admin".to_string()])
+        .expect("user and admin scopes should be valid");
     assert!(scopes.contains(&"user".to_string()));
     assert!(scopes.contains(&"admin".to_string()));
 }
@@ -45,8 +44,7 @@ fn test_validate_scopes_rejects_openid() {
 
 #[test]
 fn test_validate_scopes_empty_returns_empty() {
-    let scopes = OAuthRepository::validate_scopes(&[])
-        .expect("empty scopes should be valid");
+    let scopes = OAuthRepository::validate_scopes(&[]).expect("empty scopes should be valid");
     assert!(scopes.is_empty());
 }
 
@@ -103,7 +101,10 @@ fn test_available_scopes_superset_of_defaults() {
         .map(|(n, _)| n)
         .collect();
     for d in &defaults {
-        assert!(available.contains(d), "Default scope {d} not in available scopes");
+        assert!(
+            available.contains(d),
+            "Default scope {d} not in available scopes"
+        );
     }
 }
 
@@ -225,13 +226,21 @@ fn test_wellknown_token_endpoint() {
 #[test]
 fn test_wellknown_grant_types_include_authorization_code() {
     let config = OAuthServerConfig::from_api_server_url("https://example.com");
-    assert!(config.supported_grant_types.contains(&"authorization_code".to_string()));
+    assert!(
+        config
+            .supported_grant_types
+            .contains(&"authorization_code".to_string())
+    );
 }
 
 #[test]
 fn test_wellknown_grant_types_include_refresh_token() {
     let config = OAuthServerConfig::from_api_server_url("https://example.com");
-    assert!(config.supported_grant_types.contains(&"refresh_token".to_string()));
+    assert!(
+        config
+            .supported_grant_types
+            .contains(&"refresh_token".to_string())
+    );
 }
 
 #[test]

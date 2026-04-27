@@ -51,13 +51,15 @@ mod build_thinking_config_tests {
 
     #[test]
     fn thinking_type_is_enabled() {
-        let config = build_thinking_config("claude-3-5-sonnet-20241022").expect("should have config");
+        let config =
+            build_thinking_config("claude-3-5-sonnet-20241022").expect("should have config");
         assert_eq!(config.thinking_type, "enabled");
     }
 
     #[test]
     fn budget_tokens_has_correct_value() {
-        let config = build_thinking_config("claude-3-5-sonnet-20241022").expect("should have config");
+        let config =
+            build_thinking_config("claude-3-5-sonnet-20241022").expect("should have config");
         assert_eq!(config.budget_tokens, 10240);
     }
 }

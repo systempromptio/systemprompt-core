@@ -1,4 +1,5 @@
-//! Unit tests for LogRow to LogEntry field conversion (metadata, IDs, timestamp)
+//! Unit tests for LogRow to LogEntry field conversion (metadata, IDs,
+//! timestamp)
 
 use chrono::Utc;
 use systemprompt_identifiers::LogId;
@@ -24,7 +25,9 @@ fn test_log_row_to_log_entry_with_valid_metadata() {
 
     let entry: LogEntry = row.into();
 
-    let meta = entry.metadata.expect("valid JSON metadata should be preserved");
+    let meta = entry
+        .metadata
+        .expect("valid JSON metadata should be preserved");
     assert_eq!(meta["key"], "value");
     assert_eq!(meta["number"], 42);
 }
@@ -245,11 +248,23 @@ fn test_log_row_to_log_entry_full_conversion() {
     assert_eq!(entry.level, LogLevel::Warn);
     assert_eq!(entry.module, "full::conversion");
     assert_eq!(entry.message, "Full conversion test");
-    entry.metadata.as_ref().expect("full conversion should preserve metadata");
+    entry
+        .metadata
+        .as_ref()
+        .expect("full conversion should preserve metadata");
     assert_eq!(entry.user_id.as_str(), "user-full");
     assert_eq!(entry.session_id.as_str(), "session-full");
-    entry.task_id.as_ref().expect("full conversion should preserve task_id");
+    entry
+        .task_id
+        .as_ref()
+        .expect("full conversion should preserve task_id");
     assert_eq!(entry.trace_id.as_str(), "trace-full");
-    entry.context_id.as_ref().expect("full conversion should preserve context_id");
-    entry.client_id.as_ref().expect("full conversion should preserve client_id");
+    entry
+        .context_id
+        .as_ref()
+        .expect("full conversion should preserve context_id");
+    entry
+        .client_id
+        .as_ref()
+        .expect("full conversion should preserve client_id");
 }

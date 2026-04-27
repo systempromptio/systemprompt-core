@@ -6,9 +6,7 @@
 //! - UtmParams (to_query_string, to_json)
 //! - CampaignLink (get_full_url)
 
-use systemprompt_content::models::{
-    DestinationType, LinkType, UtmParams,
-};
+use systemprompt_content::models::{DestinationType, LinkType, UtmParams};
 
 // ============================================================================
 // LinkType Tests

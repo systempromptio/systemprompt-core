@@ -44,7 +44,10 @@ fn create_test_config() -> McpServerConfig {
 fn test_mcp_server_config_endpoint() {
     let config = create_test_config();
     let endpoint = config.endpoint("http://localhost:3000");
-    assert_eq!(endpoint, "http://localhost:3000/api/v1/mcp/test-service/mcp");
+    assert_eq!(
+        endpoint,
+        "http://localhost:3000/api/v1/mcp/test-service/mcp"
+    );
 }
 
 #[test]

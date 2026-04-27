@@ -129,7 +129,10 @@ fn test_deployment_config_new_empty() {
 #[test]
 fn test_deployment_config_with_string_value() {
     let mut vars = HashMap::new();
-    vars.insert("key".to_string(), serde_yaml::Value::String("value".to_string()));
+    vars.insert(
+        "key".to_string(),
+        serde_yaml::Value::String("value".to_string()),
+    );
     let config = DeploymentConfig { vars };
     assert_eq!(config.vars.len(), 1);
 }
@@ -137,7 +140,10 @@ fn test_deployment_config_with_string_value() {
 #[test]
 fn test_deployment_config_with_multiple_values() {
     let mut vars = HashMap::new();
-    vars.insert("str_key".to_string(), serde_yaml::Value::String("value".to_string()));
+    vars.insert(
+        "str_key".to_string(),
+        serde_yaml::Value::String("value".to_string()),
+    );
     vars.insert("num_key".to_string(), serde_yaml::Value::Number(42.into()));
     vars.insert("bool_key".to_string(), serde_yaml::Value::Bool(true));
     let config = DeploymentConfig { vars };
@@ -156,7 +162,10 @@ fn test_deployment_config_debug() {
 #[test]
 fn test_deployment_config_serialize() {
     let mut vars = HashMap::new();
-    vars.insert("DATABASE_URL".to_string(), serde_yaml::Value::String("postgres://localhost".to_string()));
+    vars.insert(
+        "DATABASE_URL".to_string(),
+        serde_yaml::Value::String("postgres://localhost".to_string()),
+    );
     let config = DeploymentConfig { vars };
     let yaml = serde_yaml::to_string(&config);
     yaml.as_ref().expect("yaml should succeed");
@@ -190,7 +199,10 @@ fn test_environment_config_new() {
 #[test]
 fn test_environment_config_with_variables() {
     let mut variables = HashMap::new();
-    variables.insert("DATABASE_URL".to_string(), "postgres://localhost".to_string());
+    variables.insert(
+        "DATABASE_URL".to_string(),
+        "postgres://localhost".to_string(),
+    );
     variables.insert("PORT".to_string(), "8080".to_string());
     let config = EnvironmentConfig {
         environment: DeployEnvironment::Production,

@@ -1,10 +1,9 @@
 use axum::body::to_bytes;
 use axum::http::StatusCode;
 use systemprompt_api::routes::agent::responses::{
-    collection_response, single_response, single_response_created,
+    api_error_response, collection_response, single_response, single_response_created,
 };
 use systemprompt_models::api::ApiError;
-use systemprompt_api::routes::agent::responses::api_error_response;
 
 #[tokio::test]
 async fn test_single_response_returns_200() {
@@ -51,10 +50,8 @@ async fn test_single_response_created_body_contains_data() {
 
 #[tokio::test]
 async fn test_collection_response_returns_200() {
-    let items: Vec<serde_json::Value> = vec![
-        serde_json::json!({"id": 1}),
-        serde_json::json!({"id": 2}),
-    ];
+    let items: Vec<serde_json::Value> =
+        vec![serde_json::json!({"id": 1}), serde_json::json!({"id": 2})];
     let response = collection_response(items);
     assert_eq!(response.status(), StatusCode::OK);
 }

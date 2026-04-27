@@ -26,39 +26,27 @@ mod ban_ip_with_metadata_params_tests {
 
     #[test]
     fn with_source_fingerprint_sets_fingerprint() {
-        let params = BanIpWithMetadataParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Hours(1),
-            "test",
-        )
-        .with_source_fingerprint("fp123");
+        let params =
+            BanIpWithMetadataParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
+                .with_source_fingerprint("fp123");
 
         assert_eq!(params.source_fingerprint, Some("fp123"));
     }
 
     #[test]
     fn with_offense_path_sets_path() {
-        let params = BanIpWithMetadataParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Hours(1),
-            "test",
-        )
-        .with_offense_path("/api/v1/users");
+        let params =
+            BanIpWithMetadataParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
+                .with_offense_path("/api/v1/users");
 
         assert_eq!(params.offense_path, Some("/api/v1/users"));
     }
 
     #[test]
     fn with_user_agent_sets_agent() {
-        let params = BanIpWithMetadataParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Hours(1),
-            "test",
-        )
-        .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+        let params =
+            BanIpWithMetadataParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
+                .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
         assert_eq!(
             params.user_agent,
@@ -68,13 +56,9 @@ mod ban_ip_with_metadata_params_tests {
 
     #[test]
     fn with_session_id_sets_session() {
-        let params = BanIpWithMetadataParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Hours(1),
-            "test",
-        )
-        .with_session_id("session-abc-123");
+        let params =
+            BanIpWithMetadataParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
+                .with_session_id("session-abc-123");
 
         assert_eq!(params.session_id, Some("session-abc-123"));
     }
@@ -120,27 +104,20 @@ mod ban_ip_with_metadata_params_tests {
 
     #[test]
     fn params_with_long_user_agent() {
-        let long_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
-        let params = BanIpWithMetadataParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Hours(1),
-            "test",
-        )
-        .with_user_agent(long_ua);
+        let long_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like \
+                       Gecko) Chrome/91.0.4472.124 Safari/537.36";
+        let params =
+            BanIpWithMetadataParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
+                .with_user_agent(long_ua);
 
         assert_eq!(params.user_agent, Some(long_ua));
     }
 
     #[test]
     fn params_with_complex_path() {
-        let params = BanIpWithMetadataParams::new(
-            "192.168.1.1",
-            "Test",
-            BanDuration::Hours(1),
-            "test",
-        )
-        .with_offense_path("/api/v2/users/123/profile?include=settings&format=json");
+        let params =
+            BanIpWithMetadataParams::new("192.168.1.1", "Test", BanDuration::Hours(1), "test")
+                .with_offense_path("/api/v2/users/123/profile?include=settings&format=json");
 
         assert!(params.offense_path.unwrap().contains("include=settings"));
     }

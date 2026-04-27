@@ -1,10 +1,10 @@
 use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
 use serde_json::json;
+use systemprompt_ai::MessageRole;
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::tooled::{
     FallbackGenerator, FallbackReason, ResponseSynthesizer, SynthesisPromptBuilder,
 };
-use systemprompt_ai::MessageRole;
 use systemprompt_identifiers::AiToolCallId;
 
 fn create_tool_call(name: &str) -> ToolCall {
@@ -56,20 +56,14 @@ mod fallback_generator_extended_tests {
 
     #[test]
     fn generate_mixed_success_and_error_only_shows_success() {
-        let tool_calls = vec![
-            create_tool_call("good_tool"),
-            create_tool_call("bad_tool"),
-        ];
+        let tool_calls = vec![create_tool_call("good_tool"), create_tool_call("bad_tool")];
         let tool_results = vec![
             create_success_result("Good data here"),
             create_error_result("Something went wrong"),
         ];
 
-        let output = FallbackGenerator::generate(
-            &tool_calls,
-            &tool_results,
-            FallbackReason::EmptyContent,
-        );
+        let output =
+            FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
 
         assert!(output.contains("Good data here"));
         assert!(!output.contains("Something went wrong"));
@@ -80,11 +74,8 @@ mod fallback_generator_extended_tests {
         let tool_calls = vec![create_tool_call("empty_tool")];
         let tool_results = vec![create_empty_result()];
 
-        let output = FallbackGenerator::generate(
-            &tool_calls,
-            &tool_results,
-            FallbackReason::EmptyContent,
-        );
+        let output =
+            FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
 
         assert!(output.contains("Tool execution completed"));
     }

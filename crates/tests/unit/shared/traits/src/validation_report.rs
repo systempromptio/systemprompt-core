@@ -25,8 +25,8 @@ mod validation_error_tests {
 
     #[test]
     fn with_path_adds_path() {
-        let err = ValidationError::new("database", "Connection failed")
-            .with_path("/etc/config.yaml");
+        let err =
+            ValidationError::new("database", "Connection failed").with_path("/etc/config.yaml");
 
         err.path.as_ref().expect("path should be set");
         assert_eq!(err.path.unwrap(), PathBuf::from("/etc/config.yaml"));
@@ -38,7 +38,10 @@ mod validation_error_tests {
             .with_suggestion("Set the API_KEY environment variable");
 
         err.suggestion.as_ref().expect("suggestion should be set");
-        assert_eq!(err.suggestion.unwrap(), "Set the API_KEY environment variable");
+        assert_eq!(
+            err.suggestion.unwrap(),
+            "Set the API_KEY environment variable"
+        );
     }
 
     #[test]
@@ -64,8 +67,7 @@ mod validation_error_tests {
 
     #[test]
     fn display_with_path() {
-        let err = ValidationError::new("config", "Parse error")
-            .with_path("/etc/app/config.yaml");
+        let err = ValidationError::new("config", "Parse error").with_path("/etc/app/config.yaml");
         let display = format!("{}", err);
 
         assert!(display.contains("Path:"));
@@ -74,8 +76,8 @@ mod validation_error_tests {
 
     #[test]
     fn display_with_suggestion() {
-        let err = ValidationError::new("port", "Port in use")
-            .with_suggestion("Try a different port");
+        let err =
+            ValidationError::new("port", "Port in use").with_suggestion("Try a different port");
         let display = format!("{}", err);
 
         assert!(display.contains("To fix:"));
@@ -100,7 +102,10 @@ mod validation_warning_tests {
         let warning = ValidationWarning::new("old_format", "Format is outdated")
             .with_suggestion("Use the new YAML format");
 
-        warning.suggestion.as_ref().expect("suggestion should be set");
+        warning
+            .suggestion
+            .as_ref()
+            .expect("suggestion should be set");
         assert_eq!(warning.suggestion.unwrap(), "Use the new YAML format");
     }
 }
@@ -211,11 +216,16 @@ mod startup_validation_report_tests {
 
     #[test]
     fn with_profile_path_sets_path() {
-        let report = StartupValidationReport::new()
-            .with_profile_path("/etc/profile.yaml");
+        let report = StartupValidationReport::new().with_profile_path("/etc/profile.yaml");
 
-        report.profile_path.as_ref().expect("profile_path should be set");
-        assert_eq!(report.profile_path.unwrap(), PathBuf::from("/etc/profile.yaml"));
+        report
+            .profile_path
+            .as_ref()
+            .expect("profile_path should be set");
+        assert_eq!(
+            report.profile_path.unwrap(),
+            PathBuf::from("/etc/profile.yaml")
+        );
     }
 
     #[test]
@@ -372,5 +382,4 @@ mod startup_validation_error_tests {
         assert!(display.contains("1 error(s)"));
         assert!(display.contains("1 warning(s)"));
     }
-
 }

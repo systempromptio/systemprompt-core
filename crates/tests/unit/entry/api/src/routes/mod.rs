@@ -5,6 +5,6 @@
 //! - Type serialization and deserialization
 //! - Default implementations
 
+mod agent;
 mod oauth;
 mod sync_types;
-mod agent;

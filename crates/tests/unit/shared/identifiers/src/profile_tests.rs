@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{ProfileName, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, ProfileName, ToDbValue};
 
 #[test]
 fn valid_alphanumeric_name() {

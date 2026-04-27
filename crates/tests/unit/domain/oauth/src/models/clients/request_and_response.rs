@@ -1,4 +1,5 @@
-//! Tests for CreateOAuthClientRequest, UpdateOAuthClientRequest, OAuthClientResponse
+//! Tests for CreateOAuthClientRequest, UpdateOAuthClientRequest,
+//! OAuthClientResponse
 
 use chrono::Utc;
 use systemprompt_identifiers::ClientId;
@@ -73,7 +74,10 @@ fn test_update_oauth_client_request_full() {
 
     let request: UpdateOAuthClientRequest = serde_json::from_str(json).unwrap();
     assert_eq!(request.name, Some("Updated Name".to_string()));
-    request.redirect_uris.as_ref().expect("redirect_uris should be present");
+    request
+        .redirect_uris
+        .as_ref()
+        .expect("redirect_uris should be present");
     request.scopes.as_ref().expect("scopes should be present");
 }
 

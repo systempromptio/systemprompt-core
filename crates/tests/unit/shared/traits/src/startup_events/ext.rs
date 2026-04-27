@@ -3,8 +3,8 @@
 use futures::stream::StreamExt;
 use std::time::Duration;
 use systemprompt_traits::{
-    startup_channel, ModuleInfo, OptionalStartupEventExt, Phase, ServiceInfo, ServiceState,
-    ServiceType, StartupEvent, StartupEventExt,
+    ModuleInfo, OptionalStartupEventExt, Phase, ServiceInfo, ServiceState, ServiceType,
+    StartupEvent, StartupEventExt, startup_channel,
 };
 
 mod startup_event_ext_tests {
@@ -19,7 +19,9 @@ mod startup_event_ext_tests {
         let event = rx.next().await.unwrap();
         assert!(matches!(
             event,
-            StartupEvent::PhaseStarted { phase: Phase::PreFlight }
+            StartupEvent::PhaseStarted {
+                phase: Phase::PreFlight
+            }
         ));
     }
 
@@ -32,7 +34,9 @@ mod startup_event_ext_tests {
         let event = rx.next().await.unwrap();
         assert!(matches!(
             event,
-            StartupEvent::PhaseCompleted { phase: Phase::Database }
+            StartupEvent::PhaseCompleted {
+                phase: Phase::Database
+            }
         ));
     }
 
@@ -47,7 +51,7 @@ mod startup_event_ext_tests {
             StartupEvent::PhaseFailed { phase, error } => {
                 assert_eq!(phase, Phase::McpServers);
                 assert_eq!(error, "Connection refused");
-            }
+            },
             _ => panic!("Expected PhaseFailed event"),
         }
     }
@@ -73,7 +77,7 @@ mod startup_event_ext_tests {
             StartupEvent::PortConflict { port, pid } => {
                 assert_eq!(port, 3000);
                 assert_eq!(pid, 12345);
-            }
+            },
             _ => panic!("Expected PortConflict event"),
         }
     }
@@ -100,7 +104,7 @@ mod startup_event_ext_tests {
             StartupEvent::ModulesLoaded { count, modules } => {
                 assert_eq!(count, 2);
                 assert_eq!(modules.len(), 2);
-            }
+            },
             _ => panic!("Expected ModulesLoaded event"),
         }
     }
@@ -116,7 +120,7 @@ mod startup_event_ext_tests {
             StartupEvent::McpServerStarting { name, port } => {
                 assert_eq!(name, "test-mcp");
                 assert_eq!(port, 5000);
-            }
+            },
             _ => panic!("Expected McpServerStarting event"),
         }
     }
@@ -137,7 +141,7 @@ mod startup_event_ext_tests {
                 assert_eq!(name, "test-mcp");
                 assert_eq!(attempt, 2);
                 assert_eq!(max_attempts, 5);
-            }
+            },
             _ => panic!("Expected McpServerHealthCheck event"),
         }
     }
@@ -160,7 +164,7 @@ mod startup_event_ext_tests {
                 assert_eq!(port, 5000);
                 assert_eq!(startup_time, Duration::from_millis(500));
                 assert_eq!(tools, 10);
-            }
+            },
             _ => panic!("Expected McpServerReady event"),
         }
     }
@@ -176,7 +180,7 @@ mod startup_event_ext_tests {
             StartupEvent::McpServerFailed { name, error } => {
                 assert_eq!(name, "test-mcp");
                 assert_eq!(error, "Failed to start");
-            }
+            },
             _ => panic!("Expected McpServerFailed event"),
         }
     }
@@ -192,7 +196,7 @@ mod startup_event_ext_tests {
             StartupEvent::AgentStarting { name, port } => {
                 assert_eq!(name, "test-agent");
                 assert_eq!(port, 6000);
-            }
+            },
             _ => panic!("Expected AgentStarting event"),
         }
     }
@@ -213,7 +217,7 @@ mod startup_event_ext_tests {
                 assert_eq!(name, "test-agent");
                 assert_eq!(port, 6000);
                 assert_eq!(startup_time, Duration::from_secs(1));
-            }
+            },
             _ => panic!("Expected AgentReady event"),
         }
     }
@@ -229,7 +233,7 @@ mod startup_event_ext_tests {
             StartupEvent::AgentFailed { name, error } => {
                 assert_eq!(name, "test-agent");
                 assert_eq!(error, "Initialization error");
-            }
+            },
             _ => panic!("Expected AgentFailed event"),
         }
     }
@@ -245,7 +249,7 @@ mod startup_event_ext_tests {
             StartupEvent::ServerListening { address, pid } => {
                 assert_eq!(address, "0.0.0.0:8080");
                 assert_eq!(pid, 54321);
-            }
+            },
             _ => panic!("Expected ServerListening event"),
         }
     }
@@ -261,7 +265,7 @@ mod startup_event_ext_tests {
             StartupEvent::Warning { message, context } => {
                 assert_eq!(message, "Deprecated configuration");
                 assert!(context.is_none());
-            }
+            },
             _ => panic!("Expected Warning event"),
         }
     }
@@ -276,7 +280,7 @@ mod startup_event_ext_tests {
         match event {
             StartupEvent::Info { message } => {
                 assert_eq!(message, "Loading configuration");
-            }
+            },
             _ => panic!("Expected Info event"),
         }
     }
@@ -305,7 +309,7 @@ mod startup_event_ext_tests {
                 assert_eq!(duration, Duration::from_secs(5));
                 assert_eq!(api_url, "http://localhost:8080");
                 assert_eq!(services.len(), 1);
-            }
+            },
             _ => panic!("Expected StartupComplete event"),
         }
     }
@@ -324,7 +328,9 @@ mod optional_startup_event_ext_tests {
         let event = rx.next().await.unwrap();
         assert!(matches!(
             event,
-            StartupEvent::PhaseStarted { phase: Phase::Database }
+            StartupEvent::PhaseStarted {
+                phase: Phase::Database
+            }
         ));
     }
 
@@ -340,11 +346,10 @@ mod optional_startup_event_ext_tests {
             StartupEvent::McpServerStarting { name, port } => {
                 assert_eq!(name, "test");
                 assert_eq!(port, 5000);
-            }
+            },
             _ => panic!("Expected McpServerStarting event"),
         }
     }
-
 }
 
 mod startup_channel_tests {
@@ -364,15 +369,21 @@ mod startup_channel_tests {
 
         assert!(matches!(
             e1,
-            StartupEvent::PhaseStarted { phase: Phase::PreFlight }
+            StartupEvent::PhaseStarted {
+                phase: Phase::PreFlight
+            }
         ));
         assert!(matches!(
             e2,
-            StartupEvent::PhaseCompleted { phase: Phase::PreFlight }
+            StartupEvent::PhaseCompleted {
+                phase: Phase::PreFlight
+            }
         ));
         assert!(matches!(
             e3,
-            StartupEvent::PhaseStarted { phase: Phase::Database }
+            StartupEvent::PhaseStarted {
+                phase: Phase::Database
+            }
         ));
     }
 }

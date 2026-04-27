@@ -42,7 +42,10 @@ fn test_health_check_details_with_error() {
     assert_eq!(details.tools_available, 0);
     assert!(details.requires_auth);
     assert_eq!(details.validation_type, "connection_failed");
-    assert_eq!(details.error_message, Some("Connection refused".to_string()));
+    assert_eq!(
+        details.error_message,
+        Some("Connection refused".to_string())
+    );
     assert!(details.server_version.is_none());
 }
 

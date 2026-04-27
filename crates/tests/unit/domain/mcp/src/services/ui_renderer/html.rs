@@ -203,17 +203,13 @@ fn html_builder_no_scripts_no_script_tag() {
 
 #[test]
 fn html_builder_with_body() {
-    let html = HtmlBuilder::new("Test")
-        .body("<div>Content</div>")
-        .build();
+    let html = HtmlBuilder::new("Test").body("<div>Content</div>").build();
     assert!(html.contains("<div>Content</div>"));
 }
 
 #[test]
 fn html_builder_body_placed_between_body_tags() {
-    let html = HtmlBuilder::new("Test")
-        .body("<p>Hello</p>")
-        .build();
+    let html = HtmlBuilder::new("Test").body("<p>Hello</p>").build();
     assert!(html.contains("<body>\n<p>Hello</p>"));
 }
 

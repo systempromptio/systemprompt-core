@@ -89,17 +89,41 @@ fn to_header_value_all_empty_produces_empty_string() {
 #[test]
 fn with_cdn_single_origin() {
     let policy = CspPolicy::with_cdn(&["https://cdn.example.com"]);
-    assert!(policy.script_src.contains(&"https://cdn.example.com".to_string()));
-    assert!(policy.style_src.contains(&"https://cdn.example.com".to_string()));
+    assert!(
+        policy
+            .script_src
+            .contains(&"https://cdn.example.com".to_string())
+    );
+    assert!(
+        policy
+            .style_src
+            .contains(&"https://cdn.example.com".to_string())
+    );
 }
 
 #[test]
 fn with_cdn_multiple_origins() {
     let policy = CspPolicy::with_cdn(&["https://cdn1.example.com", "https://cdn2.example.com"]);
-    assert!(policy.script_src.contains(&"https://cdn1.example.com".to_string()));
-    assert!(policy.script_src.contains(&"https://cdn2.example.com".to_string()));
-    assert!(policy.style_src.contains(&"https://cdn1.example.com".to_string()));
-    assert!(policy.style_src.contains(&"https://cdn2.example.com".to_string()));
+    assert!(
+        policy
+            .script_src
+            .contains(&"https://cdn1.example.com".to_string())
+    );
+    assert!(
+        policy
+            .script_src
+            .contains(&"https://cdn2.example.com".to_string())
+    );
+    assert!(
+        policy
+            .style_src
+            .contains(&"https://cdn1.example.com".to_string())
+    );
+    assert!(
+        policy
+            .style_src
+            .contains(&"https://cdn2.example.com".to_string())
+    );
 }
 
 #[test]
@@ -162,7 +186,11 @@ fn builder_add_script_src_appends() {
         .add_script_src("https://example.com")
         .build();
     assert_eq!(policy.script_src.len(), 3);
-    assert!(policy.script_src.contains(&"https://example.com".to_string()));
+    assert!(
+        policy
+            .script_src
+            .contains(&"https://example.com".to_string())
+    );
 }
 
 #[test]
@@ -178,7 +206,11 @@ fn builder_add_style_src_appends() {
     let policy = CspBuilder::strict()
         .add_style_src("https://fonts.googleapis.com")
         .build();
-    assert!(policy.style_src.contains(&"https://fonts.googleapis.com".to_string()));
+    assert!(
+        policy
+            .style_src
+            .contains(&"https://fonts.googleapis.com".to_string())
+    );
 }
 
 #[test]
@@ -202,7 +234,11 @@ fn builder_add_connect_src_appends() {
     let policy = CspBuilder::strict()
         .add_connect_src("wss://api.example.com")
         .build();
-    assert!(policy.connect_src.contains(&"wss://api.example.com".to_string()));
+    assert!(
+        policy
+            .connect_src
+            .contains(&"wss://api.example.com".to_string())
+    );
 }
 
 #[test]
@@ -266,7 +302,9 @@ fn to_mcp_domains_filters_out_quoted_sources() {
 #[test]
 fn to_mcp_domains_includes_real_domains() {
     let mut policy = CspPolicy::strict();
-    policy.connect_src.push("https://api.example.com".to_string());
+    policy
+        .connect_src
+        .push("https://api.example.com".to_string());
     let domains = policy.to_mcp_domains();
     assert_eq!(domains.connect, vec!["https://api.example.com"]);
 }
@@ -281,7 +319,9 @@ fn to_mcp_domains_filters_data_scheme() {
 #[test]
 fn to_mcp_domains_resource_domains_deduped() {
     let mut policy = CspPolicy::strict();
-    policy.script_src.push("https://cdn.example.com".to_string());
+    policy
+        .script_src
+        .push("https://cdn.example.com".to_string());
     policy.style_src.push("https://cdn.example.com".to_string());
     let domains = policy.to_mcp_domains();
     let cdn_count = domains
@@ -295,11 +335,21 @@ fn to_mcp_domains_resource_domains_deduped() {
 #[test]
 fn to_mcp_domains_resource_domains_sorted() {
     let mut policy = CspPolicy::strict();
-    policy.script_src.push("https://z-cdn.example.com".to_string());
-    policy.script_src.push("https://a-cdn.example.com".to_string());
+    policy
+        .script_src
+        .push("https://z-cdn.example.com".to_string());
+    policy
+        .script_src
+        .push("https://a-cdn.example.com".to_string());
     let domains = policy.to_mcp_domains();
-    let z_pos = domains.resources.iter().position(|d| d == "https://z-cdn.example.com");
-    let a_pos = domains.resources.iter().position(|d| d == "https://a-cdn.example.com");
+    let z_pos = domains
+        .resources
+        .iter()
+        .position(|d| d == "https://z-cdn.example.com");
+    let a_pos = domains
+        .resources
+        .iter()
+        .position(|d| d == "https://a-cdn.example.com");
     assert!(a_pos.unwrap() < z_pos.unwrap());
 }
 
@@ -374,5 +424,8 @@ fn header_value_multiple_sources_space_separated() {
         ])
         .build();
     let header = policy.to_header_value();
-    assert_eq!(header, "script-src 'self' 'unsafe-inline' https://cdn.example.com");
+    assert_eq!(
+        header,
+        "script-src 'self' 'unsafe-inline' https://cdn.example.com"
+    );
 }

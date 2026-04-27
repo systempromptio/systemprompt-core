@@ -1,13 +1,6 @@
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{
-    ArtifactType, ChartType, CommandResult, RenderingHints,
-};
+use systemprompt_cli::shared::{ArtifactType, ChartType, CommandResult, RenderingHints};
 
 #[test]
 fn test_command_result_table() {
@@ -28,7 +21,10 @@ fn test_command_result_list() {
 #[test]
 fn test_command_result_card() {
     let result: CommandResult<&str> = CommandResult::card("card content");
-    assert!(matches!(result.artifact_type, ArtifactType::PresentationCard));
+    assert!(matches!(
+        result.artifact_type,
+        ArtifactType::PresentationCard
+    ));
 }
 
 #[test]
@@ -65,15 +61,13 @@ fn test_command_result_dashboard() {
 
 #[test]
 fn test_command_result_with_title() {
-    let result = CommandResult::table("data")
-        .with_title("My Title");
+    let result = CommandResult::table("data").with_title("My Title");
     assert_eq!(result.title.as_ref().unwrap(), "My Title");
 }
 
 #[test]
 fn test_command_result_with_title_into_string() {
-    let result = CommandResult::table("data")
-        .with_title(String::from("String Title"));
+    let result = CommandResult::table("data").with_title(String::from("String Title"));
     assert_eq!(result.title.as_ref().unwrap(), "String Title");
 }
 
@@ -83,16 +77,15 @@ fn test_command_result_with_hints() {
         theme: Some("dark".to_string()),
         ..Default::default()
     };
-    let result = CommandResult::table("data")
-        .with_hints(hints);
+    let result = CommandResult::table("data").with_hints(hints);
     let result_hints = result.hints.expect("should have hints after with_hints");
     assert_eq!(result_hints.theme.as_ref().unwrap(), "dark");
 }
 
 #[test]
 fn test_command_result_with_columns() {
-    let result = CommandResult::table("data")
-        .with_columns(vec!["col1".to_string(), "col2".to_string()]);
+    let result =
+        CommandResult::table("data").with_columns(vec!["col1".to_string(), "col2".to_string()]);
     let result_hints = result.hints.expect("should have hints after with_columns");
     let columns = result_hints.columns.as_ref().unwrap();
     assert_eq!(columns.len(), 2);
@@ -112,7 +105,9 @@ fn test_command_result_with_columns_preserves_existing_hints() {
 
     let final_hints = result.hints.expect("should have hints after chaining");
     assert_eq!(final_hints.theme.as_ref().unwrap(), "dark");
-    final_hints.columns.expect("should have columns after with_columns");
+    final_hints
+        .columns
+        .expect("should have columns after with_columns");
 }
 
 #[test]
@@ -132,7 +127,9 @@ fn test_command_result_builder_chain() {
 
     assert!(matches!(result.artifact_type, ArtifactType::Chart));
     assert_eq!(result.title.as_ref().unwrap(), "Sales Data");
-    result.hints.expect("chart with builder chain should have hints");
+    result
+        .hints
+        .expect("chart with builder chain should have hints");
 }
 
 #[test]

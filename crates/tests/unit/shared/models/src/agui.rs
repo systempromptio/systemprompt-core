@@ -1,11 +1,11 @@
 use serde_json::{Value, json};
 use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_models::agui::MessageRole;
 use systemprompt_models::{
     AgUiEvent, AgUiEventBuilder, AgUiEventType, CustomPayload, GenericCustomPayload,
     JsonPatchOperation, MessagesSnapshotPayload, RunErrorPayload, RunFinishedPayload,
     RunStartedPayload, StateDeltaBuilder, StateDeltaPayload, StateSnapshotPayload,
 };
-use systemprompt_models::agui::MessageRole;
 
 #[test]
 fn json_patch_add_factory() {
@@ -108,9 +108,7 @@ fn state_delta_builder_empty() {
 
 #[test]
 fn state_delta_builder_single_add() {
-    let ops = StateDeltaBuilder::new()
-        .add("/count", json!(0))
-        .build();
+    let ops = StateDeltaBuilder::new().add("/count", json!(0)).build();
     assert_eq!(ops.len(), 1);
     let json = serde_json::to_value(&ops[0]).unwrap();
     assert_eq!(json["op"], "add");
@@ -118,9 +116,7 @@ fn state_delta_builder_single_add() {
 
 #[test]
 fn state_delta_builder_single_replace() {
-    let ops = StateDeltaBuilder::new()
-        .replace("/count", json!(1))
-        .build();
+    let ops = StateDeltaBuilder::new().replace("/count", json!(1)).build();
     assert_eq!(ops.len(), 1);
     let json = serde_json::to_value(&ops[0]).unwrap();
     assert_eq!(json["op"], "replace");
@@ -128,9 +124,7 @@ fn state_delta_builder_single_replace() {
 
 #[test]
 fn state_delta_builder_single_remove() {
-    let ops = StateDeltaBuilder::new()
-        .remove("/old")
-        .build();
+    let ops = StateDeltaBuilder::new().remove("/old").build();
     assert_eq!(ops.len(), 1);
     let json = serde_json::to_value(&ops[0]).unwrap();
     assert_eq!(json["op"], "remove");
@@ -170,7 +164,10 @@ fn event_type_as_str_run_error() {
 
 #[test]
 fn event_type_as_str_text_message_start() {
-    assert_eq!(AgUiEventType::TextMessageStart.as_str(), "TEXT_MESSAGE_START");
+    assert_eq!(
+        AgUiEventType::TextMessageStart.as_str(),
+        "TEXT_MESSAGE_START"
+    );
 }
 
 #[test]
@@ -252,7 +249,8 @@ fn builder_run_finished() {
 
 #[test]
 fn builder_run_error() {
-    let event = AgUiEventBuilder::run_error("something failed".to_string(), Some("E001".to_string()));
+    let event =
+        AgUiEventBuilder::run_error("something failed".to_string(), Some("E001".to_string()));
     assert_eq!(event.event_type(), AgUiEventType::RunError);
 }
 
@@ -427,7 +425,12 @@ fn event_serde_run_error_has_type_field() {
 
 #[test]
 fn message_role_serde_roundtrip() {
-    for role in [MessageRole::User, MessageRole::Assistant, MessageRole::System, MessageRole::Tool] {
+    for role in [
+        MessageRole::User,
+        MessageRole::Assistant,
+        MessageRole::System,
+        MessageRole::Tool,
+    ] {
         let json = serde_json::to_string(&role).unwrap();
         let deserialized: MessageRole = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, role);
@@ -517,7 +520,9 @@ fn messages_snapshot_payload_empty() {
 
 #[test]
 fn state_snapshot_payload_empty_object() {
-    let payload = StateSnapshotPayload { snapshot: json!({}) };
+    let payload = StateSnapshotPayload {
+        snapshot: json!({}),
+    };
     let json_str = serde_json::to_string(&payload).unwrap();
     let deserialized: StateSnapshotPayload = serde_json::from_str(&json_str).unwrap();
     assert!(deserialized.snapshot.as_object().unwrap().is_empty());

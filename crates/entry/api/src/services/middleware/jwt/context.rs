@@ -156,6 +156,7 @@ impl JwtContextExtractor {
                 analytics: &analytics,
                 session_source,
                 is_bot: false,
+                is_ai_crawler: false,
                 expires_at,
             })
             .await

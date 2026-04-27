@@ -3,7 +3,8 @@
 //! Tests cover:
 //! - BuildMode parsing, display, equality, clone/copy
 //! - BuildError variants, display, debug, and From conversions
-//! - Markdown rendering (headings, formatting, code, lists, tables, links, images)
+//! - Markdown rendering (headings, formatting, code, lists, tables, links,
+//!   images)
 //! - YAML frontmatter extraction and parsing
 //! - Sitemap XML generation with URL escaping
 //! - Sitemap index building for chunked sitemaps

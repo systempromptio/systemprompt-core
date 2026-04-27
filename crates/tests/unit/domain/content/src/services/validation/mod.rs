@@ -4,7 +4,7 @@
 //! - validate_content_metadata
 //! - is_valid_date_format (internal function behavior)
 
-use systemprompt_content::{validate_content_metadata, ContentMetadata};
+use systemprompt_content::{ContentMetadata, validate_content_metadata};
 
 fn create_valid_metadata() -> ContentMetadata {
     ContentMetadata {

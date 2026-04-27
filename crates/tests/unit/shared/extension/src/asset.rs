@@ -65,24 +65,18 @@ fn asset_definition_source_path() {
 
 #[test]
 fn asset_definition_builder_creates_required_by_default() {
-    let asset = AssetDefinitionBuilder::new(
-        PathBuf::from("test.css"),
-        "/css/test.css",
-        AssetType::Css,
-    )
-    .build();
+    let asset =
+        AssetDefinitionBuilder::new(PathBuf::from("test.css"), "/css/test.css", AssetType::Css)
+            .build();
     assert!(asset.is_required());
 }
 
 #[test]
 fn asset_definition_builder_optional() {
-    let asset = AssetDefinitionBuilder::new(
-        PathBuf::from("opt.css"),
-        "/css/opt.css",
-        AssetType::Css,
-    )
-    .optional()
-    .build();
+    let asset =
+        AssetDefinitionBuilder::new(PathBuf::from("opt.css"), "/css/opt.css", AssetType::Css)
+            .optional()
+            .build();
     assert!(!asset.is_required());
 }
 

@@ -1,8 +1,6 @@
 //! Tests for Gemini model types.
 
-use systemprompt_ai::models::providers::gemini::{
-    GeminiContent, GeminiModels, GeminiPart,
-};
+use systemprompt_ai::models::providers::gemini::{GeminiContent, GeminiModels, GeminiPart};
 
 mod gemini_models_tests {
     use super::*;
@@ -36,7 +34,9 @@ mod gemini_models_tests {
     fn flash_lite_is_cheaper() {
         let models = GeminiModels::default();
 
-        assert!(models.gemini_flash_lite.cost_per_1k_tokens < models.gemini_flash.cost_per_1k_tokens);
+        assert!(
+            models.gemini_flash_lite.cost_per_1k_tokens < models.gemini_flash.cost_per_1k_tokens
+        );
     }
 }
 

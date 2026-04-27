@@ -1,11 +1,6 @@
 //! Edge cases, boundary tests, and field access tests
 
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
@@ -56,19 +51,11 @@ fn test_all_verbosity_levels_with_should_show_verbose() {
 
 #[test]
 fn test_all_color_modes_with_should_use_color() {
-    let modes_and_expected = [
-        (ColorMode::Always, true),
-        (ColorMode::Never, false),
-    ];
+    let modes_and_expected = [(ColorMode::Always, true), (ColorMode::Never, false)];
 
     for (mode, expected) in modes_and_expected {
         let config = CliConfig::default().with_color_mode(mode);
-        assert_eq!(
-            config.should_use_color(),
-            expected,
-            "Failed for {:?}",
-            mode
-        );
+        assert_eq!(config.should_use_color(), expected, "Failed for {:?}", mode);
     }
 }
 
@@ -82,12 +69,7 @@ fn test_all_output_formats_with_is_json() {
 
     for (format, expected) in formats_and_expected {
         let config = CliConfig::default().with_output_format(format);
-        assert_eq!(
-            config.is_json_output(),
-            expected,
-            "Failed for {:?}",
-            format
-        );
+        assert_eq!(config.is_json_output(), expected, "Failed for {:?}", format);
     }
 }
 

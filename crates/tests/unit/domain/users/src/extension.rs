@@ -7,8 +7,8 @@
 //! - Schema definitions
 //! - Dependencies
 
-use systemprompt_extension::prelude::Extension;
 use systemprompt_extension::SchemaSource;
+use systemprompt_extension::prelude::Extension;
 use systemprompt_users::UsersExtension;
 
 // ============================================================================
@@ -119,8 +119,12 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let session_analytics = schemas.iter().find(|s| s.table == "session_analytics_views");
-        let referrer_analytics = schemas.iter().find(|s| s.table == "referrer_analytics_views");
+        let session_analytics = schemas
+            .iter()
+            .find(|s| s.table == "session_analytics_views");
+        let referrer_analytics = schemas
+            .iter()
+            .find(|s| s.table == "referrer_analytics_views");
         let bot_analytics = schemas.iter().find(|s| s.table == "bot_analytics_views");
 
         session_analytics.expect("expected Some value");
@@ -176,10 +180,10 @@ mod extension_schema_tests {
             match &schema.sql {
                 SchemaSource::Inline(sql) => {
                     assert!(!sql.is_empty(), "Schema {} has empty SQL", schema.table);
-                }
+                },
                 SchemaSource::File(_) => {
                     panic!("Schema {} should use inline SQL", schema.table);
-                }
+                },
             }
         }
     }

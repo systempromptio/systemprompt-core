@@ -1,6 +1,8 @@
 //! Unit tests for FileUploadConfig and FilesConfigYaml
 
-use systemprompt_files::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
+use systemprompt_files::{
+    AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml,
+};
 
 #[test]
 fn test_file_upload_config_default() {

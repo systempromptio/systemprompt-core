@@ -1,7 +1,7 @@
+use systemprompt_agent::services::agent_orchestration::orchestrator::AgentInfo;
 use systemprompt_agent::services::agent_orchestration::{
     AgentRuntimeConfig, AgentStatus, OrchestrationError, ValidationReport,
 };
-use systemprompt_agent::services::agent_orchestration::orchestrator::AgentInfo;
 
 #[test]
 fn test_agent_status_running_eq() {
@@ -21,14 +21,8 @@ fn test_agent_status_running_ne_pid() {
 
 #[test]
 fn test_agent_status_running_ne_port() {
-    let a = AgentStatus::Running {
-        pid: 1,
-        port: 8080,
-    };
-    let b = AgentStatus::Running {
-        pid: 1,
-        port: 9090,
-    };
+    let a = AgentStatus::Running { pid: 1, port: 8080 };
+    let b = AgentStatus::Running { pid: 1, port: 9090 };
 
     assert_ne!(a, b);
 }

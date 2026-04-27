@@ -2,8 +2,7 @@
 
 use std::time::Duration;
 use systemprompt_events::{
-    standard_keep_alive, Broadcaster,
-    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
+    Broadcaster, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, standard_keep_alive,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::SystemEvent;

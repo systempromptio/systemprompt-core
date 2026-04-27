@@ -1,4 +1,5 @@
-//! Tests for extension discovery, manifest loading, and MCP/CLI extension filtering
+//! Tests for extension discovery, manifest loading, and MCP/CLI extension
+//! filtering
 
 use systemprompt_loader::ExtensionLoader;
 use tempfile::TempDir;
@@ -73,8 +74,11 @@ fn test_discover_single_extension() {
     let ext_dir = extensions_dir.join("test-ext");
     std::fs::create_dir_all(&ext_dir).expect("Failed to create extension dir");
 
-    std::fs::write(ext_dir.join("manifest.yaml"), create_mcp_manifest("test-ext", "test-bin"))
-        .expect("Failed to write manifest");
+    std::fs::write(
+        ext_dir.join("manifest.yaml"),
+        create_mcp_manifest("test-ext", "test-bin"),
+    )
+    .expect("Failed to write manifest");
 
     let discovered = ExtensionLoader::discover(temp_dir.path());
     assert_eq!(discovered.len(), 1);
@@ -174,10 +178,16 @@ fn test_get_enabled_mcp_extensions() {
     std::fs::create_dir_all(&cli_ext).expect("Failed to create cli ext");
     std::fs::create_dir_all(&disabled_ext).expect("Failed to create disabled ext");
 
-    std::fs::write(mcp_ext.join("manifest.yaml"), create_mcp_manifest("mcp-ext", "mcp-bin"))
-        .expect("Failed to write mcp manifest");
-    std::fs::write(cli_ext.join("manifest.yaml"), create_cli_manifest("cli-ext", "cli-bin"))
-        .expect("Failed to write cli manifest");
+    std::fs::write(
+        mcp_ext.join("manifest.yaml"),
+        create_mcp_manifest("mcp-ext", "mcp-bin"),
+    )
+    .expect("Failed to write mcp manifest");
+    std::fs::write(
+        cli_ext.join("manifest.yaml"),
+        create_cli_manifest("cli-ext", "cli-bin"),
+    )
+    .expect("Failed to write cli manifest");
     std::fs::write(
         disabled_ext.join("manifest.yaml"),
         create_disabled_manifest("disabled-ext"),
@@ -214,10 +224,16 @@ fn test_get_enabled_cli_extensions() {
     std::fs::create_dir_all(&mcp_ext).expect("Failed to create mcp ext");
     std::fs::create_dir_all(&cli_ext).expect("Failed to create cli ext");
 
-    std::fs::write(mcp_ext.join("manifest.yaml"), create_mcp_manifest("mcp-ext", "mcp-bin"))
-        .expect("Failed to write mcp manifest");
-    std::fs::write(cli_ext.join("manifest.yaml"), create_cli_manifest("cli-ext", "cli-bin"))
-        .expect("Failed to write cli manifest");
+    std::fs::write(
+        mcp_ext.join("manifest.yaml"),
+        create_mcp_manifest("mcp-ext", "mcp-bin"),
+    )
+    .expect("Failed to write mcp manifest");
+    std::fs::write(
+        cli_ext.join("manifest.yaml"),
+        create_cli_manifest("cli-ext", "cli-bin"),
+    )
+    .expect("Failed to write cli manifest");
 
     let cli_extensions = ExtensionLoader::get_enabled_cli_extensions(temp_dir.path());
     assert_eq!(cli_extensions.len(), 1);

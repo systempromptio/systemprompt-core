@@ -143,7 +143,10 @@ fn scanner_request_burp_agent() {
 
 #[test]
 fn scanner_request_normal_path_and_agent() {
-    assert!(!is_scanner_request("/api/v1/agents", "Mozilla/5.0 Chrome/130.0.0.0"));
+    assert!(!is_scanner_request(
+        "/api/v1/agents",
+        "Mozilla/5.0 Chrome/130.0.0.0"
+    ));
 }
 
 #[test]
@@ -158,7 +161,9 @@ fn scanner_request_case_insensitive_agent() {
 
 #[test]
 fn known_bot_googlebot() {
-    assert!(is_known_bot("Googlebot/2.1 (+http://www.google.com/bot.html)"));
+    assert!(is_known_bot(
+        "Googlebot/2.1 (+http://www.google.com/bot.html)"
+    ));
 }
 
 #[test]
@@ -169,6 +174,7 @@ fn known_bot_bingbot() {
 #[test]
 fn known_bot_regular_browser() {
     assert!(!is_known_bot(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 \
+         Safari/537.36"
     ));
 }

@@ -200,8 +200,7 @@ fn test_mcp_event_reconciliation_completed_event_type() {
 
 #[test]
 fn test_mcp_event_start_completed_success() {
-    let event =
-        McpEvent::start_completed_success("test-service".to_string(), 1234, 8080, 100);
+    let event = McpEvent::start_completed_success("test-service".to_string(), 1234, 8080, 100);
 
     match event {
         McpEvent::ServiceStartCompleted {
@@ -218,7 +217,7 @@ fn test_mcp_event_start_completed_success() {
             assert_eq!(port, Some(8080));
             assert!(error.is_none());
             assert_eq!(duration_ms, 100);
-        }
+        },
         _ => panic!("Expected ServiceStartCompleted"),
     }
 }
@@ -246,7 +245,7 @@ fn test_mcp_event_start_completed_failure() {
             assert!(port.is_none());
             assert_eq!(error, Some("Connection failed".to_string()));
             assert_eq!(duration_ms, 200);
-        }
+        },
         _ => panic!("Expected ServiceStartCompleted"),
     }
 }

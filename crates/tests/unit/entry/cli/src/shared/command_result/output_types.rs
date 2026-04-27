@@ -1,9 +1,4 @@
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::shared::{
     KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
@@ -38,8 +33,10 @@ fn test_success_output_new() {
 
 #[test]
 fn test_success_output_with_details() {
-    let output = SuccessOutput::new("Done")
-        .with_details(vec!["Step 1 complete".to_string(), "Step 2 complete".to_string()]);
+    let output = SuccessOutput::new("Done").with_details(vec![
+        "Step 1 complete".to_string(),
+        "Step 2 complete".to_string(),
+    ]);
     assert_eq!(output.details.as_ref().unwrap().len(), 2);
 }
 
@@ -53,8 +50,7 @@ fn test_success_output_serialize_without_details() {
 
 #[test]
 fn test_success_output_serialize_with_details() {
-    let output = SuccessOutput::new("Done")
-        .with_details(vec!["detail1".to_string()]);
+    let output = SuccessOutput::new("Done").with_details(vec!["detail1".to_string()]);
     let json = serde_json::to_string(&output).unwrap();
     assert!(json.contains("\"details\":[\"detail1\"]"));
 }
@@ -73,8 +69,7 @@ fn test_key_value_output_default() {
 
 #[test]
 fn test_key_value_output_add_single() {
-    let output = KeyValueOutput::new()
-        .add("key1", "value1");
+    let output = KeyValueOutput::new().add("key1", "value1");
     assert_eq!(output.items.len(), 1);
     assert_eq!(output.items[0].key, "key1");
     assert_eq!(output.items[0].value, "value1");
@@ -91,16 +86,14 @@ fn test_key_value_output_add_multiple() {
 
 #[test]
 fn test_key_value_output_add_with_string() {
-    let output = KeyValueOutput::new()
-        .add(String::from("key"), String::from("value"));
+    let output = KeyValueOutput::new().add(String::from("key"), String::from("value"));
     assert_eq!(output.items[0].key, "key");
     assert_eq!(output.items[0].value, "value");
 }
 
 #[test]
 fn test_key_value_output_serialize() {
-    let output = KeyValueOutput::new()
-        .add("k1", "v1");
+    let output = KeyValueOutput::new().add("k1", "v1");
     let json = serde_json::to_string(&output).unwrap();
     assert!(json.contains("\"key\":\"k1\""));
     assert!(json.contains("\"value\":\"v1\""));
@@ -145,8 +138,14 @@ fn test_table_output_with_complex_type() {
     }
 
     let rows = vec![
-        Row { id: 1, name: "Alice".to_string() },
-        Row { id: 2, name: "Bob".to_string() },
+        Row {
+            id: 1,
+            name: "Alice".to_string(),
+        },
+        Row {
+            id: 2,
+            name: "Bob".to_string(),
+        },
     ];
     let output = TableOutput::new(rows);
 

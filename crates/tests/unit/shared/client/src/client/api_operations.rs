@@ -129,7 +129,10 @@ async fn test_request_includes_auth_header() {
         .unwrap()
         .with_token(token);
 
-    client.list_agents().await.expect("request with auth header should succeed");
+    client
+        .list_agents()
+        .await
+        .expect("request with auth header should succeed");
 }
 
 #[tokio::test]
@@ -147,7 +150,10 @@ async fn test_request_without_token_no_auth_header() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
 
-    client.list_agents().await.expect("request without token should succeed");
+    client
+        .list_agents()
+        .await
+        .expect("request without token should succeed");
 }
 
 // ============================================================================

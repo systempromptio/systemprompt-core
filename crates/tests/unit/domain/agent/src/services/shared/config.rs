@@ -106,8 +106,9 @@ fn test_service_configuration_serialize() {
 
 #[test]
 fn test_runtime_configuration_builder_defaults() {
-    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-1"), "Test Agent".to_string())
-        .build();
+    let config =
+        RuntimeConfigurationBuilder::new(AgentId::from("agent-1"), "Test Agent".to_string())
+            .build();
 
     assert_eq!(config.agent_id.as_str(), "agent-1");
     assert_eq!(config.name, "Test Agent");
@@ -168,13 +169,14 @@ fn test_runtime_configuration_builder_with_system_prompt() {
 
 #[test]
 fn test_runtime_configuration_builder_chained() {
-    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-7"), "Full Agent".to_string())
-        .port(3000)
-        .host("192.168.1.100".to_string())
-        .enable_ssl()
-        .require_auth()
-        .system_prompt("Custom prompt".to_string())
-        .build();
+    let config =
+        RuntimeConfigurationBuilder::new(AgentId::from("agent-7"), "Full Agent".to_string())
+            .port(3000)
+            .host("192.168.1.100".to_string())
+            .enable_ssl()
+            .require_auth()
+            .system_prompt("Custom prompt".to_string())
+            .build();
 
     assert_eq!(config.agent_id.as_str(), "agent-7");
     assert_eq!(config.name, "Full Agent");

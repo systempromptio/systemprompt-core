@@ -1,8 +1,6 @@
 //! Tests for ChatRole, ChatMessage, SamplingParameters, and TokenUsage.
 
-use systemprompt_provider_contracts::{
-    ChatMessage, ChatRole, SamplingParameters, TokenUsage,
-};
+use systemprompt_provider_contracts::{ChatMessage, ChatRole, SamplingParameters, TokenUsage};
 
 mod chat_role_tests {
     use super::*;

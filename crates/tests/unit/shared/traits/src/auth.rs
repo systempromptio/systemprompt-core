@@ -21,7 +21,10 @@ fn error_display_messages() {
 #[test]
 fn internal_error_includes_message() {
     let err = AuthProviderError::Internal("Database connection failed".to_string());
-    assert_eq!(err.to_string(), "Internal error: Database connection failed");
+    assert_eq!(
+        err.to_string(),
+        "Internal error: Database connection failed"
+    );
 }
 
 #[test]
@@ -32,7 +35,7 @@ fn from_anyhow_error() {
     match auth_err {
         AuthProviderError::Internal(msg) => {
             assert!(msg.contains("Something went wrong"));
-        }
+        },
         _ => panic!("Expected Internal error variant"),
     }
 }

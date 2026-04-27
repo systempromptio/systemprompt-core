@@ -208,8 +208,14 @@ fn test_extension_context_multiple_extensions() {
     assert!(ctx.has_extension("ext-3"));
     assert!(!ctx.has_extension("ext-4"));
 
-    assert_eq!(ctx.get_extension("ext-1").expect("ext-1 exists").id(), "ext-1");
-    assert_eq!(ctx.get_extension("ext-2").expect("ext-2 exists").id(), "ext-2");
+    assert_eq!(
+        ctx.get_extension("ext-1").expect("ext-1 exists").id(),
+        "ext-1"
+    );
+    assert_eq!(
+        ctx.get_extension("ext-2").expect("ext-2 exists").id(),
+        "ext-2"
+    );
 }
 
 // =============================================================================
@@ -257,9 +263,7 @@ fn test_dyn_extension_context_thread_safe() {
     let dyn_ctx: DynExtensionContext = Arc::new(ctx);
     let ctx_clone = Arc::clone(&dyn_ctx);
 
-    let handle = thread::spawn(move || {
-        ctx_clone.database().is_connected()
-    });
+    let handle = thread::spawn(move || ctx_clone.database().is_connected());
 
     assert!(dyn_ctx.database().is_connected());
     assert!(handle.join().expect("thread should complete"));
@@ -314,7 +318,8 @@ fn test_extension_default_config_schema() {
 fn test_extension_default_validate_config() {
     let ext = TestExtension { id: "test" };
     let config = serde_json::json!({});
-    ext.validate_config(&config).expect("ext.validate_config(&config) should succeed");
+    ext.validate_config(&config)
+        .expect("ext.validate_config(&config) should succeed");
 }
 
 #[test]

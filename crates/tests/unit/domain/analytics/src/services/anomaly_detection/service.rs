@@ -27,7 +27,13 @@ mod anomaly_detection_service_tests {
         let result = service.check_anomaly("requests_per_minute", 20.0).await;
 
         assert_eq!(result.level, AnomalyLevel::Warning);
-        assert!(result.message.as_ref().expect("warning should have message").contains("WARNING"));
+        assert!(
+            result
+                .message
+                .as_ref()
+                .expect("warning should have message")
+                .contains("WARNING")
+        );
     }
 
     #[tokio::test]
@@ -36,7 +42,13 @@ mod anomaly_detection_service_tests {
         let result = service.check_anomaly("requests_per_minute", 50.0).await;
 
         assert_eq!(result.level, AnomalyLevel::Critical);
-        assert!(result.message.as_ref().expect("critical should have message").contains("CRITICAL"));
+        assert!(
+            result
+                .message
+                .as_ref()
+                .expect("critical should have message")
+                .contains("CRITICAL")
+        );
     }
 
     #[tokio::test]
@@ -51,13 +63,19 @@ mod anomaly_detection_service_tests {
     async fn check_anomaly_session_count_thresholds() {
         let service = AnomalyDetectionService::new();
 
-        let result = service.check_anomaly("session_count_per_fingerprint", 3.0).await;
+        let result = service
+            .check_anomaly("session_count_per_fingerprint", 3.0)
+            .await;
         assert_eq!(result.level, AnomalyLevel::Normal);
 
-        let result = service.check_anomaly("session_count_per_fingerprint", 7.0).await;
+        let result = service
+            .check_anomaly("session_count_per_fingerprint", 7.0)
+            .await;
         assert_eq!(result.level, AnomalyLevel::Warning);
 
-        let result = service.check_anomaly("session_count_per_fingerprint", 15.0).await;
+        let result = service
+            .check_anomaly("session_count_per_fingerprint", 15.0)
+            .await;
         assert_eq!(result.level, AnomalyLevel::Critical);
     }
 
@@ -120,7 +138,9 @@ mod anomaly_detection_service_tests {
     async fn update_threshold_overwrites_existing() {
         let service = AnomalyDetectionService::new();
 
-        service.update_threshold("requests_per_minute", 100.0, 200.0).await;
+        service
+            .update_threshold("requests_per_minute", 100.0, 200.0)
+            .await;
 
         let result = service.check_anomaly("requests_per_minute", 20.0).await;
         assert_eq!(result.level, AnomalyLevel::Normal);
@@ -195,7 +215,9 @@ mod anomaly_detection_service_tests {
 
         let handle = tokio::spawn(async move {
             for i in 0..10 {
-                service_clone.record_event("concurrent_metric", i as f64).await;
+                service_clone
+                    .record_event("concurrent_metric", i as f64)
+                    .await;
             }
         });
 

@@ -24,7 +24,11 @@ fn content_kind_deserialize_tutorial() {
 
 #[test]
 fn content_kind_roundtrip_all_variants() {
-    for kind in [ContentKind::Article, ContentKind::Guide, ContentKind::Tutorial] {
+    for kind in [
+        ContentKind::Article,
+        ContentKind::Guide,
+        ContentKind::Tutorial,
+    ] {
         let json = serde_json::to_string(&kind).unwrap();
         let deserialized: ContentKind = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, kind);
@@ -55,7 +59,9 @@ fn ingestion_options_with_dry_run_true() {
 
 #[test]
 fn ingestion_options_with_dry_run_false() {
-    let options = IngestionOptions::default().with_dry_run(true).with_dry_run(false);
+    let options = IngestionOptions::default()
+        .with_dry_run(true)
+        .with_dry_run(false);
     assert!(!options.dry_run);
 }
 

@@ -1,7 +1,8 @@
 //! Direct tests for OAuth response helper functions
 //!
-//! Tests the response helpers now accessible at `systemprompt_api::routes::oauth::responses`:
-//! `error_response`, `internal_error`, `not_found`, `bad_request`, `single_response`,
+//! Tests the response helpers now accessible at
+//! `systemprompt_api::routes::oauth::responses`: `error_response`,
+//! `internal_error`, `not_found`, `bad_request`, `single_response`,
 //! `init_error`, and `created_response`.
 
 use axum::body::to_bytes;

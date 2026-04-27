@@ -207,7 +207,11 @@ fn test_artifact_error_from_row_parse_missing_field() {
     };
     let artifact_error: ArtifactError = row_err.into();
     assert!(artifact_error.to_string().contains("content"));
-    assert!(artifact_error.to_string().contains("Missing required field"));
+    assert!(
+        artifact_error
+            .to_string()
+            .contains("Missing required field")
+    );
 }
 
 #[test]
