@@ -11,6 +11,7 @@ pub enum JwtAudience {
     A2a,
     Mcp,
     Internal,
+    Cowork,
     #[serde(untagged)]
     Resource(String),
 }
@@ -23,6 +24,7 @@ impl JwtAudience {
             Self::A2a => "a2a",
             Self::Mcp => "mcp",
             Self::Internal => "internal",
+            Self::Cowork => "cowork",
             Self::Resource(s) => s.as_str(),
         }
     }
@@ -51,6 +53,7 @@ impl FromStr for JwtAudience {
             "a2a" => Ok(Self::A2a),
             "mcp" => Ok(Self::Mcp),
             "internal" => Ok(Self::Internal),
+            "cowork" => Ok(Self::Cowork),
             _ => Ok(Self::Resource(s.to_string())),
         }
     }

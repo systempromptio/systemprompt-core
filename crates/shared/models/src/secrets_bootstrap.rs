@@ -68,6 +68,16 @@ impl SecretsBootstrap {
         Ok(&Self::get()?.jwt_secret)
     }
 
+    pub fn manifest_signing_secret_seed() -> Result<[u8; 32], SecretsBootstrapError> {
+        use sha2::{Digest, Sha256};
+        const DOMAIN_SEPARATOR: &[u8] = b"systemprompt-cowork-manifest-ed25519-v1";
+        let secret = Self::jwt_secret()?;
+        let mut hasher = Sha256::new();
+        hasher.update(DOMAIN_SEPARATOR);
+        hasher.update(secret.as_bytes());
+        Ok(hasher.finalize().into())
+    }
+
     pub fn database_url() -> Result<&'static str, SecretsBootstrapError> {
         Ok(&Self::get()?.database_url)
     }
