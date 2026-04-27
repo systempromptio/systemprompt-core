@@ -12,6 +12,9 @@ pub(crate) const JWT_SECRET_MIN_LENGTH: usize = 32;
 pub struct Secrets {
     pub jwt_secret: String,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest_signing_secret_seed: Option<String>,
+
     pub database_url: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
