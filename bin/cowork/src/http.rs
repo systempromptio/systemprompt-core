@@ -56,7 +56,7 @@ impl GatewayClient {
         if relative_path.contains("..") || relative_path.starts_with('/') {
             return Err(format!("refused unsafe path: {relative_path}"));
         }
-        let url = self.url(&format!("/plugins/{plugin_id}/{relative_path}"));
+        let url = self.url(&format!("/v1/cowork/plugins/{plugin_id}/{relative_path}"));
         let resp = self
             .agent
             .get(&url)
