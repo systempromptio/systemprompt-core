@@ -5,20 +5,19 @@ use serde::Deserialize;
 use winit::dpi::LogicalSize;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
-use wry::http::{Request as HttpRequest, Response as HttpResponse, header};
 use wry::{WebView, WebViewBuilder};
 
 use crate::gui::events::UiEvent;
 use crate::gui::state::{AppStateSnapshot, CachedToken};
+use crate::output::diag;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const HTML: &str = include_str!("../../web/index.html");
 const STYLE: &str = include_str!("../../web/style.css");
 const SCRIPT: &str = include_str!("../../web/app.js");
-const ICON_SVG: &[u8] = include_bytes!("../../assets/icon.svg");
-const LOGO_SVG: &[u8] = include_bytes!("../../assets/logo.svg");
-const LOGO_DARK_SVG: &[u8] = include_bytes!("../../assets/logo-dark.svg");
+const ICON_SVG: &str = include_str!("../../assets/icon.svg");
+const LOGO_SVG: &str = include_str!("../../assets/logo.svg");
 
 pub struct WebWindow {
     tx: Sender<UiEvent>,
@@ -40,7 +39,7 @@ impl WebWindow {
     pub fn show(&self, event_loop: &ActiveEventLoop, snapshot: &AppStateSnapshot) {
         if self.window.borrow().is_none() {
             if let Err(e) = self.build(event_loop) {
-                eprintln!("gui: webview build failed: {e}");
+                diag(&format!("gui: webview build failed: {e}"));
                 return;
             }
         }
@@ -103,14 +102,11 @@ impl WebWindow {
             .create_window(attrs)
             .map_err(|e| format!("create window: {e}"))?;
 
+        let html = render_html();
         let tx = self.tx.clone();
         let webview = WebViewBuilder::new(&window)
-            .with_url("app://localhost/")
-            .with_custom_protocol("app".into(), serve_asset)
-            .with_ipc_handler(move |req| {
-                let body: String = req.into_body();
-                handle_ipc(&tx, &body);
-            })
+            .with_html(&html)
+            .with_ipc_handler(move |req| handle_ipc(&tx, &req.into_body()))
             .build()
             .map_err(|e| format!("webview build: {e}"))?;
 
@@ -128,40 +124,12 @@ impl WebWindow {
     }
 }
 
-fn serve_asset(_req: HttpRequest<Vec<u8>>) -> HttpResponse<std::borrow::Cow<'static, [u8]>> {
-    let uri = _req.uri();
-    let path = uri.path();
-    let (mime, body): (&'static str, std::borrow::Cow<'static, [u8]>) = match path {
-        "/" | "" | "/index.html" => (
-            "text/html; charset=utf-8",
-            std::borrow::Cow::Owned(HTML.replace("__VERSION__", VERSION).into_bytes()),
-        ),
-        "/assets/style.css" => ("text/css; charset=utf-8", std::borrow::Cow::Borrowed(STYLE.as_bytes())),
-        "/assets/app.js" => (
-            "application/javascript; charset=utf-8",
-            std::borrow::Cow::Borrowed(SCRIPT.as_bytes()),
-        ),
-        "/assets/icon.svg" => ("image/svg+xml", std::borrow::Cow::Borrowed(ICON_SVG)),
-        "/assets/logo.svg" => ("image/svg+xml", std::borrow::Cow::Borrowed(LOGO_SVG)),
-        "/assets/logo-dark.svg" => ("image/svg+xml", std::borrow::Cow::Borrowed(LOGO_DARK_SVG)),
-        _ => (
-            "text/plain; charset=utf-8",
-            std::borrow::Cow::Borrowed(b"not found" as &[u8]),
-        ),
-    };
-    let status = if matches!(path, "/" | "" | "/index.html" | "/assets/style.css"
-        | "/assets/app.js" | "/assets/icon.svg" | "/assets/logo.svg" | "/assets/logo-dark.svg")
-    {
-        200
-    } else {
-        404
-    };
-    HttpResponse::builder()
-        .status(status)
-        .header(header::CONTENT_TYPE, mime)
-        .header("Cache-Control", "no-store")
-        .body(body)
-        .unwrap()
+fn render_html() -> String {
+    HTML.replace("__STYLE__", STYLE)
+        .replace("__SCRIPT__", SCRIPT)
+        .replace("__VERSION__", VERSION)
+        .replace("__ICON_SVG__", ICON_SVG)
+        .replace("__LOGO_SVG__", LOGO_SVG)
 }
 
 #[derive(Debug, Deserialize)]
@@ -182,7 +150,7 @@ fn handle_ipc(tx: &Sender<UiEvent>, body: &str) {
     let msg: IpcMessage = match serde_json::from_str(body) {
         Ok(m) => m,
         Err(e) => {
-            eprintln!("gui: bad ipc payload {body:?}: {e}");
+            diag(&format!("gui: bad ipc payload {body:?}: {e}"));
             return;
         },
     };

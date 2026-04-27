@@ -66,6 +66,9 @@ Env overrides:
 
 pub fn run() -> ExitCode {
     let args: Vec<String> = env::args().collect();
+    if args.len() == 1 && launched_without_terminal() {
+        return dispatch_gui();
+    }
     match args.get(1).map(String::as_str) {
         None | Some("run") => dispatch_run(),
         Some("login") => dispatch_login(&args),
@@ -314,10 +317,8 @@ fn dispatch_uninstall(args: &[String]) -> ExitCode {
 fn dispatch_gui() -> ExitCode {
     #[cfg(target_os = "windows")]
     unsafe {
-        use windows_sys::Win32::System::Console::{FreeConsole, GetConsoleProcessList};
-        let mut pids = [0u32; 4];
-        let n = GetConsoleProcessList(pids.as_mut_ptr(), pids.len() as u32);
-        if n <= 1 {
+        use windows_sys::Win32::System::Console::FreeConsole;
+        if launched_without_terminal() {
             FreeConsole();
         }
     }
@@ -328,6 +329,19 @@ fn dispatch_gui() -> ExitCode {
 fn dispatch_gui() -> ExitCode {
     diag("gui not supported on this platform");
     ExitCode::from(64)
+}
+
+#[cfg(target_os = "windows")]
+fn launched_without_terminal() -> bool {
+    use windows_sys::Win32::System::Console::GetConsoleProcessList;
+    let mut pids = [0u32; 4];
+    let n = unsafe { GetConsoleProcessList(pids.as_mut_ptr(), pids.len() as u32) };
+    n <= 1
+}
+
+#[cfg(not(target_os = "windows"))]
+fn launched_without_terminal() -> bool {
+    false
 }
 
 fn parse_opt_flag(args: &[String], flag: &str) -> Option<String> {
