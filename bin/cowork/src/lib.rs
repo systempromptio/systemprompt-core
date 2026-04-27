@@ -51,7 +51,7 @@ Commands (plugin + MCP sync):
                                           Write an OS scheduler template to CWD
     [--no-pubkey-fetch]                   Skip live fetch of manifest signing pubkey
   sync                       Pull plugins + MCP allowlist from gateway into org-plugins
-    [--watch] [--interval <secs>] [--allow-unsigned]
+    [--watch] [--interval <secs>] [--allow-unsigned] [--force-replay]
   validate                   End-to-end self-check (paths, gateway, creds, signatures)
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
@@ -301,10 +301,12 @@ fn dispatch_sync(args: &[String]) -> ExitCode {
     let watch = has_flag(args, "--watch");
     let interval = parse_opt_flag(args, "--interval").and_then(|s| s.parse().ok());
     let allow_unsigned = has_flag(args, "--allow-unsigned");
+    let force_replay = has_flag(args, "--force-replay");
     sync::sync(sync::SyncOptions {
         watch,
         interval,
         allow_unsigned,
+        force_replay,
     })
 }
 

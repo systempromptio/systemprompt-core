@@ -7,8 +7,7 @@ use std::collections::BTreeMap;
 pub struct SignedManifest {
     pub manifest_version: String,
     pub issued_at: String,
-    #[serde(default)]
-    pub not_before: Option<String>,
+    pub not_before: String,
     pub user_id: String,
     pub tenant_id: Option<String>,
     #[serde(default)]
@@ -142,8 +141,7 @@ impl SignedManifest {
 struct CanonicalView<'a> {
     manifest_version: &'a str,
     issued_at: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    not_before: Option<&'a str>,
+    not_before: &'a str,
     user_id: &'a str,
     tenant_id: Option<&'a str>,
     user: Option<&'a UserInfo>,
@@ -158,7 +156,7 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, String> {
     let view = CanonicalView {
         manifest_version: &m.manifest_version,
         issued_at: &m.issued_at,
-        not_before: m.not_before.as_deref(),
+        not_before: &m.not_before,
         user_id: &m.user_id,
         tenant_id: m.tenant_id.as_deref(),
         user: m.user.as_ref(),

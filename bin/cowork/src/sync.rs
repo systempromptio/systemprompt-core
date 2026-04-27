@@ -18,7 +18,10 @@ pub struct SyncOptions {
     pub watch: bool,
     pub interval: Option<u64>,
     pub allow_unsigned: bool,
+    pub force_replay: bool,
 }
+
+pub const SKEW_WINDOW_MINUTES: i64 = 5;
 
 #[derive(Debug, Clone)]
 pub struct SyncSummary {
@@ -57,6 +60,8 @@ pub enum SyncErrorKind {
     SignatureFailed,
     PathUnresolvable,
     ApplyFailed,
+    ReplayedManifest { last: String, incoming: String },
+    ManifestSkew { not_before: String, now: String },
 }
 
 #[derive(Debug, Clone)]
@@ -73,13 +78,15 @@ impl SyncError {
             SyncErrorKind::SignatureFailed => ExitCode::from(4),
             SyncErrorKind::PathUnresolvable => ExitCode::from(1),
             SyncErrorKind::ApplyFailed => ExitCode::from(1),
+            SyncErrorKind::ReplayedManifest { .. } => ExitCode::from(6),
+            SyncErrorKind::ManifestSkew { .. } => ExitCode::from(7),
         }
     }
 }
 
 pub fn sync(opts: SyncOptions) -> ExitCode {
     if !opts.watch {
-        return run_once_cli(opts.allow_unsigned);
+        return run_once_cli(opts.allow_unsigned, opts.force_replay);
     }
 
     let interval = opts
@@ -87,7 +94,7 @@ pub fn sync(opts: SyncOptions) -> ExitCode {
         .unwrap_or(1800)
         .max(WATCH_FLOOR_SECS);
     loop {
-        let code = run_once_cli(opts.allow_unsigned);
+        let code = run_once_cli(opts.allow_unsigned, opts.force_replay);
         if code != ExitCode::SUCCESS {
             eprintln!(
                 "sync: non-zero exit; retrying in {interval}s",
@@ -97,11 +104,14 @@ pub fn sync(opts: SyncOptions) -> ExitCode {
     }
 }
 
-fn run_once_cli(allow_unsigned: bool) -> ExitCode {
+fn run_once_cli(allow_unsigned: bool, force_replay: bool) -> ExitCode {
     if allow_unsigned {
         eprintln!("warning: --allow-unsigned bypasses signature verification");
     }
-    match run_once(allow_unsigned) {
+    if force_replay {
+        tracing::warn!("--force-replay bypasses manifest version + skew checks");
+    }
+    match run_once(allow_unsigned, force_replay) {
         Ok(summary) => {
             println!("{}", summary.one_line());
             ExitCode::SUCCESS
@@ -115,13 +125,19 @@ fn run_once_cli(allow_unsigned: bool) -> ExitCode {
                 },
                 SyncErrorKind::PathUnresolvable => err.message.clone(),
                 SyncErrorKind::ApplyFailed => format!("sync apply failed: {}", err.message),
+                SyncErrorKind::ReplayedManifest { ref last, ref incoming } => format!(
+                    "manifest replay rejected: incoming {incoming} is not newer than last applied {last}"
+                ),
+                SyncErrorKind::ManifestSkew { ref not_before, ref now } => format!(
+                    "manifest clock skew rejected: not_before {not_before} outside +/- {SKEW_WINDOW_MINUTES}m of now {now}"
+                ),
             });
             err.exit_code()
         },
     }
 }
 
-pub fn run_once(allow_unsigned: bool) -> Result<SyncSummary, SyncError> {
+pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
 
@@ -175,6 +191,14 @@ pub fn run_once(allow_unsigned: bool) -> Result<SyncSummary, SyncError> {
         message: "org-plugins directory not resolvable".to_string(),
     })?;
 
+    let last_sync_path = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
+    let last_state = read_last_sync(&last_sync_path);
+    let now = chrono::Utc::now();
+    if !force_replay {
+        check_replay(&last_state, &manifest.manifest_version)?;
+        check_skew(manifest.not_before.as_deref(), now)?;
+    }
+
     let report = apply_manifest(&client, &bearer, &manifest, &location).map_err(|e| {
         SyncError {
             kind: SyncErrorKind::ApplyFailed,
@@ -182,13 +206,15 @@ pub fn run_once(allow_unsigned: bool) -> Result<SyncSummary, SyncError> {
         }
     })?;
 
-    let last_sync = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
     let _ = fs::create_dir_all(paths::metadata_dir(&location.path));
+    let applied_at = now.to_rfc3339();
     let _ = fs::write(
-        &last_sync,
+        &last_sync_path,
         serde_json::to_vec_pretty(&serde_json::json!({
             "synced_at": current_iso8601(),
             "manifest_version": manifest.manifest_version,
+            "last_applied_manifest_version": manifest.manifest_version,
+            "last_applied_at": applied_at,
             "installed_plugins": report.installed,
             "updated_plugins": report.updated,
             "removed_plugins": report.removed,
@@ -542,4 +568,82 @@ fn current_iso8601() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "unknown".into())
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct LastSyncState {
+    pub last_applied_manifest_version: Option<String>,
+}
+
+pub fn read_last_sync(path: &Path) -> LastSyncState {
+    let Ok(bytes) = fs::read(path) else {
+        return LastSyncState::default();
+    };
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return LastSyncState::default();
+    };
+    let last_applied_manifest_version = v
+        .get("last_applied_manifest_version")
+        .and_then(|x| x.as_str())
+        .or_else(|| v.get("manifest_version").and_then(|x| x.as_str()))
+        .map(str::to_string);
+    LastSyncState {
+        last_applied_manifest_version,
+    }
+}
+
+pub fn check_replay(
+    last: &LastSyncState,
+    incoming: &str,
+) -> Result<(), SyncError> {
+    if let Some(prev) = last.last_applied_manifest_version.as_deref() {
+        if incoming <= prev {
+            return Err(SyncError {
+                kind: SyncErrorKind::ReplayedManifest {
+                    last: prev.to_string(),
+                    incoming: incoming.to_string(),
+                },
+                message: format!("incoming {incoming} <= last applied {prev}"),
+            });
+        }
+    }
+    Ok(())
+}
+
+pub fn check_skew(
+    not_before: Option<&str>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Result<(), SyncError> {
+    let Some(nb_str) = not_before else {
+        return Err(SyncError {
+            kind: SyncErrorKind::ManifestSkew {
+                not_before: "<missing>".into(),
+                now: now.to_rfc3339(),
+            },
+            message: "manifest missing not_before field".into(),
+        });
+    };
+    let parsed = chrono::DateTime::parse_from_rfc3339(nb_str).map_err(|_| SyncError {
+        kind: SyncErrorKind::ManifestSkew {
+            not_before: nb_str.to_string(),
+            now: now.to_rfc3339(),
+        },
+        message: format!("not_before is not RFC3339: {nb_str}"),
+    })?;
+    let nb_utc = parsed.with_timezone(&chrono::Utc);
+    let window = chrono::Duration::minutes(SKEW_WINDOW_MINUTES);
+    let delta = nb_utc.signed_duration_since(now);
+    if delta > window || delta < -window {
+        return Err(SyncError {
+            kind: SyncErrorKind::ManifestSkew {
+                not_before: nb_str.to_string(),
+                now: now.to_rfc3339(),
+            },
+            message: format!(
+                "not_before {nb_str} outside +/- {SKEW_WINDOW_MINUTES}m of now {}",
+                now.to_rfc3339()
+            ),
+        });
+    }
+    Ok(())
 }

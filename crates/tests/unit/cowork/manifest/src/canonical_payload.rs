@@ -7,7 +7,7 @@ fn canonical_payload_excludes_signature() {
     let m = SignedManifest {
         manifest_version: "v1".into(),
         issued_at: "2026-04-22T00:00:00Z".into(),
-        not_before: None,
+        not_before: "2026-04-22T00:00:00Z".into(),
         user_id: "u1".into(),
         tenant_id: None,
         user: None,
@@ -28,7 +28,7 @@ fn canonical_payload_includes_user_skills_agents() {
     let m = SignedManifest {
         manifest_version: "v2".into(),
         issued_at: "2026-04-22T00:00:00Z".into(),
-        not_before: None,
+        not_before: "2026-04-22T00:00:00Z".into(),
         user_id: "u1".into(),
         tenant_id: None,
         user: Some(UserInfo {
@@ -76,11 +76,11 @@ fn canonical_payload_includes_user_skills_agents() {
 }
 
 #[test]
-fn canonical_payload_includes_not_before_when_set() {
+fn canonical_payload_includes_not_before() {
     let m = SignedManifest {
         manifest_version: "v3".into(),
         issued_at: "2026-04-22T00:00:00Z".into(),
-        not_before: Some("2026-04-22T01:00:00Z".into()),
+        not_before: "2026-04-22T01:00:00Z".into(),
         user_id: "u1".into(),
         tenant_id: None,
         user: None,
@@ -93,24 +93,4 @@ fn canonical_payload_includes_not_before_when_set() {
     };
     let payload = canonical_payload(&m).unwrap();
     assert!(payload.contains("\"not_before\":\"2026-04-22T01:00:00Z\""));
-}
-
-#[test]
-fn canonical_payload_omits_not_before_when_absent() {
-    let m = SignedManifest {
-        manifest_version: "v4".into(),
-        issued_at: "2026-04-22T00:00:00Z".into(),
-        not_before: None,
-        user_id: "u1".into(),
-        tenant_id: None,
-        user: None,
-        plugins: vec![],
-        skills: vec![],
-        agents: vec![],
-        managed_mcp_servers: vec![],
-        revocations: vec![],
-        signature: String::new(),
-    };
-    let payload = canonical_payload(&m).unwrap();
-    assert!(!payload.contains("not_before"));
 }
