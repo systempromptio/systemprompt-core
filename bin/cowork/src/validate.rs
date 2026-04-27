@@ -4,7 +4,63 @@ use crate::http::GatewayClient;
 use crate::paths::{self, Scope};
 use std::process::ExitCode;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckLevel {
+    Ok,
+    Warn,
+    Fail,
+    Info,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckLine {
+    pub level: CheckLevel,
+    pub label: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ValidationReport {
+    pub lines: Vec<CheckLine>,
+    pub any_failed: bool,
+}
+
+impl ValidationReport {
+    pub fn rendered(&self) -> String {
+        let mut s = String::from("systemprompt-cowork validate\n");
+        for line in &self.lines {
+            let prefix = match line.level {
+                CheckLevel::Ok => "  [ok]   ",
+                CheckLevel::Warn => "  [warn] ",
+                CheckLevel::Fail => "  [fail] ",
+                CheckLevel::Info => "         ",
+            };
+            s.push_str(prefix);
+            s.push_str(&line.label);
+            s.push_str(": ");
+            s.push_str(&line.value);
+            s.push('\n');
+        }
+        if self.any_failed {
+            s.push_str("\nResult: FAIL — one or more critical checks did not pass.\n");
+        } else {
+            s.push_str("\nResult: OK\n");
+        }
+        s
+    }
+}
+
 pub fn validate() -> ExitCode {
+    let report = run();
+    print!("{}", report.rendered());
+    if report.any_failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+pub fn run() -> ValidationReport {
     let mut report = Report::new();
 
     report.info(
@@ -90,12 +146,7 @@ pub fn validate() -> ExitCode {
         ),
     }
 
-    report.print();
-    if report.any_failed {
-        ExitCode::from(1)
-    } else {
-        ExitCode::SUCCESS
-    }
+    report.into_report()
 }
 
 fn summarise_last_sync(raw: &str) -> String {
@@ -134,7 +185,7 @@ fn count_installed_plugins(org_plugins: &std::path::Path) -> Option<usize> {
 
 struct Report {
     any_failed: bool,
-    lines: Vec<String>,
+    lines: Vec<CheckLine>,
 }
 
 impl Report {
@@ -145,27 +196,38 @@ impl Report {
         }
     }
     fn ok(&mut self, label: &str, value: &str) {
-        self.lines.push(format!("  [ok]   {label}: {value}"));
+        self.lines.push(CheckLine {
+            level: CheckLevel::Ok,
+            label: label.into(),
+            value: value.into(),
+        });
     }
     fn warn(&mut self, label: &str, value: &str) {
-        self.lines.push(format!("  [warn] {label}: {value}"));
+        self.lines.push(CheckLine {
+            level: CheckLevel::Warn,
+            label: label.into(),
+            value: value.into(),
+        });
     }
     fn fail(&mut self, label: &str, value: &str) {
         self.any_failed = true;
-        self.lines.push(format!("  [fail] {label}: {value}"));
+        self.lines.push(CheckLine {
+            level: CheckLevel::Fail,
+            label: label.into(),
+            value: value.into(),
+        });
     }
     fn info(&mut self, label: &str, value: &str) {
-        self.lines.push(format!("         {label}: {value}"));
+        self.lines.push(CheckLine {
+            level: CheckLevel::Info,
+            label: label.into(),
+            value: value.into(),
+        });
     }
-    fn print(&self) {
-        println!("systemprompt-cowork validate");
-        for line in &self.lines {
-            println!("{line}");
-        }
-        if self.any_failed {
-            println!("\nResult: FAIL — one or more critical checks did not pass.");
-        } else {
-            println!("\nResult: OK");
+    fn into_report(self) -> ValidationReport {
+        ValidationReport {
+            lines: self.lines,
+            any_failed: self.any_failed,
         }
     }
 }
