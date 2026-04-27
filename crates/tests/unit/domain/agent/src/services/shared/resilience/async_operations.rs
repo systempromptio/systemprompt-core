@@ -5,8 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_agent::services::shared::error::AgentServiceError;
 use systemprompt_agent::services::shared::resilience::{
-    execute_with_custom_timeout, execute_with_timeout, retry_operation,
-    retry_operation_with_backoff, RetryConfiguration, TimeoutConfiguration, TimeoutType,
+    execute_with_timeout, retry_operation, retry_operation_with_backoff, RetryConfiguration,
 };
 
 #[tokio::test]
@@ -134,62 +133,3 @@ async fn test_execute_with_timeout_propagates_error() {
     }
 }
 
-#[tokio::test]
-async fn test_execute_with_custom_timeout_connect() {
-    let config = TimeoutConfiguration {
-        default: Duration::from_secs(30),
-        connect: Duration::from_secs(1),
-        read: Duration::from_secs(30),
-        write: Duration::from_secs(30),
-    };
-
-    let result =
-        execute_with_custom_timeout(config, TimeoutType::Connect, async { Ok::<i32, AgentServiceError>(1) }).await;
-
-    result.expect("connect timeout should succeed");
-}
-
-#[tokio::test]
-async fn test_execute_with_custom_timeout_read() {
-    let config = TimeoutConfiguration {
-        default: Duration::from_secs(30),
-        connect: Duration::from_secs(10),
-        read: Duration::from_secs(1),
-        write: Duration::from_secs(30),
-    };
-
-    let result =
-        execute_with_custom_timeout(config, TimeoutType::Read, async { Ok::<i32, AgentServiceError>(2) }).await;
-
-    result.expect("read timeout should succeed");
-}
-
-#[tokio::test]
-async fn test_execute_with_custom_timeout_write() {
-    let config = TimeoutConfiguration {
-        default: Duration::from_secs(30),
-        connect: Duration::from_secs(10),
-        read: Duration::from_secs(30),
-        write: Duration::from_secs(1),
-    };
-
-    let result =
-        execute_with_custom_timeout(config, TimeoutType::Write, async { Ok::<i32, AgentServiceError>(3) }).await;
-
-    result.expect("write timeout should succeed");
-}
-
-#[tokio::test]
-async fn test_execute_with_custom_timeout_default() {
-    let config = TimeoutConfiguration {
-        default: Duration::from_secs(1),
-        connect: Duration::from_secs(10),
-        read: Duration::from_secs(30),
-        write: Duration::from_secs(30),
-    };
-
-    let result =
-        execute_with_custom_timeout(config, TimeoutType::Default, async { Ok::<i32, AgentServiceError>(4) }).await;
-
-    result.expect("default timeout should succeed");
-}

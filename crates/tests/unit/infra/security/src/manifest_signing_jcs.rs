@@ -30,7 +30,7 @@ fn sample_manifest() -> SignedManifest {
     SignedManifest {
         manifest_version: "2026-04-27T00:00:00Z-deadbeef".into(),
         issued_at: "2026-04-27T00:00:00Z".into(),
-        not_before: None,
+        not_before: "2026-04-27T00:00:00Z".into(),
         user_id: "user_abc".into(),
         tenant_id: Some("tenant_xyz".into()),
         user: Some(UserInfo {
@@ -93,6 +93,7 @@ fn signing_view(m: &SignedManifest) -> serde_json::Value {
     serde_json::json!({
         "manifest_version": m.manifest_version,
         "issued_at": m.issued_at,
+        "not_before": m.not_before,
         "user_id": m.user_id,
         "tenant_id": m.tenant_id,
         "user": m.user,

@@ -1,9 +1,7 @@
-//! Unit tests for RetryConfiguration, TimeoutConfiguration, TimeoutType, and delay calculation
+//! Unit tests for RetryConfiguration and delay calculation
 
 use std::time::Duration;
-use systemprompt_agent::services::shared::resilience::{
-    RetryConfiguration, TimeoutConfiguration, TimeoutType,
-};
+use systemprompt_agent::services::shared::resilience::RetryConfiguration;
 
 #[test]
 fn test_retry_configuration_default() {
@@ -47,100 +45,6 @@ fn test_retry_configuration_debug() {
     assert!(debug_str.contains("RetryConfiguration"));
     assert!(debug_str.contains("max_attempts"));
     assert!(debug_str.contains("initial_delay"));
-}
-
-#[test]
-fn test_timeout_configuration_default() {
-    let config = TimeoutConfiguration::default();
-
-    assert_eq!(config.default, Duration::from_secs(30));
-    assert_eq!(config.connect, Duration::from_secs(10));
-    assert_eq!(config.read, Duration::from_secs(30));
-    assert_eq!(config.write, Duration::from_secs(30));
-}
-
-#[test]
-fn test_timeout_configuration_custom() {
-    let config = TimeoutConfiguration {
-        default: Duration::from_secs(60),
-        connect: Duration::from_secs(5),
-        read: Duration::from_secs(120),
-        write: Duration::from_secs(90),
-    };
-
-    assert_eq!(config.default, Duration::from_secs(60));
-    assert_eq!(config.connect, Duration::from_secs(5));
-    assert_eq!(config.read, Duration::from_secs(120));
-    assert_eq!(config.write, Duration::from_secs(90));
-}
-
-#[test]
-fn test_timeout_configuration_clone() {
-    let config = TimeoutConfiguration::default();
-    let cloned = config;
-
-    assert_eq!(cloned.default, config.default);
-    assert_eq!(cloned.connect, config.connect);
-}
-
-#[test]
-fn test_timeout_configuration_debug() {
-    let config = TimeoutConfiguration::default();
-    let debug_str = format!("{:?}", config);
-
-    assert!(debug_str.contains("TimeoutConfiguration"));
-    assert!(debug_str.contains("default"));
-    assert!(debug_str.contains("connect"));
-}
-
-#[test]
-fn test_timeout_type_connect() {
-    let timeout_type = TimeoutType::Connect;
-    let debug_str = format!("{:?}", timeout_type);
-    assert!(debug_str.contains("Connect"));
-}
-
-#[test]
-fn test_timeout_type_read() {
-    let timeout_type = TimeoutType::Read;
-    let debug_str = format!("{:?}", timeout_type);
-    assert!(debug_str.contains("Read"));
-}
-
-#[test]
-fn test_timeout_type_write() {
-    let timeout_type = TimeoutType::Write;
-    let debug_str = format!("{:?}", timeout_type);
-    assert!(debug_str.contains("Write"));
-}
-
-#[test]
-fn test_timeout_type_default() {
-    let timeout_type = TimeoutType::Default;
-    let debug_str = format!("{:?}", timeout_type);
-    assert!(debug_str.contains("Default"));
-}
-
-#[test]
-fn test_timeout_type_clone() {
-    let original = TimeoutType::Connect;
-    let cloned = original;
-
-    match cloned {
-        TimeoutType::Connect => {}
-        _ => panic!("Expected Connect variant"),
-    }
-}
-
-#[test]
-fn test_timeout_type_copy() {
-    let original = TimeoutType::Read;
-    let copied = original;
-
-    match copied {
-        TimeoutType::Read => {}
-        _ => panic!("Expected Read variant"),
-    }
 }
 
 #[test]
@@ -209,21 +113,3 @@ fn test_retry_config_progression() {
     assert_eq!(delays[2], Duration::from_millis(400));
 }
 
-#[test]
-fn test_timeout_selection() {
-    let config = TimeoutConfiguration::default();
-
-    let get_timeout = |timeout_type: TimeoutType| -> Duration {
-        match timeout_type {
-            TimeoutType::Connect => config.connect,
-            TimeoutType::Read => config.read,
-            TimeoutType::Write => config.write,
-            TimeoutType::Default => config.default,
-        }
-    };
-
-    assert_eq!(get_timeout(TimeoutType::Connect), Duration::from_secs(10));
-    assert_eq!(get_timeout(TimeoutType::Read), Duration::from_secs(30));
-    assert_eq!(get_timeout(TimeoutType::Write), Duration::from_secs(30));
-    assert_eq!(get_timeout(TimeoutType::Default), Duration::from_secs(30));
-}

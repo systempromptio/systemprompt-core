@@ -2,14 +2,33 @@
 
 ## [Unreleased]
 
-### Added
+### Security
 
-- **Phase 0 of the cowork sync + auth pipeline hardening (shared prep, no-op behaviourally).** Lands the cross-cutting glue every Phase 1 track depends on so the parallel work doesn't fight over a handful of files.
-  - `JwtAudience::Cowork` variant added to `crates/shared/models/src/auth/enums.rs` (covers `as_str` and `FromStr`). Issuance switches in Phase 1 Track B.
+- **Phase 1 Track A — RFC 8785 (JCS) canonical JSON for cowork manifest signing** (#10). Field-order stability is no longer coincidental — both signer and verifier now serialise via `serde_jcs::to_string`. `crates/infra/security/src/manifest_signing.rs` gains `sign_value<T: Serialize>` and `canonicalize<T>` built on JCS; `bin/cowork/src/manifest.rs::canonical_payload` switches to the same path. New unit tests at `crates/tests/unit/infra/security/manifest_signing_jcs/` assert byte-identical canonical output across signer and verifier paths, sign+verify round-trip, and alphabetical key ordering.
+
+- **Phase 1 Track B — distinct JWT audience for cowork tokens** (#14). `issue_cowork_access_with` now mints `audience: vec![JwtAudience::Cowork]` (`crates/domain/oauth/src/services/cowork.rs`) instead of `JwtAudience::Api`. A stolen cowork JWT can no longer call generic API endpoints, and a stolen API JWT can no longer hit cowork routes. The companion `validate_cowork_jwt` change in `systemprompt-template` accepts only `Cowork` — the legacy `Api` grace fallback was stripped per the no-legacy directive.
+
+- **Phase 1 Track C — tenant-scoped cowork plugin file route** (#13). Cowork client switches from the unscoped `/plugins/{plugin_id}/{rel}` URL to `/v1/cowork/plugins/{plugin_id}/{rel}` (`bin/cowork/src/http.rs`). The new template handler validates the cowork JWT, looks up the plugin against the user's enrolled plugins, canonicalises the file path against the plugins root, and streams bytes with a guessed content-type. The legacy unscoped route is removed entirely (no 410-Gone shim) per the no-legacy directive.
+
+- **Phase 1 Track D — cowork manifest replay protection** (#11). Every issued manifest now carries `not_before = now()` as a required signed field. After signature verification, `bin/cowork/src/sync.rs::run_once` rejects:
+  - `manifest_version` ≤ last applied (`SyncError::ReplayedManifest`)
+  - `not_before` outside ±5 minutes of local clock (`SyncError::ManifestSkew`)
+
+  `last-sync.json` persists `last_applied_manifest_version`. New `--force-replay` CLI flag bypasses both checks with a `tracing::warn!`. 13 integration tests in `bin/cowork/tests/replay.rs` cover same/older/newer versions, ±10m skew rejection, ±30s skew acceptance, force-replay bypass, and canonical payload field ordering.
+
+### Changed
+
+- **Phase 1 Track E — cowork: typed errors + tracing throughout** (#12). Replaced `String` error returns in `bin/cowork/src/{sync,manifest,http,setup}.rs` with `thiserror`-derived enums (`SyncError`, `ManifestError`, `GatewayError`, `SetupError`). Library diagnostics now route through `tracing` with a custom stderr formatter that preserves the prior `[systemprompt-cowork] {msg}` line format byte-for-byte. `crate::output::diag` is a thin `tracing::warn!` wrapper; the CLI entry initialises a stderr-targeted `fmt` subscriber via `tracing_init`.
+
+- **Phase 0 of the cowork sync + auth pipeline hardening (shared prep, no-op behaviourally).** Lands the cross-cutting glue every Phase 1 track depended on:
+  - `JwtAudience::Cowork` variant added to `crates/shared/models/src/auth/enums.rs` (covers `as_str` and `FromStr`).
   - `SecretsBootstrap::manifest_signing_secret_seed() -> Result<[u8; 32], _>` accessor added in `crates/shared/models/src/secrets_bootstrap.rs`. Returns the existing JWT-derived seed as a fallback so signature semantics are unchanged; Phase 2 Track F will swap the source to a dedicated secret without changing call sites.
-  - `not_before: Option<String>` stub added to `SignedManifest` (`bin/cowork/src/manifest.rs`) and `Manifest` (`systemprompt-template/extensions/web/admin/src/handlers/cowork/types.rs`) with `#[serde(default)]` / `skip_serializing_if`. Not yet included in the canonical signing payload — Phase 1 Track D promotes it to required.
-  - `serde_jcs = "0.1"` added to `crates/infra/security/Cargo.toml` (consumed by Phase 1 Track A) and to `bin/cowork/Cargo.toml`. `thiserror`, `tracing`, and `tracing-subscriber` added to `bin/cowork/Cargo.toml` (Phase 1 Track E).
+  - `serde_jcs = "0.1"` added to `crates/infra/security/Cargo.toml` and `bin/cowork/Cargo.toml`. `thiserror`, `tracing`, and `tracing-subscriber` added to `bin/cowork/Cargo.toml`.
   - Workspace `sha2` added to `crates/shared/models/Cargo.toml` for the seed-derivation helper.
+
+### Fixed
+
+- **`NSURL::fileURLWithPath` macOS GUI compile fix** (#15). Current `objc2_foundation` returns `Retained<NSURL>` directly (non-null), so the prior `if let Some(url) = ...` guard failed to compile on macOS. Drop the `Option` match in `bin/cowork/src/gui/window/mod.rs`. CI's release matrix only builds `aarch64-apple-darwin`, so the next tag would have hit this without the fix.
 
 ## [0.4.0] - 2026-04-24
 
