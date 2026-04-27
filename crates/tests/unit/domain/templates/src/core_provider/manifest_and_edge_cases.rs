@@ -137,7 +137,10 @@ templates:
         assert_eq!(templates.len(), 2);
 
         let listed = templates.iter().find(|t| t.name == "listed").unwrap();
-        let unlisted = templates.iter().find(|t| t.name == "unlisted-post").unwrap();
+        let unlisted = templates
+            .iter()
+            .find(|t| t.name == "unlisted-post")
+            .unwrap();
 
         assert_eq!(listed.content_types, vec!["custom"]);
         assert_eq!(unlisted.content_types, vec!["unlisted"]);
@@ -184,12 +187,18 @@ mod edge_case_tests {
     async fn handles_template_with_special_characters() {
         let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
 
-        fs::write(temp_dir.path().join("template-with-dashes.html"), "<html></html>")
-            .await
-            .expect("failed to write");
-        fs::write(temp_dir.path().join("template_with_underscores.html"), "<html></html>")
-            .await
-            .expect("failed to write");
+        fs::write(
+            temp_dir.path().join("template-with-dashes.html"),
+            "<html></html>",
+        )
+        .await
+        .expect("failed to write");
+        fs::write(
+            temp_dir.path().join("template_with_underscores.html"),
+            "<html></html>",
+        )
+        .await
+        .expect("failed to write");
 
         let provider = CoreTemplateProvider::discover_from(temp_dir.path())
             .await

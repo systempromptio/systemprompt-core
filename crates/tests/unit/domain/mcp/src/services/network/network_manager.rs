@@ -58,4 +58,3 @@ fn test_network_manager_create_proxy() {
     let debug = format!("{:?}", router);
     assert!(debug.contains("Router"));
 }
-

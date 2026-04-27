@@ -92,7 +92,7 @@ fn mcp_event_deserialize_reconciliation_completed() {
             assert_eq!(*started, 5);
             assert_eq!(*failed, 2);
             assert_eq!(*duration_ms, 500);
-        }
+        },
         _ => panic!("Expected ReconciliationCompleted"),
     }
 }
@@ -115,7 +115,7 @@ fn mcp_event_deserialize_service_start_completed_success() {
             assert_eq!(*port, Some(8080));
             assert!(error.is_none());
             assert_eq!(*duration_ms, 250);
-        }
+        },
         _ => panic!("Expected ServiceStartCompleted"),
     }
 }
@@ -136,7 +136,7 @@ fn mcp_event_deserialize_service_start_completed_failure() {
             assert!(pid.is_none());
             assert!(port.is_none());
             assert_eq!(error.as_deref(), Some("crash"));
-        }
+        },
         _ => panic!("Expected ServiceStartCompleted"),
     }
 }
@@ -233,7 +233,7 @@ fn mcp_event_start_completed_failure_empty_error() {
     match &event {
         McpEvent::ServiceStartCompleted { error, .. } => {
             assert_eq!(error.as_deref(), Some(""));
-        }
+        },
         _ => panic!("Expected ServiceStartCompleted"),
     }
 }
@@ -261,7 +261,7 @@ fn mcp_event_clone_preserves_all_fields() {
             assert_eq!(*pid, Some(999));
             assert_eq!(*port, Some(3000));
             assert_eq!(*duration_ms, 42);
-        }
+        },
         _ => panic!("Expected ServiceStartCompleted"),
     }
 }

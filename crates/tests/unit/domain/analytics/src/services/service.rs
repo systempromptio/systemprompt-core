@@ -188,6 +188,7 @@ mod create_analytics_session_input_tests {
             analytics: &analytics,
             session_source: SessionSource::Web,
             is_bot: false,
+            is_ai_crawler: false,
             expires_at,
         };
 
@@ -208,6 +209,7 @@ mod create_analytics_session_input_tests {
             analytics: &analytics,
             session_source: SessionSource::Web,
             is_bot: true,
+            is_ai_crawler: false,
             expires_at,
         };
 
@@ -228,6 +230,7 @@ mod create_analytics_session_input_tests {
             analytics: &analytics,
             session_source: SessionSource::Web,
             is_bot: true,
+            is_ai_crawler: false,
             expires_at,
         };
 
@@ -247,6 +250,7 @@ mod create_analytics_session_input_tests {
             analytics: &analytics,
             session_source: SessionSource::Cli,
             is_bot: false,
+            is_ai_crawler: false,
             expires_at,
         };
 
@@ -266,6 +270,7 @@ mod create_analytics_session_input_tests {
             analytics: &analytics,
             session_source: SessionSource::Cli,
             is_bot: false,
+            is_ai_crawler: false,
             expires_at,
         };
 
@@ -285,6 +290,7 @@ mod create_analytics_session_input_tests {
             analytics: &analytics,
             session_source: SessionSource::Web,
             is_bot: false,
+            is_ai_crawler: false,
             expires_at,
         };
 

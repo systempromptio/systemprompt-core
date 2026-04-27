@@ -121,11 +121,11 @@ fn test_insert_file_request_with_session_id() {
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_session_id(session_id);
 
-    request.session_id.as_ref().expect("session_id should be present");
-    assert_eq!(
-        request.session_id.as_ref().unwrap().as_str(),
-        "sess_xyz789"
-    );
+    request
+        .session_id
+        .as_ref()
+        .expect("session_id should be present");
+    assert_eq!(request.session_id.as_ref().unwrap().as_str(), "sess_xyz789");
 }
 
 #[test]
@@ -135,7 +135,10 @@ fn test_insert_file_request_with_trace_id() {
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_trace_id(trace_id);
 
-    request.trace_id.as_ref().expect("trace_id should be present");
+    request
+        .trace_id
+        .as_ref()
+        .expect("trace_id should be present");
     assert_eq!(request.trace_id.as_ref().unwrap().as_str(), "trace_def456");
 }
 
@@ -172,8 +175,14 @@ fn test_insert_file_request_builder_chain() {
     assert!(request.ai_content);
     assert_eq!(request.metadata["custom"], "value");
     request.user_id.as_ref().expect("user_id should be present");
-    request.session_id.as_ref().expect("session_id should be present");
-    request.trace_id.as_ref().expect("trace_id should be present");
+    request
+        .session_id
+        .as_ref()
+        .expect("session_id should be present");
+    request
+        .trace_id
+        .as_ref()
+        .expect("trace_id should be present");
 }
 
 #[test]

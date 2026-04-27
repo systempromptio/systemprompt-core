@@ -1,7 +1,7 @@
 //! Unit tests for build_rss_xml basic functionality
 
 use chrono::{TimeZone, Utc};
-use systemprompt_generator::{build_rss_xml, RssChannel, RssItem};
+use systemprompt_generator::{RssChannel, RssItem, build_rss_xml};
 
 #[test]
 fn test_build_rss_xml_empty_channel() {

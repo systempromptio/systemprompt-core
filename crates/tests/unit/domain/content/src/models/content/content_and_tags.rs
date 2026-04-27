@@ -6,9 +6,9 @@
 
 #[test]
 fn test_content_links_metadata_valid() {
+    use chrono::Utc;
     use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
-    use chrono::Utc;
 
     let links_json = serde_json::json!([
         {"title": "Link 1", "url": "https://example.com/1"},
@@ -43,9 +43,9 @@ fn test_content_links_metadata_valid() {
 
 #[test]
 fn test_content_links_metadata_empty() {
+    use chrono::Utc;
     use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
-    use chrono::Utc;
 
     let content = Content {
         id: ContentId::new("content-2"),
@@ -72,9 +72,9 @@ fn test_content_links_metadata_empty() {
 
 #[test]
 fn test_content_links_metadata_invalid_json() {
+    use chrono::Utc;
     use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
-    use chrono::Utc;
 
     let content = Content {
         id: ContentId::new("content-3"),
@@ -101,9 +101,9 @@ fn test_content_links_metadata_invalid_json() {
 
 #[test]
 fn test_content_clone() {
+    use chrono::Utc;
     use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
-    use chrono::Utc;
 
     let content = Content {
         id: ContentId::new("content-4"),
@@ -136,9 +136,9 @@ fn test_content_clone() {
 
 #[test]
 fn test_content_summary_creation() {
+    use chrono::Utc;
     use systemprompt_content::models::ContentSummary;
     use systemprompt_identifiers::ContentId;
-    use chrono::Utc;
 
     let summary = ContentSummary {
         id: ContentId::new("summary-1"),
@@ -154,9 +154,9 @@ fn test_content_summary_creation() {
 
 #[test]
 fn test_content_summary_serialization() {
+    use chrono::Utc;
     use systemprompt_content::models::ContentSummary;
     use systemprompt_identifiers::ContentId;
-    use chrono::Utc;
 
     let summary = ContentSummary {
         id: ContentId::new("summary-3"),
@@ -194,9 +194,9 @@ fn test_tag_creation() {
 
 #[test]
 fn test_tag_clone() {
+    use chrono::Utc;
     use systemprompt_content::models::Tag;
     use systemprompt_identifiers::TagId;
-    use chrono::Utc;
 
     let tag = Tag {
         id: TagId::new("tag-2"),

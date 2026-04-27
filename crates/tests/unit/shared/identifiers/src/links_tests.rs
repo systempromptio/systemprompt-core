@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{LinkId, CampaignId, LinkClickId, DbValue, ToDbValue};
+use systemprompt_identifiers::{CampaignId, DbValue, LinkClickId, LinkId, ToDbValue};
 
 #[test]
 fn link_id_generate_uuid_format() {

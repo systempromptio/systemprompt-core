@@ -86,6 +86,7 @@ impl AnalyticsProvider for AnalyticsService {
             analytics: &local_analytics,
             session_source: input.session_source,
             is_bot: input.is_bot,
+            is_ai_crawler: input.is_ai_crawler,
             expires_at: input.expires_at,
         };
 

@@ -6,9 +6,9 @@
 //! - is_active logic in conversion
 
 use chrono::Utc;
-use systemprompt_users::User;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::AuthUser;
+use systemprompt_users::User;
 
 // Helper function to create a test user
 fn create_test_user() -> User {
@@ -213,7 +213,6 @@ mod auth_user_structure_tests {
 
         assert!(debug.contains("AuthUser") || debug.contains("id") || debug.contains("user-123"));
     }
-
 }
 
 // ============================================================================
@@ -292,11 +291,7 @@ mod edge_case_tests {
     #[test]
     fn conversion_with_duplicate_roles() {
         let mut user = create_test_user();
-        user.roles = vec![
-            "user".to_string(),
-            "user".to_string(),
-            "admin".to_string(),
-        ];
+        user.roles = vec!["user".to_string(), "user".to_string(), "admin".to_string()];
         let auth_user: AuthUser = user.into();
 
         // Duplicates are preserved (not deduplicated)

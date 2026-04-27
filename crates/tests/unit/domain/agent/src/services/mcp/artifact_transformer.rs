@@ -2,11 +2,14 @@
 //!
 //! Tests cover:
 //! - parse_tool_response — valid JSON, null input, empty object, missing fields
-//! - calculate_fingerprint — deterministic hashing, distinct inputs produce distinct hashes
+//! - calculate_fingerprint — deterministic hashing, distinct inputs produce
+//!   distinct hashes
 //! - artifact_type_to_string — all known variants plus custom
-//! - infer_type — schema x-artifact-type, tabular/form/chart schema, data-level type, fallback error
+//! - infer_type — schema x-artifact-type, tabular/form/chart schema, data-level
+//!   type, fallback error
 //! - build_metadata — all artifact types with rendering hints, optional fields
-//! - build_parts — JSON object input, content array with text/image/resource, error on invalid
+//! - build_parts — JSON object input, content array with text/image/resource,
+//!   error on invalid
 
 use serde_json::json;
 use systemprompt_agent::services::mcp::artifact_transformer::{
@@ -35,7 +38,10 @@ fn parse_tool_response_valid_complete() {
     let parsed = parse_tool_response(&input).expect("should parse");
     assert_eq!(parsed.artifact_id.as_str(), "art-001");
     assert_eq!(parsed.mcp_execution_id.as_str(), "exec-001");
-    assert_eq!(parsed.metadata.skill_id.as_ref().map(|s| s.as_str()), Some("skill-1"));
+    assert_eq!(
+        parsed.metadata.skill_id.as_ref().map(|s| s.as_str()),
+        Some("skill-1")
+    );
     assert_eq!(parsed.metadata.skill_name, Some("test-skill".to_string()));
     assert_eq!(parsed.metadata.execution_id, Some("exec-ref".to_string()));
 }
@@ -222,7 +228,10 @@ fn artifact_type_to_string_form() {
 
 #[test]
 fn artifact_type_to_string_dashboard() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Dashboard), "dashboard");
+    assert_eq!(
+        artifact_type_to_string(&ArtifactType::Dashboard),
+        "dashboard"
+    );
 }
 
 #[test]

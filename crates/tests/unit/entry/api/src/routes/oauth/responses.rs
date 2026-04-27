@@ -1,9 +1,9 @@
 //! Tests for OAuth response types and serialization
 //!
-//! The response helper functions (`error_response`, `internal_error`, `not_found`,
-//! `bad_request`, `single_response`, `init_error`, `created_response`) are defined
-//! in `routes::oauth::responses` which is `pub(crate)` and not accessible from
-//! external test crates.
+//! The response helper functions (`error_response`, `internal_error`,
+//! `not_found`, `bad_request`, `single_response`, `init_error`,
+//! `created_response`) are defined in `routes::oauth::responses` which is
+//! `pub(crate)` and not accessible from external test crates.
 //!
 //! These tests verify the publicly exported response types from the discovery
 //! module and the health handler, which use the same response patterns.
@@ -35,12 +35,21 @@ fn test_well_known_response_serialization() {
 
     let json = serde_json::to_value(&response).unwrap();
     assert_eq!(json["issuer"], "https://example.com");
-    assert_eq!(json["authorization_endpoint"], "https://example.com/authorize");
+    assert_eq!(
+        json["authorization_endpoint"],
+        "https://example.com/authorize"
+    );
     assert_eq!(json["token_endpoint"], "https://example.com/token");
     assert_eq!(json["userinfo_endpoint"], "https://example.com/userinfo");
-    assert_eq!(json["introspection_endpoint"], "https://example.com/introspect");
+    assert_eq!(
+        json["introspection_endpoint"],
+        "https://example.com/introspect"
+    );
     assert_eq!(json["revocation_endpoint"], "https://example.com/revoke");
-    assert_eq!(json["registration_endpoint"], "https://example.com/register");
+    assert_eq!(
+        json["registration_endpoint"],
+        "https://example.com/register"
+    );
 }
 
 #[test]
@@ -128,18 +137,12 @@ fn test_oauth_protected_resource_response_serialization() {
 
     let json = serde_json::to_value(&response).unwrap();
     assert_eq!(json["resource"], "https://api.example.com");
-    assert_eq!(
-        json["authorization_servers"][0],
-        "https://auth.example.com"
-    );
+    assert_eq!(json["authorization_servers"][0], "https://auth.example.com");
     assert_eq!(json["scopes_supported"][0], "user");
     assert_eq!(json["scopes_supported"][1], "admin");
     assert_eq!(json["bearer_methods_supported"][0], "header");
     assert_eq!(json["bearer_methods_supported"][1], "body");
-    assert_eq!(
-        json["resource_documentation"],
-        "https://docs.example.com"
-    );
+    assert_eq!(json["resource_documentation"], "https://docs.example.com");
 }
 
 #[test]
@@ -182,10 +185,7 @@ fn test_error_response_json_shape_documented() {
     });
 
     assert_eq!(error_json["error"], "bad_request");
-    assert_eq!(
-        error_json["error_description"],
-        "Missing required field"
-    );
+    assert_eq!(error_json["error_description"], "Missing required field");
 }
 
 #[test]

@@ -74,7 +74,10 @@ fn test_authorize_query_deserialize_all_fields() {
 
     assert_eq!(query.response_type, "code");
     assert_eq!(query.client_id.as_str(), "sp_test_client");
-    assert_eq!(query.redirect_uri.as_deref(), Some("https://example.com/callback"));
+    assert_eq!(
+        query.redirect_uri.as_deref(),
+        Some("https://example.com/callback")
+    );
     assert_eq!(query.scope.as_deref(), Some("openid profile"));
     assert_eq!(query.state.as_deref(), Some("abc123"));
     assert_eq!(
@@ -174,7 +177,10 @@ fn test_authorize_query_field_access() {
 
     assert_eq!(query.response_type, "code");
     assert_eq!(query.client_id.as_str(), "sp_test_client");
-    assert_eq!(query.redirect_uri.as_deref(), Some("https://example.com/callback"));
+    assert_eq!(
+        query.redirect_uri.as_deref(),
+        Some("https://example.com/callback")
+    );
     assert_eq!(query.scope.as_deref(), Some("openid"));
     assert_eq!(query.state.as_deref(), Some("random_state_value"));
     assert!(query.code_challenge.is_some());
@@ -232,7 +238,10 @@ fn test_authorize_request_deserialize_all_fields() {
 
     assert_eq!(request.response_type, "code");
     assert_eq!(request.client_id.as_str(), "sp_test_client");
-    assert_eq!(request.redirect_uri.as_deref(), Some("https://example.com/callback"));
+    assert_eq!(
+        request.redirect_uri.as_deref(),
+        Some("https://example.com/callback")
+    );
     assert_eq!(request.scope.as_deref(), Some("openid profile"));
     assert_eq!(request.state.as_deref(), Some("abc123"));
     assert_eq!(
@@ -511,7 +520,10 @@ fn test_authorize_query_with_resource_uri() {
         ..create_valid_authorize_query()
     };
 
-    assert_eq!(query.resource.as_deref(), Some("https://api.example.com/v1"));
+    assert_eq!(
+        query.resource.as_deref(),
+        Some("https://api.example.com/v1")
+    );
 }
 
 #[test]
@@ -521,5 +533,8 @@ fn test_authorize_request_with_resource_uri() {
         ..create_valid_authorize_request()
     };
 
-    assert_eq!(request.resource.as_deref(), Some("https://api.example.com/v1"));
+    assert_eq!(
+        request.resource.as_deref(),
+        Some("https://api.example.com/v1")
+    );
 }

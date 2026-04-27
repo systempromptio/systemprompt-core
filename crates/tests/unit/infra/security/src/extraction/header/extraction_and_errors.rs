@@ -21,7 +21,10 @@ fn test_header_extractor_extract_trace_id_missing() {
     let headers = HeaderMap::new();
 
     let trace_id = HeaderExtractor::extract_trace_id(&headers);
-    assert!(!trace_id.as_str().is_empty(), "Should generate a trace ID when missing");
+    assert!(
+        !trace_id.as_str().is_empty(),
+        "Should generate a trace ID when missing"
+    );
 }
 
 #[test]
@@ -52,7 +55,10 @@ fn test_header_extractor_extract_context_id_missing() {
     let headers = HeaderMap::new();
 
     let context_id = HeaderExtractor::extract_context_id(&headers);
-    assert!(context_id.as_str().is_empty(), "Should return empty context ID when missing");
+    assert!(
+        context_id.as_str().is_empty(),
+        "Should return empty context ID when missing"
+    );
 }
 
 #[test]
@@ -61,7 +67,10 @@ fn test_header_extractor_extract_context_id_empty_value() {
     headers.insert("x-context-id", HeaderValue::from_static(""));
 
     let context_id = HeaderExtractor::extract_context_id(&headers);
-    assert!(context_id.as_str().is_empty(), "Should return empty for empty header value");
+    assert!(
+        context_id.as_str().is_empty(),
+        "Should return empty for empty header value"
+    );
 }
 
 #[test]
@@ -69,8 +78,8 @@ fn test_header_extractor_extract_task_id_present() {
     let mut headers = HeaderMap::new();
     headers.insert("x-task-id", HeaderValue::from_static("task-12345"));
 
-    let task_id = HeaderExtractor::extract_task_id(&headers)
-        .expect("Should extract task id from header");
+    let task_id =
+        HeaderExtractor::extract_task_id(&headers).expect("Should extract task id from header");
     assert_eq!(task_id.as_str(), "task-12345");
 }
 
@@ -96,7 +105,11 @@ fn test_header_extractor_extract_agent_name_missing() {
     let headers = HeaderMap::new();
 
     let agent_name = HeaderExtractor::extract_agent_name(&headers);
-    assert_eq!(agent_name.as_str(), "system", "Should return 'system' when missing");
+    assert_eq!(
+        agent_name.as_str(),
+        "system",
+        "Should return 'system' when missing"
+    );
 }
 
 #[test]
@@ -140,7 +153,10 @@ fn test_header_extractor_uuid_values() {
 #[test]
 fn test_header_extractor_special_characters() {
     let mut headers = HeaderMap::new();
-    headers.insert("x-agent-name", HeaderValue::from_static("agent_with-special.chars"));
+    headers.insert(
+        "x-agent-name",
+        HeaderValue::from_static("agent_with-special.chars"),
+    );
 
     let agent_name = HeaderExtractor::extract_agent_name(&headers);
     assert_eq!(agent_name.as_str(), "agent_with-special.chars");

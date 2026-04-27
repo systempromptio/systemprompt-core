@@ -177,7 +177,9 @@ mod filesystem_loader_tests {
     #[tokio::test]
     async fn load_directory_with_no_base_paths_fails() {
         let loader = test_loader(vec![]);
-        let result = loader.load_directory(PathBuf::from("templates").as_path()).await;
+        let result = loader
+            .load_directory(PathBuf::from("templates").as_path())
+            .await;
         result.unwrap_err();
     }
 
@@ -185,7 +187,9 @@ mod filesystem_loader_tests {
     async fn load_directory_with_traversal_fails() {
         let dir = TempDir::new().unwrap();
         let loader = FileSystemLoader::with_path(dir.path());
-        let result = loader.load_directory(PathBuf::from("../../../etc").as_path()).await;
+        let result = loader
+            .load_directory(PathBuf::from("../../../etc").as_path())
+            .await;
         result.unwrap_err();
     }
 
@@ -194,12 +198,21 @@ mod filesystem_loader_tests {
         let dir = TempDir::new().unwrap();
         let templates_dir = dir.path().join("templates");
         fs::create_dir(&templates_dir).await.unwrap();
-        fs::write(templates_dir.join("page.html"), "<h1>Page</h1>").await.unwrap();
-        fs::write(templates_dir.join("card.html"), "<div>Card</div>").await.unwrap();
-        fs::write(templates_dir.join("readme.txt"), "Not a template").await.unwrap();
+        fs::write(templates_dir.join("page.html"), "<h1>Page</h1>")
+            .await
+            .unwrap();
+        fs::write(templates_dir.join("card.html"), "<div>Card</div>")
+            .await
+            .unwrap();
+        fs::write(templates_dir.join("readme.txt"), "Not a template")
+            .await
+            .unwrap();
 
         let loader = FileSystemLoader::with_path(dir.path());
-        let result = loader.load_directory(PathBuf::from("templates").as_path()).await.unwrap();
+        let result = loader
+            .load_directory(PathBuf::from("templates").as_path())
+            .await
+            .unwrap();
 
         assert_eq!(result.len(), 2);
         let names: Vec<&str> = result.iter().map(|(name, _)| name.as_str()).collect();
@@ -212,10 +225,15 @@ mod filesystem_loader_tests {
         let dir = TempDir::new().unwrap();
         let templates_dir = dir.path().join("templates");
         fs::create_dir(&templates_dir).await.unwrap();
-        fs::write(templates_dir.join("readme.txt"), "Text file").await.unwrap();
+        fs::write(templates_dir.join("readme.txt"), "Text file")
+            .await
+            .unwrap();
 
         let loader = FileSystemLoader::with_path(dir.path());
-        let result = loader.load_directory(PathBuf::from("templates").as_path()).await.unwrap();
+        let result = loader
+            .load_directory(PathBuf::from("templates").as_path())
+            .await
+            .unwrap();
 
         assert!(result.is_empty());
     }
@@ -224,7 +242,9 @@ mod filesystem_loader_tests {
     async fn load_from_multiple_base_paths() {
         let dir1 = TempDir::new().unwrap();
         let dir2 = TempDir::new().unwrap();
-        fs::write(dir2.path().join("found.html"), "Found!").await.unwrap();
+        fs::write(dir2.path().join("found.html"), "Found!")
+            .await
+            .unwrap();
 
         let loader = FileSystemLoader::with_path(dir1.path()).add_path(dir2.path());
         let source = TemplateSource::File(PathBuf::from("found.html"));

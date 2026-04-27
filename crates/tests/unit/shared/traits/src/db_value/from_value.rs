@@ -358,9 +358,21 @@ mod option_from_db_value_tests {
 
     #[test]
     fn none_from_any_null_variant() {
-        assert!(Option::<String>::from_db_value(&DbValue::NullFloat).unwrap().is_none());
-        assert!(Option::<i64>::from_db_value(&DbValue::NullBool).unwrap().is_none());
-        assert!(Option::<bool>::from_db_value(&DbValue::NullBytes).unwrap().is_none());
+        assert!(
+            Option::<String>::from_db_value(&DbValue::NullFloat)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            Option::<i64>::from_db_value(&DbValue::NullBool)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            Option::<bool>::from_db_value(&DbValue::NullBytes)
+                .unwrap()
+                .is_none()
+        );
     }
 }
 

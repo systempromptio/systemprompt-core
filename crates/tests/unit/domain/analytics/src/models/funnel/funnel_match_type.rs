@@ -47,7 +47,11 @@ mod funnel_match_type_tests {
 mod create_funnel_step_input_tests {
     use super::*;
 
-    fn create_step(name: &str, pattern: &str, match_type: FunnelMatchType) -> CreateFunnelStepInput {
+    fn create_step(
+        name: &str,
+        pattern: &str,
+        match_type: FunnelMatchType,
+    ) -> CreateFunnelStepInput {
         CreateFunnelStepInput {
             name: name.to_string(),
             match_pattern: pattern.to_string(),

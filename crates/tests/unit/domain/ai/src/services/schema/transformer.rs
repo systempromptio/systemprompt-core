@@ -1,9 +1,9 @@
 //! Tests for SchemaTransformer.
 
-use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaTransformer, TransformedTool};
-use systemprompt_ai::models::tools::McpTool;
-use systemprompt_identifiers::McpServerId;
 use serde_json::json;
+use systemprompt_ai::models::tools::McpTool;
+use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaTransformer, TransformedTool};
+use systemprompt_identifiers::McpServerId;
 
 fn create_test_tool(name: &str, description: &str, schema: serde_json::Value) -> McpTool {
     McpTool {
@@ -62,11 +62,7 @@ mod pass_through_tests {
     #[test]
     fn preserves_description() {
         let transformer = SchemaTransformer::new(ProviderCapabilities::anthropic());
-        let tool = create_test_tool(
-            "test",
-            "Original description",
-            json!({"type": "object"}),
-        );
+        let tool = create_test_tool("test", "Original description", json!({"type": "object"}));
 
         let result = transformer.transform(&tool).unwrap();
         assert_eq!(result[0].description, "Original description");
@@ -201,11 +197,7 @@ mod auto_split_tests {
     #[test]
     fn preserves_original_name() {
         let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
-        let tool = create_test_tool(
-            "original_name",
-            "Description",
-            discriminated_union_schema(),
-        );
+        let tool = create_test_tool("original_name", "Description", discriminated_union_schema());
 
         let result = transformer.transform(&tool).unwrap();
         for transformed in &result {
@@ -223,12 +215,21 @@ mod auto_split_tests {
         );
 
         let result = transformer.transform(&tool).unwrap();
-        let values: Vec<Option<&String>> = result.iter()
+        let values: Vec<Option<&String>> = result
+            .iter()
             .map(|t| t.discriminator_value.as_ref())
             .collect();
 
-        assert!(values.iter().any(|v| v.map(|s| s.as_str()) == Some("create")));
-        assert!(values.iter().any(|v| v.map(|s| s.as_str()) == Some("delete")));
+        assert!(
+            values
+                .iter()
+                .any(|v| v.map(|s| s.as_str()) == Some("create"))
+        );
+        assert!(
+            values
+                .iter()
+                .any(|v| v.map(|s| s.as_str()) == Some("delete"))
+        );
     }
 
     #[test]
@@ -245,9 +246,11 @@ mod auto_split_tests {
         for transformed in &result {
             let props = transformed.input_schema["properties"].as_object().unwrap();
             // common_field should be present in all variants
-            assert!(props.contains_key("common_field") ||
-                    props.contains_key("data") ||
-                    props.contains_key("id"));
+            assert!(
+                props.contains_key("common_field")
+                    || props.contains_key("data")
+                    || props.contains_key("id")
+            );
         }
     }
 
@@ -276,11 +279,7 @@ mod function_name_tests {
     #[test]
     fn preserves_tool_name() {
         let transformer = SchemaTransformer::new(ProviderCapabilities::anthropic());
-        let tool = create_test_tool(
-            "my_tool",
-            "A test tool",
-            json!({"type": "object"}),
-        );
+        let tool = create_test_tool("my_tool", "A test tool", json!({"type": "object"}));
 
         let result = transformer.transform(&tool).unwrap();
         assert_eq!(result[0].name, "my_tool");

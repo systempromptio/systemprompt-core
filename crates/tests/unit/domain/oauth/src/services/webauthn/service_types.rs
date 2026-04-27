@@ -1,12 +1,12 @@
-//! Tests for WebAuthn service data types: VerifiedAuthentication, LinkUserInfo, LinkStates, WebAuthnManager
+//! Tests for WebAuthn service data types: VerifiedAuthentication, LinkUserInfo,
+//! LinkStates, WebAuthnManager
 
 use std::time::Instant;
 use systemprompt_identifiers::UserId;
-use systemprompt_oauth::services::webauthn::service::{
-    LinkUserInfo, create_link_states,
-};
-use systemprompt_oauth::services::webauthn::service::VerifiedAuthentication;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
+use systemprompt_oauth::services::webauthn::service::{
+    LinkUserInfo, VerifiedAuthentication, create_link_states,
+};
 
 // ============================================================================
 // VerifiedAuthentication Tests

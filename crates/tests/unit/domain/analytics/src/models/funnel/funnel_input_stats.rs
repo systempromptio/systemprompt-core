@@ -7,7 +7,11 @@ use systemprompt_analytics::{
 mod create_funnel_input_tests {
     use super::*;
 
-    fn create_funnel(name: &str, desc: Option<&str>, steps: Vec<CreateFunnelStepInput>) -> CreateFunnelInput {
+    fn create_funnel(
+        name: &str,
+        desc: Option<&str>,
+        steps: Vec<CreateFunnelStepInput>,
+    ) -> CreateFunnelInput {
         CreateFunnelInput {
             name: name.to_string(),
             description: desc.map(|s| s.to_string()),

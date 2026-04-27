@@ -302,7 +302,10 @@ mod generated_image_record_tests {
             deleted_at: None,
         };
 
-        record.expires_at.as_ref().expect("expires_at should be present");
+        record
+            .expires_at
+            .as_ref()
+            .expect("expires_at should be present");
         assert!(record.deleted_at.is_none());
     }
 }

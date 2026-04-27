@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 use systemprompt_ai::services::providers::shared::{
-    build_response, BuildResponseParams, TokenUsage,
+    BuildResponseParams, TokenUsage, build_response,
 };
 use uuid::Uuid;
 

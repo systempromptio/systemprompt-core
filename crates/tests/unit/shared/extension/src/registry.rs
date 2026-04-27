@@ -140,12 +140,8 @@ fn registry_get_returns_none_for_missing() {
 #[test]
 fn registry_ids_returns_all_ids() {
     let mut registry = ExtensionRegistry::new();
-    registry
-        .register(arc_ext("id-a", "A"))
-        .expect("register a");
-    registry
-        .register(arc_ext("id-b", "B"))
-        .expect("register b");
+    registry.register(arc_ext("id-a", "A")).expect("register a");
+    registry.register(arc_ext("id-b", "B")).expect("register b");
     let ids = registry.ids();
     assert_eq!(ids.len(), 2);
     assert!(ids.contains(&"id-a"));
@@ -156,10 +152,14 @@ fn registry_ids_returns_all_ids() {
 fn registry_extensions_sorted_by_priority() {
     let mut registry = ExtensionRegistry::new();
     registry
-        .register(Arc::new(FakeExt::new("high", "High Priority").with_priority(200)))
+        .register(Arc::new(
+            FakeExt::new("high", "High Priority").with_priority(200),
+        ))
         .expect("register high");
     registry
-        .register(Arc::new(FakeExt::new("low", "Low Priority").with_priority(10)))
+        .register(Arc::new(
+            FakeExt::new("low", "Low Priority").with_priority(10),
+        ))
         .expect("register low");
     let exts = registry.extensions();
     assert_eq!(exts[0].id(), "low");
@@ -169,10 +169,7 @@ fn registry_extensions_sorted_by_priority() {
 #[test]
 fn registry_merge_extensions() {
     let mut registry = ExtensionRegistry::new();
-    let extensions = vec![
-        arc_ext("merge-a", "Merge A"),
-        arc_ext("merge-b", "Merge B"),
-    ];
+    let extensions = vec![arc_ext("merge-a", "Merge A"), arc_ext("merge-b", "Merge B")];
     let result = registry.merge(extensions);
     assert!(result.is_ok());
     assert_eq!(registry.len(), 2);

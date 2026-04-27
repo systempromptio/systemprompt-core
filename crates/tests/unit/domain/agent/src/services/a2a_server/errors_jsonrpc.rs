@@ -34,9 +34,8 @@ fn classify_database_error_unique_constraint() {
 
 #[test]
 fn classify_database_error_not_null_constraint() {
-    let error = RepositoryError::ConstraintViolation(
-        "NOT NULL constraint failed: tasks.name".to_string(),
-    );
+    let error =
+        RepositoryError::ConstraintViolation("NOT NULL constraint failed: tasks.name".to_string());
     let result = classify_database_error(&error);
     assert!(result.contains("Required field missing"));
     assert!(result.contains("NOT NULL constraint failed"));
@@ -187,15 +186,13 @@ fn build_with_status_method_not_found_returns_not_found() {
 
 #[test]
 fn build_with_status_invalid_params_returns_bad_request() {
-    let (status, _) =
-        JsonRpcErrorBuilder::invalid_params().build_with_status(&string_request_id());
+    let (status, _) = JsonRpcErrorBuilder::invalid_params().build_with_status(&string_request_id());
     assert_eq!(status.as_u16(), 400);
 }
 
 #[test]
 fn build_with_status_internal_error_returns_500() {
-    let (status, _) =
-        JsonRpcErrorBuilder::internal_error().build_with_status(&string_request_id());
+    let (status, _) = JsonRpcErrorBuilder::internal_error().build_with_status(&string_request_id());
     assert_eq!(status.as_u16(), 500);
 }
 

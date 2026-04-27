@@ -6,12 +6,7 @@
 //! - capitalize_first function behavior
 //! - generate_jwt_secret length and randomness
 
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::shared::ProfileResolutionError;
 
@@ -88,7 +83,7 @@ fn expected_display_name(input: &str) -> String {
                 .next()
                 .map(|first| first.to_uppercase().chain(chars).collect())
                 .unwrap_or_default()
-        }
+        },
     }
 }
 
@@ -203,7 +198,7 @@ fn test_capitalize_first_with_underscore() {
 #[test]
 fn test_jwt_secret_generation_expected_length() {
     use rand::distr::Alphanumeric;
-    use rand::{rng, Rng};
+    use rand::{Rng, rng};
 
     let secret: String = rng()
         .sample_iter(&Alphanumeric)
@@ -217,7 +212,7 @@ fn test_jwt_secret_generation_expected_length() {
 #[test]
 fn test_jwt_secret_generation_alphanumeric() {
     use rand::distr::Alphanumeric;
-    use rand::{rng, Rng};
+    use rand::{Rng, rng};
 
     let secret: String = rng()
         .sample_iter(&Alphanumeric)
@@ -231,7 +226,7 @@ fn test_jwt_secret_generation_alphanumeric() {
 #[test]
 fn test_jwt_secret_generation_uniqueness() {
     use rand::distr::Alphanumeric;
-    use rand::{rng, Rng};
+    use rand::{Rng, rng};
     use std::collections::HashSet;
 
     let secrets: HashSet<String> = (0..100)

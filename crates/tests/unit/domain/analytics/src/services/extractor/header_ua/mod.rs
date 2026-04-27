@@ -1,4 +1,5 @@
-//! Tests for session analytics header extraction, user agent parsing, and device detection.
+//! Tests for session analytics header extraction, user agent parsing, and
+//! device detection.
 
 use axum::http::{HeaderMap, HeaderValue};
 
@@ -22,7 +23,10 @@ fn create_full_headers() -> HeaderMap {
     );
     headers.insert("x-forwarded-for", HeaderValue::from_static("192.168.1.1"));
     headers.insert("x-fingerprint", HeaderValue::from_static("fp_abc123"));
-    headers.insert("accept-language", HeaderValue::from_static("en-US,en;q=0.9"));
+    headers.insert(
+        "accept-language",
+        HeaderValue::from_static("en-US,en;q=0.9"),
+    );
     headers.insert(
         "referer",
         HeaderValue::from_static("https://google.com/search?q=test"),
@@ -30,6 +34,6 @@ fn create_full_headers() -> HeaderMap {
     headers
 }
 
-mod header_extraction;
-mod browser_os_detection;
 mod bot_and_misc;
+mod browser_os_detection;
+mod header_extraction;

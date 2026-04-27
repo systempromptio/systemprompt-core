@@ -110,14 +110,14 @@ fn test_files_extension_schemas_have_sql() {
         match &schema.sql {
             SchemaSource::Inline(sql) => {
                 assert!(!sql.is_empty(), "Schema {} has empty SQL", schema.table);
-            }
+            },
             SchemaSource::File(path) => {
                 assert!(
                     !path.as_os_str().is_empty(),
                     "Schema {} has empty path",
                     schema.table
                 );
-            }
+            },
         }
     }
 }
@@ -132,8 +132,8 @@ fn test_files_extension_files_schema_sql_contains_table() {
     match &files_schema.sql {
         SchemaSource::Inline(sql) => {
             assert!(sql.contains("CREATE TABLE") || sql.contains("files"));
-        }
-        SchemaSource::File(_) => {}
+        },
+        SchemaSource::File(_) => {},
     }
 }
 
@@ -147,8 +147,8 @@ fn test_files_extension_content_files_schema_sql_contains_table() {
     match &schema.sql {
         SchemaSource::Inline(sql) => {
             assert!(sql.contains("CREATE TABLE") || sql.contains("content_files"));
-        }
-        SchemaSource::File(_) => {}
+        },
+        SchemaSource::File(_) => {},
     }
 }
 

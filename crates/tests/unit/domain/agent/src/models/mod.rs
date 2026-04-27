@@ -17,5 +17,5 @@ mod external_integrations;
 mod protocol_events;
 mod runtime;
 mod skill;
-mod web;
 mod validation;
+mod web;

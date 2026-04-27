@@ -111,14 +111,14 @@ mod edge_case_tests {
 
     #[test]
     fn empty_content_empty_tools_returns_content_provided() {
-        let strategy = ResponseStrategy::from_response(
-            String::new(),
-            vec![],
-            vec![],
-        );
+        let strategy = ResponseStrategy::from_response(String::new(), vec![], vec![]);
 
         match strategy {
-            ResponseStrategy::ContentProvided { content, tool_calls, tool_results } => {
+            ResponseStrategy::ContentProvided {
+                content,
+                tool_calls,
+                tool_results,
+            } => {
                 assert!(content.is_empty());
                 assert!(tool_calls.is_empty());
                 assert!(tool_results.is_empty());
@@ -146,10 +146,7 @@ mod edge_case_tests {
     #[test]
     fn multiple_tools_with_mixed_structured_content() {
         let content = String::new();
-        let tool_calls = vec![
-            create_tool_call("search"),
-            create_tool_call("render"),
-        ];
+        let tool_calls = vec![create_tool_call("search"), create_tool_call("render")];
         let plain_result = create_success_result("search result");
         let artifact_result = create_result_with_structured_content();
 
@@ -161,7 +158,10 @@ mod edge_case_tests {
 
         match strategy {
             ResponseStrategy::ArtifactsProvided { .. } => {},
-            other => panic!("Expected ArtifactsProvided when any result has structured content, got: {:?}", other),
+            other => panic!(
+                "Expected ArtifactsProvided when any result has structured content, got: {:?}",
+                other
+            ),
         }
     }
 
@@ -183,15 +183,15 @@ mod edge_case_tests {
 
     #[test]
     fn tools_with_empty_results_vec_returns_content_provided() {
-        let strategy = ResponseStrategy::from_response(
-            String::new(),
-            vec![create_tool_call("test")],
-            vec![],
-        );
+        let strategy =
+            ResponseStrategy::from_response(String::new(), vec![create_tool_call("test")], vec![]);
 
         match strategy {
             ResponseStrategy::ContentProvided { .. } => {},
-            other => panic!("Expected ContentProvided when results empty, got: {:?}", other),
+            other => panic!(
+                "Expected ContentProvided when results empty, got: {:?}",
+                other
+            ),
         }
     }
 
@@ -205,7 +205,10 @@ mod edge_case_tests {
 
         match strategy {
             ResponseStrategy::ContentProvided { .. } => {},
-            other => panic!("Expected ContentProvided when tool_calls empty, got: {:?}", other),
+            other => panic!(
+                "Expected ContentProvided when tool_calls empty, got: {:?}",
+                other
+            ),
         }
     }
 }

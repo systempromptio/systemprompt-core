@@ -101,7 +101,10 @@ fn test_agent_event_health_check_failed() {
         reason: "Connection timeout".to_string(),
     };
 
-    assert_eq!(event.agent_id().map(|a| a.as_str()), Some("agent-unhealthy"));
+    assert_eq!(
+        event.agent_id().map(|a| a.as_str()),
+        Some("agent-unhealthy")
+    );
     assert_eq!(event.event_type(), "health_check_failed");
 }
 

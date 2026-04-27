@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{SessionId, SessionSource, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, SessionId, SessionSource, ToDbValue};
 
 #[test]
 fn session_id_generate_has_sess_prefix() {
@@ -74,9 +74,15 @@ fn session_source_from_str_all_variants() {
     assert_eq!("web".parse::<SessionSource>().unwrap(), SessionSource::Web);
     assert_eq!("api".parse::<SessionSource>().unwrap(), SessionSource::Api);
     assert_eq!("cli".parse::<SessionSource>().unwrap(), SessionSource::Cli);
-    assert_eq!("oauth".parse::<SessionSource>().unwrap(), SessionSource::Oauth);
+    assert_eq!(
+        "oauth".parse::<SessionSource>().unwrap(),
+        SessionSource::Oauth
+    );
     assert_eq!("mcp".parse::<SessionSource>().unwrap(), SessionSource::Mcp);
-    assert_eq!("unknown".parse::<SessionSource>().unwrap(), SessionSource::Unknown);
+    assert_eq!(
+        "unknown".parse::<SessionSource>().unwrap(),
+        SessionSource::Unknown
+    );
 }
 
 #[test]
@@ -88,7 +94,10 @@ fn session_source_from_str_case_insensitive() {
 
 #[test]
 fn session_source_from_str_unknown_for_unrecognized() {
-    assert_eq!("gibberish".parse::<SessionSource>().unwrap(), SessionSource::Unknown);
+    assert_eq!(
+        "gibberish".parse::<SessionSource>().unwrap(),
+        SessionSource::Unknown
+    );
     assert_eq!("".parse::<SessionSource>().unwrap(), SessionSource::Unknown);
 }
 
@@ -104,8 +113,14 @@ fn session_source_from_client_id_cli() {
 
 #[test]
 fn session_source_from_client_id_unknown_for_others() {
-    assert_eq!(SessionSource::from_client_id("sp_mobile_ios"), SessionSource::Unknown);
-    assert_eq!(SessionSource::from_client_id("client_abc"), SessionSource::Unknown);
+    assert_eq!(
+        SessionSource::from_client_id("sp_mobile_ios"),
+        SessionSource::Unknown
+    );
+    assert_eq!(
+        SessionSource::from_client_id("client_abc"),
+        SessionSource::Unknown
+    );
     assert_eq!(SessionSource::from_client_id(""), SessionSource::Unknown);
 }
 

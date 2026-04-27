@@ -1,7 +1,7 @@
 //! Tests for JWT validation
 
 use chrono::Utc;
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_oauth::validate_jwt_token;
@@ -47,7 +47,12 @@ fn create_test_claims(exp_offset_secs: i64, issuer: &str, audiences: &[&str]) ->
 
 fn create_test_token(claims: &TestClaims, secret: &str) -> String {
     let header = Header::new(Algorithm::HS256);
-    encode(&header, claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap()
+    encode(
+        &header,
+        claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .unwrap()
 }
 
 // ============================================================================
@@ -113,7 +118,8 @@ fn test_validate_jwt_token_expired() {
 
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Api]);
 
-    let err_msg = result.unwrap_err().to_string().to_lowercase();    assert!(err_msg.contains("expired") || err_msg.contains("exp"));
+    let err_msg = result.unwrap_err().to_string().to_lowercase();
+    assert!(err_msg.contains("expired") || err_msg.contains("exp"));
 }
 
 #[test]

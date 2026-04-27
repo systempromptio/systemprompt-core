@@ -84,7 +84,11 @@ fn test_generate_session_token_jwt_structure() {
     let token = generator.generate(&params).unwrap();
     let parts: Vec<&str> = token.as_str().split('.').collect();
 
-    assert_eq!(parts.len(), 3, "JWT should have 3 parts (header.payload.signature)");
+    assert_eq!(
+        parts.len(),
+        3,
+        "JWT should have 3 parts (header.payload.signature)"
+    );
     assert!(!parts[0].is_empty(), "Header should not be empty");
     assert!(!parts[1].is_empty(), "Payload should not be empty");
     assert!(!parts[2].is_empty(), "Signature should not be empty");

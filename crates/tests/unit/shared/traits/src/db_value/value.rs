@@ -1,7 +1,7 @@
 //! Tests for DbValue type and parse_database_datetime function.
 
 use chrono::{Datelike, TimeZone, Timelike, Utc};
-use systemprompt_traits::{parse_database_datetime, DbValue};
+use systemprompt_traits::{DbValue, parse_database_datetime};
 
 mod parse_database_datetime_tests {
     use super::*;

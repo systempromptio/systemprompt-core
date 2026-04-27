@@ -94,11 +94,13 @@ fn test_token_error_response_from_unsupported_grant() {
     let response: TokenErrorResponse = error.into();
 
     assert_eq!(response.error, "unsupported_grant_type");
-    assert!(response
-        .error_description
-        .as_deref()
-        .unwrap()
-        .contains("device_code"));
+    assert!(
+        response
+            .error_description
+            .as_deref()
+            .unwrap()
+            .contains("device_code")
+    );
 }
 
 #[test]
@@ -118,10 +120,7 @@ fn test_token_error_response_from_invalid_grant() {
     let response: TokenErrorResponse = error.into();
 
     assert_eq!(response.error, "invalid_grant");
-    assert_eq!(
-        response.error_description.as_deref(),
-        Some("code mismatch")
-    );
+    assert_eq!(response.error_description.as_deref(), Some("code mismatch"));
 }
 
 #[test]
@@ -130,11 +129,13 @@ fn test_token_error_response_from_expired_code() {
     let response: TokenErrorResponse = error.into();
 
     assert_eq!(response.error, "invalid_grant");
-    assert!(response
-        .error_description
-        .as_deref()
-        .unwrap()
-        .contains("expired"));
+    assert!(
+        response
+            .error_description
+            .as_deref()
+            .unwrap()
+            .contains("expired")
+    );
 }
 
 #[test]
@@ -156,11 +157,13 @@ fn test_token_error_response_from_invalid_refresh_token() {
     let response: TokenErrorResponse = error.into();
 
     assert_eq!(response.error, "invalid_grant");
-    assert!(response
-        .error_description
-        .as_deref()
-        .unwrap()
-        .contains("token revoked"));
+    assert!(
+        response
+            .error_description
+            .as_deref()
+            .unwrap()
+            .contains("token revoked")
+    );
 }
 
 #[test]
@@ -169,11 +172,13 @@ fn test_token_error_response_from_invalid_credentials() {
     let response: TokenErrorResponse = error.into();
 
     assert_eq!(response.error, "invalid_grant");
-    assert!(response
-        .error_description
-        .as_deref()
-        .unwrap()
-        .contains("Invalid credentials"));
+    assert!(
+        response
+            .error_description
+            .as_deref()
+            .unwrap()
+            .contains("Invalid credentials")
+    );
 }
 
 #[test]
@@ -182,11 +187,13 @@ fn test_token_error_response_from_invalid_client_secret() {
     let response: TokenErrorResponse = error.into();
 
     assert_eq!(response.error, "invalid_client");
-    assert!(response
-        .error_description
-        .as_deref()
-        .unwrap()
-        .contains("client secret"));
+    assert!(
+        response
+            .error_description
+            .as_deref()
+            .unwrap()
+            .contains("client secret")
+    );
 }
 
 // ============================================================================
@@ -218,10 +225,7 @@ fn test_token_request_deserialize_authorization_code() {
     assert_eq!(request.client_secret.as_deref(), Some("secret-1"));
     assert_eq!(request.scope.as_deref(), Some("openid profile"));
     assert_eq!(request.code_verifier.as_deref(), Some("verifier-value"));
-    assert_eq!(
-        request.resource.as_deref(),
-        Some("https://api.example.com")
-    );
+    assert_eq!(request.resource.as_deref(), Some("https://api.example.com"));
     assert!(request.refresh_token.is_none());
 }
 
@@ -408,10 +412,7 @@ fn test_oauth_protected_resource_response_serialize() {
     assert_eq!(json["authorization_servers"].as_array().unwrap().len(), 1);
     assert_eq!(json["scopes_supported"].as_array().unwrap().len(), 2);
     assert_eq!(json["bearer_methods_supported"][0], "header");
-    assert_eq!(
-        json["resource_documentation"],
-        "https://docs.example.com"
-    );
+    assert_eq!(json["resource_documentation"], "https://docs.example.com");
 }
 
 #[test]

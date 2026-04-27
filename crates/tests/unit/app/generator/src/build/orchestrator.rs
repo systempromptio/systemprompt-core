@@ -8,7 +8,10 @@ use systemprompt_generator::{BuildError, BuildMode};
 
 #[test]
 fn test_build_mode_parse_development() {
-    assert_eq!(BuildMode::parse("development"), Some(BuildMode::Development));
+    assert_eq!(
+        BuildMode::parse("development"),
+        Some(BuildMode::Development)
+    );
     assert_eq!(BuildMode::parse("dev"), Some(BuildMode::Development));
 }
 
@@ -25,8 +28,14 @@ fn test_build_mode_parse_docker() {
 
 #[test]
 fn test_build_mode_parse_case_insensitive() {
-    assert_eq!(BuildMode::parse("DEVELOPMENT"), Some(BuildMode::Development));
-    assert_eq!(BuildMode::parse("Development"), Some(BuildMode::Development));
+    assert_eq!(
+        BuildMode::parse("DEVELOPMENT"),
+        Some(BuildMode::Development)
+    );
+    assert_eq!(
+        BuildMode::parse("Development"),
+        Some(BuildMode::Development)
+    );
     assert_eq!(BuildMode::parse("PRODUCTION"), Some(BuildMode::Production));
     assert_eq!(BuildMode::parse("Production"), Some(BuildMode::Production));
     assert_eq!(BuildMode::parse("DOCKER"), Some(BuildMode::Docker));

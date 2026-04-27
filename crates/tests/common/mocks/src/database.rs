@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -51,10 +51,7 @@ impl MockDatabaseProvider {
     }
 
     fn next_response(&self) -> Option<MockDbResponse> {
-        self.responses
-            .lock()
-            .expect("lock poisoned")
-            .pop_front()
+        self.responses.lock().expect("lock poisoned").pop_front()
     }
 }
 
@@ -82,17 +79,15 @@ impl MockDatabaseProviderBuilder {
         self
     }
 
-    pub fn with_fetch_optional_result(
-        mut self,
-        result: Result<Option<JsonRow>, String>,
-    ) -> Self {
+    pub fn with_fetch_optional_result(mut self, result: Result<Option<JsonRow>, String>) -> Self {
         self.responses
             .push_back(MockDbResponse::FetchOptional(result));
         self
     }
 
     pub fn with_fetch_scalar_result(mut self, result: Result<DbValue, String>) -> Self {
-        self.responses.push_back(MockDbResponse::FetchScalar(result));
+        self.responses
+            .push_back(MockDbResponse::FetchScalar(result));
         self
     }
 
@@ -118,9 +113,8 @@ impl MockDatabaseProviderBuilder {
     }
 
     pub fn with_error(mut self, error_message: &str) -> Self {
-        self.responses.push_back(MockDbResponse::FetchAll(Err(
-            error_message.to_string(),
-        )));
+        self.responses
+            .push_back(MockDbResponse::FetchAll(Err(error_message.to_string())));
         self
     }
 
@@ -151,11 +145,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         true
     }
 
-    async fn execute(
-        &self,
-        _query: &dyn QuerySelector,
-        _params: &[&dyn ToDbValue],
-    ) -> Result<u64> {
+    async fn execute(&self, _query: &dyn QuerySelector, _params: &[&dyn ToDbValue]) -> Result<u64> {
         self.record_call("execute");
         match self.next_response() {
             Some(MockDbResponse::Execute(result)) => convert_result(result),

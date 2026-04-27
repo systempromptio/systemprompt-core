@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{RoleId, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, RoleId, ToDbValue};
 
 #[test]
 fn role_id_display_format() {

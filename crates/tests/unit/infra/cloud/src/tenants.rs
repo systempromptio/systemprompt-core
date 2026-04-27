@@ -277,8 +277,12 @@ fn test_tenant_store_from_tenant_infos() {
     let store = TenantStore::from_tenant_infos(&infos);
 
     assert_eq!(store.len(), 2);
-    store.find_tenant("i1").expect("store.find_tenant(\"i1\") should be present");
-    store.find_tenant("i2").expect("store.find_tenant(\"i2\") should be present");
+    store
+        .find_tenant("i1")
+        .expect("store.find_tenant(\"i1\") should be present");
+    store
+        .find_tenant("i2")
+        .expect("store.find_tenant(\"i2\") should be present");
 }
 
 #[test]
@@ -296,7 +300,10 @@ fn test_tenant_store_find_tenant_found() {
 
 #[test]
 fn test_tenant_store_find_tenant_not_found() {
-    let tenants = vec![StoredTenant::new("exists".to_string(), "Exists".to_string())];
+    let tenants = vec![StoredTenant::new(
+        "exists".to_string(),
+        "Exists".to_string(),
+    )];
     let store = TenantStore::new(tenants);
 
     let found = store.find_tenant("does-not-exist");

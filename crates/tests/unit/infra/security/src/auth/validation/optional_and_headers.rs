@@ -1,4 +1,5 @@
-//! Tests for AuthMode::Optional, header extraction, and authorization header format
+//! Tests for AuthMode::Optional, header extraction, and authorization header
+//! format
 
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_models::auth::UserType;
@@ -15,7 +16,8 @@ fn test_validate_request_optional_no_token() {
     let service = create_test_service();
     let headers = HeaderMap::new();
 
-    let context = service.validate_request(&headers, AuthMode::Optional)
+    let context = service
+        .validate_request(&headers, AuthMode::Optional)
         .expect("Optional mode with no token should succeed");
     assert_eq!(context.request.session_id.as_str(), "anonymous");
     assert_eq!(context.auth.user_type, UserType::Anon);
@@ -30,7 +32,8 @@ fn test_validate_request_optional_invalid_token() {
         HeaderValue::from_static("Bearer invalid_token"),
     );
 
-    let context = service.validate_request(&headers, AuthMode::Optional)
+    let context = service
+        .validate_request(&headers, AuthMode::Optional)
         .expect("Optional mode with invalid token should succeed as anonymous");
     assert_eq!(context.request.session_id.as_str(), "anonymous");
     assert_eq!(context.auth.user_type, UserType::Anon);
@@ -51,7 +54,8 @@ fn test_validate_request_optional_valid_token() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    let context = service.validate_request(&headers, AuthMode::Optional)
+    let context = service
+        .validate_request(&headers, AuthMode::Optional)
         .expect("Optional mode with valid token should succeed");
     assert_eq!(context.auth.user_id.as_str(), "user_123");
     assert_eq!(context.request.session_id.as_str(), "session_456");
@@ -78,7 +82,8 @@ fn test_validate_request_extracts_trace_id() {
     );
     headers.insert("x-trace-id", HeaderValue::from_static("custom-trace-id"));
 
-    let context = service.validate_request(&headers, AuthMode::Required)
+    let context = service
+        .validate_request(&headers, AuthMode::Required)
         .expect("Should extract trace id from headers");
     assert_eq!(context.execution.trace_id.as_str(), "custom-trace-id");
 }
@@ -102,7 +107,8 @@ fn test_validate_request_extracts_context_id() {
         HeaderValue::from_static("custom-context-id"),
     );
 
-    let context = service.validate_request(&headers, AuthMode::Required)
+    let context = service
+        .validate_request(&headers, AuthMode::Required)
         .expect("Should extract context id from headers");
     assert_eq!(context.execution.context_id.as_str(), "custom-context-id");
 }
@@ -123,7 +129,8 @@ fn test_validate_request_extracts_agent_name() {
     );
     headers.insert("x-agent-name", HeaderValue::from_static("custom-agent"));
 
-    let context = service.validate_request(&headers, AuthMode::Required)
+    let context = service
+        .validate_request(&headers, AuthMode::Required)
         .expect("Should extract agent name from headers");
     assert_eq!(context.execution.agent_name.as_str(), "custom-agent");
 }
@@ -143,7 +150,8 @@ fn test_validate_request_generates_trace_id_if_missing() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    let context = service.validate_request(&headers, AuthMode::Required)
+    let context = service
+        .validate_request(&headers, AuthMode::Required)
         .expect("Should generate trace id when missing");
     assert!(!context.execution.trace_id.as_str().is_empty());
 }
@@ -156,7 +164,8 @@ fn test_validate_request_anonymous_extracts_headers() {
     headers.insert("x-context-id", HeaderValue::from_static("anon-context"));
     headers.insert("x-agent-name", HeaderValue::from_static("anon-agent"));
 
-    let context = service.validate_request(&headers, AuthMode::Optional)
+    let context = service
+        .validate_request(&headers, AuthMode::Optional)
         .expect("Anonymous should extract headers");
     assert_eq!(context.execution.trace_id.as_str(), "anon-trace");
     assert_eq!(context.execution.context_id.as_str(), "anon-context");
@@ -182,7 +191,8 @@ fn test_validate_request_lowercase_authorization() {
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
 
-    service.validate_request(&headers, AuthMode::Required)
+    service
+        .validate_request(&headers, AuthMode::Required)
         .expect("Lowercase authorization header should succeed");
 }
 
@@ -198,7 +208,9 @@ fn test_validate_request_no_bearer_prefix() {
     let mut headers = HeaderMap::new();
     headers.insert("authorization", HeaderValue::from_str(&token).unwrap());
 
-    service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
 }
 
 #[test]
@@ -210,5 +222,7 @@ fn test_validate_request_basic_auth() {
         HeaderValue::from_static("Basic dXNlcjpwYXNz"),
     );
 
-    service.validate_request(&headers, AuthMode::Required).unwrap_err();
+    service
+        .validate_request(&headers, AuthMode::Required)
+        .unwrap_err();
 }

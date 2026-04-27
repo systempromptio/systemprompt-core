@@ -33,7 +33,8 @@ fn auth_method_none_ignores_secret_and_hash() {
 fn valid_secret_and_hash_returns_ok() {
     let hash = bcrypt::hash("test_secret", 4).unwrap();
 
-    let result = verify_client_authentication("client_secret_post", Some(&hash), Some("test_secret"));
+    let result =
+        verify_client_authentication("client_secret_post", Some(&hash), Some("test_secret"));
 
     assert!(result.is_ok());
 }
@@ -56,7 +57,8 @@ fn client_secret_post_method_with_valid_creds() {
 fn wrong_secret_returns_err() {
     let hash = bcrypt::hash("correct_secret", 4).unwrap();
 
-    let result = verify_client_authentication("client_secret_post", Some(&hash), Some("wrong_secret"));
+    let result =
+        verify_client_authentication("client_secret_post", Some(&hash), Some("wrong_secret"));
 
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
@@ -122,9 +124,10 @@ fn error_messages_are_descriptive() {
         .to_string();
     assert!(no_hash_err.contains("Client has no secret hash configured"));
 
-    let wrong_secret_err = verify_client_authentication("client_secret_basic", Some(&hash), Some("wrong"))
-        .unwrap_err()
-        .to_string();
+    let wrong_secret_err =
+        verify_client_authentication("client_secret_basic", Some(&hash), Some("wrong"))
+            .unwrap_err()
+            .to_string();
     assert!(wrong_secret_err.contains("Invalid client secret"));
 }
 
@@ -134,7 +137,11 @@ fn error_messages_are_descriptive() {
 
 #[test]
 fn various_auth_methods_require_secret() {
-    let methods = ["client_secret_basic", "client_secret_post", "client_secret_jwt"];
+    let methods = [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+    ];
 
     for method in methods {
         let result = verify_client_authentication(method, None, None);

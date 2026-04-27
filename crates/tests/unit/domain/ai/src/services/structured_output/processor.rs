@@ -1,6 +1,6 @@
+use serde_json::json;
 use systemprompt_ai::services::structured_output::StructuredOutputProcessor;
 use systemprompt_ai::{ResponseFormat, StructuredOutputOptions};
-use serde_json::json;
 
 mod process_response_tests {
     use super::*;
@@ -22,7 +22,8 @@ mod process_response_tests {
         let format = ResponseFormat::json_object();
         let options = StructuredOutputOptions::new();
 
-        let result = StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
+        let result =
+            StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
         assert_eq!(result["status"], "ok");
         assert_eq!(result["count"], 42);
     }
@@ -48,7 +49,8 @@ mod process_response_tests {
             ..Default::default()
         };
 
-        let result = StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
+        let result =
+            StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
         assert_eq!(result["name"], "Alice");
     }
 
@@ -94,7 +96,8 @@ mod process_response_tests {
             ..Default::default()
         };
 
-        let result = StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
+        let result =
+            StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
         assert_eq!(result["name"], 123);
     }
 
@@ -117,7 +120,8 @@ mod process_response_tests {
             ..Default::default()
         };
 
-        let result = StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
+        let result =
+            StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
         assert_eq!(result["value"], 42);
     }
 
@@ -130,7 +134,8 @@ mod process_response_tests {
             ..Default::default()
         };
 
-        let result = StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
+        let result =
+            StructuredOutputProcessor::process_response(content, &format, &options).unwrap();
         assert_eq!(result["data"], true);
     }
 

@@ -1,6 +1,6 @@
 //! Unit tests for sitemap XML generation
 
-use systemprompt_generator::{build_sitemap_index, build_sitemap_xml, SitemapUrl};
+use systemprompt_generator::{SitemapUrl, build_sitemap_index, build_sitemap_xml};
 
 // ============================================================================
 // SitemapUrl Tests

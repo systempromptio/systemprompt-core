@@ -1,10 +1,10 @@
 //! Tests for token generation services
 
-use systemprompt_oauth::services::{
-    generate_access_token_jti, generate_client_secret, generate_secure_token, hash_client_secret,
-    verify_client_secret, JwtConfig,
-};
 use systemprompt_models::auth::{JwtAudience, Permission};
+use systemprompt_oauth::services::{
+    JwtConfig, generate_access_token_jti, generate_client_secret, generate_secure_token,
+    hash_client_secret, verify_client_secret,
+};
 
 // ============================================================================
 // generate_secure_token Tests
@@ -289,10 +289,12 @@ fn test_jwt_config_deserialize() {
 // generate_anonymous_jwt_with_expiry Tests
 // ============================================================================
 
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::auth::{JwtClaims, UserType};
-use systemprompt_oauth::services::{generate_anonymous_jwt_with_expiry, generate_admin_jwt_with_expiry, JwtSigningParams};
+use systemprompt_oauth::services::{
+    JwtSigningParams, generate_admin_jwt_with_expiry, generate_anonymous_jwt_with_expiry,
+};
 
 fn test_signing_params() -> JwtSigningParams<'static> {
     JwtSigningParams {

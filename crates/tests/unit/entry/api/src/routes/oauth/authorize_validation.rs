@@ -1,5 +1,5 @@
-use systemprompt_api::routes::oauth::endpoints::authorize::validation::validate_oauth_parameters;
 use systemprompt_api::routes::oauth::endpoints::authorize::AuthorizeQuery;
+use systemprompt_api::routes::oauth::endpoints::authorize::validation::validate_oauth_parameters;
 use systemprompt_identifiers::ClientId;
 
 // ============================================================================

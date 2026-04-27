@@ -1,4 +1,5 @@
-//! Unit tests for DocumentMetadata, AudioMetadata, VideoMetadata, and FileChecksums
+//! Unit tests for DocumentMetadata, AudioMetadata, VideoMetadata, and
+//! FileChecksums
 
 use systemprompt_files::{AudioMetadata, DocumentMetadata, FileChecksums, VideoMetadata};
 
@@ -189,9 +190,7 @@ fn test_file_checksums_builder_chain() {
 
 #[test]
 fn test_file_checksums_serialize_with_values() {
-    let checksums = FileChecksums::new()
-        .with_md5("abc")
-        .with_sha256("def");
+    let checksums = FileChecksums::new().with_md5("abc").with_sha256("def");
 
     let json = serde_json::to_string(&checksums).unwrap();
     assert!(json.contains("md5"));

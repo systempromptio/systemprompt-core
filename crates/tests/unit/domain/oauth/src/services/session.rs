@@ -7,15 +7,15 @@ use http::HeaderMap;
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_oauth::services::session::AuthenticatedSessionInfo;
-use systemprompt_oauth::{
-    AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError,
-    SessionCreationService,
+use systemprompt_oauth::services::{
+    generate_client_secret, hash_client_secret, verify_client_secret,
 };
-use systemprompt_oauth::services::{generate_client_secret, hash_client_secret, verify_client_secret};
+use systemprompt_oauth::{
+    AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
+};
 use systemprompt_traits::{
-    AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser,
-    CreateSessionInput, FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher,
-    UserProvider,
+    AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
+    FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher, UserProvider,
 };
 
 const TEST_CLIENT_SECRET: &str = "secret_TestClientSecretValue12345";
@@ -128,10 +128,7 @@ impl MockEventPublisher {
 
 impl UserEventPublisher for MockEventPublisher {
     fn publish_user_event(&self, event: UserEvent) {
-        self.events
-            .lock()
-            .unwrap()
-            .push(format!("{:?}", event));
+        self.events.lock().unwrap().push(format!("{:?}", event));
     }
 }
 
@@ -329,8 +326,8 @@ fn test_session_creation_service_debug() {
         Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
         Arc::clone(&user) as Arc<dyn UserProvider>,
     );
-    let with_publisher = SessionCreationService::new(analytics, user)
-        .with_event_publisher(publisher);
+    let with_publisher =
+        SessionCreationService::new(analytics, user).with_event_publisher(publisher);
 
     let debug_without = format!("{:?}", without_publisher);
     let debug_with = format!("{:?}", with_publisher);

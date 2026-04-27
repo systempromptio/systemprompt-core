@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{ValidatedUrl, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, ToDbValue, ValidatedUrl};
 
 #[test]
 fn valid_https_url() {

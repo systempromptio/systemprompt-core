@@ -1,5 +1,7 @@
-use systemprompt_mcp::services::schema::{SchemaLoader, SchemaValidationMode, SchemaValidationReport};
 use std::path::Path;
+use systemprompt_mcp::services::schema::{
+    SchemaLoader, SchemaValidationMode, SchemaValidationReport,
+};
 
 #[test]
 fn validate_schema_syntax_valid_create_table() {

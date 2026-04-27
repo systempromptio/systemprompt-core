@@ -162,7 +162,9 @@ fn test_find_agent_file_exists() {
 
     let result = ConfigWriter::find_agent_file("my_agent", temp_dir.path());
     result.as_ref().expect("result should succeed");
-    result.expect("Should find agent").expect("result.expect(\"Should find agent\") should be present");
+    result
+        .expect("Should find agent")
+        .expect("result.expect(\"Should find agent\") should be present");
 }
 
 #[test]
@@ -358,7 +360,10 @@ fn test_created_agent_file_is_valid_yaml() {
     let parsed: Result<AgentFile, _> = serde_yaml::from_str(&content);
     assert!(parsed.is_ok(), "Created file should be valid YAML");
     assert!(
-        parsed.expect("Should parse").agents.contains_key("yaml_test"),
+        parsed
+            .expect("Should parse")
+            .agents
+            .contains_key("yaml_test"),
         "Should contain the agent"
     );
 }

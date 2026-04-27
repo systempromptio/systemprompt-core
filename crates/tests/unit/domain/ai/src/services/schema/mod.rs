@@ -3,6 +3,6 @@
 mod analyzer;
 mod analyzer_extended;
 mod capabilities;
+mod mapper;
 mod sanitizer;
 mod transformer;
-mod mapper;

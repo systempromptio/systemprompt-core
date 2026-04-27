@@ -217,9 +217,12 @@ mod image_provider_factory_fallback {
             },
         );
 
-        let provider =
-            ImageProviderFactory::create_with_fallback("anthropic", &anthropic_config, &all_configs)
-                .expect("should fallback to openai");
+        let provider = ImageProviderFactory::create_with_fallback(
+            "anthropic",
+            &anthropic_config,
+            &all_configs,
+        )
+        .expect("should fallback to openai");
         assert_eq!(provider.name(), "openai-image");
     }
 
@@ -242,12 +245,13 @@ mod image_provider_factory_fallback {
             },
         );
 
-        let provider =
-            ImageProviderFactory::create_with_fallback("anthropic", &anthropic_config, &all_configs)
-                .expect("should fallback to gemini");
-        assert!(
-            provider.name() == "openai-image" || provider.name() == "gemini-image"
-        );
+        let provider = ImageProviderFactory::create_with_fallback(
+            "anthropic",
+            &anthropic_config,
+            &all_configs,
+        )
+        .expect("should fallback to gemini");
+        assert!(provider.name() == "openai-image" || provider.name() == "gemini-image");
     }
 
     #[test]
@@ -261,10 +265,13 @@ mod image_provider_factory_fallback {
         let mut all_configs = HashMap::new();
         all_configs.insert("anthropic".to_string(), anthropic_config.clone());
 
-        let error =
-            ImageProviderFactory::create_with_fallback("anthropic", &anthropic_config, &all_configs)
-                .err()
-                .expect("should fail");
+        let error = ImageProviderFactory::create_with_fallback(
+            "anthropic",
+            &anthropic_config,
+            &all_configs,
+        )
+        .err()
+        .expect("should fail");
         assert!(error.to_string().contains("No image provider available"));
     }
 

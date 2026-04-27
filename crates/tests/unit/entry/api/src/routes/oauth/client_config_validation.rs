@@ -1,5 +1,5 @@
-use http::header::HeaderValue;
 use http::HeaderMap;
+use http::header::HeaderValue;
 use systemprompt_api::routes::oauth::endpoints::client_config::validation::validate_registration_token;
 
 // ============================================================================

@@ -1,9 +1,4 @@
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
 
@@ -118,7 +113,9 @@ fn test_describe_command_trait_full() {
 
 #[test]
 fn test_describe_command_trait_profile_only() {
-    let cmd = TestCommand { use_database: false };
+    let cmd = TestCommand {
+        use_database: false,
+    };
     let desc = cmd.descriptor();
     assert!(!desc.database());
     assert!(desc.profile());
@@ -147,7 +144,16 @@ fn test_descriptor_hierarchy_none_to_full() {
 
     assert!(!none.profile());
     assert!(profile_only.profile() && !profile_only.secrets());
-    assert!(profile_and_secrets.profile() && profile_and_secrets.secrets() && !profile_and_secrets.paths());
-    assert!(profile_secrets_paths.profile() && profile_secrets_paths.secrets() && profile_secrets_paths.paths() && !profile_secrets_paths.database());
+    assert!(
+        profile_and_secrets.profile()
+            && profile_and_secrets.secrets()
+            && !profile_and_secrets.paths()
+    );
+    assert!(
+        profile_secrets_paths.profile()
+            && profile_secrets_paths.secrets()
+            && profile_secrets_paths.paths()
+            && !profile_secrets_paths.database()
+    );
     assert!(full.profile() && full.secrets() && full.paths() && full.database());
 }

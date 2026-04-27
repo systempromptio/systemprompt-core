@@ -1,11 +1,11 @@
+use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
+use serde_json::json;
+use systemprompt_ai::MessageRole;
+use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::tooled::{
     FallbackGenerator, FallbackReason, SynthesisPromptBuilder,
 };
-use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
-use systemprompt_ai::MessageRole;
 use systemprompt_identifiers::AiToolCallId;
-use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
-use serde_json::json;
 
 fn create_tool_call(name: &str) -> ToolCall {
     ToolCall {
@@ -60,7 +60,8 @@ mod fallback_generator_tests {
         let tool_calls = vec![create_tool_call("search")];
         let tool_results = vec![create_success_result("Found 5 results")];
 
-        let output = FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
+        let output =
+            FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
 
         assert!(output.contains("Tool execution completed"));
         assert!(!output.contains("Synthesis error"));
@@ -84,16 +85,14 @@ mod fallback_generator_tests {
 
     #[test]
     fn generate_with_multiple_tools() {
-        let tool_calls = vec![
-            create_tool_call("search"),
-            create_tool_call("fetch"),
-        ];
+        let tool_calls = vec![create_tool_call("search"), create_tool_call("fetch")];
         let tool_results = vec![
             create_success_result("Search results"),
             create_success_result("Page content"),
         ];
 
-        let output = FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
+        let output =
+            FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
 
         assert!(output.contains("Tool execution completed"));
     }
@@ -103,7 +102,8 @@ mod fallback_generator_tests {
         let tool_calls = vec![create_tool_call("fetch")];
         let tool_results = vec![create_error_result("Connection refused")];
 
-        let output = FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
+        let output =
+            FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
 
         assert!(output.contains("Tool execution completed"));
     }
@@ -113,7 +113,8 @@ mod fallback_generator_tests {
         let tool_calls: Vec<ToolCall> = vec![];
         let tool_results: Vec<CallToolResult> = vec![];
 
-        let output = FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
+        let output =
+            FallbackGenerator::generate(&tool_calls, &tool_results, FallbackReason::EmptyContent);
 
         assert!(output.contains("Tool execution completed"));
     }
@@ -156,10 +157,7 @@ mod synthesis_prompt_builder_tests {
 
     #[test]
     fn build_guidance_message_with_multiple_tools() {
-        let tool_calls = vec![
-            create_tool_call("search"),
-            create_tool_call("analyze"),
-        ];
+        let tool_calls = vec![create_tool_call("search"), create_tool_call("analyze")];
         let tool_results = vec![
             create_success_result("Search results"),
             create_success_result("Analysis complete"),
@@ -180,4 +178,3 @@ mod synthesis_prompt_builder_tests {
         assert!(!message.content.is_empty());
     }
 }
-

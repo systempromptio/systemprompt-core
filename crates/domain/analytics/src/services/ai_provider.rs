@@ -58,6 +58,7 @@ impl AiSessionProvider for AnalyticsAiSessionProvider {
             utm_content: None,
             utm_term: None,
             is_bot: false,
+            is_ai_crawler: false,
             expires_at: params.expires_at,
         };
 

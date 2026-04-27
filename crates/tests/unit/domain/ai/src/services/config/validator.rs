@@ -1,8 +1,10 @@
 //! Tests for ConfigValidator.
 
-use systemprompt_ai::services::config::ConfigValidator;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, HistoryConfig, McpConfig, SamplingConfig};
 use std::collections::HashMap;
+use systemprompt_ai::services::config::ConfigValidator;
+use systemprompt_models::services::{
+    AiConfig, AiProviderConfig, HistoryConfig, McpConfig, SamplingConfig,
+};
 
 fn create_valid_config() -> AiConfig {
     let mut providers = HashMap::new();
@@ -67,7 +69,9 @@ mod validate_providers_tests {
         config.providers.get_mut("openai").unwrap().enabled = false;
 
         let missing = vec!["OPENAI_API_KEY not set".to_string()];
-        let error = ConfigValidator::validate(&config, &missing).unwrap_err().to_string();
+        let error = ConfigValidator::validate(&config, &missing)
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("OPENAI_API_KEY"));
     }
 

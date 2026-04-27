@@ -9,8 +9,8 @@ use systemprompt_models::artifacts::dashboard::{
 };
 use systemprompt_models::artifacts::research::SourceCitation;
 use systemprompt_models::artifacts::table::{Column, TableHints};
-use systemprompt_models::artifacts::types::SortOrder as ArtifactSortOrder;
 use systemprompt_models::artifacts::traits::ArtifactSchema;
+use systemprompt_models::artifacts::types::SortOrder as ArtifactSortOrder;
 use systemprompt_models::{
     Alignment, ArtifactType, AxisType, ChartType, CliArtifact, ColumnType, RenderingHints,
     RequestContext,
@@ -108,8 +108,7 @@ fn table_hints_with_columns() {
 
 #[test]
 fn table_hints_with_sortable() {
-    let hints =
-        TableHints::new().with_sortable(vec!["name".to_string(), "created_at".to_string()]);
+    let hints = TableHints::new().with_sortable(vec!["name".to_string(), "created_at".to_string()]);
     assert_eq!(hints.sortable_columns.len(), 2);
 }
 
@@ -152,8 +151,7 @@ fn table_hints_generate_schema_basic() {
 
 #[test]
 fn table_hints_generate_schema_with_sort() {
-    let hints =
-        TableHints::new().with_default_sort("name".to_string(), ArtifactSortOrder::Asc);
+    let hints = TableHints::new().with_default_sort("name".to_string(), ArtifactSortOrder::Asc);
     let schema = hints.generate_schema();
     assert!(schema.get("default_sort").is_some());
     assert_eq!(schema["default_sort"]["column"], json!("name"));
@@ -300,29 +298,62 @@ fn metric_status_default_is_info() {
 
 #[test]
 fn metric_status_from_str_success_variants() {
-    assert!(matches!("success".parse::<MetricStatus>(), Ok(MetricStatus::Success)));
-    assert!(matches!("healthy".parse::<MetricStatus>(), Ok(MetricStatus::Success)));
-    assert!(matches!("ok".parse::<MetricStatus>(), Ok(MetricStatus::Success)));
-    assert!(matches!("active".parse::<MetricStatus>(), Ok(MetricStatus::Success)));
+    assert!(matches!(
+        "success".parse::<MetricStatus>(),
+        Ok(MetricStatus::Success)
+    ));
+    assert!(matches!(
+        "healthy".parse::<MetricStatus>(),
+        Ok(MetricStatus::Success)
+    ));
+    assert!(matches!(
+        "ok".parse::<MetricStatus>(),
+        Ok(MetricStatus::Success)
+    ));
+    assert!(matches!(
+        "active".parse::<MetricStatus>(),
+        Ok(MetricStatus::Success)
+    ));
 }
 
 #[test]
 fn metric_status_from_str_warning_variants() {
-    assert!(matches!("warning".parse::<MetricStatus>(), Ok(MetricStatus::Warning)));
-    assert!(matches!("degraded".parse::<MetricStatus>(), Ok(MetricStatus::Warning)));
+    assert!(matches!(
+        "warning".parse::<MetricStatus>(),
+        Ok(MetricStatus::Warning)
+    ));
+    assert!(matches!(
+        "degraded".parse::<MetricStatus>(),
+        Ok(MetricStatus::Warning)
+    ));
 }
 
 #[test]
 fn metric_status_from_str_error_variants() {
-    assert!(matches!("error".parse::<MetricStatus>(), Ok(MetricStatus::Error)));
-    assert!(matches!("failed".parse::<MetricStatus>(), Ok(MetricStatus::Error)));
-    assert!(matches!("critical".parse::<MetricStatus>(), Ok(MetricStatus::Error)));
+    assert!(matches!(
+        "error".parse::<MetricStatus>(),
+        Ok(MetricStatus::Error)
+    ));
+    assert!(matches!(
+        "failed".parse::<MetricStatus>(),
+        Ok(MetricStatus::Error)
+    ));
+    assert!(matches!(
+        "critical".parse::<MetricStatus>(),
+        Ok(MetricStatus::Error)
+    ));
 }
 
 #[test]
 fn metric_status_from_str_info_variants() {
-    assert!(matches!("info".parse::<MetricStatus>(), Ok(MetricStatus::Info)));
-    assert!(matches!("unknown".parse::<MetricStatus>(), Ok(MetricStatus::Info)));
+    assert!(matches!(
+        "info".parse::<MetricStatus>(),
+        Ok(MetricStatus::Info)
+    ));
+    assert!(matches!(
+        "unknown".parse::<MetricStatus>(),
+        Ok(MetricStatus::Info)
+    ));
 }
 
 #[test]
@@ -405,8 +436,7 @@ fn dashboard_section_new() {
 
 #[test]
 fn dashboard_section_with_order() {
-    let section =
-        DashboardSection::new("s1", "Title", SectionType::Table).with_order(5);
+    let section = DashboardSection::new("s1", "Title", SectionType::Table).with_order(5);
     assert_eq!(section.layout.order, 5);
 }
 
@@ -416,8 +446,7 @@ fn dashboard_section_with_layout() {
         width: LayoutWidth::Half,
         order: 2,
     };
-    let section =
-        DashboardSection::new("s1", "Title", SectionType::Chart).with_layout(layout);
+    let section = DashboardSection::new("s1", "Title", SectionType::Chart).with_layout(layout);
     assert!(matches!(section.layout.width, LayoutWidth::Half));
     assert_eq!(section.layout.order, 2);
 }
@@ -468,8 +497,7 @@ fn status_section_data_basic() {
 
 #[test]
 fn status_section_data_with_database() {
-    let data =
-        StatusSectionData::new(vec![]).with_database(DatabaseStatus::new(100.0, "ok"));
+    let data = StatusSectionData::new(vec![]).with_database(DatabaseStatus::new(100.0, "ok"));
     assert!(data.database.is_some());
 }
 
@@ -499,8 +527,7 @@ fn table_section_data_with_sortable() {
 
 #[test]
 fn table_section_data_with_default_sort() {
-    let data =
-        TableSectionData::new(vec![], vec![]).with_default_sort("name", "asc");
+    let data = TableSectionData::new(vec![], vec![]).with_default_sort("name", "asc");
     let sort = data.default_sort.unwrap();
     assert_eq!(sort.column, "name");
     assert_eq!(sort.order, "asc");
@@ -554,8 +581,8 @@ fn cli_artifact_type_str_text() {
 #[test]
 fn cli_artifact_title_for_text() {
     let ctx = test_context();
-    let text =
-        systemprompt_models::artifacts::text::TextArtifact::new("content", &ctx).with_title("My Title");
+    let text = systemprompt_models::artifacts::text::TextArtifact::new("content", &ctx)
+        .with_title("My Title");
     let cli = CliArtifact::text(text);
     assert_eq!(cli.title().as_deref(), Some("My Title"));
 }

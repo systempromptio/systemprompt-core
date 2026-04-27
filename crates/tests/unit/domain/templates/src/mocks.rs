@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
 use systemprompt_template_provider::{
@@ -130,17 +130,17 @@ impl TemplateLoader for MockLoader {
         self.load_count.fetch_add(1, Ordering::SeqCst);
 
         if self.fail_on_load {
-            return Err(systemprompt_template_provider::TemplateLoaderError::NotFound(
-                std::path::PathBuf::from("mock-failure"),
-            ));
+            return Err(
+                systemprompt_template_provider::TemplateLoaderError::NotFound(
+                    std::path::PathBuf::from("mock-failure"),
+                ),
+            );
         }
 
         match source {
             TemplateSource::Embedded(content) => Ok((*content).to_string()),
             TemplateSource::File(path) => Ok(format!("<!-- content from {} -->", path.display())),
-            TemplateSource::Directory(path) => {
-                Ok(format!("<!-- directory {} -->", path.display()))
-            }
+            TemplateSource::Directory(path) => Ok(format!("<!-- directory {} -->", path.display())),
         }
     }
 
@@ -225,7 +225,11 @@ impl MockComponent {
         }
     }
 
-    pub fn with_applies_to(id: &'static str, variable_name: &'static str, applies_to: Vec<String>) -> Self {
+    pub fn with_applies_to(
+        id: &'static str,
+        variable_name: &'static str,
+        applies_to: Vec<String>,
+    ) -> Self {
         Self {
             id,
             variable_name,

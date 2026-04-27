@@ -1,10 +1,9 @@
-//! Tests for ConversationMessage, ToolLogEntry, TaskArtifact, and roundtrip serialization
+//! Tests for ConversationMessage, ToolLogEntry, TaskArtifact, and roundtrip
+//! serialization
 
 use chrono::Utc;
 use serde_json::json;
-use systemprompt_logging::{
-    ConversationMessage, TaskArtifact, ToolLogEntry,
-};
+use systemprompt_logging::{ConversationMessage, TaskArtifact, ToolLogEntry};
 
 // ============================================================================
 // ConversationMessage Tests
@@ -155,7 +154,9 @@ fn test_task_artifact_creation() {
     assert_eq!(artifact.artifact_id, "art-123");
     assert_eq!(artifact.artifact_type, "file");
     assert_eq!(artifact.name, Some("output.txt".to_string()));
-    artifact.text_content.expect("artifact.text_content should be present");
+    artifact
+        .text_content
+        .expect("artifact.text_content should be present");
 }
 
 #[test]
@@ -171,7 +172,10 @@ fn test_task_artifact_with_data_content() {
         data_content: Some(json!({"key": "value", "count": 42})),
     };
 
-    artifact.data_content.as_ref().expect("artifact.data_content should be present");
+    artifact
+        .data_content
+        .as_ref()
+        .expect("artifact.data_content should be present");
     let data = artifact.data_content.as_ref().unwrap();
     assert_eq!(data["key"], "value");
     assert_eq!(data["count"], 42);

@@ -176,7 +176,10 @@ fn test_color_type_from_message_level_info() {
 #[test]
 fn test_color_type_from_emphasis_type() {
     let color: ColorType = EmphasisType::Highlight.into();
-    assert!(matches!(color, ColorType::Emphasis(EmphasisType::Highlight)));
+    assert!(matches!(
+        color,
+        ColorType::Emphasis(EmphasisType::Highlight)
+    ));
 }
 
 #[test]

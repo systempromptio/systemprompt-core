@@ -1,13 +1,6 @@
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{
-    ArtifactType, ChartType, RenderingHints,
-};
+use systemprompt_cli::shared::{ArtifactType, ChartType, RenderingHints};
 
 #[test]
 fn test_artifact_type_table_variant() {

@@ -88,13 +88,17 @@ fn all_default_values_are_valid_http_header_values() {
     let config = SecurityHeadersConfig::default();
     assert!(config.hsts.parse::<http::HeaderValue>().is_ok());
     assert!(config.frame_options.parse::<http::HeaderValue>().is_ok());
-    assert!(config
-        .content_type_options
-        .parse::<http::HeaderValue>()
-        .is_ok());
+    assert!(
+        config
+            .content_type_options
+            .parse::<http::HeaderValue>()
+            .is_ok()
+    );
     assert!(config.referrer_policy.parse::<http::HeaderValue>().is_ok());
-    assert!(config
-        .permissions_policy
-        .parse::<http::HeaderValue>()
-        .is_ok());
+    assert!(
+        config
+            .permissions_policy
+            .parse::<http::HeaderValue>()
+            .is_ok()
+    );
 }

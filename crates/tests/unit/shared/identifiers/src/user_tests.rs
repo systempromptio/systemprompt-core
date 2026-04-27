@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{UserId, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, ToDbValue, UserId};
 
 #[test]
 fn anonymous_factory_value() {

@@ -107,8 +107,7 @@ fn test_file_upload_error_display_path_validation() {
 #[test]
 fn test_file_upload_request_builder_new() {
     let context_id = ContextId::new("ctx_123");
-    let builder =
-        FileUploadRequestBuilder::new("image/png", "base64data==", context_id);
+    let builder = FileUploadRequestBuilder::new("image/png", "base64data==", context_id);
     let debug_str = format!("{:?}", builder);
     assert!(debug_str.contains("FileUploadRequestBuilder"));
 }
@@ -157,7 +156,10 @@ fn test_file_upload_request_builder_with_session_id() {
         .with_session_id(session_id)
         .build();
 
-    request.session_id.as_ref().expect("session_id should be present");
+    request
+        .session_id
+        .as_ref()
+        .expect("session_id should be present");
     assert_eq!(request.session_id.as_ref().unwrap().as_str(), "sess_xyz");
 }
 
@@ -169,7 +171,10 @@ fn test_file_upload_request_builder_with_trace_id() {
         .with_trace_id(trace_id)
         .build();
 
-    request.trace_id.as_ref().expect("trace_id should be present");
+    request
+        .trace_id
+        .as_ref()
+        .expect("trace_id should be present");
     assert_eq!(request.trace_id.as_ref().unwrap().as_str(), "trace_def");
 }
 

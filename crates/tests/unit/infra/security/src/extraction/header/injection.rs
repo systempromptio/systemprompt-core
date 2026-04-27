@@ -1,11 +1,11 @@
-//! Tests for header constants, individual header injection, overwrite, RequestContext injection,
-//! and various ID format tests
+//! Tests for header constants, individual header injection, overwrite,
+//! RequestContext injection, and various ID format tests
 
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{headers, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId, headers};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_security::{HeaderInjector};
+use systemprompt_security::HeaderInjector;
 
 #[test]
 fn test_header_session_id_constant() {
@@ -41,8 +41,7 @@ fn test_inject_session_id_success() {
     let mut headers = HeaderMap::new();
     let session_id = SessionId::new("session_123".to_string());
 
-    HeaderInjector::inject_session_id(&mut headers, &session_id)
-        .expect("Should inject session id");
+    HeaderInjector::inject_session_id(&mut headers, &session_id).expect("Should inject session id");
     assert_eq!(
         headers.get("x-session-id").unwrap().to_str().unwrap(),
         "session_123"
@@ -54,8 +53,7 @@ fn test_inject_user_id_success() {
     let mut headers = HeaderMap::new();
     let user_id = UserId::new("user_456".to_string());
 
-    HeaderInjector::inject_user_id(&mut headers, &user_id)
-        .expect("Should inject user id");
+    HeaderInjector::inject_user_id(&mut headers, &user_id).expect("Should inject user id");
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
         "user_456"
@@ -67,8 +65,7 @@ fn test_inject_trace_id_success() {
     let mut headers = HeaderMap::new();
     let trace_id = TraceId::new("trace_789".to_string());
 
-    HeaderInjector::inject_trace_id(&mut headers, &trace_id)
-        .expect("Should inject trace id");
+    HeaderInjector::inject_trace_id(&mut headers, &trace_id).expect("Should inject trace id");
     assert_eq!(
         headers.get("x-trace-id").unwrap().to_str().unwrap(),
         "trace_789"
@@ -80,8 +77,7 @@ fn test_inject_context_id_success() {
     let mut headers = HeaderMap::new();
     let context_id = ContextId::new("context_abc".to_string());
 
-    HeaderInjector::inject_context_id(&mut headers, &context_id)
-        .expect("Should inject context id");
+    HeaderInjector::inject_context_id(&mut headers, &context_id).expect("Should inject context id");
     assert_eq!(
         headers.get("x-context-id").unwrap().to_str().unwrap(),
         "context_abc"
@@ -187,11 +183,19 @@ fn test_inject_from_request_context_empty_context_id() {
     HeaderInjector::inject_from_request_context(&mut headers, &ctx)
         .expect("Should inject from request context with empty context id");
 
-    headers.get("x-session-id").expect("Should have session id header");
-    headers.get("x-user-id").expect("Should have user id header");
-    headers.get("x-trace-id").expect("Should have trace id header");
+    headers
+        .get("x-session-id")
+        .expect("Should have session id header");
+    headers
+        .get("x-user-id")
+        .expect("Should have user id header");
+    headers
+        .get("x-trace-id")
+        .expect("Should have trace id header");
     assert!(headers.get("x-context-id").is_none());
-    headers.get("x-agent-name").expect("Should have agent name header");
+    headers
+        .get("x-agent-name")
+        .expect("Should have agent name header");
 }
 
 // ============================================================================
@@ -270,8 +274,7 @@ fn test_inject_task_id_success() {
     let mut headers = HeaderMap::new();
     let task_id = TaskId::new("task_123".to_string());
 
-    HeaderInjector::inject_task_id(&mut headers, &task_id)
-        .expect("Should inject task id");
+    HeaderInjector::inject_task_id(&mut headers, &task_id).expect("Should inject task id");
     assert_eq!(
         headers.get("x-task-id").unwrap().to_str().unwrap(),
         "task_123"
@@ -283,8 +286,7 @@ fn test_inject_task_id_uuid_format() {
     let mut headers = HeaderMap::new();
     let task_id = TaskId::new("550e8400-e29b-41d4-a716-446655440000".to_string());
 
-    HeaderInjector::inject_task_id(&mut headers, &task_id)
-        .expect("Should inject UUID task id");
+    HeaderInjector::inject_task_id(&mut headers, &task_id).expect("Should inject UUID task id");
     assert_eq!(
         headers.get("x-task-id").unwrap().to_str().unwrap(),
         "550e8400-e29b-41d4-a716-446655440000"

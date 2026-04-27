@@ -5,8 +5,9 @@
 //! - ModuleSchema struct creation and validation
 //! - ModuleSeed struct creation and validation
 //!
-//! Note: The async installation functions (install_module, install_module_with_db)
-//! require database setup and are tested in integration tests.
+//! Note: The async installation functions (install_module,
+//! install_module_with_db) require database setup and are tested in integration
+//! tests.
 
 use std::path::PathBuf;
 use systemprompt_extension::{SchemaSource, SeedSource};
@@ -78,7 +79,10 @@ fn test_module_with_description() {
         path: PathBuf::from("/tmp"),
     };
 
-    module.description.as_ref().expect("module.description should be present");
+    module
+        .description
+        .as_ref()
+        .expect("module.description should be present");
     assert!(module.description.as_ref().unwrap().contains("detailed"));
 }
 
@@ -314,7 +318,10 @@ fn test_module_with_schemas() {
         path: PathBuf::from("/tmp"),
     };
 
-    module.schemas.as_ref().expect("module.schemas should be present");
+    module
+        .schemas
+        .as_ref()
+        .expect("module.schemas should be present");
     assert_eq!(module.schemas.as_ref().unwrap().len(), 2);
 }
 
@@ -352,7 +359,10 @@ fn test_module_with_seeds() {
         path: PathBuf::from("/tmp"),
     };
 
-    module.seeds.as_ref().expect("module.seeds should be present");
+    module
+        .seeds
+        .as_ref()
+        .expect("module.seeds should be present");
     assert_eq!(module.seeds.as_ref().unwrap().len(), 2);
 }
 
@@ -390,7 +400,9 @@ fn test_module_complete_configuration() {
 
     module.schemas.expect("module.schemas should be present");
     module.seeds.expect("module.seeds should be present");
-    module.description.expect("module.description should be present");
+    module
+        .description
+        .expect("module.description should be present");
     module.weight.expect("module.weight should be present");
     assert!(!module.dependencies.is_empty());
     assert!(!module.audience.is_empty());

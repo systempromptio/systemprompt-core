@@ -54,7 +54,9 @@ fn test_image_metadata_with_generation() {
     let gen_info = ImageGenerationInfo::new("test prompt", "dall-e-3", "openai");
     let meta = ImageMetadata::new().with_generation(gen_info);
 
-    meta.generation.as_ref().expect("generation should be present");
+    meta.generation
+        .as_ref()
+        .expect("generation should be present");
     let gen_info = meta.generation.unwrap();
     assert_eq!(gen_info.prompt, "test prompt");
     assert_eq!(gen_info.model, "dall-e-3");
@@ -74,7 +76,9 @@ fn test_image_metadata_builder_chain() {
     assert_eq!(meta.height, Some(512));
     assert_eq!(meta.alt_text, Some("Alt text".to_string()));
     assert_eq!(meta.description, Some("Description".to_string()));
-    meta.generation.as_ref().expect("generation should be present");
+    meta.generation
+        .as_ref()
+        .expect("generation should be present");
 }
 
 #[test]
@@ -134,21 +138,24 @@ fn test_image_generation_info_new() {
 
 #[test]
 fn test_image_generation_info_with_resolution() {
-    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider").with_resolution("1024x1024");
+    let gen_info =
+        ImageGenerationInfo::new("prompt", "model", "provider").with_resolution("1024x1024");
 
     assert_eq!(gen_info.resolution, Some("1024x1024".to_string()));
 }
 
 #[test]
 fn test_image_generation_info_with_aspect_ratio() {
-    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider").with_aspect_ratio("16:9");
+    let gen_info =
+        ImageGenerationInfo::new("prompt", "model", "provider").with_aspect_ratio("16:9");
 
     assert_eq!(gen_info.aspect_ratio, Some("16:9".to_string()));
 }
 
 #[test]
 fn test_image_generation_info_with_generation_time() {
-    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider").with_generation_time(5000);
+    let gen_info =
+        ImageGenerationInfo::new("prompt", "model", "provider").with_generation_time(5000);
 
     assert_eq!(gen_info.generation_time_ms, Some(5000));
 }
@@ -162,9 +169,8 @@ fn test_image_generation_info_with_cost_estimate() {
 
 #[test]
 fn test_image_generation_info_with_request_id() {
-    let gen_info =
-        ImageGenerationInfo::new("prompt", "model", "provider")
-            .with_request_id(&AiRequestId::new("req_abc123"));
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider")
+        .with_request_id(&AiRequestId::new("req_abc123"));
 
     assert_eq!(gen_info.request_id, Some("req_abc123".to_string()));
 }

@@ -90,11 +90,7 @@ fn test_provider_config_new() {
 
 #[test]
 fn test_provider_config_with_string_types() {
-    let config = ProviderConfig::new(
-        String::from("openai"),
-        String::from("gpt-4"),
-        8192,
-    );
+    let config = ProviderConfig::new(String::from("openai"), String::from("gpt-4"), 8192);
 
     assert_eq!(config.provider, "openai");
     assert_eq!(config.model, "gpt-4");

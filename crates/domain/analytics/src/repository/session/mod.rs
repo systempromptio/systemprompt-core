@@ -191,6 +191,31 @@ impl SessionRepository {
         queries::has_analytics_events(&self.pool, session_id).await
     }
 
+    pub async fn count_unique_ips_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        window_days: i64,
+    ) -> Result<i64> {
+        queries::count_unique_ips_by_fingerprint(&self.pool, fingerprint_hash, window_days).await
+    }
+
+    pub async fn count_engagement_events_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        window_days: i64,
+    ) -> Result<i64> {
+        queries::count_engagement_events_by_fingerprint(&self.pool, fingerprint_hash, window_days)
+            .await
+    }
+
+    pub async fn get_session_starts_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        window_days: i64,
+    ) -> Result<Vec<DateTime<Utc>>> {
+        queries::get_session_starts_by_fingerprint(&self.pool, fingerprint_hash, window_days).await
+    }
+
     pub async fn get_session_velocity(
         &self,
         session_id: &SessionId,

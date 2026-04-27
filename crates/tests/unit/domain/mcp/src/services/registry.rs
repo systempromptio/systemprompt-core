@@ -1,9 +1,9 @@
+use std::path::PathBuf;
 use systemprompt_mcp::services::registry::validator::validate_registry;
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::registry::RegistryConfig;
 use systemprompt_models::mcp::server::McpServerConfig;
-use std::path::PathBuf;
 
 fn make_internal_server(name: &str, port: u16) -> McpServerConfig {
     McpServerConfig {

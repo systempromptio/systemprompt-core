@@ -104,8 +104,12 @@ pub fn arb_task_type() -> impl Strategy<Value = TaskType> {
 }
 
 pub fn arb_task_metadata() -> impl Strategy<Value = TaskMetadata> {
-    (arb_task_type(), "[a-z-]{1,20}", "[0-9]{4}-[0-9]{2}-[0-9]{2}").prop_map(
-        |(task_type, agent_name, created_at)| TaskMetadata {
+    (
+        arb_task_type(),
+        "[a-z-]{1,20}",
+        "[0-9]{4}-[0-9]{2}-[0-9]{2}",
+    )
+        .prop_map(|(task_type, agent_name, created_at)| TaskMetadata {
             task_type,
             agent_name,
             created_at,
@@ -120,8 +124,7 @@ pub fn arb_task_metadata() -> impl Strategy<Value = TaskMetadata> {
             model: None,
             execution_steps: None,
             extensions: Some(serde_json::Map::new()),
-        },
-    )
+        })
 }
 
 pub fn arb_artifact_metadata() -> impl Strategy<Value = ArtifactMetadata> {
@@ -253,22 +256,18 @@ pub fn arb_security_scheme() -> impl Strategy<Value = SecurityScheme> {
             open_id_connect_url: "https://example.com/.well-known/openid-configuration".to_string(),
             description: None,
         }),
-        Just(SecurityScheme::MutualTls {
-            description: None,
-        }),
+        Just(SecurityScheme::MutualTls { description: None }),
     ]
 }
 
 pub fn arb_agent_interface() -> impl Strategy<Value = AgentInterface> {
-    (
-        "https://example\\.com/[a-z]{1,10}",
-        arb_protocol_binding(),
-    )
-        .prop_map(|(url, protocol_binding)| AgentInterface {
+    ("https://example\\.com/[a-z]{1,10}", arb_protocol_binding()).prop_map(
+        |(url, protocol_binding)| AgentInterface {
             url,
             protocol_binding,
             protocol_version: "1.0.0".to_string(),
-        })
+        },
+    )
 }
 
 pub fn arb_agent_card() -> impl Strategy<Value = AgentCard> {

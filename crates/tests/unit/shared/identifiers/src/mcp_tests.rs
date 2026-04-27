@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpServerId, DbValue, ToDbValue};
+use systemprompt_identifiers::{AiToolCallId, DbValue, McpExecutionId, McpServerId, ToDbValue};
 
 #[test]
 fn mcp_server_id_valid_value() {
@@ -99,7 +99,9 @@ fn mcp_execution_id_generate_uuid_format() {
 
 #[test]
 fn mcp_execution_id_generate_unique() {
-    let ids: HashSet<String> = (0..10).map(|_| McpExecutionId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..10)
+        .map(|_| McpExecutionId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 10);
 }
 

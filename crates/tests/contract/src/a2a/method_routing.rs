@@ -1,5 +1,7 @@
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
-use systemprompt_agent::models::a2a::protocol::{A2aJsonRpcRequest, A2aParseError, A2aRequestParams};
+use systemprompt_agent::models::a2a::protocol::{
+    A2aJsonRpcRequest, A2aParseError, A2aRequestParams,
+};
 
 fn make_request(method: &str, params: serde_json::Value) -> A2aJsonRpcRequest {
     A2aJsonRpcRequest {
@@ -169,10 +171,7 @@ fn empty_method_returns_unsupported() {
 fn invalid_params_returns_error() {
     let req = make_request("SendMessage", serde_json::json!({"wrong": "params"}));
     let result = req.parse_request();
-    assert!(matches!(
-        result,
-        Err(A2aParseError::InvalidParams { .. })
-    ));
+    assert!(matches!(result, Err(A2aParseError::InvalidParams { .. })));
 }
 
 #[test]

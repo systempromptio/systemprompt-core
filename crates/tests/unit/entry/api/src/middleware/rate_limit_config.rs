@@ -28,7 +28,10 @@ fn default_burst_multiplier() {
 fn production_config_matches_default() {
     let prod = RateLimitConfig::production();
     let default = RateLimitConfig::default();
-    assert_eq!(prod.oauth_public_per_second, default.oauth_public_per_second);
+    assert_eq!(
+        prod.oauth_public_per_second,
+        default.oauth_public_per_second
+    );
     assert_eq!(prod.burst_multiplier, default.burst_multiplier);
 }
 

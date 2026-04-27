@@ -306,8 +306,5 @@ fn test_domain_config_default_dependencies_empty() {
 fn test_validation_warning_with_suggestion_value() {
     let warning = ValidationWarning::new("geoip", "Database not configured")
         .with_suggestion("Download MaxMind database");
-    assert_eq!(
-        warning.suggestion.unwrap(),
-        "Download MaxMind database"
-    );
+    assert_eq!(warning.suggestion.unwrap(), "Download MaxMind database");
 }

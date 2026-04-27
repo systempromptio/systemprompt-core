@@ -1,4 +1,5 @@
-//! Unit tests for ProfileLoader - validation and environment variable substitution
+//! Unit tests for ProfileLoader - validation and environment variable
+//! substitution
 
 use systemprompt_loader::ProfileLoader;
 use tempfile::TempDir;
@@ -14,7 +15,8 @@ fn test_load_from_path_and_validate_valid() {
     // Create the paths directories for validation
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
-    std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("services"))
+        .expect("Failed to create services dir");
 
     let profile_content = format!(
         r#"
@@ -80,7 +82,8 @@ fn test_load_from_path_and_validate_invalid_port() {
     // Create the paths directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
-    std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("services"))
+        .expect("Failed to create services dir");
 
     let profile_content = format!(
         r#"
@@ -150,7 +153,8 @@ fn test_load_with_env_var_substitution() {
 
     // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("services"))
+        .expect("Failed to create services dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
     // Set environment variable for test

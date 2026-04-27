@@ -99,8 +99,7 @@ fn schema_definition_typed_with_required_columns() {
 
 #[test]
 fn schema_definition_typed_serde_roundtrip() {
-    let schema =
-        SchemaDefinitionTyped::embedded("events", "CREATE TABLE events (id TEXT)");
+    let schema = SchemaDefinitionTyped::embedded("events", "CREATE TABLE events (id TEXT)");
     let json = serde_json::to_string(&schema).expect("serialize");
     let deserialized: SchemaDefinitionTyped = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(deserialized.table, "events");

@@ -157,10 +157,16 @@ fn test_build_binary_map() {
     std::fs::create_dir_all(&ext1).expect("Failed to create ext1");
     std::fs::create_dir_all(&ext2).expect("Failed to create ext2");
 
-    std::fs::write(ext1.join("manifest.yaml"), create_mcp_manifest("ext-1", "bin-1"))
-        .expect("Failed to write manifest 1");
-    std::fs::write(ext2.join("manifest.yaml"), create_mcp_manifest("ext-2", "bin-2"))
-        .expect("Failed to write manifest 2");
+    std::fs::write(
+        ext1.join("manifest.yaml"),
+        create_mcp_manifest("ext-1", "bin-1"),
+    )
+    .expect("Failed to write manifest 1");
+    std::fs::write(
+        ext2.join("manifest.yaml"),
+        create_mcp_manifest("ext-2", "bin-2"),
+    )
+    .expect("Failed to write manifest 2");
 
     let map = ExtensionLoader::build_binary_map(temp_dir.path());
     assert_eq!(map.len(), 2);
@@ -196,7 +202,10 @@ fn test_validate_returns_result() {
 
     let result = ExtensionLoader::validate(temp_dir.path());
     assert_eq!(result.discovered.len(), 1);
-    assert!(!result.missing_binaries.is_empty(), "Binary should be missing");
+    assert!(
+        !result.missing_binaries.is_empty(),
+        "Binary should be missing"
+    );
 }
 
 #[test]

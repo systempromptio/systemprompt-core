@@ -159,11 +159,7 @@ fn input_required_valid_transitions() {
 #[test]
 fn auth_required_valid_transitions() {
     let auth_required = TaskState::AuthRequired;
-    let valid_targets = [
-        TaskState::Working,
-        TaskState::Failed,
-        TaskState::Canceled,
-    ];
+    let valid_targets = [TaskState::Working, TaskState::Failed, TaskState::Canceled];
 
     for state in all_states() {
         let expected = valid_targets.contains(&state);

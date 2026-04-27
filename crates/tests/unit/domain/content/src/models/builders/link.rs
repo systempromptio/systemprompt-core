@@ -84,32 +84,48 @@ fn test_create_link_params_with_utm_params() {
 
 #[test]
 fn test_create_link_params_with_link_text() {
-    let params = CreateLinkParams::new("code".to_string(), "url".to_string(), "redirect".to_string())
-        .with_link_text(Some("Click here".to_string()));
+    let params = CreateLinkParams::new(
+        "code".to_string(),
+        "url".to_string(),
+        "redirect".to_string(),
+    )
+    .with_link_text(Some("Click here".to_string()));
 
     assert_eq!(params.link_text, Some("Click here".to_string()));
 }
 
 #[test]
 fn test_create_link_params_with_link_position() {
-    let params = CreateLinkParams::new("code".to_string(), "url".to_string(), "redirect".to_string())
-        .with_link_position(Some("header".to_string()));
+    let params = CreateLinkParams::new(
+        "code".to_string(),
+        "url".to_string(),
+        "redirect".to_string(),
+    )
+    .with_link_position(Some("header".to_string()));
 
     assert_eq!(params.link_position, Some("header".to_string()));
 }
 
 #[test]
 fn test_create_link_params_with_destination_type() {
-    let params = CreateLinkParams::new("code".to_string(), "url".to_string(), "redirect".to_string())
-        .with_destination_type(Some("external".to_string()));
+    let params = CreateLinkParams::new(
+        "code".to_string(),
+        "url".to_string(),
+        "redirect".to_string(),
+    )
+    .with_destination_type(Some("external".to_string()));
 
     assert_eq!(params.destination_type, Some("external".to_string()));
 }
 
 #[test]
 fn test_create_link_params_with_is_active() {
-    let params = CreateLinkParams::new("code".to_string(), "url".to_string(), "redirect".to_string())
-        .with_is_active(false);
+    let params = CreateLinkParams::new(
+        "code".to_string(),
+        "url".to_string(),
+        "redirect".to_string(),
+    )
+    .with_is_active(false);
 
     assert!(!params.is_active);
 }
@@ -117,8 +133,12 @@ fn test_create_link_params_with_is_active() {
 #[test]
 fn test_create_link_params_with_expires_at() {
     let expires = Utc.with_ymd_and_hms(2025, 12, 31, 23, 59, 59).unwrap();
-    let params = CreateLinkParams::new("code".to_string(), "url".to_string(), "redirect".to_string())
-        .with_expires_at(Some(expires));
+    let params = CreateLinkParams::new(
+        "code".to_string(),
+        "url".to_string(),
+        "redirect".to_string(),
+    )
+    .with_expires_at(Some(expires));
 
     assert_eq!(params.expires_at, Some(expires));
 }

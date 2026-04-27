@@ -20,6 +20,7 @@ pub struct CreateAnalyticsSessionInput<'a> {
     pub analytics: &'a SessionAnalytics,
     pub session_source: SessionSource,
     pub is_bot: bool,
+    pub is_ai_crawler: bool,
     pub expires_at: DateTime<Utc>,
 }
 
@@ -119,6 +120,7 @@ impl AnalyticsService {
             utm_term: input.analytics.utm_term.as_deref(),
             utm_campaign: input.analytics.utm_campaign.as_deref(),
             is_bot: input.is_bot,
+            is_ai_crawler: input.is_ai_crawler,
             expires_at: input.expires_at,
         };
 

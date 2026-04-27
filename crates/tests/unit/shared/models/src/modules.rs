@@ -195,7 +195,10 @@ mod api_paths_tests {
         assert_eq!(ApiPaths::API_BASE, "/api");
         assert_eq!(ApiPaths::HEALTH, "/api/v1/health");
         assert_eq!(ApiPaths::OAUTH_TOKEN, "/api/v1/core/oauth/token");
-        assert_eq!(ApiPaths::WELLKNOWN_AGENT_CARD, "/.well-known/agent-card.json");
+        assert_eq!(
+            ApiPaths::WELLKNOWN_AGENT_CARD,
+            "/.well-known/agent-card.json"
+        );
     }
 }
 

@@ -1,4 +1,5 @@
-//! Tests for top entity, conversation, content, error, and activity trend model types.
+//! Tests for top entity, conversation, content, error, and activity trend model
+//! types.
 
 use chrono::Utc;
 use systemprompt_analytics::{
@@ -193,7 +194,10 @@ mod error_summary_tests {
         assert_eq!(summary.error_type, "database_connection");
         assert_eq!(summary.count, 50);
         assert_eq!(summary.last_occurred, now);
-        assert_eq!(summary.sample_message, Some("Connection timeout".to_string()));
+        assert_eq!(
+            summary.sample_message,
+            Some("Connection timeout".to_string())
+        );
     }
 
     #[test]

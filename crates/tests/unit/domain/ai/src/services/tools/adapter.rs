@@ -46,7 +46,10 @@ mod mcp_tool_to_definition_tests {
         let mcp_tool = create_test_mcp_tool();
         let definition = mcp_tool_to_definition(&mcp_tool);
 
-        definition.input_schema.as_ref().expect("input_schema should be present");
+        definition
+            .input_schema
+            .as_ref()
+            .expect("input_schema should be present");
         let schema = definition.input_schema.unwrap();
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"]["query"].is_object());
@@ -57,7 +60,10 @@ mod mcp_tool_to_definition_tests {
         let mcp_tool = create_test_mcp_tool();
         let definition = mcp_tool_to_definition(&mcp_tool);
 
-        definition.output_schema.as_ref().expect("output_schema should be present");
+        definition
+            .output_schema
+            .as_ref()
+            .expect("output_schema should be present");
         assert_eq!(definition.output_schema.unwrap()["type"], "string");
     }
 
@@ -112,7 +118,10 @@ mod definition_to_mcp_tool_tests {
         let definition = create_test_definition();
         let mcp_tool = definition_to_mcp_tool(&definition);
 
-        mcp_tool.input_schema.as_ref().expect("input_schema should be present");
+        mcp_tool
+            .input_schema
+            .as_ref()
+            .expect("input_schema should be present");
         assert!(mcp_tool.output_schema.is_none());
     }
 
@@ -255,7 +264,7 @@ mod rmcp_result_to_trait_result_tests {
             ToolContent::Image { data, mime_type } => {
                 assert_eq!(data, "base64data");
                 assert_eq!(mime_type, "image/png");
-            }
+            },
             _ => panic!("Expected Image content"),
         }
     }
@@ -271,7 +280,7 @@ mod rmcp_result_to_trait_result_tests {
             ToolContent::Resource { uri, mime_type } => {
                 assert_eq!(uri, "file:///test.txt");
                 assert_eq!(mime_type, &Some("text/plain".to_string()));
-            }
+            },
             _ => panic!("Expected Resource content"),
         }
     }
@@ -283,7 +292,10 @@ mod rmcp_result_to_trait_result_tests {
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
-        assert_eq!(trait_result.structured_content, Some(json!({"key": "value"})));
+        assert_eq!(
+            trait_result.structured_content,
+            Some(json!({"key": "value"}))
+        );
     }
 
     #[test]
@@ -297,7 +309,8 @@ mod rmcp_result_to_trait_result_tests {
 
     #[test]
     fn handles_multiple_content_types() {
-        let result = CallToolResult::success(vec![create_text_content("Hello"), create_image_content()]);
+        let result =
+            CallToolResult::success(vec![create_text_content("Hello"), create_image_content()]);
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
@@ -347,7 +360,7 @@ mod trait_result_to_rmcp_result_tests {
             RawContent::Image(img) => {
                 assert_eq!(img.data, "base64data");
                 assert_eq!(img.mime_type, "image/jpeg");
-            }
+            },
             _ => panic!("Expected Image content"),
         }
     }
@@ -371,7 +384,7 @@ mod trait_result_to_rmcp_result_tests {
             RawContent::ResourceLink(res) => {
                 assert_eq!(res.uri, "file:///resource.txt");
                 assert_eq!(res.mime_type, Some("text/plain".to_string()));
-            }
+            },
             _ => panic!("Expected ResourceLink content"),
         }
     }
@@ -406,15 +419,13 @@ mod trait_result_to_rmcp_result_tests {
 
     #[test]
     fn roundtrip_preserves_content() {
-        let mut original = CallToolResult::success(vec![
-            Annotated {
-                raw: RawContent::Text(RawTextContent {
-                    text: "roundtrip".to_string(),
-                    meta: None,
-                }),
-                annotations: None,
-            },
-        ]);
+        let mut original = CallToolResult::success(vec![Annotated {
+            raw: RawContent::Text(RawTextContent {
+                text: "roundtrip".to_string(),
+                meta: None,
+            }),
+            annotations: None,
+        }]);
         original.structured_content = Some(json!({"test": true}));
 
         let trait_result = rmcp_result_to_trait_result(&original);
@@ -424,4 +435,3 @@ mod trait_result_to_rmcp_result_tests {
         assert_eq!(back.is_error, original.is_error);
     }
 }
-

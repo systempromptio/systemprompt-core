@@ -7,7 +7,9 @@ use systemprompt_ai::services::tools::{
 };
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
 use systemprompt_models::ai::ToolModelConfig;
-use systemprompt_traits::{ToolCallRequest, ToolCallResult as TraitToolCallResult, ToolContent, ToolDefinition};
+use systemprompt_traits::{
+    ToolCallRequest, ToolCallResult as TraitToolCallResult, ToolContent, ToolDefinition,
+};
 
 mod request_to_tool_call_tests {
     use super::*;
@@ -125,7 +127,9 @@ mod mcp_tool_with_model_config_tests {
             output_schema: None,
             service_id: McpServerId::new("svc"),
             terminal_on_success: true,
-            model_config: Some(ToolModelConfig::new("openai", "gpt-4").with_max_output_tokens(2048)),
+            model_config: Some(
+                ToolModelConfig::new("openai", "gpt-4").with_max_output_tokens(2048),
+            ),
         };
 
         let definition = mcp_tool_to_definition(&original);
@@ -141,8 +145,8 @@ mod mcp_tool_with_model_config_tests {
 
     #[test]
     fn definition_with_invalid_model_config_returns_none() {
-        let definition = ToolDefinition::new("test", "svc")
-            .with_model_config(json!("not_an_object"));
+        let definition =
+            ToolDefinition::new("test", "svc").with_model_config(json!("not_an_object"));
 
         let mcp_tool = definition_to_mcp_tool(&definition);
 

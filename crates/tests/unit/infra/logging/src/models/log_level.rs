@@ -177,16 +177,37 @@ fn test_log_level_serialize_trace() {
 
 #[test]
 fn test_log_level_deserialize_all() {
-    assert_eq!(serde_json::from_str::<LogLevel>("\"ERROR\"").unwrap(), LogLevel::Error);
-    assert_eq!(serde_json::from_str::<LogLevel>("\"WARN\"").unwrap(), LogLevel::Warn);
-    assert_eq!(serde_json::from_str::<LogLevel>("\"INFO\"").unwrap(), LogLevel::Info);
-    assert_eq!(serde_json::from_str::<LogLevel>("\"DEBUG\"").unwrap(), LogLevel::Debug);
-    assert_eq!(serde_json::from_str::<LogLevel>("\"TRACE\"").unwrap(), LogLevel::Trace);
+    assert_eq!(
+        serde_json::from_str::<LogLevel>("\"ERROR\"").unwrap(),
+        LogLevel::Error
+    );
+    assert_eq!(
+        serde_json::from_str::<LogLevel>("\"WARN\"").unwrap(),
+        LogLevel::Warn
+    );
+    assert_eq!(
+        serde_json::from_str::<LogLevel>("\"INFO\"").unwrap(),
+        LogLevel::Info
+    );
+    assert_eq!(
+        serde_json::from_str::<LogLevel>("\"DEBUG\"").unwrap(),
+        LogLevel::Debug
+    );
+    assert_eq!(
+        serde_json::from_str::<LogLevel>("\"TRACE\"").unwrap(),
+        LogLevel::Trace
+    );
 }
 
 #[test]
 fn test_log_level_roundtrip() {
-    let levels = [LogLevel::Error, LogLevel::Warn, LogLevel::Info, LogLevel::Debug, LogLevel::Trace];
+    let levels = [
+        LogLevel::Error,
+        LogLevel::Warn,
+        LogLevel::Info,
+        LogLevel::Debug,
+        LogLevel::Trace,
+    ];
 
     for level in levels {
         let json = serde_json::to_string(&level).unwrap();
@@ -197,7 +218,13 @@ fn test_log_level_roundtrip() {
 
 #[test]
 fn test_log_level_display_matches_as_str() {
-    let levels = [LogLevel::Error, LogLevel::Warn, LogLevel::Info, LogLevel::Debug, LogLevel::Trace];
+    let levels = [
+        LogLevel::Error,
+        LogLevel::Warn,
+        LogLevel::Info,
+        LogLevel::Debug,
+        LogLevel::Trace,
+    ];
 
     for level in levels {
         assert_eq!(level.to_string(), level.as_str());

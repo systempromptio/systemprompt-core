@@ -1,5 +1,5 @@
-use systemprompt_api::routes::agent::tasks::TaskFilterParams;
 use systemprompt_api::routes::agent::artifacts::ArtifactQueryParams;
+use systemprompt_api::routes::agent::tasks::TaskFilterParams;
 
 #[test]
 fn test_task_filter_params_deserialize_empty() {

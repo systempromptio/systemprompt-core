@@ -1,7 +1,7 @@
 //! Tests for ToolNameMapper.
 
-use systemprompt_ai::services::schema::{ToolNameMapper, TransformedTool};
 use serde_json::json;
+use systemprompt_ai::services::schema::{ToolNameMapper, TransformedTool};
 
 fn create_transformed_tool(
     name: &str,
@@ -140,7 +140,8 @@ mod resolve_tool_call_tests {
         let mapper = ToolNameMapper::new();
         let params = json!({"data": "test"});
 
-        let (resolved_name, resolved_params) = mapper.resolve_tool_call("unknown_tool", params.clone());
+        let (resolved_name, resolved_params) =
+            mapper.resolve_tool_call("unknown_tool", params.clone());
 
         assert_eq!(resolved_name, "unknown_tool");
         assert_eq!(resolved_params, params);

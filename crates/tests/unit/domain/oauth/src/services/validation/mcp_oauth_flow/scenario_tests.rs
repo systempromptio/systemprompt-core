@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use systemprompt_models::auth::Permission;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::DynamicRegistrationRequest;
+use systemprompt_oauth::repository::OAuthRepository;
 
 fn simulate_determine_scopes(request: &DynamicRegistrationRequest) -> Vec<String> {
     if let Some(scope_string) = &request.scope {
@@ -44,7 +44,10 @@ fn simulate_token_permission_resolution(
         if let Ok(perm) = Permission::from_str(requested) {
             if perm == Permission::User {
                 final_permissions.extend(
-                    user_permissions.iter().filter(|p| p.is_user_role()).copied(),
+                    user_permissions
+                        .iter()
+                        .filter(|p| p.is_user_role())
+                        .copied(),
                 );
             } else if user_permissions.contains(&perm) {
                 final_permissions.push(perm);
@@ -58,13 +61,16 @@ fn simulate_token_permission_resolution(
 
 #[test]
 fn scenario_claude_code_no_scope_in_registration() {
-    let request: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Claude Code",
         "redirect_uris": ["http://127.0.0.1:3000/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let scopes = simulate_determine_scopes(&request);
     assert!(scopes.contains(&"user".to_string()));
@@ -72,14 +78,17 @@ fn scenario_claude_code_no_scope_in_registration() {
 
 #[test]
 fn scenario_mcp_inspector_with_scope_in_registration() {
-    let request: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "MCP Inspector",
         "redirect_uris": ["http://localhost:5173/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "scope": "user admin",
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let scopes = simulate_determine_scopes(&request);
     assert!(scopes.contains(&"user".to_string()));
@@ -88,14 +97,17 @@ fn scenario_mcp_inspector_with_scope_in_registration() {
 
 #[test]
 fn scenario_client_requests_only_user_scope() {
-    let request: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Basic Client",
         "redirect_uris": ["https://example.com/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "scope": "user",
         "token_endpoint_auth_method": "client_secret_post"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let scopes = simulate_determine_scopes(&request);
     assert_eq!(scopes, vec!["user"]);
@@ -116,8 +128,9 @@ fn scenario_authorize_without_resource_no_client_scope_check() {
     let client_scopes = vec!["user".to_string()];
     let requested_scopes = vec!["user".to_string(), "admin".to_string()];
 
-    simulate_authorize_scope_check(&client_scopes, &requested_scopes, None)
-        .expect("authorization no longer checks client scopes — user permissions are the security boundary");
+    simulate_authorize_scope_check(&client_scopes, &requested_scopes, None).expect(
+        "authorization no longer checks client scopes — user permissions are the security boundary",
+    );
 }
 
 #[test]
@@ -197,13 +210,16 @@ fn scenario_token_user_with_resource_still_limited() {
 
 #[test]
 fn scenario_full_claude_code_flow() {
-    let reg_request: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let reg_request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Claude Code",
         "redirect_uris": ["http://127.0.0.1:3000/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let client_scopes = simulate_determine_scopes(&reg_request);
     assert!(client_scopes.contains(&"user".to_string()));
@@ -232,19 +248,25 @@ fn scenario_full_claude_code_flow() {
         Some(&requested),
     );
     assert!(limited_perms.contains(&Permission::User));
-    assert!(!limited_perms.contains(&Permission::Admin), "Regular user cannot get admin");
+    assert!(
+        !limited_perms.contains(&Permission::Admin),
+        "Regular user cannot get admin"
+    );
 }
 
 #[test]
 fn scenario_full_mcp_inspector_flow() {
-    let reg_request: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let reg_request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "MCP Inspector",
         "redirect_uris": ["http://localhost:5173/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "scope": "user admin",
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let client_scopes = simulate_determine_scopes(&reg_request);
     assert_eq!(client_scopes, vec!["user", "admin"]);
@@ -256,14 +278,16 @@ fn scenario_full_mcp_inspector_flow() {
 
 #[test]
 fn scenario_full_generic_client_no_resource_no_scope() {
-    let reg_request: DynamicRegistrationRequest =
-        serde_json::from_str(r#"{
+    let reg_request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Generic MCP Client",
         "redirect_uris": ["https://example.com/oauth/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "client_secret_post"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let client_scopes = simulate_determine_scopes(&reg_request);
     assert!(client_scopes.contains(&"user".to_string()));
@@ -275,13 +299,16 @@ fn scenario_full_generic_client_no_resource_no_scope() {
 
 #[test]
 fn scenario_client_requests_scope_from_protected_resource_metadata() {
-    let reg_request: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let reg_request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Smart Client",
         "redirect_uris": ["http://127.0.0.1:8080/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let _client_scopes = simulate_determine_scopes(&reg_request);
 

@@ -250,7 +250,10 @@ mod datetime_to_db_value_tests {
     #[test]
     fn datetime_null_db_value() {
         use chrono::DateTime;
-        assert!(matches!(DateTime::<Utc>::null_db_value(), DbValue::NullTimestamp));
+        assert!(matches!(
+            DateTime::<Utc>::null_db_value(),
+            DbValue::NullTimestamp
+        ));
     }
 }
 
@@ -281,7 +284,13 @@ mod string_array_to_db_value_tests {
 
     #[test]
     fn string_array_null_db_value() {
-        assert!(matches!(Vec::<String>::null_db_value(), DbValue::NullStringArray));
-        assert!(matches!(<&[String]>::null_db_value(), DbValue::NullStringArray));
+        assert!(matches!(
+            Vec::<String>::null_db_value(),
+            DbValue::NullStringArray
+        ));
+        assert!(matches!(
+            <&[String]>::null_db_value(),
+            DbValue::NullStringArray
+        ));
     }
 }

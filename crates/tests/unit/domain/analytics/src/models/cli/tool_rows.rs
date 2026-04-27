@@ -2,8 +2,8 @@
 
 use chrono::Utc;
 use systemprompt_analytics::models::{
-    ToolAgentUsageRow, ToolErrorRow, ToolExecutionRow, ToolListRow, ToolStatusBreakdownRow,
-    ToolStatsRow, ToolSummaryRow,
+    ToolAgentUsageRow, ToolErrorRow, ToolExecutionRow, ToolListRow, ToolStatsRow,
+    ToolStatusBreakdownRow, ToolSummaryRow,
 };
 
 mod tool_row_tests {

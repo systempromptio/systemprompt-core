@@ -14,7 +14,8 @@ fn test_load_from_path_valid() {
 
     // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("services"))
+        .expect("Failed to create services dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
     let profile_content = format!(
@@ -70,8 +71,8 @@ rate_limits:
     let profile_path = temp_dir.path().join("test.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let profile = ProfileLoader::load_from_path(&profile_path)
-        .expect("should load valid profile from path");
+    let profile =
+        ProfileLoader::load_from_path(&profile_path).expect("should load valid profile from path");
     assert_eq!(profile.name, "test");
     assert_eq!(profile.display_name, "Test Profile");
 }
@@ -121,7 +122,8 @@ fn test_load_by_name() {
     // Create the paths directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
-    std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("services"))
+        .expect("Failed to create services dir");
 
     let profile_content = format!(
         r#"
@@ -176,8 +178,7 @@ rate_limits:
     let profile_path = profiles_dir.join("dev.secrets.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let profile = ProfileLoader::load(temp_dir.path(), "dev")
-        .expect("should load profile by name");
+    let profile = ProfileLoader::load(temp_dir.path(), "dev").expect("should load profile by name");
     assert_eq!(profile.name, "dev");
 }
 

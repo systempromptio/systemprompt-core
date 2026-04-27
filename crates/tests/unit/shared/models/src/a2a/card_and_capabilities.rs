@@ -30,7 +30,10 @@ fn test_agent_card_builder_with_provider() {
         "https://example.com".to_string(),
         "1.0.0".to_string(),
     )
-    .with_provider("systemprompt.io".to_string(), "https://systemprompt.io".to_string())
+    .with_provider(
+        "systemprompt.io".to_string(),
+        "https://systemprompt.io".to_string(),
+    )
     .build();
 
     let provider = card.provider.expect("provider should be set");
@@ -77,7 +80,10 @@ fn test_agent_card_default_input_output_modes() {
     .build();
 
     assert!(card.default_input_modes.contains(&"text/plain".to_string()));
-    assert!(card.default_output_modes.contains(&"text/plain".to_string()));
+    assert!(
+        card.default_output_modes
+            .contains(&"text/plain".to_string())
+    );
 }
 
 #[test]
@@ -119,10 +125,20 @@ fn test_agent_card_ensure_mcp_extension_idempotent() {
     .build();
 
     card.ensure_mcp_extension();
-    let ext_count = card.capabilities.extensions.as_ref().map(|e| e.len()).unwrap_or(0);
+    let ext_count = card
+        .capabilities
+        .extensions
+        .as_ref()
+        .map(|e| e.len())
+        .unwrap_or(0);
 
     card.ensure_mcp_extension();
-    let ext_count_after = card.capabilities.extensions.as_ref().map(|e| e.len()).unwrap_or(0);
+    let ext_count_after = card
+        .capabilities
+        .extensions
+        .as_ref()
+        .map(|e| e.len())
+        .unwrap_or(0);
 
     assert_eq!(ext_count, ext_count_after);
 }

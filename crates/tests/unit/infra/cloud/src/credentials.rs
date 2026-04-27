@@ -43,7 +43,11 @@ fn test_cloud_credentials_authenticated_at_is_now() {
 #[test]
 fn test_cloud_credentials_token() {
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token.clone(), "https://api.test.io".to_string(), "test@example.com".to_string());
+    let creds = CloudCredentials::new(
+        token.clone(),
+        "https://api.test.io".to_string(),
+        "test@example.com".to_string(),
+    );
 
     let cloud_token = creds.token();
     assert_eq!(cloud_token.as_str(), &token);
@@ -52,7 +56,11 @@ fn test_cloud_credentials_token() {
 #[test]
 fn test_cloud_credentials_is_token_expired_false_for_valid() {
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
+    let creds = CloudCredentials::new(
+        token,
+        "https://api.test.io".to_string(),
+        "test@example.com".to_string(),
+    );
 
     assert!(!creds.is_token_expired());
 }
@@ -60,7 +68,11 @@ fn test_cloud_credentials_is_token_expired_false_for_valid() {
 #[test]
 fn test_cloud_credentials_is_token_expired_true_for_expired() {
     let token = create_valid_token(-3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
+    let creds = CloudCredentials::new(
+        token,
+        "https://api.test.io".to_string(),
+        "test@example.com".to_string(),
+    );
 
     assert!(creds.is_token_expired());
 }
@@ -68,7 +80,11 @@ fn test_cloud_credentials_is_token_expired_true_for_expired() {
 #[test]
 fn test_cloud_credentials_expires_within_true_when_expiring_soon() {
     let token = create_valid_token(1800);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
+    let creds = CloudCredentials::new(
+        token,
+        "https://api.test.io".to_string(),
+        "test@example.com".to_string(),
+    );
 
     assert!(creds.expires_within(Duration::hours(1)));
 }
@@ -76,7 +92,11 @@ fn test_cloud_credentials_expires_within_true_when_expiring_soon() {
 #[test]
 fn test_cloud_credentials_expires_within_false_when_not_expiring_soon() {
     let token = create_valid_token(7200);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
+    let creds = CloudCredentials::new(
+        token,
+        "https://api.test.io".to_string(),
+        "test@example.com".to_string(),
+    );
 
     assert!(!creds.expires_within(Duration::hours(1)));
 }
@@ -133,10 +153,18 @@ fn test_cloud_credentials_save_and_load() {
 #[test]
 fn test_cloud_credentials_save_creates_parent_dirs() {
     let temp_dir = TempDir::new().unwrap();
-    let creds_path = temp_dir.path().join("nested").join("dir").join("credentials.json");
+    let creds_path = temp_dir
+        .path()
+        .join("nested")
+        .join("dir")
+        .join("credentials.json");
 
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
+    let creds = CloudCredentials::new(
+        token,
+        "https://api.test.io".to_string(),
+        "test@example.com".to_string(),
+    );
 
     creds.save_to_path(&creds_path).unwrap();
     assert!(creds_path.exists());
@@ -149,7 +177,11 @@ fn test_cloud_credentials_save_creates_gitignore() {
     let creds_path = creds_dir.join("credentials.json");
 
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
+    let creds = CloudCredentials::new(
+        token,
+        "https://api.test.io".to_string(),
+        "test@example.com".to_string(),
+    );
 
     creds.save_to_path(&creds_path).unwrap();
 

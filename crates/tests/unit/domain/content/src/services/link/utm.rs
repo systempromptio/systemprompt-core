@@ -123,7 +123,10 @@ fn test_inject_utm_params_special_characters() {
 
     let url = "https://example.com";
     let result = LinkGenerationService::inject_utm_params(url, &params);
-    assert!(result.contains("utm_source=email%2Bnewsletter") || result.contains("utm_source=email+newsletter"));
+    assert!(
+        result.contains("utm_source=email%2Bnewsletter")
+            || result.contains("utm_source=email+newsletter")
+    );
 }
 
 #[test]

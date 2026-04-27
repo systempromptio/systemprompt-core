@@ -2,8 +2,12 @@
 
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
-use systemprompt_cloud::cli_session::{CliSession, CliSessionBuilder, SessionKey, LOCAL_SESSION_KEY};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId};
+use systemprompt_cloud::cli_session::{
+    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionKey,
+};
+use systemprompt_identifiers::{
+    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+};
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
 
@@ -46,8 +50,7 @@ fn test_cli_session_builder_default_user_type() {
 
 #[test]
 fn test_cli_session_builder_with_tenant_key() {
-    let builder = create_test_builder()
-        .with_tenant_key(TenantId::new("my-tenant"));
+    let builder = create_test_builder().with_tenant_key(TenantId::new("my-tenant"));
     let session = builder.build();
 
     assert_eq!(session.tenant_key, Some(TenantId::new("my-tenant")));
@@ -55,8 +58,7 @@ fn test_cli_session_builder_with_tenant_key() {
 
 #[test]
 fn test_cli_session_builder_with_session_key_local() {
-    let builder = create_test_builder()
-        .with_session_key(&SessionKey::Local);
+    let builder = create_test_builder().with_session_key(&SessionKey::Local);
     let session = builder.build();
 
     assert_eq!(session.tenant_key, Some(TenantId::new(LOCAL_SESSION_KEY)));
@@ -65,8 +67,7 @@ fn test_cli_session_builder_with_session_key_local() {
 #[test]
 fn test_cli_session_builder_with_session_key_tenant() {
     let tenant_id = TenantId::new("specific-tenant");
-    let builder = create_test_builder()
-        .with_session_key(&SessionKey::Tenant(tenant_id.clone()));
+    let builder = create_test_builder().with_session_key(&SessionKey::Tenant(tenant_id.clone()));
     let session = builder.build();
 
     assert_eq!(session.tenant_key, Some(tenant_id));
@@ -74,19 +75,20 @@ fn test_cli_session_builder_with_session_key_tenant() {
 
 #[test]
 fn test_cli_session_builder_with_profile_path() {
-    let builder = create_test_builder()
-        .with_profile_path("/path/to/profile.yaml");
+    let builder = create_test_builder().with_profile_path("/path/to/profile.yaml");
     let session = builder.build();
 
-    assert_eq!(session.profile_path, Some(PathBuf::from("/path/to/profile.yaml")));
+    assert_eq!(
+        session.profile_path,
+        Some(PathBuf::from("/path/to/profile.yaml"))
+    );
 }
 
 #[test]
 fn test_cli_session_builder_with_user() {
     let user_id = UserId::new("user-789");
     let email = Email::new("test@example.com");
-    let builder = create_test_builder()
-        .with_user(user_id.clone(), email.clone());
+    let builder = create_test_builder().with_user(user_id.clone(), email.clone());
     let session = builder.build();
 
     assert_eq!(session.user_id, user_id);
@@ -95,8 +97,7 @@ fn test_cli_session_builder_with_user() {
 
 #[test]
 fn test_cli_session_builder_with_user_type() {
-    let builder = create_test_builder()
-        .with_user_type(UserType::User);
+    let builder = create_test_builder().with_user_type(UserType::User);
     let session = builder.build();
 
     assert_eq!(session.user_type, UserType::User);
@@ -211,7 +212,8 @@ fn test_cli_session_has_valid_credentials_false_empty_token() {
         SessionToken::new(""),
         SessionId::new("session"),
         ContextId::new("context"),
-    ).build();
+    )
+    .build();
 
     assert!(!session.has_valid_credentials());
 }
@@ -293,14 +295,21 @@ fn test_cli_session_save_and_load() {
 
     let loaded = CliSession::load_from_path(&session_path).unwrap();
     assert_eq!(loaded.profile_name.as_str(), session.profile_name.as_str());
-    assert_eq!(loaded.session_token.as_str(), session.session_token.as_str());
+    assert_eq!(
+        loaded.session_token.as_str(),
+        session.session_token.as_str()
+    );
     assert_eq!(loaded.user_id, session.user_id);
 }
 
 #[test]
 fn test_cli_session_save_creates_parent_dirs() {
     let temp_dir = TempDir::new().unwrap();
-    let session_path = temp_dir.path().join("nested").join("dir").join("session.json");
+    let session_path = temp_dir
+        .path()
+        .join("nested")
+        .join("dir")
+        .join("session.json");
 
     let session = create_test_builder().build();
     session.save_to_path(&session_path).unwrap();

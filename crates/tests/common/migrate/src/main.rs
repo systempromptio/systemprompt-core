@@ -10,17 +10,10 @@ use systemprompt_extension::ExtensionRegistry;
 // A path-only Cargo dep is not enough; rustc will drop unused crates.
 #[allow(unused_imports)]
 use {
-    systemprompt_agent as _,
-    systemprompt_ai as _,
-    systemprompt_analytics as _,
-    systemprompt_content as _,
-    systemprompt_files as _,
-    systemprompt_logging as _,
-    systemprompt_mcp as _,
-    systemprompt_oauth as _,
-    systemprompt_scheduler as _,
-    systemprompt_sync as _,
-    systemprompt_users as _,
+    systemprompt_agent as _, systemprompt_ai as _, systemprompt_analytics as _,
+    systemprompt_content as _, systemprompt_files as _, systemprompt_logging as _,
+    systemprompt_mcp as _, systemprompt_oauth as _, systemprompt_scheduler as _,
+    systemprompt_sync as _, systemprompt_users as _,
 };
 
 #[tokio::main]

@@ -82,10 +82,12 @@ fn test_file_id_format() {
     };
 
     let file_id = file.id();
-    assert!(file_id
-        .as_str()
-        .chars()
-        .all(|c| c.is_ascii_hexdigit() || c == '-'));
+    assert!(
+        file_id
+            .as_str()
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() || c == '-')
+    );
 }
 
 // ============================================================================
@@ -111,7 +113,10 @@ fn test_file_metadata_with_image() {
     let file = create_test_file_with_metadata(file_meta);
 
     let metadata = file.metadata().unwrap();
-    metadata.type_specific.as_ref().expect("type_specific should be present");
+    metadata
+        .type_specific
+        .as_ref()
+        .expect("type_specific should be present");
 }
 
 #[test]
@@ -126,7 +131,10 @@ fn test_file_metadata_with_checksums() {
     let file = create_test_file_with_metadata(file_meta);
 
     let metadata = file.metadata().unwrap();
-    metadata.checksums.as_ref().expect("checksums should be present");
+    metadata
+        .checksums
+        .as_ref()
+        .expect("checksums should be present");
     let cs = metadata.checksums.unwrap();
     assert_eq!(cs.md5, Some("d41d8cd98f00b204e9800998ecf8427e".to_string()));
     assert_eq!(
@@ -184,7 +192,9 @@ fn test_file_with_all_optional_ids() {
     };
 
     file.user_id.as_ref().expect("user_id should be present");
-    file.session_id.as_ref().expect("session_id should be present");
+    file.session_id
+        .as_ref()
+        .expect("session_id should be present");
     file.trace_id.as_ref().expect("trace_id should be present");
     assert_eq!(file.user_id.as_ref().unwrap().as_str(), "user_abc");
     assert_eq!(file.session_id.as_ref().unwrap().as_str(), "session_def");
@@ -239,7 +249,10 @@ fn test_file_deleted_at() {
         deleted_at: Some(now),
     };
 
-    deleted_file.deleted_at.as_ref().expect("deleted_at should be present");
+    deleted_file
+        .deleted_at
+        .as_ref()
+        .expect("deleted_at should be present");
 }
 
 // ============================================================================

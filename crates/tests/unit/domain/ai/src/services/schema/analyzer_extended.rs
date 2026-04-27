@@ -1,5 +1,5 @@
-use systemprompt_ai::services::schema::DiscriminatedUnion;
 use serde_json::json;
+use systemprompt_ai::services::schema::DiscriminatedUnion;
 
 mod edge_case_tests {
     use super::*;

@@ -236,8 +236,7 @@ includes:
 agents: {}
 mcp_servers: {}
 "#;
-    std::fs::write(temp_dir.path().join("skills.yaml"), skills)
-        .expect("Failed to write skills");
+    std::fs::write(temp_dir.path().join("skills.yaml"), skills).expect("Failed to write skills");
 
     let main_content = r#"
 includes:
@@ -289,8 +288,7 @@ ai:
 "#;
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
-    let err = ConfigLoader::load_from_path(&config_path)
-        .expect_err("cycle should error");
+    let err = ConfigLoader::load_from_path(&config_path).expect_err("cycle should error");
     let msg = format!("{err:#}");
     assert!(
         msg.contains("cycle detected"),
@@ -643,8 +641,7 @@ fn test_load_full_fixture_round_trip() {
     let yaml = full_services_fixture();
     std::fs::write(&config_path, &yaml).expect("Failed to write config");
 
-    let config = ConfigLoader::load_from_path(&config_path)
-        .expect("full fixture should load");
+    let config = ConfigLoader::load_from_path(&config_path).expect("full fixture should load");
 
     assert_eq!(config.agents.len(), 1);
     assert!(config.agents.contains_key("alpha_agent"));
@@ -676,8 +673,8 @@ ai:
   default_provider: anthropic
 "#;
 
-    let err = serde_yaml::from_str::<ServicesConfig>(content)
-        .expect_err("unknown field should error");
+    let err =
+        serde_yaml::from_str::<ServicesConfig>(content).expect_err("unknown field should error");
     let msg = err.to_string();
     assert!(
         msg.contains("unknown field") && msg.contains("skills_typo"),
@@ -816,6 +813,5 @@ fn test_external_template_smoke() {
         return;
     }
 
-    let _config = ConfigLoader::load_from_path(&path)
-        .expect("external template should load");
+    let _config = ConfigLoader::load_from_path(&path).expect("external template should load");
 }

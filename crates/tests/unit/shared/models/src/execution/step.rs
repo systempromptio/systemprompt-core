@@ -401,11 +401,7 @@ fn execution_step_planning_is_completed_immediately() {
 
 #[test]
 fn execution_step_planning_with_reasoning() {
-    let step = ExecutionStep::planning(
-        test_task_id(),
-        Some("reasoning text".to_string()),
-        None,
-    );
+    let step = ExecutionStep::planning(test_task_id(), Some("reasoning text".to_string()), None);
     assert_eq!(step.reasoning(), Some("reasoning text"));
 }
 

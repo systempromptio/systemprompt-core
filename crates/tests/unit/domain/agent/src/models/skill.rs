@@ -132,10 +132,7 @@ fn test_skill_from_json_row_missing_skill_id() {
     use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
-    row.insert(
-        "name".to_string(),
-        serde_json::json!("Test"),
-    );
+    row.insert("name".to_string(), serde_json::json!("Test"));
 
     let result = Skill::from_json_row(&row);
     let err = result.unwrap_err();
@@ -250,8 +247,14 @@ fn test_skill_from_json_row_default_tags() {
     row.insert("enabled".to_string(), serde_json::json!(true));
     // No tags field - should default to empty
     row.insert("source_id".to_string(), serde_json::json!("src-1"));
-    row.insert("created_at".to_string(), serde_json::json!("2024-01-01T00:00:00Z"));
-    row.insert("updated_at".to_string(), serde_json::json!("2024-01-01T00:00:00Z"));
+    row.insert(
+        "created_at".to_string(),
+        serde_json::json!("2024-01-01T00:00:00Z"),
+    );
+    row.insert(
+        "updated_at".to_string(),
+        serde_json::json!("2024-01-01T00:00:00Z"),
+    );
 
     let result = Skill::from_json_row(&row);
     let skill = result.expect("expected success");
@@ -267,14 +270,26 @@ fn test_skill_from_json_row_complete() {
     row.insert("skill_id".to_string(), serde_json::json!("sk-complete"));
     row.insert("file_path".to_string(), serde_json::json!("/complete.md"));
     row.insert("name".to_string(), serde_json::json!("Complete Skill"));
-    row.insert("description".to_string(), serde_json::json!("A complete skill"));
-    row.insert("instructions".to_string(), serde_json::json!("Do something"));
+    row.insert(
+        "description".to_string(),
+        serde_json::json!("A complete skill"),
+    );
+    row.insert(
+        "instructions".to_string(),
+        serde_json::json!("Do something"),
+    );
     row.insert("enabled".to_string(), serde_json::json!(true));
     row.insert("tags".to_string(), serde_json::json!(["tag1", "tag2"]));
     row.insert("category_id".to_string(), serde_json::json!("cat-1"));
     row.insert("source_id".to_string(), serde_json::json!("src-1"));
-    row.insert("created_at".to_string(), serde_json::json!("2024-01-01T00:00:00Z"));
-    row.insert("updated_at".to_string(), serde_json::json!("2024-01-02T00:00:00Z"));
+    row.insert(
+        "created_at".to_string(),
+        serde_json::json!("2024-01-01T00:00:00Z"),
+    );
+    row.insert(
+        "updated_at".to_string(),
+        serde_json::json!("2024-01-02T00:00:00Z"),
+    );
 
     let result = Skill::from_json_row(&row);
     let skill = result.expect("expected success");

@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{ScheduledJobId, JobName, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, JobName, ScheduledJobId, ToDbValue};
 
 #[test]
 fn scheduled_job_id_generate_uuid_format() {

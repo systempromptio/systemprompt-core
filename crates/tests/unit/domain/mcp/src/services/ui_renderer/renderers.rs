@@ -6,8 +6,7 @@ use systemprompt_mcp::services::ui_renderer::{
     CspPolicy, MCP_APP_MIME_TYPE, UiMetadata, UiRenderer, UiResource,
 };
 use systemprompt_models::{
-    ArtifactType, DataPart, Part, TextPart,
-    A2aArtifact as Artifact, ArtifactMetadata,
+    A2aArtifact as Artifact, ArtifactMetadata, ArtifactType, DataPart, Part, TextPart,
 };
 
 fn make_artifact(
@@ -40,7 +39,7 @@ fn data_part(data: serde_json::Value) -> Part {
             let mut m = serde_json::Map::new();
             m.insert("data".to_string(), other);
             m
-        }
+        },
     };
     Part::Data(DataPart { data: map })
 }
@@ -213,7 +212,9 @@ async fn table_renderer_with_filterable_hint() {
         "table",
         None,
         None,
-        vec![data_part(serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}))],
+        vec![data_part(
+            serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}),
+        )],
         Some(serde_json::json!({"filterable": true})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -227,7 +228,9 @@ async fn table_renderer_with_pagination_hint() {
         "table",
         None,
         None,
-        vec![data_part(serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}))],
+        vec![data_part(
+            serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}),
+        )],
         Some(serde_json::json!({"page_size": 10})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -244,7 +247,10 @@ fn chart_renderer_artifact_type() {
 fn chart_renderer_csp_includes_jsdelivr() {
     let renderer = ChartRenderer::new();
     let csp = renderer.csp_policy();
-    assert!(csp.script_src.contains(&"https://cdn.jsdelivr.net".to_string()));
+    assert!(
+        csp.script_src
+            .contains(&"https://cdn.jsdelivr.net".to_string())
+    );
 }
 
 #[tokio::test]
@@ -344,13 +350,7 @@ async fn text_renderer_simple_text() {
 #[tokio::test]
 async fn text_renderer_multiline_text() {
     let renderer = TextRenderer::new();
-    let artifact = make_artifact(
-        "text",
-        None,
-        None,
-        vec![text_part("Line 1\nLine 2")],
-        None,
-    );
+    let artifact = make_artifact("text", None, None, vec![text_part("Line 1\nLine 2")], None);
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("<p>Line 1</p>"));
     assert!(result.html.contains("<p>Line 2</p>"));
@@ -374,13 +374,7 @@ async fn text_renderer_escapes_html() {
 #[tokio::test]
 async fn text_renderer_empty_lines_use_nbsp() {
     let renderer = TextRenderer::new();
-    let artifact = make_artifact(
-        "text",
-        None,
-        None,
-        vec![text_part("Before\n\nAfter")],
-        None,
-    );
+    let artifact = make_artifact("text", None, None, vec![text_part("Before\n\nAfter")], None);
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("&nbsp;"));
 }
@@ -388,13 +382,7 @@ async fn text_renderer_empty_lines_use_nbsp() {
 #[tokio::test]
 async fn text_renderer_copy_button() {
     let renderer = TextRenderer::new();
-    let artifact = make_artifact(
-        "text",
-        None,
-        None,
-        vec![text_part("Copy me")],
-        None,
-    );
+    let artifact = make_artifact("text", None, None, vec![text_part("Copy me")], None);
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("copy-btn"));
 }
@@ -412,7 +400,9 @@ async fn list_renderer_simple_string_items() {
         "list",
         Some("Todo"),
         None,
-        vec![data_part(serde_json::json!({"items": ["Item 1", "Item 2", "Item 3"]}))],
+        vec![data_part(
+            serde_json::json!({"items": ["Item 1", "Item 2", "Item 3"]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -571,7 +561,9 @@ async fn form_renderer_submit_tool_hint() {
         "form",
         None,
         None,
-        vec![data_part(serde_json::json!({"fields": [{"name": "x", "type": "text"}]}))],
+        vec![data_part(
+            serde_json::json!({"fields": [{"name": "x", "type": "text"}]}),
+        )],
         Some(serde_json::json!({"submit_tool": "my_tool"})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -586,7 +578,9 @@ async fn form_renderer_has_submit_and_reset_buttons() {
         "form",
         None,
         None,
-        vec![data_part(serde_json::json!({"fields": [{"name": "x", "type": "text"}]}))],
+        vec![data_part(
+            serde_json::json!({"fields": [{"name": "x", "type": "text"}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -655,7 +649,9 @@ async fn image_renderer_zoom_controls() {
         "image",
         None,
         None,
-        vec![data_part(serde_json::json!({"src": "https://example.com/img.png"}))],
+        vec![data_part(
+            serde_json::json!({"src": "https://example.com/img.png"}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -674,7 +670,10 @@ fn dashboard_renderer_artifact_type() {
 fn dashboard_renderer_csp_includes_jsdelivr() {
     let renderer = DashboardRenderer::new();
     let csp = renderer.csp_policy();
-    assert!(csp.script_src.contains(&"https://cdn.jsdelivr.net".to_string()));
+    assert!(
+        csp.script_src
+            .contains(&"https://cdn.jsdelivr.net".to_string())
+    );
 }
 
 #[tokio::test]

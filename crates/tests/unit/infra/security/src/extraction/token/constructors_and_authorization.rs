@@ -1,4 +1,5 @@
-//! Tests for ExtractionMethod display, TokenExtractor constructors, and authorization header extraction
+//! Tests for ExtractionMethod display, TokenExtractor constructors, and
+//! authorization header extraction
 
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_security::{ExtractionMethod, TokenExtractionError, TokenExtractor};
@@ -74,7 +75,9 @@ fn test_token_extractor_with_cookie_name() {
         HeaderValue::from_static("custom_token=my_token_value"),
     );
 
-    let token = extractor.extract(&headers).expect("Should extract from custom cookie");
+    let token = extractor
+        .extract(&headers)
+        .expect("Should extract from custom cookie");
     assert_eq!(token, "my_token_value");
 }
 
@@ -89,7 +92,9 @@ fn test_token_extractor_with_mcp_header_name() {
         HeaderValue::from_static("Bearer custom_token"),
     );
 
-    let token = extractor.extract(&headers).expect("Should extract from custom MCP header");
+    let token = extractor
+        .extract(&headers)
+        .expect("Should extract from custom MCP header");
     assert_eq!(token, "custom_token");
 }
 

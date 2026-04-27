@@ -5,7 +5,7 @@
 //! - SystemEventType as_str method
 //! - A2AEventType serialization
 
-use systemprompt_models::{SystemEventType, A2AEventType};
+use systemprompt_models::{A2AEventType, SystemEventType};
 
 // ============================================================================
 // SystemEventType Tests

@@ -217,40 +217,43 @@ fn test_loader_error_variant_matching() {
 
     for err in errors {
         match &err {
-            LoaderError::MissingDependency { extension, dependency } => {
+            LoaderError::MissingDependency {
+                extension,
+                dependency,
+            } => {
                 assert!(!extension.is_empty());
                 assert!(!dependency.is_empty());
-            }
+            },
             LoaderError::DuplicateExtension(id) => {
                 assert!(!id.is_empty());
-            }
+            },
             LoaderError::InitializationFailed { extension, message } => {
                 assert!(!extension.is_empty());
                 assert!(!message.is_empty());
-            }
+            },
             LoaderError::SchemaInstallationFailed { extension, message } => {
                 assert!(!extension.is_empty());
                 assert!(!message.is_empty());
-            }
+            },
             LoaderError::MigrationFailed { extension, message } => {
                 assert!(!extension.is_empty());
                 assert!(!message.is_empty());
-            }
+            },
             LoaderError::ConfigValidationFailed { extension, message } => {
                 assert!(!extension.is_empty());
                 assert!(!message.is_empty());
-            }
+            },
             LoaderError::ReservedPathCollision { extension, path } => {
                 assert!(!extension.is_empty());
                 assert!(!path.is_empty());
-            }
+            },
             LoaderError::InvalidBasePath { extension, path } => {
                 assert!(!extension.is_empty());
                 assert!(!path.is_empty());
-            }
+            },
             LoaderError::CircularDependency { chain } => {
                 assert!(!chain.is_empty());
-            }
+            },
         }
     }
 }
@@ -271,17 +274,17 @@ fn test_config_error_variant_matching() {
         match &err {
             ConfigError::NotFound(key) => {
                 assert!(!key.is_empty());
-            }
+            },
             ConfigError::InvalidValue { key, message } => {
                 assert!(!key.is_empty());
                 assert!(!message.is_empty());
-            }
+            },
             ConfigError::ParseError(msg) => {
                 assert!(!msg.is_empty());
-            }
+            },
             ConfigError::SchemaValidation(msg) => {
                 assert!(!msg.is_empty());
-            }
+            },
         }
     }
 }

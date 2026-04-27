@@ -116,6 +116,7 @@ pub async fn generate_client_tokens(
             analytics: &analytics,
             session_source: SessionSource::Oauth,
             is_bot: false,
+            is_ai_crawler: false,
             expires_at,
         })
         .await

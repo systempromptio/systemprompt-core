@@ -112,7 +112,9 @@ fn test_extension_wrapper_as_any() {
     let any_ref: &dyn Any = wrapper.as_any();
 
     // Should be able to downcast to the inner type
-    any_ref.downcast_ref::<BasicExtension>().expect("any_ref.downcast_ref::<BasicExtension>() should be present");
+    any_ref
+        .downcast_ref::<BasicExtension>()
+        .expect("any_ref.downcast_ref::<BasicExtension>() should be present");
 }
 
 #[test]
@@ -194,7 +196,9 @@ fn test_schema_extension_wrapper_as_api_returns_none() {
 fn test_schema_extension_wrapper_as_any() {
     let wrapper = SchemaExtensionWrapper::new(SchemaTestExtension);
     let any_ref: &dyn Any = wrapper.as_any();
-    any_ref.downcast_ref::<SchemaTestExtension>().expect("any_ref.downcast_ref::<SchemaTestExtension>() should be present");
+    any_ref
+        .downcast_ref::<SchemaTestExtension>()
+        .expect("any_ref.downcast_ref::<SchemaTestExtension>() should be present");
 }
 
 #[test]
@@ -261,7 +265,9 @@ fn test_api_extension_wrapper_as_schema_returns_none() {
 fn test_api_extension_wrapper_as_any() {
     let wrapper = ApiExtensionWrapper::new(ApiTestExtension);
     let any_ref: &dyn Any = wrapper.as_any();
-    any_ref.downcast_ref::<ApiTestExtension>().expect("any_ref.downcast_ref::<ApiTestExtension>() should be present");
+    any_ref
+        .downcast_ref::<ApiTestExtension>()
+        .expect("any_ref.downcast_ref::<ApiTestExtension>() should be present");
 }
 
 #[test]
@@ -300,7 +306,9 @@ fn test_schema_any_extension_as_trait_object() {
 
     let wrapper: Box<dyn AnyExtension> = Box::new(SchemaExtensionWrapper::new(SchemaTestExtension));
     assert_eq!(wrapper.id(), "schema-test");
-    wrapper.as_schema().expect("wrapper.as_schema() should be present");
+    wrapper
+        .as_schema()
+        .expect("wrapper.as_schema() should be present");
 }
 
 #[test]
@@ -309,7 +317,9 @@ fn test_api_any_extension_as_trait_object() {
 
     let wrapper: Box<dyn AnyExtension> = Box::new(ApiExtensionWrapper::new(ApiTestExtension));
     assert_eq!(wrapper.id(), "api-test");
-    wrapper.as_api().expect("wrapper.as_api() should be present");
+    wrapper
+        .as_api()
+        .expect("wrapper.as_api() should be present");
 }
 
 // =============================================================================

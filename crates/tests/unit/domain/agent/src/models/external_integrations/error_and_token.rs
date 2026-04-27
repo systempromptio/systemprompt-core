@@ -1,4 +1,5 @@
-//! Unit tests for IntegrationError, TokenInfo, AuthorizationRequest/Result, and CallbackParams
+//! Unit tests for IntegrationError, TokenInfo, AuthorizationRequest/Result, and
+//! CallbackParams
 
 use chrono::Utc;
 use systemprompt_agent::models::external_integrations::{

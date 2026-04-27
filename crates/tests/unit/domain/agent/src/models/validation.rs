@@ -92,7 +92,10 @@ fn test_extract_port_http_with_port() {
 
 #[test]
 fn test_extract_port_https_with_port() {
-    assert_eq!(extract_port_from_url("https://example.com:9443"), Some(9443));
+    assert_eq!(
+        extract_port_from_url("https://example.com:9443"),
+        Some(9443)
+    );
 }
 
 #[test]
@@ -153,10 +156,7 @@ fn test_extract_port_https_standard_port_explicit() {
 
 #[test]
 fn test_extract_port_high_port() {
-    assert_eq!(
-        extract_port_from_url("http://localhost:65535"),
-        Some(65535)
-    );
+    assert_eq!(extract_port_from_url("http://localhost:65535"), Some(65535));
 }
 
 #[test]
@@ -166,10 +166,7 @@ fn test_extract_port_invalid_port_number() {
 
 #[test]
 fn test_extract_port_ip_address_with_port() {
-    assert_eq!(
-        extract_port_from_url("http://192.168.1.1:8080"),
-        Some(8080)
-    );
+    assert_eq!(extract_port_from_url("http://192.168.1.1:8080"), Some(8080));
 }
 
 #[test]

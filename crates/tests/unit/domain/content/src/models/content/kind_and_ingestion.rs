@@ -1,4 +1,5 @@
-//! Tests for ContentKind, IngestionReport, IngestionOptions, and IngestionSource.
+//! Tests for ContentKind, IngestionReport, IngestionOptions, and
+//! IngestionSource.
 
 use systemprompt_content::{IngestionOptions, IngestionReport, IngestionSource};
 use systemprompt_identifiers::{CategoryId, SourceId};

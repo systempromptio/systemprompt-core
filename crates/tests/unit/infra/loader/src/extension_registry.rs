@@ -111,7 +111,12 @@ fn test_get_path_local_mode_not_found() {
 
     let result = registry.get_path("nonexistent");
     result.as_ref().expect_err("result should fail");
-    assert!(result.unwrap_err().to_string().contains("No manifest.yaml found"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("No manifest.yaml found")
+    );
 }
 
 #[test]
@@ -198,7 +203,10 @@ fn test_get_extension_cloud_mode_returns_none() {
     );
 
     let ext = registry.get_extension("cloud-bin");
-    assert!(ext.is_none(), "Cloud mode doesn't store DiscoveredExtension");
+    assert!(
+        ext.is_none(),
+        "Cloud mode doesn't store DiscoveredExtension"
+    );
 }
 
 // ============================================================================
@@ -292,7 +300,9 @@ fn test_registry_with_multiple_extensions() {
 
     for i in 1..=5 {
         assert!(registry.has_extension(&format!("binary-{}", i)));
-        registry.get_extension(&format!("binary-{}", i)).expect("registry.get_extension(&format!(\"binary-{}\", i)) should be present");
+        registry
+            .get_extension(&format!("binary-{}", i))
+            .expect("registry.get_extension(&format!(\"binary-{}\", i)) should be present");
     }
 
     assert!(!registry.has_extension("binary-6"));

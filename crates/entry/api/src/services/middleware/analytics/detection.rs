@@ -14,6 +14,8 @@ pub fn spawn_behavioral_detection_task(
     request_count: i64,
 ) {
     tokio::spawn(async move {
+        const BEHAVIORAL_FINGERPRINT_WINDOW_DAYS: i64 = 45;
+
         let fingerprint_session_count = if let Some(ref fp) = fingerprint_hash {
             session_repo
                 .count_sessions_by_fingerprint(fp, 24)
@@ -24,6 +26,42 @@ pub fn spawn_behavioral_detection_task(
                 })
         } else {
             1
+        };
+
+        let fingerprint_unique_ip_count = if let Some(ref fp) = fingerprint_hash {
+            session_repo
+                .count_unique_ips_by_fingerprint(fp, BEHAVIORAL_FINGERPRINT_WINDOW_DAYS)
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::debug!(error = %e, "Failed to count fingerprint unique IPs");
+                    0
+                })
+        } else {
+            0
+        };
+
+        let fingerprint_engagement_event_count = if let Some(ref fp) = fingerprint_hash {
+            session_repo
+                .count_engagement_events_by_fingerprint(fp, BEHAVIORAL_FINGERPRINT_WINDOW_DAYS)
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::debug!(error = %e, "Failed to count fingerprint engagement events");
+                    0
+                })
+        } else {
+            0
+        };
+
+        let fingerprint_session_starts = if let Some(ref fp) = fingerprint_hash {
+            session_repo
+                .get_session_starts_by_fingerprint(fp, BEHAVIORAL_FINGERPRINT_WINDOW_DAYS)
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::debug!(error = %e, "Failed to load fingerprint session starts");
+                    Vec::new()
+                })
+        } else {
+            Vec::new()
         };
 
         let endpoints_accessed = session_repo
@@ -93,6 +131,9 @@ pub fn spawn_behavioral_detection_task(
             endpoints_accessed,
             total_site_pages,
             fingerprint_session_count,
+            fingerprint_unique_ip_count,
+            fingerprint_engagement_event_count,
+            fingerprint_session_starts,
             request_timestamps,
             has_javascript_events,
             landing_page,

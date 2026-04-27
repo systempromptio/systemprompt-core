@@ -2,9 +2,7 @@ use crate::mocks::{component, extender, loader, page_provider, provider};
 
 use systemprompt_templates::{TemplateDefinition, TemplateRegistry};
 
-use crate::mocks::{
-    MockComponent, MockExtender, MockLoader, MockPageProvider, MockProvider,
-};
+use crate::mocks::{MockComponent, MockExtender, MockLoader, MockPageProvider, MockProvider};
 
 mod template_lookup_tests {
     use super::*;
@@ -43,7 +41,8 @@ mod template_lookup_tests {
         registry.register_loader(loader(MockLoader::new()));
         registry.initialize().await.expect("should initialize");
 
-        let def = registry.find_template("my-template")
+        let def = registry
+            .find_template("my-template")
             .expect("should find registered template");
         assert_eq!(def.name, "my-template");
         assert!(def.content_types.contains(&"article".to_string()));
@@ -276,4 +275,3 @@ mod page_provider_lookup_tests {
         assert_eq!(home_providers.len(), 2);
     }
 }
-

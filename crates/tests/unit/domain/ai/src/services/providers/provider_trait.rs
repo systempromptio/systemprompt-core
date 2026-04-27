@@ -1,13 +1,13 @@
 //! Tests for provider trait types.
 
+use serde_json::json;
+use systemprompt_ai::models::ai::{AiMessage, MessageRole, ResponseFormat, SamplingParams};
+use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::providers::{
     GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
-use systemprompt_ai::models::ai::{AiMessage, MessageRole, ResponseFormat, SamplingParams};
-use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
-use serde_json::json;
 
 mod model_pricing_tests {
     use super::*;
@@ -33,13 +33,11 @@ mod generation_params_tests {
     use super::*;
 
     fn sample_messages() -> Vec<AiMessage> {
-        vec![
-            AiMessage {
-                role: MessageRole::User,
-                content: "Hello".to_string(),
-                parts: Vec::new(),
-            },
-        ]
+        vec![AiMessage {
+            role: MessageRole::User,
+            content: "Hello".to_string(),
+            parts: Vec::new(),
+        }]
     }
 
     #[test]
@@ -67,7 +65,10 @@ mod generation_params_tests {
 
         let params = GenerationParams::new(&messages, "gpt-4", 1024).with_sampling(&sampling);
 
-        params.sampling.as_ref().expect("sampling should be present");
+        params
+            .sampling
+            .as_ref()
+            .expect("sampling should be present");
         assert_eq!(params.sampling.unwrap().temperature, Some(0.7));
     }
 
@@ -287,8 +288,8 @@ mod search_generation_params_tests {
         let messages = sample_messages();
         let base = GenerationParams::new(&messages, "model", 1024);
 
-        let params = SearchGenerationParams::new(base)
-            .with_urls(vec!["https://example.com".to_string()]);
+        let params =
+            SearchGenerationParams::new(base).with_urls(vec!["https://example.com".to_string()]);
 
         params.urls.as_ref().expect("urls should be present");
         assert_eq!(params.urls.unwrap()[0], "https://example.com");
@@ -302,7 +303,10 @@ mod search_generation_params_tests {
 
         let params = SearchGenerationParams::new(base).with_response_schema(schema);
 
-        params.response_schema.as_ref().expect("response_schema should be present");
+        params
+            .response_schema
+            .as_ref()
+            .expect("response_schema should be present");
         assert_eq!(params.response_schema.unwrap()["type"], "object");
     }
 
@@ -316,7 +320,10 @@ mod search_generation_params_tests {
             .with_response_schema(json!({"type": "array"}));
 
         params.urls.as_ref().expect("urls should be present");
-        params.response_schema.as_ref().expect("response_schema should be present");
+        params
+            .response_schema
+            .as_ref()
+            .expect("response_schema should be present");
     }
 
     #[test]

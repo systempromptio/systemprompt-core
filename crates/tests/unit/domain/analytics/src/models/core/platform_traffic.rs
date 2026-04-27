@@ -1,4 +1,5 @@
-//! Tests for platform overview, cost, traffic, breakdown, and bot traffic model types.
+//! Tests for platform overview, cost, traffic, breakdown, and bot traffic model
+//! types.
 
 use systemprompt_analytics::{
     BotTrafficStats, BrowserBreakdown, CostOverview, DeviceBreakdown, GeographicBreakdown,

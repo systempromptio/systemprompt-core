@@ -87,15 +87,21 @@ mod is_success_tests {
     #[test]
     fn result_with_failed_is_not_success() {
         let mut result = ReconciliationResult::new();
-        result.failed.push(("service1".to_string(), "error".to_string()));
+        result
+            .failed
+            .push(("service1".to_string(), "error".to_string()));
         assert!(!result.is_success());
     }
 
     #[test]
     fn result_with_multiple_failures_is_not_success() {
         let mut result = ReconciliationResult::new();
-        result.failed.push(("service1".to_string(), "error1".to_string()));
-        result.failed.push(("service2".to_string(), "error2".to_string()));
+        result
+            .failed
+            .push(("service1".to_string(), "error1".to_string()));
+        result
+            .failed
+            .push(("service2".to_string(), "error2".to_string()));
         assert!(!result.is_success());
     }
 
@@ -104,7 +110,9 @@ mod is_success_tests {
         let mut result = ReconciliationResult::new();
         result.started.push("service1".to_string());
         result.stopped.push("service2".to_string());
-        result.failed.push(("service3".to_string(), "error".to_string()));
+        result
+            .failed
+            .push(("service3".to_string(), "error".to_string()));
         assert!(!result.is_success());
     }
 }
@@ -149,7 +157,9 @@ mod total_actions_tests {
     #[test]
     fn does_not_count_failed() {
         let mut result = ReconciliationResult::new();
-        result.failed.push(("service1".to_string(), "error".to_string()));
+        result
+            .failed
+            .push(("service1".to_string(), "error".to_string()));
         assert_eq!(result.total_actions(), 0);
     }
 

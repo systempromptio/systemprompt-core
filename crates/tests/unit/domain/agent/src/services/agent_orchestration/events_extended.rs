@@ -10,7 +10,10 @@ fn test_agent_event_roundtrip_start_requested() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-1"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-1")
+    );
     assert_eq!(deserialized.event_type(), "agent_start_requested");
 }
 
@@ -27,7 +30,10 @@ fn test_agent_event_roundtrip_start_completed_success() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-2"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-2")
+    );
     assert_eq!(deserialized.event_type(), "agent_start_completed");
 }
 
@@ -44,7 +50,10 @@ fn test_agent_event_roundtrip_start_completed_failure() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-3"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-3")
+    );
     assert_eq!(deserialized.event_type(), "agent_start_completed");
 }
 
@@ -59,7 +68,10 @@ fn test_agent_event_roundtrip_started() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-4"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-4")
+    );
     assert_eq!(deserialized.event_type(), "agent_started");
 }
 
@@ -73,7 +85,10 @@ fn test_agent_event_roundtrip_failed() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-5"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-5")
+    );
     assert_eq!(deserialized.event_type(), "agent_failed");
 }
 
@@ -87,7 +102,10 @@ fn test_agent_event_roundtrip_stopped_with_code() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-6"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-6")
+    );
     assert_eq!(deserialized.event_type(), "agent_stopped");
 }
 
@@ -101,7 +119,10 @@ fn test_agent_event_roundtrip_stopped_no_code() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-7"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-7")
+    );
 }
 
 #[test]
@@ -113,7 +134,10 @@ fn test_agent_event_roundtrip_disabled() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-8"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-8")
+    );
     assert_eq!(deserialized.event_type(), "agent_disabled");
 }
 
@@ -127,7 +151,10 @@ fn test_agent_event_roundtrip_health_check_failed() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-9"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-9")
+    );
     assert_eq!(deserialized.event_type(), "health_check_failed");
 }
 
@@ -141,7 +168,10 @@ fn test_agent_event_roundtrip_restart_requested() {
     let json = serde_json::to_string(&event).unwrap();
     let deserialized: AgentEvent = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.agent_id().map(|a| a.as_str()), Some("roundtrip-10"));
+    assert_eq!(
+        deserialized.agent_id().map(|a| a.as_str()),
+        Some("roundtrip-10")
+    );
     assert_eq!(deserialized.event_type(), "agent_restart_requested");
 }
 

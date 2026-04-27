@@ -22,7 +22,8 @@ fn test_database_query_const() {
 #[test]
 fn test_database_query_complex() {
     const QUERY: DatabaseQuery = DatabaseQuery::new(
-        "SELECT u.id, u.name, p.title FROM users u JOIN posts p ON u.id = p.user_id WHERE u.active = true"
+        "SELECT u.id, u.name, p.title FROM users u JOIN posts p ON u.id = p.user_id WHERE \
+         u.active = true",
     );
     assert!(QUERY.postgres().contains("JOIN"));
     assert!(QUERY.postgres().contains("WHERE"));
@@ -30,7 +31,8 @@ fn test_database_query_complex() {
 
 #[test]
 fn test_database_query_with_placeholders() {
-    const QUERY: DatabaseQuery = DatabaseQuery::new("SELECT * FROM users WHERE id = $1 AND status = $2");
+    const QUERY: DatabaseQuery =
+        DatabaseQuery::new("SELECT * FROM users WHERE id = $1 AND status = $2");
     assert!(QUERY.postgres().contains("$1"));
     assert!(QUERY.postgres().contains("$2"));
 }
@@ -139,7 +141,10 @@ fn test_query_result_first_some() {
 
     let first = result.first();
     first.as_ref().expect("first should be present");
-    assert_eq!(first.unwrap().get("name").unwrap(), &serde_json::json!("Alice"));
+    assert_eq!(
+        first.unwrap().get("name").unwrap(),
+        &serde_json::json!("Alice")
+    );
 }
 
 #[test]
@@ -256,17 +261,23 @@ fn test_query_result_with_null_values() {
     };
 
     let first = result.first().unwrap();
-    assert_eq!(first.get("nullable_field").unwrap(), &serde_json::Value::Null);
+    assert_eq!(
+        first.get("nullable_field").unwrap(),
+        &serde_json::Value::Null
+    );
 }
 
 #[test]
 fn test_query_result_with_nested_json() {
     let mut row = HashMap::new();
-    row.insert("data".to_string(), serde_json::json!({
-        "nested": {
-            "value": 123
-        }
-    }));
+    row.insert(
+        "data".to_string(),
+        serde_json::json!({
+            "nested": {
+                "value": 123
+            }
+        }),
+    );
 
     let result = QueryResult {
         columns: vec!["data".to_string()],

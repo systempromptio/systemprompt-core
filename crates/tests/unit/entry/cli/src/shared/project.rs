@@ -124,8 +124,7 @@ fn test_systemprompt_directory_must_be_directory() {
     let temp = TempDir::new().expect("Failed to create temp directory");
 
     // Create .systemprompt as a FILE instead of directory
-    std::fs::write(temp.path().join(".systemprompt"), "not a dir")
-        .expect("Failed to create file");
+    std::fs::write(temp.path().join(".systemprompt"), "not a dir").expect("Failed to create file");
 
     // Verify it's a file, not a directory
     assert!(temp.path().join(".systemprompt").is_file());
@@ -137,8 +136,7 @@ fn test_nested_project_structure() {
     let temp = TempDir::new().expect("Failed to create temp directory");
 
     // Create root/.systemprompt
-    std::fs::create_dir(temp.path().join(".systemprompt"))
-        .expect("Failed to create .systemprompt");
+    std::fs::create_dir(temp.path().join(".systemprompt")).expect("Failed to create .systemprompt");
 
     // Create nested subdirectories
     let nested = temp.path().join("src").join("components").join("auth");
@@ -280,7 +278,8 @@ fn test_temp_dir_cleanup() {
         assert!(path.exists());
     }
     // After temp goes out of scope, directory should be cleaned up
-    // Note: This is not guaranteed to be immediate, so we don't assert !path.exists()
+    // Note: This is not guaranteed to be immediate, so we don't assert
+    // !path.exists()
 }
 
 // ============================================================================

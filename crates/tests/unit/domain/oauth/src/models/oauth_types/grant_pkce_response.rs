@@ -48,9 +48,15 @@ fn test_grant_type_from_str_invalid() {
 
 #[test]
 fn test_grant_type_display() {
-    assert_eq!(format!("{}", GrantType::AuthorizationCode), "authorization_code");
+    assert_eq!(
+        format!("{}", GrantType::AuthorizationCode),
+        "authorization_code"
+    );
     assert_eq!(format!("{}", GrantType::RefreshToken), "refresh_token");
-    assert_eq!(format!("{}", GrantType::ClientCredentials), "client_credentials");
+    assert_eq!(
+        format!("{}", GrantType::ClientCredentials),
+        "client_credentials"
+    );
 }
 
 #[test]

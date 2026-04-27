@@ -9,7 +9,9 @@ mod build_thinking_config_tests {
     fn returns_config_for_2_5_models() {
         let config = build_thinking_config("gemini-2.5-flash");
         let config = config.expect("config should be present");
-        config.thinking_budget.expect("thinking_budget should be set");
+        config
+            .thinking_budget
+            .expect("thinking_budget should be set");
         assert_eq!(config.include_thoughts, Some(false));
     }
 

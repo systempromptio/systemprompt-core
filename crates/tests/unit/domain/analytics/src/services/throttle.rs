@@ -208,37 +208,55 @@ mod throttle_service_tests {
     #[test]
     fn should_escalate_returns_false_when_blocked() {
         let criteria = create_criteria(100, 1000, 1.0, 100.0);
-        assert!(!ThrottleService::should_escalate(&criteria, ThrottleLevel::Blocked));
+        assert!(!ThrottleService::should_escalate(
+            &criteria,
+            ThrottleLevel::Blocked
+        ));
     }
 
     #[test]
     fn should_escalate_on_high_bot_score() {
         let criteria = create_criteria(50, 10, 0.0, 5.0);
-        assert!(ThrottleService::should_escalate(&criteria, ThrottleLevel::Normal));
+        assert!(ThrottleService::should_escalate(
+            &criteria,
+            ThrottleLevel::Normal
+        ));
     }
 
     #[test]
     fn should_escalate_on_high_rpm() {
         let criteria = create_criteria(0, 10, 0.0, 31.0);
-        assert!(ThrottleService::should_escalate(&criteria, ThrottleLevel::Normal));
+        assert!(ThrottleService::should_escalate(
+            &criteria,
+            ThrottleLevel::Normal
+        ));
     }
 
     #[test]
     fn should_escalate_on_high_error_rate_with_requests() {
         let criteria = create_criteria(0, 25, 0.6, 5.0);
-        assert!(ThrottleService::should_escalate(&criteria, ThrottleLevel::Normal));
+        assert!(ThrottleService::should_escalate(
+            &criteria,
+            ThrottleLevel::Normal
+        ));
     }
 
     #[test]
     fn should_not_escalate_on_high_error_rate_with_few_requests() {
         let criteria = create_criteria(0, 15, 0.6, 5.0);
-        assert!(!ThrottleService::should_escalate(&criteria, ThrottleLevel::Normal));
+        assert!(!ThrottleService::should_escalate(
+            &criteria,
+            ThrottleLevel::Normal
+        ));
     }
 
     #[test]
     fn should_not_escalate_on_normal_traffic() {
         let criteria = create_criteria(20, 10, 0.05, 10.0);
-        assert!(!ThrottleService::should_escalate(&criteria, ThrottleLevel::Normal));
+        assert!(!ThrottleService::should_escalate(
+            &criteria,
+            ThrottleLevel::Normal
+        ));
     }
 
     #[test]
@@ -273,12 +291,20 @@ mod throttle_service_tests {
 
     #[test]
     fn can_deescalate_returns_false_for_normal() {
-        assert!(!ThrottleService::can_deescalate(ThrottleLevel::Normal, None, 30));
+        assert!(!ThrottleService::can_deescalate(
+            ThrottleLevel::Normal,
+            None,
+            30
+        ));
     }
 
     #[test]
     fn can_deescalate_returns_true_when_no_escalation_time() {
-        assert!(ThrottleService::can_deescalate(ThrottleLevel::Warning, None, 30));
+        assert!(ThrottleService::can_deescalate(
+            ThrottleLevel::Warning,
+            None,
+            30
+        ));
     }
 
     #[test]
@@ -319,5 +345,4 @@ mod throttle_service_tests {
             30
         ));
     }
-
 }

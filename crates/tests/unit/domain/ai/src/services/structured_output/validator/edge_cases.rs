@@ -193,7 +193,8 @@ mod complex_nested_tests {
             }
         });
 
-        SchemaValidator::validate(&value, &schema, true).expect("empty object with optional props should pass");
+        SchemaValidator::validate(&value, &schema, true)
+            .expect("empty object with optional props should pass");
     }
 
     #[test]

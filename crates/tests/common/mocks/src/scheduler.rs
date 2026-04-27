@@ -28,7 +28,11 @@ impl MockJobTrigger {
     }
 
     #[must_use]
-    pub fn with_trigger_error(mut self, job_name: impl Into<String>, err: impl Into<String>) -> Self {
+    pub fn with_trigger_error(
+        mut self,
+        job_name: impl Into<String>,
+        err: impl Into<String>,
+    ) -> Self {
         self.trigger_errors.insert(job_name.into(), err.into());
         self
     }

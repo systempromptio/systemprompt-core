@@ -1,7 +1,7 @@
 //! Tests for OAuth models
 
-mod oauth_types;
+mod analytics;
+mod cimd;
 mod clients;
 mod dynamic_registration;
-mod cimd;
-mod analytics;
+mod oauth_types;

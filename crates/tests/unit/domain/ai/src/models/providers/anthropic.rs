@@ -76,7 +76,7 @@ mod anthropic_message_tests {
         match msg.content {
             AnthropicContent::Blocks(blocks) => {
                 assert_eq!(blocks.len(), 1);
-            }
+            },
             _ => panic!("Expected Blocks content"),
         }
     }
@@ -155,7 +155,7 @@ mod anthropic_content_block_tests {
             AnthropicContentBlock::ToolUse { id, name, .. } => {
                 assert_eq!(id, "abc");
                 assert_eq!(name, "test");
-            }
+            },
             _ => panic!("Expected ToolUse block"),
         }
     }
@@ -352,7 +352,7 @@ mod anthropic_response_tests {
         match &response.content[0] {
             AnthropicContentBlock::ToolUse { name, .. } => {
                 assert_eq!(name, "calculator");
-            }
+            },
             _ => panic!("Expected ToolUse block"),
         }
     }

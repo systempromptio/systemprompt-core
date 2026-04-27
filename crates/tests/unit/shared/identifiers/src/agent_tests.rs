@@ -16,7 +16,9 @@ fn agent_id_generate_produces_uuid_v4_format() {
 
 #[test]
 fn agent_id_generate_unique_across_calls() {
-    let ids: HashSet<String> = (0..100).map(|_| AgentId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..100)
+        .map(|_| AgentId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 100);
 }
 

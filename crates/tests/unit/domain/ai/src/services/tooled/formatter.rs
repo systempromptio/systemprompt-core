@@ -1,10 +1,10 @@
 //! Tests for ToolResultFormatter.
 
-use systemprompt_ai::services::tooled::ToolResultFormatter;
-use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
-use systemprompt_identifiers::AiToolCallId;
 use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
 use serde_json::json;
+use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
+use systemprompt_ai::services::tooled::ToolResultFormatter;
+use systemprompt_identifiers::AiToolCallId;
 
 fn create_tool_call(name: &str) -> ToolCall {
     ToolCall {
@@ -61,10 +61,7 @@ mod format_for_ai_tests {
 
     #[test]
     fn formats_multiple_results() {
-        let calls = vec![
-            create_tool_call("tool1"),
-            create_tool_call("tool2"),
-        ];
+        let calls = vec![create_tool_call("tool1"), create_tool_call("tool2")];
         let results = vec![
             create_success_result("Result 1"),
             create_success_result("Result 2"),
@@ -118,7 +115,9 @@ mod format_for_synthesis_tests {
     #[test]
     fn includes_summary() {
         let calls = vec![create_tool_call("test")];
-        let results = vec![create_success_result("This is the summary line\nMore details here")];
+        let results = vec![create_success_result(
+            "This is the summary line\nMore details here",
+        )];
 
         let formatted = ToolResultFormatter::format_for_synthesis(&calls, &results);
 
@@ -148,10 +147,7 @@ mod format_for_synthesis_tests {
 
     #[test]
     fn separates_multiple_results() {
-        let calls = vec![
-            create_tool_call("a"),
-            create_tool_call("b"),
-        ];
+        let calls = vec![create_tool_call("a"), create_tool_call("b")];
         let results = vec![
             create_success_result("A result"),
             create_success_result("B result"),
@@ -168,14 +164,8 @@ mod format_for_display_tests {
 
     #[test]
     fn includes_index() {
-        let calls = vec![
-            create_tool_call("first"),
-            create_tool_call("second"),
-        ];
-        let results = vec![
-            create_success_result("1"),
-            create_success_result("2"),
-        ];
+        let calls = vec![create_tool_call("first"), create_tool_call("second")];
+        let results = vec![create_success_result("1"), create_success_result("2")];
 
         let formatted = ToolResultFormatter::format_for_display(&calls, &results);
 
@@ -253,10 +243,7 @@ mod format_fallback_summary_tests {
 
     #[test]
     fn combines_multiple_successes() {
-        let calls = vec![
-            create_tool_call("first"),
-            create_tool_call("second"),
-        ];
+        let calls = vec![create_tool_call("first"), create_tool_call("second")];
         let results = vec![
             create_success_result("First result"),
             create_success_result("Second result"),
@@ -272,10 +259,7 @@ mod format_fallback_summary_tests {
 
     #[test]
     fn mixed_success_and_failure() {
-        let calls = vec![
-            create_tool_call("success"),
-            create_tool_call("failure"),
-        ];
+        let calls = vec![create_tool_call("success"), create_tool_call("failure")];
         let results = vec![
             create_success_result("Good result"),
             create_error_result("Bad result"),

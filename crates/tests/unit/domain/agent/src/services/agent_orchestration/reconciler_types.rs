@@ -38,7 +38,9 @@ fn test_consistency_report_no_inconsistencies_with_consistent_running() {
 #[test]
 fn test_consistency_report_has_inconsistencies_with_inconsistent_running() {
     let mut report = ConsistencyReport::new();
-    report.inconsistent_running.push(("agent-1".to_string(), 1234));
+    report
+        .inconsistent_running
+        .push(("agent-1".to_string(), 1234));
 
     assert!(report.has_inconsistencies());
 }
@@ -46,7 +48,9 @@ fn test_consistency_report_has_inconsistencies_with_inconsistent_running() {
 #[test]
 fn test_consistency_report_has_inconsistencies_with_orphaned_processes() {
     let mut report = ConsistencyReport::new();
-    report.orphaned_processes.push(("agent-1".to_string(), 5678));
+    report
+        .orphaned_processes
+        .push(("agent-1".to_string(), 5678));
 
     assert!(report.has_inconsistencies());
 }
@@ -54,8 +58,12 @@ fn test_consistency_report_has_inconsistencies_with_orphaned_processes() {
 #[test]
 fn test_consistency_report_has_inconsistencies_with_both() {
     let mut report = ConsistencyReport::new();
-    report.inconsistent_running.push(("agent-1".to_string(), 1234));
-    report.orphaned_processes.push(("agent-2".to_string(), 5678));
+    report
+        .inconsistent_running
+        .push(("agent-1".to_string(), 1234));
+    report
+        .orphaned_processes
+        .push(("agent-2".to_string(), 5678));
 
     assert!(report.has_inconsistencies());
 }
@@ -133,7 +141,9 @@ fn test_consistency_report_log_summary_no_inconsistencies() {
 #[test]
 fn test_consistency_report_log_summary_with_inconsistencies() {
     let mut report = ConsistencyReport::new();
-    report.inconsistent_running.push(("agent-1".to_string(), 42));
+    report
+        .inconsistent_running
+        .push(("agent-1".to_string(), 42));
     report.log_summary();
 
     assert!(report.has_inconsistencies());

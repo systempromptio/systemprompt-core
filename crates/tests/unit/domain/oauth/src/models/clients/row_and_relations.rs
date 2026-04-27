@@ -132,8 +132,15 @@ fn test_client_relations_with_multiple_values() {
             "refresh_token".to_string(),
         ],
         response_types: vec!["code".to_string()],
-        scopes: vec!["openid".to_string(), "profile".to_string(), "email".to_string()],
-        contacts: Some(vec!["admin@example.com".to_string(), "dev@example.com".to_string()]),
+        scopes: vec![
+            "openid".to_string(),
+            "profile".to_string(),
+            "email".to_string(),
+        ],
+        contacts: Some(vec![
+            "admin@example.com".to_string(),
+            "dev@example.com".to_string(),
+        ]),
     };
 
     assert_eq!(relations.redirect_uris.len(), 2);

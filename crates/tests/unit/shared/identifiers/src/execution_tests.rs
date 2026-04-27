@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{ExecutionStepId, LogId, TokenId, ArtifactId, DbValue, ToDbValue};
+use systemprompt_identifiers::{ArtifactId, DbValue, ExecutionStepId, LogId, ToDbValue, TokenId};
 
 #[test]
 fn execution_step_id_generate_uuid_format() {
@@ -10,7 +10,9 @@ fn execution_step_id_generate_uuid_format() {
 
 #[test]
 fn execution_step_id_generate_unique() {
-    let ids: HashSet<String> = (0..10).map(|_| ExecutionStepId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..10)
+        .map(|_| ExecutionStepId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 10);
 }
 

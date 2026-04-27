@@ -1,10 +1,10 @@
 //! Tests for ResponseStrategy and TooledExecutor.
 
-use systemprompt_ai::services::tooled::ResponseStrategy;
-use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
-use systemprompt_identifiers::AiToolCallId;
 use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
 use serde_json::json;
+use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
+use systemprompt_ai::services::tooled::ResponseStrategy;
+use systemprompt_identifiers::AiToolCallId;
 
 fn create_tool_call(name: &str) -> ToolCall {
     ToolCall {
@@ -42,7 +42,7 @@ mod response_strategy_tests {
         match strategy {
             ResponseStrategy::ContentProvided { content: c, .. } => {
                 assert_eq!(c, content);
-            }
+            },
             _ => panic!("Expected ContentProvided"),
         }
     }
@@ -53,17 +53,18 @@ mod response_strategy_tests {
         let tool_calls = vec![create_tool_call("test")];
         let tool_results = vec![create_result_with_content("result")];
 
-        let strategy = ResponseStrategy::from_response(content, tool_calls.clone(), tool_results.clone());
+        let strategy =
+            ResponseStrategy::from_response(content, tool_calls.clone(), tool_results.clone());
 
         // Empty whitespace should not trigger ContentProvided with that content
         match strategy {
             ResponseStrategy::ToolsOnly { .. } | ResponseStrategy::ArtifactsProvided { .. } => {
                 // Expected when content is just whitespace
-            }
+            },
             ResponseStrategy::ContentProvided { content: c, .. } => {
                 // Also acceptable if content is preserved
                 assert!(c.trim().is_empty() || !c.is_empty());
-            }
+            },
         }
     }
 
@@ -78,7 +79,7 @@ mod response_strategy_tests {
         match strategy {
             ResponseStrategy::ContentProvided { content: c, .. } => {
                 assert_eq!(c, content);
-            }
+            },
             _ => panic!("Expected ContentProvided for empty tools"),
         }
     }
@@ -86,20 +87,14 @@ mod response_strategy_tests {
     #[test]
     fn preserves_tool_calls_and_results() {
         let content = "Response".to_string();
-        let tool_calls = vec![
-            create_tool_call("tool1"),
-            create_tool_call("tool2"),
-        ];
+        let tool_calls = vec![create_tool_call("tool1"), create_tool_call("tool2")];
         let tool_results = vec![
             create_result_with_content("result1"),
             create_result_with_content("result2"),
         ];
 
-        let strategy = ResponseStrategy::from_response(
-            content,
-            tool_calls.clone(),
-            tool_results.clone(),
-        );
+        let strategy =
+            ResponseStrategy::from_response(content, tool_calls.clone(), tool_results.clone());
 
         match strategy {
             ResponseStrategy::ContentProvided {
@@ -109,7 +104,7 @@ mod response_strategy_tests {
             } => {
                 assert_eq!(tc.len(), 2);
                 assert_eq!(tr.len(), 2);
-            }
+            },
             _ => panic!("Expected ContentProvided"),
         }
     }

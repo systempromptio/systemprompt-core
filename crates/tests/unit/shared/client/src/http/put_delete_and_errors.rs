@@ -1,4 +1,5 @@
-//! Tests for PUT, DELETE requests, error response handling, network errors, and timeouts
+//! Tests for PUT, DELETE requests, error response handling, network errors, and
+//! timeouts
 
 #[cfg(test)]
 use systemprompt_client::SystempromptClient;
@@ -113,7 +114,10 @@ async fn test_delete_request_with_auth() {
         .unwrap()
         .with_token(token);
 
-    client.delete_context("ctx-123").await.expect("DELETE with auth should succeed");
+    client
+        .delete_context("ctx-123")
+        .await
+        .expect("DELETE with auth should succeed");
 }
 
 #[tokio::test]

@@ -26,7 +26,7 @@ fn test_from_response_creates_api_error() {
             assert_eq!(status, 404);
             assert_eq!(message, "Not found");
             assert_eq!(details, Some("Not found".to_string()));
-        }
+        },
         _ => panic!("Expected ApiError variant"),
     }
 }
@@ -44,7 +44,7 @@ fn test_from_response_with_empty_body() {
             assert_eq!(status, 500);
             assert!(message.is_empty());
             assert_eq!(details, Some(String::new()));
-        }
+        },
         _ => panic!("Expected ApiError variant"),
     }
 }
@@ -63,7 +63,7 @@ fn test_from_response_with_json_error_body() {
             assert_eq!(status, 400);
             assert_eq!(message, body);
             assert_eq!(details, Some(body));
-        }
+        },
         _ => panic!("Expected ApiError variant"),
     }
 }
@@ -91,7 +91,7 @@ fn test_from_response_various_status_codes() {
             } => {
                 assert_eq!(s, status);
                 assert_eq!(m, message);
-            }
+            },
             _ => panic!("Expected ApiError variant for status {}", status),
         }
     }
@@ -232,7 +232,7 @@ fn test_api_error_with_details() {
             assert_eq!(status, 422);
             assert_eq!(message, "Validation failed");
             assert_eq!(details, Some("Field 'email' is required".to_string()));
-        }
+        },
         _ => panic!("Expected ApiError"),
     }
 }
@@ -248,7 +248,7 @@ fn test_api_error_without_details() {
     match error {
         ClientError::ApiError { details, .. } => {
             assert!(details.is_none());
-        }
+        },
         _ => panic!("Expected ApiError"),
     }
 }

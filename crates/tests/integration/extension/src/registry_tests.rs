@@ -136,12 +136,16 @@ fn test_registry_extension_metadata() {
 #[test]
 fn test_validate_api_path_valid() {
     let registry = TypedExtensionRegistry::new();
-    assert!(registry
-        .validate_api_path("my-ext", "/api/v1/myext")
-        .is_ok());
-    assert!(registry
-        .validate_api_path("my-ext", "/api/v2/something")
-        .is_ok());
+    assert!(
+        registry
+            .validate_api_path("my-ext", "/api/v1/myext")
+            .is_ok()
+    );
+    assert!(
+        registry
+            .validate_api_path("my-ext", "/api/v2/something")
+            .is_ok()
+    );
 }
 
 #[test]

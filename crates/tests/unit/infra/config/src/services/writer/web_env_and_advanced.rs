@@ -1,4 +1,5 @@
-//! Tests for web env file generation, vite filtering, docker, symlinks, and environments
+//! Tests for web env file generation, vite filtering, docker, symlinks, and
+//! environments
 
 use std::collections::HashMap;
 use std::fs;
@@ -36,7 +37,8 @@ regular_var: should_not_appear
 name: test
 "#;
 
-    let temp_dir = create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
+    let temp_dir =
+        create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
     let config = manager
@@ -65,14 +67,17 @@ api_key: secret
 name: test
 "#;
 
-    let temp_dir = create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
+    let temp_dir =
+        create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
         .expect("Should generate config");
 
-    manager.write_web_env_file(&config).expect("Should write web env file with no vite vars");
+    manager
+        .write_web_env_file(&config)
+        .expect("Should write web env file with no vite vars");
 
     let web_env_path = temp_dir.path().join("web/.env.local");
     assert!(!web_env_path.exists());
@@ -87,7 +92,8 @@ vite_test: value
 name: test
 "#;
 
-    let temp_dir = create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "core/web");
+    let temp_dir =
+        create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "core/web");
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
     let config = manager
@@ -111,7 +117,8 @@ vite_api_url: http://api:8080
 name: docker-test
 "#;
 
-    let temp_dir = create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::DockerDev, "web");
+    let temp_dir =
+        create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::DockerDev, "web");
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
     let config = manager
@@ -139,7 +146,8 @@ vite_test: value
 name: test
 "#;
 
-    let temp_dir = create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
+    let temp_dir =
+        create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
     let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
     let config = manager

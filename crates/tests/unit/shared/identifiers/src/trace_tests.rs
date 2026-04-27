@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{TraceId, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, ToDbValue, TraceId};
 
 #[test]
 fn system_factory_value() {
@@ -15,7 +15,9 @@ fn generate_uuid_format() {
 
 #[test]
 fn generate_unique() {
-    let ids: HashSet<String> = (0..20).map(|_| TraceId::generate().as_str().to_string()).collect();
+    let ids: HashSet<String> = (0..20)
+        .map(|_| TraceId::generate().as_str().to_string())
+        .collect();
     assert_eq!(ids.len(), 20);
 }
 

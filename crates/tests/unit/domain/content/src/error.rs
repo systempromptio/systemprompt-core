@@ -179,7 +179,9 @@ fn test_content_error_is_not_found() {
         )
     }
 
-    assert!(is_not_found(&ContentError::ContentNotFound("a".to_string())));
+    assert!(is_not_found(&ContentError::ContentNotFound(
+        "a".to_string()
+    )));
     assert!(is_not_found(&ContentError::LinkNotFound("b".to_string())));
     assert!(!is_not_found(&ContentError::DatabaseNotPostgres));
     assert!(!is_not_found(&ContentError::Validation("c".to_string())));

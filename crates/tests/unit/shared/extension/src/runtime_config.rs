@@ -32,5 +32,7 @@ fn web_assets_strategy_debug_format() {
 fn web_assets_strategy_clone() {
     let strategy = WebAssetsStrategy::FilePath(std::path::PathBuf::from("/assets"));
     let cloned = strategy.clone();
-    assert!(matches!(cloned, WebAssetsStrategy::FilePath(ref p) if p.to_str().unwrap() == "/assets"));
+    assert!(
+        matches!(cloned, WebAssetsStrategy::FilePath(ref p) if p.to_str().unwrap() == "/assets")
+    );
 }

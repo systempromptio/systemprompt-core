@@ -1,12 +1,13 @@
 //! Tests for OAuth client configuration validation behavior
 //!
 //! The `validate_registration_token` function in
-//! `routes::oauth::endpoints::client_config::validation` is not publicly exported.
-//! These tests verify the header parsing contract that the validation enforces,
-//! using the same header construction patterns the production code uses.
+//! `routes::oauth::endpoints::client_config::validation` is not publicly
+//! exported. These tests verify the header parsing contract that the validation
+//! enforces, using the same header construction patterns the production code
+//! uses.
 
-use http::header::HeaderValue;
 use http::HeaderMap;
+use http::header::HeaderValue;
 
 #[test]
 fn test_validate_reg_token_missing_header_produces_no_auth() {

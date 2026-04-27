@@ -40,7 +40,9 @@ fn test_agent_extension_artifact_rendering() {
 
     assert!(ext.uri.contains("artifact-rendering"));
     let params = ext.params.expect("params should be set");
-    params.get("supported_types").expect("supported_types param should be set");
+    params
+        .get("supported_types")
+        .expect("supported_types param should be set");
 }
 
 #[test]
@@ -60,7 +62,10 @@ fn test_agent_extension_system_instructions() {
     assert_eq!(ext.uri, "systemprompt:system-instructions");
     assert_eq!(ext.required, Some(true));
     let params = ext.params.unwrap();
-    assert_eq!(params.get("systemPrompt").unwrap(), "You are a helpful assistant");
+    assert_eq!(
+        params.get("systemPrompt").unwrap(),
+        "You are a helpful assistant"
+    );
 }
 
 #[test]

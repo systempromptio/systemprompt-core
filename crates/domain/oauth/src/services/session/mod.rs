@@ -28,6 +28,7 @@ pub enum SessionCreationError {
 struct SessionCreationParams<'a> {
     analytics: SessionAnalytics,
     is_bot: bool,
+    is_ai_crawler: bool,
     fingerprint: String,
     client_id: &'a ClientId,
     jwt_secret: &'a str,
@@ -115,12 +116,14 @@ impl SessionCreationService {
         let analytics = self
             .analytics_provider
             .extract_analytics(input.headers, input.uri);
+        let is_ai_crawler = analytics.is_ai_crawler();
         let is_bot = analytics.is_bot();
         let fingerprint = analytics.compute_fingerprint();
 
         let params = SessionCreationParams {
             analytics,
             is_bot,
+            is_ai_crawler,
             fingerprint,
             client_id: input.client_id,
             jwt_secret: input.jwt_secret,
@@ -149,6 +152,7 @@ impl SessionCreationService {
 
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
         let analytics = self.analytics_provider.extract_analytics(headers, None);
+        let is_ai_crawler = analytics.is_ai_crawler();
         let is_bot = analytics.is_bot();
 
         let global_config = systemprompt_models::Config::get()
@@ -163,6 +167,7 @@ impl SessionCreationService {
                 analytics: &analytics,
                 session_source,
                 is_bot,
+                is_ai_crawler,
                 expires_at,
             })
             .await

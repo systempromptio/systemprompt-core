@@ -34,14 +34,12 @@ impl Fixture {
             .execute(&pool)
             .await?;
 
-        sqlx::query(
-            "INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, $3)",
-        )
-        .bind(&context_id)
-        .bind(&user_id)
-        .bind(format!("ctx-{tag}"))
-        .execute(&pool)
-        .await?;
+        sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, $3)")
+            .bind(&context_id)
+            .bind(&user_id)
+            .bind(format!("ctx-{tag}"))
+            .execute(&pool)
+            .await?;
 
         let uuid = Uuid::new_v4();
         let offset_days = i64::from(u32::from_le_bytes(
@@ -65,8 +63,8 @@ impl Fixture {
     async fn insert_task(&self, agent_name: Option<&str>) -> Result<String> {
         let task_id = format!("task_{}_{}", self.tag, Uuid::new_v4().simple());
         sqlx::query(
-            "INSERT INTO agent_tasks (task_id, context_id, agent_name, user_id) \
-             VALUES ($1, $2, $3, $4)",
+            "INSERT INTO agent_tasks (task_id, context_id, agent_name, user_id) VALUES ($1, $2, \
+             $3, $4)",
         )
         .bind(&task_id)
         .bind(&self.context_id)
@@ -87,11 +85,9 @@ impl Fixture {
         let id = format!("req_{}_{}", self.tag, Uuid::new_v4().simple());
         let created_at = self.window_start + Duration::minutes(offset_minutes);
         sqlx::query(
-            "INSERT INTO ai_requests \
-             (id, request_id, user_id, task_id, provider, model, \
-              cost_microdollars, tokens_used, status, created_at, updated_at) \
-             VALUES ($1, $2, $3, $4, 'test-provider', 'test-model', \
-                     $5, $6, 'completed', $7, $7)",
+            "INSERT INTO ai_requests (id, request_id, user_id, task_id, provider, model, \
+             cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, $3, \
+             $4, 'test-provider', 'test-model', $5, $6, 'completed', $7, $7)",
         )
         .bind(&id)
         .bind(&id)
@@ -128,10 +124,12 @@ async fn breakdown_reconciles_with_summary_when_all_attributed() -> Result<()> {
     let task_a = fx.insert_task(Some(&format!("agent-a-{}", fx.tag))).await?;
     let task_b = fx.insert_task(Some(&format!("agent-b-{}", fx.tag))).await?;
     for i in 0..5 {
-        fx.insert_ai_request(Some(&task_a), 1_000 * (i + 1), 100, i).await?;
+        fx.insert_ai_request(Some(&task_a), 1_000 * (i + 1), 100, i)
+            .await?;
     }
     for i in 0..5 {
-        fx.insert_ai_request(Some(&task_b), 500 * (i + 1), 50, i + 5).await?;
+        fx.insert_ai_request(Some(&task_b), 500 * (i + 1), 50, i + 5)
+            .await?;
     }
 
     let repo = fx.repo()?;
@@ -215,8 +213,14 @@ async fn unattributed_row_survives_limit() -> Result<()> {
         "unattributed row must survive LIMIT truncation, got: {:?}",
         breakdown.iter().map(|r| &r.name).collect::<Vec<_>>()
     );
-    let attributed_count = breakdown.iter().filter(|r| r.name != "unattributed").count();
-    assert_eq!(attributed_count, 2, "LIMIT should bound attributed rows to 2");
+    let attributed_count = breakdown
+        .iter()
+        .filter(|r| r.name != "unattributed")
+        .count();
+    assert_eq!(
+        attributed_count, 2,
+        "LIMIT should bound attributed rows to 2"
+    );
 
     fx.cleanup().await?;
     Ok(())

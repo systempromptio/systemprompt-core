@@ -30,6 +30,7 @@ impl SessionCreationService {
                 analytics: &params.analytics,
                 session_source: params.session_source,
                 is_bot: params.is_bot,
+                is_ai_crawler: params.is_ai_crawler,
                 expires_at,
             })
             .await

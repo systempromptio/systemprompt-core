@@ -37,7 +37,10 @@ fn error_response_has_required_fields() {
     let json = serde_json::to_value(&error).unwrap();
 
     assert!(json["code"].is_number(), "Error must have numeric code");
-    assert!(json["message"].is_string(), "Error must have string message");
+    assert!(
+        json["message"].is_string(),
+        "Error must have string message"
+    );
 }
 
 #[test]

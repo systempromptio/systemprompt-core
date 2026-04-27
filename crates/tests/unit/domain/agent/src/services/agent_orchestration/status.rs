@@ -25,7 +25,7 @@ fn test_agent_status_running() {
         AgentStatus::Running { pid, port } => {
             assert_eq!(pid, 12345);
             assert_eq!(port, 8080);
-        }
+        },
         _ => panic!("Expected Running variant"),
     }
 }
@@ -47,7 +47,7 @@ fn test_agent_status_failed() {
             assert_eq!(reason, "Connection refused");
             assert_eq!(last_attempt, Some("2024-01-01T12:00:00Z".to_string()));
             assert_eq!(retry_count, 3);
-        }
+        },
         _ => panic!("Expected Failed variant"),
     }
 }
@@ -63,7 +63,7 @@ fn test_agent_status_failed_no_last_attempt() {
     match status {
         AgentStatus::Failed { last_attempt, .. } => {
             assert!(last_attempt.is_none());
-        }
+        },
         _ => panic!("Expected Failed variant"),
     }
 }

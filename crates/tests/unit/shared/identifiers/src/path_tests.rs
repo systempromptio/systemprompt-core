@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{ValidatedFilePath, DbValue, ToDbValue};
+use systemprompt_identifiers::{DbValue, ToDbValue, ValidatedFilePath};
 
 #[test]
 fn valid_simple_path() {

@@ -1,7 +1,7 @@
+use systemprompt_mcp::services::orchestrator::McpEvent;
 use systemprompt_mcp::services::orchestrator::handlers::{
     EventHandler, HealthCheckHandler, MonitoringHandler,
 };
-use systemprompt_mcp::services::orchestrator::McpEvent;
 
 #[test]
 fn health_check_handler_new_returns_default_state() {

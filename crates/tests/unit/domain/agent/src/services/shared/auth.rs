@@ -6,7 +6,7 @@
 //! - AgentSessionUser construction
 
 use systemprompt_agent::services::shared::auth::{
-    extract_bearer_token, AgentSessionUser, JwtValidator,
+    AgentSessionUser, JwtValidator, extract_bearer_token,
 };
 
 // ============================================================================

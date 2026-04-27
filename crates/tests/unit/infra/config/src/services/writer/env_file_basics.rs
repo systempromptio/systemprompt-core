@@ -1,4 +1,5 @@
-//! Tests for env file creation, content format, quoting, sorting, and special characters
+//! Tests for env file creation, content format, quoting, sorting, and special
+//! characters
 
 use std::collections::HashMap;
 use std::fs;
@@ -29,7 +30,10 @@ fn test_write_env_file_content_format() {
     let output_path = temp_dir.path().join(".env");
 
     let mut variables = HashMap::new();
-    variables.insert("DATABASE_URL".to_string(), "postgres://localhost".to_string());
+    variables.insert(
+        "DATABASE_URL".to_string(),
+        "postgres://localhost".to_string(),
+    );
     variables.insert("PORT".to_string(), "8080".to_string());
 
     let config = EnvironmentConfig {
@@ -135,7 +139,10 @@ fn test_write_env_file_special_characters() {
     let output_path = temp_dir.path().join(".env");
 
     let mut variables = HashMap::new();
-    variables.insert("URL".to_string(), "https://api.example.com/v1?key=abc".to_string());
+    variables.insert(
+        "URL".to_string(),
+        "https://api.example.com/v1?key=abc".to_string(),
+    );
     variables.insert("REGEX".to_string(), "^[a-zA-Z0-9]+$".to_string());
     variables.insert("JSON".to_string(), "{\"key\":\"value\"}".to_string());
 
@@ -158,7 +165,10 @@ fn test_write_env_file_equals_in_value() {
     let output_path = temp_dir.path().join(".env");
 
     let mut variables = HashMap::new();
-    variables.insert("CONNECTION_STRING".to_string(), "host=localhost;port=5432".to_string());
+    variables.insert(
+        "CONNECTION_STRING".to_string(),
+        "host=localhost;port=5432".to_string(),
+    );
 
     let config = EnvironmentConfig {
         environment: DeployEnvironment::Local,

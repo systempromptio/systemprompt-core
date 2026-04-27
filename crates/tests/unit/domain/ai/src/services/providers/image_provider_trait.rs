@@ -113,7 +113,10 @@ mod image_provider_capabilities_tests {
 
         assert_eq!(caps.supported_aspect_ratios.len(), 6);
         assert!(caps.supported_aspect_ratios.contains(&AspectRatio::Square));
-        assert!(caps.supported_aspect_ratios.contains(&AspectRatio::UltraWide));
+        assert!(
+            caps.supported_aspect_ratios
+                .contains(&AspectRatio::UltraWide)
+        );
     }
 
     #[test]

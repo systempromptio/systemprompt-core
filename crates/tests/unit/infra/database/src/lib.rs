@@ -27,7 +27,6 @@ mod admin;
 mod repository;
 
 #[cfg(test)]
-
 #[cfg(test)]
 mod lifecycle;
 

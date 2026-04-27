@@ -4,8 +4,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::{
-    CallSource, ContextExtractionError, ContextIdSource, RequestContext,
-    TASK_BASED_CONTEXT_MARKER,
+    CallSource, ContextExtractionError, ContextIdSource, RequestContext, TASK_BASED_CONTEXT_MARKER,
 };
 
 fn test_context() -> RequestContext {
@@ -124,10 +123,7 @@ fn request_context_with_task_id() {
 
 #[test]
 fn request_context_with_task_sets_both_task_and_source() {
-    let ctx = test_context().with_task(
-        TaskId::new("task-2"),
-        CallSource::Agentic,
-    );
+    let ctx = test_context().with_task(TaskId::new("task-2"), CallSource::Agentic);
     assert_eq!(ctx.task_id().unwrap().as_str(), "task-2");
     assert_eq!(ctx.call_source(), Some(CallSource::Agentic));
 }
@@ -140,8 +136,7 @@ fn request_context_with_ai_tool_call_id() {
 
 #[test]
 fn request_context_with_mcp_execution_id() {
-    let ctx = test_context()
-        .with_mcp_execution_id(McpExecutionId::from("mcp-exec-1".to_string()));
+    let ctx = test_context().with_mcp_execution_id(McpExecutionId::from("mcp-exec-1".to_string()));
     assert!(ctx.mcp_execution_id().is_some());
 }
 

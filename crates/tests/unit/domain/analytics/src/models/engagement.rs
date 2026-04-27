@@ -37,7 +37,12 @@ mod engagement_optional_metrics_tests {
 mod create_engagement_event_input_tests {
     use super::*;
 
-    fn create_input(page_url: &str, time_ms: i32, scroll: i32, clicks: i32) -> CreateEngagementEventInput {
+    fn create_input(
+        page_url: &str,
+        time_ms: i32,
+        scroll: i32,
+        clicks: i32,
+    ) -> CreateEngagementEventInput {
         CreateEngagementEventInput {
             page_url: page_url.to_string(),
             time_on_page_ms: time_ms,
@@ -72,7 +77,10 @@ mod create_engagement_event_input_tests {
             ..Default::default()
         };
 
-        assert_eq!(input.optional_metrics.time_to_first_interaction_ms, Some(200));
+        assert_eq!(
+            input.optional_metrics.time_to_first_interaction_ms,
+            Some(200)
+        );
         assert_eq!(input.optional_metrics.is_dead_click, Some(true));
         assert!(input.optional_metrics.is_rage_click.is_none());
     }

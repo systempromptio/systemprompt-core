@@ -24,7 +24,10 @@ async fn test_broadcaster_broadcast_to_single_connection() {
     let count = broadcaster.broadcast(&user_id, test_event()).await;
 
     assert_eq!(count, 1);
-    let _event = receiver.recv().await.expect("Should receive broadcast message");
+    let _event = receiver
+        .recv()
+        .await
+        .expect("Should receive broadcast message");
 }
 
 #[tokio::test]
@@ -83,7 +86,10 @@ async fn test_broadcaster_broadcast_only_to_target_user() {
     let count = broadcaster.broadcast(&user1, test_event()).await;
 
     assert_eq!(count, 1);
-    let _event = rx1.recv().await.expect("Should receive on user1 connection");
+    let _event = rx1
+        .recv()
+        .await
+        .expect("Should receive on user1 connection");
     rx2.try_recv().unwrap_err();
 }
 

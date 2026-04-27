@@ -6,8 +6,8 @@
 
 #[test]
 fn test_generate_link_params_debug() {
-    use systemprompt_content::services::link::generation::GenerateLinkParams;
     use systemprompt_content::models::LinkType;
+    use systemprompt_content::services::link::generation::GenerateLinkParams;
 
     let params = GenerateLinkParams {
         target_url: "https://example.com".to_string(),
@@ -29,10 +29,10 @@ fn test_generate_link_params_debug() {
 
 #[test]
 fn test_generate_link_params_full() {
-    use systemprompt_content::services::link::generation::GenerateLinkParams;
-    use systemprompt_content::models::{LinkType, UtmParams};
-    use systemprompt_identifiers::{CampaignId, ContentId};
     use chrono::Utc;
+    use systemprompt_content::models::{LinkType, UtmParams};
+    use systemprompt_content::services::link::generation::GenerateLinkParams;
+    use systemprompt_identifiers::{CampaignId, ContentId};
 
     let params = GenerateLinkParams {
         target_url: "https://example.com/target".to_string(),

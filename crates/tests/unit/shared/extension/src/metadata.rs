@@ -65,7 +65,9 @@ fn schema_definition_inline_constructor() {
 fn schema_definition_file_constructor() {
     let schema = SchemaDefinition::file("users", PathBuf::from("/path/to/schema.sql"));
     assert_eq!(schema.table, "users");
-    assert!(matches!(schema.sql, SchemaSource::File(ref p) if p.to_str().unwrap().contains("schema.sql")));
+    assert!(
+        matches!(schema.sql, SchemaSource::File(ref p) if p.to_str().unwrap().contains("schema.sql"))
+    );
 }
 
 #[test]

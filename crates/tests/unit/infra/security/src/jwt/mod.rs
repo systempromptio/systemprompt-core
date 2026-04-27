@@ -249,4 +249,3 @@ fn test_jwt_service_debug() {
     let debug_str = format!("{:?}", service);
     assert!(debug_str.contains("JwtService"));
 }
-

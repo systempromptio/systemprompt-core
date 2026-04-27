@@ -62,8 +62,8 @@ fn test_load_stats_clone() {
 
 #[test]
 fn test_parsed_content_creation() {
-    use std::path::PathBuf;
     use chrono::{TimeZone, Utc};
+    use std::path::PathBuf;
 
     let content = ParsedContent {
         slug: "test-article".to_string(),
@@ -87,13 +87,16 @@ fn test_parsed_content_creation() {
     assert_eq!(content.kind, "article");
     assert_eq!(content.source_id.as_str(), "blog");
     assert_eq!(content.category_id.as_str(), "tech");
-    assert_eq!(content.file_path, PathBuf::from("/content/articles/test.md"));
+    assert_eq!(
+        content.file_path,
+        PathBuf::from("/content/articles/test.md")
+    );
 }
 
 #[test]
 fn test_parsed_content_without_image() {
-    use std::path::PathBuf;
     use chrono::Utc;
+    use std::path::PathBuf;
 
     let content = ParsedContent {
         slug: "no-image".to_string(),
@@ -116,8 +119,8 @@ fn test_parsed_content_without_image() {
 
 #[test]
 fn test_parsed_content_clone() {
-    use std::path::PathBuf;
     use chrono::Utc;
+    use std::path::PathBuf;
 
     let content = ParsedContent {
         slug: "clone-test".to_string(),
@@ -155,7 +158,12 @@ fn test_url_pattern_matching_exact() {
     let path_parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
 
     assert_eq!(pattern_parts.len(), path_parts.len());
-    assert!(pattern_parts.iter().zip(path_parts.iter()).all(|(p, pp)| p == pp));
+    assert!(
+        pattern_parts
+            .iter()
+            .zip(path_parts.iter())
+            .all(|(p, pp)| p == pp)
+    );
 }
 
 #[test]
@@ -172,9 +180,10 @@ fn test_url_pattern_matching_with_slug() {
     assert_eq!(pattern_parts[1], "{slug}");
 
     // {slug} should match any value
-    let matches = pattern_parts.iter().zip(path_parts.iter()).all(|(p, pp)| {
-        *p == "{slug}" || p == pp
-    });
+    let matches = pattern_parts
+        .iter()
+        .zip(path_parts.iter())
+        .all(|(p, pp)| *p == "{slug}" || p == pp);
     assert!(matches);
 }
 

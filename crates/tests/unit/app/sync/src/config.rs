@@ -16,8 +16,13 @@ mod sync_config_builder_tests {
     use super::*;
 
     fn test_builder() -> SyncConfig {
-        SyncConfig::builder("tenant-1", "https://api.example.com", "token123", "/services")
-            .build()
+        SyncConfig::builder(
+            "tenant-1",
+            "https://api.example.com",
+            "token123",
+            "/services",
+        )
+        .build()
     }
 
     #[test]
@@ -82,91 +87,81 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_direction_sets_direction() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_direction(SyncDirection::Pull)
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_direction(SyncDirection::Pull)
+            .build();
         assert_eq!(config.direction, SyncDirection::Pull);
     }
 
     #[test]
     fn with_dry_run_true() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_dry_run(true)
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_dry_run(true)
+            .build();
         assert!(config.dry_run);
     }
 
     #[test]
     fn with_dry_run_false() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_dry_run(false)
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_dry_run(false)
+            .build();
         assert!(!config.dry_run);
     }
 
     #[test]
     fn with_verbose_true() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_verbose(true)
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_verbose(true)
+            .build();
         assert!(config.verbose);
     }
 
     #[test]
     fn with_verbose_false() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_verbose(false)
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_verbose(false)
+            .build();
         assert!(!config.verbose);
     }
 
     #[test]
     fn with_hostname_some() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_hostname(Some("host.example.com".to_string()))
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_hostname(Some("host.example.com".to_string()))
+            .build();
         assert_eq!(config.hostname, Some("host.example.com".to_string()));
     }
 
     #[test]
     fn with_hostname_none() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_hostname(None)
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_hostname(None)
+            .build();
         assert!(config.hostname.is_none());
     }
 
     #[test]
     fn with_sync_token_some() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_sync_token(Some("sync-token-123".to_string()))
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_sync_token(Some("sync-token-123".to_string()))
+            .build();
         assert_eq!(config.sync_token, Some("sync-token-123".to_string()));
     }
 
     #[test]
     fn with_sync_token_none() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_sync_token(None)
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_sync_token(None)
+            .build();
         assert!(config.sync_token.is_none());
     }
 
     #[test]
     fn with_local_database_url() {
-        let config =
-            SyncConfig::builder("t", "url", "token", "/path")
-                .with_local_database_url("postgres://localhost/db")
-                .build();
+        let config = SyncConfig::builder("t", "url", "token", "/path")
+            .with_local_database_url("postgres://localhost/db")
+            .build();
         assert_eq!(
             config.local_database_url,
             Some("postgres://localhost/db".to_string())
@@ -242,9 +237,12 @@ mod sync_operation_result_tests {
 
     #[test]
     fn with_details_adds_details() {
-        let result = SyncOperationResult::success("op", 5)
-            .with_details(serde_json::json!({"key": "value"}));
-        result.details.as_ref().expect("result.details should be present");
+        let result =
+            SyncOperationResult::success("op", 5).with_details(serde_json::json!({"key": "value"}));
+        result
+            .details
+            .as_ref()
+            .expect("result.details should be present");
         let details = result.details.as_ref().unwrap();
         assert_eq!(details["key"], "value");
     }

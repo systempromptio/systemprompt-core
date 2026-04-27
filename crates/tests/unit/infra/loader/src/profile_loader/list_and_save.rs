@@ -123,8 +123,7 @@ fn test_list_available_ignores_other_files() {
     .expect("Failed to write profile");
 
     // Create other files that should be ignored
-    std::fs::write(profiles_dir.join("config.yaml"), "key: value")
-        .expect("Failed to write config");
+    std::fs::write(profiles_dir.join("config.yaml"), "key: value").expect("Failed to write config");
     std::fs::write(profiles_dir.join("README.md"), "# Profiles").expect("Failed to write readme");
     std::fs::write(profiles_dir.join("dev.backup.yaml"), "backup: true")
         .expect("Failed to write backup");
@@ -145,7 +144,8 @@ fn test_save_profile() {
     // Create required directories first
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
-    std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("services"))
+        .expect("Failed to create services dir");
 
     let profile_content = format!(
         r#"
@@ -203,8 +203,7 @@ rate_limits:
     let profile = ProfileLoader::load_from_path(&profile_path).expect("Failed to load profile");
 
     // Save to a different location
-    ProfileLoader::save(&profile, temp_dir.path())
-        .expect("should save profile");
+    ProfileLoader::save(&profile, temp_dir.path()).expect("should save profile");
 
     // Verify the saved file exists
     let saved_path = temp_dir
@@ -225,7 +224,8 @@ fn test_save_creates_profiles_directory() {
 
     // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("services"))
+        .expect("Failed to create services dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
     let profile_content = format!(

@@ -1,7 +1,7 @@
 //! Tests for ImageStorage and StorageConfig.
 
-use systemprompt_ai::services::storage::{ImageStorage, StorageConfig};
 use std::path::PathBuf;
+use systemprompt_ai::services::storage::{ImageStorage, StorageConfig};
 use tempfile::TempDir;
 
 fn create_temp_storage() -> (TempDir, StorageConfig) {
@@ -32,20 +32,15 @@ mod storage_config_tests {
 
     #[test]
     fn validate_accepts_valid_config() {
-        let config = StorageConfig::new(
-            PathBuf::from("/tmp"),
-            "https://example.com".to_string(),
-        );
+        let config = StorageConfig::new(PathBuf::from("/tmp"), "https://example.com".to_string());
 
         config.validate().expect("validation should succeed");
     }
 
     #[test]
     fn validate_rejects_empty_url_prefix() {
-        let mut config = StorageConfig::new(
-            PathBuf::from("/tmp"),
-            "https://example.com".to_string(),
-        );
+        let mut config =
+            StorageConfig::new(PathBuf::from("/tmp"), "https://example.com".to_string());
         config.url_prefix = String::new();
 
         let result = config.validate();
@@ -55,10 +50,8 @@ mod storage_config_tests {
 
     #[test]
     fn validate_rejects_zero_max_file_size() {
-        let mut config = StorageConfig::new(
-            PathBuf::from("/tmp"),
-            "https://example.com".to_string(),
-        );
+        let mut config =
+            StorageConfig::new(PathBuf::from("/tmp"), "https://example.com".to_string());
         config.max_file_size_bytes = 0;
 
         let result = config.validate();
@@ -68,10 +61,8 @@ mod storage_config_tests {
 
     #[test]
     fn config_is_debug() {
-        let config = StorageConfig::new(
-            PathBuf::from("/images"),
-            "https://example.com".to_string(),
-        );
+        let config =
+            StorageConfig::new(PathBuf::from("/images"), "https://example.com".to_string());
         let debug = format!("{:?}", config);
 
         assert!(debug.contains("StorageConfig"));

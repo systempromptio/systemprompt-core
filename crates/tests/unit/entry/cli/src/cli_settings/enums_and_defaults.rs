@@ -1,11 +1,7 @@
-//! Tests for OutputFormat, VerbosityLevel, ColorMode enums and CliConfig defaults
+//! Tests for OutputFormat, VerbosityLevel, ColorMode enums and CliConfig
+//! defaults
 
-#![allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo
-)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 

@@ -5,9 +5,9 @@
 //! - TaskArtifactUpdateEvent construction and serialization
 //! - ServiceStatusParams serialization
 
-use systemprompt_agent::{
-    models::a2a::protocol::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent},
-    models::a2a::{Artifact, ArtifactMetadata, ServiceStatusParams, TaskState, TaskStatus, TextPart, Part},
+use systemprompt_agent::models::a2a::protocol::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
+use systemprompt_agent::models::a2a::{
+    Artifact, ArtifactMetadata, Part, ServiceStatusParams, TaskState, TaskStatus, TextPart,
 };
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 

@@ -88,9 +88,7 @@ async fn concurrent_cleanup_under_contention() {
 
     for i in 0..100 {
         let (tx, rx) = mpsc::unbounded_channel();
-        broadcaster
-            .register(&user, &format!("conn-{i}"), tx)
-            .await;
+        broadcaster.register(&user, &format!("conn-{i}"), tx).await;
         receivers.push(rx);
     }
 
@@ -121,9 +119,7 @@ async fn broadcast_to_active_connections_succeeds() {
 
     for i in 0..10 {
         let (tx, rx) = mpsc::unbounded_channel();
-        broadcaster
-            .register(&user, &format!("conn-{i}"), tx)
-            .await;
+        broadcaster.register(&user, &format!("conn-{i}"), tx).await;
         receivers.push(rx);
     }
 
@@ -138,9 +134,7 @@ async fn broadcast_to_dropped_receivers_cleans_up() {
 
     for i in 0..10 {
         let (tx, _rx) = mpsc::unbounded_channel();
-        broadcaster
-            .register(&user, &format!("conn-{i}"), tx)
-            .await;
+        broadcaster.register(&user, &format!("conn-{i}"), tx).await;
     }
 
     let sent = broadcaster.broadcast(&user, test_event()).await;

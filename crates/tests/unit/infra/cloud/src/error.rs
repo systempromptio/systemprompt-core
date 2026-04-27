@@ -2,7 +2,8 @@
 //!
 //! Tests cover:
 //! - CloudError variant creation and display messages
-//! - Helper methods (missing_cargo_target, missing_web_dist, missing_dockerfile)
+//! - Helper methods (missing_cargo_target, missing_web_dist,
+//!   missing_dockerfile)
 //! - user_message() for all variants
 //! - recovery_hint() for all variants
 //! - requires_login() predicate
@@ -126,7 +127,10 @@ fn test_tenant_not_found_display() {
 #[test]
 fn test_user_message_not_authenticated() {
     let error = CloudError::NotAuthenticated;
-    assert_eq!(error.user_message(), "Not logged in to systemprompt.io Cloud");
+    assert_eq!(
+        error.user_message(),
+        "Not logged in to systemprompt.io Cloud"
+    );
 }
 
 #[test]
@@ -170,7 +174,10 @@ fn test_user_message_missing_profile_field() {
 #[test]
 fn test_user_message_jwt_decode() {
     let error = CloudError::JwtDecode;
-    assert_eq!(error.user_message(), "Failed to decode authentication token");
+    assert_eq!(
+        error.user_message(),
+        "Failed to decode authentication token"
+    );
 }
 
 #[test]

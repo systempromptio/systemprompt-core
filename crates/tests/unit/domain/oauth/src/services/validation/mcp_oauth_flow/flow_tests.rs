@@ -1,8 +1,8 @@
 use std::str::FromStr;
 use systemprompt_models::auth::Permission;
 use systemprompt_models::oauth::OAuthServerConfig;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::DynamicRegistrationRequest;
+use systemprompt_oauth::repository::OAuthRepository;
 
 fn simulate_determine_scopes(request: &DynamicRegistrationRequest) -> Vec<String> {
     if let Some(scope_string) = &request.scope {
@@ -45,7 +45,10 @@ fn simulate_token_permission_resolution(
         if let Ok(perm) = Permission::from_str(requested) {
             if perm == Permission::User {
                 final_permissions.extend(
-                    user_permissions.iter().filter(|p| p.is_user_role()).copied(),
+                    user_permissions
+                        .iter()
+                        .filter(|p| p.is_user_role())
+                        .copied(),
                 );
             } else if user_permissions.contains(&perm) {
                 final_permissions.push(perm);
@@ -59,38 +62,48 @@ fn simulate_token_permission_resolution(
 
 #[test]
 fn flow_new_client_no_scope_no_resource() {
-    let reg: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let reg: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "New MCP Client",
         "redirect_uris": ["http://127.0.0.1:3000/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let client_scopes = simulate_determine_scopes(&reg);
-    assert!(client_scopes.contains(&"user".to_string()), "Registration defaults to user");
+    assert!(
+        client_scopes.contains(&"user".to_string()),
+        "Registration defaults to user"
+    );
 
     let requested = vec!["user".to_string(), "admin".to_string()];
     let auth = simulate_authorize_scope_check(&client_scopes, &requested, None);
-    assert!(auth.is_ok(), "Authorization validates scopes are legitimate");
+    assert!(
+        auth.is_ok(),
+        "Authorization validates scopes are legitimate"
+    );
 
     let admin_user = vec![Permission::Admin, Permission::User];
-    let token = simulate_token_permission_resolution(
-        &requested, &admin_user, &client_scopes, None,
-    );
+    let token = simulate_token_permission_resolution(&requested, &admin_user, &client_scopes, None);
     assert!(token.contains(&Permission::User), "Admin user gets user");
     assert!(token.contains(&Permission::Admin), "Admin user gets admin");
 }
 
 #[test]
 fn flow_new_client_no_scope_with_resource() {
-    let reg: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let reg: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Claude Code",
         "redirect_uris": ["http://127.0.0.1:3000/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let client_scopes = simulate_determine_scopes(&reg);
 
@@ -101,7 +114,10 @@ fn flow_new_client_no_scope_with_resource() {
 
     let admin_user = vec![Permission::Admin, Permission::User];
     let token = simulate_token_permission_resolution(
-        &requested, &admin_user, &client_scopes, Some(&requested),
+        &requested,
+        &admin_user,
+        &client_scopes,
+        Some(&requested),
     );
     assert!(token.contains(&Permission::Admin), "Admin user gets admin");
 }
@@ -118,7 +134,10 @@ fn flow_legacy_client_user_only_with_resource() {
     let admin_user = vec![Permission::Admin, Permission::User];
     let resource_scopes = vec!["user".to_string(), "admin".to_string()];
     let token = simulate_token_permission_resolution(
-        &requested, &admin_user, &client_scopes, Some(&resource_scopes),
+        &requested,
+        &admin_user,
+        &client_scopes,
+        Some(&resource_scopes),
     );
     assert!(token.contains(&Permission::Admin), "Admin user gets admin");
     assert!(token.contains(&Permission::User), "Admin user gets user");
@@ -126,13 +145,16 @@ fn flow_legacy_client_user_only_with_resource() {
 
 #[test]
 fn flow_regular_user_cannot_get_admin_scope() {
-    let reg: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let reg: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Client",
         "redirect_uris": ["http://127.0.0.1:3000/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let client_scopes = simulate_determine_scopes(&reg);
     let requested = vec!["user".to_string(), "admin".to_string()];
@@ -141,11 +163,13 @@ fn flow_regular_user_cannot_get_admin_scope() {
     assert!(auth.is_ok(), "Authorization passes — scopes are valid");
 
     let regular_user = vec![Permission::User];
-    let token = simulate_token_permission_resolution(
-        &requested, &regular_user, &client_scopes, None,
-    );
+    let token =
+        simulate_token_permission_resolution(&requested, &regular_user, &client_scopes, None);
     assert!(token.contains(&Permission::User), "Gets user permission");
-    assert!(!token.contains(&Permission::Admin), "Does NOT get admin — user lacks admin role");
+    assert!(
+        !token.contains(&Permission::Admin),
+        "Does NOT get admin — user lacks admin role"
+    );
 }
 
 #[test]
@@ -159,13 +183,16 @@ fn flow_webauthn_scope_fallback_uses_defaults() {
 
 #[test]
 fn flow_scope_from_protected_resource_then_authorize_no_resource() {
-    let reg: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let reg: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Smart Client",
         "redirect_uris": ["http://127.0.0.1:3000/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
     let _client_scopes = simulate_determine_scopes(&reg);
 
     let scopes_from_metadata = OAuthRepository::parse_scopes("user admin");
@@ -182,11 +209,13 @@ fn flow_token_scope_is_intersection_not_union() {
     let requested = vec!["admin".to_string()];
     let user_perms = vec![Permission::Admin, Permission::User];
 
-    let result = simulate_token_permission_resolution(
-        &requested, &user_perms, &client_scopes, None,
-    );
+    let result =
+        simulate_token_permission_resolution(&requested, &user_perms, &client_scopes, None);
     assert_eq!(result, vec![Permission::Admin]);
-    assert!(!result.contains(&Permission::User), "Only requested scopes should be in token");
+    assert!(
+        !result.contains(&Permission::User),
+        "Only requested scopes should be in token"
+    );
 }
 
 #[test]
@@ -195,8 +224,7 @@ fn scenario_partial_resource_coverage_still_passes() {
     let requested_scopes = vec!["user".to_string(), "admin".to_string()];
     let resource_scopes = Some("user");
 
-    let result =
-        simulate_authorize_scope_check(&client_scopes, &requested_scopes, resource_scopes);
+    let result = simulate_authorize_scope_check(&client_scopes, &requested_scopes, resource_scopes);
     assert!(
         result.is_ok(),
         "Authorization only validates scopes are legitimate, not client ownership"
@@ -205,14 +233,17 @@ fn scenario_partial_resource_coverage_still_passes() {
 
 #[test]
 fn scenario_registration_with_invalid_scopes_rejected() {
-    let request: DynamicRegistrationRequest = serde_json::from_str(r#"{
+    let request: DynamicRegistrationRequest = serde_json::from_str(
+        r#"{
         "client_name": "Bad Client",
         "redirect_uris": ["https://example.com/callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
         "scope": "nonexistent_scope",
         "token_endpoint_auth_method": "none"
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let scopes = simulate_determine_scopes(&request);
     assert!(

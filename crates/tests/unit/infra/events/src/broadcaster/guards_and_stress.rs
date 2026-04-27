@@ -2,9 +2,7 @@
 
 use std::sync::LazyLock;
 use std::time::Duration;
-use systemprompt_events::{
-    Broadcaster, ConnectionGuard, GenericBroadcaster,
-};
+use systemprompt_events::{Broadcaster, ConnectionGuard, GenericBroadcaster};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::SystemEvent;
 
@@ -79,34 +77,31 @@ async fn test_connection_guard_multiple_guards_same_user() {
         .register(&user_id, "conn-2", sender2)
         .await;
 
-    assert_eq!(
-        MULTI_GUARD_BROADCASTER.connection_count(&user_id).await,
-        2
-    );
+    assert_eq!(MULTI_GUARD_BROADCASTER.connection_count(&user_id).await, 2);
 
     {
-        let _guard1 =
-            ConnectionGuard::new(&MULTI_GUARD_BROADCASTER, user_id.clone(), "conn-1".to_string());
+        let _guard1 = ConnectionGuard::new(
+            &MULTI_GUARD_BROADCASTER,
+            user_id.clone(),
+            "conn-1".to_string(),
+        );
     }
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    assert_eq!(
-        MULTI_GUARD_BROADCASTER.connection_count(&user_id).await,
-        1
-    );
+    assert_eq!(MULTI_GUARD_BROADCASTER.connection_count(&user_id).await, 1);
 
     {
-        let _guard2 =
-            ConnectionGuard::new(&MULTI_GUARD_BROADCASTER, user_id.clone(), "conn-2".to_string());
+        let _guard2 = ConnectionGuard::new(
+            &MULTI_GUARD_BROADCASTER,
+            user_id.clone(),
+            "conn-2".to_string(),
+        );
     }
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    assert_eq!(
-        MULTI_GUARD_BROADCASTER.connection_count(&user_id).await,
-        0
-    );
+    assert_eq!(MULTI_GUARD_BROADCASTER.connection_count(&user_id).await, 0);
 }
 
 #[tokio::test]
@@ -153,7 +148,10 @@ async fn test_broadcaster_many_connections_stress() {
     assert_eq!(count, 10);
 
     for mut rx in receivers {
-        let _event = rx.recv().await.expect("Should receive broadcast on connection");
+        let _event = rx
+            .recv()
+            .await
+            .expect("Should receive broadcast on connection");
     }
 }
 

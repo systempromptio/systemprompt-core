@@ -1,10 +1,10 @@
 use std::collections::HashMap;
+use systemprompt_agent::SecurityScheme;
 use systemprompt_agent::services::registry::security::{
     convert_json_security_to_struct, oauth_to_security_config, override_oauth_urls,
 };
-use systemprompt_agent::SecurityScheme;
-use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::AgentOAuthConfig;
+use systemprompt_models::auth::{JwtAudience, Permission};
 
 #[test]
 fn test_convert_json_security_none_inputs() {
@@ -151,7 +151,10 @@ fn test_oauth_to_security_config_urls_constructed_correctly() {
     let schemes = schemes.expect("expected Some");
     match schemes.get("oauth2").expect("expected oauth2 key") {
         SecurityScheme::OAuth2 { flows, description } => {
-            let auth_code = flows.authorization_code.as_ref().expect("expected auth code flow");
+            let auth_code = flows
+                .authorization_code
+                .as_ref()
+                .expect("expected auth code flow");
             assert_eq!(
                 auth_code.authorization_url.as_deref(),
                 Some("https://myhost.com/api/v1/core/oauth/authorize")
@@ -184,7 +187,10 @@ fn test_oauth_to_security_config_scopes_mapped() {
     let schemes = schemes.expect("expected Some");
     match schemes.get("oauth2").expect("expected oauth2") {
         SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows.authorization_code.as_ref().expect("expected auth code");
+            let auth_code = flows
+                .authorization_code
+                .as_ref()
+                .expect("expected auth code");
             assert_eq!(auth_code.scopes.len(), 2);
             assert!(auth_code.scopes.contains_key("user"));
             assert!(auth_code.scopes.contains_key("admin"));
@@ -219,7 +225,10 @@ fn test_override_oauth_urls_relative_paths_get_prepended() {
 
     match schemes.get("oauth2").expect("expected oauth2") {
         SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows.authorization_code.as_ref().expect("expected auth code");
+            let auth_code = flows
+                .authorization_code
+                .as_ref()
+                .expect("expected auth code");
             assert_eq!(
                 auth_code.authorization_url.as_deref(),
                 Some("https://api.example.com/oauth/authorize")
@@ -262,7 +271,10 @@ fn test_override_oauth_urls_absolute_urls_unchanged() {
 
     match schemes.get("oauth2").expect("expected oauth2") {
         SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows.authorization_code.as_ref().expect("expected auth code");
+            let auth_code = flows
+                .authorization_code
+                .as_ref()
+                .expect("expected auth code");
             assert_eq!(
                 auth_code.authorization_url.as_deref(),
                 Some("https://external.auth.com/authorize")
@@ -340,7 +352,10 @@ fn test_oauth_to_security_config_empty_scopes() {
     let schemes = schemes.expect("expected Some");
     match schemes.get("oauth2").expect("expected oauth2") {
         SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows.authorization_code.as_ref().expect("expected auth code");
+            let auth_code = flows
+                .authorization_code
+                .as_ref()
+                .expect("expected auth code");
             assert!(auth_code.scopes.is_empty());
         },
         _ => panic!("Expected OAuth2 variant"),
@@ -380,7 +395,11 @@ fn test_convert_json_security_http_bearer_scheme() {
     let schemes = schemes.expect("expected Some");
     assert!(schemes.contains_key("bearer"));
     match schemes.get("bearer").unwrap() {
-        SecurityScheme::Http { scheme, bearer_format, .. } => {
+        SecurityScheme::Http {
+            scheme,
+            bearer_format,
+            ..
+        } => {
             assert_eq!(scheme, "bearer");
             let _ = bearer_format;
         },
