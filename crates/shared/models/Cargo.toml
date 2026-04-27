@@ -47,8 +47,9 @@ schemars = { workspace = true }
 regex = { workspace = true }
 once_cell = { workspace = true }
 
-# Crypto (for manifest signing seed derivation)
-sha2 = { workspace = true }
+# Crypto (manifest signing seed: random generation + base64 persistence)
+rand = { workspace = true }
+base64 = { workspace = true }
 
 # Async streaming
 futures = { workspace = true }

@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
+use base64::Engine;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use crate::manifest_seed::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use crate::paths::constants::env_vars;
 use crate::profile::{SecretsSource, SecretsValidationMode, resolve_with_home};
 use crate::profile_bootstrap::ProfileBootstrap;
@@ -43,6 +45,16 @@ pub enum SecretsBootstrapError {
          environment variable."
     )]
     DatabaseUrlRequired,
+
+    #[error(
+        "manifest_signing_secret_seed is missing from the secrets file and the bootstrap path is \
+         not writable. Run `systemprompt admin cowork rotate-signing-key` against a writable \
+         secrets file, or add a base64-encoded 32-byte value under `manifest_signing_secret_seed`."
+    )]
+    ManifestSeedUnavailable,
+
+    #[error("manifest_signing_secret_seed is invalid: {message}")]
+    ManifestSeedInvalid { message: String },
 }
 
 impl SecretsBootstrap {
@@ -51,7 +63,8 @@ impl SecretsBootstrap {
             anyhow::bail!(SecretsBootstrapError::AlreadyInitialized);
         }
 
-        let secrets = Self::load_from_profile_config()?;
+        let mut secrets = Self::load_from_profile_config()?;
+        Self::ensure_manifest_signing_seed(&mut secrets)?;
 
         Self::log_loaded_secrets(&secrets);
 
@@ -68,14 +81,65 @@ impl SecretsBootstrap {
         Ok(&Self::get()?.jwt_secret)
     }
 
-    pub fn manifest_signing_secret_seed() -> Result<[u8; 32], SecretsBootstrapError> {
-        use sha2::{Digest, Sha256};
-        const DOMAIN_SEPARATOR: &[u8] = b"systemprompt-cowork-manifest-ed25519-v1";
-        let secret = Self::jwt_secret()?;
-        let mut hasher = Sha256::new();
-        hasher.update(DOMAIN_SEPARATOR);
-        hasher.update(secret.as_bytes());
-        Ok(hasher.finalize().into())
+    pub fn manifest_signing_secret_seed()
+    -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
+        let encoded = Self::get()?
+            .manifest_signing_secret_seed
+            .as_deref()
+            .ok_or(SecretsBootstrapError::ManifestSeedUnavailable)?;
+        decode_seed(encoded)
+    }
+
+    pub fn rotate_manifest_signing_seed() -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES]> {
+        let path = Self::resolved_secrets_file_path()
+            .context("rotate-signing-key requires a file-backed secrets source")?;
+        let seed = generate_seed();
+        persist_seed(&path, &seed)?;
+        Ok(seed)
+    }
+
+    fn ensure_manifest_signing_seed(secrets: &mut Secrets) -> Result<()> {
+        if let Some(encoded) = secrets.manifest_signing_secret_seed.as_deref() {
+            decode_seed(encoded)?;
+            return Ok(());
+        }
+        let Ok(path) = Self::resolved_secrets_file_path() else {
+            tracing::warn!(
+                "manifest_signing_secret_seed missing and no writable secrets file is configured"
+            );
+            return Ok(());
+        };
+        if !path.exists() {
+            tracing::warn!(
+                path = %path.display(),
+                "manifest_signing_secret_seed missing and secrets file does not exist on disk"
+            );
+            return Ok(());
+        }
+        let seed = generate_seed();
+        persist_seed(&path, &seed)?;
+        secrets.manifest_signing_secret_seed =
+            Some(base64::engine::general_purpose::STANDARD.encode(seed));
+        tracing::info!(
+            path = %path.display(),
+            "Generated and persisted fresh manifest_signing_secret_seed"
+        );
+        Ok(())
+    }
+
+    fn resolved_secrets_file_path() -> Result<PathBuf> {
+        let profile =
+            ProfileBootstrap::get().map_err(|_| SecretsBootstrapError::ProfileNotInitialized)?;
+        let secrets_config = profile
+            .secrets
+            .as_ref()
+            .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
+        let profile_path = ProfileBootstrap::get_path()
+            .context("SYSTEMPROMPT_PROFILE not set - cannot resolve secrets path")?;
+        let profile_dir = Path::new(profile_path)
+            .parent()
+            .context("Invalid profile path - no parent directory")?;
+        Ok(resolve_with_home(profile_dir, &secrets_config.secrets_path))
     }
 
     pub fn database_url() -> Result<&'static str, SecretsBootstrapError> {
@@ -114,6 +178,9 @@ impl SecretsBootstrap {
 
         let secrets = Secrets {
             jwt_secret,
+            manifest_signing_secret_seed: std::env::var("MANIFEST_SIGNING_SECRET_SEED")
+                .ok()
+                .filter(|s| !s.is_empty()),
             database_url,
             database_write_url: std::env::var("DATABASE_WRITE_URL")
                 .ok()

@@ -1,23 +1,16 @@
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use std::sync::OnceLock;
 use systemprompt_models::SecretsBootstrap;
-
-const DOMAIN_SEPARATOR: &[u8] = b"systemprompt-cowork-manifest-ed25519-v1";
 
 pub fn signing_key() -> Result<&'static SigningKey, String> {
     static CELL: OnceLock<SigningKey> = OnceLock::new();
     if let Some(k) = CELL.get() {
         return Ok(k);
     }
-    let secret =
-        SecretsBootstrap::jwt_secret().map_err(|e| format!("jwt secret unavailable: {e}"))?;
-    let mut hasher = Sha256::new();
-    hasher.update(DOMAIN_SEPARATOR);
-    hasher.update(secret.as_bytes());
-    let seed: [u8; 32] = hasher.finalize().into();
+    let seed = SecretsBootstrap::manifest_signing_secret_seed()
+        .map_err(|e| format!("manifest signing seed unavailable: {e}"))?;
     let key = SigningKey::from_bytes(&seed);
     match CELL.set(key) {
         Ok(()) => Ok(CELL.get().ok_or("key missing after set")?),

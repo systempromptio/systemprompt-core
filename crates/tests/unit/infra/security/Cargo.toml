@@ -21,6 +21,8 @@ jsonwebtoken = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_jcs = "0.1"
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+base64 = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

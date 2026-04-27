@@ -19,6 +19,8 @@ mod jwt;
 #[cfg(test)]
 mod manifest_signing_jcs;
 #[cfg(test)]
+mod signing_key_independence;
+#[cfg(test)]
 mod services;
 #[cfg(test)]
 mod session;

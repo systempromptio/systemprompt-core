@@ -4,6 +4,8 @@
 
 ### Security
 
+- **Phase 2 Track F — independent manifest signing key.** Cowork manifest signing no longer derives its ed25519 seed by hashing the JWT HMAC secret. The seed now lives under a dedicated `manifest_signing_secret_seed` field in the secrets file (a base64-encoded 32-byte value), generated on first bootstrap via `OsRng` and persisted back to disk. `crates/infra/security/src/manifest_signing.rs::signing_key` now calls `SigningKey::from_bytes(&seed)` directly; the prior `Sha256(DOMAIN_SEPARATOR || jwt_secret)` derivation and the `DOMAIN_SEPARATOR` constant are deleted with no compatibility shim per the no-legacy directive. Compromise of the JWT HMAC secret no longer compromises manifest signatures. New `systemprompt admin cowork rotate-signing-key` CLI generates a fresh seed, persists it to the secrets file, and prints the resulting base64 ed25519 pubkey for distribution.
+
 - **Phase 2 Track G — out-of-band manifest pubkey pinning for cowork.** Eliminates the trust-on-first-use (TOFU) window where `cowork install` and the first `cowork sync` would fetch the manifest signing pubkey over the same HTTPS channel they were about to authenticate against. New posture is fail-closed: `cowork sync` now returns `SyncError::PubkeyNotPinned` (exit code 8) when no pinned pubkey is on disk, instead of silently fetching one. Operators pin the pubkey out of band via:
   - `cowork install --apply --pubkey <base64>` — writes `inferenceManifestPubkey` to `HKCU\SOFTWARE\Policies\Claude` on Windows or the `com.anthropic.claudefordesktop` Managed Preferences plist on macOS, so MDM (Jamf/Intune/Mosyle/Group Policy) can roll the value to a fleet.
   - `[sync].pinned_pubkey` in `systemprompt-cowork.toml` for non-MDM installs.

@@ -21,6 +21,10 @@ fn ensure_bootstrap() {
                 "DATABASE_URL",
                 "postgres://placeholder:placeholder@localhost/placeholder",
             );
+            std::env::set_var(
+                "MANIFEST_SIGNING_SECRET_SEED",
+                "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+            );
         }
         let _ = SecretsBootstrap::init();
     });
