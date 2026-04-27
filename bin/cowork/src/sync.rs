@@ -196,7 +196,7 @@ pub fn run_once(allow_unsigned: bool, force_replay: bool) -> Result<SyncSummary,
     let now = chrono::Utc::now();
     if !force_replay {
         check_replay(&last_state, &manifest.manifest_version)?;
-        check_skew(manifest.not_before.as_deref(), now)?;
+        check_skew(&manifest.not_before, now)?;
     }
 
     let report = apply_manifest(&client, &bearer, &manifest, &location).map_err(|e| {
@@ -585,7 +585,6 @@ pub fn read_last_sync(path: &Path) -> LastSyncState {
     let last_applied_manifest_version = v
         .get("last_applied_manifest_version")
         .and_then(|x| x.as_str())
-        .or_else(|| v.get("manifest_version").and_then(|x| x.as_str()))
         .map(str::to_string);
     LastSyncState {
         last_applied_manifest_version,
@@ -611,24 +610,15 @@ pub fn check_replay(
 }
 
 pub fn check_skew(
-    not_before: Option<&str>,
+    not_before: &str,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Result<(), SyncError> {
-    let Some(nb_str) = not_before else {
-        return Err(SyncError {
-            kind: SyncErrorKind::ManifestSkew {
-                not_before: "<missing>".into(),
-                now: now.to_rfc3339(),
-            },
-            message: "manifest missing not_before field".into(),
-        });
-    };
-    let parsed = chrono::DateTime::parse_from_rfc3339(nb_str).map_err(|_| SyncError {
+    let parsed = chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_| SyncError {
         kind: SyncErrorKind::ManifestSkew {
-            not_before: nb_str.to_string(),
+            not_before: not_before.to_string(),
             now: now.to_rfc3339(),
         },
-        message: format!("not_before is not RFC3339: {nb_str}"),
+        message: format!("not_before is not RFC3339: {not_before}"),
     })?;
     let nb_utc = parsed.with_timezone(&chrono::Utc);
     let window = chrono::Duration::minutes(SKEW_WINDOW_MINUTES);
@@ -636,11 +626,11 @@ pub fn check_skew(
     if delta > window || delta < -window {
         return Err(SyncError {
             kind: SyncErrorKind::ManifestSkew {
-                not_before: nb_str.to_string(),
+                not_before: not_before.to_string(),
                 now: now.to_rfc3339(),
             },
             message: format!(
-                "not_before {nb_str} outside +/- {SKEW_WINDOW_MINUTES}m of now {}",
+                "not_before {not_before} outside +/- {SKEW_WINDOW_MINUTES}m of now {}",
                 now.to_rfc3339()
             ),
         });

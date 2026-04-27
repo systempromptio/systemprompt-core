@@ -10,7 +10,7 @@ fn canonical_payload_includes_not_before_in_position() {
     let m = SignedManifest {
         manifest_version: "2026-04-27T12:00:00Z-cafe".into(),
         issued_at: "2026-04-27T12:00:00+00:00".into(),
-        not_before: Some("2026-04-27T12:00:00+00:00".into()),
+        not_before: "2026-04-27T12:00:00+00:00".into(),
         user_id: "u1".into(),
         tenant_id: None,
         user: None,
@@ -66,7 +66,7 @@ fn no_prior_state_accepted() {
 fn not_before_ten_minutes_in_past_rejected() {
     let now = chrono::Utc::now();
     let nb = (now - chrono::Duration::minutes(10)).to_rfc3339();
-    let err = check_skew(Some(&nb), now).expect_err("10m past should reject");
+    let err = check_skew(&nb, now).expect_err("10m past should reject");
     assert!(matches!(err.kind, SyncErrorKind::ManifestSkew { .. }));
 }
 
@@ -74,7 +74,7 @@ fn not_before_ten_minutes_in_past_rejected() {
 fn not_before_ten_minutes_in_future_rejected() {
     let now = chrono::Utc::now();
     let nb = (now + chrono::Duration::minutes(10)).to_rfc3339();
-    let err = check_skew(Some(&nb), now).expect_err("10m future should reject");
+    let err = check_skew(&nb, now).expect_err("10m future should reject");
     assert!(matches!(err.kind, SyncErrorKind::ManifestSkew { .. }));
 }
 
@@ -82,21 +82,14 @@ fn not_before_ten_minutes_in_future_rejected() {
 fn not_before_thirty_seconds_past_accepted() {
     let now = chrono::Utc::now();
     let nb = (now - chrono::Duration::seconds(30)).to_rfc3339();
-    check_skew(Some(&nb), now).expect("30s past should pass");
+    check_skew(&nb, now).expect("30s past should pass");
 }
 
 #[test]
 fn not_before_thirty_seconds_future_accepted() {
     let now = chrono::Utc::now();
     let nb = (now + chrono::Duration::seconds(30)).to_rfc3339();
-    check_skew(Some(&nb), now).expect("30s future should pass");
-}
-
-#[test]
-fn missing_not_before_rejected() {
-    let now = chrono::Utc::now();
-    let err = check_skew(None, now).expect_err("missing not_before should reject");
-    assert!(matches!(err.kind, SyncErrorKind::ManifestSkew { .. }));
+    check_skew(&nb, now).expect("30s future should pass");
 }
 
 #[test]
@@ -106,7 +99,7 @@ fn force_replay_bypasses_replay_and_skew() {
 
     let now = chrono::Utc::now();
     let nb = (now - chrono::Duration::minutes(30)).to_rfc3339();
-    assert!(check_skew(Some(&nb), now).is_err());
+    assert!(check_skew(&nb, now).is_err());
 }
 
 #[test]
@@ -116,22 +109,6 @@ fn read_last_sync_reads_new_field() {
     fs::write(
         &path,
         r#"{"last_applied_manifest_version":"2026-04-22T10:00:00Z-abcd"}"#,
-    )
-    .unwrap();
-    let s = read_last_sync(&path);
-    assert_eq!(
-        s.last_applied_manifest_version.as_deref(),
-        Some("2026-04-22T10:00:00Z-abcd")
-    );
-}
-
-#[test]
-fn read_last_sync_falls_back_to_legacy_field() {
-    let dir = tempdir();
-    let path = dir.join("last-sync.json");
-    fs::write(
-        &path,
-        r#"{"manifest_version":"2026-04-22T10:00:00Z-abcd"}"#,
     )
     .unwrap();
     let s = read_last_sync(&path);
