@@ -18,13 +18,14 @@ use crate::gui::events::UiEvent;
 use crate::gui::state::AppState;
 use crate::gui::web::WebWindow;
 use crate::http::GatewayClient;
+use crate::output::diag;
 use crate::{config, paths, setup, sync, validate};
 
 pub fn run() -> ExitCode {
     let event_loop = match EventLoop::<UiEvent>::with_user_event().build() {
         Ok(el) => el,
         Err(e) => {
-            eprintln!("gui: failed to build event loop: {e}");
+            diag(&format!("gui: failed to build event loop: {e}"));
             return ExitCode::from(1);
         },
     };
@@ -46,7 +47,7 @@ pub fn run() -> ExitCode {
     let mut app = GuiApp::new(app_state, tx, proxy);
 
     if let Err(e) = event_loop.run_app(&mut app) {
-        eprintln!("gui: event loop error: {e}");
+        diag(&format!("gui: event loop error: {e}"));
         return ExitCode::from(1);
     }
     ExitCode::SUCCESS
@@ -266,7 +267,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             let snap = self.state.snapshot();
             match tray::build(&snap) {
                 Ok(handles) => self.tray = Some(handles),
-                Err(e) => eprintln!("gui: tray init failed: {e}"),
+                Err(e) => diag(&format!("gui: tray init failed: {e}")),
             }
         }
         self.refresh_ui();

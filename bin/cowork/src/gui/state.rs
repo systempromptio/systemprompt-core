@@ -1,10 +1,34 @@
 use std::sync::{Arc, Mutex};
 
+use serde::Deserialize;
+
 use crate::cache;
 use crate::config;
 use crate::paths;
 use crate::setup;
 use crate::validate::ValidationReport;
+
+const POISONED: &str = "AppState mutex poisoned";
+
+#[derive(Debug, Deserialize)]
+struct UserFragment {
+    #[serde(default)]
+    email: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LastSyncRecord {
+    #[serde(default)]
+    synced_at: Option<String>,
+    #[serde(default)]
+    manifest_version: Option<String>,
+}
+
+fn read_index_count(path: &std::path::Path) -> Option<usize> {
+    let bytes = std::fs::read(path).ok()?;
+    let entries: Vec<serde::de::IgnoredAny> = serde_json::from_slice(&bytes).ok()?;
+    Some(entries.len())
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct AppStateSnapshot {
@@ -44,26 +68,26 @@ impl AppState {
     }
 
     pub fn snapshot(&self) -> AppStateSnapshot {
-        self.inner.lock().unwrap().clone()
+        self.inner.lock().expect(POISONED).clone()
     }
 
     pub fn reload(&self) {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().expect(POISONED);
         Self::reload_into(&mut guard);
     }
 
     pub fn set_sync_in_flight(&self, flag: bool) {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().expect(POISONED);
         guard.sync_in_flight = flag;
     }
 
     pub fn set_message(&self, msg: impl Into<String>) {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().expect(POISONED);
         guard.last_action_message = Some(msg.into());
     }
 
     pub fn set_validation(&self, report: ValidationReport) {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().expect(POISONED);
         guard.last_validation = Some(report);
     }
 
@@ -100,44 +124,26 @@ impl AppState {
         if let Some(loc) = loc {
             let meta = paths::metadata_dir(&loc.path);
 
-            let user_file = meta.join(paths::USER_FRAGMENT);
-            if let Ok(bytes) = std::fs::read(&user_file) {
-                if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-                    snap.identity = value
-                        .get("email")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string);
+            if let Ok(bytes) = std::fs::read(meta.join(paths::USER_FRAGMENT)) {
+                if let Ok(user) = serde_json::from_slice::<UserFragment>(&bytes) {
+                    snap.identity = user.email;
                 }
             }
 
-            let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
-            if let Ok(bytes) = std::fs::read(&last_sync_path) {
-                if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-                    let when = value
-                        .get("synced_at")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown");
-                    let mv = value
-                        .get("manifest_version")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("?");
-                    snap.last_sync_summary = Some(format!("{when} (manifest {mv})"));
+            if let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL)) {
+                if let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes) {
+                    let when = record.synced_at.as_deref().unwrap_or("unknown");
+                    let manifest_version =
+                        record.manifest_version.as_deref().unwrap_or("?");
+                    snap.last_sync_summary =
+                        Some(format!("{when} (manifest {manifest_version})"));
                 }
             }
 
-            let skills_idx = meta.join(paths::SKILLS_DIR).join("index.json");
-            if let Ok(bytes) = std::fs::read(&skills_idx) {
-                if let Ok(arr) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-                    snap.skill_count = arr.as_array().map(|a| a.len());
-                }
-            }
-
-            let agents_idx = meta.join(paths::AGENTS_DIR).join("index.json");
-            if let Ok(bytes) = std::fs::read(&agents_idx) {
-                if let Ok(arr) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-                    snap.agent_count = arr.as_array().map(|a| a.len());
-                }
-            }
+            snap.skill_count =
+                read_index_count(&meta.join(paths::SKILLS_DIR).join("index.json"));
+            snap.agent_count =
+                read_index_count(&meta.join(paths::AGENTS_DIR).join("index.json"));
         }
     }
 }
