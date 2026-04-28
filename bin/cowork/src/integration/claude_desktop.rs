@@ -9,9 +9,18 @@ use serde::{Deserialize, Serialize};
 const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
 const CODE_DOMAIN: &str = "com.anthropic.claudecode";
 
-const MANAGED_PREFS_DIRS: &[&str] = &[
-    "/Library/Managed Preferences",
-];
+const MANAGED_PREFS_ROOT: &str = "/Library/Managed Preferences";
+
+fn managed_prefs_candidates(domain: &str) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(user) = std::env::var("USER") {
+        if !user.is_empty() {
+            out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(&user).join(format!("{domain}.plist")));
+        }
+    }
+    out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(format!("{domain}.plist")));
+    out
+}
 
 const KEYS_OF_INTEREST: &[&str] = &[
     "inferenceProvider",
@@ -110,28 +119,24 @@ fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
         ..Default::default()
     };
 
-    for dir in MANAGED_PREFS_DIRS {
-        let candidate = PathBuf::from(dir).join(format!("{domain}.plist"));
-        if candidate.exists() {
-            out.plist_path = Some(candidate.display().to_string());
-            out.installed = true;
-            break;
-        }
+    let plist_path = managed_prefs_candidates(domain)
+        .into_iter()
+        .find(|p| p.exists());
+
+    if let Some(path) = plist_path.as_ref() {
+        out.plist_path = Some(path.display().to_string());
+        out.installed = true;
     }
+
+    let plist_json = plist_path
+        .as_deref()
+        .and_then(read_plist_as_json)
+        .unwrap_or(serde_json::Value::Null);
 
     for key in KEYS_OF_INTEREST {
-        if let Some(val) = read_managed_value(domain, key) {
+        if let Some(val) = read_key_value(&plist_json, domain, key) {
             out.keys.insert(key.to_string(), val);
         }
-    }
-
-    if !out.keys.contains_key("inferenceGatewayApiKey")
-        && out.installed
-    {
-        out.keys.insert(
-            "inferenceGatewayApiKey".to_string(),
-            "<present, redacted>".to_string(),
-        );
     }
 
     out.missing_required = required
@@ -140,38 +145,66 @@ fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
         .map(|k| (*k).to_string())
         .collect();
 
-    if !out.installed && out.keys.is_empty() {
-        return out;
-    }
-
     out
 }
 
-fn read_managed_value(domain: &str, key: &str) -> Option<String> {
-    let output = Command::new("/usr/bin/defaults")
-        .arg("read")
-        .arg(format!("/Library/Managed Preferences/{domain}"))
-        .arg(key)
+fn read_plist_as_json(path: &std::path::Path) -> Option<serde_json::Value> {
+    let output = Command::new("/usr/bin/plutil")
+        .arg("-convert")
+        .arg("json")
+        .arg("-o")
+        .arg("-")
+        .arg(path)
         .output()
         .ok()?;
-
     if !output.status.success() {
         return None;
     }
+    serde_json::from_slice(&output.stdout).ok()
+}
 
+fn read_key_value(plist_json: &serde_json::Value, domain: &str, key: &str) -> Option<String> {
+    if let Some(val) = plist_json.get(key) {
+        return Some(format_plist_value(key, val));
+    }
+
+    let output = Command::new("/usr/bin/defaults")
+        .arg("read")
+        .arg(domain)
+        .arg(key)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
     let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if raw.is_empty() {
         return None;
     }
+    Some(redact_if_sensitive(key, raw))
+}
 
+fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
+    let rendered = match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(items) => items
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect::<Vec<_>>()
+            .join(", "),
+        other => other.to_string(),
+    };
+    redact_if_sensitive(key, rendered)
+}
+
+fn redact_if_sensitive(key: &str, raw: String) -> String {
     if key == "inferenceGatewayApiKey" {
-        return Some(format!(
+        return format!(
             "<present, {} chars>",
             raw.chars().filter(|c| !c.is_whitespace()).count()
-        ));
+        );
     }
-
-    Some(raw)
+    raw
 }
 
 fn probe_gateway(url: &str) -> GatewayHealth {

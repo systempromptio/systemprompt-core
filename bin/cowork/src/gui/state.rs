@@ -98,6 +98,7 @@ pub struct AppStateSnapshot {
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     pub claude_integration: Option<ClaudeIntegrationSnapshot>,
+    pub claude_probe_in_flight: bool,
     pub last_generated_profile: Option<String>,
 }
 
@@ -170,6 +171,16 @@ impl AppState {
     pub fn apply_claude_integration(&self, snap: ClaudeIntegrationSnapshot) {
         let mut guard = self.inner.lock().expect(POISONED);
         guard.claude_integration = Some(snap);
+        guard.claude_probe_in_flight = false;
+    }
+
+    pub fn mark_claude_probing(&self) -> bool {
+        let mut guard = self.inner.lock().expect(POISONED);
+        if guard.claude_probe_in_flight {
+            return false;
+        }
+        guard.claude_probe_in_flight = true;
+        true
     }
 
     pub fn set_last_generated_profile(&self, path: String) {
@@ -202,10 +213,16 @@ impl AppState {
         snap.skill_count = None;
         snap.agent_count = None;
         snap.plugin_count = None;
-        snap.cached_token = cache::read_valid().map(|out| CachedToken {
-            ttl_seconds: out.ttl,
-            length: out.token.len(),
-        });
+        if crate::auth::has_credential_source(&cfg) {
+            snap.cached_token = cache::read_valid().map(|out| CachedToken {
+                ttl_seconds: out.ttl,
+                length: out.token.len(),
+            });
+        } else {
+            let _ = cache::clear();
+            snap.cached_token = None;
+            snap.verified_identity = None;
+        }
 
         if let Some(loc) = loc {
             let meta = paths::metadata_dir(&loc.path);

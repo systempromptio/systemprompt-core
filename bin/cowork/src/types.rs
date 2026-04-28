@@ -2,6 +2,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoworkProfile {
+    pub inference_gateway_base_url: String,
+    pub auth_scheme: String,
+    #[serde(default)]
+    pub models: Vec<String>,
+    #[serde(default)]
+    pub organization_uuid: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MtlsRequest {
     pub device_cert_fingerprint: String,
     pub session_id: String,

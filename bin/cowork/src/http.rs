@@ -1,5 +1,5 @@
 use crate::manifest::SignedManifest;
-use crate::types::{AuthResponse, MtlsRequest, SessionExchangeRequest};
+use crate::types::{AuthResponse, CoworkProfile, MtlsRequest, SessionExchangeRequest};
 use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
@@ -34,6 +34,10 @@ pub enum GatewayError {
     WhoamiDecode(std::io::Error),
     #[error("health check failed: {0}")]
     HealthCheck(Box<ureq::Error>),
+    #[error("cowork profile fetch failed: {0}")]
+    ProfileFetch(Box<ureq::Error>),
+    #[error("malformed cowork profile response: {0}")]
+    ProfileDecode(std::io::Error),
     #[error("gateway PAT request failed: {0}")]
     PatRequest(Box<ureq::Error>),
     #[error("gateway request failed: {0}")]
@@ -129,6 +133,17 @@ impl GatewayClient {
             .map_err(|e| GatewayError::WhoamiFetch(Box::new(e)))?;
         resp.into_json::<serde_json::Value>()
             .map_err(GatewayError::WhoamiDecode)
+    }
+
+    pub fn fetch_cowork_profile(&self) -> Result<CoworkProfile, GatewayError> {
+        let url = self.url("/v1/cowork/profile");
+        let resp = self
+            .agent
+            .get(&url)
+            .call()
+            .map_err(|e| GatewayError::ProfileFetch(Box::new(e)))?;
+        resp.into_json::<CoworkProfile>()
+            .map_err(GatewayError::ProfileDecode)
     }
 
     pub fn health(&self) -> Result<(), GatewayError> {

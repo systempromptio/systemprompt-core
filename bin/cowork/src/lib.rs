@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod cache;
 pub mod config;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -12,6 +13,7 @@ pub mod manifest;
 pub mod output;
 pub mod paths;
 pub mod providers;
+pub mod proxy;
 pub mod schedule;
 pub mod setup;
 pub mod sync;

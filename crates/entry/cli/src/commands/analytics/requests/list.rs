@@ -43,8 +43,11 @@ pub struct ListArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RequestListRowOutput {
     pub id: AiRequestId,
+    pub user_id: String,
     pub provider: String,
     pub model: String,
+    pub status: String,
+    pub error_message: Option<String>,
     pub input_tokens: i32,
     pub output_tokens: i32,
     pub cost_microdollars: i64,
@@ -90,8 +93,11 @@ async fn execute_internal(
         .into_iter()
         .map(|row| RequestListRowOutput {
             id: AiRequestId::new(row.id),
+            user_id: row.user_id,
             provider: row.provider,
             model: row.model,
+            status: row.status,
+            error_message: row.error_message,
             input_tokens: row.input_tokens.unwrap_or(0),
             output_tokens: row.output_tokens.unwrap_or(0),
             cost_microdollars: row.cost_microdollars.unwrap_or(0),
@@ -120,13 +126,15 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "id".to_string(),
+            "created_at".to_string(),
+            "status".to_string(),
+            "user_id".to_string(),
             "provider".to_string(),
             "model".to_string(),
             "input_tokens".to_string(),
             "output_tokens".to_string(),
-            "cost_microdollars".to_string(),
             "latency_ms".to_string(),
+            "error_message".to_string(),
         ]),
         ..Default::default()
     };
