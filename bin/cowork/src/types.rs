@@ -1,3 +1,4 @@
+use crate::secret::Secret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -25,7 +26,7 @@ pub struct SessionExchangeRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthResponse {
-    pub token: String,
+    pub token: Secret,
     pub ttl: u64,
     #[serde(default)]
     pub headers: HashMap<String, String>,
@@ -33,7 +34,7 @@ pub struct AuthResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HelperOutput {
-    pub token: String,
+    pub token: Secret,
     pub ttl: u64,
     #[serde(default)]
     pub headers: HashMap<String, String>,
