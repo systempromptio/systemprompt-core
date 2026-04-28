@@ -3,6 +3,7 @@ pub mod config;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
+pub mod http_local;
 pub mod install;
 #[cfg(target_os = "macos")]
 pub mod integration;
