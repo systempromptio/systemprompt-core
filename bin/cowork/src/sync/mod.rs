@@ -35,13 +35,23 @@ pub struct SyncSummary {
     pub installed: Vec<String>,
     pub updated: Vec<String>,
     pub removed: Vec<String>,
+    pub malformed: Vec<String>,
 }
 
 impl SyncSummary {
     pub fn one_line(&self) -> String {
+        let malformed_suffix = if self.malformed.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " — WARNING: {} malformed plugin(s) missing claude-plugin/plugin.json: {}",
+                self.malformed.len(),
+                self.malformed.join(", "),
+            )
+        };
         format!(
             "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} \
-             MCP — manifest {}",
+             MCP — manifest {}{}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
@@ -51,6 +61,7 @@ impl SyncSummary {
             self.agent_count,
             self.mcp_count,
             self.manifest_version,
+            malformed_suffix,
         )
     }
 }
@@ -105,6 +116,11 @@ pub fn run_once(
     manifest::verify_signature(&fetch, allow_unsigned, allow_tofu)?;
 
     let location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
+    if !location.path.is_dir() {
+        return Err(SyncError::PathMissing {
+            path: location.path.display().to_string(),
+        });
+    }
 
     let last_sync_path = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
@@ -169,6 +185,7 @@ fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncS
         installed: report.installed,
         updated: report.updated,
         removed: report.removed,
+        malformed: report.malformed,
     }
 }
 

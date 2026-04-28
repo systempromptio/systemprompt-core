@@ -64,20 +64,31 @@ pub fn org_plugins_user() -> Option<PathBuf> {
 }
 
 pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
-    if let Some(path) = org_plugins_system() {
-        if probe_writable(&path) {
-            return Some(OrgPluginsLocation {
-                path,
-                scope: Scope::System,
-            });
-        }
+    #[cfg(target_os = "macos")]
+    {
+        return org_plugins_system().map(|path| OrgPluginsLocation {
+            path,
+            scope: Scope::System,
+        });
     }
-    org_plugins_user().map(|path| OrgPluginsLocation {
-        path,
-        scope: Scope::User,
-    })
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Some(path) = org_plugins_system() {
+            if probe_writable(&path) {
+                return Some(OrgPluginsLocation {
+                    path,
+                    scope: Scope::System,
+                });
+            }
+        }
+        org_plugins_user().map(|path| OrgPluginsLocation {
+            path,
+            scope: Scope::User,
+        })
+    }
 }
 
+#[cfg(not(target_os = "macos"))]
 fn probe_writable(path: &std::path::Path) -> bool {
     if let Ok(metadata) = std::fs::metadata(path) {
         return metadata.is_dir() && !metadata.permissions().readonly();
@@ -119,6 +130,17 @@ mod tests {
     fn macos_system_path() {
         assert_eq!(
             org_plugins_system().unwrap(),
+            PathBuf::from("/Library/Application Support/Claude/org-plugins")
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_effective_is_always_system_scope() {
+        let loc = org_plugins_effective().expect("system path resolves on macOS");
+        assert_eq!(loc.scope, Scope::System);
+        assert_eq!(
+            loc.path,
             PathBuf::from("/Library/Application Support/Claude/org-plugins")
         );
     }

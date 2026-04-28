@@ -10,6 +10,11 @@ pub enum SyncError {
     SignatureFailed(String),
     #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
+    #[error(
+        "org-plugins directory does not exist at {path} — run `sudo systemprompt-cowork install \
+         --apply` to provision it (Claude Desktop only reads from this system path on macOS)"
+    )]
+    PathMissing { path: String },
     #[error("sync apply failed: {0}")]
     ApplyFailed(String),
     #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
@@ -31,6 +36,7 @@ impl SyncError {
             SyncError::Network(_) => ExitCode::from(3),
             SyncError::SignatureFailed(_) => ExitCode::from(4),
             SyncError::PathUnresolvable => ExitCode::from(1),
+            SyncError::PathMissing { .. } => ExitCode::from(1),
             SyncError::ApplyFailed(_) => ExitCode::from(1),
             SyncError::ReplayedManifest { .. } => ExitCode::from(6),
             SyncError::ManifestSkew { .. } => ExitCode::from(7),
