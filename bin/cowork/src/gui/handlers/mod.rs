@@ -1,0 +1,9 @@
+pub mod auth;
+#[cfg(target_os = "macos")]
+pub mod claude;
+pub mod gateway_probe;
+pub mod quit;
+pub mod settings;
+pub mod state;
+pub mod sync;
+pub mod validate;
