@@ -103,6 +103,13 @@ impl SecretsBootstrap {
             decode_seed(encoded)?;
             return Ok(());
         }
+        if std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok() {
+            anyhow::bail!(
+                "manifest_signing_secret_seed missing in subprocess env — parent must propagate \
+                 MANIFEST_SIGNING_SECRET_SEED so subprocesses don't regenerate and clobber the \
+                 secrets file"
+            );
+        }
         let Ok(path) = Self::resolved_secrets_file_path() else {
             tracing::warn!(
                 "manifest_signing_secret_seed missing and no writable secrets file is configured"
