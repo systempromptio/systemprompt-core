@@ -2,16 +2,15 @@ use std::collections::VecDeque;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 
 use crate::gui::events::UiEvent;
-use crate::gui::state::{AppState, AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
+use crate::gui::server_json::snapshot_to_json;
+use crate::gui::server_util::{constant_time_eq, mint_csrf_token, now_unix, parse_query};
+use crate::gui::state::AppState;
 use crate::http_local::{ResponseBuilder, parse};
-#[cfg(target_os = "macos")]
-use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
 use crate::output::diag;
 
 const HTML: &str = include_str!("../../web/index.html");
@@ -121,29 +120,6 @@ impl Server {
     }
 }
 
-fn mint_csrf_token() -> String {
-    let mut hasher = Sha256::new();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    hasher.update(nanos.to_le_bytes());
-    hasher.update(std::process::id().to_le_bytes());
-    let stack_marker = 0u8;
-    hasher.update((&stack_marker as *const u8 as usize).to_le_bytes());
-    let mut buf = [0u8; 16];
-    let digest = hasher.finalize();
-    buf.copy_from_slice(&digest[..16]);
-    buf.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn now_unix() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
-}
-
 fn handle_connection(
     mut stream: TcpStream,
     state: Arc<AppState>,
@@ -186,67 +162,6 @@ fn handle_connection(
         ("POST", path) => handle_action(&mut stream, &tx, &log, path, &req.body),
         _ => write_response(&mut stream, 404, "text/plain", b"not found"),
     }
-}
-
-#[cfg(target_os = "macos")]
-fn claude_integration_json(snap: &ClaudeIntegrationSnapshot) -> serde_json::Value {
-    serde_json::to_value(snap).unwrap_or(serde_json::Value::Null)
-}
-
-fn parse_query(query: &str) -> std::collections::HashMap<String, String> {
-    let mut out = std::collections::HashMap::new();
-    for pair in query.split('&') {
-        if pair.is_empty() {
-            continue;
-        }
-        let (k, v) = match pair.split_once('=') {
-            Some((k, v)) => (k, v),
-            None => (pair, ""),
-        };
-        out.insert(url_decode(k), url_decode(v));
-    }
-    out
-}
-
-fn url_decode(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'+' => {
-                out.push(b' ');
-                i += 1;
-            },
-            b'%' if i + 2 < bytes.len() => {
-                let hi = (bytes[i + 1] as char).to_digit(16);
-                let lo = (bytes[i + 2] as char).to_digit(16);
-                if let (Some(hi), Some(lo)) = (hi, lo) {
-                    out.push(((hi << 4) | lo) as u8);
-                    i += 3;
-                } else {
-                    out.push(bytes[i]);
-                    i += 1;
-                }
-            },
-            b => {
-                out.push(b);
-                i += 1;
-            },
-        }
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (x, y) in a.iter().zip(b.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
 }
 
 fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> {
@@ -350,70 +265,3 @@ fn write_response(
         .write(stream)
 }
 
-fn snapshot_to_json(snap: &AppStateSnapshot) -> String {
-    serde_json::json!({
-        "gateway_url": snap.gateway_url,
-        "config_file": snap.config_file,
-        "pat_file": snap.pat_file,
-        "config_present": snap.config_present,
-        "pat_present": snap.pat_present,
-        "plugins_dir": snap.plugins_dir,
-        "last_sync_summary": snap.last_sync_summary,
-        "skill_count": snap.skill_count,
-        "agent_count": snap.agent_count,
-        "plugin_count": snap.plugin_count,
-        "sync_in_flight": snap.sync_in_flight,
-        "last_action_message": snap.last_action_message,
-        "cached_token": snap.cached_token.as_ref().map(cached_token_json),
-        "gateway_status": gateway_status_json(&snap.gateway_status),
-        "verified_identity": snap.verified_identity.as_ref().map(verified_identity_json),
-        "signed_in": snap.signed_in(),
-        "last_probe_at_unix": snap.last_probe_at_unix,
-        "claude_integration": claude_integration_value(snap),
-        "last_generated_profile": snap.last_generated_profile.clone(),
-    })
-    .to_string()
-}
-
-#[cfg(target_os = "macos")]
-fn claude_integration_value(snap: &AppStateSnapshot) -> serde_json::Value {
-    snap.claude_integration
-        .as_ref()
-        .map(claude_integration_json)
-        .unwrap_or(serde_json::Value::Null)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn claude_integration_value(_snap: &AppStateSnapshot) -> serde_json::Value {
-    serde_json::Value::Null
-}
-
-fn cached_token_json(t: &CachedToken) -> serde_json::Value {
-    serde_json::json!({
-        "ttl_seconds": t.ttl_seconds,
-        "length": t.length,
-    })
-}
-
-fn gateway_status_json(s: &GatewayStatus) -> serde_json::Value {
-    match s {
-        GatewayStatus::Unknown => serde_json::json!({"state": "unknown"}),
-        GatewayStatus::Probing => serde_json::json!({"state": "probing"}),
-        GatewayStatus::Reachable { latency_ms } => {
-            serde_json::json!({"state": "reachable", "latency_ms": latency_ms})
-        },
-        GatewayStatus::Unreachable { reason } => {
-            serde_json::json!({"state": "unreachable", "reason": reason})
-        },
-    }
-}
-
-fn verified_identity_json(v: &VerifiedIdentity) -> serde_json::Value {
-    serde_json::json!({
-        "email": v.email,
-        "user_id": v.user_id,
-        "tenant_id": v.tenant_id,
-        "exp_unix": v.exp_unix,
-        "verified_at_unix": v.verified_at_unix,
-    })
-}

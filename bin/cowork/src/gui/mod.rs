@@ -1,8 +1,13 @@
+pub mod dispatch;
 pub mod events;
+pub mod handlers;
 pub mod server;
+pub mod server_json;
+pub mod server_util;
 pub mod state;
 pub mod tray;
 pub mod window;
+pub mod worker;
 
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -16,12 +21,9 @@ use winit::window::WindowId;
 
 use crate::gui::events::UiEvent;
 use crate::gui::server::{ActivityLog, Server};
-use crate::gui::state::{
-    AppState, GatewayProbeOutcome, GatewayStatus, decode_jwt_identity, now_unix,
-};
-use crate::http::GatewayClient;
+use crate::gui::state::{AppState, GatewayStatus, now_unix};
+use crate::gui::worker::WorkerPool;
 use crate::output::diag;
-use crate::{config, paths, setup, sync, validate};
 
 const PROBE_INTERVAL_SECS: u64 = 30;
 
@@ -77,12 +79,13 @@ pub fn run() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-struct GuiApp {
-    state: Arc<AppState>,
-    tx: Sender<UiEvent>,
-    proxy: EventLoopProxy<UiEvent>,
-    tray: Option<tray::TrayHandles>,
-    server: Option<Server>,
+pub(crate) struct GuiApp {
+    pub(crate) state: Arc<AppState>,
+    pub(crate) tx: Sender<UiEvent>,
+    pub(crate) proxy: EventLoopProxy<UiEvent>,
+    pub(crate) tray: Option<tray::TrayHandles>,
+    pub(crate) server: Option<Server>,
+    pub(crate) pool: WorkerPool,
 }
 
 impl GuiApp {
@@ -93,17 +96,18 @@ impl GuiApp {
             proxy,
             tray: None,
             server: None,
+            pool: WorkerPool::new(),
         }
     }
 
-    fn refresh_ui(&mut self) {
+    pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
         if let Some(handles) = &self.tray {
             tray::refresh(handles, &snap);
         }
     }
 
-    fn ensure_server(&mut self) -> Option<&Server> {
+    pub(crate) fn ensure_server(&mut self) -> Option<&Server> {
         if self.server.is_none() {
             match Server::start(self.state.clone(), self.tx.clone()) {
                 Ok(s) => {
@@ -119,305 +123,33 @@ impl GuiApp {
         self.server.as_ref()
     }
 
-    fn log(&self) -> Option<&ActivityLog> {
+    pub(crate) fn log(&self) -> Option<&ActivityLog> {
         self.server.as_ref().map(|s| s.log())
     }
 
-    fn append_log(&self, line: impl Into<String>) {
+    pub(crate) fn append_log(&self, line: impl Into<String>) {
         if let Some(log) = self.log() {
             log.append(line);
         }
     }
-
-    fn dispatch(&mut self, _event_loop: &ActiveEventLoop, event: UiEvent) {
-        match event {
-            UiEvent::OpenSettings => {
-                if let Some(server) = self.ensure_server() {
-                    let url = server.url();
-                    self.append_log(format!("opening {url}"));
-                    window::open_url(&url);
-                }
-            },
-            UiEvent::SyncRequested => {
-                if self.state.snapshot().sync_in_flight {
-                    return;
-                }
-                self.state.set_sync_in_flight(true);
-                self.state.set_message("Sync started…");
-                self.append_log("Sync started…");
-                self.refresh_ui();
-                let proxy = self.proxy.clone();
-                std::thread::spawn(move || {
-                    let allow_tofu = config::pinned_pubkey().is_none();
-                    let result =
-                        sync::run_once(false, false, allow_tofu).map_err(|e| e.to_string());
-                    let _ = proxy.send_event(UiEvent::SyncFinished(result));
-                });
-            },
-            UiEvent::ValidateRequested => {
-                self.append_log("Running validation…");
-                let proxy = self.proxy.clone();
-                std::thread::spawn(move || {
-                    let report = validate::run();
-                    let _ = proxy.send_event(UiEvent::ValidateFinished(report));
-                });
-            },
-            UiEvent::OpenConfigFolder => {
-                if let Some(loc) = paths::org_plugins_effective() {
-                    window::open_path(&loc.path);
-                } else if let Ok(s) = setup::status() {
-                    window::open_path(&s.paths.config_dir);
-                }
-            },
-            UiEvent::LoginRequested { token, gateway } => {
-                let trimmed = crate::secret::Secret::new(token.expose().trim().to_owned());
-                if trimmed.is_empty() {
-                    self.state.set_message("Login: PAT is empty");
-                    self.append_log("Login: PAT is empty");
-                    self.refresh_ui();
-                    return;
-                }
-                self.append_log("Saving PAT…");
-                let proxy = self.proxy.clone();
-                std::thread::spawn(move || {
-                    let result = setup::login(trimmed.expose(), gateway.as_deref())
-                        .map(|_| ())
-                        .map_err(|e| e.to_string());
-                    let _ = proxy.send_event(UiEvent::LoginFinished(result));
-                });
-            },
-            UiEvent::LogoutRequested => {
-                self.append_log("Logging out…");
-                let proxy = self.proxy.clone();
-                std::thread::spawn(move || {
-                    let result = setup::logout().map(|_| ()).map_err(|e| e.to_string());
-                    let _ = proxy.send_event(UiEvent::LogoutFinished(result));
-                });
-            },
-            UiEvent::Quit => {
-                std::process::exit(0);
-            },
-
-            UiEvent::SyncStarted => {
-                self.state.set_sync_in_flight(true);
-                self.refresh_ui();
-            },
-            UiEvent::SyncFinished(result) => {
-                self.state.set_sync_in_flight(false);
-                match result {
-                    Ok(summary) => {
-                        let line = summary.one_line();
-                        self.state.set_message(line.clone());
-                        self.append_log(&line);
-                    },
-                    Err(msg) => {
-                        let line = format!("sync failed: {msg}");
-                        self.state.set_message(line.clone());
-                        self.append_log(&line);
-                    },
-                }
-                self.state.reload();
-                self.refresh_ui();
-            },
-            UiEvent::ValidateFinished(report) => {
-                let rendered = report.rendered();
-                self.append_log(rendered);
-                self.state.set_validation(report);
-                self.refresh_ui();
-            },
-            UiEvent::LoginFinished(result) => {
-                match result {
-                    Ok(()) => {
-                        self.append_log("PAT stored. Pulling manifest…");
-                        self.state.set_message("PAT stored.");
-                        self.probe_gateway_async();
-                        self.state.reload();
-                        self.refresh_ui();
-                        let _ = self.proxy.send_event(UiEvent::SyncRequested);
-                        return;
-                    },
-                    Err(e) => {
-                        let line = format!("login failed: {e}");
-                        self.append_log(&line);
-                        self.state.set_message(line);
-                    },
-                }
-                self.state.reload();
-                self.refresh_ui();
-            },
-            UiEvent::LogoutFinished(result) => {
-                match result {
-                    Ok(()) => {
-                        self.append_log("Logged out.");
-                        self.state.set_message("Logged out.");
-                    },
-                    Err(e) => {
-                        let line = format!("logout failed: {e}");
-                        self.append_log(&line);
-                        self.state.set_message(line);
-                    },
-                }
-                self.state.reload();
-                self.refresh_ui();
-            },
-            UiEvent::GatewayProbeRequested => {
-                self.state.mark_probing();
-                self.refresh_ui();
-                self.probe_gateway_async();
-            },
-            UiEvent::GatewayProbeFinished(outcome) => {
-                self.state.apply_probe(outcome);
-                self.refresh_ui();
-            },
-            UiEvent::StateRefreshed => {
-                self.state.reload();
-                self.refresh_ui();
-            },
-
-            #[cfg(target_os = "macos")]
-            UiEvent::ClaudeProbeRequested => {
-                if !self.state.mark_claude_probing() {
-                    return;
-                }
-                let proxy = self.proxy.clone();
-                std::thread::spawn(move || {
-                    let snap = crate::integration::claude_desktop::probe();
-                    let _ = proxy.send_event(UiEvent::ClaudeProbeFinished(snap));
-                });
-            },
-            #[cfg(target_os = "macos")]
-            UiEvent::ClaudeProbeFinished(snap) => {
-                self.state.apply_claude_integration(snap);
-                self.refresh_ui();
-            },
-            #[cfg(target_os = "macos")]
-            UiEvent::ClaudeProfileGenerateRequested => {
-                self.append_log("Generating Claude Desktop profile…");
-                let proxy = self.proxy.clone();
-                std::thread::spawn(move || {
-                    let result = generate_claude_profile().map_err(|e| e.to_string());
-                    let _ = proxy.send_event(UiEvent::ClaudeProfileGenerateFinished(result));
-                });
-            },
-            #[cfg(target_os = "macos")]
-            UiEvent::ClaudeProfileGenerateFinished(result) => {
-                match result {
-                    Ok(p) => {
-                        self.state.set_last_generated_profile(p.path.clone());
-                        self.append_log(format!("profile written: {} ({} bytes)", p.path, p.bytes));
-                    },
-                    Err(e) => {
-                        self.append_log(format!("profile generation failed: {e}"));
-                    },
-                }
-                self.refresh_ui();
-            },
-            #[cfg(target_os = "macos")]
-            UiEvent::ClaudeProfileInstallRequested(path) => {
-                self.append_log(format!("opening {path} in System Settings…"));
-                let proxy = self.proxy.clone();
-                std::thread::spawn(move || {
-                    let result = crate::integration::claude_desktop::install_profile(&path)
-                        .map(|_| path.clone())
-                        .map_err(|e| e.to_string());
-                    let _ = proxy.send_event(UiEvent::ClaudeProfileInstallFinished(result));
-                });
-            },
-            #[cfg(target_os = "macos")]
-            UiEvent::ClaudeProfileInstallFinished(result) => {
-                match result {
-                    Ok(path) => {
-                        self.append_log(format!("profile handed to System Settings: {path}"))
-                    },
-                    Err(e) => self.append_log(format!("profile install failed: {e}")),
-                }
-                let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
-            },
-        }
-    }
-
-    fn probe_gateway_async(&self) {
-        let proxy = self.proxy.clone();
-        std::thread::spawn(move || {
-            let cfg = config::load();
-            let gateway = config::gateway_url_or_default(&cfg);
-            let client = GatewayClient::new(gateway);
-
-            let started = std::time::Instant::now();
-            let status = match client.health() {
-                Ok(()) => GatewayStatus::Reachable {
-                    latency_ms: started.elapsed().as_millis() as u64,
-                },
-                Err(e) => GatewayStatus::Unreachable {
-                    reason: e.to_string(),
-                },
-            };
-
-            let identity = if matches!(status, GatewayStatus::Reachable { .. })
-                && crate::auth::has_credential_source(&cfg)
-            {
-                obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity(tok.expose()))
-            } else {
-                if !crate::auth::has_credential_source(&cfg) {
-                    let _ = crate::cache::clear();
-                }
-                None
-            };
-
-            let _ = proxy.send_event(UiEvent::GatewayProbeFinished(GatewayProbeOutcome {
-                status,
-                identity,
-                at_unix: now_unix(),
-            }));
-        });
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn generate_claude_profile() -> Result<crate::integration::claude_desktop::GeneratedProfile, String>
-{
-    use crate::integration::claude_desktop::{ProfileGenInputs, write_profile};
-
-    let cfg = config::load();
-
-    let port = crate::proxy::handle()
-        .map(|h| h.port)
-        .unwrap_or(crate::proxy::DEFAULT_PROXY_PORT);
-
-    let loopback_secret =
-        crate::proxy::secret::load_or_mint().map_err(|e| format!("loopback secret: {e}"))?;
-
-    let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = GatewayClient::new(gateway_base)
-        .fetch_cowork_profile()
-        .map_err(|e| format!("fetch /v1/cowork/profile failed: {e}"))?;
-
-    let inputs = ProfileGenInputs {
-        gateway_base_url: format!("http://localhost:{port}"),
-        api_key: loopback_secret,
-        models: server_profile.models,
-        organization_uuid: server_profile.organization_uuid,
-    };
-    write_profile(&inputs).map_err(|e| e.to_string())
-}
-
-fn obtain_live_token(cfg: &config::Config) -> Option<crate::secret::Secret> {
-    crate::auth::obtain_live_token(cfg).map(|out| out.token)
 }
 
 impl ApplicationHandler<UiEvent> for GuiApp {
-    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+    fn new_events(&mut self, _event_loop: &ActiveEventLoop, cause: StartCause) {
         if matches!(cause, StartCause::Init) {
             return;
         }
-        if let Some(handles) = &self.tray {
-            for ev in tray::drain(handles) {
-                self.dispatch(event_loop, ev);
-            }
+        let drained: Vec<UiEvent> = self
+            .tray
+            .as_ref()
+            .map(tray::drain)
+            .unwrap_or_default();
+        for ev in drained {
+            dispatch::dispatch(self, ev);
         }
     }
 
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    fn resumed(&mut self, _event_loop: &ActiveEventLoop) {
         if self.tray.is_none() {
             let snap = self.state.snapshot();
             match tray::build(&snap) {
@@ -426,7 +158,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             }
         }
         self.refresh_ui();
-        self.dispatch(event_loop, UiEvent::OpenSettings);
+        dispatch::dispatch(self, UiEvent::OpenSettings);
         let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
         #[cfg(target_os = "macos")]
         {
@@ -434,8 +166,8 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         }
     }
 
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
-        self.dispatch(event_loop, event);
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UiEvent) {
+        dispatch::dispatch(self, event);
     }
 
     fn window_event(&mut self, _event_loop: &ActiveEventLoop, _id: WindowId, _event: WindowEvent) {}
