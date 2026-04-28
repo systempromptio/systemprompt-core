@@ -1,38 +1,27 @@
-//! Profile creation from environment variables.
-//!
-//! This module provides functionality to create Profile configurations
-//! from environment variables, typically used in cloud/container deployments.
-
 use super::{
-    ContentNegotiationConfig, DatabaseConfig, ExtensionsConfig, PathsConfig, Profile, ProfileType,
-    RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig, ServerConfig,
-    SiteConfig, TierMultipliers, default_agent_registry, default_agents, default_artifacts,
-    default_burst, default_content, default_contexts, default_mcp, default_mcp_registry,
-    default_oauth_auth, default_oauth_public, default_stream, default_tasks,
+    ContentNegotiationConfig, DatabaseConfig, ExtensionsConfig, PathsConfig, Profile, ProfileError,
+    ProfileResult, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
+    SecurityHeadersConfig, ServerConfig, SiteConfig, TierMultipliers, default_agent_registry,
+    default_agents, default_artifacts, default_burst, default_content, default_contexts,
+    default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public, default_stream,
+    default_tasks,
 };
-use anyhow::{Context, Result};
 
 impl Profile {
-    pub fn from_env(profile_name: &str, display_name: &str) -> Result<Self> {
-        let require_env = |key: &str| -> Result<String> {
-            std::env::var(key)
-                .with_context(|| format!("Missing required environment variable: {}", key))
-        };
-
-        let db_type = get_env("DATABASE_TYPE")
-            .ok_or_else(|| anyhow::anyhow!("DATABASE_TYPE environment variable is required"))?;
+    pub fn from_env(profile_name: &str, display_name: &str) -> ProfileResult<Self> {
+        let db_type = require_env("DATABASE_TYPE")?;
 
         Ok(Self {
             name: profile_name.to_string(),
             display_name: display_name.to_string(),
             target: ProfileType::Cloud,
-            site: site_config_from_env(&require_env)?,
+            site: site_config_from_env()?,
             database: DatabaseConfig {
                 db_type,
                 external_db_access: false,
             },
-            server: server_config_from_env(&require_env)?,
-            paths: paths_config_from_env(&require_env)?,
+            server: server_config_from_env()?,
+            paths: paths_config_from_env()?,
             security: security_config_from_env()?,
             rate_limits: rate_limits_from_env(),
             runtime: runtime_config_from_env()?,
@@ -48,17 +37,28 @@ fn get_env(key: &str) -> Option<String> {
     std::env::var(key).ok()
 }
 
-fn site_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Result<SiteConfig> {
+fn require_env(name: &'static str) -> ProfileResult<String> {
+    std::env::var(name).map_err(|_| ProfileError::MissingEnvVar { name })
+}
+
+fn site_config_from_env() -> ProfileResult<SiteConfig> {
     Ok(SiteConfig {
         name: require_env("SITENAME")?,
         github_link: get_env("GITHUB_LINK"),
     })
 }
 
-fn server_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Result<ServerConfig> {
+fn server_config_from_env() -> ProfileResult<ServerConfig> {
+    let port = require_env("PORT")?
+        .parse()
+        .map_err(|e: std::num::ParseIntError| ProfileError::InvalidEnvVar {
+            name: "PORT",
+            message: e.to_string(),
+        })?;
+
     Ok(ServerConfig {
         host: require_env("HOST")?,
-        port: require_env("PORT")?.parse().context("Invalid PORT")?,
+        port,
         api_server_url: require_env("API_SERVER_URL")?,
         api_internal_url: require_env("API_INTERNAL_URL")?,
         api_external_url: require_env("API_EXTERNAL_URL")?,
@@ -75,7 +75,7 @@ fn server_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Resul
     })
 }
 
-fn paths_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Result<PathsConfig> {
+fn paths_config_from_env() -> ProfileResult<PathsConfig> {
     Ok(PathsConfig {
         system: require_env("SYSTEM_PATH")?,
         services: require_env("SYSTEMPROMPT_SERVICES_PATH")?,
@@ -86,31 +86,37 @@ fn paths_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Result
     })
 }
 
-fn security_config_from_env() -> Result<SecurityConfig> {
+fn security_config_from_env() -> ProfileResult<SecurityConfig> {
     use crate::auth::JwtAudience;
 
-    let issuer = get_env("JWT_ISSUER")
-        .ok_or_else(|| anyhow::anyhow!("JWT_ISSUER environment variable is required"))?;
+    let issuer = require_env("JWT_ISSUER")?;
 
-    let access_token_expiration = get_env("JWT_ACCESS_TOKEN_EXPIRATION")
-        .ok_or_else(|| {
-            anyhow::anyhow!("JWT_ACCESS_TOKEN_EXPIRATION environment variable is required")
-        })?
+    let access_token_expiration = require_env("JWT_ACCESS_TOKEN_EXPIRATION")?
         .parse()
-        .map_err(|e| anyhow::anyhow!("Failed to parse JWT_ACCESS_TOKEN_EXPIRATION: {e}"))?;
+        .map_err(|e: std::num::ParseIntError| ProfileError::InvalidEnvVar {
+            name: "JWT_ACCESS_TOKEN_EXPIRATION",
+            message: e.to_string(),
+        })?;
 
-    let refresh_token_expiration = get_env("JWT_REFRESH_TOKEN_EXPIRATION")
-        .ok_or_else(|| {
-            anyhow::anyhow!("JWT_REFRESH_TOKEN_EXPIRATION environment variable is required")
-        })?
+    let refresh_token_expiration = require_env("JWT_REFRESH_TOKEN_EXPIRATION")?
         .parse()
-        .map_err(|e| anyhow::anyhow!("Failed to parse JWT_REFRESH_TOKEN_EXPIRATION: {e}"))?;
+        .map_err(|e: std::num::ParseIntError| ProfileError::InvalidEnvVar {
+            name: "JWT_REFRESH_TOKEN_EXPIRATION",
+            message: e.to_string(),
+        })?;
 
-    let audiences = get_env("JWT_AUDIENCES")
-        .ok_or_else(|| anyhow::anyhow!("JWT_AUDIENCES environment variable is required"))?
+    let audiences_raw = require_env("JWT_AUDIENCES")?;
+    let audiences = audiences_raw
         .split(',')
-        .map(|s| s.trim().parse::<JwtAudience>())
-        .collect::<Result<Vec<_>>>()?;
+        .map(|s| {
+            s.trim()
+                .parse::<JwtAudience>()
+                .map_err(|e| ProfileError::InvalidEnvVar {
+                    name: "JWT_AUDIENCES",
+                    message: e.to_string(),
+                })
+        })
+        .collect::<ProfileResult<Vec<_>>>()?;
 
     let allow_registration =
         get_env("ALLOW_REGISTRATION").is_none_or(|s| s.eq_ignore_ascii_case("true"));
@@ -165,21 +171,35 @@ fn rate_limits_from_env() -> RateLimitsConfig {
     }
 }
 
-fn runtime_config_from_env() -> Result<RuntimeConfig> {
-    let parse_or_default = |key: &str, default: &str| -> Result<String> {
-        Ok(get_env(key).unwrap_or_else(|| default.to_string()))
-    };
+fn runtime_config_from_env() -> ProfileResult<RuntimeConfig> {
+    let environment = get_env("SYSTEMPROMPT_ENV")
+        .unwrap_or_else(|| "development".to_string())
+        .parse()
+        .map_err(|e: String| ProfileError::InvalidEnvVar {
+            name: "SYSTEMPROMPT_ENV",
+            message: e,
+        })?;
+
+    let log_level = get_env("SYSTEMPROMPT_LOG_LEVEL")
+        .unwrap_or_else(|| "normal".to_string())
+        .parse()
+        .map_err(|e: String| ProfileError::InvalidEnvVar {
+            name: "SYSTEMPROMPT_LOG_LEVEL",
+            message: e,
+        })?;
+
+    let output_format = get_env("SYSTEMPROMPT_OUTPUT_FORMAT")
+        .unwrap_or_else(|| "text".to_string())
+        .parse()
+        .map_err(|e: String| ProfileError::InvalidEnvVar {
+            name: "SYSTEMPROMPT_OUTPUT_FORMAT",
+            message: e,
+        })?;
 
     Ok(RuntimeConfig {
-        environment: parse_or_default("SYSTEMPROMPT_ENV", "development")?
-            .parse()
-            .map_err(|e| anyhow::anyhow!("{}", e))?,
-        log_level: parse_or_default("SYSTEMPROMPT_LOG_LEVEL", "normal")?
-            .parse()
-            .map_err(|e| anyhow::anyhow!("{}", e))?,
-        output_format: parse_or_default("SYSTEMPROMPT_OUTPUT_FORMAT", "text")?
-            .parse()
-            .map_err(|e| anyhow::anyhow!("{}", e))?,
+        environment,
+        log_level,
+        output_format,
         no_color: get_env("NO_COLOR").is_some(),
         non_interactive: get_env("CI").is_some(),
     })

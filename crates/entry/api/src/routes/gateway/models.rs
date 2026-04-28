@@ -87,10 +87,9 @@ fn humanize_model_id(id: &str) -> String {
     id.split('-')
         .map(|part| {
             let mut chars = part.chars();
-            match chars.next() {
-                Some(c) => c.to_ascii_uppercase().to_string() + chars.as_str(),
-                None => String::new(),
-            }
+            chars.next().map_or_else(String::new, |c| {
+                c.to_ascii_uppercase().to_string() + chars.as_str()
+            })
         })
         .collect::<Vec<_>>()
         .join(" ")

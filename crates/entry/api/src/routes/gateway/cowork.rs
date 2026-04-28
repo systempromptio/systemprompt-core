@@ -43,16 +43,14 @@ pub async fn profile() -> Result<Json<CoworkProfileResponse>, (StatusCode, Strin
     let prefix = gateway.inference_path_prefix.trim_end_matches('/');
     let inference_gateway_base_url = format!("{base}{prefix}");
 
-    let models: Vec<String> = gateway
-        .catalog
-        .as_ref()
-        .map(|c| c.models.iter().map(|m| m.id.clone()).collect())
-        .unwrap_or_default();
+    let models: Vec<String> = gateway.catalog.as_ref().map_or_else(Vec::new, |catalog| {
+        catalog.models.iter().map(|m| m.id.clone()).collect()
+    });
 
     let organization_uuid = profile
         .cloud
         .as_ref()
-        .and_then(|c| c.tenant_id.clone());
+        .and_then(|cloud| cloud.tenant_id.clone());
 
     Ok(Json(CoworkProfileResponse {
         inference_gateway_base_url,
