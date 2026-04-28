@@ -40,6 +40,24 @@ fn count_plugin_dirs(root: &std::path::Path) -> Option<usize> {
     Some(n)
 }
 
+fn count_malformed_plugin_dirs(root: &std::path::Path) -> Option<usize> {
+    let mut n = 0usize;
+    for entry in std::fs::read_dir(root).ok()?.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.starts_with('.') {
+            continue;
+        }
+        if !entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+            continue;
+        }
+        if !entry.path().join("claude-plugin").join("plugin.json").is_file() {
+            n += 1;
+        }
+    }
+    Some(n)
+}
+
 #[derive(Debug, Clone)]
 pub enum GatewayStatus {
     Unknown,
@@ -92,6 +110,7 @@ pub struct AppStateSnapshot {
     pub last_validation: Option<ValidationReport>,
     pub cached_token: Option<CachedToken>,
     pub plugin_count: Option<usize>,
+    pub malformed_plugin_count: Option<usize>,
     pub gateway_status: GatewayStatus,
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
@@ -211,6 +230,7 @@ impl AppState {
         snap.skill_count = None;
         snap.agent_count = None;
         snap.plugin_count = None;
+        snap.malformed_plugin_count = None;
         if crate::auth::has_credential_source(&cfg) {
             snap.cached_token = cache::read_valid().map(|out| CachedToken {
                 ttl_seconds: out.ttl,
@@ -226,6 +246,7 @@ impl AppState {
             let meta = paths::metadata_dir(&loc.path);
 
             snap.plugin_count = count_plugin_dirs(&loc.path);
+            snap.malformed_plugin_count = count_malformed_plugin_dirs(&loc.path);
 
             if let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL)) {
                 if let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes) {

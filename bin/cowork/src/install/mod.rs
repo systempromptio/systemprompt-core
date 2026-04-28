@@ -81,7 +81,21 @@ fn bootstrap_install(
     gateway_url: Option<&str>,
 ) -> Result<(), ExitCode> {
     if let Err(e) = bootstrap::bootstrap_directory(location) {
-        diag(&format!("directory bootstrap failed: {e}"));
+        if e.kind() == std::io::ErrorKind::PermissionDenied
+            && matches!(location.scope, Scope::System)
+        {
+            diag(&format!(
+                "permission denied creating {} — Claude Desktop only reads org plugins from the \
+                 system path. Re-run as root: `sudo {} install --apply` (or use the install \
+                 script). Underlying error: {e}",
+                location.path.display(),
+                std::env::current_exe()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|_| "systemprompt-cowork".into()),
+            ));
+        } else {
+            diag(&format!("directory bootstrap failed: {e}"));
+        }
         return Err(ExitCode::from(1));
     }
     if let Err(e) = bootstrap::write_version_sentinel(&location.path, binary, gateway_url) {

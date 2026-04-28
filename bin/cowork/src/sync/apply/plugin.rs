@@ -9,6 +9,7 @@ pub struct PluginApplyOutcome {
     pub installed: Vec<String>,
     pub updated: Vec<String>,
     pub removed: Vec<String>,
+    pub malformed: Vec<String>,
 }
 
 pub fn apply_plugins(
@@ -20,6 +21,7 @@ pub fn apply_plugins(
 ) -> Result<PluginApplyOutcome, String> {
     let mut installed = Vec::new();
     let mut updated = Vec::new();
+    let mut malformed = Vec::new();
 
     for plugin in &manifest.plugins {
         if !safe_plugin_id(&plugin.id) {
@@ -34,6 +36,13 @@ pub fn apply_plugins(
                 PluginChange::Updated(id) => updated.push(id),
             }
         }
+        if !is_well_formed(&root.join(&plugin.id)) {
+            tracing::warn!(
+                plugin_id = %plugin.id,
+                "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
+            );
+            malformed.push(plugin.id.clone());
+        }
     }
 
     let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
@@ -43,7 +52,12 @@ pub fn apply_plugins(
         installed,
         updated,
         removed,
+        malformed,
     })
+}
+
+fn is_well_formed(plugin_dir: &Path) -> bool {
+    plugin_dir.join("claude-plugin").join("plugin.json").is_file()
 }
 
 enum PluginChange {
