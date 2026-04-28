@@ -1,7 +1,45 @@
-use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum GatewayProfileError {
+    #[error("Failed to read gateway catalog {path}: {source}")]
+    CatalogRead {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to parse gateway catalog {path}: {source}")]
+    CatalogParse {
+        path: PathBuf,
+        #[source]
+        source: serde_yaml::Error,
+    },
+
+    #[error("Invalid gateway catalog {path}: {source}")]
+    CatalogInvalid {
+        path: PathBuf,
+        #[source]
+        source: Box<Self>,
+    },
+
+    #[error("gateway catalog model has empty id")]
+    ModelEmptyId,
+
+    #[error("gateway catalog model '{model}' references unknown provider '{provider}'")]
+    UnknownProvider { model: String, provider: String },
+
+    #[error("gateway catalog provider has empty name")]
+    ProviderEmptyName,
+
+    #[error("gateway catalog provider '{name}' has empty endpoint")]
+    ProviderEmptyEndpoint { name: String },
+}
+
+pub type GatewayResult<T> = Result<T, GatewayProfileError>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayConfig {
@@ -45,7 +83,7 @@ impl GatewayConfig {
         self.routes.iter().find(|route| route.matches(model))
     }
 
-    pub fn resolve_catalog(&mut self, profile_dir: &Path) -> Result<()> {
+    pub fn resolve_catalog(&mut self, profile_dir: &Path) -> GatewayResult<()> {
         let Some(rel) = self.catalog_path.as_ref() else {
             return Ok(());
         };
@@ -54,15 +92,23 @@ impl GatewayConfig {
         } else {
             profile_dir.join(rel)
         };
-        let content = std::fs::read_to_string(&absolute).with_context(|| {
-            format!("Failed to read gateway catalog: {}", absolute.display())
+        let content = std::fs::read_to_string(&absolute).map_err(|source| {
+            GatewayProfileError::CatalogRead {
+                path: absolute.clone(),
+                source,
+            }
         })?;
-        let catalog: GatewayCatalog = serde_yaml::from_str(&content).with_context(|| {
-            format!("Failed to parse gateway catalog: {}", absolute.display())
-        })?;
-        catalog.validate().with_context(|| {
-            format!("Invalid gateway catalog: {}", absolute.display())
-        })?;
+        let catalog: GatewayCatalog =
+            serde_yaml::from_str(&content).map_err(|source| GatewayProfileError::CatalogParse {
+                path: absolute.clone(),
+                source,
+            })?;
+        catalog
+            .validate()
+            .map_err(|source| GatewayProfileError::CatalogInvalid {
+                path: absolute.clone(),
+                source: Box::new(source),
+            })?;
         self.catalog_path = Some(absolute);
         self.catalog = Some(catalog);
         Ok(())
@@ -78,28 +124,26 @@ pub struct GatewayCatalog {
 }
 
 impl GatewayCatalog {
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> GatewayResult<()> {
         for model in &self.models {
             if model.id.is_empty() {
-                anyhow::bail!("gateway catalog model has empty id");
+                return Err(GatewayProfileError::ModelEmptyId);
             }
             if !self.providers.iter().any(|p| p.name == model.provider) {
-                anyhow::bail!(
-                    "gateway catalog model '{}' references unknown provider '{}'",
-                    model.id,
-                    model.provider
-                );
+                return Err(GatewayProfileError::UnknownProvider {
+                    model: model.id.clone(),
+                    provider: model.provider.clone(),
+                });
             }
         }
         for provider in &self.providers {
             if provider.name.is_empty() {
-                anyhow::bail!("gateway catalog provider has empty name");
+                return Err(GatewayProfileError::ProviderEmptyName);
             }
             if provider.endpoint.is_empty() {
-                anyhow::bail!(
-                    "gateway catalog provider '{}' has empty endpoint",
-                    provider.name
-                );
+                return Err(GatewayProfileError::ProviderEmptyEndpoint {
+                    name: provider.name.clone(),
+                });
             }
         }
         Ok(())

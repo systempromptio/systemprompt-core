@@ -41,6 +41,7 @@ fn route_finds_matching_model() {
             upstream_model: Some("moonshot-v1-32k".to_string()),
             extra_headers: HashMap::new(),
         }],
+        ..GatewayConfig::default()
     };
     let matched = config.find_route("kimi-latest").expect("route must match");
     assert_eq!(matched.provider, "moonshot");
