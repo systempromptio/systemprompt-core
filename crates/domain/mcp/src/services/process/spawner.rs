@@ -67,6 +67,10 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
         .env("SYSTEMPROMPT_PROFILE", profile_path)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .env("JWT_SECRET", &secrets.jwt_secret)
+        .env(
+            "MANIFEST_SIGNING_SECRET_SEED",
+            secrets.manifest_signing_secret_seed.as_deref().unwrap_or(""),
+        )
         .env("DATABASE_URL", &secrets.database_url)
         .env("DATABASE_TYPE", &config_global.database_type)
         .env("MCP_SERVICE_ID", &config.name)

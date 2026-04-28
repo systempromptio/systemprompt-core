@@ -53,8 +53,13 @@ pub struct Secrets {
 
 impl Secrets {
     pub fn parse(content: &str) -> Result<Self> {
-        let secrets: Self =
+        let mut value: serde_json::Value =
             serde_json::from_str(content).context("Failed to parse secrets JSON")?;
+        if let Some(obj) = value.as_object_mut() {
+            obj.retain(|_, v| !v.is_null());
+        }
+        let secrets: Self = serde_json::from_value(value)
+            .context("Failed to deserialize secrets after null stripping")?;
         secrets.validate()?;
         Ok(secrets)
     }
