@@ -19,6 +19,7 @@ struct TapState {
     tool_uses_done: Vec<CapturedToolUse>,
     served_model: Option<String>,
     error: Option<String>,
+    finalized: bool,
 }
 
 #[derive(Default, Debug)]
@@ -72,12 +73,16 @@ where
                 Poll::Ready(Some(Err(e)))
             },
             Poll::Ready(None) => {
-                let (usage, tools, body, served_model, error) = {
+                let (usage, tools, body, served_model, error, already_finalized) = {
                     let mut s = self
                         .state
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if s.finalized {
+                        return Poll::Ready(None);
+                    }
                     finalize_partials(&mut s);
+                    s.finalized = true;
                     (
                         CapturedUsage {
                             input_tokens: s.input_tokens,
@@ -87,8 +92,12 @@ where
                         std::mem::take(&mut s.response_buffer).freeze(),
                         s.served_model.take(),
                         s.error.take(),
+                        false,
                     )
                 };
+                if already_finalized {
+                    return Poll::Ready(None);
+                }
 
                 let audit = Arc::clone(&self.audit);
                 tokio::spawn(async move {
@@ -106,6 +115,54 @@ where
                 Poll::Ready(None)
             },
         }
+    }
+}
+
+impl<S> Drop for TappedStream<S> {
+    fn drop(&mut self) {
+        let snapshot = match self.state.lock() {
+            Ok(mut s) => {
+                if s.finalized {
+                    None
+                } else {
+                    finalize_partials(&mut s);
+                    s.finalized = true;
+                    Some((
+                        CapturedUsage {
+                            input_tokens: s.input_tokens,
+                            output_tokens: s.output_tokens,
+                        },
+                        std::mem::take(&mut s.tool_uses_done),
+                        std::mem::take(&mut s.response_buffer).freeze(),
+                        s.served_model.take(),
+                        s.error.take(),
+                    ))
+                }
+            },
+            Err(_) => None,
+        };
+
+        let Some((usage, tools, body, served_model, prior_error)) = snapshot else {
+            return;
+        };
+
+        let audit = Arc::clone(&self.audit);
+        tokio::spawn(async move {
+            if let Some(model) = served_model.as_deref() {
+                audit.set_served_model(model).await;
+            }
+            let saw_message_stop = body.windows(b"\"type\":\"message_stop\"".len())
+                .any(|w| w == b"\"type\":\"message_stop\"");
+            if saw_message_stop && prior_error.is_none() {
+                if let Err(e) = audit.complete(usage, tools, &body).await {
+                    tracing::warn!(error = %e, "drop-path audit complete failed");
+                }
+            } else {
+                let msg = prior_error
+                    .unwrap_or_else(|| "stream abandoned by downstream".to_string());
+                let _ = audit.fail(&msg).await;
+            }
+        });
     }
 }
 

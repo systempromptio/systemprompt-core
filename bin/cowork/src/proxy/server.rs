@@ -1,15 +1,30 @@
-use std::net::{TcpListener, TcpStream};
+//! Loopback HTTP/1.1 proxy: hyper-based async listener that accepts
+//! connections from Claude Desktop and forwards them through to the
+//! systemprompt gateway via [`forward`].
+//!
+//! The listener binds dual-stack (`[::]`) when possible so v4 and v6
+//! `localhost` clients both reach us; falls back to v4-only if v6 is
+//! unavailable. Each accepted connection runs as its own task with
+//! HTTP/1.1 keep-alive on, so the parallel POST burst Claude Desktop
+//! issues per user prompt reuses a single TCP connection.
+use std::convert::Infallible;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use crate::http_local::{ResponseBuilder, parse};
+use http_body_util::{BodyExt, Full};
+use hyper::body::{Bytes, Incoming};
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper::{Method, Request, Response, StatusCode};
+use hyper_util::rt::TokioIo;
+use tokio::net::TcpListener;
+use tokio::runtime::Runtime;
+use tokio::sync::oneshot;
+
 use crate::output::diag;
 use crate::proxy::{forward, secret};
-
-pub use crate::http_local::Request;
-
-const READ_TIMEOUT_HANDSHAKE: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 pub struct ProxyHandle {
@@ -25,110 +40,185 @@ pub struct ProxyStats {
     pub last_latency_ms: AtomicU64,
 }
 
-pub fn start(port: u16, gateway_base_url: String) -> std::io::Result<ProxyHandle> {
-    let listener = TcpListener::bind(("127.0.0.1", port))?;
-    let bound_port = listener.local_addr()?.port();
+#[derive(Clone)]
+pub(super) struct ProxyContext {
+    pub gateway_base: Arc<String>,
+    pub secret: Arc<String>,
+    pub stats: Arc<ProxyStats>,
+    pub client: reqwest::Client,
+}
+
+pub fn start(rt: &Runtime, port: u16, gateway_base_url: String) -> std::io::Result<ProxyHandle> {
     let secret_value = secret::load_or_mint()?;
     let stats = Arc::new(ProxyStats::default());
 
-    let stats_thread = stats.clone();
-    let gateway = Arc::new(gateway_base_url);
-    std::thread::Builder::new()
-        .name("cowork-proxy-accept".into())
-        .spawn(move || {
-            for conn in listener.incoming() {
-                let stream = match conn {
-                    Ok(s) => s,
-                    Err(e) => {
-                        diag(&format!("proxy: accept failed: {e}"));
-                        continue;
-                    },
-                };
-                let stats = stats_thread.clone();
-                let gateway = gateway.clone();
-                let secret_value = secret_value.clone();
-                std::thread::spawn(move || {
-                    if let Err(e) = handle_connection(stream, &gateway, &secret_value, &stats) {
-                        diag(&format!("proxy: connection: {e}"));
-                    }
-                });
-            }
-        })?;
+    let client = build_upstream_client()?;
 
-    Ok(ProxyHandle {
-        port: bound_port,
-        stats,
-    })
-}
-
-fn handle_connection(
-    mut stream: TcpStream,
-    gateway: &str,
-    expected_secret: &str,
-    stats: &ProxyStats,
-) -> std::io::Result<()> {
-    stream.set_read_timeout(Some(READ_TIMEOUT_HANDSHAKE))?;
-    stream.set_write_timeout(Some(Duration::from_secs(60)))?;
-
-    let req = match parse(&mut stream) {
-        Ok(r) => r,
-        Err(e) => {
-            return ResponseBuilder::new(400)
-                .content_type("text/plain")
-                .body(e.as_bytes())
-                .write(&mut stream);
-        },
+    let ctx = ProxyContext {
+        gateway_base: Arc::new(gateway_base_url),
+        secret: Arc::new(secret_value),
+        stats: stats.clone(),
+        client,
     };
 
-    let host = req.header("host").unwrap_or("");
-    if !host_is_loopback(host) {
-        return ResponseBuilder::new(403)
-            .content_type("text/plain")
-            .body(b"forbidden: non-loopback host\n")
-            .write(&mut stream);
+    let (port_tx, port_rx) = oneshot::channel::<std::io::Result<u16>>();
+    rt.spawn(run_listener(port, ctx, port_tx));
+
+    let bound_port = match port_rx.blocking_recv() {
+        Ok(Ok(p)) => p,
+        Ok(Err(e)) => return Err(e),
+        Err(_) => return Err(std::io::Error::other("proxy listener task aborted")),
+    };
+
+    Ok(ProxyHandle { port: bound_port, stats })
+}
+
+fn build_upstream_client() -> std::io::Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .pool_max_idle_per_host(16)
+        .tcp_nodelay(true)
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(600))
+        .build()
+        .map_err(|e| std::io::Error::other(format!("upstream client build failed: {e}")))
+}
+
+async fn run_listener(
+    port: u16,
+    ctx: ProxyContext,
+    port_tx: oneshot::Sender<std::io::Result<u16>>,
+) {
+    let listener = match bind_listener(port).await {
+        Ok(l) => l,
+        Err(e) => {
+            let _ = port_tx.send(Err(e));
+            return;
+        },
+    };
+    let bound = match listener.local_addr() {
+        Ok(a) => a.port(),
+        Err(e) => {
+            let _ = port_tx.send(Err(e));
+            return;
+        },
+    };
+    let _ = port_tx.send(Ok(bound));
+
+    loop {
+        let (stream, _peer) = match listener.accept().await {
+            Ok(t) => t,
+            Err(e) => {
+                diag(&format!("proxy: accept failed: {e}"));
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                continue;
+            },
+        };
+        let _ = stream.set_nodelay(true);
+        let conn_ctx = ctx.clone();
+        tokio::spawn(async move {
+            let io = TokioIo::new(stream);
+            let svc = service_fn(move |req| handle_request(req, conn_ctx.clone()));
+            if let Err(e) = http1::Builder::new()
+                .keep_alive(true)
+                .serve_connection(io, svc)
+                .await
+            {
+                let msg = e.to_string();
+                if !msg.contains("closed") && !msg.contains("connection") {
+                    diag(&format!("proxy: connection: {msg}"));
+                }
+            }
+        });
+    }
+}
+
+async fn bind_listener(port: u16) -> std::io::Result<TcpListener> {
+    let v6: SocketAddr = SocketAddr::from(([0u16, 0, 0, 0, 0, 0, 0, 0], port));
+    match TcpListener::bind(v6).await {
+        Ok(l) => Ok(l),
+        Err(_) => {
+            let v4: SocketAddr = SocketAddr::from(([127u8, 0, 0, 1], port));
+            TcpListener::bind(v4).await
+        },
+    }
+}
+
+async fn handle_request(
+    req: Request<Incoming>,
+    ctx: ProxyContext,
+) -> Result<Response<forward::ProxyBody>, Infallible> {
+    let method = req.method().clone();
+    let path = req.uri().path().to_string();
+
+    if let Some(host) = req
+        .headers()
+        .get(http::header::HOST)
+        .and_then(|v| v.to_str().ok())
+    {
+        if !host_is_loopback(host) {
+            return Ok(simple_response(
+                StatusCode::FORBIDDEN,
+                "forbidden: non-loopback host\n",
+            ));
+        }
     }
 
-    let auth = req.header("authorization").unwrap_or("");
-    let presented = auth
-        .strip_prefix("Bearer ")
-        .or_else(|| auth.strip_prefix("bearer "))
-        .unwrap_or("");
-    if presented.is_empty() || !secret::verify(presented, expected_secret) {
-        return ResponseBuilder::new(403)
-            .content_type("text/plain")
-            .body(b"forbidden: bad loopback secret\n")
-            .write(&mut stream);
+    let presented = req
+        .headers()
+        .get(http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.trim_start_matches("Bearer ").trim_start_matches("bearer ").trim().to_string())
+        .unwrap_or_default();
+    if presented.is_empty() || !secret::verify(&presented, &ctx.secret) {
+        return Ok(simple_response(
+            StatusCode::FORBIDDEN,
+            "forbidden: bad loopback secret\n",
+        ));
     }
 
-    if req.method == "GET" && req.path == "/healthz" {
-        return ResponseBuilder::new(200)
-            .content_type("text/plain")
-            .body(b"ok\n")
-            .write(&mut stream);
+    if method == Method::GET && path == "/healthz" {
+        return Ok(simple_response(StatusCode::OK, "ok\n"));
     }
-
-    stream.set_read_timeout(None)?;
 
     let started = Instant::now();
-    let status = forward::forward(&req, gateway, &mut stream).unwrap_or_else(|e| {
-        diag(&format!("proxy: forward error: {e}"));
-        0
-    });
-    let elapsed = started.elapsed().as_millis() as u64;
+    match forward::forward(req, ctx.client.clone(), &ctx.gateway_base).await {
+        Ok(response) => {
+            let status = response.status().as_u16();
+            record_stats(&ctx.stats, status, started);
+            diag(&format!("proxy: {method} {path} -> {status} {}ms", started.elapsed().as_millis()));
+            Ok(response)
+        },
+        Err(e) => {
+            record_stats(&ctx.stats, StatusCode::BAD_GATEWAY.as_u16(), started);
+            if forward::is_client_disconnect(&e) {
+                diag(&format!("proxy: {method} {path} -> client disconnected"));
+            } else {
+                diag(&format!("proxy: {method} {path} -> forward error: {e}"));
+            }
+            Ok(simple_response(StatusCode::BAD_GATEWAY, "bad gateway\n"))
+        },
+    }
+}
+
+fn record_stats(stats: &ProxyStats, status: u16, started: Instant) {
     stats.forwarded_total.fetch_add(1, Ordering::Relaxed);
+    stats.last_forwarded_at_unix.store(now_unix(), Ordering::Relaxed);
+    stats.last_status.store(u64::from(status), Ordering::Relaxed);
     stats
-        .last_forwarded_at_unix
-        .store(now_unix(), Ordering::Relaxed);
-    stats.last_status.store(status as u64, Ordering::Relaxed);
-    stats.last_latency_ms.store(elapsed, Ordering::Relaxed);
-    diag(&format!(
-        "proxy: {} {} -> {} {}ms",
-        req.method,
-        req.target(),
-        status,
-        elapsed
-    ));
-    Ok(())
+        .last_latency_ms
+        .store(started.elapsed().as_millis() as u64, Ordering::Relaxed);
+}
+
+fn simple_response(status: StatusCode, body: &'static str) -> Response<forward::ProxyBody> {
+    let full = Full::new(Bytes::from_static(body.as_bytes()))
+        .map_err(|never| match never {})
+        .boxed();
+    Response::builder()
+        .status(status)
+        .header(http::header::CONTENT_TYPE, "text/plain")
+        .header(http::header::CONNECTION, "close")
+        .body(full)
+        .unwrap_or_else(|_| Response::new(Full::new(Bytes::new()).map_err(|never| match never {}).boxed()))
 }
 
 fn host_is_loopback(host: &str) -> bool {
