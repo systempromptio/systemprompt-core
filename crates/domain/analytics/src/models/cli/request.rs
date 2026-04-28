@@ -43,6 +43,9 @@ pub struct RequestListRow {
     pub latency_ms: Option<i32>,
     pub cache_hit: Option<bool>,
     pub created_at: DateTime<Utc>,
+    pub status: String,
+    pub error_message: Option<String>,
+    pub user_id: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]

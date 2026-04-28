@@ -30,7 +30,7 @@ pub fn should_redirect(path: &str) -> bool {
         return false;
     }
 
-    if !path.starts_with(ApiPaths::API_BASE) {
+    if !path.starts_with(ApiPaths::API_BASE) && !path.starts_with(ApiPaths::GATEWAY_BASE) {
         return false;
     }
 

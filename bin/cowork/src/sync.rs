@@ -115,7 +115,7 @@ fn run_once_cli(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) -> E
     if force_replay {
         tracing::warn!("--force-replay bypasses manifest version + skew checks");
     }
-    if allow_tofu {
+    if allow_tofu && config::pinned_pubkey().is_none() {
         tracing::warn!(
             "--allow-tofu enables trust-on-first-use pubkey fetch over the gateway channel; this \
              is insecure if the gateway is not authenticated yet"
@@ -162,14 +162,13 @@ pub fn run_once(
                 if !allow_tofu {
                     return Err(SyncError::PubkeyNotPinned);
                 }
-                tracing::warn!(
-                    "no pinned manifest pubkey; --allow-tofu enabled, fetching from gateway over \
-                     the same channel that's about to be authenticated"
-                );
+                tracing::info!("first-run trust-on-first-use: fetching manifest pubkey from gateway");
                 let fetched = client
                     .fetch_pubkey()
                     .map_err(|e| SyncError::Network(e.to_string()))?;
                 let _ = config::persist_pinned_pubkey(&fetched);
+                let prefix: String = fetched.chars().take(12).collect();
+                tracing::info!("pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation");
                 fetched
             },
         };

@@ -151,7 +151,21 @@
     el.classList.add(cls);
   }
 
+  function renderInstallButton(snap) {
+    const installBtn = $("btn-claude-install");
+    if (snap.last_generated_profile) {
+      installBtn.disabled = false;
+      installBtn.dataset.path = snap.last_generated_profile;
+      installBtn.title = snap.last_generated_profile;
+    } else {
+      installBtn.disabled = true;
+      installBtn.removeAttribute("data-path");
+      installBtn.title = "Generate first";
+    }
+  }
+
   function renderClaude(snap) {
+    renderInstallButton(snap);
     const ci = snap.claude_integration;
     if (!ci) {
       setBadge("claude-overall", "probing…", "badge-muted");
@@ -228,19 +242,6 @@
       for (const [k, v] of Object.entries(dKeys)) prefsLines.push(`${k} = ${v}`);
     }
     $("claude-prefs").textContent = prefsLines.join("\n");
-
-    const installBtn = $("btn-claude-install");
-    if (snap.last_generated_profile) {
-      installBtn.disabled = false;
-      installBtn.dataset.path = snap.last_generated_profile;
-      installBtn.textContent = `Install profile`;
-      installBtn.title = snap.last_generated_profile;
-    } else {
-      installBtn.disabled = true;
-      installBtn.removeAttribute("data-path");
-      installBtn.textContent = "Install profile";
-      installBtn.title = "Generate first";
-    }
 
     const warn = $("claude-jwt-warn");
     if (snap.cached_token && snap.cached_token.ttl_seconds < 600 && profileInstalled) {

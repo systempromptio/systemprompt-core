@@ -148,7 +148,10 @@ impl RequestAnalyticsRepository {
                     cost_microdollars,
                     latency_ms,
                     cache_hit,
-                    created_at as "created_at!"
+                    created_at as "created_at!",
+                    status as "status!",
+                    error_message,
+                    user_id as "user_id!"
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                   AND model ILIKE $3
@@ -176,7 +179,10 @@ impl RequestAnalyticsRepository {
                     cost_microdollars,
                     latency_ms,
                     cache_hit,
-                    created_at as "created_at!"
+                    created_at as "created_at!",
+                    status as "status!",
+                    error_message,
+                    user_id as "user_id!"
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                 ORDER BY created_at DESC

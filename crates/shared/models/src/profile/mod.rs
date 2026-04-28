@@ -17,7 +17,7 @@ mod validation;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
-pub use gateway::{GatewayConfig, GatewayRoute};
+pub use gateway::{GatewayCatalog, GatewayConfig, GatewayModel, GatewayProvider, GatewayRoute};
 pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
@@ -143,6 +143,10 @@ impl Profile {
             .with_context(|| format!("Invalid profile path: {}", profile_path.display()))?;
 
         profile.paths.resolve_relative_to(profile_dir);
+
+        if let Some(gateway) = profile.gateway.as_mut() {
+            gateway.resolve_catalog(profile_dir)?;
+        }
 
         Ok(profile)
     }

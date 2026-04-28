@@ -25,7 +25,27 @@ use crate::{config, paths, setup, sync, validate};
 
 const PROBE_INTERVAL_SECS: u64 = 30;
 
+#[cfg(unix)]
+fn install_termination_handlers() {
+    extern "C" fn handle(signum: libc::c_int) {
+        let code = 128 + signum;
+        unsafe { libc::_exit(code) };
+    }
+    unsafe {
+        libc::signal(libc::SIGINT, handle as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGTERM, handle as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGHUP, handle as *const () as libc::sighandler_t);
+    }
+}
+
+#[cfg(not(unix))]
+fn install_termination_handlers() {}
+
 pub fn run() -> ExitCode {
+    install_termination_handlers();
+
+    crate::proxy::start_default();
+
     let event_loop = match EventLoop::<UiEvent>::with_user_event().build() {
         Ok(el) => el,
         Err(e) => {
@@ -133,7 +153,8 @@ impl GuiApp {
                 self.refresh_ui();
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
-                    let result = sync::run_once(false, false, false).map_err(|e| e.to_string());
+                    let allow_tofu = config::pinned_pubkey().is_none();
+                    let result = sync::run_once(false, false, allow_tofu).map_err(|e| e.to_string());
                     let _ = proxy.send_event(UiEvent::SyncFinished(result));
                 });
             },
@@ -259,6 +280,9 @@ impl GuiApp {
 
             #[cfg(target_os = "macos")]
             UiEvent::ClaudeProbeRequested => {
+                if !self.state.mark_claude_probing() {
+                    return;
+                }
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let snap = crate::integration::claude_desktop::probe();
@@ -335,9 +359,14 @@ impl GuiApp {
                 },
             };
 
-            let identity = if matches!(status, GatewayStatus::Reachable { .. }) {
+            let identity = if matches!(status, GatewayStatus::Reachable { .. })
+                && crate::auth::has_credential_source(&cfg)
+            {
                 obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity(&tok))
             } else {
+                if !crate::auth::has_credential_source(&cfg) {
+                    let _ = crate::cache::clear();
+                }
                 None
             };
 
@@ -356,39 +385,30 @@ fn generate_claude_profile()
     use crate::integration::claude_desktop::{ProfileGenInputs, write_profile};
 
     let cfg = config::load();
-    let token = obtain_live_token(&cfg)
-        .ok_or_else(|| "no live JWT available — sign in first".to_string())?;
+
+    let port = crate::proxy::handle()
+        .map(|h| h.port)
+        .unwrap_or(crate::proxy::DEFAULT_PROXY_PORT);
+
+    let loopback_secret = crate::proxy::secret::load_or_mint()
+        .map_err(|e| format!("loopback secret: {e}"))?;
+
+    let gateway_base = config::gateway_url_or_default(&cfg);
+    let server_profile = GatewayClient::new(gateway_base)
+        .fetch_cowork_profile()
+        .map_err(|e| format!("fetch /v1/cowork/profile failed: {e}"))?;
 
     let inputs = ProfileGenInputs {
-        gateway_base_url: config::claude_inference_base_url(&cfg),
-        api_key: token,
-        models: config::claude_models(&cfg),
-        organization_uuid: config::claude_organization_uuid(&cfg),
+        gateway_base_url: format!("http://localhost:{port}"),
+        api_key: loopback_secret,
+        models: server_profile.models,
+        organization_uuid: server_profile.organization_uuid,
     };
     write_profile(&inputs).map_err(|e| e.to_string())
 }
 
 fn obtain_live_token(cfg: &config::Config) -> Option<String> {
-    if let Some(out) = crate::cache::read_valid() {
-        return Some(out.token);
-    }
-    use crate::providers::{AuthError, AuthProvider};
-    let chain: Vec<Box<dyn AuthProvider>> = vec![
-        Box::new(crate::providers::mtls::MtlsProvider::new(cfg)),
-        Box::new(crate::providers::session::SessionProvider::new(cfg)),
-        Box::new(crate::providers::pat::PatProvider::new(cfg)),
-    ];
-    for p in &chain {
-        match p.authenticate() {
-            Ok(out) => {
-                let _ = crate::cache::write(&out);
-                return Some(out.token);
-            },
-            Err(AuthError::NotConfigured) => continue,
-            Err(AuthError::Failed(_)) => {},
-        }
-    }
-    None
+    crate::auth::obtain_live_token(cfg).map(|out| out.token)
 }
 
 impl ApplicationHandler<UiEvent> for GuiApp {
@@ -454,7 +474,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
                 .as_ref()
                 .map(|c| now_unix().saturating_sub(c.probed_at_unix) >= PROBE_INTERVAL_SECS)
                 .unwrap_or(true);
-            if claude_due {
+            if claude_due && !snap.claude_probe_in_flight {
                 let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
             }
         }

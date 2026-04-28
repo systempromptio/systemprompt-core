@@ -2,7 +2,12 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::Response;
+use bytes::Bytes;
 use std::sync::Arc;
+use systemprompt_ai::models::ai_request_record::AiRequestRecord;
+use systemprompt_ai::repository::{
+    AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
+};
 use systemprompt_identifiers::{
     AiRequestId, JwtToken, SessionId, TenantId, TraceId, UserId, headers as sp_headers,
 };
@@ -23,17 +28,132 @@ struct AuthedPrincipal {
     trace_id: Option<TraceId>,
 }
 
+#[derive(Default)]
+struct RejectionPartial {
+    user_id: Option<UserId>,
+    tenant_id: Option<TenantId>,
+    session_id: Option<SessionId>,
+    trace_id: Option<TraceId>,
+    provider: Option<String>,
+    model: Option<String>,
+    max_tokens: Option<u32>,
+    is_streaming: bool,
+    body: Option<Bytes>,
+}
+
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     request: Request<Body>,
 ) -> Response<Body> {
-    match handle_inner(jwt_extractor, ctx, request).await {
+    let ai_request_id = AiRequestId::generate();
+    let mut partial = RejectionPartial::default();
+    match handle_inner(
+        jwt_extractor,
+        ctx.clone(),
+        request,
+        &ai_request_id,
+        &mut partial,
+    )
+    .await
+    {
         Ok(resp) => resp,
         Err((status, message)) => {
-            tracing::warn!(status = %status, message = %message, "Gateway request rejected");
+            tracing::warn!(status = %status, message = %message, ai_request_id = %ai_request_id, "Gateway request rejected");
+            persist_rejection(&ctx, &ai_request_id, &partial, status, &message).await;
             build_error_response(status, &message)
         },
+    }
+}
+
+async fn persist_rejection(
+    ctx: &AppContext,
+    ai_request_id: &AiRequestId,
+    partial: &RejectionPartial,
+    status: StatusCode,
+    message: &str,
+) {
+    let repo = match AiRequestRepository::new(ctx.db_pool()) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(error = %e, "rejection audit: repo unavailable");
+            return;
+        },
+    };
+    let user_id = partial
+        .user_id
+        .clone()
+        .unwrap_or_else(|| UserId::new("anonymous"));
+    let provider = partial
+        .provider
+        .clone()
+        .unwrap_or_else(|| "unknown".to_string());
+    let model = partial
+        .model
+        .clone()
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id)
+        .provider(provider)
+        .model(model)
+        .streaming(partial.is_streaming);
+    if let Some(t) = &partial.tenant_id {
+        builder = builder.tenant_id(t.clone());
+    }
+    if let Some(s) = &partial.session_id {
+        builder = builder.session_id(s.clone());
+    }
+    if let Some(t) = &partial.trace_id {
+        builder = builder.trace_id(t.clone());
+    }
+    if let Some(mt) = partial.max_tokens {
+        builder = builder.max_tokens(mt);
+    }
+    let record = match builder.build() {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(error = %e, "rejection audit: build failed");
+            AiRequestRecord::minimal_fallback(ai_request_id.as_str().to_string())
+        },
+    };
+    if let Err(e) = repo.insert_with_id(ai_request_id, &record).await {
+        tracing::warn!(error = %e, ai_request_id = %ai_request_id, "rejection audit: insert failed");
+        return;
+    }
+    let err_msg = format!("HTTP {}: {message}", status.as_u16());
+    if let Err(e) = repo.update_error(ai_request_id, &err_msg).await {
+        tracing::warn!(error = %e, ai_request_id = %ai_request_id, "rejection audit: update_error failed");
+    }
+
+    if let Some(body) = partial.body.as_ref() {
+        match AiRequestPayloadRepository::new(ctx.db_pool()) {
+            Ok(payloads) => {
+                let bytes_len = body.len().min(i32::MAX as usize) as i32;
+                let body_json = serde_json::from_slice::<serde_json::Value>(body).ok();
+                let excerpt = if body_json.is_none() {
+                    Some(String::from_utf8_lossy(body).to_string())
+                } else {
+                    None
+                };
+                if let Err(e) = payloads
+                    .upsert_request(
+                        ai_request_id,
+                        UpsertPayloadParams {
+                            body: body_json.as_ref(),
+                            excerpt: excerpt.as_deref(),
+                            truncated: false,
+                            bytes: Some(bytes_len),
+                        },
+                    )
+                    .await
+                {
+                    tracing::warn!(error = %e, ai_request_id = %ai_request_id, "rejection audit: payload insert failed");
+                }
+            },
+            Err(e) => {
+                tracing::warn!(error = %e, "rejection audit: payload repo unavailable");
+            },
+        }
     }
 }
 
@@ -41,6 +161,8 @@ async fn handle_inner(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     request: Request<Body>,
+    ai_request_id: &AiRequestId,
+    partial: &mut RejectionPartial,
 ) -> Result<Response<Body>, (StatusCode, String)> {
     let profile = ProfileBootstrap::get().map_err(|e| {
         (
@@ -68,8 +190,12 @@ async fn handle_inner(
         .and_then(|v| v.to_str().ok())
         .filter(|s| !s.is_empty())
         .map(|s| TenantId::new(s.to_string()));
+    partial.tenant_id = tenant_id.clone();
 
     let principal = authenticate(&presented, &jwt_extractor, &ctx, tenant_id).await?;
+    partial.user_id = Some(principal.user_id.clone());
+    partial.session_id = principal.session_id.clone();
+    partial.trace_id = principal.trace_id.clone();
 
     let body_bytes = axum::body::to_bytes(request.into_body(), 8 * 1024 * 1024)
         .await
@@ -79,6 +205,7 @@ async fn handle_inner(
                 format!("Failed to read request body: {e}"),
             )
         })?;
+    partial.body = Some(body_bytes.clone());
 
     let gateway_request: AnthropicGatewayRequest =
         serde_json::from_slice(&body_bytes).map_err(|e| {
@@ -87,6 +214,9 @@ async fn handle_inner(
                 format!("Invalid request body: {e}"),
             )
         })?;
+    partial.model = Some(gateway_request.model.clone());
+    partial.max_tokens = Some(gateway_request.max_tokens);
+    partial.is_streaming = gateway_request.stream.unwrap_or(false);
 
     let route = gateway_config
         .find_route(&gateway_request.model)
@@ -96,9 +226,10 @@ async fn handle_inner(
                 format!("No gateway route matches model '{}'", gateway_request.model),
             )
         })?;
+    partial.provider = Some(route.provider.clone());
 
     let gateway_ctx = GatewayRequestContext {
-        ai_request_id: AiRequestId::generate(),
+        ai_request_id: ai_request_id.clone(),
         user_id: principal.user_id,
         tenant_id: principal.tenant_id,
         session_id: principal.session_id,

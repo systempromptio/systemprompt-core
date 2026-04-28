@@ -19,15 +19,38 @@ pub fn cache_path() -> Option<PathBuf> {
 }
 
 pub fn read_valid() -> Option<HelperOutput> {
+    read_with_threshold(30)
+}
+
+pub fn read_with_threshold(min_remaining_secs: u64) -> Option<HelperOutput> {
     let path = cache_path()?;
     let bytes = fs::read(&path).ok()?;
     let entry: CacheEntry = serde_json::from_slice(&bytes).ok()?;
     let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
-    if entry.expires_at > now + 30 {
+    if entry.expires_at > now + min_remaining_secs {
         Some(entry.output)
     } else {
         None
     }
+}
+
+pub fn clear() -> std::io::Result<()> {
+    let Some(path) = cache_path() else {
+        return Ok(());
+    };
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn ttl_remaining_secs() -> Option<u64> {
+    let path = cache_path()?;
+    let bytes = fs::read(&path).ok()?;
+    let entry: CacheEntry = serde_json::from_slice(&bytes).ok()?;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
+    Some(entry.expires_at.saturating_sub(now))
 }
 
 pub fn write(output: &HelperOutput) -> std::io::Result<()> {

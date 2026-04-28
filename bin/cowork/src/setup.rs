@@ -49,6 +49,9 @@ pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, Setup
 pub fn logout() -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
+    if let Err(e) = crate::cache::clear() {
+        return Err(SetupError::Io(format!("clear token cache: {e}")));
+    }
     if paths.config_file.exists() {
         match fs::read_to_string(&paths.config_file) {
             Ok(existing) => {

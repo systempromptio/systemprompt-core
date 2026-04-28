@@ -1,14 +1,37 @@
 pub mod auth;
 pub mod cowork;
 pub mod messages;
+pub mod models;
 
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::{get, post};
 use axum::{Extension, Router};
 use std::sync::Arc;
+use std::time::Instant;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::JwtContextExtractor;
+
+async fn log_gateway_request(req: Request, next: Next) -> Response {
+    let method = req.method().clone();
+    let path = req.uri().path().to_string();
+    let started = Instant::now();
+    let resp = next.run(req).await;
+    let status = resp.status().as_u16();
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+    tracing::info!(
+        target: "systemprompt_api::gateway",
+        method = %method,
+        path = %path,
+        status = status,
+        elapsed_ms = elapsed_ms,
+        "gateway request"
+    );
+    resp
+}
 
 pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let jwt_secret = match SecretsBootstrap::jwt_secret() {
@@ -58,7 +81,11 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         )
         .route("/auth/cowork/capabilities", get(auth::capabilities))
         .route("/cowork/pubkey", get(cowork::pubkey))
-        .layer(Extension(ctx.clone()));
+        .route("/cowork/profile", get(cowork::profile))
+        .route("/models", get(models::list))
+        .route("/", get(models::root))
+        .layer(Extension(ctx.clone()))
+        .layer(axum::middleware::from_fn(log_gateway_request));
 
     Some(router)
 }
