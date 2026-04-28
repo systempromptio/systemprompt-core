@@ -2,6 +2,7 @@ pub mod paths;
 
 use serde::Deserialize;
 use std::path::PathBuf;
+use std::sync::Once;
 use std::{env, fs};
 
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
@@ -57,45 +58,56 @@ pub struct SyncConfig {
     pub pinned_pubkey: Option<String>,
 }
 
-pub fn load() -> Config {
-    let path = config_path();
-    let mut cfg: Config = path
-        .as_ref()
-        .and_then(|p| fs::read_to_string(p).ok())
-        .and_then(|s| toml::from_str(&s).ok())
-        .unwrap_or_default();
+impl Config {
+    pub fn load() -> Self {
+        let path = config_path();
+        let mut cfg: Config = path
+            .as_ref()
+            .and_then(|p| fs::read_to_string(p).ok())
+            .and_then(|s| toml::from_str(&s).ok())
+            .unwrap_or_default();
 
-    if let Ok(url) = env::var("SP_COWORK_GATEWAY_URL") {
-        cfg.gateway_url = Some(url);
-    }
-    if cfg.gateway_url.as_deref() == Some("") {
-        cfg.gateway_url = None;
-    }
-    if cfg.gateway_url.is_none() {
-        cfg.gateway_url = Some(DEFAULT_GATEWAY_URL.to_string());
+        if let Ok(url) = env::var("SP_COWORK_GATEWAY_URL") {
+            cfg.gateway_url = Some(url);
+        }
+        if cfg.gateway_url.as_deref() == Some("") {
+            cfg.gateway_url = None;
+        }
+        if cfg.gateway_url.is_none() {
+            cfg.gateway_url = Some(DEFAULT_GATEWAY_URL.to_string());
+        }
+
+        cfg
     }
 
-    apply_policy_pubkey(&mut cfg);
-    cfg
+    pub fn with_policy_overrides(mut self) -> Self {
+        let Some(policy_value) = policy_pubkey() else {
+            return self;
+        };
+        let sync = self.sync.get_or_insert_with(SyncConfig::default);
+        match sync.pinned_pubkey.as_deref() {
+            None => sync.pinned_pubkey = Some(policy_value),
+            Some(existing) if existing == policy_value => {},
+            Some(existing) => {
+                static WARN_ONCE: Once = Once::new();
+                let existing_prefix: String = existing.chars().take(12).collect();
+                let policy_prefix: String = policy_value.chars().take(12).collect();
+                WARN_ONCE.call_once(|| {
+                    tracing::warn!(
+                        operator_pubkey_prefix = %existing_prefix,
+                        policy_pubkey_prefix = %policy_prefix,
+                        "policy-provided manifest pubkey overrides operator-set value"
+                    );
+                });
+                sync.pinned_pubkey = Some(policy_value);
+            },
+        }
+        self
+    }
 }
 
-fn apply_policy_pubkey(cfg: &mut Config) {
-    let Some(policy_value) = policy_pubkey() else {
-        return;
-    };
-    let sync = cfg.sync.get_or_insert_with(SyncConfig::default);
-    match sync.pinned_pubkey.as_deref() {
-        None => sync.pinned_pubkey = Some(policy_value),
-        Some(existing) if existing == policy_value => {},
-        Some(existing) => {
-            tracing::warn!(
-                operator_pubkey_prefix = %existing.chars().take(12).collect::<String>(),
-                policy_pubkey_prefix = %policy_value.chars().take(12).collect::<String>(),
-                "policy-provided manifest pubkey overrides operator-set value"
-            );
-            sync.pinned_pubkey = Some(policy_value);
-        },
-    }
+pub fn load() -> Config {
+    Config::load().with_policy_overrides()
 }
 
 pub fn gateway_url_or_default(cfg: &Config) -> String {
