@@ -1,9 +1,17 @@
-use crate::providers::mtls::MtlsProvider;
-use crate::providers::pat::PatProvider;
-use crate::providers::session::SessionProvider;
-use crate::providers::{AuthError, AuthProvider};
-use crate::types::HelperOutput;
-use crate::{cache, config};
+pub mod cache;
+pub mod keystore;
+pub mod loopback;
+pub mod providers;
+pub mod secret;
+pub mod setup;
+pub mod types;
+
+use crate::auth::providers::mtls::MtlsProvider;
+use crate::auth::providers::pat::PatProvider;
+use crate::auth::providers::session::SessionProvider;
+use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::types::HelperOutput;
+use crate::config;
 
 pub fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
     if let Some(out) = cache::read_valid() {

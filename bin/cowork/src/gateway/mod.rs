@@ -1,5 +1,7 @@
-use crate::manifest::SignedManifest;
-use crate::types::{AuthResponse, CoworkProfile, MtlsRequest, SessionExchangeRequest};
+pub mod manifest;
+
+use crate::auth::types::{AuthResponse, CoworkProfile, MtlsRequest, SessionExchangeRequest};
+use crate::gateway::manifest::SignedManifest;
 use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]

@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 pub const LOOPBACK_PORT: u16 = 8767;
 pub const LOOPBACK_TIMEOUT_SECS: u64 = 300;
 
-const SUCCESS_HTML: &str = include_str!("loopback/success.html");
-const ERROR_HTML: &str = include_str!("loopback/error.html");
+const SUCCESS_HTML: &str = include_str!("success.html");
+const ERROR_HTML: &str = include_str!("error.html");
 
 pub struct Captured {
     pub code: String,

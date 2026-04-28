@@ -62,9 +62,9 @@ pub fn install_hint(os: Os) -> &'static str {
     }
 }
 
-const LAUNCHD_PLIST_TMPL: &str = include_str!("schedule/templates/launchd.plist.tmpl");
-const TASK_SCHEDULER_XML_TMPL: &str = include_str!("schedule/templates/task-scheduler.xml.tmpl");
-const SYSTEMD_UNIT_TMPL: &str = include_str!("schedule/templates/systemd.unit.tmpl");
+const LAUNCHD_PLIST_TMPL: &str = include_str!("templates/launchd.plist.tmpl");
+const TASK_SCHEDULER_XML_TMPL: &str = include_str!("templates/task-scheduler.xml.tmpl");
+const SYSTEMD_UNIT_TMPL: &str = include_str!("templates/systemd.unit.tmpl");
 
 fn launchd_plist(binary: &Path) -> String {
     LAUNCHD_PLIST_TMPL.replace("{binary}", &binary.display().to_string())

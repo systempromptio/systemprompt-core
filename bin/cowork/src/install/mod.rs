@@ -518,17 +518,17 @@ fn validate_macos_gateway(gateway: &str) -> Result<(), String> {
     Ok(())
 }
 
-const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("install/templates/mdm_macos_snippet.tmpl");
+const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("templates/mdm_macos_snippet.tmpl");
 
 #[cfg(target_os = "macos")]
-const PREFS_PLIST_TMPL: &str = include_str!("install/templates/prefs.plist.tmpl");
+const PREFS_PLIST_TMPL: &str = include_str!("templates/prefs.plist.tmpl");
 #[cfg(target_os = "macos")]
-const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("install/templates/prefs_pubkey_line.tmpl");
+const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("templates/prefs_pubkey_line.tmpl");
 #[cfg(target_os = "macos")]
-const MOBILECONFIG_TMPL: &str = include_str!("install/templates/mobileconfig.tmpl");
+const MOBILECONFIG_TMPL: &str = include_str!("templates/mobileconfig.tmpl");
 #[cfg(target_os = "macos")]
 const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
-    include_str!("install/templates/mobileconfig_pubkey_line.tmpl");
+    include_str!("templates/mobileconfig_pubkey_line.tmpl");
 
 #[cfg(target_os = "macos")]
 pub fn build_macos_prefs_plist(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
