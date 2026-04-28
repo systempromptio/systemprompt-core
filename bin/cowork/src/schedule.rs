@@ -62,104 +62,18 @@ pub fn install_hint(os: Os) -> &'static str {
     }
 }
 
+const LAUNCHD_PLIST_TMPL: &str = include_str!("schedule/templates/launchd.plist.tmpl");
+const TASK_SCHEDULER_XML_TMPL: &str = include_str!("schedule/templates/task-scheduler.xml.tmpl");
+const SYSTEMD_UNIT_TMPL: &str = include_str!("schedule/templates/systemd.unit.tmpl");
+
 fn launchd_plist(binary: &Path) -> String {
-    let binary = binary.display();
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>io.systemprompt.cowork-sync</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>{binary}</string>
-        <string>sync</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>StartInterval</key>
-    <integer>1800</integer>
-    <key>StandardOutPath</key>
-    <string>/tmp/systemprompt-cowork-sync.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/systemprompt-cowork-sync.err</string>
-</dict>
-</plist>
-"#
-    )
+    LAUNCHD_PLIST_TMPL.replace("{binary}", &binary.display().to_string())
 }
 
 fn task_scheduler_xml(binary: &Path) -> String {
-    let binary = binary.display();
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo>
-    <Description>systemprompt.io Cowork plugin + MCP allowlist sync</Description>
-  </RegistrationInfo>
-  <Triggers>
-    <LogonTrigger>
-      <Enabled>true</Enabled>
-    </LogonTrigger>
-    <TimeTrigger>
-      <Repetition>
-        <Interval>PT30M</Interval>
-      </Repetition>
-      <StartBoundary>2026-01-01T00:00:00</StartBoundary>
-      <Enabled>true</Enabled>
-    </TimeTrigger>
-  </Triggers>
-  <Principals>
-    <Principal id="Author">
-      <LogonType>InteractiveToken</LogonType>
-      <RunLevel>LeastPrivilege</RunLevel>
-    </Principal>
-  </Principals>
-  <Settings>
-    <AllowHardTerminate>true</AllowHardTerminate>
-    <StartWhenAvailable>true</StartWhenAvailable>
-    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
-    <Enabled>true</Enabled>
-  </Settings>
-  <Actions Context="Author">
-    <Exec>
-      <Command>{binary}</Command>
-      <Arguments>sync</Arguments>
-    </Exec>
-  </Actions>
-</Task>
-"#
-    )
+    TASK_SCHEDULER_XML_TMPL.replace("{binary}", &binary.display().to_string())
 }
 
 fn systemd_user_unit(binary: &Path) -> String {
-    let binary = binary.display();
-    format!(
-        r#"# === systemprompt-cowork-sync.service ===
-[Unit]
-Description=systemprompt.io Cowork plugin + MCP allowlist sync
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart={binary} sync
-Nice=10
-
-[Install]
-WantedBy=default.target
-
-# === systemprompt-cowork-sync.timer ===
-[Unit]
-Description=Periodic systemprompt-cowork sync
-
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=30min
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-"#
-    )
+    SYSTEMD_UNIT_TMPL.replace("{binary}", &binary.display().to_string())
 }

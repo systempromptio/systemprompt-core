@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadIdentifier</key>
+    <string>io.systemprompt.cowork.claude-desktop</string>
+    <key>PayloadUUID</key>
+    <string>{profile_uuid}</string>
+    <key>PayloadDisplayName</key>
+    <string>systemprompt cowork — Claude Desktop gateway</string>
+    <key>PayloadDescription</key>
+    <string>Routes Claude Desktop inference through your systemprompt.io gateway.</string>
+    <key>PayloadOrganization</key>
+    <string>systemprompt.io</string>
+    <key>PayloadScope</key>
+    <string>User</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadContent</key>
+    <array>
+      <dict>
+        <key>PayloadType</key>
+        <string>com.anthropic.claudefordesktop</string>
+        <key>PayloadIdentifier</key>
+        <string>io.systemprompt.cowork.claude-desktop.payload</string>
+        <key>PayloadUUID</key>
+        <string>{payload_uuid}</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadDisplayName</key>
+        <string>Claude Desktop — Inference gateway</string>
+        <key>PayloadEnabled</key>
+        <true/>
+        <key>inferenceProvider</key>
+        <string>gateway</string>
+        <key>inferenceGatewayBaseUrl</key>
+        <string>{base_url}</string>
+        <key>inferenceGatewayApiKey</key>
+        <string>{api_key}</string>
+        <key>inferenceGatewayAuthScheme</key>
+        <string>bearer</string>
+        <key>inferenceModels</key>
+        <array>
+{models_xml}
+        </array>
+{org_xml}      </dict>
+    </array>
+</dict>
+</plist>

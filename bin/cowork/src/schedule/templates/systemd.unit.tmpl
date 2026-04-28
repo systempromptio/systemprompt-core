@@ -1,0 +1,24 @@
+# === systemprompt-cowork-sync.service ===
+[Unit]
+Description=systemprompt.io Cowork plugin + MCP allowlist sync
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={binary} sync
+Nice=10
+
+[Install]
+WantedBy=default.target
+
+# === systemprompt-cowork-sync.timer ===
+[Unit]
+Description=Periodic systemprompt-cowork sync
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
