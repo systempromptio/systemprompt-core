@@ -162,13 +162,18 @@ pub fn run_once(
                 if !allow_tofu {
                     return Err(SyncError::PubkeyNotPinned);
                 }
-                tracing::info!("first-run trust-on-first-use: fetching manifest pubkey from gateway");
+                tracing::info!(
+                    "first-run trust-on-first-use: fetching manifest pubkey from gateway"
+                );
                 let fetched = client
                     .fetch_pubkey()
                     .map_err(|e| SyncError::Network(e.to_string()))?;
                 let _ = config::persist_pinned_pubkey(&fetched);
                 let prefix: String = fetched.chars().take(12).collect();
-                tracing::info!("pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation");
+                tracing::info!(
+                    "pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey \
+                     rotation"
+                );
                 fetched
             },
         };

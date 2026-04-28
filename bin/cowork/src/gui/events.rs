@@ -11,7 +11,10 @@ pub enum UiEvent {
     SyncRequested,
     ValidateRequested,
     OpenConfigFolder,
-    LoginRequested { token: String, gateway: Option<String> },
+    LoginRequested {
+        token: String,
+        gateway: Option<String>,
+    },
     LogoutRequested,
     GatewayProbeRequested,
     Quit,

@@ -15,7 +15,11 @@ fn managed_prefs_candidates(domain: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(user) = std::env::var("USER") {
         if !user.is_empty() {
-            out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(&user).join(format!("{domain}.plist")));
+            out.push(
+                PathBuf::from(MANAGED_PREFS_ROOT)
+                    .join(&user)
+                    .join(format!("{domain}.plist")),
+            );
         }
     }
     out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(format!("{domain}.plist")));
@@ -32,11 +36,7 @@ const KEYS_OF_INTEREST: &[&str] = &[
     "deploymentOrganizationUuid",
 ];
 
-const DEFAULT_MODELS: &[&str] = &[
-    "claude-opus-4-7",
-    "claude-sonnet-4-6",
-    "claude-haiku-4-5",
-];
+const DEFAULT_MODELS: &[&str] = &["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"];
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ClaudeIntegrationSnapshot {
@@ -84,7 +84,15 @@ pub enum GatewayProbeState {
 
 pub fn probe() -> ClaudeIntegrationSnapshot {
     let managed_prefs = ManagedPrefsState {
-        desktop: read_domain(DESKTOP_DOMAIN, &["inferenceProvider", "inferenceGatewayBaseUrl", "inferenceGatewayApiKey", "inferenceModels"]),
+        desktop: read_domain(
+            DESKTOP_DOMAIN,
+            &[
+                "inferenceProvider",
+                "inferenceGatewayBaseUrl",
+                "inferenceGatewayApiKey",
+                "inferenceModels",
+            ],
+        ),
         code: read_domain(CODE_DOMAIN, &[]),
     };
 
@@ -388,11 +396,7 @@ pub fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProf
     })
 }
 
-fn render_profile(
-    inputs: &ProfileGenInputs,
-    payload_uuid: &str,
-    profile_uuid: &str,
-) -> String {
+fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &str) -> String {
     let models_xml: String = inputs
         .models
         .iter()

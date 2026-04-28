@@ -47,8 +47,7 @@ pub fn org_plugins_system() -> Option<PathBuf> {
 
 #[cfg(target_os = "windows")]
 pub fn org_plugins_user() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA")
-        .map(|p| PathBuf::from(p).join("Claude").join("org-plugins"))
+    std::env::var_os("LOCALAPPDATA").map(|p| PathBuf::from(p).join("Claude").join("org-plugins"))
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]

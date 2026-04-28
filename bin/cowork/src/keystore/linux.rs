@@ -29,8 +29,7 @@ fn pem_to_der(input: &[u8]) -> Option<Vec<u8>> {
 }
 
 fn base64_decode(input: &str) -> Option<Vec<u8>> {
-    const ALPHA: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHA: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut lookup = [0xFFu8; 256];
     for (i, b) in ALPHA.iter().enumerate() {
         lookup[*b as usize] = i as u8;

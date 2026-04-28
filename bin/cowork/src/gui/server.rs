@@ -9,9 +9,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 use crate::gui::events::UiEvent;
-use crate::gui::state::{
-    AppState, AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity,
-};
+use crate::gui::state::{AppState, AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
 #[cfg(target_os = "macos")]
 use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
 use crate::output::diag;
@@ -71,11 +69,7 @@ impl ActivityLog {
 
     fn snapshot_since(&self, since: u64) -> Vec<LogEntry> {
         let g = self.inner.lock().expect("ActivityLog poisoned");
-        g.entries
-            .iter()
-            .filter(|e| e.id > since)
-            .cloned()
-            .collect()
+        g.entries.iter().filter(|e| e.id > since).cloned().collect()
     }
 }
 
@@ -444,13 +438,9 @@ fn write_response(
         _ => "OK",
     };
     let header = format!(
-        "HTTP/1.1 {status} {reason}\r\n\
-         Content-Type: {content_type}\r\n\
-         Content-Length: {}\r\n\
-         Cache-Control: no-store\r\n\
-         X-Content-Type-Options: nosniff\r\n\
-         Connection: close\r\n\
-         \r\n",
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: \
+         {}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: \
+         close\r\n\r\n",
         body.len()
     );
     stream.write_all(header.as_bytes())?;

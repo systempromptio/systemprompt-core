@@ -309,7 +309,7 @@ fn apply_mdm(
 ) -> Result<Vec<String>, String> {
     match os {
         Os::Windows => apply_windows(binary, gateway, pubkey),
-        Os::MacOs => apply_macos(binary, gateway, pubkey),
+        Os::Mac => apply_macos(binary, gateway, pubkey),
         Os::Linux => Err("Linux has no Anthropic-documented MDM format; set the \
                           CLAUDE_INFERENCE_* env vars in your shell profile or systemd-user unit."
             .into()),
@@ -651,7 +651,7 @@ fn apply_macos(
 
 fn os_label(os: Os) -> &'static str {
     match os {
-        Os::MacOs => "macOS",
+        Os::Mac => "macOS",
         Os::Windows => "Windows",
         Os::Linux => "Linux",
     }
@@ -661,7 +661,7 @@ fn mdm_snippet(os: Os, binary: &Path, gateway_url: Option<&str>) -> String {
     let binary = binary.display();
     let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
     match os {
-        Os::MacOs => format!(
+        Os::Mac => format!(
             r#"Domain: com.anthropic.claudefordesktop
 Format: .mobileconfig (managed preference)
 

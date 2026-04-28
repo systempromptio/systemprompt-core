@@ -1,15 +1,13 @@
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::Deserialize;
 
-use crate::cache;
-use crate::config;
 use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
-use crate::paths;
-use crate::setup;
 use crate::validate::ValidationReport;
+use crate::{cache, config, paths, setup};
 
 const POISONED: &str = "AppState mutex poisoned";
 
@@ -232,17 +230,13 @@ impl AppState {
             if let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL)) {
                 if let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes) {
                     let when = record.synced_at.as_deref().unwrap_or("unknown");
-                    let manifest_version =
-                        record.manifest_version.as_deref().unwrap_or("?");
-                    snap.last_sync_summary =
-                        Some(format!("{when} (manifest {manifest_version})"));
+                    let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
+                    snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
                 }
             }
 
-            snap.skill_count =
-                read_index_count(&meta.join(paths::SKILLS_DIR).join("index.json"));
-            snap.agent_count =
-                read_index_count(&meta.join(paths::AGENTS_DIR).join("index.json"));
+            snap.skill_count = read_index_count(&meta.join(paths::SKILLS_DIR).join("index.json"));
+            snap.agent_count = read_index_count(&meta.join(paths::AGENTS_DIR).join("index.json"));
         }
     }
 }

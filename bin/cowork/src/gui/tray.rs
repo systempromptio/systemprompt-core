@@ -36,7 +36,8 @@ pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
     menu.append(&validate_item).map_err(|e| e.to_string())?;
     menu.append(&PredefinedMenuItem::separator())
         .map_err(|e| e.to_string())?;
-    menu.append(&open_settings_item).map_err(|e| e.to_string())?;
+    menu.append(&open_settings_item)
+        .map_err(|e| e.to_string())?;
     menu.append(&open_folder_item).map_err(|e| e.to_string())?;
     menu.append(&PredefinedMenuItem::separator())
         .map_err(|e| e.to_string())?;
@@ -72,9 +73,7 @@ pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
 pub fn refresh(handles: &TrayHandles, snap: &AppStateSnapshot) {
     handles.identity_item.set_text(format_identity(snap));
     handles.last_sync_item.set_text(format_last_sync(snap));
-    handles
-        .sync_item
-        .set_enabled(!snap.sync_in_flight);
+    handles.sync_item.set_enabled(!snap.sync_in_flight);
     if snap.sync_in_flight {
         handles.sync_item.set_text("Syncing…");
     } else {
@@ -90,7 +89,10 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
         }
     }
     while let Ok(event) = TrayIconEvent::receiver().try_recv() {
-        if matches!(event, TrayIconEvent::Click { .. } | TrayIconEvent::DoubleClick { .. }) {
+        if matches!(
+            event,
+            TrayIconEvent::Click { .. } | TrayIconEvent::DoubleClick { .. }
+        ) {
             out.push(UiEvent::OpenSettings);
         }
     }

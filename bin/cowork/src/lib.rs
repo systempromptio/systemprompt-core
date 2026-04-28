@@ -4,9 +4,9 @@ pub mod config;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
 pub mod http;
+pub mod install;
 #[cfg(target_os = "macos")]
 pub mod integration;
-pub mod install;
 pub mod keystore;
 pub mod loopback;
 pub mod manifest;

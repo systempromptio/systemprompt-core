@@ -4,9 +4,8 @@ use std::time::Duration;
 
 use ureq::AgentBuilder;
 
-use crate::auth;
-use crate::config;
 use crate::proxy::server::Request;
+use crate::{auth, config};
 
 const REFRESH_THRESHOLD_SECS: u64 = 300;
 const HOP_BY_HOP: &[&str] = &[
@@ -32,7 +31,11 @@ pub fn forward(req: &Request, gateway_base: &str, client: &mut TcpStream) -> Res
     let url = format!(
         "{}{}",
         gateway_base.trim_end_matches('/'),
-        if req.path.starts_with('/') { req.path.clone() } else { format!("/{}", req.path) }
+        if req.path.starts_with('/') {
+            req.path.clone()
+        } else {
+            format!("/{}", req.path)
+        }
     );
 
     let agent = AgentBuilder::new()
@@ -83,7 +86,11 @@ pub fn forward(req: &Request, gateway_base: &str, client: &mut TcpStream) -> Res
     Ok(status)
 }
 
-fn forward_response(client: &mut TcpStream, status: u16, resp: ureq::Response) -> Result<(), String> {
+fn forward_response(
+    client: &mut TcpStream,
+    status: u16,
+    resp: ureq::Response,
+) -> Result<(), String> {
     let reason = resp.status_text().to_string();
     let header_names: Vec<String> = resp.headers_names();
 
@@ -167,9 +174,15 @@ fn forward_response(client: &mut TcpStream, status: u16, resp: ureq::Response) -
     Ok(())
 }
 
-fn write_status(client: &mut TcpStream, status: u16, content_type: &str, body: &[u8]) -> Result<(), String> {
+fn write_status(
+    client: &mut TcpStream,
+    status: u16,
+    content_type: &str,
+    body: &[u8],
+) -> Result<(), String> {
     let header = format!(
-        "HTTP/1.1 {status} Bad Gateway\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status} Bad Gateway\r\nContent-Type: {content_type}\r\nContent-Length: \
+         {}\r\nConnection: close\r\n\r\n",
         body.len()
     );
     client

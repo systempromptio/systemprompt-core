@@ -1,10 +1,9 @@
-use crate::cache;
-use crate::config;
 use crate::providers::mtls::MtlsProvider;
 use crate::providers::pat::PatProvider;
 use crate::providers::session::SessionProvider;
 use crate::providers::{AuthError, AuthProvider};
 use crate::types::HelperOutput;
+use crate::{cache, config};
 
 pub fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
     if let Some(out) = cache::read_valid() {
@@ -21,7 +20,11 @@ pub fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<Help
 }
 
 pub fn has_credential_source(cfg: &config::Config) -> bool {
-    if std::env::var("SP_COWORK_PAT").ok().filter(|s| !s.is_empty()).is_some() {
+    if std::env::var("SP_COWORK_PAT")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
         return true;
     }
     if let Some(pat) = cfg.pat.as_ref() {

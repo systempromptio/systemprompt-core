@@ -106,7 +106,10 @@ fn browser_command(url: &str) -> (&'static str, Vec<String>) {
 
 #[cfg(target_os = "windows")]
 fn browser_command(url: &str) -> (&'static str, Vec<String>) {
-    ("cmd", vec!["/C".into(), "start".into(), String::new(), url.into()])
+    (
+        "cmd",
+        vec!["/C".into(), "start".into(), String::new(), url.into()],
+    )
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
