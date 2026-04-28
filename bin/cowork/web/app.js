@@ -55,6 +55,15 @@
   $("btn-validate").addEventListener("click", () => post("/api/validate"));
   $("btn-open-folder").addEventListener("click", () => post("/api/open_folder"));
   $("btn-recheck").addEventListener("click", () => post("/api/probe"));
+  $("btn-claude-generate").addEventListener("click", () => post("/api/claude/profile/generate"));
+  $("btn-claude-reverify").addEventListener("click", () => post("/api/claude/probe"));
+  $("btn-claude-install").addEventListener("click", () => {
+    const path = $("btn-claude-install").dataset.path || lastSnapshot?.last_generated_profile;
+    if (!path) { append("No generated profile yet — click Generate first."); return; }
+    post("/api/claude/profile/install", { path });
+  });
+
+  let lastSnapshot = null;
 
   function renderServer(snap) {
     const status = snap.gateway_status || { state: "unknown" };
@@ -127,10 +136,128 @@
     }
   }
 
+  function setDot(id, cls) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.remove("dot-unknown", "dot-probing", "dot-ok", "dot-err", "dot-warn");
+    el.classList.add(cls);
+  }
+
+  function setBadge(id, text, cls) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove("badge-muted", "badge-ok", "badge-warn", "badge-err");
+    el.classList.add(cls);
+  }
+
+  function renderClaude(snap) {
+    const ci = snap.claude_integration;
+    if (!ci) {
+      setBadge("claude-overall", "probing…", "badge-muted");
+      return;
+    }
+
+    const desktop = ci.managed_prefs?.desktop;
+    const profileInstalled = !!desktop?.installed;
+    const missing = desktop?.missing_required || [];
+    if (profileInstalled && missing.length === 0) {
+      setDot("claude-profile-dot", "dot-ok");
+      $("claude-profile-text").textContent = "installed";
+      $("claude-profile-detail").textContent = desktop.plist_path || "";
+      $("claude-profile-detail").classList.remove("muted");
+    } else if (profileInstalled) {
+      setDot("claude-profile-dot", "dot-warn");
+      $("claude-profile-text").textContent = `partial (missing: ${missing.join(", ")})`;
+      $("claude-profile-detail").textContent = desktop.plist_path || "";
+      $("claude-profile-detail").classList.remove("muted");
+    } else {
+      setDot("claude-profile-dot", "dot-err");
+      $("claude-profile-text").textContent = "not installed";
+      $("claude-profile-detail").textContent = "no managed plist for com.anthropic.claudefordesktop";
+      $("claude-profile-detail").classList.add("muted");
+    }
+
+    const gh = ci.gateway_health || { state: "Unknown" };
+    const gstate = (gh.state || "Unknown").toString();
+    if (gstate === "Listening") {
+      setDot("claude-gateway-dot", "dot-ok");
+      $("claude-gateway-text").textContent = `listening · ${gh.latency_ms ?? "?"}ms`;
+    } else if (gstate === "Refused") {
+      setDot("claude-gateway-dot", "dot-err");
+      $("claude-gateway-text").textContent = "connection refused";
+    } else if (gstate === "Timeout") {
+      setDot("claude-gateway-dot", "dot-err");
+      $("claude-gateway-text").textContent = "timed out";
+    } else if (gstate === "Unconfigured") {
+      setDot("claude-gateway-dot", "dot-warn");
+      $("claude-gateway-text").textContent = "not yet configured";
+    } else {
+      setDot("claude-gateway-dot", "dot-unknown");
+      $("claude-gateway-text").textContent = gstate;
+    }
+    $("claude-gateway-detail").textContent = gh.url || "";
+    $("claude-gateway-detail").classList.toggle("muted", !gh.url);
+
+    if (ci.claude_running) {
+      setDot("claude-running-dot", "dot-ok");
+      $("claude-running-text").textContent = "running";
+      $("claude-running-detail").textContent = (ci.claude_processes || []).join(", ") || "process detected";
+      $("claude-running-detail").classList.remove("muted");
+    } else {
+      setDot("claude-running-dot", "dot-warn");
+      $("claude-running-text").textContent = "not running";
+      $("claude-running-detail").textContent = "launch Claude.app to verify routing";
+      $("claude-running-detail").classList.add("muted");
+    }
+
+    const overall = profileInstalled && gstate === "Listening" && missing.length === 0
+      ? ["healthy", "badge-ok"]
+      : profileInstalled && gstate !== "Listening"
+        ? ["gateway down", "badge-err"]
+        : !profileInstalled
+          ? ["profile missing", "badge-warn"]
+          : ["partial", "badge-warn"];
+    setBadge("claude-overall", overall[0], overall[1]);
+
+    const prefsLines = [];
+    const dKeys = desktop?.keys || {};
+    if (Object.keys(dKeys).length === 0) {
+      prefsLines.push("(no keys present)");
+    } else {
+      for (const [k, v] of Object.entries(dKeys)) prefsLines.push(`${k} = ${v}`);
+    }
+    $("claude-prefs").textContent = prefsLines.join("\n");
+
+    const installBtn = $("btn-claude-install");
+    if (snap.last_generated_profile) {
+      installBtn.disabled = false;
+      installBtn.dataset.path = snap.last_generated_profile;
+      installBtn.textContent = `Install profile`;
+      installBtn.title = snap.last_generated_profile;
+    } else {
+      installBtn.disabled = true;
+      installBtn.removeAttribute("data-path");
+      installBtn.textContent = "Install profile";
+      installBtn.title = "Generate first";
+    }
+
+    const warn = $("claude-jwt-warn");
+    if (snap.cached_token && snap.cached_token.ttl_seconds < 600 && profileInstalled) {
+      warn.hidden = false;
+      warn.textContent = `JWT in profile expires in ~${snap.cached_token.ttl_seconds}s — re-generate before it lapses.`;
+    } else {
+      warn.hidden = true;
+      warn.textContent = "";
+    }
+  }
+
   function applySnapshot(snap) {
+    lastSnapshot = snap;
     renderServer(snap);
     renderIdentity(snap);
     renderMarketplace(snap);
+    renderClaude(snap);
 
     if (document.activeElement !== $("gateway")) $("gateway").value = snap.gateway_url || "";
     $("plugins-dir").textContent = snap.plugins_dir || "—";

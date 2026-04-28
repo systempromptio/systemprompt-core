@@ -12,6 +12,8 @@ use crate::gui::events::UiEvent;
 use crate::gui::state::{
     AppState, AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity,
 };
+#[cfg(target_os = "macos")]
+use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
 use crate::output::diag;
 
 const HTML: &str = include_str!("../../web/index.html");
@@ -201,6 +203,11 @@ fn handle_connection(
     }
 }
 
+#[cfg(target_os = "macos")]
+fn claude_integration_json(snap: &ClaudeIntegrationSnapshot) -> serde_json::Value {
+    serde_json::to_value(snap).unwrap_or(serde_json::Value::Null)
+}
+
 fn parse_request(stream: &TcpStream) -> Result<Request, String> {
     let mut reader = BufReader::new(stream);
     let mut request_line = String::new();
@@ -363,6 +370,11 @@ struct LoginBody {
     gateway: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct InstallProfileBody {
+    path: String,
+}
+
 fn handle_action(
     stream: &mut TcpStream,
     tx: &Sender<UiEvent>,
@@ -387,6 +399,22 @@ fn handle_action(
                     400,
                     "text/plain",
                     format!("bad login body: {e}").as_bytes(),
+                );
+            },
+        },
+        #[cfg(target_os = "macos")]
+        "/api/claude/probe" => UiEvent::ClaudeProbeRequested,
+        #[cfg(target_os = "macos")]
+        "/api/claude/profile/generate" => UiEvent::ClaudeProfileGenerateRequested,
+        #[cfg(target_os = "macos")]
+        "/api/claude/profile/install" => match serde_json::from_slice::<InstallProfileBody>(body) {
+            Ok(b) => UiEvent::ClaudeProfileInstallRequested(b.path),
+            Err(e) => {
+                return write_response(
+                    stream,
+                    400,
+                    "text/plain",
+                    format!("bad install body: {e}").as_bytes(),
                 );
             },
         },
@@ -451,8 +479,23 @@ fn snapshot_to_json(snap: &AppStateSnapshot) -> String {
         "verified_identity": snap.verified_identity.as_ref().map(verified_identity_json),
         "signed_in": snap.signed_in(),
         "last_probe_at_unix": snap.last_probe_at_unix,
+        "claude_integration": claude_integration_value(snap),
+        "last_generated_profile": snap.last_generated_profile.clone(),
     })
     .to_string()
+}
+
+#[cfg(target_os = "macos")]
+fn claude_integration_value(snap: &AppStateSnapshot) -> serde_json::Value {
+    snap.claude_integration
+        .as_ref()
+        .map(claude_integration_json)
+        .unwrap_or(serde_json::Value::Null)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn claude_integration_value(_snap: &AppStateSnapshot) -> serde_json::Value {
+    serde_json::Value::Null
 }
 
 fn cached_token_json(t: &CachedToken) -> serde_json::Value {

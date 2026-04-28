@@ -98,6 +98,48 @@
       </div>
     </section>
 
+    <section class="panel panel-wide" id="panel-claude">
+      <h2>Claude Desktop integration
+        <span id="claude-overall" class="badge badge-muted">probing…</span>
+      </h2>
+      <div class="claude-grid">
+        <div class="claude-cell">
+          <div class="cell-label">Configuration profile</div>
+          <div class="cell-status">
+            <span id="claude-profile-dot" class="dot dot-unknown"></span>
+            <span id="claude-profile-text" class="value">checking…</span>
+          </div>
+          <div id="claude-profile-detail" class="value mono muted">—</div>
+        </div>
+        <div class="claude-cell">
+          <div class="cell-label">Inference gateway</div>
+          <div class="cell-status">
+            <span id="claude-gateway-dot" class="dot dot-unknown"></span>
+            <span id="claude-gateway-text" class="value">checking…</span>
+          </div>
+          <div id="claude-gateway-detail" class="value mono muted">—</div>
+        </div>
+        <div class="claude-cell">
+          <div class="cell-label">Claude.app</div>
+          <div class="cell-status">
+            <span id="claude-running-dot" class="dot dot-unknown"></span>
+            <span id="claude-running-text" class="value">checking…</span>
+          </div>
+          <div id="claude-running-detail" class="value mono muted">—</div>
+        </div>
+      </div>
+      <div class="kv">
+        <label>Resolved managed prefs</label>
+        <pre id="claude-prefs" class="log" style="max-height: 140px;">—</pre>
+      </div>
+      <div class="row">
+        <button id="btn-claude-generate" class="primary" type="button">Generate profile</button>
+        <button id="btn-claude-install"  class="ghost"   type="button" disabled>Install profile</button>
+        <button id="btn-claude-reverify" class="ghost"   type="button">Re-verify</button>
+      </div>
+      <div id="claude-jwt-warn" class="claude-warn" hidden></div>
+    </section>
+
     <section class="panel panel-wide">
       <h2>Activity</h2>
       <pre id="log" class="log" aria-live="polite">Ready.</pre>

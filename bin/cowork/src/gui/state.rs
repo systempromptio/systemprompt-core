@@ -6,6 +6,7 @@ use serde::Deserialize;
 
 use crate::cache;
 use crate::config;
+use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
 use crate::paths;
 use crate::setup;
 use crate::validate::ValidationReport;
@@ -96,6 +97,8 @@ pub struct AppStateSnapshot {
     pub gateway_status: GatewayStatus,
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
+    pub claude_integration: Option<ClaudeIntegrationSnapshot>,
+    pub last_generated_profile: Option<String>,
 }
 
 impl AppStateSnapshot {
@@ -162,6 +165,16 @@ impl AppState {
     pub fn clear_verified_identity(&self) {
         let mut guard = self.inner.lock().expect(POISONED);
         guard.verified_identity = None;
+    }
+
+    pub fn apply_claude_integration(&self, snap: ClaudeIntegrationSnapshot) {
+        let mut guard = self.inner.lock().expect(POISONED);
+        guard.claude_integration = Some(snap);
+    }
+
+    pub fn set_last_generated_profile(&self, path: String) {
+        let mut guard = self.inner.lock().expect(POISONED);
+        guard.last_generated_profile = Some(path);
     }
 
     fn reload_into(snap: &mut AppStateSnapshot) {
