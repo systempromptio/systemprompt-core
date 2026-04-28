@@ -2,7 +2,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Os {
-    MacOs,
+    Mac,
     Windows,
     Linux,
 }
@@ -10,7 +10,7 @@ pub enum Os {
 impl Os {
     pub fn current() -> Self {
         if cfg!(target_os = "macos") {
-            Os::MacOs
+            Os::Mac
         } else if cfg!(target_os = "windows") {
             Os::Windows
         } else {
@@ -20,7 +20,7 @@ impl Os {
 
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
-            "macos" | "darwin" | "mac" => Some(Os::MacOs),
+            "macos" | "darwin" | "mac" => Some(Os::Mac),
             "windows" | "win" => Some(Os::Windows),
             "linux" => Some(Os::Linux),
             _ => None,
@@ -30,7 +30,7 @@ impl Os {
 
 pub fn template(os: Os, binary: &Path) -> String {
     match os {
-        Os::MacOs => launchd_plist(binary),
+        Os::Mac => launchd_plist(binary),
         Os::Windows => task_scheduler_xml(binary),
         Os::Linux => systemd_user_unit(binary),
     }
@@ -38,7 +38,7 @@ pub fn template(os: Os, binary: &Path) -> String {
 
 pub fn template_filename(os: Os) -> &'static str {
     match os {
-        Os::MacOs => "io.systemprompt.cowork-sync.plist",
+        Os::Mac => "io.systemprompt.cowork-sync.plist",
         Os::Windows => "systemprompt-cowork-sync.xml",
         Os::Linux => "systemprompt-cowork-sync.service+timer",
     }
@@ -46,9 +46,19 @@ pub fn template_filename(os: Os) -> &'static str {
 
 pub fn install_hint(os: Os) -> &'static str {
     match os {
-        Os::MacOs => "Save to ~/Library/LaunchAgents/io.systemprompt.cowork-sync.plist, then: launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.systemprompt.cowork-sync.plist",
-        Os::Windows => "Save as systemprompt-cowork-sync.xml, then: schtasks /Create /TN \"SystempromptCoworkSync\" /XML systemprompt-cowork-sync.xml",
-        Os::Linux => "Split into ~/.config/systemd/user/systemprompt-cowork-sync.{service,timer}, then: systemctl --user daemon-reload && systemctl --user enable --now systemprompt-cowork-sync.timer",
+        Os::Mac => {
+            "Save to ~/Library/LaunchAgents/io.systemprompt.cowork-sync.plist, then: launchctl \
+             bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.systemprompt.cowork-sync.plist"
+        },
+        Os::Windows => {
+            "Save as systemprompt-cowork-sync.xml, then: schtasks /Create /TN \
+             \"SystempromptCoworkSync\" /XML systemprompt-cowork-sync.xml"
+        },
+        Os::Linux => {
+            "Split into ~/.config/systemd/user/systemprompt-cowork-sync.{service,timer}, then: \
+             systemctl --user daemon-reload && systemctl --user enable --now \
+             systemprompt-cowork-sync.timer"
+        },
     }
 }
 

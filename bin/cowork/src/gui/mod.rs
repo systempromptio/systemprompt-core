@@ -86,11 +86,7 @@ struct GuiApp {
 }
 
 impl GuiApp {
-    fn new(
-        state: Arc<AppState>,
-        tx: Sender<UiEvent>,
-        proxy: EventLoopProxy<UiEvent>,
-    ) -> Self {
+    fn new(state: Arc<AppState>, tx: Sender<UiEvent>, proxy: EventLoopProxy<UiEvent>) -> Self {
         Self {
             state,
             tx,
@@ -111,8 +107,7 @@ impl GuiApp {
         if self.server.is_none() {
             match Server::start(self.state.clone(), self.tx.clone()) {
                 Ok(s) => {
-                    s.log()
-                        .append(format!("settings ui served at {}", s.url()));
+                    s.log().append(format!("settings ui served at {}", s.url()));
                     self.server = Some(s);
                 },
                 Err(e) => {
@@ -154,7 +149,8 @@ impl GuiApp {
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
                     let allow_tofu = config::pinned_pubkey().is_none();
-                    let result = sync::run_once(false, false, allow_tofu).map_err(|e| e.to_string());
+                    let result =
+                        sync::run_once(false, false, allow_tofu).map_err(|e| e.to_string());
                     let _ = proxy.send_event(UiEvent::SyncFinished(result));
                 });
             },
@@ -308,10 +304,7 @@ impl GuiApp {
                 match result {
                     Ok(p) => {
                         self.state.set_last_generated_profile(p.path.clone());
-                        self.append_log(format!(
-                            "profile written: {} ({} bytes)",
-                            p.path, p.bytes
-                        ));
+                        self.append_log(format!("profile written: {} ({} bytes)", p.path, p.bytes));
                     },
                     Err(e) => {
                         self.append_log(format!("profile generation failed: {e}"));
@@ -333,8 +326,9 @@ impl GuiApp {
             #[cfg(target_os = "macos")]
             UiEvent::ClaudeProfileInstallFinished(result) => {
                 match result {
-                    Ok(path) => self
-                        .append_log(format!("profile handed to System Settings: {path}")),
+                    Ok(path) => {
+                        self.append_log(format!("profile handed to System Settings: {path}"))
+                    },
                     Err(e) => self.append_log(format!("profile install failed: {e}")),
                 }
                 let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
@@ -380,8 +374,8 @@ impl GuiApp {
 }
 
 #[cfg(target_os = "macos")]
-fn generate_claude_profile()
--> Result<crate::integration::claude_desktop::GeneratedProfile, String> {
+fn generate_claude_profile() -> Result<crate::integration::claude_desktop::GeneratedProfile, String>
+{
     use crate::integration::claude_desktop::{ProfileGenInputs, write_profile};
 
     let cfg = config::load();
@@ -390,8 +384,8 @@ fn generate_claude_profile()
         .map(|h| h.port)
         .unwrap_or(crate::proxy::DEFAULT_PROXY_PORT);
 
-    let loopback_secret = crate::proxy::secret::load_or_mint()
-        .map_err(|e| format!("loopback secret: {e}"))?;
+    let loopback_secret =
+        crate::proxy::secret::load_or_mint().map_err(|e| format!("loopback secret: {e}"))?;
 
     let gateway_base = config::gateway_url_or_default(&cfg);
     let server_profile = GatewayClient::new(gateway_base)
@@ -444,13 +438,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         self.dispatch(event_loop, event);
     }
 
-    fn window_event(
-        &mut self,
-        _event_loop: &ActiveEventLoop,
-        _id: WindowId,
-        _event: WindowEvent,
-    ) {
-    }
+    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _id: WindowId, _event: WindowEvent) {}
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(handles) = &self.tray {

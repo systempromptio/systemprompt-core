@@ -5,9 +5,8 @@ pub mod server;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use crate::auth;
-use crate::config;
 use crate::output::diag;
+use crate::{auth, config};
 
 pub use server::{ProxyHandle, ProxyStats};
 

@@ -1,6 +1,5 @@
 use super::{DeviceCert, DeviceCertSource, sha256_der};
-use std::env;
-use std::ptr;
+use std::{env, ptr};
 use windows_sys::Win32::Security::Cryptography::{
     CERT_CONTEXT, CertCloseStore, CertEnumCertificatesInStore, CertFreeCertificateContext,
     CertOpenSystemStoreW, HCERTSTORE,

@@ -5,8 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::output::diag;
-use crate::proxy::forward;
-use crate::proxy::secret;
+use crate::proxy::{forward, secret};
 
 const READ_TIMEOUT_HANDSHAKE: Duration = Duration::from_secs(30);
 const MAX_HEADER_BYTES: usize = 32 * 1024;
@@ -56,7 +55,10 @@ pub fn start(port: u16, gateway_base_url: String) -> std::io::Result<ProxyHandle
             }
         })?;
 
-    Ok(ProxyHandle { port: bound_port, stats })
+    Ok(ProxyHandle {
+        port: bound_port,
+        stats,
+    })
 }
 
 #[derive(Debug)]
@@ -94,13 +96,26 @@ fn handle_connection(
 
     let host = req.header("host").unwrap_or("");
     if !host_is_loopback(host) {
-        return write_simple(&mut stream, 403, "text/plain", b"forbidden: non-loopback host\n");
+        return write_simple(
+            &mut stream,
+            403,
+            "text/plain",
+            b"forbidden: non-loopback host\n",
+        );
     }
 
     let auth = req.header("authorization").unwrap_or("");
-    let presented = auth.strip_prefix("Bearer ").or_else(|| auth.strip_prefix("bearer ")).unwrap_or("");
+    let presented = auth
+        .strip_prefix("Bearer ")
+        .or_else(|| auth.strip_prefix("bearer "))
+        .unwrap_or("");
     if presented.is_empty() || !secret::verify(presented, expected_secret) {
-        return write_simple(&mut stream, 403, "text/plain", b"forbidden: bad loopback secret\n");
+        return write_simple(
+            &mut stream,
+            403,
+            "text/plain",
+            b"forbidden: bad loopback secret\n",
+        );
     }
 
     if req.method == "GET" && req.path == "/healthz" {
@@ -116,7 +131,9 @@ fn handle_connection(
     });
     let elapsed = started.elapsed().as_millis() as u64;
     stats.forwarded_total.fetch_add(1, Ordering::Relaxed);
-    stats.last_forwarded_at_unix.store(now_unix(), Ordering::Relaxed);
+    stats
+        .last_forwarded_at_unix
+        .store(now_unix(), Ordering::Relaxed);
     stats.last_status.store(status as u64, Ordering::Relaxed);
     stats.last_latency_ms.store(elapsed, Ordering::Relaxed);
     diag(&format!(
@@ -137,7 +154,7 @@ fn parse_request(stream: &mut TcpStream) -> Result<Request, String> {
     reader
         .read_line(&mut request_line)
         .map_err(|e| format!("read request line: {e}"))?;
-    let mut parts = request_line.trim_end().split_whitespace();
+    let mut parts = request_line.split_whitespace();
     let method = parts
         .next()
         .ok_or_else(|| "missing method".to_string())?
@@ -214,8 +231,8 @@ fn read_chunked<R: BufRead>(reader: &mut R, out: &mut Vec<u8>) -> Result<(), Str
             .map_err(|e| format!("read chunk size: {e}"))?;
         let size_str = size_line.trim_end_matches(['\r', '\n']);
         let size_str = size_str.split(';').next().unwrap_or("0").trim();
-        let size = usize::from_str_radix(size_str, 16)
-            .map_err(|e| format!("chunk size parse: {e}"))?;
+        let size =
+            usize::from_str_radix(size_str, 16).map_err(|e| format!("chunk size parse: {e}"))?;
         if out.len() + size > MAX_BODY_BYTES {
             return Err("chunked body too large".into());
         }
@@ -252,7 +269,8 @@ fn write_simple(
         _ => "OK",
     };
     let header = format!(
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: \
+         {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
         body.len()
     );
     stream.write_all(header.as_bytes())?;

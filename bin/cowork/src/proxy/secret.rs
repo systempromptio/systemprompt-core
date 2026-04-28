@@ -2,7 +2,8 @@ use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 const LOOPBACK_FILENAME: &str = "cowork-loopback.key";
 
@@ -12,9 +13,8 @@ pub fn secret_path() -> Option<PathBuf> {
 }
 
 pub fn load_or_mint() -> std::io::Result<String> {
-    let path = secret_path().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir")
-    })?;
+    let path = secret_path()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
     if let Ok(bytes) = fs::read(&path) {
         let s = String::from_utf8_lossy(&bytes).trim().to_string();
         if !s.is_empty() {

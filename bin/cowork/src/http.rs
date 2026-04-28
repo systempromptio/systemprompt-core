@@ -72,9 +72,7 @@ impl GatewayClient {
             .get(&url)
             .call()
             .map_err(|e| GatewayError::PubkeyFetch(Box::new(e)))?;
-        let body: serde_json::Value = resp
-            .into_json()
-            .map_err(GatewayError::PubkeyDecode)?;
+        let body: serde_json::Value = resp.into_json().map_err(GatewayError::PubkeyDecode)?;
         body.get("pubkey")
             .and_then(|v| v.as_str())
             .map(str::to_string)
@@ -114,12 +112,11 @@ impl GatewayClient {
                 source: Box::new(e),
             })?;
         let mut buf = Vec::with_capacity(4096);
-        std::io::copy(&mut resp.into_reader(), &mut buf)
-            .map_err(|e| GatewayError::PluginRead {
-                plugin_id: plugin_id.to_string(),
-                path: relative_path.to_string(),
-                source: e,
-            })?;
+        std::io::copy(&mut resp.into_reader(), &mut buf).map_err(|e| GatewayError::PluginRead {
+            plugin_id: plugin_id.to_string(),
+            path: relative_path.to_string(),
+            source: e,
+        })?;
         Ok(buf)
     }
 
@@ -185,11 +182,7 @@ impl GatewayClient {
             .map_err(GatewayError::AuthDecode)
     }
 
-    fn post_json(
-        &self,
-        path: &str,
-        body: serde_json::Value,
-    ) -> Result<AuthResponse, GatewayError> {
+    fn post_json(&self, path: &str, body: serde_json::Value) -> Result<AuthResponse, GatewayError> {
         let url = self.url(path);
         let resp = self
             .agent

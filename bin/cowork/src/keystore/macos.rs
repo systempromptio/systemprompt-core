@@ -17,7 +17,11 @@ impl MacOsKeystore {
 impl DeviceCertSource for MacOsKeystore {
     fn load(&self) -> Result<DeviceCert, String> {
         let Some(label) = self.label.as_deref() else {
-            return Err("SP_COWORK_DEVICE_CERT_LABEL unset; set to the Keychain label of the device certificate".to_string());
+            return Err(
+                "SP_COWORK_DEVICE_CERT_LABEL unset; set to the Keychain label of the device \
+                 certificate"
+                    .to_string(),
+            );
         };
 
         let mut opts = ItemSearchOptions::new();

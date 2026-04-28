@@ -156,7 +156,8 @@ fn hex_nibble(b: u8) -> Option<u8> {
 
 fn write_response(stream: &mut TcpStream, status: &str, body: &str) -> Result<(), String> {
     let response = format!(
-        "HTTP/1.1 {status}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        "HTTP/1.1 {status}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \
+         {}\r\nConnection: close\r\n\r\n{body}",
         body.len()
     );
     stream

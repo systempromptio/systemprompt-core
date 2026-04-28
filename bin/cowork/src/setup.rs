@@ -115,8 +115,7 @@ fn ensure_dir(dir: &Path) -> Result<(), SetupError> {
             .map_err(|e| SetupError::Io(format!("stat dir: {e}")))?
             .permissions();
         perms.set_mode(0o700);
-        fs::set_permissions(dir, perms)
-            .map_err(|e| SetupError::Io(format!("chmod dir: {e}")))?;
+        fs::set_permissions(dir, perms).map_err(|e| SetupError::Io(format!("chmod dir: {e}")))?;
     }
     Ok(())
 }
@@ -130,22 +129,21 @@ fn write_config_file(
     pat_file: &Path,
     gateway_url_override: Option<&str>,
 ) -> Result<(), SetupError> {
-    let existing_gateway =
-        fs::read_to_string(path)
-            .ok()
-            .and_then(|s| -> Option<String> {
-                for line in s.lines() {
-                    let t = line.trim();
-                    if let Some(rest) = t.strip_prefix("gateway_url") {
-                        let rest = rest.trim().trim_start_matches('=').trim();
-                        let rest = rest.trim_matches('"').trim_matches('\'');
-                        if !rest.is_empty() {
-                            return Some(rest.to_string());
-                        }
+    let existing_gateway = fs::read_to_string(path)
+        .ok()
+        .and_then(|s| -> Option<String> {
+            for line in s.lines() {
+                let t = line.trim();
+                if let Some(rest) = t.strip_prefix("gateway_url") {
+                    let rest = rest.trim().trim_start_matches('=').trim();
+                    let rest = rest.trim_matches('"').trim_matches('\'');
+                    if !rest.is_empty() {
+                        return Some(rest.to_string());
                     }
                 }
-                None
-            });
+            }
+            None
+        });
     let gateway = gateway_url_override
         .map(str::to_string)
         .or(existing_gateway)
@@ -153,19 +151,16 @@ fn write_config_file(
 
     let pat_path_str = pat_file.to_string_lossy().replace('\\', "\\\\");
     let contents = format!(
-        "# Written by `systemprompt-cowork login`. Edit gateway_url if you move the server.\n\
-         gateway_url = \"{gateway}\"\n\
-         \n\
-         [pat]\n\
-         file = \"{pat_path_str}\"\n"
+        "# Written by `systemprompt-cowork login`. Edit gateway_url if you move the \
+         server.\ngateway_url = \"{gateway}\"\n\n[pat]\nfile = \"{pat_path_str}\"\n"
     );
     atomic_write(path, contents.as_bytes(), false)
 }
 
 fn atomic_write(target: &Path, bytes: &[u8], secret: bool) -> Result<(), SetupError> {
-    let parent = target.parent().ok_or_else(|| {
-        SetupError::Path(format!("no parent dir for {}", target.display()))
-    })?;
+    let parent = target
+        .parent()
+        .ok_or_else(|| SetupError::Path(format!("no parent dir for {}", target.display())))?;
     let tmp = parent.join(format!(
         ".{}.tmp",
         target
