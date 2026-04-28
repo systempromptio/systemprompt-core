@@ -518,83 +518,42 @@ fn validate_macos_gateway(gateway: &str) -> Result<(), String> {
     Ok(())
 }
 
+const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("install/templates/mdm_macos_snippet.tmpl");
+
+#[cfg(target_os = "macos")]
+const PREFS_PLIST_TMPL: &str = include_str!("install/templates/prefs.plist.tmpl");
+#[cfg(target_os = "macos")]
+const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("install/templates/prefs_pubkey_line.tmpl");
+#[cfg(target_os = "macos")]
+const MOBILECONFIG_TMPL: &str = include_str!("install/templates/mobileconfig.tmpl");
+#[cfg(target_os = "macos")]
+const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
+    include_str!("install/templates/mobileconfig_pubkey_line.tmpl");
+
 #[cfg(target_os = "macos")]
 pub fn build_macos_prefs_plist(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
-    let binary_esc = xml_escape(&binary.to_string_lossy());
-    let gateway_esc = xml_escape(gateway);
-    let pubkey_entry = pubkey
-        .map(|pk| {
-            format!(
-                "  <key>inferenceManifestPubkey</key><string>{}</string>\n",
-                xml_escape(pk)
-            )
-        })
+    let pubkey_block = pubkey
+        .map(|pk| PREFS_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml_escape(pk)))
         .unwrap_or_default();
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>inferenceProvider</key><string>gateway</string>
-  <key>inferenceGatewayBaseUrl</key><string>{gateway_esc}</string>
-  <key>inferenceCredentialHelper</key><string>{binary_esc}</string>
-  <key>inferenceCredentialHelperTtlSec</key><integer>3600</integer>
-  <key>inferenceGatewayAuthScheme</key><string>bearer</string>
-{pubkey_entry}</dict>
-</plist>
-"#
-    )
+    PREFS_PLIST_TMPL
+        .replace("{gateway_esc}", &xml_escape(gateway))
+        .replace("{binary_esc}", &xml_escape(&binary.to_string_lossy()))
+        .replace("{pubkey_block}", &pubkey_block)
 }
 
 #[cfg(target_os = "macos")]
 pub fn build_macos_mobileconfig(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
-    let binary_esc = xml_escape(&binary.to_string_lossy());
-    let gateway_esc = xml_escape(gateway);
-    let inner_uuid = stable_uuid(MACOS_INNER_PAYLOAD_IDENTIFIER);
-    let outer_uuid = stable_uuid(MACOS_PAYLOAD_IDENTIFIER);
-    let pubkey_entry = pubkey
-        .map(|pk| {
-            format!(
-                "      <key>inferenceManifestPubkey</key><string>{}</string>\n",
-                xml_escape(pk)
-            )
-        })
+    let pubkey_block = pubkey
+        .map(|pk| MOBILECONFIG_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml_escape(pk)))
         .unwrap_or_default();
-
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array>
-    <dict>
-      <key>PayloadType</key><string>com.anthropic.claudefordesktop</string>
-      <key>PayloadIdentifier</key><string>{MACOS_INNER_PAYLOAD_IDENTIFIER}</string>
-      <key>PayloadUUID</key><string>{inner_uuid}</string>
-      <key>PayloadDisplayName</key><string>Claude Cowork Inference Gateway</string>
-      <key>PayloadEnabled</key><true/>
-      <key>PayloadVersion</key><integer>1</integer>
-      <key>inferenceProvider</key><string>gateway</string>
-      <key>inferenceGatewayBaseUrl</key><string>{gateway_esc}</string>
-      <key>inferenceCredentialHelper</key><string>{binary_esc}</string>
-      <key>inferenceCredentialHelperTtlSec</key><integer>3600</integer>
-      <key>inferenceGatewayAuthScheme</key><string>bearer</string>
-{pubkey_entry}    </dict>
-  </array>
-  <key>PayloadType</key><string>Configuration</string>
-  <key>PayloadIdentifier</key><string>{MACOS_PAYLOAD_IDENTIFIER}</string>
-  <key>PayloadUUID</key><string>{outer_uuid}</string>
-  <key>PayloadDisplayName</key><string>systemprompt-cowork inference routing</string>
-  <key>PayloadDescription</key><string>Routes Claude Cowork inference through the configured gateway and credential helper.</string>
-  <key>PayloadOrganization</key><string>systemprompt.io</string>
-  <key>PayloadScope</key><string>System</string>
-  <key>PayloadVersion</key><integer>1</integer>
-  <key>PayloadRemovalDisallowed</key><false/>
-</dict>
-</plist>
-"#
-    )
+    MOBILECONFIG_TMPL
+        .replace("{inner_payload_identifier}", MACOS_INNER_PAYLOAD_IDENTIFIER)
+        .replace("{outer_payload_identifier}", MACOS_PAYLOAD_IDENTIFIER)
+        .replace("{inner_uuid}", &stable_uuid(MACOS_INNER_PAYLOAD_IDENTIFIER))
+        .replace("{outer_uuid}", &stable_uuid(MACOS_PAYLOAD_IDENTIFIER))
+        .replace("{gateway_esc}", &xml_escape(gateway))
+        .replace("{binary_esc}", &xml_escape(&binary.to_string_lossy()))
+        .replace("{pubkey_block}", &pubkey_block)
 }
 
 #[cfg(target_os = "macos")]
@@ -661,24 +620,9 @@ fn mdm_snippet(os: Os, binary: &Path, gateway_url: Option<&str>) -> String {
     let binary = binary.display();
     let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
     match os {
-        Os::MacOs => format!(
-            r#"Domain: com.anthropic.claudefordesktop
-Format: .mobileconfig (managed preference)
-
-<dict>
-  <key>inferenceProvider</key>
-  <string>gateway</string>
-  <key>inferenceGatewayBaseUrl</key>
-  <string>{gateway}</string>
-  <key>inferenceCredentialHelper</key>
-  <string>{binary}</string>
-  <key>inferenceCredentialHelperTtlSec</key>
-  <integer>3600</integer>
-  <key>inferenceGatewayAuthScheme</key>
-  <string>bearer</string>
-</dict>
-"#
-        ),
+        Os::MacOs => MDM_MACOS_SNIPPET_TMPL
+            .replace("{gateway}", gateway)
+            .replace("{binary}", &binary.to_string()),
         Os::Windows => format!(
             r#"Registry key: HKCU\SOFTWARE\Policies\Claude
 Format: .reg
