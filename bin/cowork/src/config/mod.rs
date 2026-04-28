@@ -1,3 +1,5 @@
+pub mod paths;
+
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, fs};

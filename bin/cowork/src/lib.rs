@@ -1,35 +1,31 @@
 pub mod auth;
-pub mod cache;
 pub mod config;
+pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
-pub mod http;
 pub mod install;
 #[cfg(target_os = "macos")]
 pub mod integration;
-pub mod keystore;
-pub mod loopback;
-pub mod manifest;
-pub mod output;
-pub mod paths;
-pub mod providers;
+pub mod obs;
 pub mod proxy;
 pub mod schedule;
-pub mod secret;
-pub mod setup;
 pub mod sync;
-pub mod tracing_init;
-pub mod types;
 pub mod validate;
+
+pub use auth::{cache, keystore, loopback, providers, secret, setup, types};
+pub use config::paths;
+pub use gateway as http;
+pub use gateway::manifest;
+pub use obs::{output, tracing_init};
 
 use std::env;
 use std::process::ExitCode;
 
-use crate::output::{diag, emit};
-use crate::providers::mtls::MtlsProvider;
-use crate::providers::pat::PatProvider;
-use crate::providers::session::SessionProvider;
-use crate::providers::{AuthError, AuthProvider};
+use crate::auth::providers::mtls::MtlsProvider;
+use crate::auth::providers::pat::PatProvider;
+use crate::auth::providers::session::SessionProvider;
+use crate::auth::providers::{AuthError, AuthProvider};
+use crate::obs::output::{diag, emit};
 use crate::schedule::Os;
 
 const HELP: &str = "systemprompt-cowork <command>
