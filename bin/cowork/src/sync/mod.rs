@@ -7,9 +7,8 @@ mod replay;
 pub use error::SyncError;
 pub use replay::{LastSyncState, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync};
 
-use crate::config;
 use crate::manifest::SignedManifest;
-use crate::paths;
+use crate::{config, paths};
 use serde::Serialize;
 use std::fs;
 use std::process::ExitCode;

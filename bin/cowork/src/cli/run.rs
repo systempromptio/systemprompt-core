@@ -4,9 +4,8 @@ use crate::auth::providers::mtls::MtlsProvider;
 use crate::auth::providers::pat::PatProvider;
 use crate::auth::providers::session::SessionProvider;
 use crate::auth::providers::{AuthError, AuthProvider};
-use crate::cache;
-use crate::config;
 use crate::obs::output::{diag, emit};
+use crate::{cache, config};
 
 pub(crate) fn cmd_run() -> ExitCode {
     if let Some(cached) = cache::read_valid() {

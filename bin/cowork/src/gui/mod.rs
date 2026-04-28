@@ -139,11 +139,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         if matches!(cause, StartCause::Init) {
             return;
         }
-        let drained: Vec<UiEvent> = self
-            .tray
-            .as_ref()
-            .map(tray::drain)
-            .unwrap_or_default();
+        let drained: Vec<UiEvent> = self.tray.as_ref().map(tray::drain).unwrap_or_default();
         for ev in drained {
             dispatch::dispatch(self, ev);
         }

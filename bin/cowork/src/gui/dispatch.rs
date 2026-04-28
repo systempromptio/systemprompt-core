@@ -1,6 +1,5 @@
-use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
-use crate::gui::handlers;
+use crate::gui::{GuiApp, handlers};
 
 pub(crate) fn dispatch(app: &mut GuiApp, event: UiEvent) {
     match event {

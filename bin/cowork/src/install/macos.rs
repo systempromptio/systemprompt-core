@@ -17,8 +17,7 @@ const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("templates/prefs_pubkey_line.t
 #[cfg(target_os = "macos")]
 const MOBILECONFIG_TMPL: &str = include_str!("templates/mobileconfig.tmpl");
 #[cfg(target_os = "macos")]
-const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
-    include_str!("templates/mobileconfig_pubkey_line.tmpl");
+const MOBILECONFIG_PUBKEY_LINE_TMPL: &str = include_str!("templates/mobileconfig_pubkey_line.tmpl");
 
 #[cfg(target_os = "macos")]
 pub fn build_prefs_plist(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
@@ -110,7 +109,13 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
         ));
     }
 
-    Ok(apply_summary(dest_system, &dest_user, &user, gateway, binary))
+    Ok(apply_summary(
+        dest_system,
+        &dest_user,
+        &user,
+        gateway,
+        binary,
+    ))
 }
 
 #[cfg(target_os = "macos")]
@@ -232,10 +237,6 @@ pub fn remove_profile() -> Result<bool, String> {
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn apply(
-    _binary: &Path,
-    _gateway: &str,
-    _pubkey: Option<&str>,
-) -> Result<Vec<String>, String> {
+pub fn apply(_binary: &Path, _gateway: &str, _pubkey: Option<&str>) -> Result<Vec<String>, String> {
     Err("--apply on macOS must be run from a macOS binary".into())
 }

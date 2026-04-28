@@ -3,7 +3,8 @@ use std::time::Duration;
 
 use ureq::AgentBuilder;
 
-use crate::http_local::{ResponseBuilder, is_hop_by_hop, response::write_chunked};
+use crate::http_local::response::write_chunked;
+use crate::http_local::{ResponseBuilder, is_hop_by_hop};
 use crate::proxy::server::Request;
 use crate::{auth, config};
 
@@ -46,7 +47,10 @@ pub fn forward(req: &Request, gateway_base: &str, client: &mut TcpStream) -> Res
         }
         request = request.set(name, value);
     }
-    request = request.set("authorization", &format!("Bearer {}", token_out.token.expose()));
+    request = request.set(
+        "authorization",
+        &format!("Bearer {}", token_out.token.expose()),
+    );
     request = request.set("x-cowork-proxied", "1");
 
     let response = if req.body.is_empty() {
