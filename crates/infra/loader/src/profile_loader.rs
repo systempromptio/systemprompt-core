@@ -10,7 +10,7 @@ impl ProfileLoader {
         let content = std::fs::read_to_string(profile_path)
             .with_context(|| format!("Failed to read profile: {}", profile_path.display()))?;
 
-        Profile::parse(&content, profile_path)
+        Profile::parse(&content, profile_path).map_err(Into::into)
     }
 
     pub fn load(services_path: &Path, profile_name: &str) -> Result<Profile> {
