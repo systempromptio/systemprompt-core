@@ -76,7 +76,7 @@ impl ActivityLog {
 #[derive(Clone)]
 pub struct Server {
     port: u16,
-    token: String,
+    csrf_token: String,
     log: ActivityLog,
 }
 
@@ -84,10 +84,10 @@ impl Server {
     pub fn start(state: Arc<AppState>, tx: Sender<UiEvent>) -> std::io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         let port = listener.local_addr()?.port();
-        let token = mint_token();
+        let csrf_token = mint_csrf_token();
         let log = ActivityLog::new();
 
-        let token_clone = token.clone();
+        let csrf_clone = csrf_token.clone();
         let log_clone = log.clone();
         std::thread::spawn(move || {
             for conn in listener.incoming() {
@@ -100,21 +100,21 @@ impl Server {
                 };
                 let state = state.clone();
                 let tx = tx.clone();
-                let token = token_clone.clone();
+                let csrf_token = csrf_clone.clone();
                 let log = log_clone.clone();
                 std::thread::spawn(move || {
-                    if let Err(e) = handle_connection(stream, state, tx, token, log) {
+                    if let Err(e) = handle_connection(stream, state, tx, csrf_token, log) {
                         diag(&format!("gui-server: connection: {e}"));
                     }
                 });
             }
         });
 
-        Ok(Server { port, token, log })
+        Ok(Server { port, csrf_token, log })
     }
 
     pub fn url(&self) -> String {
-        format!("http://127.0.0.1:{}/?t={}", self.port, self.token)
+        format!("http://127.0.0.1:{}/?t={}", self.port, self.csrf_token)
     }
 
     pub fn log(&self) -> &ActivityLog {
@@ -122,7 +122,7 @@ impl Server {
     }
 }
 
-fn mint_token() -> String {
+fn mint_csrf_token() -> String {
     let mut hasher = Sha256::new();
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -157,7 +157,7 @@ fn handle_connection(
     mut stream: TcpStream,
     state: Arc<AppState>,
     tx: Sender<UiEvent>,
-    token: String,
+    csrf_token: String,
     log: ActivityLog,
 ) -> std::io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
@@ -172,7 +172,7 @@ fn handle_connection(
 
     let qs = parse_query(&req.query);
     let supplied = qs.get("t").map(String::as_str).unwrap_or("");
-    if !constant_time_eq(supplied.as_bytes(), token.as_bytes()) {
+    if !constant_time_eq(supplied.as_bytes(), csrf_token.as_bytes()) {
         return write_response(
             &mut stream,
             403,
@@ -183,7 +183,7 @@ fn handle_connection(
 
     let route = (req.method.as_str(), req.path.as_str());
     match route {
-        ("GET", "/") => serve_index(&mut stream, &token),
+        ("GET", "/") => serve_index(&mut stream, &csrf_token),
         ("GET", "/api/state") => serve_state(&mut stream, &state),
         ("GET", "/api/log") => {
             let since = qs
@@ -334,14 +334,14 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     diff == 0
 }
 
-fn serve_index(stream: &mut TcpStream, token: &str) -> std::io::Result<()> {
+fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> {
     let html = HTML
         .replace("__STYLE__", STYLE)
         .replace("__SCRIPT__", SCRIPT)
         .replace("__VERSION__", VERSION)
         .replace("__ICON_SVG__", ICON_SVG)
         .replace("__LOGO_SVG__", LOGO_SVG)
-        .replace("__TOKEN__", token);
+        .replace("__TOKEN__", csrf_token);
     write_response(stream, 200, "text/html; charset=utf-8", html.as_bytes())
 }
 
@@ -359,7 +359,7 @@ fn serve_log(stream: &mut TcpStream, log: &ActivityLog, since: u64) -> std::io::
 
 #[derive(Debug, Deserialize)]
 struct LoginBody {
-    token: String,
+    token: crate::secret::Secret,
     #[serde(default)]
     gateway: Option<String>,
 }

@@ -170,8 +170,8 @@ impl GuiApp {
                 }
             },
             UiEvent::LoginRequested { token, gateway } => {
-                let token = token.trim().to_string();
-                if token.is_empty() {
+                let trimmed = crate::secret::Secret::new(token.expose().trim().to_owned());
+                if trimmed.is_empty() {
                     self.state.set_message("Login: PAT is empty");
                     self.append_log("Login: PAT is empty");
                     self.refresh_ui();
@@ -180,7 +180,7 @@ impl GuiApp {
                 self.append_log("Saving PAT…");
                 let proxy = self.proxy.clone();
                 std::thread::spawn(move || {
-                    let result = setup::login(&token, gateway.as_deref())
+                    let result = setup::login(trimmed.expose(), gateway.as_deref())
                         .map(|_| ())
                         .map_err(|e| e.to_string());
                     let _ = proxy.send_event(UiEvent::LoginFinished(result));
@@ -356,7 +356,7 @@ impl GuiApp {
             let identity = if matches!(status, GatewayStatus::Reachable { .. })
                 && crate::auth::has_credential_source(&cfg)
             {
-                obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity(&tok))
+                obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity(tok.expose()))
             } else {
                 if !crate::auth::has_credential_source(&cfg) {
                     let _ = crate::cache::clear();
@@ -401,7 +401,7 @@ fn generate_claude_profile() -> Result<crate::integration::claude_desktop::Gener
     write_profile(&inputs).map_err(|e| e.to_string())
 }
 
-fn obtain_live_token(cfg: &config::Config) -> Option<String> {
+fn obtain_live_token(cfg: &config::Config) -> Option<crate::secret::Secret> {
     crate::auth::obtain_live_token(cfg).map(|out| out.token)
 }
 

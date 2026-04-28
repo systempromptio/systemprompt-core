@@ -15,6 +15,7 @@ pub mod paths;
 pub mod providers;
 pub mod proxy;
 pub mod schedule;
+pub mod secret;
 pub mod setup;
 pub mod sync;
 pub mod tracing_init;
@@ -274,7 +275,7 @@ fn dispatch_whoami() -> ExitCode {
     };
 
     let client = http::GatewayClient::new(gateway);
-    match client.fetch_whoami(&bearer) {
+    match client.fetch_whoami(bearer.expose()) {
         Ok(value) => {
             match serde_json::to_string_pretty(&value) {
                 Ok(s) => println!("{s}"),

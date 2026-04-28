@@ -115,8 +115,13 @@ pub fn run_once(
         check_skew(&fetch.manifest.not_before, now)?;
     }
 
-    let report = apply::apply_manifest(&fetch.client, &fetch.bearer, &fetch.manifest, &location)
-        .map_err(SyncError::ApplyFailed)?;
+    let report = apply::apply_manifest(
+        &fetch.client,
+        fetch.bearer.expose(),
+        &fetch.manifest,
+        &location,
+    )
+    .map_err(SyncError::ApplyFailed)?;
 
     persist_last_sync(&last_sync_path, &fetch.manifest, &report, now);
 

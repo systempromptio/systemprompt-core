@@ -2,10 +2,11 @@ use super::error::SyncError;
 use crate::config;
 use crate::http::GatewayClient;
 use crate::manifest::SignedManifest;
+use crate::secret::Secret;
 
 pub struct ManifestFetch {
     pub client: GatewayClient,
-    pub bearer: String,
+    pub bearer: Secret,
     pub manifest: SignedManifest,
 }
 
@@ -20,7 +21,7 @@ pub fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
 
     let client = GatewayClient::new(gateway);
     let manifest = client
-        .fetch_manifest(&bearer)
+        .fetch_manifest(bearer.expose())
         .map_err(|e| SyncError::Network(e.to_string()))?;
 
     Ok(ManifestFetch {
@@ -64,7 +65,7 @@ fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<String, Sy
     Ok(fetched)
 }
 
-fn fetch_fresh_token() -> Option<String> {
+fn fetch_fresh_token() -> Option<Secret> {
     use crate::providers::{AuthError, AuthProvider};
     let cfg = config::load();
     let chain: Vec<Box<dyn AuthProvider>> = vec![
