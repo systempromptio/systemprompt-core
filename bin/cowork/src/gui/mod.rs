@@ -256,6 +256,65 @@ impl GuiApp {
                 self.state.reload();
                 self.refresh_ui();
             },
+
+            #[cfg(target_os = "macos")]
+            UiEvent::ClaudeProbeRequested => {
+                let proxy = self.proxy.clone();
+                std::thread::spawn(move || {
+                    let snap = crate::integration::claude_desktop::probe();
+                    let _ = proxy.send_event(UiEvent::ClaudeProbeFinished(snap));
+                });
+            },
+            #[cfg(target_os = "macos")]
+            UiEvent::ClaudeProbeFinished(snap) => {
+                self.state.apply_claude_integration(snap);
+                self.refresh_ui();
+            },
+            #[cfg(target_os = "macos")]
+            UiEvent::ClaudeProfileGenerateRequested => {
+                self.append_log("Generating Claude Desktop profile…");
+                let proxy = self.proxy.clone();
+                std::thread::spawn(move || {
+                    let result = generate_claude_profile().map_err(|e| e.to_string());
+                    let _ = proxy.send_event(UiEvent::ClaudeProfileGenerateFinished(result));
+                });
+            },
+            #[cfg(target_os = "macos")]
+            UiEvent::ClaudeProfileGenerateFinished(result) => {
+                match result {
+                    Ok(p) => {
+                        self.state.set_last_generated_profile(p.path.clone());
+                        self.append_log(format!(
+                            "profile written: {} ({} bytes)",
+                            p.path, p.bytes
+                        ));
+                    },
+                    Err(e) => {
+                        self.append_log(format!("profile generation failed: {e}"));
+                    },
+                }
+                self.refresh_ui();
+            },
+            #[cfg(target_os = "macos")]
+            UiEvent::ClaudeProfileInstallRequested(path) => {
+                self.append_log(format!("opening {path} in System Settings…"));
+                let proxy = self.proxy.clone();
+                std::thread::spawn(move || {
+                    let result = crate::integration::claude_desktop::install_profile(&path)
+                        .map(|_| path.clone())
+                        .map_err(|e| e.to_string());
+                    let _ = proxy.send_event(UiEvent::ClaudeProfileInstallFinished(result));
+                });
+            },
+            #[cfg(target_os = "macos")]
+            UiEvent::ClaudeProfileInstallFinished(result) => {
+                match result {
+                    Ok(path) => self
+                        .append_log(format!("profile handed to System Settings: {path}")),
+                    Err(e) => self.append_log(format!("profile install failed: {e}")),
+                }
+                let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
+            },
         }
     }
 
@@ -289,6 +348,24 @@ impl GuiApp {
             }));
         });
     }
+}
+
+#[cfg(target_os = "macos")]
+fn generate_claude_profile()
+-> Result<crate::integration::claude_desktop::GeneratedProfile, String> {
+    use crate::integration::claude_desktop::{ProfileGenInputs, write_profile};
+
+    let cfg = config::load();
+    let token = obtain_live_token(&cfg)
+        .ok_or_else(|| "no live JWT available — sign in first".to_string())?;
+
+    let inputs = ProfileGenInputs {
+        gateway_base_url: config::claude_inference_base_url(&cfg),
+        api_key: token,
+        models: config::claude_models(&cfg),
+        organization_uuid: config::claude_organization_uuid(&cfg),
+    };
+    write_profile(&inputs).map_err(|e| e.to_string())
 }
 
 fn obtain_live_token(cfg: &config::Config) -> Option<String> {
@@ -337,6 +414,10 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         self.refresh_ui();
         self.dispatch(event_loop, UiEvent::OpenSettings);
         let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
+        #[cfg(target_os = "macos")]
+        {
+            let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
+        }
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
@@ -365,6 +446,17 @@ impl ApplicationHandler<UiEvent> for GuiApp {
                 .unwrap_or(true);
         if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
             let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let claude_due = snap
+                .claude_integration
+                .as_ref()
+                .map(|c| now_unix().saturating_sub(c.probed_at_unix) >= PROBE_INTERVAL_SECS)
+                .unwrap_or(true);
+            if claude_due {
+                let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
+            }
         }
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));
     }

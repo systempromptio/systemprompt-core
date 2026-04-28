@@ -15,6 +15,59 @@ pub struct Config {
     pub mtls: Option<MtlsConfig>,
     #[serde(default)]
     pub sync: Option<SyncConfig>,
+    #[serde(default)]
+    pub claude: Option<ClaudeConfig>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ClaudeConfig {
+    #[serde(default)]
+    pub inference_gateway_base_url: Option<String>,
+    #[serde(default)]
+    pub auth_scheme: Option<String>,
+    #[serde(default)]
+    pub models: Option<Vec<String>>,
+    #[serde(default)]
+    pub organization_uuid: Option<String>,
+}
+
+const DEFAULT_INFERENCE_GATEWAY_BASE_URL: &str = "http://127.0.0.1:8080/v1";
+
+pub fn claude_inference_base_url(cfg: &Config) -> String {
+    cfg.claude
+        .as_ref()
+        .and_then(|c| c.inference_gateway_base_url.clone())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_INFERENCE_GATEWAY_BASE_URL.to_string())
+}
+
+pub fn claude_auth_scheme(cfg: &Config) -> String {
+    cfg.claude
+        .as_ref()
+        .and_then(|c| c.auth_scheme.clone())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "bearer".to_string())
+}
+
+pub fn claude_models(cfg: &Config) -> Vec<String> {
+    cfg.claude
+        .as_ref()
+        .and_then(|c| c.models.clone())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| {
+            vec![
+                "claude-opus-4-7".to_string(),
+                "claude-sonnet-4-6".to_string(),
+                "claude-haiku-4-5".to_string(),
+            ]
+        })
+}
+
+pub fn claude_organization_uuid(cfg: &Config) -> Option<String> {
+    cfg.claude
+        .as_ref()
+        .and_then(|c| c.organization_uuid.clone())
+        .filter(|s| !s.is_empty())
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

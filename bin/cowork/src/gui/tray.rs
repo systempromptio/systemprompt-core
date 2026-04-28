@@ -55,6 +55,7 @@ pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
         .with_menu(Box::new(menu.clone()))
         .with_tooltip("systemprompt-cowork")
         .with_icon(icon)
+        .with_icon_as_template(true)
         .build()
         .map_err(|e| e.to_string())?;
 

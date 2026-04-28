@@ -2,6 +2,9 @@ use crate::gui::state::GatewayProbeOutcome;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
+#[cfg(target_os = "macos")]
+use crate::integration::claude_desktop::{ClaudeIntegrationSnapshot, GeneratedProfile};
+
 #[derive(Debug, Clone)]
 pub enum UiEvent {
     OpenSettings,
@@ -20,4 +23,17 @@ pub enum UiEvent {
     LogoutFinished(Result<(), String>),
     GatewayProbeFinished(GatewayProbeOutcome),
     StateRefreshed,
+
+    #[cfg(target_os = "macos")]
+    ClaudeProbeRequested,
+    #[cfg(target_os = "macos")]
+    ClaudeProbeFinished(ClaudeIntegrationSnapshot),
+    #[cfg(target_os = "macos")]
+    ClaudeProfileGenerateRequested,
+    #[cfg(target_os = "macos")]
+    ClaudeProfileGenerateFinished(Result<GeneratedProfile, String>),
+    #[cfg(target_os = "macos")]
+    ClaudeProfileInstallRequested(String),
+    #[cfg(target_os = "macos")]
+    ClaudeProfileInstallFinished(Result<String, String>),
 }

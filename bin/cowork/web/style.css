@@ -232,3 +232,45 @@ button.ghost { background: transparent; }
 .pill-err { background: rgba(220,38,38,0.18);  color: #f87171; }
 
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.claude-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.claude-cell {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.cell-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.cell-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.dot-warn { background: var(--warn); box-shadow: 0 0 0 3px rgba(245,158,11,0.18); }
+
+.claude-warn {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(245,158,11,0.10);
+  border: 1px solid rgba(245,158,11,0.35);
+  color: #fbbf24;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 800px) {
+  .claude-grid { grid-template-columns: 1fr; }
+}
