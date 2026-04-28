@@ -2,7 +2,7 @@ mod bootstrap;
 mod mdm;
 mod macos;
 #[cfg(target_os = "macos")]
-mod xml;
+pub(crate) mod xml;
 
 #[cfg(target_os = "macos")]
 pub use macos::{build_mobileconfig as build_macos_mobileconfig, build_prefs_plist as build_macos_prefs_plist};
