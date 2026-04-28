@@ -412,69 +412,17 @@ fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &
         _ => String::new(),
     };
 
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
-    <key>PayloadIdentifier</key>
-    <string>io.systemprompt.cowork.claude-desktop</string>
-    <key>PayloadUUID</key>
-    <string>{profile_uuid}</string>
-    <key>PayloadDisplayName</key>
-    <string>systemprompt cowork — Claude Desktop gateway</string>
-    <key>PayloadDescription</key>
-    <string>Routes Claude Desktop inference through your systemprompt.io gateway.</string>
-    <key>PayloadOrganization</key>
-    <string>systemprompt.io</string>
-    <key>PayloadScope</key>
-    <string>User</string>
-    <key>PayloadRemovalDisallowed</key>
-    <false/>
-    <key>PayloadContent</key>
-    <array>
-      <dict>
-        <key>PayloadType</key>
-        <string>com.anthropic.claudefordesktop</string>
-        <key>PayloadIdentifier</key>
-        <string>io.systemprompt.cowork.claude-desktop.payload</string>
-        <key>PayloadUUID</key>
-        <string>{payload_uuid}</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-        <key>PayloadDisplayName</key>
-        <string>Claude Desktop — Inference gateway</string>
-        <key>PayloadEnabled</key>
-        <true/>
-        <key>inferenceProvider</key>
-        <string>gateway</string>
-        <key>inferenceGatewayBaseUrl</key>
-        <string>{base_url}</string>
-        <key>inferenceGatewayApiKey</key>
-        <string>{api_key}</string>
-        <key>inferenceGatewayAuthScheme</key>
-        <string>bearer</string>
-        <key>inferenceModels</key>
-        <array>
-{models_xml}
-        </array>
-{org_xml}      </dict>
-    </array>
-</dict>
-</plist>
-"#,
-        profile_uuid = xml_escape(profile_uuid),
-        payload_uuid = xml_escape(payload_uuid),
-        base_url = xml_escape(&inputs.gateway_base_url),
-        api_key = xml_escape(&inputs.api_key),
-        models_xml = models_xml,
-        org_xml = org_xml,
-    )
+    PROFILE_TMPL
+        .replace("{profile_uuid}", &xml_escape(profile_uuid))
+        .replace("{payload_uuid}", &xml_escape(payload_uuid))
+        .replace("{base_url}", &xml_escape(&inputs.gateway_base_url))
+        .replace("{api_key}", &xml_escape(&inputs.api_key))
+        .replace("{models_xml}", &models_xml)
+        .replace("{org_xml}", &org_xml)
 }
+
+const PROFILE_TMPL: &str =
+    include_str!("templates/claude_desktop_profile.mobileconfig.tmpl");
 
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
