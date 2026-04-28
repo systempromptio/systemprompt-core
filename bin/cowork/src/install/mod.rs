@@ -28,81 +28,28 @@ pub struct InstallOptions {
 }
 
 pub fn install(opts: InstallOptions) -> ExitCode {
-    let binary = match std::env::current_exe() {
+    let binary = match resolve_binary_path() {
         Ok(p) => p,
-        Err(e) => {
-            diag(&format!("cannot determine current executable path: {e}"));
-            return ExitCode::from(1);
-        },
+        Err(code) => return code,
     };
 
-    let location = match paths::org_plugins_effective() {
-        Some(l) => l,
-        None => {
-            diag("cannot resolve org-plugins directory for this OS");
-            return ExitCode::from(1);
-        },
+    let location = match resolve_org_plugins() {
+        Ok(l) => l,
+        Err(code) => return code,
     };
 
-    if let Err(e) = bootstrap::bootstrap_directory(&location) {
-        diag(&format!("directory bootstrap failed: {e}"));
-        return ExitCode::from(1);
+    if let Err(code) = bootstrap_install(&location, &binary, opts.gateway_url.as_deref()) {
+        return code;
     }
 
-    if let Err(e) =
-        bootstrap::write_version_sentinel(&location.path, &binary, opts.gateway_url.as_deref())
-    {
-        diag(&format!("version sentinel write failed: {e}"));
-        return ExitCode::from(1);
-    }
-
-    if let Some(ref url) = opts.gateway_url {
-        if let Err(e) = config::ensure_gateway_url(url) {
-            diag(&format!(
-                "warning: could not persist gateway_url to config: {e}"
-            ));
-        }
-    }
-
-    if let Some(ref pubkey) = opts.pubkey {
-        if let Err(e) = config::persist_pinned_pubkey(pubkey) {
-            diag(&format!(
-                "warning: failed to persist operator-supplied pubkey to local config: {e}"
-            ));
-        } else {
-            tracing::info!(
-                pubkey_len = pubkey.len(),
-                "pinned operator-supplied manifest pubkey"
-            );
-        }
-    }
-
+    persist_optional_config(opts.gateway_url.as_deref(), opts.pubkey.as_deref());
     print_install_summary(&location, &binary);
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
-    let gateway_for_mdm = opts
-        .gateway_url
-        .clone()
-        .or_else(|| config::load().gateway_url)
-        .unwrap_or_else(|| "https://gateway.systemprompt.io".into());
+    let gateway_for_mdm = resolve_gateway_for_mdm(opts.gateway_url.as_deref());
 
-    if opts.apply_mobileconfig {
-        if let Err(code) = run_apply_mobileconfig(&binary, &gateway_for_mdm, opts.pubkey.as_deref())
-        {
-            return code;
-        }
-    } else if opts.apply {
-        if let Err(code) = run_apply(target_os, &binary, &gateway_for_mdm, opts.pubkey.as_deref()) {
-            return code;
-        }
-    } else {
-        println!();
-        println!("--- MDM configuration ({}) ---", mdm::os_label(target_os));
-        println!(
-            "{}",
-            mdm::snippet(target_os, &binary, Some(&gateway_for_mdm))
-        );
-        println!("Tip: rerun with --apply to write these keys directly.");
+    if let Err(code) = run_mdm_step(&opts, target_os, &binary, &gateway_for_mdm) {
+        return code;
     }
 
     if let Some(schedule_os) = opts.emit_schedule_template {
@@ -112,6 +59,83 @@ pub fn install(opts: InstallOptions) -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+fn resolve_binary_path() -> Result<PathBuf, ExitCode> {
+    std::env::current_exe().map_err(|e| {
+        diag(&format!("cannot determine current executable path: {e}"));
+        ExitCode::from(1)
+    })
+}
+
+fn resolve_org_plugins() -> Result<paths::OrgPluginsLocation, ExitCode> {
+    paths::org_plugins_effective().ok_or_else(|| {
+        diag("cannot resolve org-plugins directory for this OS");
+        ExitCode::from(1)
+    })
+}
+
+fn bootstrap_install(
+    location: &paths::OrgPluginsLocation,
+    binary: &std::path::Path,
+    gateway_url: Option<&str>,
+) -> Result<(), ExitCode> {
+    if let Err(e) = bootstrap::bootstrap_directory(location) {
+        diag(&format!("directory bootstrap failed: {e}"));
+        return Err(ExitCode::from(1));
+    }
+    if let Err(e) = bootstrap::write_version_sentinel(&location.path, binary, gateway_url) {
+        diag(&format!("version sentinel write failed: {e}"));
+        return Err(ExitCode::from(1));
+    }
+    Ok(())
+}
+
+fn persist_optional_config(gateway_url: Option<&str>, pubkey: Option<&str>) {
+    if let Some(url) = gateway_url {
+        if let Err(e) = config::ensure_gateway_url(url) {
+            diag(&format!(
+                "warning: could not persist gateway_url to config: {e}"
+            ));
+        }
+    }
+    if let Some(pubkey) = pubkey {
+        match config::persist_pinned_pubkey(pubkey) {
+            Ok(()) => tracing::info!(
+                pubkey_len = pubkey.len(),
+                "pinned operator-supplied manifest pubkey"
+            ),
+            Err(e) => diag(&format!(
+                "warning: failed to persist operator-supplied pubkey to local config: {e}"
+            )),
+        }
+    }
+}
+
+fn resolve_gateway_for_mdm(cli_url: Option<&str>) -> String {
+    cli_url
+        .map(str::to_string)
+        .or_else(|| config::load().gateway_url)
+        .unwrap_or_else(|| "https://gateway.systemprompt.io".into())
+}
+
+fn run_mdm_step(
+    opts: &InstallOptions,
+    target_os: Os,
+    binary: &std::path::Path,
+    gateway_for_mdm: &str,
+) -> Result<(), ExitCode> {
+    if opts.apply_mobileconfig {
+        return run_apply_mobileconfig(binary, gateway_for_mdm, opts.pubkey.as_deref());
+    }
+    if opts.apply {
+        return run_apply(target_os, binary, gateway_for_mdm, opts.pubkey.as_deref());
+    }
+    println!();
+    println!("--- MDM configuration ({}) ---", mdm::os_label(target_os));
+    println!("{}", mdm::snippet(target_os, binary, Some(gateway_for_mdm)));
+    println!("Tip: rerun with --apply to write these keys directly.");
+    Ok(())
 }
 
 fn print_install_summary(location: &paths::OrgPluginsLocation, binary: &std::path::Path) {

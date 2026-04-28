@@ -1,10 +1,3 @@
-//! Async hyper -> reqwest streaming proxy for Claude-Desktop loopback traffic.
-//!
-//! Receives a `hyper::Request<Incoming>` from the loopback listener, mints
-//! a fresh JWT, and pipes the body to the systemprompt gateway with no
-//! buffering. The upstream response stream flows back to the caller frame
-//! by frame; if the caller disconnects mid-stream, dropping the response
-//! body cancels the upstream request automatically.
 use bytes::Bytes;
 use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, BodyStream, StreamBody};
@@ -12,13 +5,10 @@ use hyper::body::{Frame, Incoming};
 use hyper::{HeaderMap, Request, Response, StatusCode};
 use thiserror::Error;
 
-use crate::auth;
-use crate::config;
+use crate::{auth, config};
 
 const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-/// HTTP/1.1 hop-by-hop headers we never copy across the proxy boundary
-/// (RFC 7230 §6.1) plus credentials we always replace.
 const HOP_BY_HOP: &[&str] = &[
     "host",
     "connection",
@@ -33,10 +23,6 @@ const HOP_BY_HOP: &[&str] = &[
     "x-api-key",
 ];
 
-/// Body type we hand back to hyper. Streams `bytes::Bytes` frames with
-/// `std::io::Error` as the failure mode (matches hyper's chunk-stream
-/// expectations and gives us a single error variant for both upstream
-/// and downstream IO failures).
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
 
 #[derive(Debug, Error)]
@@ -59,9 +45,6 @@ pub enum ForwardError {
 
 pub type ForwardResult<T> = Result<T, ForwardError>;
 
-/// Forward a single client request to the gateway and return the streaming
-/// response. Cancellation safety: dropping the returned future before it
-/// resolves cancels the upstream request via reqwest's drop semantics.
 pub async fn forward(
     req: Request<Incoming>,
     client: reqwest::Client,
@@ -110,8 +93,6 @@ pub async fn forward(
     Ok(response_builder.body(body)?)
 }
 
-/// JWT acquisition is synchronous (file IO + ureq); run it on a blocking
-/// pool so the runtime stays responsive while we wait.
 async fn mint_token() -> ForwardResult<auth::types::HelperOutput> {
     tokio::task::spawn_blocking(|| {
         let cfg = config::load();
@@ -124,7 +105,11 @@ async fn mint_token() -> ForwardResult<auth::types::HelperOutput> {
 
 fn build_upstream_url(gateway_base: &str, uri: &http::Uri) -> String {
     let path_and_query = uri.path_and_query().map_or("/", |p| p.as_str());
-    let separator = if path_and_query.starts_with('/') { "" } else { "/" };
+    let separator = if path_and_query.starts_with('/') {
+        ""
+    } else {
+        "/"
+    };
     format!(
         "{base}{separator}{path_and_query}",
         base = gateway_base.trim_end_matches('/'),
@@ -183,8 +168,6 @@ fn is_hop_by_hop(name: &str) -> bool {
     HOP_BY_HOP.iter().any(|h| name.eq_ignore_ascii_case(h))
 }
 
-/// Forward error variants that should never trigger an EPIPE-noise log
-/// upstream — they're normal client cancellation behaviour.
 pub fn is_client_disconnect(err: &ForwardError) -> bool {
     matches!(
         err,

@@ -17,11 +17,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::JwtContextExtractor;
 
-async fn log_gateway_request(
-    State(pool): State<DbPool>,
-    req: Request,
-    next: Next,
-) -> Response {
+async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Next) -> Response {
     let method = req.method().clone();
     let path = req.uri().path().to_string();
     let started = Instant::now();
@@ -46,10 +42,17 @@ async fn log_gateway_request(
         let entry = LogEntry::new(
             level,
             "systemprompt_api::gateway",
-            format!("{method} {} -> {status} ({elapsed_ms}ms)", &metadata["path"].as_str().unwrap_or("")),
+            format!(
+                "{method} {} -> {status} ({elapsed_ms}ms)",
+                &metadata["path"].as_str().unwrap_or("")
+            ),
         )
         .with_metadata(metadata);
-        let _ = repo.with_database(true).with_terminal(true).log(entry).await;
+        let _ = repo
+            .with_database(true)
+            .with_terminal(true)
+            .log(entry)
+            .await;
     }
 
     resp
@@ -108,7 +111,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         .route("/", get(models::root))
         .layer(Extension(ctx.clone()))
         .layer(axum::middleware::from_fn_with_state(
-            ctx.db_pool().clone(),
+            Arc::clone(ctx.db_pool()),
             log_gateway_request,
         ));
 

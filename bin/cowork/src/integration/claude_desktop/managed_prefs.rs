@@ -81,6 +81,8 @@ pub(super) fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
     out
 }
 
+// JSON: protocol boundary — plist content is operator-defined; shape varies per
+// managed-prefs domain so values flow as `serde_json::Value`.
 fn read_plist_as_json(path: &std::path::Path) -> Option<serde_json::Value> {
     let output = Command::new("/usr/bin/plutil")
         .arg("-convert")
