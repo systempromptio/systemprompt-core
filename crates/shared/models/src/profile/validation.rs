@@ -5,11 +5,10 @@
 
 use std::path::Path;
 
-use super::Profile;
-use anyhow::Result;
+use super::{Profile, ProfileError, ProfileResult};
 
 impl Profile {
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> ProfileResult<()> {
         let mut errors: Vec<String> = Vec::new();
         let is_cloud = self.target.is_cloud();
 
@@ -22,11 +21,10 @@ impl Profile {
         if errors.is_empty() {
             Ok(())
         } else {
-            anyhow::bail!(
-                "Profile '{}' validation failed:\n  - {}",
-                self.name,
-                errors.join("\n  - ")
-            )
+            Err(ProfileError::Validation {
+                name: self.name.clone(),
+                errors,
+            })
         }
     }
 

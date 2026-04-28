@@ -1,7 +1,6 @@
-//! Profile configuration module.
-
 mod cloud;
 mod database;
+mod error;
 mod from_env;
 mod gateway;
 mod info;
@@ -17,7 +16,11 @@ mod validation;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
-pub use gateway::{GatewayCatalog, GatewayConfig, GatewayModel, GatewayProvider, GatewayRoute};
+pub use error::{ProfileError, ProfileResult};
+pub use gateway::{
+    GatewayCatalog, GatewayConfig, GatewayModel, GatewayProfileError, GatewayProvider,
+    GatewayResult, GatewayRoute,
+};
 pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
@@ -34,7 +37,6 @@ pub use server::{ContentNegotiationConfig, SecurityHeadersConfig, ServerConfig};
 pub use site::SiteConfig;
 pub use style::ProfileStyle;
 
-use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -132,15 +134,21 @@ impl Profile {
         self.cloud.as_ref().is_none_or(CloudConfig::is_local_trial)
     }
 
-    pub fn parse(content: &str, profile_path: &Path) -> Result<Self> {
+    pub fn parse(content: &str, profile_path: &Path) -> ProfileResult<Self> {
         let content = substitute_env_vars(content);
 
-        let mut profile: Self = serde_yaml::from_str(&content)
-            .with_context(|| format!("Failed to parse profile: {}", profile_path.display()))?;
+        let mut profile: Self =
+            serde_yaml::from_str(&content).map_err(|source| ProfileError::ParseYaml {
+                path: profile_path.to_path_buf(),
+                source,
+            })?;
 
-        let profile_dir = profile_path
-            .parent()
-            .with_context(|| format!("Invalid profile path: {}", profile_path.display()))?;
+        let profile_dir =
+            profile_path
+                .parent()
+                .ok_or_else(|| ProfileError::InvalidProfilePath {
+                    path: profile_path.to_path_buf(),
+                })?;
 
         profile.paths.resolve_relative_to(profile_dir);
 
@@ -151,8 +159,8 @@ impl Profile {
         Ok(profile)
     }
 
-    pub fn to_yaml(&self) -> Result<String> {
-        serde_yaml::to_string(self).context("Failed to serialize profile")
+    pub fn to_yaml(&self) -> ProfileResult<String> {
+        serde_yaml::to_string(self).map_err(ProfileError::SerializeYaml)
     }
 
     pub fn profile_style(&self) -> ProfileStyle {
