@@ -79,7 +79,7 @@ fn ensure_subscriber(level_override: Option<&str>) {
         .with_filter(console_filter);
 
     let proxy = DB_PROXY.get_or_init(ProxyDatabaseLayer::new).clone();
-    let db_layer = proxy.with_filter(tracing_subscriber::filter::LevelFilter::INFO);
+    let db_layer = proxy.with_filter(build_filter("info"));
 
     tracing_subscriber::registry()
         .with(fmt_layer)
