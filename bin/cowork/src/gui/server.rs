@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -10,6 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::gui::events::UiEvent;
 use crate::gui::state::{AppState, AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
+use crate::http_local::{ResponseBuilder, parse};
 #[cfg(target_os = "macos")]
 use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
 use crate::output::diag;
@@ -23,7 +23,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const LOG_CAPACITY: usize = 1000;
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
-const MAX_BODY_BYTES: usize = 64 * 1024;
 
 #[derive(Clone)]
 pub struct ActivityLog {
@@ -145,14 +144,6 @@ fn now_unix() -> u64 {
         .unwrap_or(0)
 }
 
-#[derive(Debug)]
-struct Request {
-    method: String,
-    path: String,
-    query: String,
-    body: Vec<u8>,
-}
-
 fn handle_connection(
     mut stream: TcpStream,
     state: Arc<AppState>,
@@ -163,7 +154,7 @@ fn handle_connection(
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     stream.set_write_timeout(Some(READ_TIMEOUT))?;
 
-    let req = match parse_request(&stream) {
+    let req = match parse(&mut stream) {
         Ok(r) => r,
         Err(e) => {
             return write_response(&mut stream, 400, "text/plain", e.as_bytes());
@@ -200,82 +191,6 @@ fn handle_connection(
 #[cfg(target_os = "macos")]
 fn claude_integration_json(snap: &ClaudeIntegrationSnapshot) -> serde_json::Value {
     serde_json::to_value(snap).unwrap_or(serde_json::Value::Null)
-}
-
-fn parse_request(stream: &TcpStream) -> Result<Request, String> {
-    let mut reader = BufReader::new(stream);
-    let mut request_line = String::new();
-    reader
-        .read_line(&mut request_line)
-        .map_err(|e| format!("read request line: {e}"))?;
-    let mut parts = request_line.trim_end().split_whitespace();
-    let method = parts
-        .next()
-        .ok_or_else(|| "missing method".to_string())?
-        .to_string();
-    let raw_target = parts
-        .next()
-        .ok_or_else(|| "missing target".to_string())?
-        .to_string();
-
-    let (path, query) = match raw_target.split_once('?') {
-        Some((p, q)) => (p.to_string(), q.to_string()),
-        None => (raw_target, String::new()),
-    };
-
-    let mut content_length = 0usize;
-    loop {
-        let mut header = String::new();
-        reader
-            .read_line(&mut header)
-            .map_err(|e| format!("read header: {e}"))?;
-        let trimmed = header.trim_end_matches(['\r', '\n']);
-        if trimmed.is_empty() {
-            break;
-        }
-        if let Some(rest) = trimmed.strip_prefix_ignore_ascii_case("content-length:") {
-            content_length = rest
-                .trim()
-                .parse::<usize>()
-                .map_err(|e| format!("content-length: {e}"))?;
-        }
-    }
-
-    if content_length > MAX_BODY_BYTES {
-        return Err(format!("body too large: {content_length}"));
-    }
-
-    let mut body = vec![0u8; content_length];
-    if content_length > 0 {
-        reader
-            .read_exact(&mut body)
-            .map_err(|e| format!("read body: {e}"))?;
-    }
-
-    Ok(Request {
-        method,
-        path,
-        query,
-        body,
-    })
-}
-
-trait StripPrefixIgnoreAsciiCase {
-    fn strip_prefix_ignore_ascii_case<'a>(&'a self, prefix: &str) -> Option<&'a str>;
-}
-
-impl StripPrefixIgnoreAsciiCase for str {
-    fn strip_prefix_ignore_ascii_case<'a>(&'a self, prefix: &str) -> Option<&'a str> {
-        if self.len() < prefix.len() {
-            return None;
-        }
-        let (head, tail) = self.split_at(prefix.len());
-        if head.eq_ignore_ascii_case(prefix) {
-            Some(tail)
-        } else {
-            None
-        }
-    }
 }
 
 fn parse_query(query: &str) -> std::collections::HashMap<String, String> {
@@ -428,26 +343,11 @@ fn write_response(
     content_type: &str,
     body: &[u8],
 ) -> std::io::Result<()> {
-    let reason = match status {
-        200 => "OK",
-        204 => "No Content",
-        400 => "Bad Request",
-        403 => "Forbidden",
-        404 => "Not Found",
-        500 => "Internal Server Error",
-        _ => "OK",
-    };
-    let header = format!(
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: \
-         {}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: \
-         close\r\n\r\n",
-        body.len()
-    );
-    stream.write_all(header.as_bytes())?;
-    if !body.is_empty() {
-        stream.write_all(body)?;
-    }
-    stream.flush()
+    ResponseBuilder::new(status)
+        .content_type(content_type)
+        .body(body)
+        .nosniff()
+        .write(stream)
 }
 
 fn snapshot_to_json(snap: &AppStateSnapshot) -> String {
