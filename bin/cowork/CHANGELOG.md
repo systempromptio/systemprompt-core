@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Phase B — internals refactor (no behavioural change)
+
+Five-stream decomposition of the `bin/cowork/src/` tree. Every source file is now ≤300 LOC, every fn ≤75 LOC, HTTP/1.1 parsing and response writing live in exactly one place, and GUI thread spawning is bounded and traceable.
+
+- New `http_local/` module — single HTTP/1.1 implementation shared by the loopback proxy and the settings-UI server. `proxy/server.rs` drops 289 → 145 LOC, `proxy/forward.rs` 197 → 113 LOC, `gui/server.rs` 519 → 267 LOC. `ResponseBuilder` (fluent fixed-size response) and `write_chunked` (streaming with auto-framing) replace four ad-hoc copies of header/body code. Chunked-body decoding is now uniformly available on both HTTP entry points.
+- New `cli/` module — `lib.rs` shrinks 375 → 77 LOC; every `dispatch_*` handler moves into a per-subcommand file (`run.rs`, `login.rs`, `logout.rs`, `status.rs`, `whoami.rs`, `install.rs`, `sync.rs`, `uninstall.rs`, `gui.rs`). `status` and `whoami` split into smaller helpers; the 18 `println!`s in the status path now route through `status_line` / `status_indent` so future tabular output is a one-line change.
+- `gui/mod.rs` decomposed 471 → 203 LOC. The 206-LOC `dispatch()` match moves to `gui/dispatch.rs`; each arm is one line that delegates to a per-event-family handler module under `gui/handlers/` (`sync`, `auth`, `validate`, `settings`, `quit`, `gateway_probe`, `state`, `claude`). The 11 ad-hoc `std::thread::spawn` call sites are replaced by `gui::worker::WorkerPool`, which records `JoinHandle`s and joins on `Drop`. JSON serialization for the `/api/state` endpoint moves to `gui/server_json.rs`.
+- `integration/claude_desktop.rs` (450 LOC) decomposed into `claude_desktop/{mod,managed_prefs,gateway_probe,process,profile}.rs`. The local `xml_escape` is gone — `crate::install::xml::escape` is now the single implementation (`mod xml` was promoted to `pub(crate)`).
+- `config::load()` is idempotent. The previously-implicit policy-pubkey override is now a separate `Config::with_policy_overrides(self) -> Self`; the free `load()` composes them so all 13 call sites stay unchanged. The "policy-provided manifest pubkey overrides operator-set value" `tracing::warn!` is now `Once`-guarded — fires at most once per process instead of on every `config::load()` invocation.
+
 Local inference proxy + invariant-driven dashboard state. The configuration profile installed in Claude Desktop is now an install-once artifact: cowork runs an HTTP/1.1 proxy on `127.0.0.1:48217`, the profile pins it as the inference URL with a long-lived loopback shared secret, and JWT rotation moves entirely inside cowork (background tick refreshes the cached JWT 5 minutes before expiry). No more profile re-install dance when the JWT lapses.
 
 - New `proxy` module (`src/proxy/{mod,server,forward,secret}.rs`) — hand-rolled listener bound to loopback, validates `Authorization: Bearer <loopback-secret>` constant-time, rejects non-loopback Host headers, swaps the bearer to the cached JWT before forwarding to the gateway. SSE responses stream chunked back to the client without buffering.
