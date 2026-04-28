@@ -1,7 +1,6 @@
-use crate::config;
 use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
-use crate::sync;
+use crate::{config, sync};
 
 pub(crate) fn on_sync_requested(app: &mut GuiApp) {
     if app.state.snapshot().sync_in_flight {

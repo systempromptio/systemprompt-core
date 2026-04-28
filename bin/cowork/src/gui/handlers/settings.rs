@@ -1,5 +1,4 @@
-use crate::gui::GuiApp;
-use crate::gui::window;
+use crate::gui::{GuiApp, window};
 use crate::{paths, setup};
 
 pub(crate) fn on_open_settings(app: &mut GuiApp) {

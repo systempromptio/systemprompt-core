@@ -59,7 +59,7 @@ fn write_one_agent(dir: &Path, agent: &AgentEntry) -> Result<(), String> {
         ));
     }
     let path = dir.join(format!("{}.json", agent.name));
-    let bytes =
-        serde_json::to_vec_pretty(agent).map_err(|e| format!("serialize agent {}: {e}", agent.name))?;
+    let bytes = serde_json::to_vec_pretty(agent)
+        .map_err(|e| format!("serialize agent {}: {e}", agent.name))?;
     fs::write(&path, bytes).map_err(|e| format!("write {}: {e}", path.display()))
 }

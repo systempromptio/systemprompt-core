@@ -4,11 +4,9 @@ use crate::auth::providers::mtls::MtlsProvider;
 use crate::auth::providers::pat::PatProvider;
 use crate::auth::providers::session::SessionProvider;
 use crate::auth::providers::{AuthError, AuthProvider};
-use crate::cache;
-use crate::config;
-use crate::http;
 use crate::obs::output::diag;
 use crate::secret::Secret;
+use crate::{cache, config, http};
 
 fn acquire_bearer() -> Option<Secret> {
     if let Some(out) = cache::read_valid() {

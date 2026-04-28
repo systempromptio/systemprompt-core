@@ -9,8 +9,7 @@ use super::process::now_unix;
 
 const DEFAULT_MODELS: &[&str] = &["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"];
 
-const PROFILE_TMPL: &str =
-    include_str!("../templates/claude_desktop_profile.mobileconfig.tmpl");
+const PROFILE_TMPL: &str = include_str!("../templates/claude_desktop_profile.mobileconfig.tmpl");
 
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {

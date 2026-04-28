@@ -1,11 +1,13 @@
 mod bootstrap;
-mod mdm;
 mod macos;
+mod mdm;
 #[cfg(target_os = "macos")]
 pub(crate) mod xml;
 
 #[cfg(target_os = "macos")]
-pub use macos::{build_mobileconfig as build_macos_mobileconfig, build_prefs_plist as build_macos_prefs_plist};
+pub use macos::{
+    build_mobileconfig as build_macos_mobileconfig, build_prefs_plist as build_macos_prefs_plist,
+};
 pub use mdm::windows_policy_values;
 
 use crate::config;
@@ -90,9 +92,7 @@ pub fn install(opts: InstallOptions) -> ExitCode {
             return code;
         }
     } else if opts.apply {
-        if let Err(code) =
-            run_apply(target_os, &binary, &gateway_for_mdm, opts.pubkey.as_deref())
-        {
+        if let Err(code) = run_apply(target_os, &binary, &gateway_for_mdm, opts.pubkey.as_deref()) {
             return code;
         }
     } else {

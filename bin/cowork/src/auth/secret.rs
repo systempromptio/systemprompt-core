@@ -1,6 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt;
-use std::mem;
+use std::{fmt, mem};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]

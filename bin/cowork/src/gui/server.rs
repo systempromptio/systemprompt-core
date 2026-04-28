@@ -108,7 +108,11 @@ impl Server {
             }
         });
 
-        Ok(Server { port, csrf_token, log })
+        Ok(Server {
+            port,
+            csrf_token,
+            log,
+        })
     }
 
     pub fn url(&self) -> String {
@@ -264,4 +268,3 @@ fn write_response(
         .nosniff()
         .write(stream)
 }
-
