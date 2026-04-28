@@ -32,27 +32,58 @@ impl Request {
 
 pub fn parse(stream: &mut TcpStream) -> Result<Request, String> {
     let mut reader = BufReader::new(stream);
-    let mut request_line = String::new();
+    let request_line = read_request_line(&mut reader)?;
+    let (method, path, query) = parse_request_line(&request_line)?;
+    let parsed_headers = read_headers(&mut reader, request_line.len())?;
+    let body = read_body(
+        &mut reader,
+        parsed_headers.content_length,
+        parsed_headers.transfer_encoding.as_deref(),
+    )?;
+
+    Ok(Request {
+        method,
+        path,
+        query,
+        headers: parsed_headers.headers,
+        body,
+    })
+}
+
+struct ParsedHeaders {
+    headers: Vec<(String, String)>,
+    content_length: usize,
+    transfer_encoding: Option<String>,
+}
+
+fn read_request_line(reader: &mut BufReader<&mut TcpStream>) -> Result<String, String> {
+    let mut line = String::new();
     reader
-        .read_line(&mut request_line)
+        .read_line(&mut line)
         .map_err(|e| format!("read request line: {e}"))?;
-    let mut parts = request_line.split_whitespace();
+    Ok(line)
+}
+
+fn parse_request_line(line: &str) -> Result<(String, String, String), String> {
+    let mut parts = line.split_whitespace();
     let method = parts
         .next()
         .ok_or_else(|| "missing method".to_string())?
         .to_string();
-    let raw_target = parts
-        .next()
-        .ok_or_else(|| "missing target".to_string())?
-        .to_string();
-
+    let raw_target = parts.next().ok_or_else(|| "missing target".to_string())?;
     let (path, query) = match raw_target.split_once('?') {
         Some((p, q)) => (p.to_string(), q.to_string()),
-        None => (raw_target, String::new()),
+        None => (raw_target.to_string(), String::new()),
     };
+    Ok((method, path, query))
+}
 
+fn read_headers(
+    reader: &mut BufReader<&mut TcpStream>,
+    initial_bytes: usize,
+) -> Result<ParsedHeaders, String> {
     let mut headers: Vec<(String, String)> = Vec::new();
-    let mut total = request_line.len();
+    let mut total = initial_bytes;
     let mut content_length = 0usize;
     let mut transfer_encoding: Option<String> = None;
     loop {
@@ -68,10 +99,11 @@ pub fn parse(stream: &mut TcpStream) -> Result<Request, String> {
         if trimmed.is_empty() {
             break;
         }
-        let (name, value) = match trimmed.split_once(':') {
-            Some((n, v)) => (n.trim().to_string(), v.trim().to_string()),
-            None => continue,
+        let Some((name, value)) = trimmed.split_once(':') else {
+            continue;
         };
+        let name = name.trim().to_string();
+        let value = value.trim().to_string();
         if name.eq_ignore_ascii_case("content-length") {
             content_length = value.parse::<usize>().map_err(|e| e.to_string())?;
         }
@@ -80,35 +112,31 @@ pub fn parse(stream: &mut TcpStream) -> Result<Request, String> {
         }
         headers.push((name, value));
     }
+    Ok(ParsedHeaders {
+        headers,
+        content_length,
+        transfer_encoding,
+    })
+}
 
+fn read_body(
+    reader: &mut BufReader<&mut TcpStream>,
+    content_length: usize,
+    transfer_encoding: Option<&str>,
+) -> Result<Vec<u8>, String> {
     if content_length > MAX_BODY_BYTES {
         return Err(format!("body too large: {content_length}"));
     }
-
     let mut body = Vec::new();
-    if let Some(te) = transfer_encoding.as_deref() {
-        if te.contains("chunked") {
-            read_chunked(&mut reader, &mut body)?;
-        } else if content_length > 0 {
-            body.resize(content_length, 0);
-            reader
-                .read_exact(&mut body)
-                .map_err(|e| format!("read body: {e}"))?;
-        }
+    if transfer_encoding.is_some_and(|te| te.contains("chunked")) {
+        read_chunked(reader, &mut body)?;
     } else if content_length > 0 {
         body.resize(content_length, 0);
         reader
             .read_exact(&mut body)
             .map_err(|e| format!("read body: {e}"))?;
     }
-
-    Ok(Request {
-        method,
-        path,
-        query,
-        headers,
-        body,
-    })
+    Ok(body)
 }
 
 fn read_chunked<R: BufRead>(reader: &mut R, out: &mut Vec<u8>) -> Result<(), String> {

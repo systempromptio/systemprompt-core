@@ -68,17 +68,20 @@ impl GatewayClient {
     }
 
     pub fn fetch_pubkey(&self) -> Result<String, GatewayError> {
+        #[derive(serde::Deserialize)]
+        struct PubkeyResponse {
+            #[serde(default)]
+            pubkey: Option<String>,
+        }
+
         let url = self.url("/v1/cowork/pubkey");
         let resp = self
             .agent
             .get(&url)
             .call()
             .map_err(|e| GatewayError::PubkeyFetch(Box::new(e)))?;
-        let body: serde_json::Value = resp.into_json().map_err(GatewayError::PubkeyDecode)?;
-        body.get("pubkey")
-            .and_then(|v| v.as_str())
-            .map(str::to_string)
-            .ok_or(GatewayError::PubkeyMissing)
+        let body: PubkeyResponse = resp.into_json().map_err(GatewayError::PubkeyDecode)?;
+        body.pubkey.ok_or(GatewayError::PubkeyMissing)
     }
 
     pub fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
@@ -122,6 +125,8 @@ impl GatewayClient {
         Ok(buf)
     }
 
+    // JSON: protocol boundary — gateway response shape is opaque to cowork; passed
+    // through to CLI for pretty-printing.
     pub fn fetch_whoami(&self, bearer: &str) -> Result<serde_json::Value, GatewayError> {
         let url = self.url("/v1/cowork/whoami");
         let resp = self
@@ -155,20 +160,14 @@ impl GatewayClient {
     }
 
     pub fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
-        self.post_json(
-            "/v1/auth/cowork/mtls",
-            serde_json::to_value(req).map_err(|e| GatewayError::Serialize(e.to_string()))?,
-        )
+        self.post_json("/v1/auth/cowork/mtls", req)
     }
 
     pub fn session_exchange(
         &self,
         req: &SessionExchangeRequest,
     ) -> Result<AuthResponse, GatewayError> {
-        self.post_json(
-            "/v1/auth/cowork/session",
-            serde_json::to_value(req).map_err(|e| GatewayError::Serialize(e.to_string()))?,
-        )
+        self.post_json("/v1/auth/cowork/session", req)
     }
 
     pub fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
@@ -184,13 +183,19 @@ impl GatewayClient {
             .map_err(GatewayError::AuthDecode)
     }
 
-    fn post_json(&self, path: &str, body: serde_json::Value) -> Result<AuthResponse, GatewayError> {
+    fn post_json<T: serde::Serialize>(
+        &self,
+        path: &str,
+        body: &T,
+    ) -> Result<AuthResponse, GatewayError> {
         let url = self.url(path);
+        let payload =
+            serde_json::to_value(body).map_err(|e| GatewayError::Serialize(e.to_string()))?;
         let resp = self
             .agent
             .post(&url)
             .set("content-type", "application/json")
-            .send_json(body)
+            .send_json(payload)
             .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
         resp.into_json::<AuthResponse>()
             .map_err(GatewayError::AuthDecode)

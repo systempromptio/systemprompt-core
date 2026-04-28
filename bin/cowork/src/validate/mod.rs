@@ -61,7 +61,15 @@ pub fn validate() -> ExitCode {
 
 pub fn run() -> ValidationReport {
     let mut report = Report::new();
+    check_binary(&mut report);
+    check_org_plugins(&mut report);
+    check_gateway(&mut report);
+    check_cached_token(&mut report);
+    check_pinned_pubkey(&mut report);
+    report.into_report()
+}
 
+fn check_binary(report: &mut Report) {
     report.info(
         "binary",
         &format!(
@@ -71,72 +79,80 @@ pub fn run() -> ValidationReport {
             std::env::consts::ARCH
         ),
     );
+}
 
-    match paths::org_plugins_effective() {
-        Some(loc) => {
-            let scope = match loc.scope {
-                Scope::System => "system",
-                Scope::User => "user",
-            };
-            report.ok(
-                "org-plugins path",
-                &format!("{} (scope: {scope})", loc.path.display()),
-            );
-            let meta = paths::metadata_dir(&loc.path);
-            if meta.exists() {
-                report.ok("metadata dir", &meta.display().to_string());
-            } else {
-                report.warn(
-                    "metadata dir",
-                    &format!("{} (missing — run `install`)", meta.display()),
-                );
-            }
-            let last_sync = meta.join(paths::LAST_SYNC_SENTINEL);
-            if last_sync.exists() {
-                match std::fs::read_to_string(&last_sync) {
-                    Ok(s) => report.ok("last sync", &summarise_last_sync(&s)),
-                    Err(e) => report.warn("last sync", &format!("unreadable: {e}")),
-                }
-            } else {
-                report.warn("last sync", "never — run `sync`");
-            }
+fn check_org_plugins(report: &mut Report) {
+    let Some(loc) = paths::org_plugins_effective() else {
+        report.fail("org-plugins path", "unresolvable for this OS");
+        return;
+    };
+    let scope = match loc.scope {
+        Scope::System => "system",
+        Scope::User => "user",
+    };
+    report.ok(
+        "org-plugins path",
+        &format!("{} (scope: {scope})", loc.path.display()),
+    );
 
-            match count_installed_plugins(&loc.path) {
-                Some(n) => report.ok("plugins on disk", &format!("{n}")),
-                None => report.warn("plugins on disk", "could not enumerate"),
-            }
-        },
-        None => report.fail("org-plugins path", "unresolvable for this OS"),
+    let meta = paths::metadata_dir(&loc.path);
+    if meta.exists() {
+        report.ok("metadata dir", &meta.display().to_string());
+    } else {
+        report.warn(
+            "metadata dir",
+            &format!("{} (missing — run `install`)", meta.display()),
+        );
     }
 
+    check_last_sync(report, &meta);
+
+    match count_installed_plugins(&loc.path) {
+        Some(n) => report.ok("plugins on disk", &format!("{n}")),
+        None => report.warn("plugins on disk", "could not enumerate"),
+    }
+}
+
+fn check_last_sync(report: &mut Report, meta: &std::path::Path) {
+    let last_sync = meta.join(paths::LAST_SYNC_SENTINEL);
+    if !last_sync.exists() {
+        report.warn("last sync", "never — run `sync`");
+        return;
+    }
+    match std::fs::read_to_string(&last_sync) {
+        Ok(s) => report.ok("last sync", &summarise_last_sync(&s)),
+        Err(e) => report.warn("last sync", &format!("unreadable: {e}")),
+    }
+}
+
+fn check_gateway(report: &mut Report) {
     let cfg = config::load();
-    match cfg.gateway_url.as_deref() {
-        Some(url) => {
-            report.ok("gateway_url", url);
-            let client = GatewayClient::new(url.to_string());
-            match client.health() {
-                Ok(()) => report.ok("gateway /health", "reachable"),
-                Err(e) => report.fail("gateway /health", &e.to_string()),
-            }
-        },
-        None => report.fail("gateway_url", "not set in config"),
+    let Some(url) = cfg.gateway_url.as_deref() else {
+        report.fail("gateway_url", "not set in config");
+        return;
+    };
+    report.ok("gateway_url", url);
+    let client = GatewayClient::new(url.to_string());
+    match client.health() {
+        Ok(()) => report.ok("gateway /health", "reachable"),
+        Err(e) => report.fail("gateway /health", &e.to_string()),
     }
+}
 
+fn check_cached_token(report: &mut Report) {
     match cache::read_valid() {
-        Some(out) => {
-            report.ok(
-                "cached token",
-                &format!("ttl={}s, len={}", out.ttl, out.token.len()),
-            );
-        },
-        None => {
-            report.warn(
-                "cached token",
-                "absent or expired — helper will probe providers on next run",
-            );
-        },
+        Some(out) => report.ok(
+            "cached token",
+            &format!("ttl={}s, len={}", out.ttl, out.token.len()),
+        ),
+        None => report.warn(
+            "cached token",
+            "absent or expired — helper will probe providers on next run",
+        ),
     }
+}
 
+fn check_pinned_pubkey(report: &mut Report) {
     match config::pinned_pubkey() {
         Some(k) => report.ok("pinned manifest pubkey", &format!("{} chars", k.len())),
         None => report.fail(
@@ -145,26 +161,25 @@ pub fn run() -> ValidationReport {
              rerun `sync --allow-tofu`",
         ),
     }
-
-    report.into_report()
 }
 
 fn summarise_last_sync(raw: &str) -> String {
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) else {
+    #[derive(serde::Deserialize)]
+    struct LastSyncRecord {
+        #[serde(default)]
+        synced_at: Option<String>,
+        #[serde(default)]
+        manifest_version: Option<String>,
+        #[serde(default)]
+        mcp_server_count: Option<u64>,
+    }
+
+    let Ok(record) = serde_json::from_str::<LastSyncRecord>(raw) else {
         return "unparseable".into();
     };
-    let synced_at = value
-        .get("synced_at")
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown");
-    let manifest_version = value
-        .get("manifest_version")
-        .and_then(|v| v.as_str())
-        .unwrap_or("?");
-    let mcp_count = value
-        .get("mcp_server_count")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+    let synced_at = record.synced_at.as_deref().unwrap_or("unknown");
+    let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
+    let mcp_count = record.mcp_server_count.unwrap_or(0);
     format!("{synced_at} (manifest {manifest_version}, {mcp_count} MCP server(s))")
 }
 

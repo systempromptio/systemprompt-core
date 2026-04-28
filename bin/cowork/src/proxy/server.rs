@@ -1,12 +1,3 @@
-//! Loopback HTTP/1.1 proxy: hyper-based async listener that accepts
-//! connections from Claude Desktop and forwards them through to the
-//! systemprompt gateway via [`forward`].
-//!
-//! The listener binds dual-stack (`[::]`) when possible so v4 and v6
-//! `localhost` clients both reach us; falls back to v4-only if v6 is
-//! unavailable. Each accepted connection runs as its own task with
-//! HTTP/1.1 keep-alive on, so the parallel POST burst Claude Desktop
-//! issues per user prompt reuses a single TCP connection.
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -70,7 +61,10 @@ pub fn start(rt: &Runtime, port: u16, gateway_base_url: String) -> std::io::Resu
         Err(_) => return Err(std::io::Error::other("proxy listener task aborted")),
     };
 
-    Ok(ProxyHandle { port: bound_port, stats })
+    Ok(ProxyHandle {
+        port: bound_port,
+        stats,
+    })
 }
 
 fn build_upstream_client() -> std::io::Result<reqwest::Client> {
@@ -167,7 +161,12 @@ async fn handle_request(
         .headers()
         .get(http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
-        .map(|v| v.trim_start_matches("Bearer ").trim_start_matches("bearer ").trim().to_string())
+        .map(|v| {
+            v.trim_start_matches("Bearer ")
+                .trim_start_matches("bearer ")
+                .trim()
+                .to_string()
+        })
         .unwrap_or_default();
     if presented.is_empty() || !secret::verify(&presented, &ctx.secret) {
         return Ok(simple_response(
@@ -185,7 +184,10 @@ async fn handle_request(
         Ok(response) => {
             let status = response.status().as_u16();
             record_stats(&ctx.stats, status, started);
-            diag(&format!("proxy: {method} {path} -> {status} {}ms", started.elapsed().as_millis()));
+            diag(&format!(
+                "proxy: {method} {path} -> {status} {}ms",
+                started.elapsed().as_millis()
+            ));
             Ok(response)
         },
         Err(e) => {
@@ -202,8 +204,12 @@ async fn handle_request(
 
 fn record_stats(stats: &ProxyStats, status: u16, started: Instant) {
     stats.forwarded_total.fetch_add(1, Ordering::Relaxed);
-    stats.last_forwarded_at_unix.store(now_unix(), Ordering::Relaxed);
-    stats.last_status.store(u64::from(status), Ordering::Relaxed);
+    stats
+        .last_forwarded_at_unix
+        .store(now_unix(), Ordering::Relaxed);
+    stats
+        .last_status
+        .store(u64::from(status), Ordering::Relaxed);
     stats
         .last_latency_ms
         .store(started.elapsed().as_millis() as u64, Ordering::Relaxed);
@@ -218,7 +224,13 @@ fn simple_response(status: StatusCode, body: &'static str) -> Response<forward::
         .header(http::header::CONTENT_TYPE, "text/plain")
         .header(http::header::CONNECTION, "close")
         .body(full)
-        .unwrap_or_else(|_| Response::new(Full::new(Bytes::new()).map_err(|never| match never {}).boxed()))
+        .unwrap_or_else(|_| {
+            Response::new(
+                Full::new(Bytes::new())
+                    .map_err(|never| match never {})
+                    .boxed(),
+            )
+        })
 }
 
 fn host_is_loopback(host: &str) -> bool {
