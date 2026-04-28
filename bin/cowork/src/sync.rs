@@ -152,7 +152,7 @@ pub fn run_once(
 
     let client = GatewayClient::new(gateway.clone());
     let manifest = client
-        .fetch_manifest(&bearer)
+        .fetch_manifest(bearer.expose())
         .map_err(|e| SyncError::Network(e.to_string()))?;
 
     if !allow_unsigned {
@@ -188,7 +188,7 @@ pub fn run_once(
     }
 
     let report =
-        apply_manifest(&client, &bearer, &manifest, &location).map_err(SyncError::ApplyFailed)?;
+        apply_manifest(&client, bearer.expose(), &manifest, &location).map_err(SyncError::ApplyFailed)?;
 
     let _ = fs::create_dir_all(paths::metadata_dir(&location.path));
     let applied_at = now.to_rfc3339();
@@ -536,7 +536,7 @@ fn hex_encode(bytes: &[u8]) -> String {
     s
 }
 
-fn fetch_fresh_token() -> Option<String> {
+fn fetch_fresh_token() -> Option<crate::secret::Secret> {
     use crate::providers::{AuthError, AuthProvider};
     let cfg = config::load();
     let chain: Vec<Box<dyn AuthProvider>> = vec![

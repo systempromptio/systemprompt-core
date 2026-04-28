@@ -56,7 +56,7 @@ pub fn forward(req: &Request, gateway_base: &str, client: &mut TcpStream) -> Res
         }
         request = request.set(name, value);
     }
-    request = request.set("authorization", &format!("Bearer {}", token_out.token));
+    request = request.set("authorization", &format!("Bearer {}", token_out.token.expose()));
     request = request.set("x-cowork-proxied", "1");
 
     let response = if req.body.is_empty() {

@@ -1,4 +1,5 @@
 use crate::gui::state::GatewayProbeOutcome;
+use crate::secret::Secret;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
@@ -11,7 +12,7 @@ pub enum UiEvent {
     SyncRequested,
     ValidateRequested,
     OpenConfigFolder,
-    LoginRequested { token: String, gateway: Option<String> },
+    LoginRequested { token: Secret, gateway: Option<String> },
     LogoutRequested,
     GatewayProbeRequested,
     Quit,

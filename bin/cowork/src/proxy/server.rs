@@ -137,7 +137,7 @@ fn parse_request(stream: &mut TcpStream) -> Result<Request, String> {
     reader
         .read_line(&mut request_line)
         .map_err(|e| format!("read request line: {e}"))?;
-    let mut parts = request_line.trim_end().split_whitespace();
+    let mut parts = request_line.split_whitespace();
     let method = parts
         .next()
         .ok_or_else(|| "missing method".to_string())?
