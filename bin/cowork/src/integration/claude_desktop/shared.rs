@@ -8,8 +8,6 @@ use crate::integration::host_app::HostConfigSchema;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) const CODE_DOMAIN: &str = "com.anthropic.claudecode";
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[

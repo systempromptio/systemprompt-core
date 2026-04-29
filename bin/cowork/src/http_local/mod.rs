@@ -3,7 +3,7 @@ pub mod request;
 pub mod response;
 
 pub use hop_by_hop::is_hop_by_hop;
-pub use request::{Request, parse, parse_from_read};
+pub use request::{Request, parse_buffered, parse_from_read};
 pub use response::{ResponseBuilder, write_chunked};
 
 #[derive(Debug, thiserror::Error)]

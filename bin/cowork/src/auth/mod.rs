@@ -9,32 +9,29 @@ pub mod types;
 use crate::auth::providers::mtls::MtlsProvider;
 use crate::auth::providers::pat::PatProvider;
 use crate::auth::providers::session::SessionProvider;
-use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use crate::auth::types::HelperOutput;
 use crate::config;
 use crate::obs::output::diag;
+use thiserror::Error;
 
-#[must_use]
-pub fn acquire_bearer(cfg: &config::Config) -> Option<HelperOutput> {
+#[derive(Debug, Error)]
+pub enum ChainError {
+    #[error("no credential source succeeded")]
+    NoneSucceeded,
+    #[error("{provider}: transient failure on preferred provider: {source}")]
+    PreferredTransient {
+        provider: &'static str,
+        #[source]
+        source: AuthFailedSource,
+    },
+}
+
+pub fn acquire_bearer(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
     if let Some(out) = cache::read_valid() {
-        return Some(out);
+        return Ok(out);
     }
-    let chain = provider_chain(cfg);
-    for p in &chain {
-        match p.authenticate() {
-            Ok(out) => {
-                if let Err(e) = cache::write(&out) {
-                    diag(&format!("cache write failed (continuing): {e}"));
-                }
-                return Some(out);
-            },
-            Err(AuthError::NotConfigured) => {},
-            Err(e @ AuthError::Failed { .. }) => {
-                diag(&format!("{}: {e}", p.name()));
-            },
-        }
-    }
-    None
+    run_chain(cfg, true)
 }
 
 #[must_use]
@@ -42,7 +39,7 @@ pub fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
     if let Some(out) = cache::read_valid() {
         return Some(out);
     }
-    mint_fresh(cfg)
+    mint_fresh(cfg).ok()
 }
 
 #[must_use]
@@ -50,7 +47,7 @@ pub fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<Help
     if let Some(out) = cache::read_with_threshold(threshold_secs) {
         return Some(out);
     }
-    mint_fresh(cfg)
+    mint_fresh(cfg).ok()
 }
 
 #[must_use]
@@ -100,17 +97,55 @@ pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
     ]
 }
 
-#[must_use]
-pub fn mint_fresh(cfg: &config::Config) -> Option<HelperOutput> {
-    let chain = provider_chain(cfg);
-    for p in &chain {
-        match p.authenticate() {
-            Ok(out) => {
-                let _ = cache::write(&out);
-                return Some(out);
-            },
-            Err(AuthError::NotConfigured | AuthError::Failed { .. }) => {},
-        }
+pub fn mint_fresh(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
+    run_chain(cfg, true)
+}
+
+fn preferred_provider(cfg: &config::Config) -> Option<&'static str> {
+    if cfg
+        .mtls
+        .as_ref()
+        .is_some_and(|m| m.cert_keystore_ref.is_some())
+    {
+        return Some("mtls");
     }
     None
+}
+
+fn run_chain(cfg: &config::Config, write_cache: bool) -> Result<HelperOutput, ChainError> {
+    let chain = provider_chain(cfg);
+    let preferred = preferred_provider(cfg);
+    let providers: Vec<&dyn AuthProvider> = chain.iter().map(AsRef::as_ref).collect();
+    let result = evaluate_chain(&providers, preferred);
+    if write_cache {
+        if let Ok(out) = result.as_ref() {
+            if let Err(e) = cache::write(out) {
+                diag(&format!("cache write failed (continuing): {e}"));
+            }
+        }
+    }
+    result
+}
+
+pub fn evaluate_chain(
+    chain: &[&dyn AuthProvider],
+    preferred: Option<&'static str>,
+) -> Result<HelperOutput, ChainError> {
+    for p in chain {
+        match p.authenticate() {
+            Ok(out) => return Ok(out),
+            Err(AuthError::NotConfigured) => {},
+            Err(AuthError::Failed { provider, source }) => {
+                let is_preferred = preferred == Some(provider);
+                if is_preferred && !source.is_terminal() {
+                    diag(&format!(
+                        "{provider}: transient failure on preferred provider: {source}"
+                    ));
+                    return Err(ChainError::PreferredTransient { provider, source });
+                }
+                diag(&format!("{provider}: {source}"));
+            },
+        }
+    }
+    Err(ChainError::NoneSucceeded)
 }

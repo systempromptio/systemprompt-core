@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 
+use crate::auth::ChainError;
 use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
 use crate::{auth, config};
@@ -7,9 +8,18 @@ use crate::{auth, config};
 pub(crate) fn cmd_whoami() -> ExitCode {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
-    let Some(out) = auth::acquire_bearer(&cfg) else {
-        diag("no credential available; run `systemprompt-cowork login` first");
-        return ExitCode::from(5);
+    let out = match auth::acquire_bearer(&cfg) {
+        Ok(out) => out,
+        Err(ChainError::PreferredTransient { provider, source }) => {
+            diag(&format!(
+                "transient auth failure on preferred provider {provider}: {source}"
+            ));
+            return ExitCode::from(10);
+        },
+        Err(ChainError::NoneSucceeded) => {
+            diag("no credential available; run `systemprompt-cowork login` first");
+            return ExitCode::from(5);
+        },
     };
 
     let client = GatewayClient::new(gateway.clone());

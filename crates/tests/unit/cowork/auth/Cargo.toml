@@ -12,3 +12,4 @@ workspace = true
 
 [dependencies]
 systemprompt-cowork = { workspace = true }
+ureq = "2"

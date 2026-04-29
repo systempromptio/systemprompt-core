@@ -10,7 +10,7 @@ use crate::gui::server::ActivityLog;
 use crate::gui::server_json::snapshot_to_json;
 use crate::gui::server_util::{constant_time_eq, parse_query};
 use crate::gui::state::AppState;
-use crate::http_local::{ResponseBuilder, parse};
+use crate::http_local::{ResponseBuilder, parse_from_read};
 
 const HTML: &str = include_str!("../../web/index.html");
 const STYLE: &str = include_str!("../../web/style.css");
@@ -77,7 +77,7 @@ pub fn handle_connection(mut stream: TcpStream, ctx: ConnectionContext<'_>) -> s
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     stream.set_write_timeout(Some(READ_TIMEOUT))?;
 
-    let req = match parse(&mut stream) {
+    let req = match parse_from_read(&mut stream) {
         Ok(r) => r,
         Err(e) => {
             tracing::debug!(error = %e, "request parse failed");

@@ -38,7 +38,13 @@ pub fn load_or_mint_typed() -> std::io::Result<LoopbackSecret> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+        if let Err(e) = fs::set_permissions(&path, fs::Permissions::from_mode(0o600)) {
+            tracing::warn!(
+                path = %path.display(),
+                error = %e,
+                "failed to lock down file permissions; cache may be world-readable",
+            );
+        }
     }
     Ok(LoopbackSecret::new(secret))
 }
