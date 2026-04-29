@@ -32,15 +32,28 @@ pub mod tracing_init {
     static LOG_FILE: OnceLock<Mutex<File>> = OnceLock::new();
     static LOG_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
 
+    fn json_format_requested() -> bool {
+        std::env::var("SP_COWORK_LOG_FORMAT").is_ok_and(|v| v.eq_ignore_ascii_case("json"))
+    }
+
     pub fn init() {
         INIT.call_once(|| {
             let filter =
                 EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-            let _ = tracing_subscriber::fmt()
-                .with_writer(TeeWriter)
-                .with_env_filter(filter)
-                .event_format(CoworkFormat)
-                .try_init();
+            if json_format_requested() {
+                let _ = tracing_subscriber::fmt()
+                    .with_writer(TeeWriter)
+                    .with_env_filter(filter)
+                    .json()
+                    .flatten_event(true)
+                    .try_init();
+            } else {
+                let _ = tracing_subscriber::fmt()
+                    .with_writer(TeeWriter)
+                    .with_env_filter(filter)
+                    .event_format(CoworkFormat)
+                    .try_init();
+            }
             tracing::info!(
                 "log file: {}",
                 log_file_path()

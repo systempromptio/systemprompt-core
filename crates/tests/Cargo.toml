@@ -52,6 +52,7 @@ members = [
     "unit/cowork/install",
     "unit/cowork/sync",
     "unit/cowork/integration",
+    "unit/cowork/proxy",
     # Common test utilities
     "common/mocks",
     "common/migrate",
