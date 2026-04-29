@@ -14,9 +14,7 @@ pub enum CheckLevel {
 #[derive(Debug, Clone)]
 pub struct CheckLine {
     pub level: CheckLevel,
-    /// Free-form human-readable column for the validate report.
     pub label: String,
-    /// Free-form human-readable value column for the validate report.
     pub value: String,
 }
 

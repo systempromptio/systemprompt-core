@@ -33,7 +33,55 @@
     const ts = new Date().toLocaleTimeString();
     log.textContent += `\n[${ts}] ${line}`;
     log.scrollTop = log.scrollHeight;
+    if (drawerCollapsed) {
+      unreadActivity++;
+      renderActivityBadge();
+    }
   }
+
+  let drawerCollapsed = false;
+  let unreadActivity = 0;
+  function renderActivityBadge() {
+    const badge = $("activity-badge");
+    if (!badge) return;
+    if (unreadActivity > 0 && drawerCollapsed) {
+      badge.textContent = String(unreadActivity);
+      badge.hidden = false;
+    } else {
+      badge.hidden = true;
+    }
+  }
+  function setDrawerCollapsed(next) {
+    drawerCollapsed = !!next;
+    const drawer = $("activity-drawer");
+    if (drawer) drawer.dataset.collapsed = drawerCollapsed ? "true" : "false";
+    const btn = $("activity-toggle");
+    if (btn) btn.textContent = drawerCollapsed ? "◀" : "▶";
+    if (!drawerCollapsed) { unreadActivity = 0; renderActivityBadge(); }
+    try { localStorage.setItem("cowork.drawer", drawerCollapsed ? "1" : "0"); } catch (_) {}
+  }
+  function activateTab(name) {
+    for (const btn of document.querySelectorAll(".rail-tab")) {
+      btn.setAttribute("aria-selected", btn.dataset.tab === name ? "true" : "false");
+    }
+    for (const panel of document.querySelectorAll(".tab-panel")) {
+      panel.hidden = panel.dataset.tab !== name;
+    }
+    try { localStorage.setItem("cowork.tab", name); } catch (_) {}
+  }
+  for (const btn of document.querySelectorAll(".rail-tab")) {
+    btn.addEventListener("click", () => activateTab(btn.dataset.tab));
+  }
+  const initialTab = (() => {
+    try { return localStorage.getItem("cowork.tab") || "marketplace"; } catch (_) { return "marketplace"; }
+  })();
+  activateTab(initialTab);
+  const drawerToggleHandler = () => setDrawerCollapsed(!drawerCollapsed);
+  $("activity-toggle")?.addEventListener("click", drawerToggleHandler);
+  $("activity-toggle-top")?.addEventListener("click", drawerToggleHandler);
+  try {
+    if (localStorage.getItem("cowork.drawer") === "1") setDrawerCollapsed(true);
+  } catch (_) {}
 
   function fmtRelative(unix) {
     if (!unix) return "never";
@@ -119,6 +167,11 @@
   $("btn-validate").addEventListener("click", () => post("/api/validate"));
   $("btn-open-folder").addEventListener("click", () => post("/api/open_folder"));
   $("btn-recheck").addEventListener("click", () => post("/api/probe"));
+  $("btn-settings-folder")?.addEventListener("click", () => post("/api/open_folder"));
+  $("btn-settings-validate")?.addEventListener("click", () => post("/api/validate"));
+  $("btn-settings-change-gateway")?.addEventListener("click", () => {
+    document.body.classList.add("setup-mode");
+  });
   $("btn-claude-generate").addEventListener("click", () => post("/api/claude/profile/generate"));
   $("btn-claude-reverify").addEventListener("click", () => post("/api/claude/probe"));
   $("btn-claude-install").addEventListener("click", () => {
@@ -334,7 +387,16 @@
     $("card-skills").textContent  = snap.skill_count ?? "—";
     $("card-agents").textContent  = snap.agent_count ?? "—";
     $("card-mcp").textContent     = snap.mcp_count ?? "—";
+    if ($("card-hooks")) $("card-hooks").textContent = snap.hook_count ?? "0";
+    const totals = [snap.plugin_count, snap.skill_count, snap.agent_count, snap.mcp_count, snap.hook_count]
+      .filter((n) => typeof n === "number")
+      .reduce((a, b) => a + b, 0);
+    if ($("rail-count-marketplace")) $("rail-count-marketplace").textContent = String(totals || 0);
+    maybeRefreshMarketplace(snap);
     $("config-path").textContent = snap.config_file || "";
+    if ($("settings-gateway"))      { $("settings-gateway").textContent      = snap.gateway_url || "—"; $("settings-gateway").classList.toggle("muted", !snap.gateway_url); }
+    if ($("settings-plugins-dir"))  { $("settings-plugins-dir").textContent  = snap.plugins_dir || "—"; $("settings-plugins-dir").classList.toggle("muted", !snap.plugins_dir); }
+    if ($("settings-config"))       { $("settings-config").textContent       = snap.config_file || "—"; $("settings-config").classList.toggle("muted", !snap.config_file); }
 
     const tokenState = snap.cached_token
       ? `cached JWT • ${snap.cached_token.length} bytes • ttl ${snap.cached_token.ttl_seconds}s`
@@ -446,6 +508,158 @@
       setTimeout(pollLog, LOG_POLL_MS);
     }
   }
+
+  let mktData = null;
+  let mktKind = "plugins";
+  let mktSelectedId = null;
+  let mktSearch = "";
+  let mktLastSyncSummary = null;
+  let mktInFlight = false;
+
+  function maybeRefreshMarketplace(snap) {
+    if (!snap.signed_in) return;
+    if (snap.last_sync_summary === mktLastSyncSummary && mktData) return;
+    mktLastSyncSummary = snap.last_sync_summary;
+    fetchMarketplace();
+  }
+
+  async function fetchMarketplace() {
+    if (mktInFlight) return;
+    mktInFlight = true;
+    try {
+      const resp = await api("/api/marketplace");
+      if (resp.ok) {
+        mktData = await resp.json();
+        renderMarketplace();
+      }
+    } catch (e) {
+      console.error("marketplace fetch failed", e);
+    } finally {
+      mktInFlight = false;
+    }
+  }
+
+  function renderMarketplace() {
+    if (!mktData) return;
+    const counts = {
+      plugins: (mktData.plugins || []).length,
+      skills:  (mktData.skills  || []).length,
+      hooks:   (mktData.hooks   || []).length,
+      mcp:     (mktData.mcp     || []).length,
+      agents:  (mktData.agents  || []).length,
+    };
+    for (const [k, n] of Object.entries(counts)) {
+      const el = document.querySelector(`.mkt-cat[data-kind="${k}"] .mkt-cat-count`);
+      if (el) el.textContent = String(n);
+    }
+    const list = $("mkt-items");
+    if (!list) return;
+    const items = (mktData[mktKind] || []).filter((it) => {
+      if (!mktSearch) return true;
+      const q = mktSearch.toLowerCase();
+      return (it.name || "").toLowerCase().includes(q) ||
+             (it.id   || "").toLowerCase().includes(q) ||
+             (it.summary || "").toLowerCase().includes(q);
+    });
+    list.innerHTML = "";
+    if (items.length === 0) {
+      const li = document.createElement("li");
+      li.className = "mkt-empty-state";
+      li.textContent = mktSearch ? "No matches." : "Nothing here yet — sync to populate.";
+      list.appendChild(li);
+    } else {
+      for (const it of items) {
+        const li = document.createElement("li");
+        li.className = "mkt-item";
+        li.dataset.id = it.id;
+        li.setAttribute("aria-selected", String(it.id === mktSelectedId));
+        const name = document.createElement("div");
+        name.className = "mkt-item-name";
+        name.textContent = it.name || it.id;
+        const meta = document.createElement("div");
+        meta.className = "mkt-item-meta";
+        meta.textContent = (it.summary || it.source || "").slice(0, 120);
+        li.appendChild(name);
+        if (meta.textContent) li.appendChild(meta);
+        li.addEventListener("click", () => {
+          mktSelectedId = it.id;
+          renderMarketplace();
+        });
+        list.appendChild(li);
+      }
+    }
+    renderMarketplaceDetail();
+  }
+
+  function renderMarketplaceDetail() {
+    const detail = $("mkt-detail");
+    if (!detail || !mktData) return;
+    const items = mktData[mktKind] || [];
+    const selected = items.find((it) => it.id === mktSelectedId) || null;
+    detail.innerHTML = "";
+    if (!selected) {
+      const empty = document.createElement("div");
+      empty.className = "mkt-empty";
+      empty.textContent = items.length ? "Pick an item to inspect." : "Sync to populate the marketplace.";
+      detail.appendChild(empty);
+      return;
+    }
+    const h = document.createElement("h2");
+    h.textContent = selected.name || selected.id;
+    detail.appendChild(h);
+    const metaRow = document.createElement("div");
+    metaRow.className = "mkt-detail-meta";
+    const kindLabel = document.createElement("span");
+    kindLabel.textContent = mktKind;
+    metaRow.appendChild(kindLabel);
+    const sourceLabel = document.createElement("span");
+    sourceLabel.textContent = `· ${selected.source}`;
+    metaRow.appendChild(sourceLabel);
+    detail.appendChild(metaRow);
+
+    if (selected.summary) {
+      const p = document.createElement("p");
+      p.textContent = selected.summary;
+      detail.appendChild(p);
+    }
+    if (selected.readme) {
+      const sec = document.createElement("section");
+      sec.className = "mkt-detail-section";
+      const h3 = document.createElement("h3");
+      h3.textContent = "README";
+      const pre = document.createElement("div");
+      pre.className = "mkt-detail-readme";
+      pre.textContent = selected.readme;
+      sec.appendChild(h3);
+      sec.appendChild(pre);
+      detail.appendChild(sec);
+    }
+    const sec = document.createElement("section");
+    sec.className = "mkt-detail-section";
+    const h3 = document.createElement("h3");
+    h3.textContent = "Path";
+    const path = document.createElement("div");
+    path.className = "mkt-detail-path";
+    path.textContent = selected.path;
+    sec.appendChild(h3);
+    sec.appendChild(path);
+    detail.appendChild(sec);
+  }
+
+  for (const cat of document.querySelectorAll(".mkt-cat")) {
+    cat.addEventListener("click", () => {
+      mktKind = cat.dataset.kind;
+      mktSelectedId = null;
+      for (const c of document.querySelectorAll(".mkt-cat")) {
+        c.setAttribute("aria-selected", c === cat ? "true" : "false");
+      }
+      renderMarketplace();
+    });
+  }
+  $("mkt-search")?.addEventListener("input", (e) => {
+    mktSearch = e.target.value || "";
+    renderMarketplace();
+  });
 
   pollState();
   pollLog();

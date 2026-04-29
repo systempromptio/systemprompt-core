@@ -77,9 +77,50 @@ gh workflow run release.yml \
   -f cowork_mac_x64_tag=cowork-mac-vX.Y.Z
 ```
 
-### 3. macOS x86_64 special case
+### 3. Scoop bucket fan-out (Windows)
+
+After the core release is published, `.github/workflows/scoop-cowork.yml` fires on `release: published` and updates the manifest at `systempromptio/scoop-bucket` (`bucket/cowork.json`). Trigger filter: only releases whose tag starts with `cowork-v`. Other tag prefixes (gateway, mac, legacy `v*`) are ignored.
+
+The workflow:
+1. Resolves the version from the tag (`cowork-v0.4.0` → `0.4.0`).
+2. Downloads `systemprompt-cowork-x86_64-pc-windows-msvc.exe` from the core release and computes its SHA256.
+3. Writes `bucket/cowork.json` with the URL, hash, and a `#/systemprompt-cowork.exe` fragment so Scoop renames the binary on install (short, stable name on PATH).
+4. Commits to `systempromptio/scoop-bucket` using `SCOOP_BUCKET_TOKEN` (a PAT with contents:write on the bucket repo — same secret pattern as the gateway's `scoop.yml` in deploy).
+
+End-user install:
+
+```powershell
+scoop bucket add systemprompt https://github.com/systempromptio/scoop-bucket
+scoop install systemprompt/cowork
+```
+
+Scoop downloads via PowerShell, so SmartScreen is bypassed even without Authenticode signing. `scoop update cowork` picks up new releases via the manifest's `checkver` regex (`cowork-v([\d.]+)`), which intentionally ignores bare `v*` and `cowork-mac-v*` tags.
+
+To re-run without retagging:
+
+```bash
+gh workflow run scoop-cowork.yml \
+  -R systempromptio/systemprompt-core \
+  -f tag=cowork-vX.Y.Z
+```
+
+**Prerequisite secret**: `SCOOP_BUCKET_TOKEN` must exist on `systemprompt-core` repo secrets, scoped to `systempromptio/scoop-bucket` with contents:write.
+
+### 4. macOS x86_64 special case
 
 The main `release-sign.yml` matrix does **not** include `x86_64-apple-darwin` — `macos-13` runner queue times made it unreliable. Intel Mac builds are tagged separately in core as `cowork-mac-v*` and produced by their own workflow. Template's bundler picks the latest `cowork-mac-v*` via `cowork_mac_x64_tag` input. Only re-tag the Intel build when there's a meaningful change for that platform; it can lag the main matrix by patch versions.
+
+## Package-manager distribution (cowork)
+
+| Channel | Status | Workflow | Bucket/tap repo | Signing prereq |
+|---------|--------|----------|-----------------|----------------|
+| GitHub Releases | active | `release-sign.yml` | — | cosign keyless |
+| Scoop (Windows) | active | `scoop-cowork.yml` | `systempromptio/scoop-bucket` | none |
+| Homebrew Cask (macOS) | planned | `homebrew-cask-cowork.yml` (TBD) | `systempromptio/homebrew-tap` | Developer ID + notarization |
+| winget (Windows) | planned | TBD | `microsoft/winget-pkgs` (PR-based) | Authenticode (Azure Trusted Signing) |
+| `.deb` / `.rpm` | deferred | TBD | attached to GH Release | optional GPG repo signing |
+
+Both bucket repos (`scoop-bucket`, `homebrew-tap`) already exist and are driven by the gateway today. Adding cowork is per-channel: a new manifest file + workflow per repo, no bootstrap.
 
 ## Cutting a gateway release (`systemprompt-deploy`)
 

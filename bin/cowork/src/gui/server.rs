@@ -127,6 +127,10 @@ impl Server {
         format!("http://127.0.0.1:{}/?t={}", self.port, self.csrf_token)
     }
 
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
     pub fn log(&self) -> &ActivityLog {
         &self.log
     }
@@ -164,6 +168,7 @@ fn handle_connection(
     match route {
         ("GET", "/") => serve_index(&mut stream, csrf_token),
         ("GET", "/api/state") => serve_state(&mut stream, state),
+        ("GET", "/api/marketplace") => serve_marketplace(&mut stream),
         ("GET", "/api/log") => {
             let since = qs
                 .get("since")
@@ -176,6 +181,22 @@ fn handle_connection(
     }
 }
 
+const PLATFORM_SLUG: &str = if cfg!(target_os = "macos") {
+    "macos"
+} else if cfg!(target_os = "windows") {
+    "windows"
+} else {
+    "linux"
+};
+
+const PLATFORM_DISPLAY: &str = if cfg!(target_os = "macos") {
+    "macOS"
+} else if cfg!(target_os = "windows") {
+    "Windows"
+} else {
+    "Linux"
+};
+
 fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> {
     let html = HTML
         .replace("__STYLE__", STYLE)
@@ -183,8 +204,23 @@ fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> 
         .replace("__VERSION__", VERSION)
         .replace("__ICON_SVG__", ICON_SVG)
         .replace("__LOGO_SVG__", LOGO_SVG)
+        .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
+        .replace("__PLATFORM__", PLATFORM_SLUG)
         .replace("__TOKEN__", csrf_token);
     write_response(stream, 200, "text/html; charset=utf-8", html.as_bytes())
+}
+
+fn serve_marketplace(stream: &mut TcpStream) -> std::io::Result<()> {
+    let listing = crate::gui::server_marketplace::build_listing();
+    match crate::gui::server_marketplace::listing_to_json(&listing) {
+        Ok(body) => write_response(stream, 200, "application/json", body.as_bytes()),
+        Err(e) => write_response(
+            stream,
+            500,
+            "text/plain",
+            format!("encode error: {e}").as_bytes(),
+        ),
+    }
 }
 
 fn serve_state(stream: &mut TcpStream, state: &AppState) -> std::io::Result<()> {

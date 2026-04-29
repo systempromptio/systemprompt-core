@@ -84,10 +84,7 @@ mod header_map_serde {
                 f.write_str("a map of HTTP header names to values")
             }
 
-            fn visit_map<M: MapAccess<'de>>(
-                self,
-                mut access: M,
-            ) -> Result<Self::Value, M::Error> {
+            fn visit_map<M: MapAccess<'de>>(self, mut access: M) -> Result<Self::Value, M::Error> {
                 let mut map = HashMap::new();
                 while let Some((key, value)) = access.next_entry::<String, String>()? {
                     let name: HeaderName = key.parse().map_err(|e| {

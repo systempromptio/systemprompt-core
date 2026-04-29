@@ -1,11 +1,15 @@
+pub mod native;
+
 use std::path::Path;
 use std::process::Command;
+
+pub use native::SettingsWindow;
 
 pub fn open_path(path: &Path) {
     open_target(&path.to_string_lossy());
 }
 
-pub fn open_url(url: &str) {
+pub fn open_external_url(url: &str) {
     open_target(url);
 }
 

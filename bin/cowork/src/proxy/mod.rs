@@ -30,7 +30,9 @@ fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
         .build()?;
     let _ = RUNTIME.set(Arc::new(rt));
     #[allow(clippy::expect_used)]
-    Ok(RUNTIME.get().expect("RUNTIME populated on the previous line"))
+    Ok(RUNTIME
+        .get()
+        .expect("RUNTIME populated on the previous line"))
 }
 
 pub fn start_default() -> Option<&'static ProxyHandle> {

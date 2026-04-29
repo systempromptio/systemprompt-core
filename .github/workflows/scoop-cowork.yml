@@ -1,0 +1,81 @@
+name: Scoop — update cowork manifest
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Cowork release tag (e.g. cowork-v0.4.0)"
+        required: true
+
+jobs:
+  update:
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'cowork-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scoop-bucket
+        uses: actions/checkout@v4
+        with:
+          repository: systempromptio/scoop-bucket
+          token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          path: bucket
+
+      - name: Resolve version
+        id: ver
+        run: |
+          tag="${{ inputs.tag || github.event.release.tag_name }}"
+          version="${tag#cowork-v}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute SHA256 of Windows asset
+        id: sha
+        run: |
+          tag="${{ steps.ver.outputs.tag }}"
+          url="https://github.com/systempromptio/systemprompt-core/releases/download/${tag}/systemprompt-cowork-x86_64-pc-windows-msvc.exe"
+          curl -fsSL "$url" -o cowork.exe
+          echo "sha=$(sha256sum cowork.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Write manifest
+        run: |
+          cat > bucket/bucket/cowork.json <<EOF
+          {
+            "version": "${{ steps.ver.outputs.version }}",
+            "description": "systemprompt cowork — local AI workspace and agent runner",
+            "homepage": "https://systemprompt.io",
+            "license": "MIT AND BUSL-1.1",
+            "architecture": {
+              "64bit": {
+                "url": "${{ steps.sha.outputs.url }}#/systemprompt-cowork.exe",
+                "hash": "${{ steps.sha.outputs.sha }}"
+              }
+            },
+            "bin": "systemprompt-cowork.exe",
+            "checkver": {
+              "github": "https://github.com/systempromptio/systemprompt-core",
+              "regex": "cowork-v([\\\\d.]+)"
+            },
+            "autoupdate": {
+              "architecture": {
+                "64bit": {
+                  "url": "https://github.com/systempromptio/systemprompt-core/releases/download/cowork-v\$version/systemprompt-cowork-x86_64-pc-windows-msvc.exe#/systemprompt-cowork.exe"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Commit and push
+        working-directory: bucket
+        run: |
+          git config user.name  "systemprompt-bot"
+          git config user.email "bot@systemprompt.io"
+          git add bucket/cowork.json
+          if git diff --cached --quiet; then
+            echo "No manifest changes."
+            exit 0
+          fi
+          git commit -m "cowork: update to ${{ steps.ver.outputs.version }}"
+          git push

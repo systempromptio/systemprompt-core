@@ -46,12 +46,8 @@ impl GatewayStatus {
 
 #[derive(Debug, Clone)]
 pub struct VerifiedIdentity {
-    /// Free-form display label parsed from JWT claims; no domain validation rule applies.
     pub email: Option<String>,
-    /// Unverified JWT `sub` claim — not validated against any domain rule until the gateway
-    /// roundtrip succeeds, hence kept as String at this boundary.
     pub user_id: Option<String>,
-    /// Unverified JWT `tenant` claim, same caveat as `user_id`.
     pub tenant_id: Option<String>,
     pub exp_unix: Option<u64>,
     pub verified_at_unix: u64,
@@ -66,24 +62,16 @@ pub struct GatewayProbeOutcome {
 
 #[derive(Debug, Clone, Default)]
 pub struct AppStateSnapshot {
-    /// Pre-rendered display string — falls back to "" before first reload; consumed verbatim
-    /// by the GUI/JSON layer where validation has no effect.
     pub gateway_url: String,
-    /// Filesystem path rendered for display; validation already happened upstream in
-    /// `auth::setup::status()`.
     pub config_file: String,
-    /// See `config_file`.
     pub pat_file: String,
     pub config_present: bool,
     pub pat_present: bool,
-    /// Pre-formatted human-readable summary line.
     pub last_sync_summary: Option<String>,
     pub skill_count: Option<usize>,
     pub agent_count: Option<usize>,
-    /// Pre-rendered display path; see `config_file`.
     pub plugins_dir: Option<String>,
     pub sync_in_flight: bool,
-    /// Free-form status message shown in the GUI footer.
     pub last_action_message: Option<String>,
     pub last_validation: Option<ValidationReport>,
     pub cached_token: Option<CachedToken>,
@@ -184,7 +172,7 @@ impl AppState {
 
     fn reload_into(snap: &mut AppStateSnapshot) {
         let cfg = config::load();
-        snap.gateway_url = config::gateway_url_or_default(&cfg);
+        snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
 
         match setup::status() {
             Ok(s) => {

@@ -63,12 +63,14 @@ security-framework = "3"
 tray-icon = "0.19"
 muda = "0.15"
 winit = "0.30"
+wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 tray-icon = "0.19"
 muda = "0.15"
 winit = "0.30"
+wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",

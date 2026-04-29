@@ -42,7 +42,11 @@ pub(super) struct ProxyContext {
     pub client: reqwest::Client,
 }
 
-pub fn start(rt: &Runtime, port: u16, gateway_base_url: &ValidatedUrl) -> std::io::Result<ProxyHandle> {
+pub fn start(
+    rt: &Runtime,
+    port: u16,
+    gateway_base_url: &ValidatedUrl,
+) -> std::io::Result<ProxyHandle> {
     let gateway_base = gateway_base_url.clone();
     let loopback = secret::load_or_mint_typed()?;
     let proxy_secret = ProxySecret::new(loopback.into_inner());
@@ -215,12 +219,10 @@ fn record_stats(stats: &ProxyStats, status: u16, started: Instant) {
     stats
         .last_status
         .store(u64::from(status), Ordering::Relaxed);
-    stats
-        .last_latency_ms
-        .store(
-            u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
-            Ordering::Relaxed,
-        );
+    stats.last_latency_ms.store(
+        u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        Ordering::Relaxed,
+    );
 }
 
 fn simple_response(status: StatusCode, body: &'static str) -> Response<forward::ProxyBody> {

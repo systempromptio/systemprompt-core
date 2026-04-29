@@ -107,10 +107,14 @@ macro_rules! cowork_id_common {
             }
         }
         impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str { &self.0 }
+            fn as_ref(&self) -> &str {
+                &self.0
+            }
         }
         impl From<$name> for String {
-            fn from(id: $name) -> Self { id.0 }
+            fn from(id: $name) -> Self {
+                id.0
+            }
         }
     };
 }
@@ -121,19 +125,27 @@ macro_rules! cowork_id_validated_conversions {
     ($name:ident) => {
         impl TryFrom<String> for $name {
             type Error = $crate::ids::IdValidationError;
-            fn try_from(s: String) -> Result<Self, Self::Error> { Self::try_new(s) }
+            fn try_from(s: String) -> Result<Self, Self::Error> {
+                Self::try_new(s)
+            }
         }
         impl TryFrom<&str> for $name {
             type Error = $crate::ids::IdValidationError;
-            fn try_from(s: &str) -> Result<Self, Self::Error> { Self::try_new(s) }
+            fn try_from(s: &str) -> Result<Self, Self::Error> {
+                Self::try_new(s)
+            }
         }
         impl std::str::FromStr for $name {
             type Err = $crate::ids::IdValidationError;
-            fn from_str(s: &str) -> Result<Self, Self::Err> { Self::try_new(s) }
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Self::try_new(s)
+            }
         }
         impl<'de> serde::Deserialize<'de> for $name {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where D: serde::Deserializer<'de> {
+            where
+                D: serde::Deserializer<'de>,
+            {
                 let s = String::deserialize(deserializer)?;
                 Self::try_new(s).map_err(serde::de::Error::custom)
             }
@@ -149,9 +161,15 @@ macro_rules! cowork_define_token {
         pub struct $name(String);
 
         impl $name {
-            pub fn new(token: impl Into<String>) -> Self { Self(token.into()) }
-            pub fn as_str(&self) -> &str { &self.0 }
-            pub fn into_inner(mut self) -> String { std::mem::take(&mut self.0) }
+            pub fn new(token: impl Into<String>) -> Self {
+                Self(token.into())
+            }
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+            pub fn into_inner(mut self) -> String {
+                std::mem::take(&mut self.0)
+            }
 
             #[must_use]
             pub fn redacted(&self) -> String {
@@ -178,15 +196,27 @@ macro_rules! cowork_define_token {
 
         impl std::str::FromStr for $name {
             type Err = std::convert::Infallible;
-            fn from_str(s: &str) -> Result<Self, Self::Err> { Ok(Self(s.to_string())) }
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Ok(Self(s.to_string()))
+            }
         }
 
         impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str { &self.0 }
+            fn as_ref(&self) -> &str {
+                &self.0
+            }
         }
 
-        impl From<String> for $name { fn from(s: String) -> Self { Self(s) } }
-        impl From<&str> for $name { fn from(s: &str) -> Self { Self(s.to_string()) } }
+        impl From<String> for $name {
+            fn from(s: String) -> Self {
+                Self(s)
+            }
+        }
+        impl From<&str> for $name {
+            fn from(s: &str) -> Self {
+                Self(s.to_string())
+            }
+        }
 
         impl Drop for $name {
             fn drop(&mut self) {
@@ -226,7 +256,10 @@ cowork_define_id!(Sha256Digest, validated, |value: &str| {
             format!("expected 64 hex chars, got {}", value.len()),
         ));
     }
-    if !value.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+    if !value
+        .bytes()
+        .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    {
         return Err(IdValidationError::invalid(
             "Sha256Digest",
             "expected lowercase hex characters",

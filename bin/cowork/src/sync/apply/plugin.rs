@@ -7,14 +7,9 @@ use std::fs;
 use std::path::Path;
 
 pub struct PluginApplyOutcome {
-    /// Pre-rendered plugin-id strings for display in sync reports; the typed PluginId has been
-    /// consumed by this point.
     pub installed: Vec<String>,
-    /// See `installed`.
     pub updated: Vec<String>,
-    /// See `installed`.
     pub removed: Vec<String>,
-    /// See `installed`.
     pub malformed: Vec<String>,
 }
 

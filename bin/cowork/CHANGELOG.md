@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Settings window + marketplace listing + typed-ID rollout
+
+Native settings window is now actually rendered (wry WebView2/WKWebView), the dashboard gains a marketplace listing pane backed by an on-disk scan of installed plugins/skills/hooks/MCP/agents, and the entire `bin/cowork` tree adopts the typed-identifier discipline used by the rest of the systemprompt-core codebase.
+
+- New `gui/window/native.rs` — `SettingsWindow` wrapping `winit::Window` + `wry::WebView`. Decorationless 1100x760 default, 800x600 min. Loads from the local settings server. Adds `wry = "0.55"` (macOS + Windows targets only).
+- New `gui/server_marketplace.rs` — `/api/marketplace` endpoint exposes a typed `MarketplaceListing { plugins, skills, hooks, mcp, agents }` scanned from `paths::org_plugins_effective()`. Each entry carries id, name, source, path, summary, README excerpt (capped at 32 KiB), and a free-form `extra` payload. Wired into the dashboard via `gui/server.rs`.
+- New `gui/handlers/settings.rs` flow updates — settings actions now go through the same dispatch pipeline as auth/sync/validate, with structured outcomes back to the front-end.
+- Web UI overhaul (`web/{index.html,style.css,app.js}`) — ~1k lines of dashboard shell, marketplace pane, settings forms, and brand styling.
+- `bin/cowork/src/ids.rs` adds a vendored `cowork_define_id!` / `cowork_define_token!` macro pair (Display, FromStr, AsRef<str>, From<&str>/<String>, serde(transparent), redacted Debug for tokens, Zeroize on Drop). Local newtypes: `PatToken`, `BearerToken`, `LoopbackSecret`, `ProxySecret`, `ManifestSignature`, `PinnedPubKey`, `Sha256Digest` (validated 64-char lowercase hex), `PluginId`, `SkillId`, `SkillName`, `ManagedMcpServerName`, `ToolName`, `ToolPolicy`, `PrefsDomain`, `PrefsKey`, `PrefsValue`, `ModelId`, `KeystoreRef`, `CertFingerprint`, `QueryKey`, `QueryValue`.
+- `systemprompt-identifiers = "0.4.2"` added as a dependency. Existing `String` fields for `SessionId`, `UserId`, `TenantId`, `AgentId`, `AgentName`, `ApiKeySecret`, `ValidatedUrl`, `ValidatedFilePath` adopt the upstream typed equivalents across `auth/`, `gateway/manifest.rs`, `config/`, `proxy/`, `install/`, `integration/claude_desktop/`, `sync/`, `gui/state.rs`, and `cli/`.
+- JSON / TOML wire formats unchanged — every typed ID is `serde(transparent)`. `ManagedMcpServer.headers` deliberately remains `BTreeMap<String, String>` (case-preserving) so manifest signature canonical bytes are untouched.
+- Token Debug now redacts: `BearerToken("xxxxxxxx…yyyy")` for tokens >16 chars, `***` otherwise. Drop zeroizes the inner buffer.
+- `gui/window/mod.rs` — `open_url` renamed to `open_external_url` to disambiguate from `wry::WebView::load_url`.
+- New `.github/workflows/scoop-cowork.yml` — Scoop bucket update workflow for Windows installs.
+- `documentation/cowork/build-and-release.md` updated to reflect the typed-ID + webview status.
+
 ### Post-refactor lint sweep — zero warnings on Linux + Windows
 
 Follow-up to phases E–H. Closes the remaining clippy warnings on `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-gnu` and applies the punch-list items from the post-refactor review.
