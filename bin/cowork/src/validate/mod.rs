@@ -25,6 +25,7 @@ pub struct ValidationReport {
 }
 
 impl ValidationReport {
+    #[must_use]
     pub fn rendered(&self) -> String {
         let mut s = String::from("systemprompt-cowork validate\n");
         for line in &self.lines {
@@ -49,6 +50,7 @@ impl ValidationReport {
     }
 }
 
+#[must_use]
 pub fn run() -> ValidationReport {
     let mut report = Report::new();
     check_binary(&mut report);
@@ -197,7 +199,7 @@ struct Report {
 }
 
 impl Report {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             any_failed: false,
             lines: Vec::new(),

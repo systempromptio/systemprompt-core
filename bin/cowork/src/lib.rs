@@ -67,10 +67,12 @@ Env overrides:
   SP_COWORK_GATEWAY_URL      Override gateway_url
 ";
 
-pub(crate) fn help() -> &'static str {
+#[must_use]
+pub(crate) const fn help() -> &'static str {
     HELP
 }
 
+#[must_use]
 pub fn run() -> ExitCode {
     #[cfg(target_os = "windows")]
     winproc::attach_parent_console_if_present();

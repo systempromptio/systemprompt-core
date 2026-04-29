@@ -2,7 +2,7 @@ pub mod paths;
 
 use serde::Deserialize;
 use std::path::PathBuf;
-use std::sync::Once;
+use std::sync::{LazyLock, Once};
 use std::{env, fs};
 
 use systemprompt_identifiers::ValidatedUrl;
@@ -11,9 +11,15 @@ use crate::ids::{KeystoreRef, PinnedPubKey};
 
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 
+static DEFAULT_GATEWAY: LazyLock<ValidatedUrl> = LazyLock::new(|| {
+    ValidatedUrl::try_new(DEFAULT_GATEWAY_URL).unwrap_or_else(|_| {
+        crate::obs::output::diag("config: DEFAULT_GATEWAY_URL constant failed validation");
+        std::process::abort()
+    })
+});
+
 fn default_gateway_url() -> ValidatedUrl {
-    #[allow(clippy::expect_used)]
-    ValidatedUrl::try_new(DEFAULT_GATEWAY_URL).expect("DEFAULT_GATEWAY_URL is a valid URL")
+    DEFAULT_GATEWAY.clone()
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
