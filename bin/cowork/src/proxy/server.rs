@@ -14,6 +14,9 @@ use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
+use systemprompt_identifiers::ValidatedUrl;
+
+use crate::ids::ProxySecret;
 use crate::obs::output::diag;
 use crate::proxy::{forward, secret};
 
@@ -33,21 +36,24 @@ pub struct ProxyStats {
 
 #[derive(Clone)]
 pub(super) struct ProxyContext {
-    pub gateway_base: Arc<String>,
-    pub secret: Arc<String>,
+    pub gateway_base: Arc<ValidatedUrl>,
+    pub secret: Arc<ProxySecret>,
     pub stats: Arc<ProxyStats>,
     pub client: reqwest::Client,
 }
 
 pub fn start(rt: &Runtime, port: u16, gateway_base_url: String) -> std::io::Result<ProxyHandle> {
-    let secret_value = secret::load_or_mint()?;
+    let gateway_base = ValidatedUrl::try_new(gateway_base_url)
+        .map_err(|e| std::io::Error::other(format!("invalid gateway URL: {e}")))?;
+    let loopback = secret::load_or_mint_typed()?;
+    let proxy_secret = ProxySecret::new(loopback.into_inner());
     let stats = Arc::new(ProxyStats::default());
 
     let client = build_upstream_client()?;
 
     let ctx = ProxyContext {
-        gateway_base: Arc::new(gateway_base_url),
-        secret: Arc::new(secret_value),
+        gateway_base: Arc::new(gateway_base),
+        secret: Arc::new(proxy_secret),
         stats: stats.clone(),
         client,
     };
@@ -168,7 +174,7 @@ async fn handle_request(
                 .to_string()
         })
         .unwrap_or_default();
-    if presented.is_empty() || !secret::verify(&presented, &ctx.secret) {
+    if presented.is_empty() || !secret::verify(&presented, ctx.secret.as_ref()) {
         return Ok(simple_response(
             StatusCode::FORBIDDEN,
             "forbidden: bad loopback secret\n",
@@ -180,7 +186,7 @@ async fn handle_request(
     }
 
     let started = Instant::now();
-    match forward::forward(req, ctx.client.clone(), &ctx.gateway_base).await {
+    match forward::forward(req, ctx.client.clone(), ctx.gateway_base.as_ref()).await {
         Ok(response) => {
             let status = response.status().as_u16();
             record_stats(&ctx.stats, status, started);

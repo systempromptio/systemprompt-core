@@ -3,6 +3,7 @@ use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, BodyStream, StreamBody};
 use hyper::body::{Frame, Incoming};
 use hyper::{HeaderMap, Request, Response, StatusCode};
+use systemprompt_identifiers::ValidatedUrl;
 use thiserror::Error;
 
 use crate::{auth, config};
@@ -48,7 +49,7 @@ pub type ForwardResult<T> = Result<T, ForwardError>;
 pub async fn forward(
     req: Request<Incoming>,
     client: reqwest::Client,
-    gateway_base: &str,
+    gateway_base: &ValidatedUrl,
 ) -> ForwardResult<Response<ProxyBody>> {
     let token = mint_token().await?;
 
@@ -103,7 +104,7 @@ async fn mint_token() -> ForwardResult<auth::types::HelperOutput> {
     .ok_or_else(|| ForwardError::Auth("no JWT available — sign in via cowork GUI".to_string()))
 }
 
-fn build_upstream_url(gateway_base: &str, uri: &http::Uri) -> String {
+fn build_upstream_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     let path_and_query = uri.path_and_query().map_or("/", |p| p.as_str());
     let separator = if path_and_query.starts_with('/') {
         ""
@@ -112,7 +113,7 @@ fn build_upstream_url(gateway_base: &str, uri: &http::Uri) -> String {
     };
     format!(
         "{base}{separator}{path_and_query}",
-        base = gateway_base.trim_end_matches('/'),
+        base = gateway_base.as_str().trim_end_matches('/'),
     )
 }
 
