@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use muda::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
+use super::error::{GuiError, GuiResult};
 use super::events::UiEvent;
 use super::state::{AppStateSnapshot, GatewayStatus};
 
@@ -20,7 +21,7 @@ const TRAY_ICON_PNG: &[u8] = include_bytes!("../../assets/tray-icon.png");
 #[cfg(not(target_os = "macos"))]
 const TRAY_ICON_PNG: &[u8] = include_bytes!("../../assets/window-icon-1024.png");
 
-pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
+pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     let menu = Menu::new();
 
     let identity_item = MenuItem::new(format_identity(initial), false, None);
@@ -31,20 +32,20 @@ pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
     let open_folder_item = MenuItem::new("Open config folder", true, None);
     let quit_item = MenuItem::new("Quit", true, None);
 
-    menu.append(&identity_item).map_err(|e| e.to_string())?;
-    menu.append(&last_sync_item).map_err(|e| e.to_string())?;
+    let to_tray = |e: muda::Error| GuiError::Tray(e.to_string());
+    menu.append(&identity_item).map_err(to_tray)?;
+    menu.append(&last_sync_item).map_err(to_tray)?;
     menu.append(&PredefinedMenuItem::separator())
-        .map_err(|e| e.to_string())?;
-    menu.append(&sync_item).map_err(|e| e.to_string())?;
-    menu.append(&validate_item).map_err(|e| e.to_string())?;
+        .map_err(to_tray)?;
+    menu.append(&sync_item).map_err(to_tray)?;
+    menu.append(&validate_item).map_err(to_tray)?;
     menu.append(&PredefinedMenuItem::separator())
-        .map_err(|e| e.to_string())?;
-    menu.append(&open_settings_item)
-        .map_err(|e| e.to_string())?;
-    menu.append(&open_folder_item).map_err(|e| e.to_string())?;
+        .map_err(to_tray)?;
+    menu.append(&open_settings_item).map_err(to_tray)?;
+    menu.append(&open_folder_item).map_err(to_tray)?;
     menu.append(&PredefinedMenuItem::separator())
-        .map_err(|e| e.to_string())?;
-    menu.append(&quit_item).map_err(|e| e.to_string())?;
+        .map_err(to_tray)?;
+    menu.append(&quit_item).map_err(to_tray)?;
 
     let mut bindings = HashMap::new();
     bindings.insert(sync_item.id().clone(), UiEvent::SyncRequested);
@@ -53,7 +54,7 @@ pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
     bindings.insert(open_folder_item.id().clone(), UiEvent::OpenConfigFolder);
     bindings.insert(quit_item.id().clone(), UiEvent::Quit);
 
-    let icon = decode_icon().map_err(|e| format!("tray icon: {e}"))?;
+    let icon = decode_icon()?;
 
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
@@ -61,7 +62,7 @@ pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
         .with_icon(icon)
         .with_icon_as_template(cfg!(target_os = "macos"))
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| GuiError::Tray(e.to_string()))?;
 
     Ok(TrayHandles {
         _tray: tray,
@@ -128,10 +129,10 @@ fn format_last_sync(snap: &AppStateSnapshot) -> String {
     }
 }
 
-fn decode_icon() -> Result<Icon, String> {
+fn decode_icon() -> GuiResult<Icon> {
     let img = image::load_from_memory(TRAY_ICON_PNG)
-        .map_err(|e| e.to_string())?
+        .map_err(|e| GuiError::Icon(e.to_string()))?
         .to_rgba8();
     let (w, h) = img.dimensions();
-    Icon::from_rgba(img.into_raw(), w, h).map_err(|e| e.to_string())
+    Icon::from_rgba(img.into_raw(), w, h).map_err(|e| GuiError::Icon(e.to_string()))
 }

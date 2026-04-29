@@ -1,4 +1,5 @@
 use crate::auth::secret::Secret;
+use crate::gui::error::GuiError;
 use crate::gui::state::GatewayProbeOutcome;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
@@ -22,11 +23,11 @@ pub enum UiEvent {
     Quit,
 
     SyncStarted,
-    SyncFinished(Result<SyncSummary, String>),
+    SyncFinished(Result<SyncSummary, GuiError>),
     ValidateFinished(ValidationReport),
-    LoginFinished(Result<(), String>),
-    LogoutFinished(Result<(), String>),
-    SetGatewayFinished(Result<(), String>),
+    LoginFinished(Result<(), GuiError>),
+    LogoutFinished(Result<(), GuiError>),
+    SetGatewayFinished(Result<(), GuiError>),
     GatewayProbeFinished(GatewayProbeOutcome),
     StateRefreshed,
 

@@ -1,5 +1,8 @@
+mod builder;
 mod counters;
 mod jwt;
+
+pub use builder::AppStateSnapshotBuilder;
 
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -87,6 +90,10 @@ pub struct AppStateSnapshot {
 impl AppStateSnapshot {
     pub fn signed_in(&self) -> bool {
         self.gateway_status.is_reachable() && self.verified_identity.is_some()
+    }
+
+    pub fn builder() -> AppStateSnapshotBuilder {
+        AppStateSnapshotBuilder::default()
     }
 }
 

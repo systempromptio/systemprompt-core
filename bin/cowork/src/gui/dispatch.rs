@@ -3,7 +3,9 @@ use winit::event_loop::ActiveEventLoop;
 use crate::gui::events::UiEvent;
 use crate::gui::{GuiApp, handlers};
 
+#[tracing::instrument(skip(app, event_loop), fields(event = std::any::type_name::<UiEvent>()))]
 pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: UiEvent) {
+    tracing::trace!(?event, "ui dispatch");
     match event {
         UiEvent::OpenSettings => handlers::settings::on_open_settings(app, event_loop),
         UiEvent::SyncRequested => handlers::sync::on_sync_requested(app),
