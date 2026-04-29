@@ -1,9 +1,10 @@
 use std::fs;
 
 use systemprompt_cowork::gateway::manifest::{SignedManifest, UserId, canonical_payload};
+use systemprompt_cowork::gateway::manifest_version::ManifestVersion;
 use systemprompt_cowork::ids::ManifestSignature;
 use systemprompt_cowork::sync::{
-    LastSyncState, SyncError, check_replay, check_skew, read_last_sync,
+    LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
 };
 
 fn tempdir() -> std::path::PathBuf {
@@ -20,16 +21,20 @@ fn tempdir() -> std::path::PathBuf {
     p
 }
 
-fn last(version: &str) -> LastSyncState {
+fn version(s: &str) -> ManifestVersion {
+    ManifestVersion::try_new(s).expect("valid manifest version literal")
+}
+
+fn last(v: &str) -> LastSyncState {
     LastSyncState {
-        last_applied_manifest_version: Some(version.to_string()),
+        last_applied_manifest_version: Some(version(v)),
     }
 }
 
 #[test]
 fn canonical_payload_includes_not_before_in_position() {
     let m = SignedManifest {
-        manifest_version: "2026-04-27T12:00:00Z-cafe".into(),
+        manifest_version: version("2026-04-27T12:00:00Z-cafebabe"),
         issued_at: "2026-04-27T12:00:00+00:00".into(),
         not_before: "2026-04-27T12:00:00+00:00".into(),
         user_id: UserId::new("u1"),
@@ -52,28 +57,67 @@ fn canonical_payload_includes_not_before_in_position() {
 
 #[test]
 fn stale_replay_same_version_rejected() {
-    let s = last("2026-04-22T10:00:00Z-abcd");
-    let err = check_replay(&s, "2026-04-22T10:00:00Z-abcd").expect_err("expected reject");
+    let s = last("2026-04-22T10:00:00Z-abcdef01");
+    let err =
+        check_replay(&s, &version("2026-04-22T10:00:00Z-abcdef01")).expect_err("expected reject");
     assert!(matches!(err, SyncError::ReplayedManifest { .. }));
 }
 
 #[test]
 fn older_version_rejected() {
-    let s = last("2026-04-22T10:00:00Z-abcd");
-    let err = check_replay(&s, "2026-04-21T09:00:00Z-zzzz").expect_err("expected reject");
+    let s = last("2026-04-22T10:00:00Z-abcdef01");
+    let err =
+        check_replay(&s, &version("2026-04-21T09:00:00Z-fffffff0")).expect_err("expected reject");
     assert!(matches!(err, SyncError::ReplayedManifest { .. }));
 }
 
 #[test]
 fn newer_version_accepted() {
-    let s = last("2026-04-22T10:00:00Z-abcd");
-    check_replay(&s, "2026-04-22T10:00:01Z-abcd").expect("newer version should pass");
+    let s = last("2026-04-22T10:00:00Z-abcdef01");
+    check_replay(&s, &version("2026-04-22T10:00:01Z-abcdef01")).expect("newer version should pass");
 }
 
 #[test]
 fn no_prior_state_accepted() {
     let s = LastSyncState::default();
-    check_replay(&s, "2026-04-22T10:00:00Z-abcd").expect("first sync should pass");
+    check_replay(&s, &version("2026-04-22T10:00:00Z-abcdef01")).expect("first sync should pass");
+}
+
+#[test]
+fn suffix_breaks_tie_when_timestamp_equal() {
+    let s = last("2026-04-22T10:00:00Z-aaaaaaaa");
+    check_replay(&s, &version("2026-04-22T10:00:00Z-bbbbbbbb"))
+        .expect("higher hex suffix at same timestamp should pass");
+    let err = check_replay(&s, &version("2026-04-22T10:00:00Z-00000000"))
+        .expect_err("lower suffix should reject");
+    assert!(matches!(err, SyncError::ReplayedManifest { .. }));
+}
+
+#[test]
+fn manifest_version_rejects_missing_separator() {
+    let err = ManifestVersion::try_new("no-separator-but-no-rfc3339").expect_err("must reject");
+    let _ = format!("{err}");
+}
+
+#[test]
+fn manifest_version_rejects_non_hex_suffix() {
+    let err = ManifestVersion::try_new("2026-04-22T10:00:00Z-NOTHEXES")
+        .expect_err("non-hex suffix must reject");
+    let _ = format!("{err}");
+}
+
+#[test]
+fn manifest_version_rejects_short_suffix() {
+    let err =
+        ManifestVersion::try_new("2026-04-22T10:00:00Z-abc").expect_err("short suffix must reject");
+    let _ = format!("{err}");
+}
+
+#[test]
+fn manifest_version_rejects_bad_timestamp() {
+    let err =
+        ManifestVersion::try_new("nope-abcdef01").expect_err("non-rfc3339 prefix must reject");
+    let _ = format!("{err}");
 }
 
 #[test]
@@ -108,8 +152,8 @@ fn not_before_thirty_seconds_future_accepted() {
 
 #[test]
 fn force_replay_bypasses_replay_and_skew() {
-    let s = last("2026-04-22T10:00:00Z-abcd");
-    assert!(check_replay(&s, "2026-04-21T09:00:00Z-aaaa").is_err());
+    let s = last("2026-04-22T10:00:00Z-abcdef01");
+    assert!(check_replay(&s, &version("2026-04-21T09:00:00Z-aaaaaaaa")).is_err());
 
     let now = chrono::Utc::now();
     let nb = (now - chrono::Duration::minutes(30)).to_rfc3339();
@@ -122,19 +166,44 @@ fn read_last_sync_reads_new_field() {
     let path = dir.join("last-sync.json");
     fs::write(
         &path,
-        r#"{"last_applied_manifest_version":"2026-04-22T10:00:00Z-abcd"}"#,
+        r#"{"last_applied_manifest_version":"2026-04-22T10:00:00Z-abcdef01"}"#,
     )
     .unwrap();
-    let s = read_last_sync(&path);
+    let s = read_last_sync(&path).expect("valid file").expect("found");
     assert_eq!(
-        s.last_applied_manifest_version.as_deref(),
-        Some("2026-04-22T10:00:00Z-abcd")
+        s.last_applied_manifest_version
+            .as_ref()
+            .map(ToString::to_string)
+            .as_deref(),
+        Some("2026-04-22T10:00:00Z-abcdef01")
     );
 }
 
 #[test]
-fn read_last_sync_missing_file_yields_default() {
+fn read_last_sync_missing_file_yields_none() {
     let dir = tempdir();
-    let s = read_last_sync(&dir.join("nope.json"));
-    assert!(s.last_applied_manifest_version.is_none());
+    let s = read_last_sync(&dir.join("nope.json")).expect("missing file is Ok(None)");
+    assert!(s.is_none());
+}
+
+#[test]
+fn read_last_sync_corrupt_file_propagates() {
+    let dir = tempdir();
+    let path = dir.join("corrupt.json");
+    fs::write(&path, b"{ this is not json").unwrap();
+    let err = read_last_sync(&path).expect_err("corrupt file must fail");
+    assert!(matches!(err, ReplayStateError::Parse { .. }));
+}
+
+#[test]
+fn read_last_sync_invalid_version_format_propagates() {
+    let dir = tempdir();
+    let path = dir.join("bad-version.json");
+    fs::write(
+        &path,
+        r#"{"last_applied_manifest_version":"not-a-valid-version"}"#,
+    )
+    .unwrap();
+    let err = read_last_sync(&path).expect_err("invalid version must fail");
+    assert!(matches!(err, ReplayStateError::Parse { .. }));
 }

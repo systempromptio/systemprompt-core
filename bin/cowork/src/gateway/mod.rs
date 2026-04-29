@@ -1,4 +1,5 @@
 pub mod manifest;
+pub mod manifest_version;
 
 use crate::auth::types::{AuthResponse, CoworkProfile, MtlsRequest, SessionExchangeRequest};
 use crate::gateway::manifest::SignedManifest;

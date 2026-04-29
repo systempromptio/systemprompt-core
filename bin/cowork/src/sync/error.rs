@@ -27,6 +27,8 @@ pub enum SyncError {
          first-run)"
     )]
     PubkeyNotPinned,
+    #[error("replay state corrupt: {0}")]
+    ReplayStateCorrupt(#[from] crate::sync::replay::ReplayStateError),
 }
 
 impl SyncError {
@@ -42,6 +44,7 @@ impl SyncError {
             SyncError::ReplayedManifest { .. } => ExitCode::from(6),
             SyncError::ManifestSkew { .. } => ExitCode::from(7),
             SyncError::PubkeyNotPinned => ExitCode::from(8),
+            SyncError::ReplayStateCorrupt(_) => ExitCode::from(9),
         }
     }
 }

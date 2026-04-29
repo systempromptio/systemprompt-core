@@ -1,4 +1,5 @@
 use super::error::SyncError;
+use crate::gateway::manifest_version::ManifestVersion;
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -8,19 +9,47 @@ pub const SKEW_WINDOW_MINUTES: i64 = 5;
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct LastSyncState {
     #[serde(default)]
-    pub last_applied_manifest_version: Option<String>,
+    pub last_applied_manifest_version: Option<ManifestVersion>,
 }
 
-#[must_use]
-pub fn read_last_sync(path: &Path) -> LastSyncState {
-    let Ok(bytes) = fs::read(path) else {
-        return LastSyncState::default();
+#[derive(Debug, thiserror::Error)]
+pub enum ReplayStateError {
+    #[error("read replay state {path}: {source}")]
+    Read {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("parse replay state {path}: {source}")]
+    Parse {
+        path: String,
+        #[source]
+        source: serde_json::Error,
+    },
+}
+
+pub fn read_last_sync(path: &Path) -> Result<Option<LastSyncState>, ReplayStateError> {
+    let bytes = match fs::read(path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(source) => {
+            return Err(ReplayStateError::Read {
+                path: path.display().to_string(),
+                source,
+            });
+        },
     };
-    serde_json::from_slice::<LastSyncState>(&bytes).unwrap_or_default()
+    let state = serde_json::from_slice::<LastSyncState>(&bytes).map_err(|source| {
+        ReplayStateError::Parse {
+            path: path.display().to_string(),
+            source,
+        }
+    })?;
+    Ok(Some(state))
 }
 
-pub fn check_replay(last: &LastSyncState, incoming: &str) -> Result<(), SyncError> {
-    if let Some(prev) = last.last_applied_manifest_version.as_deref() {
+pub fn check_replay(last: &LastSyncState, incoming: &ManifestVersion) -> Result<(), SyncError> {
+    if let Some(prev) = last.last_applied_manifest_version.as_ref() {
         if incoming <= prev {
             return Err(SyncError::ReplayedManifest {
                 last: prev.to_string(),
