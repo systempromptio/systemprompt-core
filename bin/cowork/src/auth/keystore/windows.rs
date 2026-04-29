@@ -73,11 +73,11 @@ impl DeviceCertSource for WindowsKeystore {
             }
             let current = CertHandle(next);
             let der = cert_encoded_bytes(current.0);
-            let fingerprint = sha256_der(&der);
+            let fingerprint = sha256_der(&der)?;
             if self
                 .match_fingerprint
                 .as_deref()
-                .is_none_or(|want| want.eq_ignore_ascii_case(&fingerprint))
+                .is_none_or(|want| want.eq_ignore_ascii_case(fingerprint.as_str()))
             {
                 return Ok(DeviceCert { fingerprint });
             }

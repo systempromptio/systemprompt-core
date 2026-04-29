@@ -1,58 +1,23 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::{fmt, mem};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use crate::ids::BearerToken;
 
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
-pub struct Secret(String);
+pub type Secret = BearerToken;
 
-impl Secret {
-    pub fn new(value: String) -> Self {
-        Self(value)
-    }
-
+impl BearerToken {
     pub fn expose(&self) -> &str {
-        &self.0
+        self.as_str()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.as_str().is_empty()
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn into_inner(mut self) -> String {
-        mem::take(&mut self.0)
+        self.as_str().len()
     }
 }
 
-impl fmt::Debug for Secret {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Secret(<redacted>)")
-    }
-}
-
-impl From<String> for Secret {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for Secret {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl Serialize for Secret {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for Secret {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        String::deserialize(deserializer).map(Self)
+impl Default for BearerToken {
+    fn default() -> Self {
+        Self::new(String::new())
     }
 }

@@ -41,7 +41,7 @@ impl DeviceCertSource for MacOsKeystore {
                     return Err("keychain returned empty certificate data".to_string());
                 }
                 return Ok(DeviceCert {
-                    fingerprint: sha256_der(&der),
+                    fingerprint: sha256_der(&der)?,
                 });
             }
         }

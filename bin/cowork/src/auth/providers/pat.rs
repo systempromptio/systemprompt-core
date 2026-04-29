@@ -2,25 +2,31 @@ use crate::auth::providers::{AuthError, AuthProvider};
 use crate::auth::types::HelperOutput;
 use crate::config::Config;
 use crate::gateway::GatewayClient;
+use crate::ids::PatToken;
 use std::{env, fs};
+use systemprompt_identifiers::ValidatedUrl;
 
 pub struct PatProvider {
-    base_url: String,
-    pat_source: Option<String>,
+    base_url: ValidatedUrl,
+    pat_source: Option<PatToken>,
 }
 
 impl PatProvider {
     pub fn new(config: &Config) -> Self {
-        let pat_source = env::var("SP_COWORK_PAT").ok().or_else(|| {
-            config
-                .pat
-                .as_ref()
-                .and_then(|p| p.file.as_ref())
-                .and_then(|path| fs::read_to_string(expand(path)).ok())
-                .map(|s| s.trim().to_string())
-        });
+        let pat_source = env::var("SP_COWORK_PAT")
+            .ok()
+            .or_else(|| {
+                config
+                    .pat
+                    .as_ref()
+                    .and_then(|p| p.file.as_ref())
+                    .and_then(|path| fs::read_to_string(expand(path)).ok())
+                    .map(|s| s.trim().to_string())
+            })
+            .filter(|s| !s.is_empty())
+            .map(PatToken::new);
         Self {
-            base_url: crate::config::gateway_url_or_default(config),
+            base_url: crate::config::gateway_url_or_default_typed(config),
             pat_source,
         }
     }
@@ -33,12 +39,9 @@ impl AuthProvider for PatProvider {
 
     fn authenticate(&self) -> Result<HelperOutput, AuthError> {
         let pat = self.pat_source.as_ref().ok_or(AuthError::NotConfigured)?;
-        if pat.is_empty() {
-            return Err(AuthError::NotConfigured);
-        }
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
-            .pat_exchange(pat)
+            .pat_exchange(pat.as_str())
             .map_err(|e| AuthError::Failed(e.to_string()))?;
         Ok(resp.into())
     }

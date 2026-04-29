@@ -5,10 +5,11 @@ use crate::config::Config;
 use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
 use std::process::Command;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
+use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
 pub struct SessionProvider {
-    base_url: String,
+    base_url: ValidatedUrl,
     configured: bool,
 }
 
@@ -19,7 +20,7 @@ impl SessionProvider {
             .as_ref()
             .is_some_and(|s| s.enabled.unwrap_or(true));
         Self {
-            base_url: crate::config::gateway_url_or_default(config),
+            base_url: crate::config::gateway_url_or_default_typed(config),
             configured,
         }
     }
@@ -37,7 +38,7 @@ impl AuthProvider for SessionProvider {
 
         let server = LoopbackServer::bind().map_err(AuthError::Failed)?;
         let callback = server.callback_url();
-        let auth_url = build_auth_url(&self.base_url, &callback);
+        let auth_url = build_auth_url(self.base_url.as_str(), callback.as_str());
 
         diag(&format!("opening browser to {auth_url}"));
         if let Err(e) = launch_browser(&auth_url) {
@@ -51,7 +52,7 @@ impl AuthProvider for SessionProvider {
 
         let req = SessionExchangeRequest {
             code: captured.code,
-            session_id: new_session_id(),
+            session_id: SessionId::generate(),
         };
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
@@ -115,12 +116,4 @@ fn browser_command(url: &str) -> (&'static str, Vec<String>) {
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn browser_command(url: &str) -> (&'static str, Vec<String>) {
     ("xdg-open", vec![url.to_string()])
-}
-
-fn new_session_id() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    format!("sess-{now:032x}")
 }

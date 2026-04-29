@@ -10,7 +10,7 @@ impl DeviceCertSource for LinuxKeystore {
         let bytes = fs::read(&path).map_err(|e| format!("read {path}: {e}"))?;
         let der = pem_to_der(&bytes).unwrap_or(bytes);
         Ok(DeviceCert {
-            fingerprint: sha256_der(&der),
+            fingerprint: sha256_der(&der)?,
         })
     }
 }
