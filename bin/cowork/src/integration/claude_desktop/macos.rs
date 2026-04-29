@@ -29,6 +29,8 @@ pub(super) fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
     let plist_json = plist_path
         .as_deref()
         .and_then(read_plist_as_json)
+        // JSON: protocol boundary — plist content is operator-defined; shape varies per
+        // managed-prefs domain
         .unwrap_or(serde_json::Value::Null);
 
     for key in KEYS_OF_INTEREST {
@@ -109,7 +111,7 @@ fn candidates(domain: &str) -> Vec<PathBuf> {
 }
 
 // JSON: protocol boundary — plist content is operator-defined; shape varies per
-// managed-prefs domain so values flow as `serde_json::Value`.
+// managed-prefs domain
 fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     let output = Command::new("/usr/bin/plutil")
         .arg("-convert")
@@ -125,6 +127,8 @@ fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     serde_json::from_slice(&output.stdout).ok()
 }
 
+// JSON: protocol boundary — plist content is operator-defined; shape varies per
+// managed-prefs domain
 fn read_key_value(plist_json: &serde_json::Value, domain: &str, key: &str) -> Option<String> {
     if let Some(val) = plist_json.get(key) {
         return Some(format_plist_value(key, val));
@@ -146,9 +150,15 @@ fn read_key_value(plist_json: &serde_json::Value, domain: &str, key: &str) -> Op
     Some(redact_if_sensitive(key, raw))
 }
 
+// JSON: protocol boundary — plist content is operator-defined; shape varies per
+// managed-prefs domain
 fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
     let rendered = match value {
+        // JSON: protocol boundary — plist content is operator-defined; shape varies per
+        // managed-prefs domain
         serde_json::Value::String(s) => s.clone(),
+        // JSON: protocol boundary — plist content is operator-defined; shape varies per
+        // managed-prefs domain
         serde_json::Value::Array(items) => items
             .iter()
             .filter_map(|v| v.as_str().map(str::to_string))

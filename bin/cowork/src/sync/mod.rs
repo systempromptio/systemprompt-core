@@ -80,6 +80,7 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
     }
 }
 
+#[tracing::instrument(level = "info")]
 pub fn run_once(
     allow_unsigned: bool,
     force_replay: bool,

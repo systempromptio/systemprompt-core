@@ -33,11 +33,15 @@ impl<'a> From<&'a AgentEntry> for AgentIndexEntry<'a> {
 pub fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), super::ApplyError> {
     let dir = meta_dir.join(paths::AGENTS_DIR);
     if dir.exists() {
-        fs::remove_dir_all(&dir)
-            .map_err(|e| super::ApplyError::Detail(format!("clear agents dir: {e}")))?;
+        fs::remove_dir_all(&dir).map_err(|e| super::ApplyError::Io {
+            context: "clear agents dir".into(),
+            source: e,
+        })?;
     }
-    fs::create_dir_all(&dir)
-        .map_err(|e| super::ApplyError::Detail(format!("create agents dir: {e}")))?;
+    fs::create_dir_all(&dir).map_err(|e| super::ApplyError::Io {
+        context: "create agents dir".into(),
+        source: e,
+    })?;
 
     write_index(&dir, agents)?;
     for agent in agents {
@@ -48,22 +52,27 @@ pub fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), super:
 
 fn write_index(dir: &Path, agents: &[AgentEntry]) -> Result<(), super::ApplyError> {
     let index: Vec<AgentIndexEntry<'_>> = agents.iter().map(AgentIndexEntry::from).collect();
-    let bytes = serde_json::to_vec_pretty(&index)
-        .map_err(|e| super::ApplyError::Detail(format!("serialize agents index: {e}")))?;
-    fs::write(dir.join("index.json"), bytes)
-        .map_err(|e| super::ApplyError::Detail(format!("write agents index: {e}")))
+    let bytes = serde_json::to_vec_pretty(&index).map_err(|e| super::ApplyError::Serialize {
+        what: "agents index".into(),
+        source: e,
+    })?;
+    fs::write(dir.join("index.json"), bytes).map_err(|e| super::ApplyError::Io {
+        context: "write agents index".into(),
+        source: e,
+    })
 }
 
 fn write_one_agent(dir: &Path, agent: &AgentEntry) -> Result<(), super::ApplyError> {
     if !safe_id_segment(agent.name.as_str()) {
-        return Err(super::ApplyError::Detail(format!(
-            "manifest contained unsafe agent name: {}",
-            agent.name
-        )));
+        return Err(super::ApplyError::UnsafeAgentName(agent.name.to_string()));
     }
     let path = dir.join(format!("{}.json", agent.name));
-    let bytes = serde_json::to_vec_pretty(agent)
-        .map_err(|e| super::ApplyError::Detail(format!("serialize agent {}: {e}", agent.name)))?;
-    fs::write(&path, bytes)
-        .map_err(|e| super::ApplyError::Detail(format!("write {}: {e}", path.display())))
+    let bytes = serde_json::to_vec_pretty(agent).map_err(|e| super::ApplyError::Serialize {
+        what: format!("agent {}", agent.name),
+        source: e,
+    })?;
+    fs::write(&path, bytes).map_err(|e| super::ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
+    })
 }

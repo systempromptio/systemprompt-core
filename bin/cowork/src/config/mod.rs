@@ -1,4 +1,5 @@
 pub mod paths;
+mod profile;
 
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -9,6 +10,10 @@ use systemprompt_identifiers::ValidatedUrl;
 
 use crate::ids::{KeystoreRef, PinnedPubKey};
 
+pub use self::profile::{
+    ClaudeConfig, gateway_url_or_default, persist_pinned_pubkey, pinned_pubkey, policy_pubkey,
+};
+
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 
 static DEFAULT_GATEWAY: LazyLock<ValidatedUrl> = LazyLock::new(|| {
@@ -17,10 +22,6 @@ static DEFAULT_GATEWAY: LazyLock<ValidatedUrl> = LazyLock::new(|| {
         std::process::abort()
     })
 });
-
-fn default_gateway_url() -> ValidatedUrl {
-    DEFAULT_GATEWAY.clone()
-}
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
@@ -36,18 +37,6 @@ pub struct Config {
     pub sync: Option<SyncConfig>,
     #[serde(default)]
     pub claude: Option<ClaudeConfig>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct ClaudeConfig {
-    #[serde(default)]
-    pub inference_gateway_base_url: Option<ValidatedUrl>,
-    #[serde(default)]
-    pub auth_scheme: Option<String>,
-    #[serde(default)]
-    pub models: Option<Vec<String>>,
-    #[serde(default)]
-    pub organization_uuid: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -89,7 +78,7 @@ impl Config {
             }
         }
         if cfg.gateway_url.is_none() {
-            cfg.gateway_url = Some(default_gateway_url());
+            cfg.gateway_url = Some(DEFAULT_GATEWAY.clone());
         }
 
         cfg
@@ -132,11 +121,6 @@ pub fn load() -> Config {
     Config::load().with_policy_overrides()
 }
 
-#[must_use]
-pub fn gateway_url_or_default(cfg: &Config) -> ValidatedUrl {
-    cfg.gateway_url.clone().unwrap_or_else(default_gateway_url)
-}
-
 pub fn config_path() -> Option<PathBuf> {
     if let Ok(explicit) = env::var("SP_COWORK_CONFIG") {
         return Some(PathBuf::from(explicit));
@@ -162,101 +146,6 @@ pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
     }
     next.push_str(&format!("gateway_url = \"{url}\"\n"));
     fs::write(&path, next)
-}
-
-#[must_use]
-pub fn pinned_pubkey() -> Option<PinnedPubKey> {
-    load().sync.and_then(|s| s.pinned_pubkey)
-}
-
-#[must_use]
-pub fn policy_pubkey() -> Option<PinnedPubKey> {
-    if let Ok(value) = env::var("SP_COWORK_POLICY_PUBKEY") {
-        let trimmed = value.trim();
-        if !trimmed.is_empty() {
-            return Some(PinnedPubKey::new(trimmed));
-        }
-    }
-    read_policy_pubkey_native().map(PinnedPubKey::new)
-}
-
-#[cfg(target_os = "windows")]
-fn read_policy_pubkey_native() -> Option<String> {
-    let output = crate::winproc::reg_command()
-        .args([
-            "query",
-            r"HKCU\SOFTWARE\Policies\Claude",
-            "/v",
-            "inferenceManifestPubkey",
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    for line in stdout.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("inferenceManifestPubkey") {
-            let rest = rest.trim_start();
-            let rest = rest.strip_prefix("REG_SZ").unwrap_or(rest).trim();
-            if !rest.is_empty() {
-                return Some(rest.to_string());
-            }
-        }
-    }
-    None
-}
-
-#[cfg(target_os = "macos")]
-fn read_policy_pubkey_native() -> Option<String> {
-    use std::process::Command;
-    let output = Command::new("defaults")
-        .args([
-            "read",
-            "/Library/Managed Preferences/com.anthropic.claudefordesktop",
-            "inferenceManifestPubkey",
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if value.is_empty() { None } else { Some(value) }
-}
-
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn read_policy_pubkey_native() -> Option<String> {
-    None
-}
-
-pub fn persist_pinned_pubkey(pubkey: &str) -> std::io::Result<()> {
-    let path = config_path().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "config path unresolvable")
-    })?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let existing = fs::read_to_string(&path).unwrap_or_default();
-    let (before, _after) = strip_section(&existing, "[sync]");
-    let mut next = before.trim_end().to_string();
-    if !next.is_empty() {
-        next.push_str("\n\n");
-    }
-    next.push_str(&format!("[sync]\npinned_pubkey = \"{pubkey}\"\n"));
-    fs::write(&path, next)
-}
-
-fn strip_section<'a>(input: &'a str, header: &str) -> (&'a str, &'a str) {
-    if let Some(start) = input.find(header) {
-        let rest = &input[start..];
-        let next_hdr = rest[header.len()..]
-            .find("\n[")
-            .map(|i| start + header.len() + i + 1);
-        return (&input[..start], next_hdr.map_or("", |i| &input[i..]));
-    }
-    (input, "")
 }
 
 #[cfg(test)]
