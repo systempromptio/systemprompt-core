@@ -151,7 +151,7 @@ macro_rules! cowork_define_token {
         impl $name {
             pub fn new(token: impl Into<String>) -> Self { Self(token.into()) }
             pub fn as_str(&self) -> &str { &self.0 }
-            pub fn into_inner(self) -> String { self.0 }
+            pub fn into_inner(mut self) -> String { std::mem::take(&mut self.0) }
 
             #[must_use]
             pub fn redacted(&self) -> String {
@@ -187,6 +187,13 @@ macro_rules! cowork_define_token {
 
         impl From<String> for $name { fn from(s: String) -> Self { Self(s) } }
         impl From<&str> for $name { fn from(s: &str) -> Self { Self(s.to_string()) } }
+
+        impl Drop for $name {
+            fn drop(&mut self) {
+                use zeroize::Zeroize;
+                self.0.zeroize();
+            }
+        }
     };
 }
 

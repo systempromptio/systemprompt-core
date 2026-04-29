@@ -14,7 +14,9 @@ pub enum CheckLevel {
 #[derive(Debug, Clone)]
 pub struct CheckLine {
     pub level: CheckLevel,
+    /// Free-form human-readable column for the validate report.
     pub label: String,
+    /// Free-form human-readable value column for the validate report.
     pub value: String,
 }
 
@@ -117,12 +119,12 @@ fn check_last_sync(report: &mut Report, meta: &std::path::Path) {
 
 fn check_gateway(report: &mut Report) {
     let cfg = config::load();
-    let Some(url) = cfg.gateway_url.as_deref() else {
+    let Some(url) = cfg.gateway_url.as_ref() else {
         report.fail("gateway_url", "not set in config");
         return;
     };
-    report.ok("gateway_url", url);
-    let client = GatewayClient::new(url.to_string());
+    report.ok("gateway_url", url.as_str());
+    let client = GatewayClient::new(url.clone());
     match client.health() {
         Ok(()) => report.ok("gateway /health", "reachable"),
         Err(e) => report.fail("gateway /health", &e.to_string()),
@@ -144,7 +146,10 @@ fn check_cached_token(report: &mut Report) {
 
 fn check_pinned_pubkey(report: &mut Report) {
     match config::pinned_pubkey() {
-        Some(k) => report.ok("pinned manifest pubkey", &format!("{} chars", k.len())),
+        Some(k) => report.ok(
+            "pinned manifest pubkey",
+            &format!("{} chars", k.as_str().len()),
+        ),
         None => report.fail(
             "pinned manifest pubkey",
             "not pinned — provide it out of band via MDM (`install --apply --pubkey <base64>`) or \

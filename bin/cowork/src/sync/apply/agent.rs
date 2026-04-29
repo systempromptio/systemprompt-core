@@ -19,8 +19,8 @@ struct AgentIndexEntry<'a> {
 impl<'a> From<&'a AgentEntry> for AgentIndexEntry<'a> {
     fn from(a: &'a AgentEntry) -> Self {
         Self {
-            id: &a.id,
-            name: &a.name,
+            id: a.id.as_str(),
+            name: a.name.as_str(),
             display_name: &a.display_name,
             version: &a.version,
             endpoint: &a.endpoint,
@@ -55,7 +55,7 @@ fn write_index(dir: &Path, agents: &[AgentEntry]) -> Result<(), super::ApplyErro
 }
 
 fn write_one_agent(dir: &Path, agent: &AgentEntry) -> Result<(), super::ApplyError> {
-    if !safe_id_segment(&agent.name) {
+    if !safe_id_segment(agent.name.as_str()) {
         return Err(super::ApplyError::Detail(format!(
             "manifest contained unsafe agent name: {}",
             agent.name

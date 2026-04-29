@@ -26,7 +26,7 @@ impl PatProvider {
             .filter(|s| !s.is_empty())
             .map(PatToken::new);
         Self {
-            base_url: crate::config::gateway_url_or_default_typed(config),
+            base_url: crate::config::gateway_url_or_default(config),
             pat_source,
         }
     }

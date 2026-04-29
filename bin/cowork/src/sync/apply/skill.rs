@@ -18,12 +18,12 @@ struct SkillIndexEntry<'a> {
 impl<'a> From<&'a SkillEntry> for SkillIndexEntry<'a> {
     fn from(s: &'a SkillEntry) -> Self {
         Self {
-            id: &s.id,
-            name: &s.name,
+            id: s.id.as_str(),
+            name: s.name.as_str(),
             description: &s.description,
             file_path: &s.file_path,
             tags: &s.tags,
-            sha256: &s.sha256,
+            sha256: s.sha256.as_str(),
         }
     }
 }
@@ -54,13 +54,13 @@ fn write_index(dir: &Path, skills: &[SkillEntry]) -> Result<(), super::ApplyErro
 }
 
 fn write_one_skill(dir: &Path, skill: &SkillEntry) -> Result<(), super::ApplyError> {
-    if !safe_id_segment(&skill.id) {
+    if !safe_id_segment(skill.id.as_str()) {
         return Err(super::ApplyError::Detail(format!(
             "manifest contained unsafe skill id: {}",
             skill.id
         )));
     }
-    let skill_dir = dir.join(&skill.id);
+    let skill_dir = dir.join(skill.id.as_str());
     fs::create_dir_all(&skill_dir)
         .map_err(|e| super::ApplyError::Detail(format!("create {}: {e}", skill_dir.display())))?;
     let meta = SkillIndexEntry::from(skill);

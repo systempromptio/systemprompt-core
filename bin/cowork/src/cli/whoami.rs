@@ -39,7 +39,7 @@ pub(crate) fn cmd_whoami() -> ExitCode {
         },
     };
 
-    let client = GatewayClient::new(gateway);
+    let client = GatewayClient::new(gateway.clone());
     match client.fetch_whoami(bearer.expose()) {
         Ok(value) => {
             match serde_json::to_string_pretty(&value) {

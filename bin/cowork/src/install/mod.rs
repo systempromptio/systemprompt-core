@@ -18,16 +18,18 @@ pub use mdm::windows_policy_values;
 
 use crate::config;
 use crate::config::paths::{self, Scope};
+use crate::ids::PinnedPubKey;
 use crate::obs::output::diag;
 use crate::schedule::Os;
 use std::fs;
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::ValidatedUrl;
 
 pub struct InstallOptions {
     pub print_mdm: Option<Os>,
     pub emit_schedule_template: Option<Os>,
-    pub gateway_url: Option<String>,
-    pub pubkey: Option<String>,
+    pub gateway_url: Option<ValidatedUrl>,
+    pub pubkey: Option<PinnedPubKey>,
     pub apply: bool,
     pub apply_mobileconfig: bool,
 }
@@ -75,11 +77,13 @@ pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
     let binary = resolve_binary_path()?;
     let location = resolve_org_plugins()?;
 
-    bootstrap_install(&location, &binary, opts.gateway_url.as_deref())?;
-    persist_optional_config(opts.gateway_url.as_deref(), opts.pubkey.as_deref());
+    let gateway_str = opts.gateway_url.as_ref().map(ValidatedUrl::as_str);
+    let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
+    bootstrap_install(&location, &binary, gateway_str)?;
+    persist_optional_config(gateway_str, pubkey_str);
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
-    let gateway_for_mdm = resolve_gateway_for_mdm(opts.gateway_url.as_deref());
+    let gateway_for_mdm = resolve_gateway_for_mdm(gateway_str);
     let mdm = run_mdm_step(opts, target_os, &binary, &gateway_for_mdm)?;
 
     let schedule = match opts.emit_schedule_template {
@@ -155,7 +159,7 @@ fn persist_optional_config(gateway_url: Option<&str>, pubkey: Option<&str>) {
 fn resolve_gateway_for_mdm(cli_url: Option<&str>) -> String {
     cli_url
         .map(str::to_string)
-        .or_else(|| config::load().gateway_url)
+        .or_else(|| config::load().gateway_url.map(|u| u.as_str().to_string()))
         .unwrap_or_else(|| "https://gateway.systemprompt.io".into())
 }
 
@@ -165,11 +169,12 @@ fn run_mdm_step(
     binary: &Path,
     gateway_for_mdm: &str,
 ) -> Result<MdmDisplay, InstallError> {
+    let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
     if opts.apply_mobileconfig {
-        return run_apply_mobileconfig(binary, gateway_for_mdm, opts.pubkey.as_deref());
+        return run_apply_mobileconfig(binary, gateway_for_mdm, pubkey_str);
     }
     if opts.apply {
-        return run_apply(target_os, binary, gateway_for_mdm, opts.pubkey.as_deref());
+        return run_apply(target_os, binary, gateway_for_mdm, pubkey_str);
     }
     Ok(MdmDisplay::Snippet {
         os: target_os,
