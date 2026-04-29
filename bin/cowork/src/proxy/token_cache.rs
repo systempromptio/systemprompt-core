@@ -74,6 +74,14 @@ impl TokenCache {
         Ok(token)
     }
 
+    pub async fn invalidate(&self) {
+        let mut guard = self.cached.lock().await;
+        if guard.is_some() {
+            tracing::info!("token cache invalidated (upstream rejected JWT)");
+            *guard = None;
+        }
+    }
+
     async fn peek_fresh(&self, refresh_threshold_secs: u64) -> Option<HelperOutput> {
         let guard = self.cached.lock().await;
         let entry = guard.as_ref()?;
