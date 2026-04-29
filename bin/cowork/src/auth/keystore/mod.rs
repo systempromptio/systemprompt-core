@@ -1,21 +1,22 @@
+use crate::ids::CertFingerprint;
 use sha2::{Digest, Sha256};
 use std::fmt::Write;
 
 pub struct DeviceCert {
-    pub fingerprint: String,
+    pub fingerprint: CertFingerprint,
 }
 
 pub trait DeviceCertSource {
     fn load(&self) -> Result<DeviceCert, String>;
 }
 
-pub fn sha256_der(der: &[u8]) -> String {
+pub fn sha256_der(der: &[u8]) -> Result<CertFingerprint, String> {
     let digest = Sha256::digest(der);
     let mut out = String::with_capacity(64);
     for byte in digest {
         let _ = write!(out, "{byte:02x}");
     }
-    out
+    CertFingerprint::try_new(out).map_err(|e| e.to_string())
 }
 
 #[cfg(target_os = "macos")]

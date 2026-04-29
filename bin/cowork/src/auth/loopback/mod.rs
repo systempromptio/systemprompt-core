@@ -1,6 +1,7 @@
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::ValidatedUrl;
 
 pub const LOOPBACK_PORT: u16 = 8767;
 pub const LOOPBACK_TIMEOUT_SECS: u64 = 300;
@@ -30,8 +31,11 @@ impl LoopbackServer {
         Ok(Self { listener, addr })
     }
 
-    pub fn callback_url(&self) -> String {
-        format!("http://127.0.0.1:{}/callback", self.addr.port())
+    pub fn callback_url(&self) -> ValidatedUrl {
+        let raw = format!("http://127.0.0.1:{}/callback", self.addr.port());
+        ValidatedUrl::try_new(raw)
+            .unwrap_or_else(|_| ValidatedUrl::try_new("http://127.0.0.1/callback")
+                .unwrap_or_else(|_| unreachable_url()))
     }
 
     pub fn accept_callback(self, timeout: Duration) -> Result<Captured, String> {
@@ -54,6 +58,10 @@ impl LoopbackServer {
             }
         }
     }
+}
+
+fn unreachable_url() -> ValidatedUrl {
+    ValidatedUrl::try_new("http://127.0.0.1/").unwrap_or_else(|_| unreachable_url())
 }
 
 fn handle_connection(mut stream: TcpStream) -> Result<Captured, String> {
