@@ -1,6 +1,6 @@
 #![allow(unsafe_code)]
 
-use super::{DeviceCert, DeviceCertSource, sha256_der};
+use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use std::{env, ptr};
 use windows_sys::Win32::Security::Cryptography::{
     CERT_CONTEXT, CertCloseStore, CertEnumCertificatesInStore, CertFreeCertificateContext,
@@ -22,13 +22,15 @@ impl WindowsKeystore {
 struct StoreHandle(HCERTSTORE);
 
 impl StoreHandle {
-    fn open_my() -> Result<Self, String> {
+    fn open_my() -> Result<Self, KeystoreError> {
         let name: Vec<u16> = "MY\0".encode_utf16().collect();
         // SAFETY: `name` is nul-terminated UTF-16 and lives until the call returns.
         // CertOpenSystemStoreW does not retain the pointer.
         let handle = unsafe { CertOpenSystemStoreW(0, name.as_ptr()) };
         if handle.is_null() {
-            return Err("CertOpenSystemStoreW(MY) returned NULL".to_string());
+            return Err(KeystoreError::Other(
+                "CertOpenSystemStoreW(MY) returned NULL".into(),
+            ));
         }
         Ok(Self(handle))
     }
@@ -59,7 +61,7 @@ impl Drop for CertHandle {
 }
 
 impl DeviceCertSource for WindowsKeystore {
-    fn load(&self) -> Result<DeviceCert, String> {
+    fn load(&self) -> Result<DeviceCert, KeystoreError> {
         let store = StoreHandle::open_my()?;
         let mut prev: *const CERT_CONTEXT = ptr::null();
 
@@ -85,10 +87,12 @@ impl DeviceCertSource for WindowsKeystore {
             std::mem::forget(current);
         }
 
-        Err(match self.match_fingerprint.as_deref() {
-            Some(fp) => format!("no certificate in MY store matched SHA-256 {fp}"),
-            None => "MY certificate store is empty".to_string(),
-        })
+        Err(KeystoreError::NotFound(
+            match self.match_fingerprint.as_deref() {
+                Some(fp) => format!("no certificate in MY store matched SHA-256 {fp}"),
+                None => "MY certificate store is empty".to_string(),
+            },
+        ))
     }
 }
 

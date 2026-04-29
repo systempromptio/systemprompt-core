@@ -66,7 +66,10 @@ fn read_request_line(reader: &mut BufReader<&mut TcpStream>) -> Result<String> {
 
 fn parse_request_line(line: &str) -> Result<(String, String, String)> {
     let mut parts = line.split_whitespace();
-    let method = parts.next().ok_or(HttpLocalError::MissingMethod)?.to_string();
+    let method = parts
+        .next()
+        .ok_or(HttpLocalError::MissingMethod)?
+        .to_string();
     let raw_target = parts.next().ok_or(HttpLocalError::MissingTarget)?;
     let (path, query) = match raw_target.split_once('?') {
         Some((p, q)) => (p.to_string(), q.to_string()),

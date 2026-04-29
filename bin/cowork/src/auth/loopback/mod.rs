@@ -14,7 +14,11 @@ pub enum LoopbackError {
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("bind 127.0.0.1:{port} failed: {source}")]
-    Bind { port: u16, #[source] source: std::io::Error },
+    Bind {
+        port: u16,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("timed out after {0}s waiting for browser callback")]
     Timeout(u64),
     #[error("unexpected method {0}")]

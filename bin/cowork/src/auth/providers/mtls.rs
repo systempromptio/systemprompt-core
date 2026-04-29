@@ -39,7 +39,7 @@ impl AuthProvider for MtlsProvider {
 
         let cert = keystore::platform_source()
             .load()
-            .map_err(AuthError::Failed)?;
+            .map_err(|e| AuthError::Failed(e.to_string()))?;
 
         let req = MtlsRequest {
             device_cert_fingerprint: cert.fingerprint,
