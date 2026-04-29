@@ -81,8 +81,8 @@ fn fetch_fresh_token() -> Option<Secret> {
                 return Some(out.token);
             },
             Err(AuthError::NotConfigured) => {},
-            Err(AuthError::Failed(msg)) => {
-                crate::obs::output::diag(&format!("{}: {msg}", p.name()));
+            Err(e @ AuthError::Failed { .. }) => {
+                crate::obs::output::diag(&format!("{}: {e}", p.name()));
             },
         }
     }

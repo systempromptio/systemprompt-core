@@ -68,8 +68,8 @@ pub enum GatewayError {
     PostRequest(Box<ureq::Error>),
     #[error("malformed gateway response: {0}")]
     AuthDecode(std::io::Error),
-    #[error("{0}")]
-    Serialize(String),
+    #[error("serialize: {0}")]
+    Serialize(#[from] serde_json::Error),
 }
 
 pub struct GatewayClient {
@@ -216,8 +216,7 @@ impl GatewayClient {
         body: &T,
     ) -> Result<AuthResponse, GatewayError> {
         let url = self.url(path);
-        let payload =
-            serde_json::to_value(body).map_err(|e| GatewayError::Serialize(e.to_string()))?;
+        let payload = serde_json::to_value(body)?;
         let resp = self
             .agent
             .post(&url)

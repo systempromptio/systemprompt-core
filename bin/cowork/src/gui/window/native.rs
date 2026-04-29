@@ -3,7 +3,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{Icon, Window, WindowAttributes, WindowId};
 use wry::{NewWindowResponse, WebView, WebViewBuilder};
 
-use crate::gui::error::{GuiError, GuiResult};
+use crate::gui::error::{GuiError, GuiResult, WindowError};
 
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowAttributesExtMacOS;
@@ -38,7 +38,10 @@ impl SettingsWindow {
 
         let window = event_loop
             .create_window(attrs)
-            .map_err(|e| GuiError::Window(format!("create_window: {e}")))?;
+            .map_err(|e| GuiError::Window {
+                context: "create_window".into(),
+                source: WindowError::Os(e),
+            })?;
 
         let local_origin = format!("http://127.0.0.1:{port}");
         let webview = WebViewBuilder::new()
@@ -51,7 +54,10 @@ impl SettingsWindow {
                 NewWindowResponse::Deny
             })
             .build(&window)
-            .map_err(|e| GuiError::Window(format!("webview build: {e}")))?;
+            .map_err(|e| GuiError::Window {
+                context: "webview build".into(),
+                source: WindowError::Wry(e),
+            })?;
 
         window.set_visible(true);
         window.focus_window();

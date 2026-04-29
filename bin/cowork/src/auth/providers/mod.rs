@@ -1,22 +1,30 @@
 use crate::auth::types::HelperOutput;
+use thiserror::Error;
 
 pub mod mtls;
 pub mod pat;
 pub mod session;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum AuthError {
+    #[error("not configured")]
     NotConfigured,
-    Failed(String),
+    #[error("{provider}: {source}")]
+    Failed {
+        provider: &'static str,
+        #[source]
+        source: AuthFailedSource,
+    },
 }
 
-impl std::fmt::Display for AuthError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotConfigured => write!(f, "not configured"),
-            Self::Failed(msg) => write!(f, "{msg}"),
-        }
-    }
+#[derive(Debug, Error)]
+pub enum AuthFailedSource {
+    #[error(transparent)]
+    Keystore(#[from] crate::auth::keystore::KeystoreError),
+    #[error(transparent)]
+    Loopback(#[from] crate::auth::loopback::LoopbackError),
+    #[error(transparent)]
+    Gateway(#[from] crate::gateway::GatewayError),
 }
 
 pub trait AuthProvider {

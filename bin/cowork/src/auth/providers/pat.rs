@@ -1,4 +1,4 @@
-use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use crate::auth::types::HelperOutput;
 use crate::config::Config;
 use crate::gateway::GatewayClient;
@@ -42,7 +42,10 @@ impl AuthProvider for PatProvider {
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
             .pat_exchange(pat.as_str())
-            .map_err(|e| AuthError::Failed(e.to_string()))?;
+            .map_err(|e| AuthError::Failed {
+                provider: "pat",
+                source: AuthFailedSource::Gateway(e),
+            })?;
         Ok(resp.into())
     }
 }

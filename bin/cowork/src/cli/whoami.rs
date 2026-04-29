@@ -20,8 +20,8 @@ fn acquire_bearer() -> Option<Secret> {
                 return Some(out.token);
             },
             Err(AuthError::NotConfigured) => {},
-            Err(AuthError::Failed(msg)) => {
-                diag(&format!("{}: {msg}", p.name()));
+            Err(e @ AuthError::Failed { .. }) => {
+                diag(&format!("{}: {e}", p.name()));
             },
         }
     }
