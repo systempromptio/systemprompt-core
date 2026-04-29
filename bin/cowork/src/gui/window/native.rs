@@ -3,6 +3,8 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{Icon, Window, WindowAttributes, WindowId};
 use wry::{NewWindowResponse, WebView, WebViewBuilder};
 
+use crate::gui::error::{GuiError, GuiResult};
+
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowAttributesExtMacOS;
 
@@ -24,7 +26,7 @@ impl SettingsWindow {
         self.window.id()
     }
 
-    pub fn create(event_loop: &ActiveEventLoop, url: &str, port: u16) -> Result<Self, String> {
+    pub fn create(event_loop: &ActiveEventLoop, url: &str, port: u16) -> GuiResult<Self> {
         let attrs = chrome_attributes(
             Window::default_attributes()
                 .with_title("systemprompt cowork")
@@ -36,7 +38,7 @@ impl SettingsWindow {
 
         let window = event_loop
             .create_window(attrs)
-            .map_err(|e| format!("create_window: {e}"))?;
+            .map_err(|e| GuiError::Window(format!("create_window: {e}")))?;
 
         let local_origin = format!("http://127.0.0.1:{port}");
         let webview = WebViewBuilder::new()
@@ -49,7 +51,7 @@ impl SettingsWindow {
                 NewWindowResponse::Deny
             })
             .build(&window)
-            .map_err(|e| format!("webview build: {e}"))?;
+            .map_err(|e| GuiError::Window(format!("webview build: {e}")))?;
 
         window.set_visible(true);
         window.focus_window();

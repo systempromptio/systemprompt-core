@@ -1,6 +1,8 @@
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub mod claude;
+pub mod connection;
 pub mod dispatch;
+pub mod error;
 pub mod events;
 pub mod handlers;
 pub mod server;
@@ -37,6 +39,7 @@ fn install_termination_handlers(proxy: EventLoopProxy<UiEvent>) {
     });
 }
 
+#[tracing::instrument]
 pub fn run() -> ExitCode {
     crate::proxy::start_default();
 

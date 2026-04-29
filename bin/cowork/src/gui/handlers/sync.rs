@@ -1,4 +1,5 @@
 use crate::gui::GuiApp;
+use crate::gui::error::GuiError;
 use crate::gui::events::UiEvent;
 use crate::{config, sync};
 
@@ -14,7 +15,7 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp) {
         app.proxy.clone(),
         || {
             let allow_tofu = config::pinned_pubkey().is_none();
-            sync::run_once(false, false, allow_tofu).map_err(|e| e.to_string())
+            sync::run_once(false, false, allow_tofu).map_err(GuiError::from)
         },
         UiEvent::SyncFinished,
     );
@@ -25,7 +26,10 @@ pub(crate) fn on_sync_started(app: &mut GuiApp) {
     app.refresh_ui();
 }
 
-pub(crate) fn on_sync_finished(app: &mut GuiApp, result: Result<crate::sync::SyncSummary, String>) {
+pub(crate) fn on_sync_finished(
+    app: &mut GuiApp,
+    result: Result<crate::sync::SyncSummary, GuiError>,
+) {
     app.state.set_sync_in_flight(false);
     match result {
         Ok(summary) => {

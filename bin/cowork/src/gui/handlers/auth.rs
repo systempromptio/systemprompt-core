@@ -1,6 +1,7 @@
 use crate::auth::secret::Secret;
 use crate::auth::setup;
 use crate::gui::GuiApp;
+use crate::gui::error::GuiError;
 use crate::gui::events::UiEvent;
 
 pub(crate) fn on_login_requested(app: &mut GuiApp, token: &Secret, gateway: Option<String>) {
@@ -17,13 +18,13 @@ pub(crate) fn on_login_requested(app: &mut GuiApp, token: &Secret, gateway: Opti
         move || {
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
-                .map_err(|e| e.to_string())
+                .map_err(GuiError::from)
         },
         UiEvent::LoginFinished,
     );
 }
 
-pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), String>) {
+pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), GuiError>) {
     match result {
         Ok(()) => {
             app.append_log("PAT stored. Pulling manifest…");
@@ -58,13 +59,13 @@ pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str) {
         move || {
             setup::set_gateway_url(&trimmed)
                 .map(|_| ())
-                .map_err(|e| e.to_string())
+                .map_err(GuiError::from)
         },
         UiEvent::SetGatewayFinished,
     );
 }
 
-pub(crate) fn on_set_gateway_finished(app: &mut GuiApp, result: Result<(), String>) {
+pub(crate) fn on_set_gateway_finished(app: &mut GuiApp, result: Result<(), GuiError>) {
     match result {
         Ok(()) => {
             app.append_log("Gateway URL saved.");
@@ -85,12 +86,12 @@ pub(crate) fn on_logout_requested(app: &mut GuiApp) {
     app.append_log("Logging out…");
     app.pool.spawn_task(
         app.proxy.clone(),
-        || setup::logout().map(|_| ()).map_err(|e| e.to_string()),
+        || setup::logout().map(|_| ()).map_err(GuiError::from),
         UiEvent::LogoutFinished,
     );
 }
 
-pub(crate) fn on_logout_finished(app: &mut GuiApp, result: Result<(), String>) {
+pub(crate) fn on_logout_finished(app: &mut GuiApp, result: Result<(), GuiError>) {
     match result {
         Ok(()) => {
             app.append_log("Logged out.");
