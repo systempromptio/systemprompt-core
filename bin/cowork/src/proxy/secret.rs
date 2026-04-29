@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
+use crate::ids::{LoopbackSecret, ProxySecret};
+
 const LOOPBACK_FILENAME: &str = "cowork-loopback.key";
 
 pub fn secret_path() -> Option<PathBuf> {
@@ -13,12 +15,16 @@ pub fn secret_path() -> Option<PathBuf> {
 }
 
 pub fn load_or_mint() -> std::io::Result<String> {
+    load_or_mint_typed().map(LoopbackSecret::into_inner)
+}
+
+pub fn load_or_mint_typed() -> std::io::Result<LoopbackSecret> {
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
     if let Ok(bytes) = fs::read(&path) {
         let s = String::from_utf8_lossy(&bytes).trim().to_string();
         if !s.is_empty() {
-            return Ok(s);
+            return Ok(LoopbackSecret::new(s));
         }
     }
     if let Some(parent) = path.parent() {
@@ -34,15 +40,19 @@ pub fn load_or_mint() -> std::io::Result<String> {
         use std::os::unix::fs::PermissionsExt;
         let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
     }
-    Ok(secret)
+    Ok(LoopbackSecret::new(secret))
 }
 
-pub fn verify(presented: &str, expected: &str) -> bool {
+pub fn verify(presented: &str, expected: &ProxySecret) -> bool {
+    constant_time_eq(presented.as_bytes(), expected.as_str().as_bytes())
+}
+
+fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {
     if presented.len() != expected.len() {
         return false;
     }
     let mut diff = 0u8;
-    for (a, b) in presented.as_bytes().iter().zip(expected.as_bytes()) {
+    for (a, b) in presented.iter().zip(expected) {
         diff |= a ^ b;
     }
     diff == 0
