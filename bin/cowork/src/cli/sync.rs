@@ -1,4 +1,5 @@
 use std::process::ExitCode;
+use std::time::Duration;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
 use crate::sync;
@@ -9,11 +10,33 @@ pub(crate) fn cmd_sync(args: &[String]) -> ExitCode {
     let allow_unsigned = has_flag(args, "--allow-unsigned");
     let force_replay = has_flag(args, "--force-replay");
     let allow_tofu = has_flag(args, "--allow-tofu");
-    sync::sync(sync::SyncOptions {
-        watch,
-        interval,
-        allow_unsigned,
-        force_replay,
-        allow_tofu,
-    })
+
+    sync::warn_unsafe_flags(allow_unsigned, force_replay, allow_tofu);
+
+    if !watch {
+        return run_once_print(allow_unsigned, force_replay, allow_tofu);
+    }
+
+    let secs = interval.unwrap_or(1800).max(sync::WATCH_FLOOR_SECS);
+    loop {
+        let code = run_once_print(allow_unsigned, force_replay, allow_tofu);
+        if code != ExitCode::SUCCESS {
+            tracing::warn!(retry_in_secs = secs, "sync: non-zero exit; retrying");
+        }
+        std::thread::sleep(Duration::from_secs(secs));
+    }
+}
+
+fn run_once_print(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) -> ExitCode {
+    match sync::run_once(allow_unsigned, force_replay, allow_tofu) {
+        Ok(summary) => {
+            println!("{}", summary.one_line());
+            ExitCode::SUCCESS
+        },
+        Err(err) => {
+            let exit = err.exit_code();
+            tracing::error!("{err}");
+            exit
+        },
+    }
 }

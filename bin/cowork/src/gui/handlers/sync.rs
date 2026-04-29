@@ -10,11 +10,14 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp) {
     app.state.set_message("Sync started…");
     app.append_log("Sync started…");
     app.refresh_ui();
-    app.pool.spawn_with_proxy(app.proxy.clone(), |proxy| {
-        let allow_tofu = config::pinned_pubkey().is_none();
-        let result = sync::run_once(false, false, allow_tofu).map_err(|e| e.to_string());
-        let _ = proxy.send_event(UiEvent::SyncFinished(result));
-    });
+    app.pool.spawn_task(
+        app.proxy.clone(),
+        || {
+            let allow_tofu = config::pinned_pubkey().is_none();
+            sync::run_once(false, false, allow_tofu).map_err(|e| e.to_string())
+        },
+        UiEvent::SyncFinished,
+    );
 }
 
 pub(crate) fn on_sync_started(app: &mut GuiApp) {

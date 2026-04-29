@@ -12,12 +12,15 @@ pub(crate) fn on_login_requested(app: &mut GuiApp, token: Secret, gateway: Optio
         return;
     }
     app.append_log("Saving PAT…");
-    app.pool.spawn_with_proxy(app.proxy.clone(), move |proxy| {
-        let result = setup::login(trimmed.expose(), gateway.as_deref())
-            .map(|_| ())
-            .map_err(|e| e.to_string());
-        let _ = proxy.send_event(UiEvent::LoginFinished(result));
-    });
+    app.pool.spawn_task(
+        app.proxy.clone(),
+        move || {
+            setup::login(trimmed.expose(), gateway.as_deref())
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        },
+        UiEvent::LoginFinished,
+    );
 }
 
 pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), String>) {
@@ -41,12 +44,50 @@ pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), String>) {
     app.refresh_ui();
 }
 
+pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: String) {
+    let trimmed = gateway.trim().to_owned();
+    if trimmed.is_empty() {
+        app.state.set_message("Set gateway: URL is empty");
+        app.append_log("Set gateway: URL is empty");
+        app.refresh_ui();
+        return;
+    }
+    app.append_log(format!("Saving gateway URL {trimmed}…"));
+    app.pool.spawn_task(
+        app.proxy.clone(),
+        move || {
+            setup::set_gateway_url(&trimmed)
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        },
+        UiEvent::SetGatewayFinished,
+    );
+}
+
+pub(crate) fn on_set_gateway_finished(app: &mut GuiApp, result: Result<(), String>) {
+    match result {
+        Ok(()) => {
+            app.append_log("Gateway URL saved.");
+            app.state.reload();
+            super::gateway_probe::spawn_probe(app);
+        },
+        Err(e) => {
+            let line = format!("set gateway failed: {e}");
+            app.append_log(&line);
+            app.state.set_message(line);
+            app.state.reload();
+        },
+    }
+    app.refresh_ui();
+}
+
 pub(crate) fn on_logout_requested(app: &mut GuiApp) {
     app.append_log("Logging out…");
-    app.pool.spawn_with_proxy(app.proxy.clone(), |proxy| {
-        let result = setup::logout().map(|_| ()).map_err(|e| e.to_string());
-        let _ = proxy.send_event(UiEvent::LogoutFinished(result));
-    });
+    app.pool.spawn_task(
+        app.proxy.clone(),
+        || setup::logout().map(|_| ()).map_err(|e| e.to_string()),
+        UiEvent::LogoutFinished,
+    );
 }
 
 pub(crate) fn on_logout_finished(app: &mut GuiApp, result: Result<(), String>) {

@@ -37,6 +37,8 @@ just build-cowork aarch64-apple-darwin         # cross target
 just build-cowork-all                          # mac arm+x86, windows x86_64, linux x86_64
 ```
 
+For the full build, release, versioning, and per-OS reference, see [`documentation/cowork/`](../../documentation/cowork/README.md).
+
 ## Runtime environment
 
 | Variable                       | Purpose                                                |

@@ -44,12 +44,76 @@
     return `${Math.floor(delta / 3600)}h ago`;
   }
 
-  $("btn-login").addEventListener("click", () => {
-    const token = $("pat").value.trim();
-    const gateway = $("gateway").value.trim();
-    if (!token) { append("Enter a PAT first."); return; }
-    post("/api/login", { token, gateway: gateway || null });
+  let gatewayDebounceTimer = null;
+  let lastSavedGateway = "";
+
+  function updateSetupPatLink() {
+    const link = $("setup-pat-link");
+    if (!link) return;
+    const gw = $("setup-gateway").value.trim().replace(/\/+$/, "");
+    if (gw) {
+      link.href = `${gw}/admin/login`;
+      link.removeAttribute("aria-disabled");
+      link.classList.remove("disabled");
+    } else {
+      link.href = "#";
+      link.setAttribute("aria-disabled", "true");
+      link.classList.add("disabled");
+    }
+  }
+
+  function setSetupError(msg) {
+    const el = $("setup-error");
+    if (!el) return;
+    if (msg) {
+      el.textContent = msg;
+      el.hidden = false;
+    } else {
+      el.textContent = "";
+      el.hidden = true;
+    }
+  }
+
+  function scheduleGatewayPersist() {
+    clearTimeout(gatewayDebounceTimer);
+    gatewayDebounceTimer = setTimeout(() => {
+      const url = $("setup-gateway").value.trim();
+      if (!url || url === lastSavedGateway) return;
+      lastSavedGateway = url;
+      post("/api/gateway", { url });
+    }, 600);
+  }
+
+  $("setup-gateway").addEventListener("input", () => {
+    updateSetupPatLink();
+    scheduleGatewayPersist();
   });
+  $("setup-gateway").addEventListener("blur", () => {
+    clearTimeout(gatewayDebounceTimer);
+    const url = $("setup-gateway").value.trim();
+    if (url && url !== lastSavedGateway) {
+      lastSavedGateway = url;
+      post("/api/gateway", { url });
+    }
+  });
+
+  $("setup-pat-link").addEventListener("click", (e) => {
+    if ($("setup-pat-link").getAttribute("aria-disabled") === "true") {
+      e.preventDefault();
+      setSetupError("Enter the gateway URL first.");
+    }
+  });
+
+  $("setup-connect").addEventListener("click", () => {
+    const token = $("setup-pat").value.trim();
+    const gateway = $("setup-gateway").value.trim();
+    if (!gateway) { setSetupError("Enter the gateway URL."); return; }
+    if (!token)   { setSetupError("Paste your personal access token."); return; }
+    setSetupError("");
+    lastSavedGateway = gateway;
+    post("/api/login", { token, gateway });
+  });
+
   $("btn-logout").addEventListener("click", () => post("/api/logout"));
   $("btn-sync").addEventListener("click", () => post("/api/sync"));
   $("btn-validate").addEventListener("click", () => post("/api/validate"));
@@ -260,7 +324,9 @@
     renderMarketplace(snap);
     renderClaude(snap);
 
-    if (document.activeElement !== $("gateway")) $("gateway").value = snap.gateway_url || "";
+    applySetupMode(snap);
+    $("identity-gateway").textContent = snap.gateway_url || "—";
+    $("identity-gateway").classList.toggle("muted", !snap.gateway_url);
     $("plugins-dir").textContent = snap.plugins_dir || "—";
     $("last-sync").textContent = snap.last_sync_summary || "never";
     $("last-sync").classList.toggle("muted", !snap.last_sync_summary);
@@ -293,7 +359,61 @@
     }
 
     $("btn-sync").disabled = !!snap.sync_in_flight || !snap.signed_in;
-    $("btn-login").disabled = !!snap.sync_in_flight;
+    $("setup-connect").disabled = !!snap.sync_in_flight;
+  }
+
+  function isConfigured(snap) {
+    const reachable = snap.gateway_status && snap.gateway_status.state === "reachable";
+    const id = snap.verified_identity;
+    return !!(reachable && id && id.user_id);
+  }
+
+  function applySetupMode(snap) {
+    const setup = !isConfigured(snap);
+    document.body.classList.toggle("setup-mode", setup);
+    if (!setup) {
+      setSetupError("");
+      return;
+    }
+    const gwInput = $("setup-gateway");
+    if (document.activeElement !== gwInput) {
+      const next = snap.gateway_url || "";
+      if (gwInput.value !== next) {
+        gwInput.value = next;
+        lastSavedGateway = next;
+      }
+      updateSetupPatLink();
+    }
+    const dot = $("setup-gateway-dot");
+    const msg = $("setup-gateway-msg");
+    dot.classList.remove("dot-unknown", "dot-probing", "dot-ok", "dot-err");
+    const status = snap.gateway_status || { state: "unknown" };
+    switch (status.state) {
+      case "reachable":
+        dot.classList.add("dot-ok");
+        msg.textContent = `reachable · ${status.latency_ms}ms`;
+        msg.classList.remove("muted");
+        break;
+      case "probing":
+        dot.classList.add("dot-probing");
+        msg.textContent = "probing…";
+        msg.classList.add("muted");
+        break;
+      case "unreachable":
+        dot.classList.add("dot-err");
+        msg.textContent = `unreachable · ${status.reason || "unknown error"}`;
+        msg.classList.remove("muted");
+        break;
+      default:
+        dot.classList.add("dot-unknown");
+        msg.textContent = snap.gateway_url ? "not yet probed" : "enter a URL to probe…";
+        msg.classList.add("muted");
+    }
+    if (status.state === "reachable" && snap.pat_present && !(snap.verified_identity && snap.verified_identity.user_id)) {
+      setSetupError("Token rejected by gateway. Issue a fresh PAT and try again.");
+    } else if (status.state === "unreachable" && snap.pat_present) {
+      setSetupError(`Gateway unreachable: ${status.reason || "unknown error"}`);
+    }
   }
 
   async function pollState() {

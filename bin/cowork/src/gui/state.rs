@@ -1,15 +1,15 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use parking_lot::RwLock;
 use serde::Deserialize;
 
-use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::gui::claude::state::ClaudeState;
 use crate::validate::ValidationReport;
 use crate::{cache, config, paths, setup};
-
-const POISONED: &str = "AppState mutex poisoned";
 
 #[derive(Debug, Deserialize)]
 struct LastSyncRecord {
@@ -51,25 +51,29 @@ fn count_malformed_plugin_dirs(root: &std::path::Path) -> Option<usize> {
         if !entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
             continue;
         }
-        if !entry.path().join("claude-plugin").join("plugin.json").is_file() {
+        if !entry
+            .path()
+            .join("claude-plugin")
+            .join("plugin.json")
+            .is_file()
+        {
             n += 1;
         }
     }
     Some(n)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum GatewayStatus {
+    #[default]
     Unknown,
     Probing,
-    Reachable { latency_ms: u64 },
-    Unreachable { reason: String },
-}
-
-impl Default for GatewayStatus {
-    fn default() -> Self {
-        Self::Unknown
-    }
+    Reachable {
+        latency_ms: u64,
+    },
+    Unreachable {
+        reason: String,
+    },
 }
 
 impl GatewayStatus {
@@ -114,9 +118,8 @@ pub struct AppStateSnapshot {
     pub gateway_status: GatewayStatus,
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
-    pub claude_integration: Option<ClaudeIntegrationSnapshot>,
-    pub claude_probe_in_flight: bool,
-    pub last_generated_profile: Option<String>,
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub claude: ClaudeState,
 }
 
 impl AppStateSnapshot {
@@ -132,7 +135,7 @@ pub struct CachedToken {
 }
 
 pub struct AppState {
-    inner: Mutex<AppStateSnapshot>,
+    inner: RwLock<AppStateSnapshot>,
 }
 
 impl AppState {
@@ -140,69 +143,69 @@ impl AppState {
         let mut snap = AppStateSnapshot::default();
         Self::reload_into(&mut snap);
         Arc::new(Self {
-            inner: Mutex::new(snap),
+            inner: RwLock::new(snap),
         })
     }
 
     pub fn snapshot(&self) -> AppStateSnapshot {
-        self.inner.lock().expect(POISONED).clone()
+        self.inner.read().clone()
     }
 
     pub fn reload(&self) {
-        let mut guard = self.inner.lock().expect(POISONED);
+        let mut guard = self.inner.write();
         Self::reload_into(&mut guard);
     }
 
     pub fn set_sync_in_flight(&self, flag: bool) {
-        let mut guard = self.inner.lock().expect(POISONED);
-        guard.sync_in_flight = flag;
+        self.inner.write().sync_in_flight = flag;
     }
 
     pub fn set_message(&self, msg: impl Into<String>) {
-        let mut guard = self.inner.lock().expect(POISONED);
-        guard.last_action_message = Some(msg.into());
+        self.inner.write().last_action_message = Some(msg.into());
     }
 
     pub fn set_validation(&self, report: ValidationReport) {
-        let mut guard = self.inner.lock().expect(POISONED);
-        guard.last_validation = Some(report);
+        self.inner.write().last_validation = Some(report);
     }
 
     pub fn mark_probing(&self) {
-        let mut guard = self.inner.lock().expect(POISONED);
-        guard.gateway_status = GatewayStatus::Probing;
+        self.inner.write().gateway_status = GatewayStatus::Probing;
     }
 
     pub fn apply_probe(&self, outcome: GatewayProbeOutcome) {
-        let mut guard = self.inner.lock().expect(POISONED);
+        let mut guard = self.inner.write();
         guard.gateway_status = outcome.status;
         guard.verified_identity = outcome.identity;
         guard.last_probe_at_unix = Some(outcome.at_unix);
     }
 
     pub fn clear_verified_identity(&self) {
-        let mut guard = self.inner.lock().expect(POISONED);
-        guard.verified_identity = None;
+        self.inner.write().verified_identity = None;
     }
 
-    pub fn apply_claude_integration(&self, snap: ClaudeIntegrationSnapshot) {
-        let mut guard = self.inner.lock().expect(POISONED);
-        guard.claude_integration = Some(snap);
-        guard.claude_probe_in_flight = false;
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub fn apply_claude_integration(
+        &self,
+        snap: crate::integration::claude_desktop::ClaudeIntegrationSnapshot,
+    ) {
+        let mut guard = self.inner.write();
+        guard.claude.integration = Some(snap);
+        guard.claude.probe_in_flight = false;
     }
 
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     pub fn mark_claude_probing(&self) -> bool {
-        let mut guard = self.inner.lock().expect(POISONED);
-        if guard.claude_probe_in_flight {
+        let mut guard = self.inner.write();
+        if guard.claude.probe_in_flight {
             return false;
         }
-        guard.claude_probe_in_flight = true;
+        guard.claude.probe_in_flight = true;
         true
     }
 
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     pub fn set_last_generated_profile(&self, path: String) {
-        let mut guard = self.inner.lock().expect(POISONED);
-        guard.last_generated_profile = Some(path);
+        self.inner.write().claude.last_generated_profile = Some(path);
     }
 
     fn reload_into(snap: &mut AppStateSnapshot) {

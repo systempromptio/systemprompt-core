@@ -5,6 +5,26 @@ use systemprompt_cowork::sync::{
     LastSyncState, SyncError, check_replay, check_skew, read_last_sync,
 };
 
+fn tempdir() -> std::path::PathBuf {
+    let mut p = std::env::temp_dir();
+    p.push(format!(
+        "cowork-replay-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&p).unwrap();
+    p
+}
+
+fn last(version: &str) -> LastSyncState {
+    LastSyncState {
+        last_applied_manifest_version: Some(version.to_string()),
+    }
+}
+
 #[test]
 fn canonical_payload_includes_not_before_in_position() {
     let m = SignedManifest {
@@ -22,18 +42,11 @@ fn canonical_payload_includes_not_before_in_position() {
         signature: "ignored".into(),
     };
     let p = canonical_payload(&m).unwrap();
-    eprintln!("CANONICAL: {p}");
     assert!(p.contains(r#""not_before":"2026-04-27T12:00:00+00:00""#));
     let nb_pos = p.find(r#""not_before""#).unwrap();
     let uid_pos = p.find(r#""user_id""#).unwrap();
     let issued_pos = p.find(r#""issued_at""#).unwrap();
     assert!(issued_pos < nb_pos && nb_pos < uid_pos);
-}
-
-fn last(version: &str) -> LastSyncState {
-    LastSyncState {
-        last_applied_manifest_version: Some(version.to_string()),
-    }
 }
 
 #[test]
@@ -123,18 +136,4 @@ fn read_last_sync_missing_file_yields_default() {
     let dir = tempdir();
     let s = read_last_sync(&dir.join("nope.json"));
     assert!(s.last_applied_manifest_version.is_none());
-}
-
-fn tempdir() -> std::path::PathBuf {
-    let mut p = std::env::temp_dir();
-    p.push(format!(
-        "cowork-replay-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    fs::create_dir_all(&p).unwrap();
-    p
 }

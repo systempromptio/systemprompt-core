@@ -1,7 +1,6 @@
 use crate::http::GatewayClient;
 use crate::paths::{self, Scope};
 use crate::{cache, config};
-use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckLevel {
@@ -46,16 +45,6 @@ impl ValidationReport {
             s.push_str("\nResult: OK\n");
         }
         s
-    }
-}
-
-pub fn validate() -> ExitCode {
-    let report = run();
-    print!("{}", report.rendered());
-    if report.any_failed {
-        ExitCode::from(1)
-    } else {
-        ExitCode::SUCCESS
     }
 }
 

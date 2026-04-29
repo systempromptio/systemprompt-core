@@ -3,8 +3,8 @@ use crate::secret::Secret;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
-#[cfg(target_os = "macos")]
-use crate::integration::claude_desktop::{ClaudeIntegrationSnapshot, GeneratedProfile};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::gui::claude::events::ClaudeUiEvent;
 
 #[derive(Debug, Clone)]
 pub enum UiEvent {
@@ -17,6 +17,7 @@ pub enum UiEvent {
         gateway: Option<String>,
     },
     LogoutRequested,
+    SetGatewayRequested(String),
     GatewayProbeRequested,
     Quit,
 
@@ -25,19 +26,10 @@ pub enum UiEvent {
     ValidateFinished(ValidationReport),
     LoginFinished(Result<(), String>),
     LogoutFinished(Result<(), String>),
+    SetGatewayFinished(Result<(), String>),
     GatewayProbeFinished(GatewayProbeOutcome),
     StateRefreshed,
 
-    #[cfg(target_os = "macos")]
-    ClaudeProbeRequested,
-    #[cfg(target_os = "macos")]
-    ClaudeProbeFinished(ClaudeIntegrationSnapshot),
-    #[cfg(target_os = "macos")]
-    ClaudeProfileGenerateRequested,
-    #[cfg(target_os = "macos")]
-    ClaudeProfileGenerateFinished(Result<GeneratedProfile, String>),
-    #[cfg(target_os = "macos")]
-    ClaudeProfileInstallRequested(String),
-    #[cfg(target_os = "macos")]
-    ClaudeProfileInstallFinished(Result<String, String>),
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    Claude(ClaudeUiEvent),
 }

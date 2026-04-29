@@ -1,0 +1,185 @@
+#![cfg(target_os = "macos")]
+
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use super::shared::{
+    GeneratedProfile, KEYS_OF_INTEREST, ManagedDomain, ProfileGenInputs, make_uuids, now_unix,
+    redact_if_sensitive,
+};
+use crate::install::xml::escape;
+
+const MANAGED_PREFS_ROOT: &str = "/Library/Managed Preferences";
+const PROFILE_TMPL: &str = include_str!("templates/claude_desktop_profile.mobileconfig.tmpl");
+
+pub(super) fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
+    let mut out = ManagedDomain {
+        domain: domain.to_string(),
+        ..Default::default()
+    };
+
+    let plist_path = candidates(domain).into_iter().find(|p| p.exists());
+
+    if let Some(path) = plist_path.as_ref() {
+        out.source_path = Some(path.display().to_string());
+        out.installed = true;
+    }
+
+    let plist_json = plist_path
+        .as_deref()
+        .and_then(read_plist_as_json)
+        .unwrap_or(serde_json::Value::Null);
+
+    for key in KEYS_OF_INTEREST {
+        if let Some(val) = read_key_value(&plist_json, domain, key) {
+            out.keys.insert(key.to_string(), val);
+        }
+    }
+
+    out.missing_required = required
+        .iter()
+        .filter(|k| !out.keys.contains_key(**k))
+        .map(|k| (*k).to_string())
+        .collect();
+
+    out
+}
+
+pub(super) fn list_claude_processes() -> Vec<String> {
+    let output = match Command::new("/bin/ps").args(["-Ao", "comm"]).output() {
+        Ok(o) => o,
+        Err(_) => return Vec::new(),
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut hits: Vec<String> = text
+        .lines()
+        .filter(|line| {
+            let lower = line.to_ascii_lowercase();
+            (lower.contains("/claude.app/")
+                || lower.ends_with("/claude")
+                || lower.contains("claude helper"))
+                && !lower.contains("claude code")
+        })
+        .map(|s| s.trim().to_string())
+        .collect();
+    hits.sort();
+    hits.dedup();
+    hits
+}
+
+pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    let dir = std::env::temp_dir().join("systemprompt-cowork");
+    std::fs::create_dir_all(&dir)?;
+    let (payload_uuid, profile_uuid) = make_uuids();
+    let path = dir.join(format!("claude-cowork-{}.mobileconfig", now_unix()));
+
+    let xml = render_profile(inputs, &payload_uuid, &profile_uuid);
+    std::fs::File::create(&path)?.write_all(xml.as_bytes())?;
+
+    Ok(GeneratedProfile {
+        path: path.display().to_string(),
+        bytes: xml.len(),
+        payload_uuid,
+        profile_uuid,
+    })
+}
+
+pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
+    Command::new("/usr/bin/open").arg(path).status()?;
+    Ok(())
+}
+
+fn candidates(domain: &str) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(user) = std::env::var("USER") {
+        if !user.is_empty() {
+            out.push(
+                PathBuf::from(MANAGED_PREFS_ROOT)
+                    .join(&user)
+                    .join(format!("{domain}.plist")),
+            );
+        }
+    }
+    out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(format!("{domain}.plist")));
+    out
+}
+
+// JSON: protocol boundary — plist content is operator-defined; shape varies per
+// managed-prefs domain so values flow as `serde_json::Value`.
+fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
+    let output = Command::new("/usr/bin/plutil")
+        .arg("-convert")
+        .arg("json")
+        .arg("-o")
+        .arg("-")
+        .arg(path)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    serde_json::from_slice(&output.stdout).ok()
+}
+
+fn read_key_value(plist_json: &serde_json::Value, domain: &str, key: &str) -> Option<String> {
+    if let Some(val) = plist_json.get(key) {
+        return Some(format_plist_value(key, val));
+    }
+
+    let output = Command::new("/usr/bin/defaults")
+        .arg("read")
+        .arg(domain)
+        .arg(key)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if raw.is_empty() {
+        return None;
+    }
+    Some(redact_if_sensitive(key, raw))
+}
+
+fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
+    let rendered = match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(items) => items
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect::<Vec<_>>()
+            .join(", "),
+        other => other.to_string(),
+    };
+    redact_if_sensitive(key, rendered)
+}
+
+fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &str) -> String {
+    let models_xml: String = inputs
+        .models
+        .iter()
+        .map(|m| format!("            <string>{}</string>", escape(m)))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let org_xml = match inputs.organization_uuid.as_deref() {
+        Some(uuid) if !uuid.is_empty() => format!(
+            "        <key>deploymentOrganizationUuid</key>\n        <string>{}</string>\n",
+            escape(uuid)
+        ),
+        _ => String::new(),
+    };
+
+    PROFILE_TMPL
+        .replace("{profile_uuid}", &escape(profile_uuid))
+        .replace("{payload_uuid}", &escape(payload_uuid))
+        .replace("{base_url}", &escape(&inputs.gateway_base_url))
+        .replace("{api_key}", &escape(&inputs.api_key))
+        .replace("{models_xml}", &models_xml)
+        .replace("{org_xml}", &org_xml)
+}

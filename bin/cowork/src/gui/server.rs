@@ -1,8 +1,10 @@
 use std::collections::VecDeque;
 use std::net::{TcpListener, TcpStream};
+use std::sync::Arc;
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+use parking_lot::Mutex;
 
 use serde::Deserialize;
 
@@ -40,6 +42,12 @@ struct LogEntry {
     line: String,
 }
 
+impl Default for ActivityLog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ActivityLog {
     pub fn new() -> Self {
         Self {
@@ -51,7 +59,7 @@ impl ActivityLog {
     }
 
     pub fn append(&self, line: impl Into<String>) {
-        let mut g = self.inner.lock().expect("ActivityLog poisoned");
+        let mut g = self.inner.lock();
         let id = g.next_id;
         g.next_id += 1;
         let entry = LogEntry {
@@ -66,7 +74,7 @@ impl ActivityLog {
     }
 
     fn snapshot_since(&self, since: u64) -> Vec<LogEntry> {
-        let g = self.inner.lock().expect("ActivityLog poisoned");
+        let g = self.inner.lock();
         g.entries.iter().filter(|e| e.id > since).cloned().collect()
     }
 }
@@ -199,6 +207,12 @@ struct LoginBody {
 }
 
 #[derive(Debug, Deserialize)]
+struct SetGatewayBody {
+    url: String,
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[derive(Debug, Deserialize)]
 struct InstallProfileBody {
     path: String,
 }
@@ -216,6 +230,17 @@ fn handle_action(
         "/api/probe" => UiEvent::GatewayProbeRequested,
         "/api/logout" => UiEvent::LogoutRequested,
         "/api/open_folder" => UiEvent::OpenConfigFolder,
+        "/api/gateway" => match serde_json::from_slice::<SetGatewayBody>(body) {
+            Ok(b) => UiEvent::SetGatewayRequested(b.url),
+            Err(e) => {
+                return write_response(
+                    stream,
+                    400,
+                    "text/plain",
+                    format!("bad gateway body: {e}").as_bytes(),
+                );
+            },
+        },
         "/api/login" => match serde_json::from_slice::<LoginBody>(body) {
             Ok(b) => UiEvent::LoginRequested {
                 token: b.token,
@@ -230,13 +255,19 @@ fn handle_action(
                 );
             },
         },
-        #[cfg(target_os = "macos")]
-        "/api/claude/probe" => UiEvent::ClaudeProbeRequested,
-        #[cfg(target_os = "macos")]
-        "/api/claude/profile/generate" => UiEvent::ClaudeProfileGenerateRequested,
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        "/api/claude/probe" => {
+            UiEvent::Claude(crate::gui::claude::events::ClaudeUiEvent::ProbeRequested)
+        },
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        "/api/claude/profile/generate" => {
+            UiEvent::Claude(crate::gui::claude::events::ClaudeUiEvent::ProfileGenerateRequested)
+        },
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
         "/api/claude/profile/install" => match serde_json::from_slice::<InstallProfileBody>(body) {
-            Ok(b) => UiEvent::ClaudeProfileInstallRequested(b.path),
+            Ok(b) => UiEvent::Claude(
+                crate::gui::claude::events::ClaudeUiEvent::ProfileInstallRequested(b.path),
+            ),
             Err(e) => {
                 return write_response(
                     stream,

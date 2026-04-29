@@ -1,13 +1,18 @@
 name: Release (build + sign)
 
+# Tag scheme: cowork-v* is the canonical trigger. v* is retained for one cycle
+# of backwards compatibility and will be removed once the next release ships
+# under the prefixed scheme. See documentation/cowork/versioning.md.
+
 on:
   push:
     tags:
+      - "cowork-v*"
       - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to (re)build and sign"
+        description: "Tag to (re)build and sign (e.g. cowork-v0.4.0)"
         required: true
 
 permissions:

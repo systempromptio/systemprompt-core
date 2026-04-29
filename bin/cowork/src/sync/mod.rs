@@ -11,10 +11,8 @@ use crate::manifest::SignedManifest;
 use crate::{config, paths};
 use serde::Serialize;
 use std::fs;
-use std::process::ExitCode;
-use std::time::Duration;
 
-const WATCH_FLOOR_SECS: u64 = 60;
+pub const WATCH_FLOOR_SECS: u64 = 60;
 
 pub struct SyncOptions {
     pub watch: bool,
@@ -66,22 +64,7 @@ impl SyncSummary {
     }
 }
 
-pub fn sync(opts: SyncOptions) -> ExitCode {
-    if !opts.watch {
-        return run_once_cli(opts.allow_unsigned, opts.force_replay, opts.allow_tofu);
-    }
-
-    let interval = opts.interval.unwrap_or(1800).max(WATCH_FLOOR_SECS);
-    loop {
-        let code = run_once_cli(opts.allow_unsigned, opts.force_replay, opts.allow_tofu);
-        if code != ExitCode::SUCCESS {
-            tracing::warn!(retry_in_secs = interval, "sync: non-zero exit; retrying");
-        }
-        std::thread::sleep(Duration::from_secs(interval));
-    }
-}
-
-fn run_once_cli(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) -> ExitCode {
+pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) {
     if allow_unsigned {
         tracing::warn!("--allow-unsigned bypasses signature verification");
     }
@@ -93,17 +76,6 @@ fn run_once_cli(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) -> E
             "--allow-tofu enables trust-on-first-use pubkey fetch over the gateway channel; this \
              is insecure if the gateway is not authenticated yet"
         );
-    }
-    match run_once(allow_unsigned, force_replay, allow_tofu) {
-        Ok(summary) => {
-            println!("{}", summary.one_line());
-            ExitCode::SUCCESS
-        },
-        Err(err) => {
-            let exit = err.exit_code();
-            tracing::error!("{err}");
-            exit
-        },
     }
 }
 

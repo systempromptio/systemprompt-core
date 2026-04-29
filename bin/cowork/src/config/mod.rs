@@ -159,8 +159,7 @@ pub fn policy_pubkey() -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn read_policy_pubkey_native() -> Option<String> {
-    use std::process::Command;
-    let output = Command::new("reg")
+    let output = crate::winproc::reg_command()
         .args([
             "query",
             r"HKCU\SOFTWARE\Policies\Claude",

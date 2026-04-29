@@ -6,13 +6,15 @@ pub mod gateway;
 pub mod gui;
 pub mod http_local;
 pub mod install;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub mod integration;
 pub mod obs;
 pub mod proxy;
 pub mod schedule;
 pub mod sync;
 pub mod validate;
+#[cfg(target_os = "windows")]
+pub(crate) mod winproc;
 
 pub use auth::{cache, keystore, loopback, providers, secret, setup, types};
 pub use config::paths;
@@ -29,6 +31,9 @@ Commands (credential helper):
   login <sp-live-...>        Store a PAT securely and wire up systemprompt-cowork.toml
     [--gateway <url>]
   logout                     Remove the stored PAT and its config section
+  clean                      Wipe all local cowork state (config + PAT + token cache).
+                             Returns the GUI to a fresh splash. Does not touch
+                             org-plugins or managed profiles — see `uninstall --purge`.
   status                     Show config paths and what is currently set up
   whoami                     Print authenticated identity from the gateway
 
@@ -72,6 +77,8 @@ pub(crate) fn help() -> &'static str {
 }
 
 pub fn run() -> ExitCode {
+    #[cfg(target_os = "windows")]
+    winproc::attach_parent_console_if_present();
     tracing_init::init();
     cli::run()
 }
