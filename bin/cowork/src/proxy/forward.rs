@@ -6,9 +6,7 @@ use hyper::{HeaderMap, Request, Response, StatusCode};
 use systemprompt_identifiers::ValidatedUrl;
 use thiserror::Error;
 
-use crate::{auth, config};
-
-const REFRESH_THRESHOLD_SECS: u64 = 300;
+use crate::proxy::token_cache::TokenCache;
 
 const HOP_BY_HOP: &[&str] = &[
     "host",
@@ -30,6 +28,8 @@ pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>
 pub enum ForwardError {
     #[error("authentication unavailable: {0}")]
     Auth(String),
+    #[error("authentication timed out after 10s")]
+    AuthTimeout,
     #[error("invalid request method {method}: {source}")]
     BadMethod {
         method: String,
@@ -46,13 +46,16 @@ pub enum ForwardError {
 
 pub type ForwardResult<T> = Result<T, ForwardError>;
 
-#[tracing::instrument(level = "debug", skip(req, client, gateway_base), fields(method = %req.method(), path = %req.uri().path()))]
+pub const REFRESH_THRESHOLD_SECS: u64 = 300;
+
+#[tracing::instrument(level = "debug", skip(req, client, gateway_base, token_cache), fields(method = %req.method(), path = %req.uri().path()))]
 pub async fn forward(
     req: Request<Incoming>,
     client: reqwest::Client,
     gateway_base: &ValidatedUrl,
+    token_cache: &TokenCache,
 ) -> ForwardResult<Response<ProxyBody>> {
-    let token = mint_token().await?;
+    let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
     let (parts, body) = req.into_parts();
     let url = build_upstream_url(gateway_base, &parts.uri);
@@ -98,16 +101,6 @@ pub async fn forward(
     let body: ProxyBody = StreamBody::new(upstream_stream).boxed();
 
     Ok(response_builder.body(body)?)
-}
-
-async fn mint_token() -> ForwardResult<auth::types::HelperOutput> {
-    tokio::task::spawn_blocking(|| {
-        let cfg = config::load();
-        auth::read_or_refresh(&cfg, REFRESH_THRESHOLD_SECS)
-    })
-    .await
-    .map_err(|e| ForwardError::Auth(format!("auth task join: {e}")))?
-    .ok_or_else(|| ForwardError::Auth("no JWT available — sign in via cowork GUI".to_string()))
 }
 
 fn build_upstream_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {

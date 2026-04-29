@@ -18,6 +18,7 @@ use systemprompt_identifiers::ValidatedUrl;
 
 use crate::ids::ProxySecret;
 use crate::obs::output::diag;
+use crate::proxy::token_cache::TokenCache;
 use crate::proxy::{forward, secret};
 
 #[derive(Clone)]
@@ -40,12 +41,14 @@ pub(super) struct ProxyContext {
     pub secret: Arc<ProxySecret>,
     pub stats: Arc<ProxyStats>,
     pub client: reqwest::Client,
+    pub token_cache: Arc<TokenCache>,
 }
 
 pub fn start(
     rt: &Runtime,
     port: u16,
     gateway_base_url: &ValidatedUrl,
+    token_cache: Arc<TokenCache>,
 ) -> std::io::Result<ProxyHandle> {
     let gateway_base = gateway_base_url.clone();
     let loopback = secret::load_or_mint_typed()?;
@@ -59,6 +62,7 @@ pub fn start(
         secret: Arc::new(proxy_secret),
         stats: stats.clone(),
         client,
+        token_cache,
     };
 
     let (port_tx, port_rx) = oneshot::channel::<std::io::Result<u16>>();
@@ -188,7 +192,14 @@ async fn handle_request(
     }
 
     let started = Instant::now();
-    match forward::forward(req, ctx.client.clone(), ctx.gateway_base.as_ref()).await {
+    match forward::forward(
+        req,
+        ctx.client.clone(),
+        ctx.gateway_base.as_ref(),
+        ctx.token_cache.as_ref(),
+    )
+    .await
+    {
         Ok(response) => {
             let status = response.status().as_u16();
             record_stats(&ctx.stats, status, started);
