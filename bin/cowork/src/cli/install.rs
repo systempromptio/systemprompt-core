@@ -16,7 +16,7 @@ pub(crate) fn cmd_install(args: &[String]) -> ExitCode {
     let pubkey = parse_opt_flag(args, "--pubkey");
     let apply = has_flag(args, "--apply");
     let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
-    match install::install(install::InstallOptions {
+    match install::install(&install::InstallOptions {
         print_mdm,
         emit_schedule_template: emit_sched,
         gateway_url: gateway,

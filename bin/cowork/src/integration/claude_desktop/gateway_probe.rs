@@ -60,7 +60,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
                 url: Some(url.to_string()),
                 state: GatewayProbeState::Refused,
                 error: Some(e.to_string()),
-                latency_ms: Some(started.elapsed().as_millis() as u64),
+                latency_ms: Some(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)),
                 ..Default::default()
             };
         },
@@ -69,7 +69,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
                 url: Some(url.to_string()),
                 state: GatewayProbeState::Timeout,
                 error: Some(e.to_string()),
-                latency_ms: Some(started.elapsed().as_millis() as u64),
+                latency_ms: Some(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)),
                 ..Default::default()
             };
         },
@@ -78,13 +78,13 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
                 url: Some(url.to_string()),
                 state: GatewayProbeState::HttpError,
                 error: Some(e.to_string()),
-                latency_ms: Some(started.elapsed().as_millis() as u64),
+                latency_ms: Some(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)),
                 ..Default::default()
             };
         },
     };
 
-    let latency_ms = started.elapsed().as_millis() as u64;
+    let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     let _ = stream.shutdown(std::net::Shutdown::Both);
 
     GatewayHealth {

@@ -212,7 +212,10 @@ fn record_stats(stats: &ProxyStats, status: u16, started: Instant) {
         .store(u64::from(status), Ordering::Relaxed);
     stats
         .last_latency_ms
-        .store(started.elapsed().as_millis() as u64, Ordering::Relaxed);
+        .store(
+            u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+            Ordering::Relaxed,
+        );
 }
 
 fn simple_response(status: StatusCode, body: &'static str) -> Response<forward::ProxyBody> {

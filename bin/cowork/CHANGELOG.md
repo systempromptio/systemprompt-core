@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Post-refactor lint sweep — zero warnings on Linux + Windows
+
+Follow-up to phases E–H. Closes the remaining clippy warnings on `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-gnu` and applies the punch-list items from the post-refactor review.
+
+- `proxy::runtime` — `RUNTIME.get().expect("runtime just set")` annotated with `#[allow(clippy::expect_used)]`; the value is set on the line immediately above and cannot be `None`.
+- `proxy::server::record_stats`, `gui::handlers::gateway_probe`, `integration::claude_desktop::gateway_probe`, `winproc::is_elevated`, `auth::keystore::linux::base64_decode` — every `as u64` / `as u32` / `as u8` cast that triggered `cast_possible_truncation` switched to `try_from(...).unwrap_or(MAX)`.
+- `install::install` takes `&InstallOptions` (was owned `InstallOptions`); caller in `cli::install::cmd_install` updated to pass a reference. Closes `needless_pass_by_value`.
+- `gui::server::handle_connection` takes `&Arc<AppState>`, `&Sender<UiEvent>`, `&str`, `&ActivityLog` (were owned). Closes four `needless_pass_by_value` warnings.
+- `gui::handlers::auth::on_login_requested` takes `&Secret`; `on_set_gateway_requested` takes `&str`. `gui::dispatch` updated.
+- `cli/` module gets `#![allow(clippy::print_stdout, clippy::print_stderr)]` — CLI is the user-output layer; routing intentional terminal output through `tracing` would defeat the purpose.
+- `bin/cowork/Cargo.toml` flips `mod_module_files` from `warn` to `allow` — repo convention is `mod.rs` style throughout the cowork tree.
+
 ### Phase B — internals refactor (no behavioural change)
 
 Five-stream decomposition of the `bin/cowork/src/` tree. Every source file is now ≤300 LOC, every fn ≤75 LOC, HTTP/1.1 parsing and response writing live in exactly one place, and GUI thread spawning is bounded and traceable.

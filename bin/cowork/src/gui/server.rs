@@ -109,7 +109,7 @@ impl Server {
                 let csrf_token = csrf_clone.clone();
                 let log = log_clone.clone();
                 std::thread::spawn(move || {
-                    if let Err(e) = handle_connection(stream, state, tx, csrf_token, log) {
+                    if let Err(e) = handle_connection(stream, &state, &tx, &csrf_token, &log) {
                         diag(&format!("gui-server: connection: {e}"));
                     }
                 });
@@ -134,10 +134,10 @@ impl Server {
 
 fn handle_connection(
     mut stream: TcpStream,
-    state: Arc<AppState>,
-    tx: Sender<UiEvent>,
-    csrf_token: String,
-    log: ActivityLog,
+    state: &Arc<AppState>,
+    tx: &Sender<UiEvent>,
+    csrf_token: &str,
+    log: &ActivityLog,
 ) -> std::io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     stream.set_write_timeout(Some(READ_TIMEOUT))?;
@@ -162,16 +162,16 @@ fn handle_connection(
 
     let route = (req.method.as_str(), req.path.as_str());
     match route {
-        ("GET", "/") => serve_index(&mut stream, &csrf_token),
-        ("GET", "/api/state") => serve_state(&mut stream, &state),
+        ("GET", "/") => serve_index(&mut stream, csrf_token),
+        ("GET", "/api/state") => serve_state(&mut stream, state),
         ("GET", "/api/log") => {
             let since = qs
                 .get("since")
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(0);
-            serve_log(&mut stream, &log, since)
+            serve_log(&mut stream, log, since)
         },
-        ("POST", path) => handle_action(&mut stream, &tx, &log, path, &req.body),
+        ("POST", path) => handle_action(&mut stream, tx, log, path, &req.body),
         _ => write_response(&mut stream, 404, "text/plain", b"not found"),
     }
 }

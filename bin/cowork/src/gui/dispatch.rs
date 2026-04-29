@@ -8,10 +8,10 @@ pub(crate) fn dispatch(app: &mut GuiApp, event: UiEvent) {
         UiEvent::ValidateRequested => handlers::validate::on_validate_requested(app),
         UiEvent::OpenConfigFolder => handlers::settings::on_open_config_folder(app),
         UiEvent::LoginRequested { token, gateway } => {
-            handlers::auth::on_login_requested(app, token, gateway)
+            handlers::auth::on_login_requested(app, &token, gateway)
         },
         UiEvent::LogoutRequested => handlers::auth::on_logout_requested(app),
-        UiEvent::SetGatewayRequested(url) => handlers::auth::on_set_gateway_requested(app, url),
+        UiEvent::SetGatewayRequested(url) => handlers::auth::on_set_gateway_requested(app, &url),
         UiEvent::Quit => handlers::quit::on_quit(),
         UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
         UiEvent::SyncFinished(r) => handlers::sync::on_sync_finished(app, r),
