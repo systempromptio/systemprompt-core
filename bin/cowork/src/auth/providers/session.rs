@@ -1,9 +1,9 @@
+use crate::auth::loopback::{LOOPBACK_TIMEOUT_SECS, LoopbackServer};
+use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::types::{HelperOutput, SessionExchangeRequest};
 use crate::config::Config;
-use crate::http::GatewayClient;
-use crate::loopback::{LOOPBACK_TIMEOUT_SECS, LoopbackServer};
-use crate::output::diag;
-use crate::providers::{AuthError, AuthProvider};
-use crate::types::{HelperOutput, SessionExchangeRequest};
+use crate::gateway::GatewayClient;
+use crate::obs::output::diag;
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

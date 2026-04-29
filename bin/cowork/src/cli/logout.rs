@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
+use crate::auth::setup;
 use crate::obs::output::diag;
-use crate::setup;
 
 pub(crate) fn cmd_logout() -> ExitCode {
     match setup::logout() {

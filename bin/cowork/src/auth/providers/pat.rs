@@ -1,7 +1,7 @@
+use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::types::HelperOutput;
 use crate::config::Config;
-use crate::http::GatewayClient;
-use crate::providers::{AuthError, AuthProvider};
-use crate::types::HelperOutput;
+use crate::gateway::GatewayClient;
 use std::{env, fs};
 
 pub struct PatProvider {

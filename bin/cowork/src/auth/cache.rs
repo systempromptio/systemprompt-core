@@ -1,4 +1,4 @@
-use crate::types::HelperOutput;
+use crate::auth::types::HelperOutput;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;

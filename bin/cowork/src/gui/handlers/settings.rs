@@ -1,5 +1,6 @@
+use crate::auth::setup;
+use crate::config::paths;
 use crate::gui::{GuiApp, window};
-use crate::{paths, setup};
 
 pub(crate) fn on_open_settings(app: &mut GuiApp) {
     if let Some(server) = app.ensure_server() {

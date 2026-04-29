@@ -1,4 +1,4 @@
-use systemprompt_cowork::manifest::{
+use systemprompt_cowork::gateway::manifest::{
     AgentEntry, SignedManifest, SkillEntry, UserInfo, canonical_payload,
 };
 

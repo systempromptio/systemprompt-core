@@ -1,4 +1,4 @@
-use crate::secret::Secret;
+use crate::auth::secret::Secret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

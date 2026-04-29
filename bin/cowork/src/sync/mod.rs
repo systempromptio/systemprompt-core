@@ -4,11 +4,12 @@ mod hash;
 mod manifest;
 mod replay;
 
+pub use apply::ApplyError;
 pub use error::SyncError;
 pub use replay::{LastSyncState, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync};
 
-use crate::manifest::SignedManifest;
-use crate::{config, paths};
+use crate::config::{self, paths};
+use crate::gateway::manifest::SignedManifest;
 use serde::Serialize;
 use std::fs;
 

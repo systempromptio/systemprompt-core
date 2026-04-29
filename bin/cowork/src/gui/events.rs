@@ -1,5 +1,5 @@
+use crate::auth::secret::Secret;
 use crate::gui::state::GatewayProbeOutcome;
-use crate::secret::Secret;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 

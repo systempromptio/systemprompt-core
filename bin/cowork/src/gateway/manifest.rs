@@ -153,6 +153,100 @@ impl SignedManifest {
     }
 }
 
+impl SignedManifest {
+    pub fn builder(
+        manifest_version: impl Into<String>,
+        issued_at: impl Into<String>,
+        not_before: impl Into<String>,
+        user_id: impl Into<String>,
+        signature: impl Into<String>,
+    ) -> SignedManifestBuilder {
+        SignedManifestBuilder {
+            manifest_version: manifest_version.into(),
+            issued_at: issued_at.into(),
+            not_before: not_before.into(),
+            user_id: user_id.into(),
+            signature: signature.into(),
+            tenant_id: None,
+            user: None,
+            plugins: Vec::new(),
+            skills: Vec::new(),
+            agents: Vec::new(),
+            managed_mcp_servers: Vec::new(),
+            revocations: Vec::new(),
+        }
+    }
+}
+
+pub struct SignedManifestBuilder {
+    manifest_version: String,
+    issued_at: String,
+    not_before: String,
+    user_id: String,
+    signature: String,
+    tenant_id: Option<String>,
+    user: Option<UserInfo>,
+    plugins: Vec<PluginEntry>,
+    skills: Vec<SkillEntry>,
+    agents: Vec<AgentEntry>,
+    managed_mcp_servers: Vec<ManagedMcpServer>,
+    revocations: Vec<String>,
+}
+
+impl SignedManifestBuilder {
+    pub fn with_tenant_id(mut self, tenant_id: impl Into<String>) -> Self {
+        self.tenant_id = Some(tenant_id.into());
+        self
+    }
+
+    pub fn with_user(mut self, user: UserInfo) -> Self {
+        self.user = Some(user);
+        self
+    }
+
+    pub fn with_plugins(mut self, plugins: Vec<PluginEntry>) -> Self {
+        self.plugins = plugins;
+        self
+    }
+
+    pub fn with_skills(mut self, skills: Vec<SkillEntry>) -> Self {
+        self.skills = skills;
+        self
+    }
+
+    pub fn with_agents(mut self, agents: Vec<AgentEntry>) -> Self {
+        self.agents = agents;
+        self
+    }
+
+    pub fn with_managed_mcp_servers(mut self, servers: Vec<ManagedMcpServer>) -> Self {
+        self.managed_mcp_servers = servers;
+        self
+    }
+
+    pub fn with_revocations(mut self, revocations: Vec<String>) -> Self {
+        self.revocations = revocations;
+        self
+    }
+
+    pub fn build(self) -> SignedManifest {
+        SignedManifest {
+            manifest_version: self.manifest_version,
+            issued_at: self.issued_at,
+            not_before: self.not_before,
+            user_id: self.user_id,
+            tenant_id: self.tenant_id,
+            user: self.user,
+            plugins: self.plugins,
+            skills: self.skills,
+            agents: self.agents,
+            managed_mcp_servers: self.managed_mcp_servers,
+            revocations: self.revocations,
+            signature: self.signature,
+        }
+    }
+}
+
 #[derive(Serialize)]
 struct CanonicalView<'a> {
     manifest_version: &'a str,

@@ -1,8 +1,8 @@
 use std::process::ExitCode;
 
+use crate::auth::setup;
 use crate::cli::args::parse_opt_flag;
 use crate::obs::output::diag;
-use crate::setup;
 
 pub(crate) fn cmd_login(args: &[String]) -> ExitCode {
     let token = match args.get(2) {

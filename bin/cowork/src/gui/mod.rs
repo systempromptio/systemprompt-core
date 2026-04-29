@@ -25,7 +25,7 @@ use crate::gui::events::UiEvent;
 use crate::gui::server::{ActivityLog, Server};
 use crate::gui::state::{AppState, GatewayStatus, now_unix};
 use crate::gui::worker::WorkerPool;
-use crate::output::diag;
+use crate::obs::output::diag;
 
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 

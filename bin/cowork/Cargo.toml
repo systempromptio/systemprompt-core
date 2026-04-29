@@ -51,6 +51,8 @@ bytes = "1"
 parking_lot = "0.12"
 ctrlc = "3"
 is-terminal = "0.4"
+rand = "0.8"
+form_urlencoded = "1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

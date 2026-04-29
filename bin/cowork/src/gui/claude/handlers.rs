@@ -1,8 +1,8 @@
 use crate::config;
+use crate::gateway::GatewayClient;
 use crate::gui::GuiApp;
 use crate::gui::claude::events::ClaudeUiEvent;
 use crate::gui::events::UiEvent;
-use crate::http::GatewayClient;
 use crate::integration::claude_desktop::{
     ClaudeIntegrationSnapshot, GeneratedProfile, ProfileGenInputs, write_profile,
 };

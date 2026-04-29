@@ -13,7 +13,7 @@ use crate::gui::server_json::snapshot_to_json;
 use crate::gui::server_util::{constant_time_eq, mint_csrf_token, now_unix, parse_query};
 use crate::gui::state::AppState;
 use crate::http_local::{ResponseBuilder, parse};
-use crate::output::diag;
+use crate::obs::output::diag;
 
 const HTML: &str = include_str!("../../web/index.html");
 const STYLE: &str = include_str!("../../web/style.css");
@@ -189,19 +189,33 @@ fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> 
 
 fn serve_state(stream: &mut TcpStream, state: &AppState) -> std::io::Result<()> {
     let snap = state.snapshot();
-    let body = snapshot_to_json(&snap);
-    write_response(stream, 200, "application/json", body.as_bytes())
+    match snapshot_to_json(&snap) {
+        Ok(body) => write_response(stream, 200, "application/json", body.as_bytes()),
+        Err(e) => write_response(
+            stream,
+            500,
+            "text/plain",
+            format!("encode error: {e}").as_bytes(),
+        ),
+    }
 }
 
 fn serve_log(stream: &mut TcpStream, log: &ActivityLog, since: u64) -> std::io::Result<()> {
     let entries = log.snapshot_since(since);
-    let body = serde_json::to_string(&entries).unwrap_or_else(|_| "[]".into());
-    write_response(stream, 200, "application/json", body.as_bytes())
+    match serde_json::to_string(&entries) {
+        Ok(body) => write_response(stream, 200, "application/json", body.as_bytes()),
+        Err(e) => write_response(
+            stream,
+            500,
+            "text/plain",
+            format!("encode error: {e}").as_bytes(),
+        ),
+    }
 }
 
 #[derive(Debug, Deserialize)]
 struct LoginBody {
-    token: crate::secret::Secret,
+    token: crate::auth::secret::Secret,
     #[serde(default)]
     gateway: Option<String>,
 }

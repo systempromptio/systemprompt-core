@@ -1,4 +1,4 @@
-use crate::types::HelperOutput;
+use crate::auth::types::HelperOutput;
 
 pub mod mtls;
 pub mod pat;

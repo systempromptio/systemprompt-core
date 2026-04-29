@@ -2,8 +2,8 @@ use serde::Serialize;
 
 use crate::gui::state::{AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
 
-pub(crate) fn snapshot_to_json(snap: &AppStateSnapshot) -> String {
-    serde_json::to_string(&StatePayload::from(snap)).unwrap_or_else(|_| "{}".to_string())
+pub(crate) fn snapshot_to_json(snap: &AppStateSnapshot) -> Result<String, serde_json::Error> {
+    serde_json::to_string(&StatePayload::from(snap))
 }
 
 #[derive(Serialize)]

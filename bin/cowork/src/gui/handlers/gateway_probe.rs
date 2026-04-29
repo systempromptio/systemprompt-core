@@ -1,8 +1,10 @@
 use crate::config;
+use crate::gateway::GatewayClient;
 use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
-use crate::gui::state::{GatewayProbeOutcome, GatewayStatus, decode_jwt_identity, now_unix};
-use crate::http::GatewayClient;
+use crate::gui::state::{
+    GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
+};
 
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp) {
     app.state.mark_probing();
@@ -36,10 +38,10 @@ pub(crate) fn spawn_probe(app: &GuiApp) {
             let identity = if matches!(status, GatewayStatus::Reachable { .. })
                 && crate::auth::has_credential_source(&cfg)
             {
-                obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity(tok.expose()))
+                obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity_unverified(tok.expose()))
             } else {
                 if !crate::auth::has_credential_source(&cfg) {
-                    let _ = crate::cache::clear();
+                    let _ = crate::auth::cache::clear();
                 }
                 None
             };
@@ -54,6 +56,6 @@ pub(crate) fn spawn_probe(app: &GuiApp) {
     );
 }
 
-fn obtain_live_token(cfg: &config::Config) -> Option<crate::secret::Secret> {
+fn obtain_live_token(cfg: &config::Config) -> Option<crate::auth::secret::Secret> {
     crate::auth::obtain_live_token(cfg).map(|out| out.token)
 }

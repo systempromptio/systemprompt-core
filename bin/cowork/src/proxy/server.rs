@@ -14,7 +14,7 @@ use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
-use crate::output::diag;
+use crate::obs::output::diag;
 use crate::proxy::{forward, secret};
 
 #[derive(Clone)]

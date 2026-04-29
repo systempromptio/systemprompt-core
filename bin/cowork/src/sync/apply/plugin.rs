@@ -1,6 +1,6 @@
 use super::super::hash::{directory_hash, normalise_relative, safe_plugin_id, sha256_hex};
-use crate::http::GatewayClient;
-use crate::manifest::{PluginEntry, SignedManifest};
+use crate::gateway::GatewayClient;
+use crate::gateway::manifest::{PluginEntry, SignedManifest};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -18,17 +18,17 @@ pub fn apply_plugins(
     manifest: &SignedManifest,
     root: &Path,
     staging_root: &Path,
-) -> Result<PluginApplyOutcome, String> {
+) -> Result<PluginApplyOutcome, super::ApplyError> {
     let mut installed = Vec::new();
     let mut updated = Vec::new();
     let mut malformed = Vec::new();
 
     for plugin in &manifest.plugins {
         if !safe_plugin_id(&plugin.id) {
-            return Err(format!(
+            return Err(super::ApplyError::Detail(format!(
                 "manifest contained unsafe plugin id: {}",
                 plugin.id
-            ));
+            )));
         }
         if let Some(change) = sync_one_plugin(client, bearer, plugin, root, staging_root)? {
             match change {
@@ -74,7 +74,7 @@ fn sync_one_plugin(
     plugin: &PluginEntry,
     root: &Path,
     staging_root: &Path,
-) -> Result<Option<PluginChange>, String> {
+) -> Result<Option<PluginChange>, super::ApplyError> {
     let target = root.join(&plugin.id);
     let current_hash = target
         .is_dir()
@@ -87,21 +87,23 @@ fn sync_one_plugin(
     let stage = staging_root.join(&plugin.id);
     fetch_plugin_into_staging(client, bearer, plugin, &stage)?;
 
-    let staged_hash =
-        directory_hash(&stage).map_err(|e| format!("hash staged {}: {e}", plugin.id))?;
+    let staged_hash = directory_hash(&stage)
+        .map_err(|e| super::ApplyError::Detail(format!("hash staged {}: {e}", plugin.id)))?;
     if staged_hash != plugin.sha256 {
-        return Err(format!(
+        return Err(super::ApplyError::Detail(format!(
             "plugin {} hash mismatch (expected {}, got {})",
             plugin.id, plugin.sha256, staged_hash
-        ));
+        )));
     }
 
     let was_present = target.exists();
     if was_present {
-        fs::remove_dir_all(&target).map_err(|e| format!("remove old {}: {e}", plugin.id))?;
+        fs::remove_dir_all(&target)
+            .map_err(|e| super::ApplyError::Detail(format!("remove old {}: {e}", plugin.id)))?;
     }
-    fs::rename(&stage, &target)
-        .map_err(|e| format!("rename stage→target for {}: {e}", plugin.id))?;
+    fs::rename(&stage, &target).map_err(|e| {
+        super::ApplyError::Detail(format!("rename stage→target for {}: {e}", plugin.id))
+    })?;
 
     Ok(Some(if was_present {
         PluginChange::Updated(plugin.id.clone())
@@ -115,33 +117,39 @@ fn fetch_plugin_into_staging(
     bearer: &str,
     plugin: &PluginEntry,
     stage: &Path,
-) -> Result<(), String> {
-    fs::create_dir_all(stage).map_err(|e| format!("create stage {}: {e}", stage.display()))?;
+) -> Result<(), super::ApplyError> {
+    fs::create_dir_all(stage)
+        .map_err(|e| super::ApplyError::Detail(format!("create stage {}: {e}", stage.display())))?;
     for file in &plugin.files {
         if file.path.contains("..") || file.path.starts_with('/') || file.path.starts_with('\\') {
-            return Err(format!("unsafe path in manifest: {}", file.path));
+            return Err(super::ApplyError::Detail(format!(
+                "unsafe path in manifest: {}",
+                file.path
+            )));
         }
         let out = stage.join(normalise_relative(&file.path));
         if let Some(parent) = out.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("create parent {}: {e}", parent.display()))?;
+            fs::create_dir_all(parent).map_err(|e| {
+                super::ApplyError::Detail(format!("create parent {}: {e}", parent.display()))
+            })?;
         }
         let bytes = client
             .fetch_plugin_file(bearer, &plugin.id, &file.path)
             .map_err(|e| e.to_string())?;
         let actual = sha256_hex(&bytes);
         if actual != file.sha256 {
-            return Err(format!(
+            return Err(super::ApplyError::Detail(format!(
                 "file {}/{} hash mismatch (expected {}, got {})",
                 plugin.id, file.path, file.sha256, actual
-            ));
+            )));
         }
-        fs::write(&out, &bytes).map_err(|e| format!("write {}: {e}", out.display()))?;
+        fs::write(&out, &bytes)
+            .map_err(|e| super::ApplyError::Detail(format!("write {}: {e}", out.display())))?;
     }
     Ok(())
 }
 
-fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, String> {
+fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, super::ApplyError> {
     let mut removed = Vec::new();
     let Ok(entries) = fs::read_dir(root) else {
         return Ok(removed);
@@ -156,7 +164,7 @@ fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, St
         }
         if !expected.contains(name_str) && entry.path().is_dir() {
             fs::remove_dir_all(entry.path())
-                .map_err(|e| format!("remove stale {name_str}: {e}"))?;
+                .map_err(|e| super::ApplyError::Detail(format!("remove stale {name_str}: {e}")))?;
             removed.push(name_str.to_string());
         }
     }

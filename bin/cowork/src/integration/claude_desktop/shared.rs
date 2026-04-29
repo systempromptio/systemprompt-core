@@ -41,6 +41,44 @@ pub struct ProfileGenInputs {
     pub organization_uuid: Option<String>,
 }
 
+impl ProfileGenInputs {
+    pub fn builder(
+        gateway_base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        models: Vec<String>,
+    ) -> ProfileGenInputsBuilder {
+        ProfileGenInputsBuilder {
+            gateway_base_url: gateway_base_url.into(),
+            api_key: api_key.into(),
+            models,
+            organization_uuid: None,
+        }
+    }
+}
+
+pub struct ProfileGenInputsBuilder {
+    gateway_base_url: String,
+    api_key: String,
+    models: Vec<String>,
+    organization_uuid: Option<String>,
+}
+
+impl ProfileGenInputsBuilder {
+    pub fn with_organization_uuid(mut self, uuid: impl Into<String>) -> Self {
+        self.organization_uuid = Some(uuid.into());
+        self
+    }
+
+    pub fn build(self) -> ProfileGenInputs {
+        ProfileGenInputs {
+            gateway_base_url: self.gateway_base_url,
+            api_key: self.api_key,
+            models: self.models,
+            organization_uuid: self.organization_uuid,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct GeneratedProfile {
     pub path: String,

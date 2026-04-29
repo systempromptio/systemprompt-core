@@ -1,7 +1,7 @@
+use crate::auth::secret::Secret;
+use crate::auth::setup;
 use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
-use crate::secret::Secret;
-use crate::setup;
 
 pub(crate) fn on_login_requested(app: &mut GuiApp, token: Secret, gateway: Option<String>) {
     let trimmed = Secret::new(token.expose().trim().to_owned());

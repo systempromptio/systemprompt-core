@@ -60,7 +60,7 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
 pub fn logout() -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
-    if let Err(e) = crate::cache::clear() {
+    if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
     if paths.config_file.exists() {
@@ -85,7 +85,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     remove_if_exists(&paths.pat_file)?;
     let config_removed = paths.config_file.exists();
     remove_if_exists(&paths.config_file)?;
-    if let Err(e) = crate::cache::clear() {
+    if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
     Ok(CleanReport {

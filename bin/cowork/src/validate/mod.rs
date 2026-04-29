@@ -1,6 +1,7 @@
-use crate::http::GatewayClient;
-use crate::paths::{self, Scope};
-use crate::{cache, config};
+use crate::auth::cache;
+use crate::config;
+use crate::config::paths::{self, Scope};
+use crate::gateway::GatewayClient;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckLevel {
