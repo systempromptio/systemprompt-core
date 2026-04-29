@@ -5,45 +5,33 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::shared::{
-    GeneratedProfile, KEYS_OF_INTEREST, ManagedDomain, ProfileGenInputs, make_uuids, now_unix,
-    redact_if_sensitive,
+    DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, now_unix, redact_if_sensitive,
 };
 use crate::install::xml::escape;
+use crate::integration::host_app::GeneratedProfile;
 
 const MANAGED_PREFS_ROOT: &str = "/Library/Managed Preferences";
 const PROFILE_TMPL: &str = include_str!("templates/claude_desktop_profile.mobileconfig.tmpl");
 
-pub(super) fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
-    let mut out = ManagedDomain {
-        domain: domain.to_string(),
-        ..Default::default()
-    };
+pub(super) fn read_domain(domain: &str) -> DomainRead {
+    let mut out = DomainRead::default();
 
     let plist_path = candidates(domain).into_iter().find(|p| p.exists());
 
     if let Some(path) = plist_path.as_ref() {
         out.source_path = Some(path.display().to_string());
-        out.installed = true;
     }
 
     let plist_json = plist_path
         .as_deref()
         .and_then(read_plist_as_json)
-        // JSON: protocol boundary — plist content is operator-defined; shape varies per
-        // managed-prefs domain
         .unwrap_or(serde_json::Value::Null);
 
     for key in KEYS_OF_INTEREST {
         if let Some(val) = read_key_value(&plist_json, domain, key) {
-            out.keys.insert(key.to_string(), val);
+            out.keys.insert((*key).to_string(), val);
         }
     }
-
-    out.missing_required = required
-        .iter()
-        .filter(|k| !out.keys.contains_key(**k))
-        .map(|k| (*k).to_string())
-        .collect();
 
     out
 }
@@ -110,8 +98,6 @@ fn candidates(domain: &str) -> Vec<PathBuf> {
     out
 }
 
-// JSON: protocol boundary — plist content is operator-defined; shape varies per
-// managed-prefs domain
 fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     let output = Command::new("/usr/bin/plutil")
         .arg("-convert")
@@ -127,8 +113,6 @@ fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     serde_json::from_slice(&output.stdout).ok()
 }
 
-// JSON: protocol boundary — plist content is operator-defined; shape varies per
-// managed-prefs domain
 fn read_key_value(plist_json: &serde_json::Value, domain: &str, key: &str) -> Option<String> {
     if let Some(val) = plist_json.get(key) {
         return Some(format_plist_value(key, val));
@@ -150,15 +134,9 @@ fn read_key_value(plist_json: &serde_json::Value, domain: &str, key: &str) -> Op
     Some(redact_if_sensitive(key, raw))
 }
 
-// JSON: protocol boundary — plist content is operator-defined; shape varies per
-// managed-prefs domain
 fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
     let rendered = match value {
-        // JSON: protocol boundary — plist content is operator-defined; shape varies per
-        // managed-prefs domain
         serde_json::Value::String(s) => s.clone(),
-        // JSON: protocol boundary — plist content is operator-defined; shape varies per
-        // managed-prefs domain
         serde_json::Value::Array(items) => items
             .iter()
             .filter_map(|v| v.as_str().map(str::to_string))
@@ -170,8 +148,12 @@ fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
 }
 
 fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &str) -> String {
-    let models_xml: String = inputs
-        .models
+    let models = if inputs.models.is_empty() {
+        super::shared::default_models()
+    } else {
+        inputs.models.clone()
+    };
+    let models_xml: String = models
         .iter()
         .map(|m| format!("            <string>{}</string>", escape(m)))
         .collect::<Vec<_>>()

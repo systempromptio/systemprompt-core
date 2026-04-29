@@ -1,7 +1,11 @@
+#![allow(dead_code)]
+
 use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+
+use crate::integration::host_app::HostConfigSchema;
 
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
 pub(super) const CODE_DOMAIN: &str = "com.anthropic.claudecode";
@@ -16,76 +20,27 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "deploymentOrganizationUuid",
 ];
 
+pub(super) const REQUIRED_KEYS: &[&str] = &[
+    "inferenceProvider",
+    "inferenceGatewayBaseUrl",
+    "inferenceGatewayApiKey",
+    "inferenceModels",
+];
+
+pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
+    required_keys: REQUIRED_KEYS,
+    display_keys: KEYS_OF_INTEREST,
+};
+
 const DEFAULT_MODELS: &[&str] = &["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"];
 
-#[derive(Debug, Clone, Serialize, Default)]
-pub struct ManagedPrefsState {
-    pub desktop: ManagedDomain,
-    pub code: ManagedDomain,
-}
-
-#[derive(Debug, Clone, Serialize, Default)]
-pub struct ManagedDomain {
-    pub domain: String,
+#[derive(Debug, Clone, Default)]
+pub(super) struct DomainRead {
     pub source_path: Option<String>,
-    pub installed: bool,
     pub keys: BTreeMap<String, String>,
-    pub missing_required: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ProfileGenInputs {
-    pub gateway_base_url: String,
-    pub api_key: String,
-    pub models: Vec<String>,
-    pub organization_uuid: Option<String>,
-}
-
-impl ProfileGenInputs {
-    pub fn builder(
-        gateway_base_url: impl Into<String>,
-        api_key: impl Into<String>,
-        models: Vec<String>,
-    ) -> ProfileGenInputsBuilder {
-        ProfileGenInputsBuilder {
-            gateway_base_url: gateway_base_url.into(),
-            api_key: api_key.into(),
-            models,
-            organization_uuid: None,
-        }
-    }
-}
-
-pub struct ProfileGenInputsBuilder {
-    gateway_base_url: String,
-    api_key: String,
-    models: Vec<String>,
-    organization_uuid: Option<String>,
-}
-
-impl ProfileGenInputsBuilder {
-    pub fn with_organization_uuid(mut self, uuid: impl Into<String>) -> Self {
-        self.organization_uuid = Some(uuid.into());
-        self
-    }
-
-    pub fn build(self) -> ProfileGenInputs {
-        ProfileGenInputs {
-            gateway_base_url: self.gateway_base_url,
-            api_key: self.api_key,
-            models: self.models,
-            organization_uuid: self.organization_uuid,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct GeneratedProfile {
-    pub path: String,
-    pub bytes: usize,
-    pub payload_uuid: String,
-    pub profile_uuid: String,
-}
+pub use crate::integration::host_app::ProfileGenInputs;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GenerateProfileBody {

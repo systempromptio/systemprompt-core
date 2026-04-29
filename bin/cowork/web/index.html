@@ -31,9 +31,6 @@
         <span class="rail-glyph">◉</span><span class="rail-label">Status</span>
         <span class="rail-count" id="rail-count-status" hidden></span>
       </button>
-      <button class="rail-tab" data-tab="identity" role="tab" aria-selected="false" type="button">
-        <span class="rail-glyph">◐</span><span class="rail-label">Identity</span>
-      </button>
       <button class="rail-tab" data-tab="settings" role="tab" aria-selected="false" type="button">
         <span class="rail-glyph">⚙</span><span class="rail-label">Settings</span>
       </button>
@@ -91,103 +88,137 @@
       <section class="tab-panel" data-tab="status" role="tabpanel" hidden>
         <header class="tab-header">
           <h1>Status</h1>
-          <span id="claude-overall" class="badge badge-muted">probing…</span>
+          <span id="overall-badge" class="badge badge-muted">checking…</span>
         </header>
 
-        <table class="status-board">
-          <tbody>
-            <tr>
-              <th>Gateway</th>
-              <td>
-                <div class="status-row">
-                  <span id="server-dot" class="dot dot-unknown" aria-hidden="true"></span>
-                  <span id="server-state-text">checking…</span>
-                </div>
-                <div id="server-endpoint" class="status-detail mono muted">—</div>
-                <div class="status-detail muted"><span id="server-probe">—</span></div>
-                <div id="server-status" hidden></div>
-              </td>
-              <td class="status-actions">
-                <button id="btn-recheck" class="ghost" type="button">Re-check</button>
-              </td>
-            </tr>
-            <tr>
-              <th>Configuration profile</th>
-              <td>
-                <div class="status-row">
-                  <span id="claude-profile-dot" class="dot dot-unknown" aria-hidden="true"></span>
-                  <span id="claude-profile-text">checking…</span>
-                </div>
-                <div id="claude-profile-detail" class="status-detail mono muted">—</div>
-              </td>
-              <td class="status-actions">
-                <button id="btn-claude-generate" class="primary" type="button">Generate</button>
-                <button id="btn-claude-install"  class="ghost"   type="button" disabled>Install</button>
-                <button id="btn-claude-reverify" class="ghost"   type="button">Re-verify</button>
-              </td>
-            </tr>
-            <tr>
-              <th>Inference gateway</th>
-              <td>
-                <div class="status-row">
-                  <span id="claude-gateway-dot" class="dot dot-unknown" aria-hidden="true"></span>
-                  <span id="claude-gateway-text">checking…</span>
-                </div>
-                <div id="claude-gateway-detail" class="status-detail mono muted">—</div>
-              </td>
-              <td class="status-actions"></td>
-            </tr>
-            <tr>
-              <th>Claude.app</th>
-              <td>
-                <div class="status-row">
-                  <span id="claude-running-dot" class="dot dot-unknown" aria-hidden="true"></span>
-                  <span id="claude-running-text">checking…</span>
-                </div>
-                <div id="claude-running-detail" class="status-detail mono muted">—</div>
-              </td>
-              <td class="status-actions"></td>
-            </tr>
-          </tbody>
-        </table>
+        <section class="status-group" data-group="cloud">
+          <header class="status-group-header">
+            <h2>systemprompt cloud</h2>
+            <p class="status-group-caption">The hosted control plane cowork talks to. Identity and PAT live here.</p>
+          </header>
+          <table class="status-board">
+            <tbody>
+              <tr>
+                <th>Reachability</th>
+                <td>
+                  <div class="status-row">
+                    <span id="server-dot" class="dot dot-unknown" aria-hidden="true"></span>
+                    <span id="server-state-text">checking…</span>
+                  </div>
+                  <div id="server-endpoint" class="status-detail mono muted">—</div>
+                  <div class="status-detail muted">last probe <span id="server-probe">—</span></div>
+                </td>
+                <td class="status-actions">
+                  <button id="btn-recheck" class="ghost" type="button">Re-check</button>
+                </td>
+              </tr>
+              <tr>
+                <th>Identity</th>
+                <td>
+                  <div class="status-row">
+                    <span id="identity-dot" class="dot dot-unknown" aria-hidden="true"></span>
+                    <span id="identity" class="value muted">(not signed in)</span>
+                  </div>
+                  <div class="status-detail muted">
+                    user <span id="identity-user" class="mono">—</span> ·
+                    tenant <span id="identity-tenant" class="mono">—</span>
+                  </div>
+                  <div class="status-detail muted">
+                    token <span id="token-state">no cached JWT</span>
+                  </div>
+                </td>
+                <td class="status-actions">
+                  <button id="btn-logout" class="ghost" type="button">Log out</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
 
-        <details class="status-prefs">
-          <summary>Resolved managed prefs</summary>
-          <pre id="claude-prefs" class="log">—</pre>
-        </details>
+        <section class="status-group" data-group="proxy">
+          <header class="status-group-header">
+            <h2>Local proxy</h2>
+            <p class="status-group-caption">The 127.0.0.1 endpoint host apps call instead of the Anthropic API.</p>
+          </header>
+          <table class="status-board">
+            <tbody>
+              <tr>
+                <th>Health</th>
+                <td>
+                  <div class="status-row">
+                    <span id="proxy-dot" class="dot dot-unknown" aria-hidden="true"></span>
+                    <span id="proxy-text">checking…</span>
+                  </div>
+                  <div id="proxy-detail" class="status-detail mono muted">—</div>
+                </td>
+                <td class="status-actions"></td>
+              </tr>
+              <tr>
+                <th>Inference endpoints</th>
+                <td>
+                  <div class="status-row">
+                    <span id="endpoints-dot" class="dot dot-unknown" aria-hidden="true"></span>
+                    <span id="endpoints-text">—</span>
+                  </div>
+                  <div class="status-detail muted">Models the proxy advertises to host apps.</div>
+                </td>
+                <td class="status-actions"></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
 
-        <div id="claude-jwt-warn" class="claude-warn" hidden></div>
-      </section>
+        <section class="status-group" data-group="hosts" id="hosts-group">
+          <header class="status-group-header">
+            <h2>Host apps</h2>
+            <p class="status-group-caption">Third-party apps routed through cowork. Each app has its own configuration profile.</p>
+          </header>
+          <div id="hosts-list"></div>
+        </section>
 
-      <section class="tab-panel" data-tab="identity" role="tabpanel" hidden>
-        <header class="tab-header">
-          <h1>Identity</h1>
-        </header>
-        <div class="kv-grid">
-          <div class="kv">
-            <label>Signed in as</label>
-            <div id="identity" class="value muted">(not signed in)</div>
-          </div>
-          <div class="kv">
-            <label>User</label>
-            <div id="identity-user" class="value mono muted">—</div>
-          </div>
-          <div class="kv">
-            <label>Tenant</label>
-            <div id="identity-tenant" class="value mono muted">—</div>
-          </div>
-          <div class="kv">
-            <label>Gateway URL</label>
-            <div id="identity-gateway" class="value mono muted">—</div>
-          </div>
-          <div class="kv">
-            <label>Token cache</label>
-            <div id="token-state" class="value muted">no cached JWT</div>
-          </div>
-        </div>
-        <div class="row">
-          <button id="btn-logout" class="ghost" type="button">Log out</button>
-        </div>
+        <template id="host-card-template">
+          <article class="host-card">
+            <header class="host-card-head">
+              <h3 class="host-card-name">—</h3>
+              <span class="host-card-badge badge badge-muted" data-role="badge">checking…</span>
+            </header>
+            <table class="status-board">
+              <tbody>
+                <tr>
+                  <th>Configuration profile</th>
+                  <td>
+                    <div class="status-row">
+                      <span class="dot dot-unknown" data-role="profile-dot" aria-hidden="true"></span>
+                      <span data-role="profile-text">checking…</span>
+                    </div>
+                    <div class="status-detail mono muted" data-role="profile-detail">—</div>
+                  </td>
+                  <td class="status-actions">
+                    <button class="primary" data-role="generate" type="button">Generate</button>
+                    <button class="ghost"   data-role="install"  type="button" disabled>Install</button>
+                    <button class="ghost"   data-role="reverify" type="button">Re-verify</button>
+                  </td>
+                </tr>
+                <tr>
+                  <th>Process</th>
+                  <td>
+                    <div class="status-row">
+                      <span class="dot dot-unknown" data-role="running-dot" aria-hidden="true"></span>
+                      <span data-role="running-text">checking…</span>
+                    </div>
+                    <div class="status-detail mono muted" data-role="running-detail">—</div>
+                  </td>
+                  <td class="status-actions"></td>
+                </tr>
+              </tbody>
+            </table>
+            <details class="status-prefs">
+              <summary>Resolved profile keys</summary>
+              <pre class="log" data-role="prefs">—</pre>
+            </details>
+            <div class="claude-warn" data-role="jwt-warn" hidden></div>
+          </article>
+        </template>
       </section>
 
       <section class="tab-panel" data-tab="settings" role="tabpanel" hidden>

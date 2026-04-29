@@ -5,7 +5,7 @@ use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use crate::gui::claude::events::ClaudeUiEvent;
+use crate::gui::hosts::events::HostUiEvent;
 
 #[derive(Debug, Clone)]
 pub enum UiEvent {
@@ -32,5 +32,5 @@ pub enum UiEvent {
     StateRefreshed,
 
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    Claude(ClaudeUiEvent),
+    Host(HostUiEvent),
 }

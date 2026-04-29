@@ -7,7 +7,6 @@ pub mod gui;
 pub mod http_local;
 pub mod ids;
 pub mod install;
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub mod integration;
 pub mod obs;
 pub mod proxy;

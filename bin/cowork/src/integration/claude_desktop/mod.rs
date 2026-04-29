@@ -1,5 +1,5 @@
-mod gateway_probe;
 mod shared;
+pub mod win_reg_parser;
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -11,66 +11,70 @@ use macos as os;
 #[cfg(target_os = "windows")]
 use windows as os;
 
-use serde::Serialize;
+pub use shared::{GenerateProfileBody, ProfileGenInputs, default_models};
 
-pub use gateway_probe::{GatewayHealth, GatewayProbeState};
-pub use shared::{
-    GenerateProfileBody, GeneratedProfile, ManagedDomain, ManagedPrefsState, ProfileGenInputs,
-    default_models,
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::integration::host_app::{
+    GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProfileState,
 };
 
-#[derive(Debug, Clone, Serialize, Default)]
-pub struct ClaudeIntegrationSnapshot {
-    pub managed_prefs: ManagedPrefsState,
-    pub gateway_health: GatewayHealth,
-    pub claude_running: bool,
-    pub claude_processes: Vec<String>,
-    pub probed_at_unix: u64,
-}
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub struct ClaudeDesktopHost;
 
-pub fn probe() -> ClaudeIntegrationSnapshot {
-    let managed_prefs = ManagedPrefsState {
-        desktop: os::read_domain(
-            shared::DESKTOP_DOMAIN,
-            &[
-                "inferenceProvider",
-                "inferenceGatewayBaseUrl",
-                "inferenceGatewayApiKey",
-                "inferenceModels",
-            ],
-        ),
-        code: os::read_domain(shared::CODE_DOMAIN, &[]),
-    };
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub static CLAUDE_DESKTOP_HOST: ClaudeDesktopHost = ClaudeDesktopHost;
 
-    let gateway_url = managed_prefs
-        .desktop
-        .keys
-        .get("inferenceGatewayBaseUrl")
-        .cloned();
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+impl HostApp for ClaudeDesktopHost {
+    fn id(&self) -> &'static str {
+        "claude-desktop"
+    }
 
-    let gateway_health = match gateway_url.as_deref() {
-        Some(url) if !url.is_empty() => gateway_probe::probe_gateway(url),
-        _ => GatewayHealth {
-            url: None,
-            state: GatewayProbeState::Unconfigured,
-            ..Default::default()
-        },
-    };
+    fn display_name(&self) -> &'static str {
+        "Claude Desktop"
+    }
 
-    let claude_processes = os::list_claude_processes();
-    ClaudeIntegrationSnapshot {
-        managed_prefs,
-        gateway_health,
-        claude_running: !claude_processes.is_empty(),
-        claude_processes,
-        probed_at_unix: shared::now_unix(),
+    fn config_schema(&self) -> &'static HostConfigSchema {
+        &shared::SCHEMA
+    }
+
+    fn probe(&self) -> HostAppSnapshot {
+        let read = os::read_domain(shared::DESKTOP_DOMAIN);
+        let profile_state = ProfileState::from_keys(shared::REQUIRED_KEYS, &read.keys);
+        let processes = os::list_claude_processes();
+        HostAppSnapshot {
+            host_id: self.id(),
+            display_name: self.display_name(),
+            profile_state,
+            profile_source: read.source_path,
+            profile_keys: read.keys,
+            host_running: !processes.is_empty(),
+            host_processes: processes,
+            probed_at_unix: shared::now_unix(),
+        }
+    }
+
+    fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+        os::write_profile(inputs)
+    }
+
+    fn install_profile(&self, path: &str) -> std::io::Result<()> {
+        os::install_profile(path)
+    }
+
+    fn install_action_label(&self) -> &'static str {
+        if cfg!(target_os = "windows") {
+            "imported into Windows Registry"
+        } else {
+            "loaded into managed preferences"
+        }
     }
 }
 
-pub fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    os::write_profile(inputs)
-}
-
-pub fn install_profile(path: &str) -> std::io::Result<()> {
-    os::install_profile(path)
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub fn proxy_url_from_keys(snap: &HostAppSnapshot) -> Option<&str> {
+    snap.profile_keys
+        .get("inferenceGatewayBaseUrl")
+        .map(|s| s.as_str())
+        .filter(|s| !s.is_empty())
 }

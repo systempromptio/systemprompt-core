@@ -187,70 +187,301 @@
   $("btn-settings-change-gateway")?.addEventListener("click", () => {
     document.body.classList.add("setup-mode");
   });
-  $("btn-claude-generate").addEventListener("click", () => post("/api/claude/profile/generate"));
-  $("btn-claude-reverify").addEventListener("click", () => post("/api/claude/probe"));
-  $("btn-claude-install").addEventListener("click", () => {
-    const path = $("btn-claude-install").dataset.path || lastSnapshot?.last_generated_profile;
-    if (!path) { append("No generated profile yet — click Generate first."); return; }
-    post("/api/claude/profile/install", { path });
-  });
 
   let lastSnapshot = null;
+  const hostCards = new Map();
 
-  function renderServer(snap) {
+  function setDot(el, cls) {
+    if (!el) return;
+    el.classList.remove("dot-unknown", "dot-probing", "dot-ok", "dot-err", "dot-warn");
+    el.classList.add(cls);
+  }
+
+  function setBadge(el, text, cls) {
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove("badge-muted", "badge-ok", "badge-warn", "badge-err");
+    el.classList.add(cls);
+  }
+
+  function renderCloud(snap) {
     const status = snap.gateway_status || { state: "unknown" };
     const dot = $("server-dot");
     const text = $("server-state-text");
-    dot.classList.remove("dot-unknown", "dot-probing", "dot-ok", "dot-err");
     let label = "unknown";
+    let cls = "dot-unknown";
     switch (status.state) {
-      case "reachable":
-        dot.classList.add("dot-ok");
-        label = `reachable · ${status.latency_ms}ms`;
-        break;
-      case "probing":
-        dot.classList.add("dot-probing");
-        label = "probing…";
-        break;
-      case "unreachable":
-        dot.classList.add("dot-err");
-        label = `unreachable · ${status.reason || "unknown error"}`;
-        break;
-      default:
-        dot.classList.add("dot-unknown");
-        label = "unknown";
+      case "reachable": cls = "dot-ok";      label = `reachable · ${status.latency_ms}ms`; break;
+      case "probing":   cls = "dot-probing"; label = "probing…"; break;
+      case "unreachable": cls = "dot-err";   label = `unreachable · ${status.reason || "unknown error"}`; break;
+      default:          cls = "dot-unknown"; label = "unknown";
     }
+    setDot(dot, cls);
     text.textContent = label;
     $("server-endpoint").textContent = snap.gateway_url || "—";
     $("server-endpoint").classList.toggle("muted", !snap.gateway_url);
     $("server-probe").textContent = fmtRelative(snap.last_probe_at_unix);
     $("server-probe").classList.toggle("muted", !snap.last_probe_at_unix);
-  }
 
-  function renderIdentity(snap) {
-    const reachable = snap.gateway_status && snap.gateway_status.state === "reachable";
+    const reachable = status.state === "reachable";
     const id = snap.verified_identity;
     const idEl = $("identity");
+    const idDot = $("identity-dot");
     if (!reachable) {
+      setDot(idDot, "dot-unknown");
       idEl.textContent = "(gateway unreachable)";
       idEl.classList.add("muted");
     } else if (id && (id.email || id.user_id)) {
+      setDot(idDot, "dot-ok");
       idEl.textContent = id.email || id.user_id;
       idEl.classList.remove("muted");
     } else if (snap.pat_present) {
+      setDot(idDot, "dot-probing");
       idEl.textContent = "(verifying credentials…)";
       idEl.classList.add("muted");
     } else {
+      setDot(idDot, "dot-warn");
       idEl.textContent = "(not signed in)";
       idEl.classList.add("muted");
     }
     $("identity-user").textContent = id && id.user_id ? id.user_id : "—";
-    $("identity-user").classList.toggle("muted", !(id && id.user_id));
     $("identity-tenant").textContent = id && id.tenant_id ? id.tenant_id : "—";
-    $("identity-tenant").classList.toggle("muted", !(id && id.tenant_id));
+
+    const tokenState = snap.cached_token
+      ? `cached JWT • ${snap.cached_token.length} bytes • ttl ${snap.cached_token.ttl_seconds}s`
+      : (snap.pat_present ? "PAT stored — JWT will refresh on next probe" : "no token");
+    $("token-state").textContent = tokenState;
   }
 
-  function renderMarketplace(snap) {
+  function renderProxy(snap) {
+    const proxy = snap.local_proxy || { state: "Unknown" };
+    const state = (proxy.state || "Unknown").toString();
+    const dot = $("proxy-dot");
+    const text = $("proxy-text");
+    let cls = "dot-unknown";
+    let label = state;
+    switch (state) {
+      case "Listening":    cls = "dot-ok";   label = `listening · ${proxy.latency_ms ?? "?"}ms`; break;
+      case "Refused":      cls = "dot-err";  label = "connection refused"; break;
+      case "Timeout":      cls = "dot-err";  label = "timed out"; break;
+      case "HttpError":    cls = "dot-err";  label = `error: ${proxy.error || "unknown"}`; break;
+      case "Unconfigured": cls = "dot-warn"; label = "awaiting first host-app probe"; break;
+      default:             cls = "dot-unknown"; label = "checking…";
+    }
+    setDot(dot, cls);
+    text.textContent = label;
+    $("proxy-detail").textContent = proxy.url || "(no proxy URL configured yet)";
+    $("proxy-detail").classList.toggle("muted", !proxy.url);
+
+    const models = collectInferenceModels(snap);
+    const epDot = $("endpoints-dot");
+    const epText = $("endpoints-text");
+    if (models.length === 0) {
+      setDot(epDot, "dot-unknown");
+      epText.textContent = "no models configured yet";
+      epText.classList.add("muted");
+    } else {
+      setDot(epDot, "dot-ok");
+      epText.textContent = models.join(", ");
+      epText.classList.remove("muted");
+    }
+  }
+
+  function collectInferenceModels(snap) {
+    const seen = new Set();
+    const out = [];
+    for (const host of (snap.host_apps || [])) {
+      const raw = host.snapshot?.profile_keys?.inferenceModels;
+      if (!raw) continue;
+      for (const m of raw.split(",")) {
+        const t = m.trim();
+        if (t && !seen.has(t)) { seen.add(t); out.push(t); }
+      }
+    }
+    return out;
+  }
+
+  function ensureHostCard(host) {
+    let card = hostCards.get(host.id);
+    if (card) return card;
+    const tmpl = $("host-card-template");
+    const node = tmpl.content.firstElementChild.cloneNode(true);
+    node.dataset.hostId = host.id;
+    const refs = {
+      root: node,
+      name: node.querySelector(".host-card-name"),
+      badge: node.querySelector('[data-role="badge"]'),
+      profileDot: node.querySelector('[data-role="profile-dot"]'),
+      profileText: node.querySelector('[data-role="profile-text"]'),
+      profileDetail: node.querySelector('[data-role="profile-detail"]'),
+      runningDot: node.querySelector('[data-role="running-dot"]'),
+      runningText: node.querySelector('[data-role="running-text"]'),
+      runningDetail: node.querySelector('[data-role="running-detail"]'),
+      btnGenerate: node.querySelector('[data-role="generate"]'),
+      btnInstall: node.querySelector('[data-role="install"]'),
+      btnReverify: node.querySelector('[data-role="reverify"]'),
+      prefs: node.querySelector('[data-role="prefs"]'),
+      jwtWarn: node.querySelector('[data-role="jwt-warn"]'),
+    };
+    refs.btnGenerate.addEventListener("click", () =>
+      post(`/api/hosts/${encodeURIComponent(host.id)}/profile/generate`));
+    refs.btnReverify.addEventListener("click", () =>
+      post(`/api/hosts/${encodeURIComponent(host.id)}/probe`));
+    refs.btnInstall.addEventListener("click", () => {
+      const path = refs.btnInstall.dataset.path;
+      if (!path) { append(`[${host.id}] No generated profile yet — click Generate first.`); return; }
+      post(`/api/hosts/${encodeURIComponent(host.id)}/profile/install`, { path });
+    });
+    $("hosts-list").appendChild(node);
+    hostCards.set(host.id, refs);
+    return refs;
+  }
+
+  function renderHostCard(host, snap) {
+    const refs = ensureHostCard(host);
+    refs.name.textContent = host.display_name;
+    if (host.last_generated_profile) {
+      refs.btnInstall.disabled = false;
+      refs.btnInstall.dataset.path = host.last_generated_profile;
+      refs.btnInstall.title = host.last_generated_profile;
+    } else {
+      refs.btnInstall.disabled = true;
+      delete refs.btnInstall.dataset.path;
+      refs.btnInstall.title = "Generate first";
+    }
+
+    const hs = host.snapshot;
+    if (!hs) {
+      setBadge(refs.badge, "probing…", "badge-muted");
+      return;
+    }
+
+    const profileState = hs.profile_state || { kind: "absent" };
+    const missing = profileState.missing_required || [];
+    const installed = profileState.kind === "installed";
+    const partial = profileState.kind === "partial";
+    if (installed) {
+      setDot(refs.profileDot, "dot-ok");
+      refs.profileText.textContent = "installed";
+    } else if (partial) {
+      setDot(refs.profileDot, "dot-warn");
+      refs.profileText.textContent = `partial (missing: ${missing.join(", ")})`;
+    } else {
+      setDot(refs.profileDot, "dot-err");
+      refs.profileText.textContent = "not installed";
+    }
+    refs.profileDetail.textContent = hs.profile_source || "—";
+    refs.profileDetail.classList.toggle("muted", !hs.profile_source);
+
+    if (hs.host_running) {
+      setDot(refs.runningDot, "dot-ok");
+      refs.runningText.textContent = "running";
+      refs.runningDetail.textContent = (hs.host_processes || []).join(", ") || "process detected";
+      refs.runningDetail.classList.remove("muted");
+    } else {
+      setDot(refs.runningDot, "dot-warn");
+      refs.runningText.textContent = "not running";
+      refs.runningDetail.textContent = "launch the app to verify routing";
+      refs.runningDetail.classList.add("muted");
+    }
+
+    const proxyState = (snap.local_proxy?.state || "Unknown").toString();
+    let badgeText, badgeCls;
+    if (!installed) {
+      badgeText = "profile not installed";
+      badgeCls = "badge-warn";
+    } else if (partial) {
+      badgeText = "partial";
+      badgeCls = "badge-warn";
+    } else if (proxyState === "Unconfigured") {
+      badgeText = "awaiting first launch";
+      badgeCls = "badge-warn";
+    } else if (proxyState === "Listening") {
+      badgeText = "healthy";
+      badgeCls = "badge-ok";
+    } else {
+      badgeText = "local proxy down";
+      badgeCls = "badge-err";
+    }
+    setBadge(refs.badge, badgeText, badgeCls);
+
+    const lines = [];
+    const keys = hs.profile_keys || {};
+    if (Object.keys(keys).length === 0) {
+      lines.push("(no keys present)");
+    } else {
+      for (const [k, v] of Object.entries(keys)) lines.push(`${k} = ${v}`);
+    }
+    refs.prefs.textContent = lines.join("\n");
+
+    if (snap.cached_token && snap.cached_token.ttl_seconds < 600 && installed) {
+      refs.jwtWarn.hidden = false;
+      refs.jwtWarn.textContent = `JWT in profile expires in ~${snap.cached_token.ttl_seconds}s — re-generate before it lapses.`;
+    } else {
+      refs.jwtWarn.hidden = true;
+      refs.jwtWarn.textContent = "";
+    }
+  }
+
+  function renderHosts(snap) {
+    const list = snap.host_apps || [];
+    const presentIds = new Set(list.map((h) => h.id));
+    for (const [id, refs] of hostCards.entries()) {
+      if (!presentIds.has(id)) {
+        refs.root.remove();
+        hostCards.delete(id);
+      }
+    }
+    if (list.length === 0) {
+      const placeholder = $("hosts-list");
+      if (placeholder && placeholder.children.length === 0) {
+        placeholder.innerHTML = '<div class="muted" style="padding:14px 18px;">No host apps registered on this platform.</div>';
+      }
+      return;
+    } else {
+      const placeholder = $("hosts-list");
+      const noHostsMsg = placeholder?.querySelector(":scope > .muted");
+      if (noHostsMsg) noHostsMsg.remove();
+    }
+    for (const host of list) {
+      renderHostCard(host, snap);
+    }
+  }
+
+  function renderOverallBadge(snap) {
+    const cloudState = (snap.gateway_status?.state || "unknown");
+    if (cloudState === "probing" || cloudState === "unknown") {
+      setBadge($("overall-badge"), "checking…", "badge-muted");
+      return;
+    }
+    if (cloudState === "unreachable") {
+      setBadge($("overall-badge"), "cloud unreachable", "badge-err");
+      return;
+    }
+    const hosts = snap.host_apps || [];
+    if (hosts.length === 0) {
+      setBadge($("overall-badge"), "no host apps", "badge-muted");
+      return;
+    }
+    const proxyState = (snap.local_proxy?.state || "Unknown").toString();
+    const anyAbsent = hosts.some((h) => (h.snapshot?.profile_state?.kind || "absent") === "absent");
+    const anyPartial = hosts.some((h) => h.snapshot?.profile_state?.kind === "partial");
+    const allInstalled = hosts.every((h) => h.snapshot?.profile_state?.kind === "installed");
+    if (anyAbsent) { setBadge($("overall-badge"), "profile not installed", "badge-warn"); return; }
+    if (anyPartial) { setBadge($("overall-badge"), "profile partial", "badge-warn"); return; }
+    if (allInstalled && proxyState === "Unconfigured") {
+      setBadge($("overall-badge"), "awaiting first launch", "badge-warn"); return;
+    }
+    if (allInstalled && proxyState === "Listening") {
+      setBadge($("overall-badge"), "healthy", "badge-ok"); return;
+    }
+    if (allInstalled) {
+      setBadge($("overall-badge"), "local proxy down", "badge-err"); return;
+    }
+    setBadge($("overall-badge"), "checking…", "badge-muted");
+  }
+
+  function renderMarketplaceBadge(snap) {
     const badge = $("marketplace-status");
     badge.classList.remove("badge-muted", "badge-ok", "badge-warn", "badge-err");
     if (!snap.signed_in) {
@@ -268,133 +499,15 @@
     }
   }
 
-  function setDot(id, cls) {
-    const el = $(id);
-    if (!el) return;
-    el.classList.remove("dot-unknown", "dot-probing", "dot-ok", "dot-err", "dot-warn");
-    el.classList.add(cls);
-  }
-
-  function setBadge(id, text, cls) {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text;
-    el.classList.remove("badge-muted", "badge-ok", "badge-warn", "badge-err");
-    el.classList.add(cls);
-  }
-
-  function renderInstallButton(snap) {
-    const installBtn = $("btn-claude-install");
-    if (snap.last_generated_profile) {
-      installBtn.disabled = false;
-      installBtn.dataset.path = snap.last_generated_profile;
-      installBtn.title = snap.last_generated_profile;
-    } else {
-      installBtn.disabled = true;
-      installBtn.removeAttribute("data-path");
-      installBtn.title = "Generate first";
-    }
-  }
-
-  function renderClaude(snap) {
-    renderInstallButton(snap);
-    const ci = snap.claude_integration;
-    if (!ci) {
-      setBadge("claude-overall", "probing…", "badge-muted");
-      return;
-    }
-
-    const desktop = ci.managed_prefs?.desktop;
-    const profileInstalled = !!desktop?.installed;
-    const missing = desktop?.missing_required || [];
-    if (profileInstalled && missing.length === 0) {
-      setDot("claude-profile-dot", "dot-ok");
-      $("claude-profile-text").textContent = "installed";
-      $("claude-profile-detail").textContent = desktop.plist_path || "";
-      $("claude-profile-detail").classList.remove("muted");
-    } else if (profileInstalled) {
-      setDot("claude-profile-dot", "dot-warn");
-      $("claude-profile-text").textContent = `partial (missing: ${missing.join(", ")})`;
-      $("claude-profile-detail").textContent = desktop.plist_path || "";
-      $("claude-profile-detail").classList.remove("muted");
-    } else {
-      setDot("claude-profile-dot", "dot-err");
-      $("claude-profile-text").textContent = "not installed";
-      $("claude-profile-detail").textContent = "no managed plist for com.anthropic.claudefordesktop";
-      $("claude-profile-detail").classList.add("muted");
-    }
-
-    const gh = ci.gateway_health || { state: "Unknown" };
-    const gstate = (gh.state || "Unknown").toString();
-    if (gstate === "Listening") {
-      setDot("claude-gateway-dot", "dot-ok");
-      $("claude-gateway-text").textContent = `listening · ${gh.latency_ms ?? "?"}ms`;
-    } else if (gstate === "Refused") {
-      setDot("claude-gateway-dot", "dot-err");
-      $("claude-gateway-text").textContent = "connection refused";
-    } else if (gstate === "Timeout") {
-      setDot("claude-gateway-dot", "dot-err");
-      $("claude-gateway-text").textContent = "timed out";
-    } else if (gstate === "Unconfigured") {
-      setDot("claude-gateway-dot", "dot-warn");
-      $("claude-gateway-text").textContent = "not yet configured";
-    } else {
-      setDot("claude-gateway-dot", "dot-unknown");
-      $("claude-gateway-text").textContent = gstate;
-    }
-    $("claude-gateway-detail").textContent = gh.url || "";
-    $("claude-gateway-detail").classList.toggle("muted", !gh.url);
-
-    if (ci.claude_running) {
-      setDot("claude-running-dot", "dot-ok");
-      $("claude-running-text").textContent = "running";
-      $("claude-running-detail").textContent = (ci.claude_processes || []).join(", ") || "process detected";
-      $("claude-running-detail").classList.remove("muted");
-    } else {
-      setDot("claude-running-dot", "dot-warn");
-      $("claude-running-text").textContent = "not running";
-      $("claude-running-detail").textContent = "launch Claude.app to verify routing";
-      $("claude-running-detail").classList.add("muted");
-    }
-
-    const overall = profileInstalled && gstate === "Listening" && missing.length === 0
-      ? ["healthy", "badge-ok"]
-      : profileInstalled && gstate !== "Listening"
-        ? ["gateway down", "badge-err"]
-        : !profileInstalled
-          ? ["profile missing", "badge-warn"]
-          : ["partial", "badge-warn"];
-    setBadge("claude-overall", overall[0], overall[1]);
-
-    const prefsLines = [];
-    const dKeys = desktop?.keys || {};
-    if (Object.keys(dKeys).length === 0) {
-      prefsLines.push("(no keys present)");
-    } else {
-      for (const [k, v] of Object.entries(dKeys)) prefsLines.push(`${k} = ${v}`);
-    }
-    $("claude-prefs").textContent = prefsLines.join("\n");
-
-    const warn = $("claude-jwt-warn");
-    if (snap.cached_token && snap.cached_token.ttl_seconds < 600 && profileInstalled) {
-      warn.hidden = false;
-      warn.textContent = `JWT in profile expires in ~${snap.cached_token.ttl_seconds}s — re-generate before it lapses.`;
-    } else {
-      warn.hidden = true;
-      warn.textContent = "";
-    }
-  }
-
   function applySnapshot(snap) {
     lastSnapshot = snap;
-    renderServer(snap);
-    renderIdentity(snap);
-    renderMarketplace(snap);
-    renderClaude(snap);
+    renderCloud(snap);
+    renderProxy(snap);
+    renderHosts(snap);
+    renderOverallBadge(snap);
+    renderMarketplaceBadge(snap);
 
     applySetupMode(snap);
-    $("identity-gateway").textContent = snap.gateway_url || "—";
-    $("identity-gateway").classList.toggle("muted", !snap.gateway_url);
     $("plugins-dir").textContent = snap.plugins_dir || "—";
     $("last-sync").textContent = snap.last_sync_summary || "never";
     $("last-sync").classList.toggle("muted", !snap.last_sync_summary);
@@ -412,12 +525,6 @@
     if ($("settings-gateway"))      { $("settings-gateway").textContent      = snap.gateway_url || "—"; $("settings-gateway").classList.toggle("muted", !snap.gateway_url); }
     if ($("settings-plugins-dir"))  { $("settings-plugins-dir").textContent  = snap.plugins_dir || "—"; $("settings-plugins-dir").classList.toggle("muted", !snap.plugins_dir); }
     if ($("settings-config"))       { $("settings-config").textContent       = snap.config_file || "—"; $("settings-config").classList.toggle("muted", !snap.config_file); }
-
-    const tokenState = snap.cached_token
-      ? `cached JWT • ${snap.cached_token.length} bytes • ttl ${snap.cached_token.ttl_seconds}s`
-      : (snap.pat_present ? "PAT stored — JWT will refresh on next probe" : "no token");
-    $("token-state").textContent = tokenState;
-    $("token-state").classList.toggle("muted", !snap.cached_token);
 
     const pill = $("sync-pill");
     pill.classList.remove("pill-idle", "pill-running", "pill-ok", "pill-err");

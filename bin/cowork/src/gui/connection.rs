@@ -62,6 +62,16 @@ struct InstallProfileBody {
     path: String,
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn parse_host_id(path: &str, prefix: &str, suffix: &str) -> Option<String> {
+    let rest = path.strip_prefix(prefix)?;
+    let id = rest.strip_suffix(suffix)?;
+    if id.is_empty() || id.contains('/') {
+        return None;
+    }
+    Some(id.to_string())
+}
+
 #[tracing::instrument(skip_all, fields(peer = ?stream.peer_addr().ok()))]
 pub fn handle_connection(mut stream: TcpStream, ctx: ConnectionContext<'_>) -> std::io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
@@ -71,7 +81,7 @@ pub fn handle_connection(mut stream: TcpStream, ctx: ConnectionContext<'_>) -> s
         Ok(r) => r,
         Err(e) => {
             tracing::debug!(error = %e, "request parse failed");
-            return write_response(&mut stream, 400, "text/plain", e.as_bytes());
+            return write_response(&mut stream, 400, "text/plain", e.to_string().as_bytes());
         },
     };
 
@@ -197,26 +207,50 @@ fn handle_action(
             },
         },
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        "/api/claude/probe" => {
-            UiEvent::Claude(crate::gui::claude::events::ClaudeUiEvent::ProbeRequested)
+        "/api/proxy/probe" => {
+            UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProxyProbeRequested)
         },
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        "/api/claude/profile/generate" => {
-            UiEvent::Claude(crate::gui::claude::events::ClaudeUiEvent::ProfileGenerateRequested)
+        p if p.starts_with("/api/hosts/") && p.ends_with("/probe") => {
+            match parse_host_id(p, "/api/hosts/", "/probe") {
+                Some(host_id) => {
+                    UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProbeRequested {
+                        host_id,
+                    })
+                },
+                None => return write_response(stream, 404, "text/plain", b"not found"),
+            }
         },
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        "/api/claude/profile/install" => match serde_json::from_slice::<InstallProfileBody>(body) {
-            Ok(b) => UiEvent::Claude(
-                crate::gui::claude::events::ClaudeUiEvent::ProfileInstallRequested(b.path),
-            ),
-            Err(e) => {
-                return write_response(
-                    stream,
-                    400,
-                    "text/plain",
-                    format!("bad install body: {e}").as_bytes(),
-                );
-            },
+        p if p.starts_with("/api/hosts/") && p.ends_with("/profile/generate") => {
+            match parse_host_id(p, "/api/hosts/", "/profile/generate") {
+                Some(host_id) => UiEvent::Host(
+                    crate::gui::hosts::events::HostUiEvent::ProfileGenerateRequested { host_id },
+                ),
+                None => return write_response(stream, 404, "text/plain", b"not found"),
+            }
+        },
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        p if p.starts_with("/api/hosts/") && p.ends_with("/profile/install") => {
+            match parse_host_id(p, "/api/hosts/", "/profile/install") {
+                Some(host_id) => match serde_json::from_slice::<InstallProfileBody>(body) {
+                    Ok(b) => UiEvent::Host(
+                        crate::gui::hosts::events::HostUiEvent::ProfileInstallRequested {
+                            host_id,
+                            path: b.path,
+                        },
+                    ),
+                    Err(e) => {
+                        return write_response(
+                            stream,
+                            400,
+                            "text/plain",
+                            format!("bad install body: {e}").as_bytes(),
+                        );
+                    },
+                },
+                None => return write_response(stream, 404, "text/plain", b"not found"),
+            }
         },
         _ => return write_response(stream, 404, "text/plain", b"not found"),
     };

@@ -407,6 +407,47 @@ body:not(.setup-mode) .setup { display: none; }
 }
 .status-prefs[open] summary { color: var(--text); }
 
+.status-group { margin-bottom: 22px; }
+.status-group:last-child { margin-bottom: 0; }
+.status-group-header {
+  margin: 0 0 10px;
+  padding: 0 4px;
+}
+.status-group-header h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  color: var(--brand);
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+.status-group-caption {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+#hosts-list { display: flex; flex-direction: column; gap: 14px; }
+.host-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--corners-card);
+  overflow: hidden;
+}
+.host-card .status-board {
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+}
+.host-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+}
+.host-card-name { margin: 0; font-size: 14px; font-weight: 600; }
+.host-card .status-prefs { padding: 0 18px 10px; }
+.host-card .claude-warn { margin: 0 18px 14px; }
+
 .kv-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
