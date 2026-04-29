@@ -137,12 +137,11 @@ async fn run_listener(
 
 async fn bind_listener(port: u16) -> std::io::Result<TcpListener> {
     let v6: SocketAddr = SocketAddr::from(([0u16, 0, 0, 0, 0, 0, 0, 0], port));
-    match TcpListener::bind(v6).await {
-        Ok(l) => Ok(l),
-        Err(_) => {
-            let v4: SocketAddr = SocketAddr::from(([127u8, 0, 0, 1], port));
-            TcpListener::bind(v4).await
-        },
+    if let Ok(l) = TcpListener::bind(v6).await {
+        Ok(l)
+    } else {
+        let v4: SocketAddr = SocketAddr::from(([127u8, 0, 0, 1], port));
+        TcpListener::bind(v4).await
     }
 }
 
@@ -252,6 +251,5 @@ fn now_unix() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs())
 }

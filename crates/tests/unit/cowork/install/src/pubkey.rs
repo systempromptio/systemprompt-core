@@ -118,7 +118,7 @@ fn policy_pubkey_env_overrides_operator_set_value() {
         std::env::remove_var("SP_COWORK_POLICY_PUBKEY");
     }
 
-    assert_eq!(pinned.as_deref(), Some("POLICY-KEY-BBBB"));
+    assert_eq!(pinned.as_ref().map(|p| p.as_str()), Some("POLICY-KEY-BBBB"));
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn policy_pubkey_env_seeds_when_no_operator_value() {
         std::env::remove_var("SP_COWORK_POLICY_PUBKEY");
     }
 
-    assert_eq!(pinned.as_deref(), Some("POLICY-KEY-CCCC"));
+    assert_eq!(pinned.as_ref().map(|p| p.as_str()), Some("POLICY-KEY-CCCC"));
 }
 
 #[test]
@@ -174,5 +174,5 @@ fn policy_pubkey_helper_returns_env_value() {
     unsafe {
         std::env::remove_var("SP_COWORK_POLICY_PUBKEY");
     }
-    assert_eq!(v.as_deref(), Some("FROM-POLICY-DDDD"));
+    assert_eq!(v.as_ref().map(|p| p.as_str()), Some("FROM-POLICY-DDDD"));
 }

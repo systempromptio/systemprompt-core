@@ -7,6 +7,7 @@ use super::claude_desktop::CLAUDE_DESKTOP_HOST;
 #[cfg(feature = "dev-stub-host")]
 use super::stub_host::STUB_HOST;
 
+#[allow(clippy::vec_init_then_push)]
 static REGISTRY: LazyLock<Vec<&'static dyn HostApp>> = LazyLock::new(|| {
     #[allow(unused_mut)]
     let mut entries: Vec<&'static dyn HostApp> = Vec::new();
@@ -21,6 +22,7 @@ pub fn host_apps() -> &'static [&'static dyn HostApp] {
     REGISTRY.as_slice()
 }
 
-pub fn host_by_id(id: &str) -> Option<&'static dyn HostApp> {
+#[must_use]
+pub fn find_host_by_id(id: &str) -> Option<&'static dyn HostApp> {
     REGISTRY.iter().copied().find(|h| h.id() == id)
 }

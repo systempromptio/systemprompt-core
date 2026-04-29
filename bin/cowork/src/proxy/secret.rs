@@ -9,6 +9,7 @@ use crate::ids::{LoopbackSecret, ProxySecret};
 
 const LOOPBACK_FILENAME: &str = "cowork-loopback.key";
 
+#[must_use]
 pub fn secret_path() -> Option<PathBuf> {
     let base = dirs::config_dir()?;
     Some(base.join("systemprompt").join(LOOPBACK_FILENAME))
@@ -42,6 +43,7 @@ pub fn load_or_mint_typed() -> std::io::Result<LoopbackSecret> {
     Ok(LoopbackSecret::new(secret))
 }
 
+#[must_use]
 pub fn verify(presented: &str, expected: &ProxySecret) -> bool {
     constant_time_eq(presented.as_bytes(), expected.as_str().as_bytes())
 }

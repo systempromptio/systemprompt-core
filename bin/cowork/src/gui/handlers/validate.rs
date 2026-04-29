@@ -2,6 +2,7 @@ use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
 use crate::validate;
 
+#[tracing::instrument(level = "debug", skip(app))]
 pub(crate) fn on_validate_requested(app: &mut GuiApp) {
     app.append_log("Running validation…");
     app.pool

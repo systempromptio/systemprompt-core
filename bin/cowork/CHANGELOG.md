@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Round 2 — pedantic-clean + tracing parity
+
+Closes the entire `clippy::pedantic` lint set on the `bin/cowork` crate (174 → 0) and brings tracing instrumentation parity across the proxy, auth, GUI handler, and sync/apply paths. No behavioural changes.
+
+- `bin/cowork/src/lib.rs` — crate-level `#![allow(...)]` for `missing_errors_doc`, `missing_panics_doc`, `module_name_repetitions`, `similar_names`. The first two contradict the project standard ("delete rustdoc"); the latter two are noise on the deliberate per-module `*Error` convention.
+- ~63 `#[must_use]` attributes added across `auth/`, `config/`, `gateway/`, `http_local/`, `install/`, `integration/`, `proxy/`, `schedule/`, `sync/` for pure pub fns and builder methods.
+- `Option::map(...).unwrap_or(...)` → `map_or(...)` / `map_or_else(...)`; `is_some_and(...)` adopted; `match Some/None` blocks rewritten as `let-else`; needless `continue` on for-loop tail arms collapsed into `{}` or merged variant patterns.
+- `String::push_str(&format!(...))` → `let _ = writeln!(out, ...)` via `std::fmt::Write` (concentrated in `install/summary.rs`, ~14 sites).
+- Tracing spans added on `proxy::forward::forward`, `auth::setup::{login, logout, set_gateway_url, clean}`, `gui::handlers::{auth, sync, validate, settings, gateway_probe}::on_*_requested`, and `sync::apply::{skill::write_skills, agent::write_agents, mcp::write_managed_mcp_fragment}` — bringing parity with `apply::plugin` instrumented in Wave 2C. Span sites emit `info!`/`warn!`/`debug!` at decision points (auth missing, upstream non-2xx, etc.).
+- Misc cleanups: `match_same_arms` collapsed (`SyncError::exit_code`); `r#"…"#` → `r"…"` where unnecessary (`install/mdm`); dropped redundant `200 => "OK"` arm in `http_local/response::reason_phrase`; `Option<MessageVisitor<'a>>` lifetime elided.
+
 ### Host integration refactor — `gui/claude/` → `gui/hosts/`, host registry, proxy probe
 
 Generalises the Claude-Desktop-specific GUI integration surface into a host-agnostic registry so future host apps (Cursor, Zed, Continue, etc.) can plug in without forking the dispatch tree.

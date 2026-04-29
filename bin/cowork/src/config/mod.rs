@@ -2,6 +2,7 @@ pub mod paths;
 mod profile;
 
 use serde::Deserialize;
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Once};
 use std::{env, fs};
@@ -84,6 +85,7 @@ impl Config {
         cfg
     }
 
+    #[must_use]
     pub fn with_policy_overrides(mut self) -> Self {
         let Some(policy_value) = policy_pubkey() else {
             return self;
@@ -117,10 +119,12 @@ impl Config {
     }
 }
 
+#[must_use]
 pub fn load() -> Config {
     Config::load().with_policy_overrides()
 }
 
+#[must_use]
 pub fn config_path() -> Option<PathBuf> {
     if let Ok(explicit) = env::var("SP_COWORK_CONFIG") {
         return Some(PathBuf::from(explicit));
@@ -144,7 +148,7 @@ pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
     if !next.is_empty() && !next.ends_with('\n') {
         next.push('\n');
     }
-    next.push_str(&format!("gateway_url = \"{url}\"\n"));
+    let _ = writeln!(next, "gateway_url = \"{url}\"");
     fs::write(&path, next)
 }
 

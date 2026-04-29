@@ -16,6 +16,7 @@ impl DeviceCertSource for LinuxKeystore {
     }
 }
 
+#[must_use]
 pub fn platform_source() -> Box<dyn DeviceCertSource> {
     Box::new(LinuxKeystore)
 }

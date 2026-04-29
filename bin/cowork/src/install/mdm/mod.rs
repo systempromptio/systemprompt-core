@@ -40,6 +40,7 @@ pub fn apply_mdm(
     }
 }
 
+#[must_use]
 pub fn windows_policy_values(
     binary: &Path,
     gateway: &str,
@@ -85,7 +86,7 @@ Windows Registry Editor Version 5.00
 "#
         ),
         Os::Linux => format!(
-            r#"Anthropic does not document an MDM format for Linux.
+            r"Anthropic does not document an MDM format for Linux.
 Environment-based configuration (user shell profile or systemd-user Environment=):
 
 export CLAUDE_INFERENCE_PROVIDER=gateway
@@ -93,7 +94,7 @@ export CLAUDE_INFERENCE_GATEWAY_BASE_URL={gateway}
 export CLAUDE_INFERENCE_CREDENTIAL_HELPER={binary}
 export CLAUDE_INFERENCE_CREDENTIAL_HELPER_TTL_SEC=3600
 export CLAUDE_INFERENCE_GATEWAY_AUTH_SCHEME=bearer
-"#
+"
         ),
     }
 }

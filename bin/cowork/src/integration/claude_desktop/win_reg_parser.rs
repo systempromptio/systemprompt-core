@@ -1,3 +1,4 @@
+#[must_use]
 pub fn parse_reg_line(line: &str) -> Option<(String, String)> {
     let mut iter = line.split_whitespace();
     let name = iter.next()?.to_string();

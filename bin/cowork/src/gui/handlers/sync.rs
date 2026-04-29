@@ -3,6 +3,7 @@ use crate::gui::error::GuiError;
 use crate::gui::events::UiEvent;
 use crate::{config, sync};
 
+#[tracing::instrument(level = "debug", skip(app))]
 pub(crate) fn on_sync_requested(app: &mut GuiApp) {
     if app.state.snapshot().sync_in_flight {
         return;

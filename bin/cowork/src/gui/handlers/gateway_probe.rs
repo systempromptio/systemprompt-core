@@ -6,6 +6,7 @@ use crate::gui::state::{
     GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
 };
 
+#[tracing::instrument(level = "debug", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp) {
     app.state.mark_probing();
     app.refresh_ui();

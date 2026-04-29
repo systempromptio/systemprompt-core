@@ -23,11 +23,11 @@ pub enum ProxyProbeState {
     HttpError,
 }
 
+#[must_use]
 pub fn probe(url: Option<&str>) -> ProxyHealth {
     let probed_at_unix = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs());
     let Some(url) = url.filter(|s| !s.is_empty()) else {
         return ProxyHealth {
             state: ProxyProbeState::Unconfigured,
@@ -52,17 +52,14 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
     };
 
     let addr = format!("{host}:{port}");
-    let resolved = match resolve_first(&addr) {
-        Some(a) => a,
-        None => {
-            return ProxyHealth {
-                url: Some(url.to_string()),
-                state: ProxyProbeState::HttpError,
-                error: Some(format!("cannot resolve {addr}")),
-                probed_at_unix,
-                ..Default::default()
-            };
-        },
+    let Some(resolved) = resolve_first(&addr) else {
+        return ProxyHealth {
+            url: Some(url.to_string()),
+            state: ProxyProbeState::HttpError,
+            error: Some(format!("cannot resolve {addr}")),
+            probed_at_unix,
+            ..Default::default()
+        };
     };
 
     let stream = match std::net::TcpStream::connect_timeout(
@@ -125,9 +122,8 @@ fn resolve_first(addr: &str) -> Option<std::net::SocketAddr> {
 }
 
 fn parse_host_port(raw: &str) -> Result<(String, u16), String> {
-    let (scheme, rest) = match raw.split_once("://") {
-        Some(v) => v,
-        None => return Err(format!("missing scheme in {raw}")),
+    let Some((scheme, rest)) = raw.split_once("://") else {
+        return Err(format!("missing scheme in {raw}"));
     };
     let default_port: u16 = match scheme.to_ascii_lowercase().as_str() {
         "http" => 80,

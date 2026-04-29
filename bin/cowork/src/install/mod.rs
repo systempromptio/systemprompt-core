@@ -137,9 +137,10 @@ fn bootstrap_install(
                  system path. Re-run as root: `sudo {} install --apply` (or use the install \
                  script). Underlying error: {e}",
                 location.path.display(),
-                std::env::current_exe()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|_| "systemprompt-cowork".into()),
+                std::env::current_exe().map_or_else(
+                    |_| "systemprompt-cowork".into(),
+                    |p| p.display().to_string()
+                ),
             )
         } else {
             format!("directory bootstrap failed: {e}")
@@ -232,6 +233,7 @@ fn run_apply(
         .map_err(InstallError::MdmApply)
 }
 
+#[must_use]
 pub fn os_label(os: Os) -> &'static str {
     mdm::os_label(os)
 }

@@ -16,6 +16,7 @@ pub struct Request {
 }
 
 impl Request {
+    #[must_use]
     pub fn header(&self, name: &str) -> Option<&str> {
         self.headers
             .iter()
@@ -23,6 +24,7 @@ impl Request {
             .map(|(_, v)| v.as_str())
     }
 
+    #[must_use]
     pub fn target(&self) -> String {
         if self.query.is_empty() {
             self.path.clone()

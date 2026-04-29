@@ -54,6 +54,7 @@ pub struct GenerateProfileBody {
     pub organization_uuid: Option<String>,
 }
 
+#[must_use]
 pub fn default_models() -> Vec<String> {
     DEFAULT_MODELS.iter().map(|s| (*s).to_string()).collect()
 }
@@ -61,8 +62,7 @@ pub fn default_models() -> Vec<String> {
 pub(super) fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs())
 }
 
 pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {

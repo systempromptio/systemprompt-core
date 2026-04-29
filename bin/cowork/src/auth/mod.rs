@@ -13,6 +13,7 @@ use crate::auth::providers::{AuthError, AuthProvider};
 use crate::auth::types::HelperOutput;
 use crate::config;
 
+#[must_use]
 pub fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
     if let Some(out) = cache::read_valid() {
         return Some(out);
@@ -20,6 +21,7 @@ pub fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
     mint_fresh(cfg)
 }
 
+#[must_use]
 pub fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<HelperOutput> {
     if let Some(out) = cache::read_with_threshold(threshold_secs) {
         return Some(out);
@@ -27,11 +29,11 @@ pub fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<Help
     mint_fresh(cfg)
 }
 
+#[must_use]
 pub fn has_credential_source(cfg: &config::Config) -> bool {
     if std::env::var("SP_COWORK_PAT")
         .ok()
-        .filter(|s| !s.is_empty())
-        .is_some()
+        .is_some_and(|s| !s.is_empty())
     {
         return true;
     }
@@ -65,6 +67,7 @@ fn expand_home(path: &str) -> String {
     path.to_string()
 }
 
+#[must_use]
 pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
     vec![
         Box::new(MtlsProvider::new(cfg)),
@@ -73,6 +76,7 @@ pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
     ]
 }
 
+#[must_use]
 pub fn mint_fresh(cfg: &config::Config) -> Option<HelperOutput> {
     let chain = provider_chain(cfg);
     for p in &chain {
@@ -81,8 +85,7 @@ pub fn mint_fresh(cfg: &config::Config) -> Option<HelperOutput> {
                 let _ = cache::write(&out);
                 return Some(out);
             },
-            Err(AuthError::NotConfigured) => continue,
-            Err(AuthError::Failed(_)) => {},
+            Err(AuthError::NotConfigured | AuthError::Failed(_)) => {},
         }
     }
     None

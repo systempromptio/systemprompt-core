@@ -44,8 +44,7 @@ pub mod tracing_init {
             tracing::info!(
                 "log file: {}",
                 log_file_path()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "<disabled>".to_string())
+                    .map_or_else(|| "<disabled>".to_string(), |p| p.display().to_string())
             );
         });
     }
@@ -139,7 +138,7 @@ pub mod tracing_init {
 
     struct MessageVisitor<'a>(&'a mut String);
 
-    impl<'a> Visit for MessageVisitor<'a> {
+    impl Visit for MessageVisitor<'_> {
         fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
             if field.name() == "message" {
                 self.0.push_str(value);

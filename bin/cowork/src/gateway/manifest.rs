@@ -6,7 +6,7 @@ use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
+pub use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -199,41 +199,49 @@ pub struct SignedManifestBuilder {
 }
 
 impl SignedManifestBuilder {
+    #[must_use]
     pub fn with_tenant_id(mut self, tenant_id: impl Into<TenantId>) -> Self {
         self.tenant_id = Some(tenant_id.into());
         self
     }
 
+    #[must_use]
     pub fn with_user(mut self, user: UserInfo) -> Self {
         self.user = Some(user);
         self
     }
 
+    #[must_use]
     pub fn with_plugins(mut self, plugins: Vec<PluginEntry>) -> Self {
         self.plugins = plugins;
         self
     }
 
+    #[must_use]
     pub fn with_skills(mut self, skills: Vec<SkillEntry>) -> Self {
         self.skills = skills;
         self
     }
 
+    #[must_use]
     pub fn with_agents(mut self, agents: Vec<AgentEntry>) -> Self {
         self.agents = agents;
         self
     }
 
+    #[must_use]
     pub fn with_managed_mcp_servers(mut self, servers: Vec<ManagedMcpServer>) -> Self {
         self.managed_mcp_servers = servers;
         self
     }
 
+    #[must_use]
     pub fn with_revocations(mut self, revocations: Vec<String>) -> Self {
         self.revocations = revocations;
         self
     }
 
+    #[must_use]
     pub fn build(self) -> SignedManifest {
         SignedManifest {
             manifest_version: self.manifest_version,

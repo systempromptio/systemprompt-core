@@ -46,6 +46,7 @@ pub enum ForwardError {
 
 pub type ForwardResult<T> = Result<T, ForwardError>;
 
+#[tracing::instrument(level = "debug", skip(req, client, gateway_base), fields(method = %req.method(), path = %req.uri().path()))]
 pub async fn forward(
     req: Request<Incoming>,
     client: reqwest::Client,
@@ -79,6 +80,11 @@ pub async fn forward(
 
     let status = StatusCode::from_u16(upstream_response.status().as_u16())
         .unwrap_or(StatusCode::BAD_GATEWAY);
+    if status.is_success() {
+        tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
+    } else {
+        tracing::warn!(upstream_status = status.as_u16(), %url, "upstream non-2xx");
+    }
 
     let mut response_builder = Response::builder().status(status);
     if let Some(headers_mut) = response_builder.headers_mut() {
@@ -169,6 +175,7 @@ fn is_hop_by_hop(name: &str) -> bool {
     HOP_BY_HOP.iter().any(|h| name.eq_ignore_ascii_case(h))
 }
 
+#[must_use]
 pub fn is_client_disconnect(err: &ForwardError) -> bool {
     matches!(
         err,

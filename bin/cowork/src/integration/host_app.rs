@@ -19,10 +19,12 @@ pub enum ProfileState {
 }
 
 impl ProfileState {
+    #[must_use]
     pub fn is_installed(&self) -> bool {
         matches!(self, Self::Installed)
     }
 
+    #[must_use]
     pub fn from_keys(required: &[&str], present: &BTreeMap<String, String>) -> Self {
         if present.is_empty() {
             return Self::Absent;

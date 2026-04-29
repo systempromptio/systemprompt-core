@@ -27,10 +27,9 @@ pub(crate) fn cmd_run() -> ExitCode {
                 }
                 return ExitCode::SUCCESS;
             },
-            Err(AuthError::NotConfigured) => continue,
+            Err(AuthError::NotConfigured) => {},
             Err(AuthError::Failed(msg)) => {
                 diag(&format!("{}: {msg}", provider.name()));
-                continue;
             },
         }
     }

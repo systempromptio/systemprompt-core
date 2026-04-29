@@ -11,6 +11,7 @@ pub struct LastSyncState {
     pub last_applied_manifest_version: Option<String>,
 }
 
+#[must_use]
 pub fn read_last_sync(path: &Path) -> LastSyncState {
     let Ok(bytes) = fs::read(path) else {
         return LastSyncState::default();

@@ -51,6 +51,8 @@ pub fn org_plugins_user() -> Option<PathBuf> {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[must_use]
+#[allow(clippy::unnecessary_wraps)]
 pub fn org_plugins_system() -> Option<PathBuf> {
     Some(PathBuf::from("/opt/Claude/org-plugins"))
 }
@@ -63,6 +65,7 @@ pub fn org_plugins_user() -> Option<PathBuf> {
         .map(|base| base.join("Claude").join("org-plugins"))
 }
 
+#[must_use]
 pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     #[cfg(target_os = "macos")]
     {
@@ -101,10 +104,12 @@ fn probe_writable(path: &std::path::Path) -> bool {
     false
 }
 
+#[must_use]
 pub fn metadata_dir(org_plugins: &std::path::Path) -> PathBuf {
     org_plugins.join(METADATA_DIR)
 }
 
+#[must_use]
 pub fn staging_dir(org_plugins: &std::path::Path) -> PathBuf {
     org_plugins.join(STAGING_DIR)
 }

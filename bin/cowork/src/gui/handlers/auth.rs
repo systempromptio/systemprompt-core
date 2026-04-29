@@ -4,6 +4,7 @@ use crate::gui::GuiApp;
 use crate::gui::error::GuiError;
 use crate::gui::events::UiEvent;
 
+#[tracing::instrument(level = "debug", skip(app, token), fields(has_gateway = gateway.is_some()))]
 pub(crate) fn on_login_requested(app: &mut GuiApp, token: &Secret, gateway: Option<String>) {
     let trimmed = Secret::new(token.expose().trim().to_owned());
     if trimmed.is_empty() {
@@ -45,6 +46,7 @@ pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), GuiError>) 
     app.refresh_ui();
 }
 
+#[tracing::instrument(level = "debug", skip(app))]
 pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str) {
     let trimmed = gateway.trim().to_owned();
     if trimmed.is_empty() {
@@ -82,6 +84,7 @@ pub(crate) fn on_set_gateway_finished(app: &mut GuiApp, result: Result<(), GuiEr
     app.refresh_ui();
 }
 
+#[tracing::instrument(level = "debug", skip(app))]
 pub(crate) fn on_logout_requested(app: &mut GuiApp) {
     app.append_log("Logging out…");
     app.pool.spawn_task(
