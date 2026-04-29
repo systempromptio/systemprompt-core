@@ -12,6 +12,30 @@ use crate::auth::providers::session::SessionProvider;
 use crate::auth::providers::{AuthError, AuthProvider};
 use crate::auth::types::HelperOutput;
 use crate::config;
+use crate::obs::output::diag;
+
+#[must_use]
+pub fn acquire_bearer(cfg: &config::Config) -> Option<HelperOutput> {
+    if let Some(out) = cache::read_valid() {
+        return Some(out);
+    }
+    let chain = provider_chain(cfg);
+    for p in &chain {
+        match p.authenticate() {
+            Ok(out) => {
+                if let Err(e) = cache::write(&out) {
+                    diag(&format!("cache write failed (continuing): {e}"));
+                }
+                return Some(out);
+            },
+            Err(AuthError::NotConfigured) => {},
+            Err(e @ AuthError::Failed { .. }) => {
+                diag(&format!("{}: {e}", p.name()));
+            },
+        }
+    }
+    None
+}
 
 #[must_use]
 pub fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
