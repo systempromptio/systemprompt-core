@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 pub(crate) mod args;
 mod clean;
 mod gui;

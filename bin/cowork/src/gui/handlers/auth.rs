@@ -3,7 +3,7 @@ use crate::auth::setup;
 use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
 
-pub(crate) fn on_login_requested(app: &mut GuiApp, token: Secret, gateway: Option<String>) {
+pub(crate) fn on_login_requested(app: &mut GuiApp, token: &Secret, gateway: Option<String>) {
     let trimmed = Secret::new(token.expose().trim().to_owned());
     if trimmed.is_empty() {
         app.state.set_message("Login: PAT is empty");
@@ -44,7 +44,7 @@ pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), String>) {
     app.refresh_ui();
 }
 
-pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: String) {
+pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str) {
     let trimmed = gateway.trim().to_owned();
     if trimmed.is_empty() {
         app.state.set_message("Set gateway: URL is empty");

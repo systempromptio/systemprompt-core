@@ -71,7 +71,7 @@ pub enum CredentialsOutcome {
     PurgeFailed(String),
 }
 
-pub fn install(opts: InstallOptions) -> Result<InstallSummary, InstallError> {
+pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
     let binary = resolve_binary_path()?;
     let location = resolve_org_plugins()?;
 
@@ -80,7 +80,7 @@ pub fn install(opts: InstallOptions) -> Result<InstallSummary, InstallError> {
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
     let gateway_for_mdm = resolve_gateway_for_mdm(opts.gateway_url.as_deref());
-    let mdm = run_mdm_step(&opts, target_os, &binary, &gateway_for_mdm)?;
+    let mdm = run_mdm_step(opts, target_os, &binary, &gateway_for_mdm)?;
 
     let schedule = match opts.emit_schedule_template {
         Some(os) => Some(schedule_emit::emit_schedule(os, &binary)?),

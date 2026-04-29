@@ -32,7 +32,7 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
     const ALPHA: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut lookup = [0xFFu8; 256];
     for (i, b) in ALPHA.iter().enumerate() {
-        lookup[*b as usize] = i as u8;
+        lookup[*b as usize] = u8::try_from(i).unwrap_or(0xFF);
     }
     let trimmed = input.trim_end_matches('=');
     let mut out = Vec::with_capacity(trimmed.len() * 3 / 4);

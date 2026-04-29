@@ -28,7 +28,7 @@ pub(crate) fn spawn_probe(app: &GuiApp) {
             let started = std::time::Instant::now();
             let status = match client.health() {
                 Ok(()) => GatewayStatus::Reachable {
-                    latency_ms: started.elapsed().as_millis() as u64,
+                    latency_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
                 },
                 Err(e) => GatewayStatus::Unreachable {
                     reason: e.to_string(),

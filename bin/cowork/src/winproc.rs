@@ -52,7 +52,7 @@ pub(crate) fn is_elevated() -> bool {
             token,
             TokenElevation,
             elevation.as_mut_ptr().cast(),
-            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            u32::try_from(std::mem::size_of::<TOKEN_ELEVATION>()).unwrap_or(u32::MAX),
             &mut ret_len,
         );
         let elevated = ok != 0 && elevation.assume_init().TokenIsElevated != 0;
