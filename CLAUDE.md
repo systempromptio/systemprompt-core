@@ -107,7 +107,7 @@ let id = AgentId::from("agent_one");    // ❌
 
 The macro-generated `From` / `TryFrom` impls remain on the type — they are required for generic `Into<T>` bounds and for serde. The rule is about call-site idiom only.
 
-Sweep tracked under plan `standardize-typed-id-construction-imperative-zebra`.
+This is a convention, not a hard-enforced lint — a clippy/dylint rule was evaluated and rejected as too brittle. Reviewers should call out violations.
 
 ## Facade Crate (`systemprompt/`)
 
