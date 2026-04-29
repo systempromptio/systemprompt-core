@@ -1,3 +1,4 @@
+use crate::gateway::manifest_version::ManifestVersion;
 use crate::ids::{
     ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName, ToolName,
     ToolPolicy,
@@ -32,7 +33,7 @@ pub enum ManifestError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedManifest {
-    pub manifest_version: String,
+    pub manifest_version: ManifestVersion,
     pub issued_at: String,
     pub not_before: String,
     pub user_id: UserId,
@@ -160,14 +161,14 @@ impl SignedManifest {
 
 impl SignedManifest {
     pub fn builder(
-        manifest_version: impl Into<String>,
+        manifest_version: ManifestVersion,
         issued_at: impl Into<String>,
         not_before: impl Into<String>,
         user_id: impl Into<UserId>,
         signature: impl Into<ManifestSignature>,
     ) -> SignedManifestBuilder {
         SignedManifestBuilder {
-            manifest_version: manifest_version.into(),
+            manifest_version,
             issued_at: issued_at.into(),
             not_before: not_before.into(),
             user_id: user_id.into(),
@@ -184,7 +185,7 @@ impl SignedManifest {
 }
 
 pub struct SignedManifestBuilder {
-    manifest_version: String,
+    manifest_version: ManifestVersion,
     issued_at: String,
     not_before: String,
     user_id: UserId,
@@ -262,7 +263,7 @@ impl SignedManifestBuilder {
 
 #[derive(Serialize)]
 struct CanonicalView<'a> {
-    manifest_version: &'a str,
+    manifest_version: &'a ManifestVersion,
     issued_at: &'a str,
     not_before: &'a str,
     user_id: &'a UserId,

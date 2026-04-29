@@ -1,14 +1,19 @@
 use systemprompt_cowork::gateway::manifest::{
     AgentEntry, AgentId, AgentName, SignedManifest, SkillEntry, UserId, UserInfo, canonical_payload,
 };
+use systemprompt_cowork::gateway::manifest_version::ManifestVersion;
 use systemprompt_cowork::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
 
 const FAKE_SHA: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
+fn version(s: &str) -> ManifestVersion {
+    ManifestVersion::try_new(s).expect("valid manifest version literal")
+}
+
 #[test]
 fn canonical_payload_excludes_signature() {
     let m = SignedManifest {
-        manifest_version: "v1".into(),
+        manifest_version: version("2026-04-22T00:00:00Z-01abcdef"),
         issued_at: "2026-04-22T00:00:00Z".into(),
         not_before: "2026-04-22T00:00:00Z".into(),
         user_id: UserId::new("u1"),
@@ -23,13 +28,13 @@ fn canonical_payload_excludes_signature() {
     };
     let payload = canonical_payload(&m).unwrap();
     assert!(!payload.contains("SHOULD-NOT-APPEAR"));
-    assert!(payload.contains("v1"));
+    assert!(payload.contains("01abcdef"));
 }
 
 #[test]
 fn canonical_payload_includes_user_skills_agents() {
     let m = SignedManifest {
-        manifest_version: "v2".into(),
+        manifest_version: version("2026-04-22T00:00:00Z-02abcdef"),
         issued_at: "2026-04-22T00:00:00Z".into(),
         not_before: "2026-04-22T00:00:00Z".into(),
         user_id: UserId::new("u1"),
@@ -81,7 +86,7 @@ fn canonical_payload_includes_user_skills_agents() {
 #[test]
 fn canonical_payload_includes_not_before() {
     let m = SignedManifest {
-        manifest_version: "v3".into(),
+        manifest_version: version("2026-04-22T00:00:00Z-03abcdef"),
         issued_at: "2026-04-22T00:00:00Z".into(),
         not_before: "2026-04-22T01:00:00Z".into(),
         user_id: UserId::new("u1"),

@@ -6,7 +6,9 @@ mod replay;
 
 pub use apply::ApplyError;
 pub use error::SyncError;
-pub use replay::{LastSyncState, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync};
+pub use replay::{
+    LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,
+};
 
 use crate::config::{self, paths};
 use crate::gateway::manifest::SignedManifest;
@@ -100,7 +102,14 @@ pub fn run_once(
     let last_sync_path = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
     if !force_replay {
-        let last_state = read_last_sync(&last_sync_path);
+        let last_state = match read_last_sync(&last_sync_path) {
+            Ok(Some(s)) => s,
+            Ok(None) => LastSyncState::default(),
+            Err(e) => {
+                tracing::error!(error = %e, "replay state file is corrupt; refusing to apply");
+                return Err(SyncError::from(e));
+            },
+        };
         check_replay(&last_state, &fetch.manifest.manifest_version)?;
         check_skew(&fetch.manifest.not_before, now)?;
     }
@@ -129,8 +138,8 @@ fn persist_last_sync(
     }
     let sentinel = LastSyncSentinel {
         synced_at: current_iso8601(),
-        manifest_version: &manifest.manifest_version,
-        last_applied_manifest_version: &manifest.manifest_version,
+        manifest_version: manifest.manifest_version.as_str(),
+        last_applied_manifest_version: manifest.manifest_version.as_str(),
         last_applied_at: now.to_rfc3339(),
         installed_plugins: &report.installed,
         updated_plugins: &report.updated,
@@ -151,7 +160,7 @@ fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncS
         .map_or_else(|| manifest.user_id.to_string(), |u| u.email.clone());
     SyncSummary {
         identity,
-        manifest_version: manifest.manifest_version.clone(),
+        manifest_version: manifest.manifest_version.to_string(),
         plugin_count: manifest.plugins.len(),
         skill_count: manifest.skills.len(),
         agent_count: manifest.agents.len(),
