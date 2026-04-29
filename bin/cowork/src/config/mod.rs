@@ -5,6 +5,10 @@ use std::path::PathBuf;
 use std::sync::Once;
 use std::{env, fs};
 
+use systemprompt_identifiers::ValidatedUrl;
+
+use crate::ids::{KeystoreRef, PinnedPubKey};
+
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -25,7 +29,7 @@ pub struct Config {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ClaudeConfig {
     #[serde(default)]
-    pub inference_gateway_base_url: Option<String>,
+    pub inference_gateway_base_url: Option<ValidatedUrl>,
     #[serde(default)]
     pub auth_scheme: Option<String>,
     #[serde(default)]
@@ -55,7 +59,7 @@ pub struct MtlsConfig {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct SyncConfig {
     #[serde(default)]
-    pub pinned_pubkey: Option<String>,
+    pub pinned_pubkey: Option<PinnedPubKey>,
 }
 
 impl Config {
@@ -81,17 +85,17 @@ impl Config {
     }
 
     pub fn with_policy_overrides(mut self) -> Self {
-        let Some(policy_value) = policy_pubkey() else {
+        let Some(policy_value) = policy_pubkey_typed() else {
             return self;
         };
         let sync = self.sync.get_or_insert_with(SyncConfig::default);
-        match sync.pinned_pubkey.as_deref() {
+        match sync.pinned_pubkey.as_ref() {
             None => sync.pinned_pubkey = Some(policy_value),
-            Some(existing) if existing == policy_value => {},
+            Some(existing) if existing.as_str() == policy_value.as_str() => {},
             Some(existing) => {
                 static WARN_ONCE: Once = Once::new();
-                let existing_prefix: String = existing.chars().take(12).collect();
-                let policy_prefix: String = policy_value.chars().take(12).collect();
+                let existing_prefix: String = existing.as_str().chars().take(12).collect();
+                let policy_prefix: String = policy_value.as_str().chars().take(12).collect();
                 WARN_ONCE.call_once(|| {
                     tracing::warn!(
                         operator_pubkey_prefix = %existing_prefix,
@@ -104,16 +108,41 @@ impl Config {
         }
         self
     }
+
+    /// Typed accessor for the gateway URL; call sites migrated in phase 6.
+    #[must_use]
+    pub fn gateway_url_typed(&self) -> Option<ValidatedUrl> {
+        self.gateway_url
+            .as_deref()
+            .and_then(|s| ValidatedUrl::try_new(s).ok())
+    }
+
+    /// Typed accessor for the mTLS keystore reference; call sites migrated in phase 6.
+    #[must_use]
+    pub fn cert_keystore_ref_typed(&self) -> Option<KeystoreRef> {
+        self.mtls
+            .as_ref()
+            .and_then(|m| m.cert_keystore_ref.as_deref())
+            .and_then(|s| KeystoreRef::try_new(s).ok())
+    }
 }
 
 pub fn load() -> Config {
     Config::load().with_policy_overrides()
 }
 
+#[must_use]
 pub fn gateway_url_or_default(cfg: &Config) -> String {
     cfg.gateway_url
         .clone()
         .unwrap_or_else(|| DEFAULT_GATEWAY_URL.to_string())
+}
+
+/// Typed variant of [`gateway_url_or_default`]; call sites migrated in phase 6.
+#[must_use]
+pub fn gateway_url_or_default_typed(cfg: &Config) -> ValidatedUrl {
+    let raw = gateway_url_or_default(cfg);
+    ValidatedUrl::try_new(&raw).unwrap_or_else(|_| ValidatedUrl::new(DEFAULT_GATEWAY_URL))
 }
 
 pub fn config_path() -> Option<PathBuf> {
@@ -143,10 +172,23 @@ pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
     fs::write(&path, next)
 }
 
-pub fn pinned_pubkey() -> Option<String> {
+#[must_use]
+pub fn pinned_pubkey_typed() -> Option<PinnedPubKey> {
     load().sync.and_then(|s| s.pinned_pubkey)
 }
 
+/// Compatibility accessor; call sites migrated in phase 6.
+#[must_use]
+pub fn pinned_pubkey() -> Option<String> {
+    pinned_pubkey_typed().map(|k| k.as_str().to_string())
+}
+
+#[must_use]
+pub fn policy_pubkey_typed() -> Option<PinnedPubKey> {
+    policy_pubkey().map(PinnedPubKey::new)
+}
+
+#[must_use]
 pub fn policy_pubkey() -> Option<String> {
     if let Ok(value) = env::var("SP_COWORK_POLICY_PUBKEY") {
         let trimmed = value.trim();
@@ -234,4 +276,66 @@ fn strip_section<'a>(input: &'a str, header: &str) -> (&'a str, &'a str) {
         return (&input[..start], next_hdr.map_or("", |i| &input[i..]));
     }
     (input, "")
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn round_trip_full_config_preserves_wire_format() {
+        let toml_input = r#"gateway_url = "https://gateway.example.com"
+
+[pat]
+file = "/etc/cowork/pat.token"
+
+[session]
+enabled = true
+
+[mtls]
+cert_keystore_ref = "macos:my-cert-label"
+
+[sync]
+pinned_pubkey = "MCowBQYDK2VwAyEABase64Pubkey=="
+
+[claude]
+inference_gateway_base_url = "https://inference.example.com"
+auth_scheme = "bearer"
+models = ["claude-opus-4", "claude-sonnet-4"]
+organization_uuid = "abc-123"
+"#;
+        let cfg: Config = toml::from_str(toml_input).expect("parse toml");
+        assert_eq!(cfg.gateway_url.as_deref(), Some("https://gateway.example.com"));
+        assert_eq!(
+            cfg.mtls
+                .as_ref()
+                .and_then(|m| m.cert_keystore_ref.as_deref()),
+            Some("macos:my-cert-label"),
+        );
+        assert_eq!(
+            cfg.sync
+                .as_ref()
+                .and_then(|s| s.pinned_pubkey.as_ref())
+                .map(PinnedPubKey::as_str),
+            Some("MCowBQYDK2VwAyEABase64Pubkey=="),
+        );
+        assert_eq!(
+            cfg.claude
+                .as_ref()
+                .and_then(|c| c.inference_gateway_base_url.as_ref())
+                .map(ValidatedUrl::as_str),
+            Some("https://inference.example.com"),
+        );
+    }
+
+    #[test]
+    fn empty_inference_gateway_base_url_rejected() {
+        let toml_input = r#"
+[claude]
+inference_gateway_base_url = ""
+"#;
+        let result: Result<Config, _> = toml::from_str(toml_input);
+        assert!(result.is_err(), "empty ValidatedUrl must fail validation");
+    }
 }
