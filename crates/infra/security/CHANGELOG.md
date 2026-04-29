@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.3] - 2026-04-29
+
+### Added
+
+- `manifest_signing::sign_value<T: Serialize>` and `canonicalize<T>` for RFC 8785 (JCS) canonical JSON.
+
+### Changed
+
+- `manifest_signing::signing_key` reads its ed25519 seed directly from `manifest_signing_secret_seed`. JWT HMAC compromise no longer compromises manifest signatures.
+
+### Removed
+
+- **Breaking**: `DOMAIN_SEPARATOR` constant and the `Sha256(DOMAIN_SEPARATOR || jwt_secret)` derivation path.
+
+### Internal
+
+- `serde_jcs = "0.1"` added.
+
 ## [0.3.0] - 2026-04-22
 
 ### Fixed

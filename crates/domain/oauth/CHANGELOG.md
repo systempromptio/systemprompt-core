@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.3] - 2026-04-29
+
+### Changed
+
+- **Breaking**: `issue_cowork_access_with` mints `audience: vec![JwtAudience::Cowork]` instead of `JwtAudience::Api`. A cowork JWT no longer authorises generic API endpoints.
+
 ## [0.2.0] - 2026-04-15
 
 ### Removed (BREAKING)

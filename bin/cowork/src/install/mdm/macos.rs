@@ -14,17 +14,21 @@ const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
 const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
     include_str!("../templates/mobileconfig_pubkey_line.tmpl");
 
-pub fn build_prefs_plist(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
+fn loopback_api_key() -> String {
+    crate::proxy::secret::load_or_mint().unwrap_or_default()
+}
+
+pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
     let pubkey_block = pubkey
         .map(|pk| PREFS_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
         .unwrap_or_default();
     PREFS_PLIST_TMPL
         .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{binary_esc}", &xml::escape(&binary.to_string_lossy()))
+        .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
         .replace("{pubkey_block}", &pubkey_block)
 }
 
-pub fn build_mobileconfig(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
+pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
     let pubkey_block = pubkey
         .map(|pk| MOBILECONFIG_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
         .unwrap_or_default();
@@ -34,7 +38,7 @@ pub fn build_mobileconfig(binary: &Path, gateway: &str, pubkey: Option<&str>) ->
         .replace("{inner_uuid}", &xml::stable_uuid(INNER_PAYLOAD_IDENTIFIER))
         .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
         .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{binary_esc}", &xml::escape(&binary.to_string_lossy()))
+        .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
         .replace("{pubkey_block}", &pubkey_block)
 }
 
@@ -51,13 +55,13 @@ fn validate_gateway(gateway: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn apply(binary: &Path, gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
+pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     use std::fs;
     use std::process::Command;
 
     validate_gateway(gateway)?;
 
-    let plist = build_prefs_plist(binary, gateway, pubkey);
+    let plist = build_prefs_plist(gateway, pubkey);
     let tmp_path = std::env::temp_dir().join("systemprompt-cowork.prefs.plist");
     fs::write(&tmp_path, plist.as_bytes())
         .map_err(|e| format!("write {}: {e}", tmp_path.display()))?;
@@ -100,29 +104,17 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
         ));
     }
 
-    Ok(apply_summary(
-        dest_system,
-        &dest_user,
-        &user,
-        gateway,
-        binary,
-    ))
+    Ok(apply_summary(dest_system, &dest_user, &user, gateway))
 }
 
-fn apply_summary(
-    dest_system: &str,
-    dest_user: &str,
-    user: &str,
-    gateway: &str,
-    binary: &Path,
-) -> Vec<String> {
+fn apply_summary(dest_system: &str, dest_user: &str, user: &str, gateway: &str) -> Vec<String> {
     let mut summary = Vec::with_capacity(16);
     summary.push(format!("wrote: {dest_system}"));
     if !user.is_empty() {
         summary.push(format!("wrote: {dest_user}"));
     }
     summary.push(format!("gateway:           {gateway}"));
-    summary.push(format!("credential helper: {}", binary.display()));
+    summary.push("auth: inferenceGatewayApiKey = loopback secret (proxy-bound)".into());
     summary.push("restarted cfprefsd (managed prefs picked up on next app launch)".into());
     summary.push(
         "Verify: defaults read /Library/Managed\\ Preferences/com.anthropic.claudefordesktop"
@@ -147,17 +139,13 @@ fn apply_summary(
     summary
 }
 
-pub fn apply_mobileconfig(
-    binary: &Path,
-    gateway: &str,
-    pubkey: Option<&str>,
-) -> Result<Vec<String>, String> {
+pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     use std::fs;
     use std::process::Command;
 
     validate_gateway(gateway)?;
 
-    let mobileconfig = build_mobileconfig(binary, gateway, pubkey);
+    let mobileconfig = build_mobileconfig(gateway, pubkey);
     let out_path = std::env::temp_dir().join("systemprompt-cowork.mobileconfig");
     fs::write(&out_path, mobileconfig.as_bytes())
         .map_err(|e| format!("write {}: {e}", out_path.display()))?;

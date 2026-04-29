@@ -100,7 +100,7 @@ pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
     let gateway_for_mdm = resolve_gateway_for_mdm(gateway_str);
-    let mdm = run_mdm_step(opts, target_os, &binary, &gateway_for_mdm)?;
+    let mdm = run_mdm_step(opts, target_os, &gateway_for_mdm)?;
 
     let schedule = match opts.emit_schedule_template {
         Some(os) => Some(schedule_emit::emit_schedule(os, &binary)?),
@@ -183,36 +183,33 @@ fn resolve_gateway_for_mdm(cli_url: Option<&str>) -> String {
 fn run_mdm_step(
     opts: &InstallOptions,
     target_os: Os,
-    binary: &Path,
     gateway_for_mdm: &str,
 ) -> Result<MdmDisplay, InstallError> {
     let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
     if opts.apply_mobileconfig {
-        return run_apply_mobileconfig(binary, gateway_for_mdm, pubkey_str);
+        return run_apply_mobileconfig(gateway_for_mdm, pubkey_str);
     }
     if opts.apply {
-        return run_apply(target_os, binary, gateway_for_mdm, pubkey_str);
+        return run_apply(target_os, gateway_for_mdm, pubkey_str);
     }
     Ok(MdmDisplay::Snippet {
         os: target_os,
-        snippet: mdm::snippet(target_os, binary, Some(gateway_for_mdm)),
+        snippet: mdm::snippet(target_os, Some(gateway_for_mdm)),
     })
 }
 
 #[cfg(target_os = "macos")]
 fn run_apply_mobileconfig(
-    binary: &Path,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
-    mdm::macos::apply_mobileconfig(binary, gateway, pubkey)
+    mdm::macos::apply_mobileconfig(gateway, pubkey)
         .map(|lines| MdmDisplay::MobileconfigApplied { lines })
         .map_err(InstallError::MobileconfigApply)
 }
 
 #[cfg(not(target_os = "macos"))]
 fn run_apply_mobileconfig(
-    _binary: &Path,
     _gateway: &str,
     _pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
@@ -221,11 +218,10 @@ fn run_apply_mobileconfig(
 
 fn run_apply(
     target_os: Os,
-    binary: &Path,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
-    mdm::apply_mdm(target_os, binary, gateway, pubkey)
+    mdm::apply_mdm(target_os, gateway, pubkey)
         .map(|lines| MdmDisplay::Applied {
             os: target_os,
             lines,

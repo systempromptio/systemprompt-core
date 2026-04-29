@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.3] - 2026-04-29
+
+### Fixed
+
+- `services/agent_orchestration/process.rs` propagates `MANIFEST_SIGNING_SECRET_SEED` into the spawn env. Subprocesses no longer regenerate the manifest signing seed on launch.
+
 ## [0.2.1] - 2026-04-16
 
 ### Fixed

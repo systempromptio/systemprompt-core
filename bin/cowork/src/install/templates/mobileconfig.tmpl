@@ -13,16 +13,20 @@
       <key>PayloadVersion</key><integer>1</integer>
       <key>inferenceProvider</key><string>gateway</string>
       <key>inferenceGatewayBaseUrl</key><string>{gateway_esc}</string>
-      <key>inferenceCredentialHelper</key><string>{binary_esc}</string>
-      <key>inferenceCredentialHelperTtlSec</key><integer>3600</integer>
+      <key>inferenceGatewayApiKey</key><string>{api_key_esc}</string>
       <key>inferenceGatewayAuthScheme</key><string>bearer</string>
+      <key>disableEssentialTelemetry</key><string>true</string>
+      <key>disableNonessentialTelemetry</key><string>true</string>
+      <key>disableNonessentialServices</key><string>true</string>
+      <key>disableAutoUpdates</key><string>true</string>
+      <key>disableDeploymentModeChooser</key><string>true</string>
 {pubkey_block}    </dict>
   </array>
   <key>PayloadType</key><string>Configuration</string>
   <key>PayloadIdentifier</key><string>{outer_payload_identifier}</string>
   <key>PayloadUUID</key><string>{outer_uuid}</string>
   <key>PayloadDisplayName</key><string>systemprompt-cowork inference routing</string>
-  <key>PayloadDescription</key><string>Routes Claude Cowork inference through the configured gateway and credential helper.</string>
+  <key>PayloadDescription</key><string>Routes Claude Cowork inference through the local cowork proxy.</string>
   <key>PayloadOrganization</key><string>systemprompt.io</string>
   <key>PayloadScope</key><string>System</string>
   <key>PayloadVersion</key><integer>1</integer>

@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use systemprompt_cowork::config;
@@ -36,9 +36,7 @@ fn pubkey_not_pinned_error_has_distinct_exit_code() {
 
 #[test]
 fn windows_policy_values_includes_pubkey_when_provided() {
-    let bin = Path::new("C:/cowork.exe");
     let values = systemprompt_cowork::install::windows_policy_values(
-        bin,
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
     );
@@ -54,9 +52,7 @@ fn windows_policy_values_includes_pubkey_when_provided() {
 
 #[test]
 fn windows_policy_values_omits_pubkey_when_absent() {
-    let bin = Path::new("C:/cowork.exe");
-    let values =
-        systemprompt_cowork::install::windows_policy_values(bin, "https://gateway.example", None);
+    let values = systemprompt_cowork::install::windows_policy_values("https://gateway.example", None);
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(!names.contains(&"inferenceManifestPubkey"));
 }
@@ -64,9 +60,7 @@ fn windows_policy_values_omits_pubkey_when_absent() {
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_prefs_plist_includes_pubkey_when_provided() {
-    let bin = std::path::Path::new("/usr/local/bin/cowork");
     let plist = systemprompt_cowork::install::build_macos_prefs_plist(
-        bin,
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
     );
@@ -77,21 +71,15 @@ fn macos_prefs_plist_includes_pubkey_when_provided() {
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_prefs_plist_omits_pubkey_when_absent() {
-    let bin = std::path::Path::new("/usr/local/bin/cowork");
-    let plist = systemprompt_cowork::install::build_macos_prefs_plist(
-        bin,
-        "https://gateway.example",
-        None,
-    );
+    let plist =
+        systemprompt_cowork::install::build_macos_prefs_plist("https://gateway.example", None);
     assert!(!plist.contains("inferenceManifestPubkey"));
 }
 
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_mobileconfig_includes_pubkey_when_provided() {
-    let bin = std::path::Path::new("/usr/local/bin/cowork");
     let mc = systemprompt_cowork::install::build_macos_mobileconfig(
-        bin,
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
     );

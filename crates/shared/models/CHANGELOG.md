@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.3] - 2026-04-29
+
+### Added
+
+- `JwtAudience::Cowork` variant on `auth::enums` (covers `as_str` and `FromStr`).
+- `SecretsBootstrap::manifest_signing_secret_seed() -> Result<[u8; 32], _>` accessor.
+
+### Fixed
+
+- `Secrets::parse` strips JSON `null` values from the root object before deserialization. Prior behaviour rejected literal `"openai": null` / `"gemini": null` with `invalid type: null, expected a string`.
+
+### Internal
+
+- Workspace `sha2` added.
+
 ## [0.2.3] - 2026-04-20
 
 ### Added

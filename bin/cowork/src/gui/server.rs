@@ -105,7 +105,7 @@ impl Server {
                         csrf_token: &csrf_token,
                         log: &log,
                     };
-                    if let Err(e) = handle_connection(stream, ctx) {
+                    if let Err(e) = handle_connection(stream, &ctx) {
                         diag(&format!("gui-server: connection: {e}"));
                     }
                 });

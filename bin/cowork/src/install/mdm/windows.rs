@@ -1,19 +1,13 @@
 #![cfg(target_os = "windows")]
 
-use std::path::Path;
-
-pub(super) fn apply(
-    binary: &Path,
-    gateway: &str,
-    pubkey: Option<&str>,
-) -> Result<Vec<String>, String> {
+pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     let elevated = crate::winproc::is_elevated();
     let key = if elevated {
         r"HKLM\SOFTWARE\Policies\Claude"
     } else {
         r"HKCU\SOFTWARE\Policies\Claude"
     };
-    let values = super::windows_policy_values(binary, gateway, pubkey);
+    let values = super::windows_policy_values(gateway, pubkey);
     let mut summary = Vec::with_capacity(values.len() + 2);
     summary.push(format!("registry key: {key}"));
     for (name, kind, data) in values {

@@ -73,7 +73,7 @@ fn parse_host_id(path: &str, prefix: &str, suffix: &str) -> Option<String> {
 }
 
 #[tracing::instrument(skip_all, fields(peer = ?stream.peer_addr().ok()))]
-pub fn handle_connection(mut stream: TcpStream, ctx: ConnectionContext<'_>) -> std::io::Result<()> {
+pub fn handle_connection(mut stream: TcpStream, ctx: &ConnectionContext<'_>) -> std::io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     stream.set_write_timeout(Some(READ_TIMEOUT))?;
 
