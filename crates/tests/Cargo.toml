@@ -53,6 +53,8 @@ members = [
     "unit/cowork/sync",
     "unit/cowork/integration",
     "unit/cowork/proxy",
+    "unit/cowork/http_local",
+    "unit/cowork/auth",
     # Common test utilities
     "common/mocks",
     "common/migrate",

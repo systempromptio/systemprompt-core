@@ -30,11 +30,16 @@ pub fn read_with_threshold(min_remaining_secs: u64) -> Option<HelperOutput> {
     let bytes = fs::read(&path).ok()?;
     let entry: CacheEntry = serde_json::from_slice(&bytes).ok()?;
     let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
-    if entry.expires_at > now + min_remaining_secs {
+    if is_still_valid(entry.expires_at, now, min_remaining_secs) {
         Some(entry.output)
     } else {
         None
     }
+}
+
+#[must_use]
+pub fn is_still_valid(expires_at: u64, now: u64, min_remaining_secs: u64) -> bool {
+    expires_at > now.saturating_add(min_remaining_secs)
 }
 
 pub fn clear() -> std::io::Result<()> {
