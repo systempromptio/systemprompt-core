@@ -3,6 +3,7 @@ use crate::auth::secret::Secret;
 use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::SignedManifest;
+use crate::ids::PinnedPubKey;
 
 pub struct ManifestFetch {
     pub client: GatewayClient,
@@ -42,11 +43,11 @@ pub fn verify_signature(
     let pubkey = resolve_pubkey(&fetch.client, allow_tofu)?;
     fetch
         .manifest
-        .verify(&pubkey)
+        .verify(pubkey.as_str())
         .map_err(|e| SyncError::SignatureFailed(e.to_string()))
 }
 
-fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<String, SyncError> {
+fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<PinnedPubKey, SyncError> {
     if let Some(k) = config::pinned_pubkey() {
         return Ok(k);
     }
@@ -62,7 +63,7 @@ fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<String, Sy
     tracing::info!(
         "pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation"
     );
-    Ok(fetched)
+    Ok(PinnedPubKey::new(fetched))
 }
 
 fn fetch_fresh_token() -> Option<Secret> {

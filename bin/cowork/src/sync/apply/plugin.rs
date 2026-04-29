@@ -1,14 +1,20 @@
 use super::super::hash::{directory_hash, normalise_relative, safe_plugin_id, sha256_hex};
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{PluginEntry, SignedManifest};
+use crate::ids::Sha256Digest;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
 pub struct PluginApplyOutcome {
+    /// Pre-rendered plugin-id strings for display in sync reports; the typed PluginId has been
+    /// consumed by this point.
     pub installed: Vec<String>,
+    /// See `installed`.
     pub updated: Vec<String>,
+    /// See `installed`.
     pub removed: Vec<String>,
+    /// See `installed`.
     pub malformed: Vec<String>,
 }
 
@@ -24,7 +30,7 @@ pub fn apply_plugins(
     let mut malformed = Vec::new();
 
     for plugin in &manifest.plugins {
-        if !safe_plugin_id(&plugin.id) {
+        if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::Detail(format!(
                 "manifest contained unsafe plugin id: {}",
                 plugin.id
@@ -36,12 +42,12 @@ pub fn apply_plugins(
                 PluginChange::Updated(id) => updated.push(id),
             }
         }
-        if !is_well_formed(&root.join(&plugin.id)) {
+        if !is_well_formed(&root.join(plugin.id.as_str())) {
             tracing::warn!(
                 plugin_id = %plugin.id,
                 "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
             );
-            malformed.push(plugin.id.clone());
+            malformed.push(plugin.id.to_string());
         }
     }
 
@@ -75,7 +81,7 @@ fn sync_one_plugin(
     root: &Path,
     staging_root: &Path,
 ) -> Result<Option<PluginChange>, super::ApplyError> {
-    let target = root.join(&plugin.id);
+    let target = root.join(plugin.id.as_str());
     let current_hash = target
         .is_dir()
         .then(|| directory_hash(&target).ok())
@@ -84,12 +90,12 @@ fn sync_one_plugin(
         return Ok(None);
     }
 
-    let stage = staging_root.join(&plugin.id);
+    let stage = staging_root.join(plugin.id.as_str());
     fetch_plugin_into_staging(client, bearer, plugin, &stage)?;
 
     let staged_hash = directory_hash(&stage)
         .map_err(|e| super::ApplyError::Detail(format!("hash staged {}: {e}", plugin.id)))?;
-    if staged_hash != plugin.sha256 {
+    if staged_hash != plugin.sha256.as_str() {
         return Err(super::ApplyError::Detail(format!(
             "plugin {} hash mismatch (expected {}, got {})",
             plugin.id, plugin.sha256, staged_hash
@@ -106,9 +112,9 @@ fn sync_one_plugin(
     })?;
 
     Ok(Some(if was_present {
-        PluginChange::Updated(plugin.id.clone())
+        PluginChange::Updated(plugin.id.to_string())
     } else {
-        PluginChange::Installed(plugin.id.clone())
+        PluginChange::Installed(plugin.id.to_string())
     }))
 }
 
@@ -134,10 +140,10 @@ fn fetch_plugin_into_staging(
             })?;
         }
         let bytes = client
-            .fetch_plugin_file(bearer, &plugin.id, &file.path)
+            .fetch_plugin_file(bearer, plugin.id.as_str(), &file.path)
             .map_err(|e| e.to_string())?;
         let actual = sha256_hex(&bytes);
-        if actual != file.sha256 {
+        if !sha256_matches(&actual, &file.sha256) {
             return Err(super::ApplyError::Detail(format!(
                 "file {}/{} hash mismatch (expected {}, got {})",
                 plugin.id, file.path, file.sha256, actual
@@ -147,6 +153,10 @@ fn fetch_plugin_into_staging(
             .map_err(|e| super::ApplyError::Detail(format!("write {}: {e}", out.display())))?;
     }
     Ok(())
+}
+
+fn sha256_matches(actual: &str, expected: &Sha256Digest) -> bool {
+    actual == expected.as_str()
 }
 
 fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, super::ApplyError> {

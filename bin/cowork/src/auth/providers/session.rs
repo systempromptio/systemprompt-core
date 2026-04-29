@@ -20,7 +20,7 @@ impl SessionProvider {
             .as_ref()
             .is_some_and(|s| s.enabled.unwrap_or(true));
         Self {
-            base_url: crate::config::gateway_url_or_default_typed(config),
+            base_url: crate::config::gateway_url_or_default(config),
             configured,
         }
     }

@@ -49,12 +49,7 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
         }
     }
     if let Some(mtls) = cfg.mtls.as_ref() {
-        if mtls
-            .cert_keystore_ref
-            .as_ref()
-            .map(|s| !s.is_empty())
-            .unwrap_or(false)
-        {
+        if mtls.cert_keystore_ref.is_some() {
             return true;
         }
     }

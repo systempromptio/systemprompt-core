@@ -11,9 +11,15 @@ use crate::ids::{KeystoreRef, PinnedPubKey};
 
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 
+fn default_gateway_url() -> ValidatedUrl {
+    #[allow(clippy::expect_used)]
+    ValidatedUrl::try_new(DEFAULT_GATEWAY_URL).expect("DEFAULT_GATEWAY_URL is a valid URL")
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
-    pub gateway_url: Option<String>,
+    #[serde(default)]
+    pub gateway_url: Option<ValidatedUrl>,
     #[serde(default)]
     pub pat: Option<PatConfig>,
     #[serde(default)]
@@ -53,7 +59,7 @@ pub struct SessionConfig {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct MtlsConfig {
     #[serde(default)]
-    pub cert_keystore_ref: Option<String>,
+    pub cert_keystore_ref: Option<KeystoreRef>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -72,20 +78,19 @@ impl Config {
             .unwrap_or_default();
 
         if let Ok(url) = env::var("SP_COWORK_GATEWAY_URL") {
-            cfg.gateway_url = Some(url);
-        }
-        if cfg.gateway_url.as_deref() == Some("") {
-            cfg.gateway_url = None;
+            if let Ok(parsed) = ValidatedUrl::try_new(url.trim()) {
+                cfg.gateway_url = Some(parsed);
+            }
         }
         if cfg.gateway_url.is_none() {
-            cfg.gateway_url = Some(DEFAULT_GATEWAY_URL.to_string());
+            cfg.gateway_url = Some(default_gateway_url());
         }
 
         cfg
     }
 
     pub fn with_policy_overrides(mut self) -> Self {
-        let Some(policy_value) = policy_pubkey_typed() else {
+        let Some(policy_value) = policy_pubkey() else {
             return self;
         };
         let sync = self.sync.get_or_insert_with(SyncConfig::default);
@@ -109,21 +114,9 @@ impl Config {
         self
     }
 
-    /// Typed accessor for the gateway URL; call sites migrated in phase 6.
     #[must_use]
-    pub fn gateway_url_typed(&self) -> Option<ValidatedUrl> {
-        self.gateway_url
-            .as_deref()
-            .and_then(|s| ValidatedUrl::try_new(s).ok())
-    }
-
-    /// Typed accessor for the mTLS keystore reference; call sites migrated in phase 6.
-    #[must_use]
-    pub fn cert_keystore_ref_typed(&self) -> Option<KeystoreRef> {
-        self.mtls
-            .as_ref()
-            .and_then(|m| m.cert_keystore_ref.as_deref())
-            .and_then(|s| KeystoreRef::try_new(s).ok())
+    pub fn cert_keystore_ref(&self) -> Option<&KeystoreRef> {
+        self.mtls.as_ref().and_then(|m| m.cert_keystore_ref.as_ref())
     }
 }
 
@@ -132,17 +125,8 @@ pub fn load() -> Config {
 }
 
 #[must_use]
-pub fn gateway_url_or_default(cfg: &Config) -> String {
-    cfg.gateway_url
-        .clone()
-        .unwrap_or_else(|| DEFAULT_GATEWAY_URL.to_string())
-}
-
-/// Typed variant of [`gateway_url_or_default`]; call sites migrated in phase 6.
-#[must_use]
-pub fn gateway_url_or_default_typed(cfg: &Config) -> ValidatedUrl {
-    let raw = gateway_url_or_default(cfg);
-    ValidatedUrl::try_new(&raw).unwrap_or_else(|_| ValidatedUrl::new(DEFAULT_GATEWAY_URL))
+pub fn gateway_url_or_default(cfg: &Config) -> ValidatedUrl {
+    cfg.gateway_url.clone().unwrap_or_else(default_gateway_url)
 }
 
 pub fn config_path() -> Option<PathBuf> {
@@ -173,30 +157,19 @@ pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
 }
 
 #[must_use]
-pub fn pinned_pubkey_typed() -> Option<PinnedPubKey> {
+pub fn pinned_pubkey() -> Option<PinnedPubKey> {
     load().sync.and_then(|s| s.pinned_pubkey)
 }
 
-/// Compatibility accessor; call sites migrated in phase 6.
 #[must_use]
-pub fn pinned_pubkey() -> Option<String> {
-    pinned_pubkey_typed().map(|k| k.as_str().to_string())
-}
-
-#[must_use]
-pub fn policy_pubkey_typed() -> Option<PinnedPubKey> {
-    policy_pubkey().map(PinnedPubKey::new)
-}
-
-#[must_use]
-pub fn policy_pubkey() -> Option<String> {
+pub fn policy_pubkey() -> Option<PinnedPubKey> {
     if let Ok(value) = env::var("SP_COWORK_POLICY_PUBKEY") {
         let trimmed = value.trim();
         if !trimmed.is_empty() {
-            return Some(trimmed.to_string());
+            return Some(PinnedPubKey::new(trimmed));
         }
     }
-    read_policy_pubkey_native()
+    read_policy_pubkey_native().map(PinnedPubKey::new)
 }
 
 #[cfg(target_os = "windows")]
@@ -306,11 +279,15 @@ models = ["claude-opus-4", "claude-sonnet-4"]
 organization_uuid = "abc-123"
 "#;
         let cfg: Config = toml::from_str(toml_input).expect("parse toml");
-        assert_eq!(cfg.gateway_url.as_deref(), Some("https://gateway.example.com"));
+        assert_eq!(
+            cfg.gateway_url.as_ref().map(ValidatedUrl::as_str),
+            Some("https://gateway.example.com"),
+        );
         assert_eq!(
             cfg.mtls
                 .as_ref()
-                .and_then(|m| m.cert_keystore_ref.as_deref()),
+                .and_then(|m| m.cert_keystore_ref.as_ref())
+                .map(KeystoreRef::as_str),
             Some("macos:my-cert-label"),
         );
         assert_eq!(

@@ -46,7 +46,7 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
     };
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
-    let handle = match server::start(rt, DEFAULT_PROXY_PORT, gateway) {
+    let handle = match server::start(rt, DEFAULT_PROXY_PORT, &gateway) {
         Ok(h) => h,
         Err(e) => {
             diag(&format!("proxy: bind failed on {DEFAULT_PROXY_PORT}: {e}"));

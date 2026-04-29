@@ -42,9 +42,8 @@ pub(super) struct ProxyContext {
     pub client: reqwest::Client,
 }
 
-pub fn start(rt: &Runtime, port: u16, gateway_base_url: String) -> std::io::Result<ProxyHandle> {
-    let gateway_base = ValidatedUrl::try_new(gateway_base_url)
-        .map_err(|e| std::io::Error::other(format!("invalid gateway URL: {e}")))?;
+pub fn start(rt: &Runtime, port: u16, gateway_base_url: &ValidatedUrl) -> std::io::Result<ProxyHandle> {
+    let gateway_base = gateway_base_url.clone();
     let loopback = secret::load_or_mint_typed()?;
     let proxy_secret = ProxySecret::new(loopback.into_inner());
     let stats = Arc::new(ProxyStats::default());
