@@ -37,10 +37,6 @@ pub(crate) fn is_elevated() -> bool {
     };
     use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
-    // SAFETY: GetCurrentProcess returns a pseudo-handle that requires no close.
-    // OpenProcessToken writes a real handle into `token` only on success; we
-    // close it via CloseHandle below. GetTokenInformation only reads
-    // `elevation.assume_init()` after the call returned ok != 0.
     unsafe {
         let mut token: HANDLE = std::ptr::null_mut();
         if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
@@ -63,8 +59,6 @@ pub(crate) fn is_elevated() -> bool {
 
 pub(crate) fn attach_parent_console_if_present() {
     use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
-    // SAFETY: AttachConsole is safe to call from any thread; failure (no parent
-    // console) is expected and ignored.
     unsafe {
         AttachConsole(ATTACH_PARENT_PROCESS);
     }
@@ -72,8 +66,6 @@ pub(crate) fn attach_parent_console_if_present() {
 
 pub(crate) fn detach_console() {
     use windows_sys::Win32::System::Console::FreeConsole;
-    // SAFETY: FreeConsole detaches the calling process; safe regardless of attached
-    // state.
     unsafe {
         FreeConsole();
     }

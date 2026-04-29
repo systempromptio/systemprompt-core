@@ -72,6 +72,40 @@ async fn near_expiry_triggers_refresh() {
     assert!(counter.load(Ordering::SeqCst) >= 2);
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn near_expiry_concurrent_refresh_collapses_to_one() {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let counter_for_refresh = Arc::clone(&counter);
+    let refresh: RefreshFn = Arc::new(move |_threshold| {
+        let n = counter_for_refresh.fetch_add(1, Ordering::SeqCst) + 1;
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        let ttl = if n == 1 { 10 } else { 3600 };
+        Some(fake_token(ttl))
+    });
+    let cache = Arc::new(TokenCache::new(refresh));
+
+    cache.current(0).await.expect("seed mints ttl=10");
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+
+    let mut handles = Vec::new();
+    for i in 0u64..50 {
+        let cache = Arc::clone(&cache);
+        let threshold = 60 + (i % 5);
+        handles.push(tokio::spawn(async move {
+            let _ = cache.current(threshold).await;
+        }));
+    }
+    for h in handles {
+        h.await.expect("task panic");
+    }
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        2,
+        "single-flight: 50 near-expiry callers must collapse to one additional refresh",
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn refresh_failure_propagates() {
     let cache = TokenCache::new(Arc::new(|_| None));

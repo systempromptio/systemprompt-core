@@ -22,9 +22,7 @@ static HANDLE: OnceLock<ProxyHandle> = OnceLock::new();
 static RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
 
 fn worker_thread_count() -> usize {
-    std::thread::available_parallelism()
-        .map(|n| (n.get() / 2).max(2))
-        .unwrap_or(2)
+    std::thread::available_parallelism().map_or(2, |n| (n.get() / 2).max(2))
 }
 
 fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
@@ -36,11 +34,11 @@ fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
         .thread_name("cowork-rt")
         .enable_all()
         .build()?;
-    let _ = RUNTIME.set(Arc::new(rt));
-    Ok(RUNTIME.get().unwrap_or_else(|| {
-        diag("proxy: tokio runtime OnceLock unexpectedly empty after set");
-        std::process::abort()
-    }))
+    let arc = Arc::new(rt);
+    RUNTIME.set(arc).ok();
+    RUNTIME
+        .get()
+        .ok_or_else(|| std::io::Error::other("runtime init lost the race"))
 }
 
 pub fn start_default() -> Option<&'static ProxyHandle> {

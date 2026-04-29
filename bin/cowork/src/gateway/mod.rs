@@ -22,7 +22,6 @@ pub struct WhoamiResponse {
     pub provider: Option<String>,
     #[serde(default)]
     pub roles: Vec<String>,
-    // JSON: forward-compat extras
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
 }
@@ -82,7 +81,7 @@ impl GatewayClient {
     #[must_use]
     pub fn new(base_url: ValidatedUrl) -> Self {
         let agent = ureq::AgentBuilder::new()
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(10))
             .build();
         Self { base_url, agent }
     }

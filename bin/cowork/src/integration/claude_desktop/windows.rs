@@ -141,14 +141,14 @@ fn render_reg(inputs: &ProfileGenInputs) -> String {
         reg_escape(&inputs.api_key)
     ));
     out.push_str("\"inferenceGatewayAuthScheme\"=\"bearer\"\r\n");
-    let models = if inputs.models.is_empty() {
-        super::shared::default_models().join(",")
+    let models: Vec<String> = if inputs.models.is_empty() {
+        super::shared::default_models()
     } else {
-        inputs.models.join(",")
+        inputs.models.clone()
     };
     out.push_str(&format!(
-        "\"inferenceModels\"=\"{}\"\r\n",
-        reg_escape(&models)
+        "\"inferenceModels\"=hex(7):{}\r\n",
+        multi_sz_hex(&models)
     ));
     if let Some(uuid) = inputs.organization_uuid.as_deref() {
         if !uuid.is_empty() {
@@ -163,4 +163,20 @@ fn render_reg(inputs: &ProfileGenInputs) -> String {
 
 fn reg_escape(s: &str) -> String {
     s.replace('\\', r"\\").replace('"', "\\\"")
+}
+
+fn multi_sz_hex(values: &[String]) -> String {
+    let mut bytes: Vec<u8> = Vec::new();
+    for s in values {
+        for unit in s.encode_utf16() {
+            bytes.extend_from_slice(&unit.to_le_bytes());
+        }
+        bytes.extend_from_slice(&[0, 0]);
+    }
+    bytes.extend_from_slice(&[0, 0]);
+    bytes
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(",")
 }

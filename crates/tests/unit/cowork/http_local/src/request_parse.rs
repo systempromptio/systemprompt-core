@@ -67,8 +67,6 @@ fn oversized_content_length_rejected() {
 
 #[test]
 fn header_injection_via_crlf_in_value_does_not_smuggle() {
-    // A header value cannot smuggle a second header — anything before the next \r\n
-    // belongs to the same value, and split_once(':') only splits the first ':'.
     let raw = b"GET / HTTP/1.1\r\nX-A: a\r\nX-B: b: still-b-value\r\nHost: x\r\n\r\n";
     let req = parse_from_read(&raw[..]).expect("valid");
     assert_eq!(req.header("X-B"), Some("b: still-b-value"));

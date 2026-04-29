@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gui::GuiApp;
@@ -63,7 +65,7 @@ pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str) {
     let host_id_owned = host_id.to_string();
     app.pool.spawn_task(
         app.proxy.clone(),
-        move || generate_profile_for(host),
+        move || generate_profile_for(host).map_err(Arc::new),
         move |result| {
             UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
                 host_id: host_id_owned.clone(),
@@ -76,7 +78,7 @@ pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str) {
 pub(crate) fn on_profile_generate_finished(
     app: &mut GuiApp,
     host_id: &str,
-    result: Result<GeneratedProfile, GuiError>,
+    result: Result<GeneratedProfile, Arc<GuiError>>,
 ) {
     match result {
         Ok(p) => {
@@ -111,6 +113,7 @@ pub(crate) fn on_profile_install_requested(app: &mut GuiApp, host_id: &str, path
                     context: "host install_profile".into(),
                     source: e,
                 })
+                .map_err(Arc::new)
         },
         move |result| {
             UiEvent::Host(HostUiEvent::ProfileInstallFinished {
@@ -124,7 +127,7 @@ pub(crate) fn on_profile_install_requested(app: &mut GuiApp, host_id: &str, path
 pub(crate) fn on_profile_install_finished(
     app: &mut GuiApp,
     host_id: &str,
-    result: Result<String, GuiError>,
+    result: Result<String, Arc<GuiError>>,
 ) {
     let action = find_host_by_id(host_id)
         .map(|h| h.install_action_label())

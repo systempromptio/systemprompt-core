@@ -70,8 +70,8 @@ pub async fn forward(
     let upstream_headers = build_upstream_headers(&parts.headers, token.token.expose())?;
     let upstream_body = reqwest::Body::wrap_stream(
         BodyStream::new(body)
-            .map_ok(|frame: Frame<Bytes>| frame.into_data().unwrap_or_default())
-            .map_err(|e| std::io::Error::other(e.to_string())),
+            .try_filter_map(|frame: Frame<Bytes>| async move { Ok(frame.into_data().ok()) })
+            .map_err(std::io::Error::other),
     );
 
     let upstream_response = client
@@ -97,7 +97,7 @@ pub async fn forward(
     let upstream_stream = upstream_response
         .bytes_stream()
         .map_ok(Frame::data)
-        .map_err(|e| std::io::Error::other(e.to_string()));
+        .map_err(std::io::Error::other);
     let body: ProxyBody = StreamBody::new(upstream_stream).boxed();
 
     Ok(response_builder.body(body)?)

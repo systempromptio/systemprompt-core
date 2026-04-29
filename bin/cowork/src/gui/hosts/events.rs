@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::gui::error::GuiError;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
@@ -15,7 +17,7 @@ pub enum HostUiEvent {
     },
     ProfileGenerateFinished {
         host_id: String,
-        result: Result<GeneratedProfile, GuiError>,
+        result: Result<GeneratedProfile, Arc<GuiError>>,
     },
     ProfileInstallRequested {
         host_id: String,
@@ -23,7 +25,7 @@ pub enum HostUiEvent {
     },
     ProfileInstallFinished {
         host_id: String,
-        result: Result<String, GuiError>,
+        result: Result<String, Arc<GuiError>>,
     },
     ProxyProbeRequested,
     ProxyProbeFinished(Box<ProxyHealth>),

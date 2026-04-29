@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::auth::secret::Secret;
 use crate::gui::error::GuiError;
 use crate::gui::state::GatewayProbeOutcome;
@@ -23,11 +25,11 @@ pub enum UiEvent {
     Quit,
 
     SyncStarted,
-    SyncFinished(Result<SyncSummary, GuiError>),
+    SyncFinished(Result<SyncSummary, Arc<GuiError>>),
     ValidateFinished(ValidationReport),
-    LoginFinished(Result<(), GuiError>),
-    LogoutFinished(Result<(), GuiError>),
-    SetGatewayFinished(Result<(), GuiError>),
+    LoginFinished(Result<(), Arc<GuiError>>),
+    LogoutFinished(Result<(), Arc<GuiError>>),
+    SetGatewayFinished(Result<(), Arc<GuiError>>),
     GatewayProbeFinished(GatewayProbeOutcome),
     StateRefreshed,
 

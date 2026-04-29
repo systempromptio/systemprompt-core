@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::auth::secret::Secret;
 use crate::auth::setup;
 use crate::gui::GuiApp;
@@ -20,12 +22,13 @@ pub(crate) fn on_login_requested(app: &mut GuiApp, token: &Secret, gateway: Opti
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
                 .map_err(GuiError::from)
+                .map_err(Arc::new)
         },
         UiEvent::LoginFinished,
     );
 }
 
-pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), GuiError>) {
+pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), Arc<GuiError>>) {
     match result {
         Ok(()) => {
             app.append_log("PAT stored. Pulling manifest…");
@@ -62,12 +65,13 @@ pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str) {
             setup::set_gateway_url(&trimmed)
                 .map(|_| ())
                 .map_err(GuiError::from)
+                .map_err(Arc::new)
         },
         UiEvent::SetGatewayFinished,
     );
 }
 
-pub(crate) fn on_set_gateway_finished(app: &mut GuiApp, result: Result<(), GuiError>) {
+pub(crate) fn on_set_gateway_finished(app: &mut GuiApp, result: Result<(), Arc<GuiError>>) {
     match result {
         Ok(()) => {
             app.append_log("Gateway URL saved.");
@@ -89,12 +93,17 @@ pub(crate) fn on_logout_requested(app: &mut GuiApp) {
     app.append_log("Logging out…");
     app.pool.spawn_task(
         app.proxy.clone(),
-        || setup::logout().map(|_| ()).map_err(GuiError::from),
+        || {
+            setup::logout()
+                .map(|_| ())
+                .map_err(GuiError::from)
+                .map_err(Arc::new)
+        },
         UiEvent::LogoutFinished,
     );
 }
 
-pub(crate) fn on_logout_finished(app: &mut GuiApp, result: Result<(), GuiError>) {
+pub(crate) fn on_logout_finished(app: &mut GuiApp, result: Result<(), Arc<GuiError>>) {
     match result {
         Ok(()) => {
             app.append_log("Logged out.");

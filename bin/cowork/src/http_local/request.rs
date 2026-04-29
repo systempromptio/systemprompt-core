@@ -1,5 +1,4 @@
 use std::io::{BufRead, BufReader, Read};
-use std::net::TcpStream;
 
 use super::{HttpLocalError, Result};
 
@@ -32,11 +31,6 @@ impl Request {
             format!("{}?{}", self.path, self.query)
         }
     }
-}
-
-pub fn parse(stream: &mut TcpStream) -> Result<Request> {
-    let mut reader = BufReader::new(stream);
-    parse_buffered(&mut reader)
 }
 
 pub fn parse_from_read<R: Read>(reader: R) -> Result<Request> {
