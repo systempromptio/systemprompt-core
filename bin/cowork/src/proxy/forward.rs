@@ -87,6 +87,9 @@ pub async fn forward(
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         tracing::warn!(upstream_status = status.as_u16(), %url, "upstream non-2xx");
+        if status == StatusCode::UNAUTHORIZED {
+            token_cache.invalidate().await;
+        }
     }
 
     let mut response_builder = Response::builder().status(status);
