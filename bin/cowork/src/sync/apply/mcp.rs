@@ -8,8 +8,12 @@ pub fn write_managed_mcp_fragment(
     servers: &[ManagedMcpServer],
 ) -> Result<(), super::ApplyError> {
     let out = meta_dir.join(paths::MANAGED_MCP_FRAGMENT);
-    let bytes = serde_json::to_vec_pretty(servers)
-        .map_err(|e| super::ApplyError::Detail(format!("serialize managed-mcp: {e}")))?;
-    fs::write(&out, bytes)
-        .map_err(|e| super::ApplyError::Detail(format!("write {}: {e}", out.display())))
+    let bytes = serde_json::to_vec_pretty(servers).map_err(|e| super::ApplyError::Serialize {
+        what: "managed-mcp".into(),
+        source: e,
+    })?;
+    fs::write(&out, bytes).map_err(|e| super::ApplyError::Io {
+        context: format!("write {}", out.display()),
+        source: e,
+    })
 }

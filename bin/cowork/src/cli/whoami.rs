@@ -44,7 +44,7 @@ pub(crate) fn cmd_whoami() -> ExitCode {
         Ok(value) => {
             match serde_json::to_string_pretty(&value) {
                 Ok(s) => println!("{s}"),
-                Err(_) => println!("{value}"),
+                Err(_) => println!("{value:?}"),
             }
             ExitCode::SUCCESS
         },

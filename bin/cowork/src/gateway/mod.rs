@@ -2,8 +2,29 @@ pub mod manifest;
 
 use crate::auth::types::{AuthResponse, CoworkProfile, MtlsRequest, SessionExchangeRequest};
 use crate::gateway::manifest::SignedManifest;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::time::Duration;
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_identifiers::{TenantId, UserId, ValidatedUrl};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WhoamiResponse {
+    #[serde(default)]
+    pub user_id: Option<UserId>,
+    #[serde(default)]
+    pub tenant_id: Option<TenantId>,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub display_name: Option<String>,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub roles: Vec<String>,
+    // JSON: forward-compat extras
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, serde_json::Value>,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayError {
@@ -130,9 +151,7 @@ impl GatewayClient {
         Ok(buf)
     }
 
-    // JSON: protocol boundary — gateway response shape is opaque to cowork; passed
-    // through to CLI for pretty-printing.
-    pub fn fetch_whoami(&self, bearer: &str) -> Result<serde_json::Value, GatewayError> {
+    pub fn fetch_whoami(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
         let url = self.url("/v1/cowork/whoami");
         let resp = self
             .agent
@@ -140,7 +159,7 @@ impl GatewayClient {
             .set("authorization", &format!("Bearer {bearer}"))
             .call()
             .map_err(|e| GatewayError::WhoamiFetch(Box::new(e)))?;
-        resp.into_json::<serde_json::Value>()
+        resp.into_json::<WhoamiResponse>()
             .map_err(GatewayError::WhoamiDecode)
     }
 

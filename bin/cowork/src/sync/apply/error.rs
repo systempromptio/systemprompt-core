@@ -1,15 +1,23 @@
+use crate::ids::{PluginId, Sha256Digest, SkillId};
+
 #[derive(Debug, thiserror::Error)]
 pub enum ApplyError {
     #[error("hash mismatch for {what}: expected {expected}, got {actual}")]
     HashMismatch {
         what: String,
-        expected: String,
+        expected: Sha256Digest,
         actual: String,
     },
     #[error("unsafe path in manifest: {0}")]
     UnsafePath(String),
-    #[error("network: {0}")]
-    Network(String),
+    #[error("unsafe plugin id in manifest: {0}")]
+    UnsafePluginId(PluginId),
+    #[error("unsafe skill id in manifest: {0}")]
+    UnsafeSkillId(SkillId),
+    #[error("unsafe agent name in manifest: {0}")]
+    UnsafeAgentName(String),
+    #[error("plugin fetch failed: {0}")]
+    PluginFetch(#[from] crate::gateway::GatewayError),
     #[error("io error in {context}: {source}")]
     Io {
         context: String,
@@ -20,12 +28,4 @@ pub enum ApplyError {
         what: String,
         source: serde_json::Error,
     },
-    #[error("{0}")]
-    Detail(String),
-}
-
-impl From<String> for ApplyError {
-    fn from(s: String) -> Self {
-        ApplyError::Detail(s)
-    }
 }
