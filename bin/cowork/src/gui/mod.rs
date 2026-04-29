@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub mod claude;
 pub mod dispatch;
 pub mod events;
 pub mod handlers;
@@ -25,27 +27,15 @@ use crate::gui::state::{AppState, GatewayStatus, now_unix};
 use crate::gui::worker::WorkerPool;
 use crate::output::diag;
 
-const PROBE_INTERVAL_SECS: u64 = 30;
+pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 
-#[cfg(unix)]
-fn install_termination_handlers() {
-    extern "C" fn handle(signum: libc::c_int) {
-        let code = 128 + signum;
-        unsafe { libc::_exit(code) };
-    }
-    unsafe {
-        libc::signal(libc::SIGINT, handle as *const () as libc::sighandler_t);
-        libc::signal(libc::SIGTERM, handle as *const () as libc::sighandler_t);
-        libc::signal(libc::SIGHUP, handle as *const () as libc::sighandler_t);
-    }
+fn install_termination_handlers(proxy: EventLoopProxy<UiEvent>) {
+    let _ = ctrlc::set_handler(move || {
+        let _ = proxy.send_event(UiEvent::Quit);
+    });
 }
 
-#[cfg(not(unix))]
-fn install_termination_handlers() {}
-
 pub fn run() -> ExitCode {
-    install_termination_handlers();
-
     crate::proxy::start_default();
 
     let event_loop = match EventLoop::<UiEvent>::with_user_event().build() {
@@ -58,6 +48,7 @@ pub fn run() -> ExitCode {
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let proxy = event_loop.create_proxy();
+    install_termination_handlers(proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();
@@ -156,10 +147,8 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         self.refresh_ui();
         dispatch::dispatch(self, UiEvent::OpenSettings);
         let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
-        #[cfg(target_os = "macos")]
-        {
-            let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
-        }
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        claude::tick::request_initial_probe(self);
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UiEvent) {
@@ -183,17 +172,8 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
             let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
         }
-        #[cfg(target_os = "macos")]
-        {
-            let claude_due = snap
-                .claude_integration
-                .as_ref()
-                .map(|c| now_unix().saturating_sub(c.probed_at_unix) >= PROBE_INTERVAL_SECS)
-                .unwrap_or(true);
-            if claude_due && !snap.claude_probe_in_flight {
-                let _ = self.proxy.send_event(UiEvent::ClaudeProbeRequested);
-            }
-        }
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        claude::tick::maybe_probe(self);
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));
     }
 }

@@ -1,3 +1,5 @@
+#![allow(unsafe_code)]
+
 use super::{DeviceCert, DeviceCertSource, sha256_der};
 use std::{env, ptr};
 use windows_sys::Win32::Security::Cryptography::{
@@ -22,6 +24,8 @@ struct StoreHandle(HCERTSTORE);
 impl StoreHandle {
     fn open_my() -> Result<Self, String> {
         let name: Vec<u16> = "MY\0".encode_utf16().collect();
+        // SAFETY: `name` is nul-terminated UTF-16 and lives until the call returns.
+        // CertOpenSystemStoreW does not retain the pointer.
         let handle = unsafe { CertOpenSystemStoreW(0, name.as_ptr()) };
         if handle.is_null() {
             return Err("CertOpenSystemStoreW(MY) returned NULL".to_string());
@@ -32,6 +36,8 @@ impl StoreHandle {
 
 impl Drop for StoreHandle {
     fn drop(&mut self) {
+        // SAFETY: self.0 was returned by a successful CertOpenSystemStoreW and has not been
+        // closed elsewhere; CertCloseStore is the matching deallocator.
         unsafe {
             CertCloseStore(self.0, 0);
         }
@@ -43,6 +49,8 @@ struct CertHandle(*const CERT_CONTEXT);
 impl Drop for CertHandle {
     fn drop(&mut self) {
         if !self.0.is_null() {
+            // SAFETY: self.0 was returned by CertEnumCertificatesInStore (or NULL, checked
+            // above); CertFreeCertificateContext is the matching deallocator.
             unsafe {
                 CertFreeCertificateContext(self.0);
             }
@@ -56,6 +64,9 @@ impl DeviceCertSource for WindowsKeystore {
         let mut prev: *const CERT_CONTEXT = ptr::null();
 
         loop {
+            // SAFETY: store.0 is a live HCERTSTORE owned by `store` for the duration of this
+            // loop; `prev` is either null (first iteration) or a context returned by a prior
+            // call to this same function and not yet freed.
             let next = unsafe { CertEnumCertificatesInStore(store.0, prev) };
             if next.is_null() {
                 break;
@@ -85,6 +96,8 @@ fn cert_encoded_bytes(ctx: *const CERT_CONTEXT) -> Vec<u8> {
     if ctx.is_null() {
         return Vec::new();
     }
+    // SAFETY: ctx was returned by CertEnumCertificatesInStore and is non-null (checked above);
+    // pbCertEncoded points to cbCertEncoded bytes of valid DER for this context's lifetime.
     unsafe {
         let len = (*ctx).cbCertEncoded as usize;
         let ptr = (*ctx).pbCertEncoded;

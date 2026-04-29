@@ -971,6 +971,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctrlc"
+version = "3.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0b1fab2ae45819af2d0731d60f2afe17227ebb1a1538a236da84c93e9a60162"
+dependencies = [
+ "dispatch2",
+ "nix",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "cursor-icon"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1266,6 +1277,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38"
 dependencies = [
  "bitflags 2.11.1",
+ "block2 0.6.2",
+ "libc",
  "objc2 0.6.4",
 ]
 
@@ -2520,6 +2533,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "928bae27f42bc99b60d9ac7334e3a21d10ad8f1835a4e12ec3ec0464765ed1b3"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "is-terminal"
+version = "0.4.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
+dependencies = [
+ "hermit-abi",
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4663,7 +4687,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6052,12 +6076,22 @@ name = "systemprompt-cowork"
 version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
+ "bytes",
  "chrono",
+ "ctrlc",
  "dirs 5.0.1",
  "ed25519-dalek",
+ "futures-util",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "image",
+ "is-terminal",
  "libc",
  "muda",
+ "parking_lot",
+ "reqwest 0.12.28",
  "rustls",
  "rustls-native-certs",
  "security-framework",
@@ -6067,18 +6101,44 @@ dependencies = [
  "sha2",
  "thiserror 2.0.18",
  "time",
+ "tokio",
  "toml 0.8.2",
  "tracing",
  "tracing-subscriber",
  "tray-icon",
  "ureq",
+ "windows-sys 0.59.0",
  "winit",
+ "winresource",
+ "zeroize",
+]
+
+[[package]]
+name = "systemprompt-cowork-install-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-cowork",
 ]
 
 [[package]]
 name = "systemprompt-cowork-manifest-tests"
 version = "0.0.11"
 dependencies = [
+ "systemprompt-cowork",
+]
+
+[[package]]
+name = "systemprompt-cowork-paths-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-cowork",
+]
+
+[[package]]
+name = "systemprompt-cowork-sync-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
  "systemprompt-cowork",
 ]
 
@@ -8537,6 +8597,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "winresource"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0986a8b1d586b7d3e4fe3d9ea39fb451ae22869dcea4aa109d287a374d866087"
+dependencies = [
+ "toml 1.1.2+spec-1.1.0",
+ "version_check",
+]
+
+[[package]]
 name = "wiremock"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8837,6 +8907,20 @@ name = "zeroize"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
+dependencies = [
+ "zeroize_derive",
+]
+
+[[package]]
+name = "zeroize_derive"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85a5b4158499876c763cb03bc4e49185d3cccbabb15b33c627f7884f43db852e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
 
 [[package]]
 name = "zerotrie"

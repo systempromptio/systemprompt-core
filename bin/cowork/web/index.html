@@ -6,7 +6,7 @@
   <title>systemprompt cowork</title>
   <style>__STYLE__</style>
 </head>
-<body>
+<body class="setup-mode">
   <header class="topbar" role="banner">
     <div class="brand">
       <span class="brand-mark">__ICON_SVG__</span>
@@ -56,20 +56,15 @@
         <div id="identity-tenant" class="value mono muted">—</div>
       </div>
       <div class="kv">
-        <label for="gateway">Gateway URL</label>
-        <input id="gateway" type="url" placeholder="https://gateway.example.com" autocomplete="off" spellcheck="false" />
-      </div>
-      <div class="kv">
-        <label for="pat">Personal access token</label>
-        <input id="pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" />
-      </div>
-      <div class="row">
-        <button id="btn-login"  class="primary" type="button">Save &amp; sign in</button>
-        <button id="btn-logout" class="ghost"   type="button">Log out</button>
+        <label>Gateway URL</label>
+        <div id="identity-gateway" class="value mono muted">—</div>
       </div>
       <div class="kv">
         <label>Token cache</label>
         <div id="token-state" class="value muted">no cached JWT</div>
+      </div>
+      <div class="row">
+        <button id="btn-logout" class="ghost" type="button">Log out</button>
       </div>
     </section>
 
@@ -145,6 +140,42 @@
       <pre id="log" class="log" aria-live="polite">Ready.</pre>
     </section>
   </main>
+
+  <section id="setup" class="setup" aria-labelledby="setup-heading">
+    <div class="setup-card">
+      <h1 id="setup-heading">Connect cowork to your gateway</h1>
+      <p class="setup-lede">
+        Point cowork at the systemprompt gateway running for your tenant, then sign in with a
+        personal access token. Cowork stays here until both check out.
+      </p>
+
+      <div class="setup-field">
+        <label for="setup-gateway">Gateway URL</label>
+        <input id="setup-gateway" type="url" placeholder="http://127.0.0.1:8080" autocomplete="off" spellcheck="false" />
+        <div class="setup-status">
+          <span id="setup-gateway-dot" class="dot dot-unknown" aria-hidden="true"></span>
+          <span id="setup-gateway-msg" class="muted">enter a URL to probe…</span>
+        </div>
+      </div>
+
+      <div class="setup-field">
+        <label for="setup-pat">Personal access token</label>
+        <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" />
+        <p class="setup-hint">
+          Don't have one yet?
+          <a id="setup-pat-link" class="setup-pat-link" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">
+            Open the gateway admin login →
+          </a>
+          <span class="setup-hint-detail">Sign in there, issue a device PAT, then paste it above.</span>
+        </p>
+      </div>
+
+      <div class="setup-actions">
+        <button id="setup-connect" class="primary" type="button">Connect</button>
+        <span id="setup-error" class="setup-error" hidden></span>
+      </div>
+    </div>
+  </section>
 
   <footer class="footer" role="contentinfo">
     <span id="config-path" class="mono muted">—</span>

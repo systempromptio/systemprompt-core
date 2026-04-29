@@ -1,0 +1,16 @@
+[package]
+name = "systemprompt-cowork-install-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-cowork install/policy/MDM"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-cowork = { workspace = true }
+
+[dev-dependencies]

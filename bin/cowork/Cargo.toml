@@ -9,9 +9,14 @@ license = "BUSL-1.1"
 description = "Credential helper + plugin/MCP sync agent for Anthropic's Claude Cowork, targeting the systemprompt.io gateway."
 publish = false
 
+build = "build.rs"
+
 [lib]
 name = "systemprompt_cowork"
 path = "src/lib.rs"
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winresource = "0.1"
 
 [[bin]]
 name = "systemprompt-cowork"
@@ -43,6 +48,9 @@ http = "1.0"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 futures-util = "0.3"
 bytes = "1"
+parking_lot = "0.12"
+ctrlc = "3"
+is-terminal = "0.4"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -59,6 +67,31 @@ tray-icon = "0.19"
 muda = "0.15"
 winit = "0.30"
 image = { version = "0.25", default-features = false, features = ["png"] }
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_Threading",
+] }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "warn"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+print_stdout = "warn"
+print_stderr = "warn"
+dbg_macro = "deny"
+mod_module_files = "warn"
+cast_possible_truncation = "warn"
+cast_lossless = "warn"
+needless_pass_by_value = "warn"
 
 [profile.release]
 opt-level = "z"

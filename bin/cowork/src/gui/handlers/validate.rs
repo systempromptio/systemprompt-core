@@ -4,10 +4,8 @@ use crate::validate;
 
 pub(crate) fn on_validate_requested(app: &mut GuiApp) {
     app.append_log("Running validation…");
-    app.pool.spawn_with_proxy(app.proxy.clone(), |proxy| {
-        let report = validate::run();
-        let _ = proxy.send_event(UiEvent::ValidateFinished(report));
-    });
+    app.pool
+        .spawn_task(app.proxy.clone(), validate::run, UiEvent::ValidateFinished);
 }
 
 pub(crate) fn on_validate_finished(app: &mut GuiApp, report: validate::ValidationReport) {

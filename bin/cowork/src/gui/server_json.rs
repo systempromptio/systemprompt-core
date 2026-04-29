@@ -1,27 +1,9 @@
 use serde::Serialize;
 
 use crate::gui::state::{AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
-#[cfg(target_os = "macos")]
-use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
 
 pub(crate) fn snapshot_to_json(snap: &AppStateSnapshot) -> String {
     serde_json::to_string(&StatePayload::from(snap)).unwrap_or_else(|_| "{}".to_string())
-}
-
-#[cfg(target_os = "macos")]
-type ClaudeIntegrationRef<'a> = Option<&'a ClaudeIntegrationSnapshot>;
-
-#[cfg(not(target_os = "macos"))]
-type ClaudeIntegrationRef<'a> = std::marker::PhantomData<&'a ()>;
-
-#[cfg(target_os = "macos")]
-fn claude_integration_ref(snap: &AppStateSnapshot) -> ClaudeIntegrationRef<'_> {
-    snap.claude_integration.as_ref()
-}
-
-#[cfg(not(target_os = "macos"))]
-fn claude_integration_ref(_snap: &AppStateSnapshot) -> ClaudeIntegrationRef<'_> {
-    std::marker::PhantomData
 }
 
 #[derive(Serialize)]
@@ -43,25 +25,9 @@ struct StatePayload<'a> {
     verified_identity: Option<VerifiedIdentityPayload<'a>>,
     signed_in: bool,
     last_probe_at_unix: Option<u64>,
-    #[serde(serialize_with = "serialize_claude_integration")]
-    claude_integration: ClaudeIntegrationRef<'a>,
-    last_generated_profile: Option<&'a str>,
-}
-
-#[cfg(target_os = "macos")]
-fn serialize_claude_integration<S: serde::Serializer>(
-    value: &ClaudeIntegrationRef<'_>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    value.serialize(serializer)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn serialize_claude_integration<S: serde::Serializer>(
-    _value: &ClaudeIntegrationRef<'_>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_none()
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[serde(flatten)]
+    claude: crate::gui::claude::serde::ClaudePayload<'a>,
 }
 
 impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
@@ -87,8 +53,8 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
                 .map(VerifiedIdentityPayload::from),
             signed_in: snap.signed_in(),
             last_probe_at_unix: snap.last_probe_at_unix,
-            claude_integration: claude_integration_ref(snap),
-            last_generated_profile: snap.last_generated_profile.as_deref(),
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            claude: crate::gui::claude::serde::payload(snap),
         }
     }
 }

@@ -14,14 +14,13 @@ pub(crate) fn has_flag(args: &[String], flag: &str) -> bool {
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) fn launched_without_terminal() -> bool {
-    use windows_sys::Win32::System::Console::GetConsoleProcessList;
-    let mut pids = [0u32; 4];
-    let n = unsafe { GetConsoleProcessList(pids.as_mut_ptr(), pids.len() as u32) };
-    n <= 1
+pub(crate) fn should_default_to_gui() -> bool {
+    use is_terminal::IsTerminal as _;
+
+    !std::io::stdout().is_terminal()
 }
 
 #[cfg(not(target_os = "windows"))]
-pub(crate) fn launched_without_terminal() -> bool {
+pub(crate) fn should_default_to_gui() -> bool {
     false
 }

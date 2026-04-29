@@ -1,11 +1,16 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use systemprompt_cowork::config;
 use systemprompt_cowork::sync::SyncError;
 
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+}
 
 fn tempdir() -> PathBuf {
     let mut p = std::env::temp_dir();
@@ -73,8 +78,11 @@ fn macos_prefs_plist_includes_pubkey_when_provided() {
 #[test]
 fn macos_prefs_plist_omits_pubkey_when_absent() {
     let bin = std::path::Path::new("/usr/local/bin/cowork");
-    let plist =
-        systemprompt_cowork::install::build_macos_prefs_plist(bin, "https://gateway.example", None);
+    let plist = systemprompt_cowork::install::build_macos_prefs_plist(
+        bin,
+        "https://gateway.example",
+        None,
+    );
     assert!(!plist.contains("inferenceManifestPubkey"));
 }
 
@@ -93,7 +101,7 @@ fn macos_mobileconfig_includes_pubkey_when_provided() {
 
 #[test]
 fn policy_pubkey_env_overrides_operator_set_value() {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _guard = env_lock();
     let dir = tempdir();
     let cfg_path = dir.join("systemprompt-cowork.toml");
     fs::write(&cfg_path, "[sync]\npinned_pubkey = \"OPERATOR-KEY-AAAA\"\n").unwrap();
@@ -115,7 +123,7 @@ fn policy_pubkey_env_overrides_operator_set_value() {
 
 #[test]
 fn policy_pubkey_env_seeds_when_no_operator_value() {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _guard = env_lock();
     let dir = tempdir();
     let cfg_path = dir.join("systemprompt-cowork.toml");
     fs::write(&cfg_path, "").unwrap();
@@ -137,7 +145,7 @@ fn policy_pubkey_env_seeds_when_no_operator_value() {
 
 #[test]
 fn no_pinned_pubkey_when_neither_operator_nor_policy_set() {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _guard = env_lock();
     let dir = tempdir();
     let cfg_path = dir.join("systemprompt-cowork.toml");
     fs::write(&cfg_path, "").unwrap();
@@ -158,7 +166,7 @@ fn no_pinned_pubkey_when_neither_operator_nor_policy_set() {
 
 #[test]
 fn policy_pubkey_helper_returns_env_value() {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let _guard = env_lock();
     unsafe {
         std::env::set_var("SP_COWORK_POLICY_PUBKEY", "FROM-POLICY-DDDD");
     }

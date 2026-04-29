@@ -1,25 +1,19 @@
-#[cfg(target_os = "macos")]
-use super::xml;
+#![cfg(target_os = "macos")]
+
+use crate::install::xml;
 use std::path::Path;
 
-#[cfg(target_os = "macos")]
 pub(crate) const PAYLOAD_IDENTIFIER: &str = "io.systemprompt.cowork.mdm";
-#[cfg(target_os = "macos")]
 const INNER_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.cowork.mdm.inference";
-#[cfg(target_os = "macos")]
 pub(crate) const MANAGED_PREFS_PATH: &str =
     "/Library/Managed Preferences/com.anthropic.claudefordesktop.plist";
 
-#[cfg(target_os = "macos")]
-const PREFS_PLIST_TMPL: &str = include_str!("templates/prefs.plist.tmpl");
-#[cfg(target_os = "macos")]
-const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("templates/prefs_pubkey_line.tmpl");
-#[cfg(target_os = "macos")]
-const MOBILECONFIG_TMPL: &str = include_str!("templates/mobileconfig.tmpl");
-#[cfg(target_os = "macos")]
-const MOBILECONFIG_PUBKEY_LINE_TMPL: &str = include_str!("templates/mobileconfig_pubkey_line.tmpl");
+const PREFS_PLIST_TMPL: &str = include_str!("../templates/prefs.plist.tmpl");
+const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("../templates/prefs_pubkey_line.tmpl");
+const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
+const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
+    include_str!("../templates/mobileconfig_pubkey_line.tmpl");
 
-#[cfg(target_os = "macos")]
 pub fn build_prefs_plist(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
     let pubkey_block = pubkey
         .map(|pk| PREFS_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
@@ -30,7 +24,6 @@ pub fn build_prefs_plist(binary: &Path, gateway: &str, pubkey: Option<&str>) -> 
         .replace("{pubkey_block}", &pubkey_block)
 }
 
-#[cfg(target_os = "macos")]
 pub fn build_mobileconfig(binary: &Path, gateway: &str, pubkey: Option<&str>) -> String {
     let pubkey_block = pubkey
         .map(|pk| MOBILECONFIG_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
@@ -45,7 +38,6 @@ pub fn build_mobileconfig(binary: &Path, gateway: &str, pubkey: Option<&str>) ->
         .replace("{pubkey_block}", &pubkey_block)
 }
 
-#[cfg(target_os = "macos")]
 fn validate_gateway(gateway: &str) -> Result<(), String> {
     if gateway.starts_with("http://")
         && !gateway.contains("://127.0.0.1")
@@ -59,7 +51,6 @@ fn validate_gateway(gateway: &str) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
 pub fn apply(binary: &Path, gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     use std::fs;
     use std::process::Command;
@@ -118,7 +109,6 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
     ))
 }
 
-#[cfg(target_os = "macos")]
 fn apply_summary(
     dest_system: &str,
     dest_user: &str,
@@ -157,7 +147,6 @@ fn apply_summary(
     summary
 }
 
-#[cfg(target_os = "macos")]
 pub fn apply_mobileconfig(
     binary: &Path,
     gateway: &str,
@@ -193,7 +182,6 @@ pub fn apply_mobileconfig(
     Ok(summary)
 }
 
-#[cfg(target_os = "macos")]
 pub fn remove_profile() -> Result<bool, String> {
     use std::process::Command;
     let user = std::env::var("USER").unwrap_or_default();
@@ -234,9 +222,4 @@ pub fn remove_profile() -> Result<bool, String> {
         ));
     }
     Ok(true)
-}
-
-#[cfg(not(target_os = "macos"))]
-pub fn apply(_binary: &Path, _gateway: &str, _pubkey: Option<&str>) -> Result<Vec<String>, String> {
-    Err("--apply on macOS must be run from a macOS binary".into())
 }

@@ -57,7 +57,10 @@ pub fn apply_plugins(
 }
 
 fn is_well_formed(plugin_dir: &Path) -> bool {
-    plugin_dir.join("claude-plugin").join("plugin.json").is_file()
+    plugin_dir
+        .join("claude-plugin")
+        .join("plugin.json")
+        .is_file()
 }
 
 enum PluginChange {

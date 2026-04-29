@@ -1,19 +1,23 @@
 mod gateway_probe;
-mod managed_prefs;
-mod process;
-mod profile;
+mod shared;
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "windows")]
+mod windows;
+
+#[cfg(target_os = "macos")]
+use macos as os;
+#[cfg(target_os = "windows")]
+use windows as os;
 
 use serde::Serialize;
 
 pub use gateway_probe::{GatewayHealth, GatewayProbeState};
-pub use managed_prefs::{ManagedDomain, ManagedPrefsState};
-pub use profile::{
-    GenerateProfileBody, GeneratedProfile, ProfileGenInputs, default_models, install_profile,
-    write_profile,
+pub use shared::{
+    GenerateProfileBody, GeneratedProfile, ManagedDomain, ManagedPrefsState, ProfileGenInputs,
+    default_models,
 };
-
-const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
-const CODE_DOMAIN: &str = "com.anthropic.claudecode";
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ClaudeIntegrationSnapshot {
@@ -26,8 +30,8 @@ pub struct ClaudeIntegrationSnapshot {
 
 pub fn probe() -> ClaudeIntegrationSnapshot {
     let managed_prefs = ManagedPrefsState {
-        desktop: managed_prefs::read_domain(
-            DESKTOP_DOMAIN,
+        desktop: os::read_domain(
+            shared::DESKTOP_DOMAIN,
             &[
                 "inferenceProvider",
                 "inferenceGatewayBaseUrl",
@@ -35,7 +39,7 @@ pub fn probe() -> ClaudeIntegrationSnapshot {
                 "inferenceModels",
             ],
         ),
-        code: managed_prefs::read_domain(CODE_DOMAIN, &[]),
+        code: os::read_domain(shared::CODE_DOMAIN, &[]),
     };
 
     let gateway_url = managed_prefs
@@ -53,12 +57,20 @@ pub fn probe() -> ClaudeIntegrationSnapshot {
         },
     };
 
-    let claude_processes = process::list_claude_processes();
+    let claude_processes = os::list_claude_processes();
     ClaudeIntegrationSnapshot {
         managed_prefs,
         gateway_health,
         claude_running: !claude_processes.is_empty(),
         claude_processes,
-        probed_at_unix: process::now_unix(),
+        probed_at_unix: shared::now_unix(),
     }
+}
+
+pub fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    os::write_profile(inputs)
+}
+
+pub fn install_profile(path: &str) -> std::io::Result<()> {
+    os::install_profile(path)
 }

@@ -1,7 +1,12 @@
+#[cfg(target_os = "macos")]
+pub(super) mod macos;
+#[cfg(target_os = "windows")]
+mod windows;
+
 use crate::schedule::Os;
 use std::path::Path;
 
-const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("templates/mdm_macos_snippet.tmpl");
+const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("../templates/mdm_macos_snippet.tmpl");
 
 pub fn os_label(os: Os) -> &'static str {
     match os {
@@ -18,8 +23,17 @@ pub fn apply_mdm(
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, String> {
     match os {
-        Os::Windows => apply_windows(binary, gateway, pubkey),
-        Os::Mac => super::macos::apply(binary, gateway, pubkey),
+        #[cfg(target_os = "windows")]
+        Os::Windows => windows::apply(binary, gateway, pubkey),
+        #[cfg(not(target_os = "windows"))]
+        Os::Windows => {
+            let _ = (binary, gateway, pubkey);
+            Err("--apply on Windows must be run from a Windows binary".into())
+        },
+        #[cfg(target_os = "macos")]
+        Os::Mac => macos::apply(binary, gateway, pubkey),
+        #[cfg(not(target_os = "macos"))]
+        Os::Mac => Err("--apply on macOS must be run from a macOS binary".into()),
         Os::Linux => Err("Linux has no Anthropic-documented MDM format; set the \
                           CLAUDE_INFERENCE_* env vars in your shell profile or systemd-user unit."
             .into()),
@@ -49,48 +63,6 @@ pub fn windows_policy_values(
     values
 }
 
-#[cfg(target_os = "windows")]
-fn apply_windows(
-    binary: &Path,
-    gateway: &str,
-    pubkey: Option<&str>,
-) -> Result<Vec<String>, String> {
-    use std::process::Command;
-    let key = r"HKCU\SOFTWARE\Policies\Claude";
-    let values = windows_policy_values(binary, gateway, pubkey);
-    let mut summary = Vec::with_capacity(values.len() + 1);
-    summary.push(format!("registry key: {key}"));
-    for (name, kind, data) in values {
-        let status = Command::new("reg")
-            .args(["add", key, "/v", name, "/t", kind, "/d", data, "/f"])
-            .status()
-            .map_err(|e| format!("reg add {name}: {e}"))?;
-        if !status.success() {
-            return Err(format!(
-                "reg add {name} exited with {}",
-                status.code().unwrap_or(-1)
-            ));
-        }
-        summary.push(format!("wrote {name} ({kind})"));
-    }
-    if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
-        summary.push(
-            "warning: Cowork rejects http:// for non-127.0.0.1 hosts. Re-run --apply with http://127.0.0.1:<port> or switch to https://.".into(),
-        );
-    }
-    summary.push("Fully quit Cowork (tray icon → Quit) and relaunch to pick up new policy.".into());
-    Ok(summary)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn apply_windows(
-    _binary: &Path,
-    _gateway: &str,
-    _pubkey: Option<&str>,
-) -> Result<Vec<String>, String> {
-    Err("--apply on Windows must be run from a Windows binary".into())
-}
-
 pub fn snippet(os: Os, binary: &Path, gateway_url: Option<&str>) -> String {
     let binary = binary.display();
     let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
@@ -99,12 +71,12 @@ pub fn snippet(os: Os, binary: &Path, gateway_url: Option<&str>) -> String {
             .replace("{gateway}", gateway)
             .replace("{binary}", &binary.to_string()),
         Os::Windows => format!(
-            r#"Registry key: HKCU\SOFTWARE\Policies\Claude
-Format: .reg
+            r#"Registry key: HKLM\SOFTWARE\Policies\Claude (machine-wide; HKCU as per-user fallback)
+Format: .reg — distribute via Group Policy, Intune, or any MDM that imports .reg files
 
 Windows Registry Editor Version 5.00
 
-[HKEY_CURRENT_USER\SOFTWARE\Policies\Claude]
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]
 "inferenceProvider"="gateway"
 "inferenceGatewayBaseUrl"="{gateway}"
 "inferenceCredentialHelper"="{binary}"

@@ -15,7 +15,10 @@ pub struct TrayHandles {
     pub sync_item: MenuItem,
 }
 
+#[cfg(target_os = "macos")]
 const TRAY_ICON_PNG: &[u8] = include_bytes!("../../assets/tray-icon.png");
+#[cfg(not(target_os = "macos"))]
+const TRAY_ICON_PNG: &[u8] = include_bytes!("../../assets/window-icon-1024.png");
 
 pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
     let menu = Menu::new();
@@ -56,7 +59,7 @@ pub fn build(initial: &AppStateSnapshot) -> Result<TrayHandles, String> {
         .with_menu(Box::new(menu.clone()))
         .with_tooltip("systemprompt-cowork")
         .with_icon(icon)
-        .with_icon_as_template(true)
+        .with_icon_as_template(cfg!(target_os = "macos"))
         .build()
         .map_err(|e| e.to_string())?;
 

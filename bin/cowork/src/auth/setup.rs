@@ -46,6 +46,17 @@ pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, Setup
     Ok(paths)
 }
 
+pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
+    let trimmed = gateway_url.trim();
+    if trimmed.is_empty() {
+        return Err(SetupError::Path("gateway_url is empty".into()));
+    }
+    let paths = resolve_paths()?;
+    ensure_dir(&paths.config_dir)?;
+    write_config_file(&paths.config_file, &paths.pat_file, Some(trimmed))?;
+    Ok(paths)
+}
+
 pub fn logout() -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
@@ -66,6 +77,28 @@ pub fn logout() -> Result<PathLayout, SetupError> {
         }
     }
     Ok(paths)
+}
+
+pub fn clean() -> Result<CleanReport, SetupError> {
+    let paths = resolve_paths()?;
+    let pat_removed = paths.pat_file.exists();
+    remove_if_exists(&paths.pat_file)?;
+    let config_removed = paths.config_file.exists();
+    remove_if_exists(&paths.config_file)?;
+    if let Err(e) = crate::cache::clear() {
+        return Err(SetupError::Io(format!("clear token cache: {e}")));
+    }
+    Ok(CleanReport {
+        paths,
+        pat_removed,
+        config_removed,
+    })
+}
+
+pub struct CleanReport {
+    pub paths: PathLayout,
+    pub pat_removed: bool,
+    pub config_removed: bool,
 }
 
 pub fn status() -> Result<StatusReport, SetupError> {
