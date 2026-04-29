@@ -77,9 +77,37 @@ Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) →
 **MANDATORY**: Follow `instructions/rust.md`. Key rules:
 - Zero inline comments - code documents itself through naming
 - Zero raw String IDs - use typed identifiers from `systemprompt_identifiers`
+- Typed ID construction (see "Typed Identifiers" below)
 - Services call repositories, never execute SQL directly
 - All queries via compile-time verified macros: `sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()` (never unverified `sqlx::query()`)
 - Schema DDL lives in `{crate}/schema/*.sql` files, embedded via `include_str!()` in extension.rs
+
+### Typed Identifiers
+
+Canonical construction forms for IDs declared via `define_id!`:
+
+```rust
+// 1. Known string value (literal, parsed input, DB row, function arg)
+let id = AgentId::new("agent_one");
+let id = AgentId::new(s);
+
+// 2. Mint a fresh UUID (only for IDs declared with the `generate` flag)
+let id = SessionId::generate();
+
+// 3. Validated / non_empty IDs in fallible contexts
+let id = TenantId::try_new(s)?;
+```
+
+Disallowed for typed IDs in normal code (these compile but hide the type at the call site):
+
+```rust
+let id: AgentId = "agent_one".into();   // ❌
+let id = AgentId::from("agent_one");    // ❌
+```
+
+The macro-generated `From` / `TryFrom` impls remain on the type — they are required for generic `Into<T>` bounds and for serde. The rule is about call-site idiom only.
+
+Sweep tracked under plan `standardize-typed-id-construction-imperative-zebra`.
 
 ## Facade Crate (`systemprompt/`)
 

@@ -3,6 +3,8 @@ use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
+
 use super::models::{AiRequestSummary, TraceEvent};
 
 pub use super::step_queries::{
@@ -37,10 +39,10 @@ pub async fn fetch_log_events(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<
             event_type: row.r#type,
             timestamp: row.timestamp,
             details: row.details.unwrap_or_else(String::new),
-            user_id: row.user_id.map(Into::into),
-            session_id: row.session_id.map(Into::into),
-            task_id: row.task_id.map(Into::into),
-            context_id: row.context_id.map(Into::into),
+            user_id: row.user_id.map(UserId::new),
+            session_id: row.session_id.map(SessionId::new),
+            task_id: row.task_id.map(TaskId::new),
+            context_id: row.context_id.map(ContextId::new),
             metadata: row.metadata,
         })
         .collect())
@@ -132,10 +134,10 @@ pub async fn fetch_ai_request_events(
                 event_type: "AI".to_string(),
                 timestamp: row.timestamp,
                 details,
-                user_id: Some(row.user_id.into()),
-                session_id: row.session_id.map(Into::into),
-                task_id: row.task_id.map(Into::into),
-                context_id: row.context_id.map(Into::into),
+                user_id: Some(UserId::new(row.user_id)),
+                session_id: row.session_id.map(SessionId::new),
+                task_id: row.task_id.map(TaskId::new),
+                context_id: row.context_id.map(ContextId::new),
                 metadata: Some(metadata.to_string()),
             }
         })

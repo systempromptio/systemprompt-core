@@ -1,4 +1,5 @@
 use chrono::Utc;
+use systemprompt_identifiers::TenantId;
 use systemprompt_sync::{
     FileBundle, FileEntry, FileManifest, SyncConfig, SyncDirection, SyncError, SyncOperationResult,
 };
@@ -8,21 +9,21 @@ mod boundary_tests {
 
     #[test]
     fn empty_tenant_id() {
-        let config = SyncConfig::builder("", "https://api.com", "token", "/services").build();
+        let config = SyncConfig::builder(TenantId::new(""), "https://api.com", "token", "/services").build();
         assert_eq!(config.tenant_id, "");
     }
 
     #[test]
     fn very_long_strings() {
         let long_string = "x".repeat(10000);
-        let config = SyncConfig::builder(&long_string, "https://api.com", "token", "/services").build();
+        let config = SyncConfig::builder(TenantId::new(&long_string), "https://api.com", "token", "/services").build();
         assert_eq!(config.tenant_id.len(), 10000);
     }
 
     #[test]
     fn special_characters_in_config() {
         let config = SyncConfig::builder(
-            "tenant-123_special!@#",
+            TenantId::new("tenant-123_special!@#"),
             "https://api.example.com/v1",
             "token+with/special=chars",
             "/path/with spaces/and-dashes",
@@ -131,35 +132,35 @@ mod config_additional_tests {
 
     #[test]
     fn builder_with_hostname() {
-        let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
             .with_hostname(Some("app.example.com".to_string())).build();
         assert_eq!(config.hostname, Some("app.example.com".to_string()));
     }
 
     #[test]
     fn builder_with_hostname_none() {
-        let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
             .with_hostname(None).build();
         assert!(config.hostname.is_none());
     }
 
     #[test]
     fn builder_with_sync_token() {
-        let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
             .with_sync_token(Some("sync-secret-token".to_string())).build();
         assert_eq!(config.sync_token, Some("sync-secret-token".to_string()));
     }
 
     #[test]
     fn builder_with_local_database_url() {
-        let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
             .with_local_database_url("postgresql://localhost:5432/testdb").build();
         assert_eq!(config.local_database_url, Some("postgresql://localhost:5432/testdb".to_string()));
     }
 
     #[test]
     fn builder_all_options() {
-        let config = SyncConfig::builder("tenant-full", "https://api.com", "api-token", "/services")
+        let config = SyncConfig::builder(TenantId::new("tenant-full"), "https://api.com", "api-token", "/services")
             .with_direction(SyncDirection::Pull)
             .with_dry_run(true)
             .with_verbose(true)
@@ -175,7 +176,7 @@ mod config_additional_tests {
 
     #[test]
     fn config_debug() {
-        let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
+        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services").build();
         let debug_str = format!("{:?}", config);
         assert!(debug_str.contains("SyncConfig"));
     }

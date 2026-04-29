@@ -1,6 +1,7 @@
 use std::fs;
 
-use systemprompt_cowork::gateway::manifest::{SignedManifest, canonical_payload};
+use systemprompt_cowork::gateway::manifest::{SignedManifest, UserId, canonical_payload};
+use systemprompt_cowork::ids::ManifestSignature;
 use systemprompt_cowork::sync::{
     LastSyncState, SyncError, check_replay, check_skew, read_last_sync,
 };
@@ -31,7 +32,7 @@ fn canonical_payload_includes_not_before_in_position() {
         manifest_version: "2026-04-27T12:00:00Z-cafe".into(),
         issued_at: "2026-04-27T12:00:00+00:00".into(),
         not_before: "2026-04-27T12:00:00+00:00".into(),
-        user_id: "u1".into(),
+        user_id: UserId::new("u1"),
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -39,7 +40,7 @@ fn canonical_payload_includes_not_before_in_position() {
         agents: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        signature: "ignored".into(),
+        signature: ManifestSignature::new("ignored"),
     };
     let p = canonical_payload(&m).unwrap();
     assert!(p.contains(r#""not_before":"2026-04-27T12:00:00+00:00""#));

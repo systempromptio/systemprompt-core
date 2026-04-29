@@ -2,6 +2,8 @@ use anyhow::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use systemprompt_identifiers::{AiRequestId, ArtifactId, McpExecutionId};
+
 use super::models::{AiRequestInfo, McpToolExecution, TaskArtifact, ToolLogEntry};
 
 pub async fn fetch_mcp_executions(
@@ -24,7 +26,7 @@ pub async fn fetch_mcp_executions(
     Ok(rows
         .into_iter()
         .map(|r| McpToolExecution {
-            mcp_execution_id: r.mcp_execution_id.into(),
+            mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
             tool_name: r.tool_name,
             server_name: r.server_name,
             status: r.status,
@@ -53,7 +55,7 @@ pub async fn fetch_mcp_linked_ai_requests(
     Ok(rows
         .into_iter()
         .map(|r| AiRequestInfo {
-            id: r.id.into(),
+            id: AiRequestId::new(r.id),
             provider: r.provider,
             model: r.model,
             max_tokens: r.max_tokens,
@@ -121,7 +123,7 @@ pub async fn fetch_task_artifacts(
     Ok(rows
         .into_iter()
         .map(|r| TaskArtifact {
-            artifact_id: r.artifact_id.into(),
+            artifact_id: ArtifactId::new(r.artifact_id),
             artifact_type: r.artifact_type,
             name: r.name,
             source: r.source,

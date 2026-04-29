@@ -3,6 +3,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use systemprompt_identifiers::TraceId;
+
 use super::models::{TraceListFilter, TraceListItem};
 
 struct TraceRow {
@@ -100,7 +102,7 @@ pub async fn list_traces(
     Ok(rows
         .into_iter()
         .map(|r| TraceListItem {
-            trace_id: r.trace_id.into(),
+            trace_id: TraceId::new(r.trace_id),
             first_timestamp: r.first_timestamp,
             last_timestamp: r.last_timestamp,
             agent: r.agent,

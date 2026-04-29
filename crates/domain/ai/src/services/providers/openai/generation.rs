@@ -146,7 +146,7 @@ pub async fn generate_with_tools(
                 });
 
             ToolCall {
-                ai_tool_call_id: AiToolCallId::from(tc.id),
+                ai_tool_call_id: AiToolCallId::new(tc.id),
                 name: tc.function.name,
                 arguments,
             }

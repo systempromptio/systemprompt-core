@@ -99,7 +99,7 @@ pub async fn extract_tool_response(
                         mapper.resolve_tool_call(&function_call.name, function_call.args.clone());
 
                     tool_calls.push(ToolCall {
-                        ai_tool_call_id: AiToolCallId::from(Uuid::new_v4().to_string()),
+                        ai_tool_call_id: AiToolCallId::new(Uuid::new_v4().to_string()),
                         name: original_name,
                         arguments: resolved_args,
                     });

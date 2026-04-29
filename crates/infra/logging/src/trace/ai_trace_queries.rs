@@ -2,7 +2,7 @@ use anyhow::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{AiRequestId, ExecutionStepId, TaskId};
+use systemprompt_identifiers::{AiRequestId, ContextId, ExecutionStepId, TaskId};
 
 use super::models::{AiRequestInfo, ConversationMessage, ExecutionStep, TaskInfo};
 
@@ -33,8 +33,8 @@ pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Tas
     .await?;
 
     Ok(TaskInfo {
-        task_id: row.task_id.into(),
-        context_id: row.context_id.into(),
+        task_id: TaskId::new(row.task_id),
+        context_id: ContextId::new(row.context_id),
         agent_name: row.agent_name,
         status: row.status,
         created_at: row.created_at,

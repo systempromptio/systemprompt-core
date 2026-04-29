@@ -117,10 +117,10 @@ impl ListArtifact {
 
     pub fn with_skill(
         mut self,
-        skill_id: impl Into<SkillId>,
+        skill_id: impl Into<String>,
         skill_name: impl Into<String>,
     ) -> Self {
-        self.metadata.skill_id = Some(skill_id.into());
+        self.metadata.skill_id = Some(SkillId::new(skill_id));
         self.metadata.skill_name = Some(skill_name.into());
         self
     }

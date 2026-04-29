@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, TraceId};
 
 use super::models::{
     AiRequestDetail, AiRequestListItem, AiRequestStats, ModelStatsRow, ProviderStatsRow,
@@ -100,7 +100,7 @@ pub async fn list_ai_requests(
         .map(|r| AiRequestListItem {
             id: AiRequestId::new(r.id),
             created_at: r.created_at,
-            trace_id: r.trace_id.map(Into::into),
+            trace_id: r.trace_id.map(TraceId::new),
             provider: r.provider,
             model: r.model,
             input_tokens: r.input_tokens,

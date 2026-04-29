@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::LogId;
+use systemprompt_identifiers::{LogId, TraceId};
 
 use super::models::{LogSearchItem, ToolExecutionItem};
 
@@ -63,7 +63,7 @@ pub async fn search_logs(
         .into_iter()
         .map(|r| LogSearchItem {
             id: LogId::new(r.id),
-            trace_id: r.trace_id.into(),
+            trace_id: TraceId::new(r.trace_id),
             timestamp: r.timestamp,
             level: r.level,
             module: r.module,
@@ -106,7 +106,7 @@ pub async fn search_tool_executions(
         .into_iter()
         .map(|r| ToolExecutionItem {
             timestamp: r.timestamp,
-            trace_id: r.trace_id.into(),
+            trace_id: TraceId::new(r.trace_id),
             tool_name: r.tool_name,
             server_name: r.server_name,
             status: r.status,

@@ -122,7 +122,7 @@ fn test_authorization_request_serialize() {
 #[test]
 fn test_authorization_result_success() {
     let result = AuthorizationResult {
-        agent_id: AgentId::from("agent-1"),
+        agent_id: AgentId::new("agent-1"),
         provider: "github".to_string(),
         success: true,
         tokens: Some(TokenInfo {
@@ -145,7 +145,7 @@ fn test_authorization_result_success() {
 #[test]
 fn test_authorization_result_failure() {
     let result = AuthorizationResult {
-        agent_id: AgentId::from("agent-2"),
+        agent_id: AgentId::new("agent-2"),
         provider: "google".to_string(),
         success: false,
         tokens: None,

@@ -3,6 +3,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use systemprompt_identifiers::TraceId;
+
 use super::models::{ToolExecutionFilter, ToolExecutionItem};
 
 struct DbRow {
@@ -49,7 +51,7 @@ pub async fn list_tool_executions(
         .into_iter()
         .map(|r| ToolExecutionItem {
             timestamp: r.timestamp,
-            trace_id: r.trace_id.into(),
+            trace_id: TraceId::new(r.trace_id),
             tool_name: r.tool_name,
             server_name: r.server_name,
             status: r.status,

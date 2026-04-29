@@ -127,7 +127,7 @@ impl ContextPropagation for RequestContext {
         let ai_tool_call_id = hdrs
             .get(headers::AI_TOOL_CALL_ID)
             .and_then(|v| v.to_str().ok())
-            .map(|s| AiToolCallId::from(s.to_string()));
+            .map(|s| AiToolCallId::new(s.to_string()));
 
         let call_source = hdrs
             .get(headers::CALL_SOURCE)

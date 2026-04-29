@@ -203,7 +203,7 @@ fn try_proxy_verified_auth(
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_user_id(UserId::from(user_id_str.to_string()));
+        .with_user_id(UserId::new(user_id_str.to_string()));
 
     tracing::info!(
         server = %server_name,
@@ -307,7 +307,7 @@ fn build_authenticated_context(
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_user_id(UserId::from(claims.sub.clone()))
+        .with_user_id(UserId::new(claims.sub.clone()))
         .with_user_type(claims.user_type);
 
     Ok(AuthenticatedRequestContext::new(context, token))

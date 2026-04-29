@@ -128,7 +128,7 @@ pub async fn generate_with_tools(
             },
             AnthropicContentBlock::ToolUse { id, name, input } => {
                 tool_calls.push(ToolCall {
-                    ai_tool_call_id: AiToolCallId::from(id.clone()),
+                    ai_tool_call_id: AiToolCallId::new(id.clone()),
                     name: name.clone(),
                     arguments: input.clone(),
                 });

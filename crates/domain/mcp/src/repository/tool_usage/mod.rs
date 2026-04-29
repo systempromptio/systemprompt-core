@@ -39,7 +39,7 @@ impl ToolUsageRepository {
         }
 
         let id = Uuid::new_v4().to_string();
-        let mcp_execution_id = McpExecutionId::from(id.clone());
+        let mcp_execution_id = McpExecutionId::new(id.clone());
         let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
@@ -121,7 +121,7 @@ impl ToolUsageRepository {
         result: &ToolExecutionResult,
     ) -> Result<McpExecutionId> {
         let id = Uuid::new_v4().to_string();
-        let mcp_execution_id = McpExecutionId::from(id.clone());
+        let mcp_execution_id = McpExecutionId::new(id.clone());
         let status = ExecutionStatus::from_error(result.error_message.is_some()).as_str();
         let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
@@ -191,12 +191,12 @@ impl ToolUsageRepository {
         .await?;
 
         Ok(row.map(|r| ToolExecution {
-            mcp_execution_id: McpExecutionId::from(r.mcp_execution_id),
+            mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
             tool_name: r.tool_name,
             server_name: r.server_name,
-            context_id: r.context_id.map(ContextId::from),
-            ai_tool_call_id: r.ai_tool_call_id.map(AiToolCallId::from),
-            user_id: UserId::from(r.user_id),
+            context_id: r.context_id.map(ContextId::new),
+            ai_tool_call_id: r.ai_tool_call_id.map(AiToolCallId::new),
+            user_id: UserId::new(r.user_id),
             status: r.status,
             input: r.input,
             output: r.output,
@@ -218,7 +218,7 @@ impl ToolUsageRepository {
         )
         .fetch_optional(&*self.pool)
         .await?;
-        Ok(result.map(McpExecutionId::from))
+        Ok(result.map(McpExecutionId::new))
     }
 
     async fn find_existing_execution(
@@ -242,7 +242,7 @@ impl ToolUsageRepository {
         )
         .fetch_optional(&*self.pool)
         .await?;
-        Ok(result.flatten().map(ContextId::from))
+        Ok(result.flatten().map(ContextId::new))
     }
 
     pub async fn list_tool_stats(&self, limit: i64) -> Result<Vec<ToolStats>> {
