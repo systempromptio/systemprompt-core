@@ -3,9 +3,9 @@ use std::process::ExitCode;
 
 use serde::Deserialize;
 
+use crate::auth::setup;
 use crate::config::paths;
 use crate::obs::output::diag;
-use crate::setup;
 
 fn status_line(label: &str, value: impl Display) {
     println!("{label}: {value}");

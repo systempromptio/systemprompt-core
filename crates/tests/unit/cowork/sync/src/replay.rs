@@ -1,6 +1,6 @@
 use std::fs;
 
-use systemprompt_cowork::manifest::{SignedManifest, canonical_payload};
+use systemprompt_cowork::gateway::manifest::{SignedManifest, canonical_payload};
 use systemprompt_cowork::sync::{
     LastSyncState, SyncError, check_replay, check_skew, read_last_sync,
 };

@@ -1,8 +1,8 @@
+use crate::auth::keystore;
+use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::types::{HelperOutput, MtlsRequest};
 use crate::config::Config;
-use crate::http::GatewayClient;
-use crate::keystore;
-use crate::providers::{AuthError, AuthProvider};
-use crate::types::{HelperOutput, MtlsRequest};
+use crate::gateway::GatewayClient;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct MtlsProvider {

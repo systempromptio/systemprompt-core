@@ -70,12 +70,16 @@ fn expand_home(path: &str) -> String {
     path.to_string()
 }
 
-pub fn mint_fresh(cfg: &config::Config) -> Option<HelperOutput> {
-    let chain: Vec<Box<dyn AuthProvider>> = vec![
+pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
+    vec![
         Box::new(MtlsProvider::new(cfg)),
         Box::new(SessionProvider::new(cfg)),
         Box::new(PatProvider::new(cfg)),
-    ];
+    ]
+}
+
+pub fn mint_fresh(cfg: &config::Config) -> Option<HelperOutput> {
+    let chain = provider_chain(cfg);
     for p in &chain {
         match p.authenticate() {
             Ok(out) => {

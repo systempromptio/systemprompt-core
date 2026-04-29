@@ -16,12 +16,6 @@ pub mod validate;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
 
-pub use auth::{cache, keystore, loopback, providers, secret, setup, types};
-pub use config::paths;
-pub use gateway as http;
-pub use gateway::manifest;
-pub use obs::{output, tracing_init};
-
 use std::process::ExitCode;
 
 const HELP: &str = "systemprompt-cowork <command>
@@ -79,6 +73,6 @@ pub(crate) fn help() -> &'static str {
 pub fn run() -> ExitCode {
     #[cfg(target_os = "windows")]
     winproc::attach_parent_console_if_present();
-    tracing_init::init();
+    obs::tracing_init::init();
     cli::run()
 }

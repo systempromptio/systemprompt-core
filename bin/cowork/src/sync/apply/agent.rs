@@ -1,6 +1,6 @@
 use super::super::hash::safe_id_segment;
-use crate::manifest::AgentEntry;
-use crate::paths;
+use crate::config::paths;
+use crate::gateway::manifest::AgentEntry;
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
@@ -30,12 +30,14 @@ impl<'a> From<&'a AgentEntry> for AgentIndexEntry<'a> {
     }
 }
 
-pub fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), String> {
+pub fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), super::ApplyError> {
     let dir = meta_dir.join(paths::AGENTS_DIR);
     if dir.exists() {
-        fs::remove_dir_all(&dir).map_err(|e| format!("clear agents dir: {e}"))?;
+        fs::remove_dir_all(&dir)
+            .map_err(|e| super::ApplyError::Detail(format!("clear agents dir: {e}")))?;
     }
-    fs::create_dir_all(&dir).map_err(|e| format!("create agents dir: {e}"))?;
+    fs::create_dir_all(&dir)
+        .map_err(|e| super::ApplyError::Detail(format!("create agents dir: {e}")))?;
 
     write_index(&dir, agents)?;
     for agent in agents {
@@ -44,22 +46,24 @@ pub fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), String
     Ok(())
 }
 
-fn write_index(dir: &Path, agents: &[AgentEntry]) -> Result<(), String> {
+fn write_index(dir: &Path, agents: &[AgentEntry]) -> Result<(), super::ApplyError> {
     let index: Vec<AgentIndexEntry<'_>> = agents.iter().map(AgentIndexEntry::from).collect();
-    let bytes =
-        serde_json::to_vec_pretty(&index).map_err(|e| format!("serialize agents index: {e}"))?;
-    fs::write(dir.join("index.json"), bytes).map_err(|e| format!("write agents index: {e}"))
+    let bytes = serde_json::to_vec_pretty(&index)
+        .map_err(|e| super::ApplyError::Detail(format!("serialize agents index: {e}")))?;
+    fs::write(dir.join("index.json"), bytes)
+        .map_err(|e| super::ApplyError::Detail(format!("write agents index: {e}")))
 }
 
-fn write_one_agent(dir: &Path, agent: &AgentEntry) -> Result<(), String> {
+fn write_one_agent(dir: &Path, agent: &AgentEntry) -> Result<(), super::ApplyError> {
     if !safe_id_segment(&agent.name) {
-        return Err(format!(
+        return Err(super::ApplyError::Detail(format!(
             "manifest contained unsafe agent name: {}",
             agent.name
-        ));
+        )));
     }
     let path = dir.join(format!("{}.json", agent.name));
     let bytes = serde_json::to_vec_pretty(agent)
-        .map_err(|e| format!("serialize agent {}: {e}", agent.name))?;
-    fs::write(&path, bytes).map_err(|e| format!("write {}: {e}", path.display()))
+        .map_err(|e| super::ApplyError::Detail(format!("serialize agent {}: {e}", agent.name)))?;
+    fs::write(&path, bytes)
+        .map_err(|e| super::ApplyError::Detail(format!("write {}: {e}", path.display())))
 }

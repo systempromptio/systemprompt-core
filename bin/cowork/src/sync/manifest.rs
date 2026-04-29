@@ -1,8 +1,8 @@
 use super::error::SyncError;
+use crate::auth::secret::Secret;
 use crate::config;
-use crate::http::GatewayClient;
-use crate::manifest::SignedManifest;
-use crate::secret::Secret;
+use crate::gateway::GatewayClient;
+use crate::gateway::manifest::SignedManifest;
 
 pub struct ManifestFetch {
     pub client: GatewayClient,
@@ -14,7 +14,7 @@ pub fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
 
-    let bearer = match crate::cache::read_valid() {
+    let bearer = match crate::auth::cache::read_valid() {
         Some(out) => out.token,
         None => fetch_fresh_token().ok_or(SyncError::NoCredential)?,
     };
@@ -66,22 +66,22 @@ fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<String, Sy
 }
 
 fn fetch_fresh_token() -> Option<Secret> {
-    use crate::providers::{AuthError, AuthProvider};
+    use crate::auth::providers::{AuthError, AuthProvider};
     let cfg = config::load();
     let chain: Vec<Box<dyn AuthProvider>> = vec![
-        Box::new(crate::providers::mtls::MtlsProvider::new(&cfg)),
-        Box::new(crate::providers::session::SessionProvider::new(&cfg)),
-        Box::new(crate::providers::pat::PatProvider::new(&cfg)),
+        Box::new(crate::auth::providers::mtls::MtlsProvider::new(&cfg)),
+        Box::new(crate::auth::providers::session::SessionProvider::new(&cfg)),
+        Box::new(crate::auth::providers::pat::PatProvider::new(&cfg)),
     ];
     for p in &chain {
         match p.authenticate() {
             Ok(out) => {
-                let _ = crate::cache::write(&out);
+                let _ = crate::auth::cache::write(&out);
                 return Some(out.token);
             },
             Err(AuthError::NotConfigured) => continue,
             Err(AuthError::Failed(msg)) => {
-                crate::output::diag(&format!("{}: {msg}", p.name()));
+                crate::obs::output::diag(&format!("{}: {msg}", p.name()));
             },
         }
     }

@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use tokio::runtime::Runtime;
 
-use crate::output::diag;
+use crate::obs::output::diag;
 use crate::{auth, config};
 
 pub use server::{ProxyHandle, ProxyStats};

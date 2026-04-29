@@ -1,23 +1,18 @@
 use std::process::ExitCode;
 
-use crate::auth::providers::mtls::MtlsProvider;
-use crate::auth::providers::pat::PatProvider;
-use crate::auth::providers::session::SessionProvider;
-use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::providers::AuthError;
+use crate::auth::secret::Secret;
+use crate::auth::{cache, provider_chain};
+use crate::config;
+use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
-use crate::secret::Secret;
-use crate::{cache, config, http};
 
 fn acquire_bearer() -> Option<Secret> {
     if let Some(out) = cache::read_valid() {
         return Some(out.token);
     }
     let cfg = config::load();
-    let chain: Vec<Box<dyn AuthProvider>> = vec![
-        Box::new(MtlsProvider::new(&cfg)),
-        Box::new(SessionProvider::new(&cfg)),
-        Box::new(PatProvider::new(&cfg)),
-    ];
+    let chain = provider_chain(&cfg);
     for p in &chain {
         match p.authenticate() {
             Ok(out) => {
@@ -44,7 +39,7 @@ pub(crate) fn cmd_whoami() -> ExitCode {
         },
     };
 
-    let client = http::GatewayClient::new(gateway);
+    let client = GatewayClient::new(gateway);
     match client.fetch_whoami(bearer.expose()) {
         Ok(value) => {
             match serde_json::to_string_pretty(&value) {

@@ -108,4 +108,3 @@ pub fn metadata_dir(org_plugins: &std::path::Path) -> PathBuf {
 pub fn staging_dir(org_plugins: &std::path::Path) -> PathBuf {
     org_plugins.join(STAGING_DIR)
 }
-

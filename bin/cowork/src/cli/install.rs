@@ -2,6 +2,7 @@ use std::process::ExitCode;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
 use crate::install;
+use crate::obs::output::diag;
 use crate::schedule::Os;
 
 pub(crate) fn cmd_install(args: &[String]) -> ExitCode {
@@ -27,6 +28,9 @@ pub(crate) fn cmd_install(args: &[String]) -> ExitCode {
             print!("{}", install::render_install_summary(&summary));
             ExitCode::SUCCESS
         },
-        Err(code) => code,
+        Err(err) => {
+            diag(&err.to_string());
+            err.exit_code()
+        },
     }
 }

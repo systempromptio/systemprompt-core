@@ -36,8 +36,8 @@ impl StoreHandle {
 
 impl Drop for StoreHandle {
     fn drop(&mut self) {
-        // SAFETY: self.0 was returned by a successful CertOpenSystemStoreW and has not been
-        // closed elsewhere; CertCloseStore is the matching deallocator.
+        // SAFETY: self.0 was returned by a successful CertOpenSystemStoreW and has not
+        // been closed elsewhere; CertCloseStore is the matching deallocator.
         unsafe {
             CertCloseStore(self.0, 0);
         }
@@ -64,9 +64,9 @@ impl DeviceCertSource for WindowsKeystore {
         let mut prev: *const CERT_CONTEXT = ptr::null();
 
         loop {
-            // SAFETY: store.0 is a live HCERTSTORE owned by `store` for the duration of this
-            // loop; `prev` is either null (first iteration) or a context returned by a prior
-            // call to this same function and not yet freed.
+            // SAFETY: store.0 is a live HCERTSTORE owned by `store` for the duration of
+            // this loop; `prev` is either null (first iteration) or a context
+            // returned by a prior call to this same function and not yet freed.
             let next = unsafe { CertEnumCertificatesInStore(store.0, prev) };
             if next.is_null() {
                 break;
@@ -96,8 +96,9 @@ fn cert_encoded_bytes(ctx: *const CERT_CONTEXT) -> Vec<u8> {
     if ctx.is_null() {
         return Vec::new();
     }
-    // SAFETY: ctx was returned by CertEnumCertificatesInStore and is non-null (checked above);
-    // pbCertEncoded points to cbCertEncoded bytes of valid DER for this context's lifetime.
+    // SAFETY: ctx was returned by CertEnumCertificatesInStore and is non-null
+    // (checked above); pbCertEncoded points to cbCertEncoded bytes of valid DER
+    // for this context's lifetime.
     unsafe {
         let len = (*ctx).cbCertEncoded as usize;
         let ptr = (*ctx).pbCertEncoded;

@@ -1,11 +1,9 @@
 use std::process::ExitCode;
 
-use crate::auth::providers::mtls::MtlsProvider;
-use crate::auth::providers::pat::PatProvider;
-use crate::auth::providers::session::SessionProvider;
-use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::providers::AuthError;
+use crate::auth::{cache, provider_chain};
+use crate::config;
 use crate::obs::output::{diag, emit};
-use crate::{cache, config};
 
 pub(crate) fn cmd_run() -> ExitCode {
     if let Some(cached) = cache::read_valid() {
@@ -16,12 +14,7 @@ pub(crate) fn cmd_run() -> ExitCode {
     }
 
     let cfg = config::load();
-
-    let chain: Vec<Box<dyn AuthProvider>> = vec![
-        Box::new(MtlsProvider::new(&cfg)),
-        Box::new(SessionProvider::new(&cfg)),
-        Box::new(PatProvider::new(&cfg)),
-    ];
+    let chain = provider_chain(&cfg);
 
     for provider in &chain {
         match provider.authenticate() {

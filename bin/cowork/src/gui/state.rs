@@ -1,15 +1,21 @@
+mod counters;
+mod jwt;
+
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use base64::Engine as _;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use parking_lot::RwLock;
 use serde::Deserialize;
 
+pub use jwt::decode_jwt_identity_unverified;
+
+use crate::auth::{cache, setup};
+use crate::config::{self, paths};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::gui::claude::state::ClaudeState;
 use crate::validate::ValidationReport;
-use crate::{cache, config, paths, setup};
+
+use counters::{count_malformed_plugin_dirs, count_plugin_dirs, read_index_count};
 
 #[derive(Debug, Deserialize)]
 struct LastSyncRecord {
@@ -17,50 +23,6 @@ struct LastSyncRecord {
     synced_at: Option<String>,
     #[serde(default)]
     manifest_version: Option<String>,
-}
-
-fn read_index_count(path: &std::path::Path) -> Option<usize> {
-    let bytes = std::fs::read(path).ok()?;
-    let entries: Vec<serde::de::IgnoredAny> = serde_json::from_slice(&bytes).ok()?;
-    Some(entries.len())
-}
-
-fn count_plugin_dirs(root: &std::path::Path) -> Option<usize> {
-    let mut n = 0usize;
-    for entry in std::fs::read_dir(root).ok()?.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if name.starts_with('.') {
-            continue;
-        }
-        if entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
-            n += 1;
-        }
-    }
-    Some(n)
-}
-
-fn count_malformed_plugin_dirs(root: &std::path::Path) -> Option<usize> {
-    let mut n = 0usize;
-    for entry in std::fs::read_dir(root).ok()?.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if name.starts_with('.') {
-            continue;
-        }
-        if !entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
-            continue;
-        }
-        if !entry
-            .path()
-            .join("claude-plugin")
-            .join("plugin.json")
-            .is_file()
-        {
-            n += 1;
-        }
-    }
-    Some(n)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -263,33 +225,6 @@ impl AppState {
             snap.agent_count = read_index_count(&meta.join(paths::AGENTS_DIR).join("index.json"));
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-struct JwtClaims {
-    #[serde(default)]
-    email: Option<String>,
-    #[serde(default)]
-    sub: Option<String>,
-    #[serde(default)]
-    tenant_id: Option<String>,
-    #[serde(default)]
-    exp: Option<u64>,
-}
-
-pub fn decode_jwt_identity(token: &str) -> Option<VerifiedIdentity> {
-    let mut parts = token.split('.');
-    let _header = parts.next()?;
-    let payload = parts.next()?;
-    let bytes = URL_SAFE_NO_PAD.decode(payload.as_bytes()).ok()?;
-    let claims: JwtClaims = serde_json::from_slice(&bytes).ok()?;
-    Some(VerifiedIdentity {
-        email: claims.email,
-        user_id: claims.sub,
-        tenant_id: claims.tenant_id,
-        exp_unix: claims.exp,
-        verified_at_unix: now_unix(),
-    })
 }
 
 pub fn now_unix() -> u64 {
