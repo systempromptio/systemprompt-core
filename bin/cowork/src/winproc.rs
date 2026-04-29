@@ -2,9 +2,17 @@
 #![allow(unsafe_code)]
 
 use std::env;
+use std::mem::MaybeUninit;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+use windows_sys::Win32::Security::{
+    GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation,
+};
+use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, FreeConsole};
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const DETACHED_PROCESS: u32 = 0x0000_0008;
@@ -29,46 +37,53 @@ fn silenced_command(exe: PathBuf) -> Command {
     cmd
 }
 
-pub(crate) fn is_elevated() -> bool {
-    use std::mem::MaybeUninit;
-    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
-    use windows_sys::Win32::Security::{
-        GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation,
-    };
-    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+struct OwnedToken(HANDLE);
 
-    unsafe {
-        let mut token: HANDLE = std::ptr::null_mut();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
-            return false;
+impl Drop for OwnedToken {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe { CloseHandle(self.0) };
         }
-        let mut elevation = MaybeUninit::<TOKEN_ELEVATION>::zeroed();
-        let mut ret_len: u32 = 0;
-        let ok = GetTokenInformation(
-            token,
+    }
+}
+
+unsafe fn open_current_process_token() -> Option<OwnedToken> {
+    let mut token: HANDLE = std::ptr::null_mut();
+    let ok = unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) };
+    if ok == 0 {
+        return None;
+    }
+    Some(OwnedToken(token))
+}
+
+unsafe fn token_is_elevated(token: &OwnedToken) -> bool {
+    let mut elevation = MaybeUninit::<TOKEN_ELEVATION>::zeroed();
+    let mut ret_len: u32 = 0;
+    let ok = unsafe {
+        GetTokenInformation(
+            token.0,
             TokenElevation,
             elevation.as_mut_ptr().cast(),
             u32::try_from(std::mem::size_of::<TOKEN_ELEVATION>()).unwrap_or(u32::MAX),
             &mut ret_len,
-        );
-        let elevated = ok != 0 && elevation.assume_init().TokenIsElevated != 0;
-        CloseHandle(token);
-        elevated
-    }
+        )
+    };
+    ok != 0 && unsafe { elevation.assume_init() }.TokenIsElevated != 0
+}
+
+pub(crate) fn is_elevated() -> bool {
+    unsafe { open_current_process_token() }
+        .as_ref()
+        .map(|t| unsafe { token_is_elevated(t) })
+        .unwrap_or(false)
 }
 
 pub(crate) fn attach_parent_console_if_present() {
-    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
-    unsafe {
-        AttachConsole(ATTACH_PARENT_PROCESS);
-    }
+    unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
 }
 
 pub(crate) fn detach_console() {
-    use windows_sys::Win32::System::Console::FreeConsole;
-    unsafe {
-        FreeConsole();
-    }
+    unsafe { FreeConsole() };
 }
 
 fn system32_path(exe: &str) -> PathBuf {
