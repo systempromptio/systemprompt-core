@@ -37,15 +37,18 @@ pub fn resolve_paths() -> Result<PathLayout, SetupError> {
     })
 }
 
+#[tracing::instrument(level = "debug", skip(token), fields(has_gateway = gateway_url.is_some()))]
 pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, SetupError> {
     validate_token(token)?;
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
     write_pat_file(&paths.pat_file, token)?;
     write_config_file(&paths.config_file, &paths.pat_file, gateway_url)?;
+    tracing::info!(config_file = %paths.config_file.display(), "login: PAT and config written");
     Ok(paths)
 }
 
+#[tracing::instrument(level = "debug")]
 pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
     let trimmed = gateway_url.trim();
     if trimmed.is_empty() {
@@ -57,6 +60,7 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
     Ok(paths)
 }
 
+#[tracing::instrument(level = "debug")]
 pub fn logout() -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
@@ -79,6 +83,7 @@ pub fn logout() -> Result<PathLayout, SetupError> {
     Ok(paths)
 }
 
+#[tracing::instrument(level = "debug")]
 pub fn clean() -> Result<CleanReport, SetupError> {
     let paths = resolve_paths()?;
     let pat_removed = paths.pat_file.exists();

@@ -19,7 +19,7 @@ fn acquire_bearer() -> Option<Secret> {
                 let _ = cache::write(&out);
                 return Some(out.token);
             },
-            Err(AuthError::NotConfigured) => continue,
+            Err(AuthError::NotConfigured) => {},
             Err(AuthError::Failed(msg)) => {
                 diag(&format!("{}: {msg}", p.name()));
             },
@@ -31,12 +31,9 @@ fn acquire_bearer() -> Option<Secret> {
 pub(crate) fn cmd_whoami() -> ExitCode {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
-    let bearer = match acquire_bearer() {
-        Some(t) => t,
-        None => {
-            diag("no credential available; run `systemprompt-cowork login` first");
-            return ExitCode::from(5);
-        },
+    let Some(bearer) = acquire_bearer() else {
+        diag("no credential available; run `systemprompt-cowork login` first");
+        return ExitCode::from(5);
     };
 
     let client = GatewayClient::new(gateway.clone());

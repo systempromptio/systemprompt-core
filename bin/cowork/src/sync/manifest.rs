@@ -80,7 +80,7 @@ fn fetch_fresh_token() -> Option<Secret> {
                 let _ = crate::auth::cache::write(&out);
                 return Some(out.token);
             },
-            Err(AuthError::NotConfigured) => continue,
+            Err(AuthError::NotConfigured) => {},
             Err(AuthError::Failed(msg)) => {
                 crate::obs::output::diag(&format!("{}: {msg}", p.name()));
             },

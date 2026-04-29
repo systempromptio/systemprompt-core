@@ -1,9 +1,16 @@
 use std::sync::Once;
 
-use systemprompt_cowork::manifest::{
-    AgentEntry, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest, SkillEntry, UserInfo,
-    canonical_payload,
+use systemprompt_cowork::gateway::manifest::{
+    AgentEntry, AgentId, AgentName, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest,
+    SkillEntry, TenantId, UserId, UserInfo, ValidatedUrl, canonical_payload,
 };
+use systemprompt_cowork::ids::{
+    ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName,
+};
+
+const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_security::manifest_signing;
 
@@ -35,37 +42,37 @@ fn sample_manifest() -> SignedManifest {
         manifest_version: "2026-04-27T00:00:00Z-deadbeef".into(),
         issued_at: "2026-04-27T00:00:00Z".into(),
         not_before: "2026-04-27T00:00:00Z".into(),
-        user_id: "user_abc".into(),
-        tenant_id: Some("tenant_xyz".into()),
+        user_id: UserId::new("user_abc"),
+        tenant_id: Some(TenantId::new("tenant_xyz")),
         user: Some(UserInfo {
-            id: "user_abc".into(),
+            id: UserId::new("user_abc"),
             name: "alice".into(),
             email: "alice@example.com".into(),
             display_name: Some("Alice".into()),
             roles: vec!["admin".into(), "developer".into()],
         }),
         plugins: vec![PluginEntry {
-            id: "plugin_one".into(),
+            id: PluginId::try_new("plugin_one").unwrap(),
             version: "1.2.3".into(),
-            sha256: "aaaa".into(),
+            sha256: Sha256Digest::try_new(FAKE_SHA_A).unwrap(),
             files: vec![PluginFile {
                 path: "plugin.json".into(),
-                sha256: "bbbb".into(),
+                sha256: Sha256Digest::try_new(FAKE_SHA_B).unwrap(),
                 size: 42,
             }],
         }],
         skills: vec![SkillEntry {
-            id: "skill_one".into(),
-            name: "Skill One".into(),
+            id: SkillId::try_new("skill_one").unwrap(),
+            name: SkillName::try_new("Skill One").unwrap(),
             description: "first skill".into(),
             file_path: "/skills/one.md".into(),
             tags: vec!["a".into(), "b".into()],
-            sha256: "cccc".into(),
+            sha256: Sha256Digest::try_new(FAKE_SHA_C).unwrap(),
             instructions: "do the thing".into(),
         }],
         agents: vec![AgentEntry {
-            id: "agent_one".into(),
-            name: "agent-one".into(),
+            id: AgentId::new("agent_one"),
+            name: AgentName::try_new("agent-one").unwrap(),
             display_name: "Agent One".into(),
             description: "primary agent".into(),
             version: "1.0.0".into(),
@@ -81,15 +88,15 @@ fn sample_manifest() -> SignedManifest {
             system_prompt: Some("be helpful".into()),
         }],
         managed_mcp_servers: vec![ManagedMcpServer {
-            name: "github".into(),
-            url: "https://mcp.example.com/github".into(),
+            name: ManagedMcpServerName::try_new("github").unwrap(),
+            url: ValidatedUrl::try_from("https://mcp.example.com/github").unwrap(),
             transport: Some("http".into()),
             headers: None,
             oauth: Some(true),
             tool_policy: None,
         }],
         revocations: vec!["revoked_one".into()],
-        signature: String::new(),
+        signature: ManifestSignature::new(""),
     }
 }
 
@@ -156,7 +163,7 @@ fn sign_value_round_trips_through_verifier() {
     let mut manifest = sample_manifest();
     let view = signing_view(&manifest);
     let signature = manifest_signing::sign_value(&view).expect("sign_value");
-    manifest.signature = signature;
+    manifest.signature = ManifestSignature::new(signature);
 
     manifest
         .verify(&pubkey)
@@ -177,8 +184,8 @@ fn tamper_with_user_id_breaks_signature() {
     let mut manifest = sample_manifest();
     let signature =
         manifest_signing::sign_value(&signing_view(&manifest)).expect("sign_value");
-    manifest.signature = signature;
-    manifest.user_id = "user_attacker".into();
+    manifest.signature = ManifestSignature::new(signature);
+    manifest.user_id = UserId::new("user_attacker");
 
     let result = manifest.verify(&pubkey);
     assert!(result.is_err(), "tampered manifest must fail verification");

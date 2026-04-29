@@ -38,6 +38,7 @@ pub struct SyncSummary {
 }
 
 impl SyncSummary {
+    #[must_use]
     pub fn one_line(&self) -> String {
         let malformed_suffix = if self.malformed.is_empty() {
             String::new()
@@ -147,8 +148,7 @@ fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncS
     let identity = manifest
         .user
         .as_ref()
-        .map(|u| u.email.clone())
-        .unwrap_or_else(|| manifest.user_id.to_string());
+        .map_or_else(|| manifest.user_id.to_string(), |u| u.email.clone());
     SyncSummary {
         identity,
         manifest_version: manifest.manifest_version.clone(),

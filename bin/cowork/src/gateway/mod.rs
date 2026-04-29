@@ -78,6 +78,7 @@ pub struct GatewayClient {
 }
 
 impl GatewayClient {
+    #[must_use]
     pub fn new(base_url: ValidatedUrl) -> Self {
         let agent = ureq::AgentBuilder::new()
             .timeout(Duration::from_secs(30))
@@ -85,10 +86,12 @@ impl GatewayClient {
         Self { base_url, agent }
     }
 
+    #[must_use]
     pub fn base_url(&self) -> &ValidatedUrl {
         &self.base_url
     }
 
+    #[must_use]
     pub fn base_url_str(&self) -> &str {
         self.base_url.as_str()
     }

@@ -14,6 +14,7 @@ pub struct SessionProvider {
 }
 
 impl SessionProvider {
+    #[must_use]
     pub fn new(config: &Config) -> Self {
         let configured = config
             .session

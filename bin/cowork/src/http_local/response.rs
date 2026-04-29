@@ -5,7 +5,6 @@ use super::Result;
 
 fn reason_phrase(status: u16) -> &'static str {
     match status {
-        200 => "OK",
         204 => "No Content",
         400 => "Bad Request",
         403 => "Forbidden",
@@ -24,6 +23,7 @@ pub struct ResponseBuilder<'a> {
 }
 
 impl<'a> ResponseBuilder<'a> {
+    #[must_use]
     pub fn new(status: u16) -> Self {
         Self {
             status,
@@ -33,16 +33,19 @@ impl<'a> ResponseBuilder<'a> {
         }
     }
 
+    #[must_use]
     pub fn content_type(mut self, ct: &'a str) -> Self {
         self.content_type = ct;
         self
     }
 
+    #[must_use]
     pub fn body(mut self, bytes: &'a [u8]) -> Self {
         self.body = bytes;
         self
     }
 
+    #[must_use]
     pub fn nosniff(mut self) -> Self {
         self.nosniff = true;
         self
@@ -107,7 +110,7 @@ pub fn write_chunked(
             match body.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
-                    let chunk_header = format!("{:x}\r\n", n);
+                    let chunk_header = format!("{n:x}\r\n");
                     stream.write_all(chunk_header.as_bytes())?;
                     stream.write_all(&buf[..n])?;
                     stream.write_all(b"\r\n")?;

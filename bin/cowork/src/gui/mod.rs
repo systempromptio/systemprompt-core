@@ -1,10 +1,10 @@
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub mod hosts;
 pub mod connection;
 pub mod dispatch;
 pub mod error;
 pub mod events;
 pub mod handlers;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub mod hosts;
 pub mod server;
 pub mod server_json;
 pub mod server_marketplace;

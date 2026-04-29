@@ -13,15 +13,18 @@ struct CacheEntry {
     expires_at: u64,
 }
 
+#[must_use]
 pub fn cache_path() -> Option<PathBuf> {
     let base = dirs::cache_dir()?;
     Some(base.join(CACHE_DIR_NAME).join(CACHE_FILE))
 }
 
+#[must_use]
 pub fn read_valid() -> Option<HelperOutput> {
     read_with_threshold(30)
 }
 
+#[must_use]
 pub fn read_with_threshold(min_remaining_secs: u64) -> Option<HelperOutput> {
     let path = cache_path()?;
     let bytes = fs::read(&path).ok()?;
@@ -45,6 +48,7 @@ pub fn clear() -> std::io::Result<()> {
     }
 }
 
+#[must_use]
 pub fn ttl_remaining_secs() -> Option<u64> {
     let path = cache_path()?;
     let bytes = fs::read(&path).ok()?;
@@ -62,8 +66,7 @@ pub fn write(output: &HelperOutput) -> std::io::Result<()> {
     }
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs());
     let entry = CacheEntry {
         output: output.clone(),
         expires_at: now.saturating_add(output.ttl),

@@ -30,14 +30,15 @@ pub enum SyncError {
 }
 
 impl SyncError {
+    #[must_use]
     pub fn exit_code(&self) -> ExitCode {
         match self {
             SyncError::NoCredential => ExitCode::from(5),
             SyncError::Network(_) => ExitCode::from(3),
             SyncError::SignatureFailed(_) => ExitCode::from(4),
-            SyncError::PathUnresolvable => ExitCode::from(1),
-            SyncError::PathMissing { .. } => ExitCode::from(1),
-            SyncError::ApplyFailed(_) => ExitCode::from(1),
+            SyncError::PathUnresolvable
+            | SyncError::PathMissing { .. }
+            | SyncError::ApplyFailed(_) => ExitCode::from(1),
             SyncError::ReplayedManifest { .. } => ExitCode::from(6),
             SyncError::ManifestSkew { .. } => ExitCode::from(7),
             SyncError::PubkeyNotPinned => ExitCode::from(8),

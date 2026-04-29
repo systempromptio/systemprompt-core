@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::fmt::Write as _;
 use std::{env, fs};
 
 use systemprompt_identifiers::ValidatedUrl;
@@ -107,7 +108,7 @@ pub fn persist_pinned_pubkey(pubkey: &str) -> std::io::Result<()> {
     if !next.is_empty() {
         next.push_str("\n\n");
     }
-    next.push_str(&format!("[sync]\npinned_pubkey = \"{pubkey}\"\n"));
+    let _ = writeln!(next, "[sync]\npinned_pubkey = \"{pubkey}\"");
     fs::write(&path, next)
 }
 

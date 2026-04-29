@@ -8,6 +8,7 @@ pub enum Os {
 }
 
 impl Os {
+    #[must_use]
     pub fn current() -> Self {
         if cfg!(target_os = "macos") {
             Os::Mac
@@ -18,6 +19,7 @@ impl Os {
         }
     }
 
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
             "macos" | "darwin" | "mac" => Some(Os::Mac),
@@ -28,6 +30,7 @@ impl Os {
     }
 }
 
+#[must_use]
 pub fn template(os: Os, binary: &Path) -> String {
     match os {
         Os::Mac => launchd_plist(binary),
@@ -36,6 +39,7 @@ pub fn template(os: Os, binary: &Path) -> String {
     }
 }
 
+#[must_use]
 pub fn template_filename(os: Os) -> &'static str {
     match os {
         Os::Mac => "io.systemprompt.cowork-sync.plist",
@@ -44,6 +48,7 @@ pub fn template_filename(os: Os) -> &'static str {
     }
 }
 
+#[must_use]
 pub fn install_hint(os: Os) -> &'static str {
     match os {
         Os::Mac => {

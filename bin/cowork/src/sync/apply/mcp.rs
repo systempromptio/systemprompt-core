@@ -3,6 +3,7 @@ use crate::gateway::manifest::ManagedMcpServer;
 use std::fs;
 use std::path::Path;
 
+#[tracing::instrument(level = "debug", skip(servers), fields(count = servers.len()))]
 pub fn write_managed_mcp_fragment(
     meta_dir: &Path,
     servers: &[ManagedMcpServer],

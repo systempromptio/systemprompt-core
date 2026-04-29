@@ -11,6 +11,7 @@ pub struct MtlsProvider {
 }
 
 impl MtlsProvider {
+    #[must_use]
     pub fn new(config: &Config) -> Self {
         let configured = config
             .mtls

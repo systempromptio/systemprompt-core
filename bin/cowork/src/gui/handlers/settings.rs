@@ -5,11 +5,12 @@ use crate::config::paths;
 use crate::gui::{GuiApp, window};
 use crate::obs::output::diag;
 
+#[tracing::instrument(level = "debug", skip(app, event_loop))]
 pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &ActiveEventLoop) {
-    let (url, port) = match app.ensure_server() {
-        Some(server) => (server.url(), server.port()),
-        None => return,
+    let Some(server) = app.ensure_server() else {
+        return;
     };
+    let (url, port) = (server.url(), server.port());
 
     if let Some(win) = &app.settings_window {
         win.focus();

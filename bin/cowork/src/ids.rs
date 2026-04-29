@@ -12,6 +12,7 @@ pub enum IdValidationError {
 }
 
 impl IdValidationError {
+    #[must_use]
     pub fn empty(type_name: &'static str) -> Self {
         Self::Empty { type_name }
     }

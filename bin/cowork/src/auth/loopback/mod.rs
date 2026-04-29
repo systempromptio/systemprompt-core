@@ -53,6 +53,7 @@ impl LoopbackServer {
         Ok(Self { listener, addr })
     }
 
+    #[must_use]
     pub fn callback_url(&self) -> ValidatedUrl {
         let raw = format!("http://127.0.0.1:{}/callback", self.addr.port());
         ValidatedUrl::try_new(raw).unwrap_or_else(|_| {
@@ -121,7 +122,7 @@ fn parse_code(request_line: &str) -> Result<String> {
     if method != "GET" {
         return Err(LoopbackError::UnexpectedMethod(method.to_string()));
     }
-    let query = target.split_once('?').map(|(_, q)| q).unwrap_or("");
+    let query = target.split_once('?').map_or("", |(_, q)| q);
     for pair in query.split('&') {
         if let Some(value) = pair.strip_prefix("code=") {
             let decoded = url_decode(value);

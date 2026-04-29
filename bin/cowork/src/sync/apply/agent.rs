@@ -30,6 +30,7 @@ impl<'a> From<&'a AgentEntry> for AgentIndexEntry<'a> {
     }
 }
 
+#[tracing::instrument(level = "debug", skip(agents), fields(count = agents.len()))]
 pub fn write_agents(meta_dir: &Path, agents: &[AgentEntry]) -> Result<(), super::ApplyError> {
     let dir = meta_dir.join(paths::AGENTS_DIR);
     if dir.exists() {

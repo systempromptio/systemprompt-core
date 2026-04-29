@@ -1,39 +1,47 @@
+use std::fmt::Write as _;
+
 use super::{
     CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, UninstallSummary,
     os_label,
 };
 use crate::config::paths::{self, Scope};
 
+#[must_use]
 pub fn render_install_summary(s: &InstallSummary) -> String {
     let mut out = String::new();
     out.push_str("Installed systemprompt-cowork integration\n");
-    out.push_str(&format!(
-        "  org-plugins: {} ({})\n",
-        s.location.path.display(),
-        match s.location.scope {
-            Scope::System => "system-wide",
-            Scope::User => "per-user",
-        }
-    ));
+    let scope_label = match s.location.scope {
+        Scope::System => "system-wide",
+        Scope::User => "per-user",
+    };
+    let _ = writeln!(
+        out,
+        "  org-plugins: {} ({scope_label})",
+        s.location.path.display()
+    );
     let meta = paths::metadata_dir(&s.location.path);
-    out.push_str(&format!("  metadata:    {}\n", meta.display()));
-    out.push_str(&format!(
-        "    user.json:    {}\n",
+    let _ = writeln!(out, "  metadata:    {}", meta.display());
+    let _ = writeln!(
+        out,
+        "    user.json:    {}",
         meta.join(paths::USER_FRAGMENT).display()
-    ));
-    out.push_str(&format!(
-        "    skills/:      {}\n",
+    );
+    let _ = writeln!(
+        out,
+        "    skills/:      {}",
         meta.join(paths::SKILLS_DIR).display()
-    ));
-    out.push_str(&format!(
-        "    agents/:      {}\n",
+    );
+    let _ = writeln!(
+        out,
+        "    agents/:      {}",
         meta.join(paths::AGENTS_DIR).display()
-    ));
-    out.push_str(&format!(
-        "    managed-mcp:  {}\n",
+    );
+    let _ = writeln!(
+        out,
+        "    managed-mcp:  {}",
         meta.join(paths::MANAGED_MCP_FRAGMENT).display()
-    ));
-    out.push_str(&format!("  binary:      {}\n", s.binary.display()));
+    );
+    let _ = writeln!(out, "  binary:      {}", s.binary.display());
     out.push_str(
         "  Run `systemprompt-cowork sync` to populate user identity, skills, agents, and MCP \
          servers.\n",
@@ -43,11 +51,8 @@ pub fn render_install_summary(s: &InstallSummary) -> String {
 
     if let Some(sched) = &s.schedule {
         out.push('\n');
-        out.push_str(&format!(
-            "--- Schedule template ({}) ---\n",
-            os_label(sched.os)
-        ));
-        out.push_str(&format!("wrote: {}\n", sched.path.display()));
+        let _ = writeln!(out, "--- Schedule template ({}) ---", os_label(sched.os));
+        let _ = writeln!(out, "wrote: {}", sched.path.display());
         out.push_str(&sched.install_hint);
         if !sched.install_hint.ends_with('\n') {
             out.push('\n');
@@ -60,7 +65,7 @@ fn render_mdm(out: &mut String, mdm: &MdmDisplay) {
     match mdm {
         MdmDisplay::Snippet { os, snippet } => {
             out.push('\n');
-            out.push_str(&format!("--- MDM configuration ({}) ---\n", os_label(*os)));
+            let _ = writeln!(out, "--- MDM configuration ({}) ---", os_label(*os));
             out.push_str(snippet);
             if !snippet.ends_with('\n') {
                 out.push('\n');
@@ -69,46 +74,42 @@ fn render_mdm(out: &mut String, mdm: &MdmDisplay) {
         },
         MdmDisplay::Applied { os, lines } => {
             out.push('\n');
-            out.push_str(&format!("--- policy applied ({}) ---\n", os_label(*os)));
+            let _ = writeln!(out, "--- policy applied ({}) ---", os_label(*os));
             for line in lines {
-                out.push_str(&format!("  {line}\n"));
+                let _ = writeln!(out, "  {line}");
             }
         },
         MdmDisplay::MobileconfigApplied { lines } => {
             out.push('\n');
             out.push_str("--- mobileconfig applied (macOS) ---\n");
             for line in lines {
-                out.push_str(&format!("  {line}\n"));
+                let _ = writeln!(out, "  {line}");
             }
         },
     }
 }
 
+#[must_use]
 pub fn render_uninstall_summary(s: &UninstallSummary) -> String {
     let mut out = String::new();
     if let Some(p) = &s.metadata_removed {
-        out.push_str(&format!("Removed {}\n", p.display()));
+        let _ = writeln!(out, "Removed {}", p.display());
     }
     if let Some(p) = &s.metadata_already_clean {
-        out.push_str(&format!(
-            "No metadata dir at {} (already clean)\n",
-            p.display()
-        ));
+        let _ = writeln!(out, "No metadata dir at {} (already clean)", p.display());
     }
     match &s.managed_profile {
         ManagedProfileOutcome::Removed(id) => {
-            out.push_str(&format!("Removed managed profile {id}\n"));
+            let _ = writeln!(out, "Removed managed profile {id}");
         },
         ManagedProfileOutcome::NotInstalled(id) => {
-            out.push_str(&format!(
-                "No managed profile {id} installed (nothing to remove)\n"
-            ));
+            let _ = writeln!(out, "No managed profile {id} installed (nothing to remove)");
         },
         ManagedProfileOutcome::RemoveFailed(_) | ManagedProfileOutcome::NotApplicable => {},
     }
     match &s.credentials {
         CredentialsOutcome::Purged(p) => {
-            out.push_str(&format!("Purged credentials: {}\n", p.display()));
+            let _ = writeln!(out, "Purged credentials: {}", p.display());
         },
         CredentialsOutcome::Kept => {
             out.push_str(

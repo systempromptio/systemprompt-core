@@ -5,11 +5,11 @@ use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::UiEvent;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::integration::{
-    GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProxyHealth, host_by_id, proxy_probe,
+    GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProxyHealth, find_host_by_id, proxy_probe,
 };
 
 pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str) {
-    let Some(host) = host_by_id(host_id) else {
+    let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("probe requested for unknown host '{host_id}'"));
         return;
     };
@@ -55,7 +55,7 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth) {
 }
 
 pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str) {
-    let Some(host) = host_by_id(host_id) else {
+    let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("generate requested for unknown host '{host_id}'"));
         return;
     };
@@ -95,7 +95,7 @@ pub(crate) fn on_profile_generate_finished(
 }
 
 pub(crate) fn on_profile_install_requested(app: &mut GuiApp, host_id: &str, path: String) {
-    let Some(host) = host_by_id(host_id) else {
+    let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("install requested for unknown host '{host_id}'"));
         return;
     };
@@ -123,16 +123,18 @@ pub(crate) fn on_profile_install_finished(
     host_id: &str,
     result: Result<String, GuiError>,
 ) {
-    let action = host_by_id(host_id)
+    let action = find_host_by_id(host_id)
         .map(|h| h.install_action_label())
         .unwrap_or("installed");
     match result {
         Ok(path) => app.append_log(format!("[{host_id}] {action}: {path}")),
         Err(e) => app.append_log(format!("[{host_id}] profile install failed: {e}")),
     }
-    let _ = app.proxy.send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-        host_id: host_id.to_string(),
-    }));
+    let _ = app
+        .proxy
+        .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
+            host_id: host_id.to_string(),
+        }));
 }
 
 fn generate_profile_for(

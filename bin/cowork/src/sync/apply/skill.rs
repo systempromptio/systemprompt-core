@@ -28,6 +28,7 @@ impl<'a> From<&'a SkillEntry> for SkillIndexEntry<'a> {
     }
 }
 
+#[tracing::instrument(level = "debug", skip(skills), fields(count = skills.len()))]
 pub fn write_skills(meta_dir: &Path, skills: &[SkillEntry]) -> Result<(), super::ApplyError> {
     let dir = meta_dir.join(paths::SKILLS_DIR);
     if dir.exists() {
