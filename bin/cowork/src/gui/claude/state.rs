@@ -4,6 +4,5 @@ use crate::integration::claude_desktop::ClaudeIntegrationSnapshot;
 pub struct ClaudeState {
     pub integration: Option<ClaudeIntegrationSnapshot>,
     pub probe_in_flight: bool,
-    /// Pre-rendered display path of the last generated MDM profile; consumed only by the GUI.
     pub last_generated_profile: Option<String>,
 }

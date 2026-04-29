@@ -116,7 +116,9 @@ impl Config {
 
     #[must_use]
     pub fn cert_keystore_ref(&self) -> Option<&KeystoreRef> {
-        self.mtls.as_ref().and_then(|m| m.cert_keystore_ref.as_ref())
+        self.mtls
+            .as_ref()
+            .and_then(|m| m.cert_keystore_ref.as_ref())
     }
 }
 

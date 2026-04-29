@@ -33,9 +33,9 @@ impl LoopbackServer {
 
     pub fn callback_url(&self) -> ValidatedUrl {
         let raw = format!("http://127.0.0.1:{}/callback", self.addr.port());
-        ValidatedUrl::try_new(raw)
-            .unwrap_or_else(|_| ValidatedUrl::try_new("http://127.0.0.1/callback")
-                .unwrap_or_else(|_| unreachable_url()))
+        ValidatedUrl::try_new(raw).unwrap_or_else(|_| {
+            ValidatedUrl::try_new("http://127.0.0.1/callback").unwrap_or_else(|_| unreachable_url())
+        })
     }
 
     pub fn accept_callback(self, timeout: Duration) -> Result<Captured, String> {

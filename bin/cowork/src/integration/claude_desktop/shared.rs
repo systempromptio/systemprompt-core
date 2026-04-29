@@ -26,27 +26,17 @@ pub struct ManagedPrefsState {
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ManagedDomain {
-    /// Reverse-DNS string read directly from the OS (`com.anthropic.claudecode` etc.).
-    /// Wire-format-critical: must round-trip exactly to disk and back.
     pub domain: String,
     pub source_path: Option<String>,
     pub installed: bool,
-    /// Free-form prefs key/value map mirrored from the OS — case-preserved for wire fidelity
-    /// with macOS plist / Windows registry payloads.
     pub keys: BTreeMap<String, String>,
     pub missing_required: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
-    /// Loopback URL constructed locally as `http://localhost:{port}`; not part of any wire payload
-    /// from the gateway, used only to render macOS/Windows profile templates.
     pub gateway_base_url: String,
-    /// Loopback bearer secret minted by the proxy; rendered into a generated MDM profile and
-    /// kept as a String at this boundary because it is consumed verbatim by template rendering.
     pub api_key: String,
-    /// Model identifiers returned by the gateway profile endpoint; written verbatim into the
-    /// generated MDM profile.
     pub models: Vec<String>,
     pub organization_uuid: Option<String>,
 }

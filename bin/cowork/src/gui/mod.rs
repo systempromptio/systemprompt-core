@@ -5,6 +5,7 @@ pub mod events;
 pub mod handlers;
 pub mod server;
 pub mod server_json;
+pub mod server_marketplace;
 pub mod server_util;
 pub mod state;
 pub mod tray;
@@ -24,6 +25,7 @@ use winit::window::WindowId;
 use crate::gui::events::UiEvent;
 use crate::gui::server::{ActivityLog, Server};
 use crate::gui::state::{AppState, GatewayStatus, now_unix};
+use crate::gui::window::SettingsWindow;
 use crate::gui::worker::WorkerPool;
 use crate::obs::output::diag;
 
@@ -77,6 +79,7 @@ pub(crate) struct GuiApp {
     pub(crate) tray: Option<tray::TrayHandles>,
     pub(crate) server: Option<Server>,
     pub(crate) pool: WorkerPool,
+    pub(crate) settings_window: Option<SettingsWindow>,
 }
 
 impl GuiApp {
@@ -88,6 +91,7 @@ impl GuiApp {
             tray: None,
             server: None,
             pool: WorkerPool::new(),
+            settings_window: None,
         }
     }
 
@@ -126,17 +130,17 @@ impl GuiApp {
 }
 
 impl ApplicationHandler<UiEvent> for GuiApp {
-    fn new_events(&mut self, _event_loop: &ActiveEventLoop, cause: StartCause) {
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         if matches!(cause, StartCause::Init) {
             return;
         }
         let drained: Vec<UiEvent> = self.tray.as_ref().map(tray::drain).unwrap_or_default();
         for ev in drained {
-            dispatch::dispatch(self, ev);
+            dispatch::dispatch(self, event_loop, ev);
         }
     }
 
-    fn resumed(&mut self, _event_loop: &ActiveEventLoop) {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.tray.is_none() {
             let snap = self.state.snapshot();
             match tray::build(&snap) {
@@ -145,17 +149,25 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             }
         }
         self.refresh_ui();
-        dispatch::dispatch(self, UiEvent::OpenSettings);
+        dispatch::dispatch(self, event_loop, UiEvent::OpenSettings);
         let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
         #[cfg(any(target_os = "macos", target_os = "windows"))]
         claude::tick::request_initial_probe(self);
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UiEvent) {
-        dispatch::dispatch(self, event);
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
+        dispatch::dispatch(self, event_loop, event);
     }
 
-    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _id: WindowId, _event: WindowEvent) {}
+    fn window_event(&mut self, _event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        if let WindowEvent::CloseRequested = event {
+            if let Some(win) = &self.settings_window {
+                if win.id() == id {
+                    win.hide();
+                }
+            }
+        }
+    }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(handles) = &self.tray {

@@ -207,10 +207,6 @@ impl GatewayClient {
     }
 
     fn url(&self, path: &str) -> String {
-        format!(
-            "{}{}",
-            self.base_url.as_str().trim_end_matches('/'),
-            path
-        )
+        format!("{}{}", self.base_url.as_str().trim_end_matches('/'), path)
     }
 }

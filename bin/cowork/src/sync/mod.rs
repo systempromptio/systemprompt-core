@@ -25,21 +25,15 @@ pub struct SyncOptions {
 
 #[derive(Debug, Clone)]
 pub struct SyncSummary {
-    /// Free-form display label: email when available, falls back to UserId.to_string().
     pub identity: String,
-    /// Opaque manifest version string from the gateway — wire-format value, not domain-typed.
     pub manifest_version: String,
     pub plugin_count: usize,
     pub skill_count: usize,
     pub agent_count: usize,
     pub mcp_count: usize,
-    /// Pre-rendered plugin-id strings; see `PluginApplyOutcome`.
     pub installed: Vec<String>,
-    /// See `installed`.
     pub updated: Vec<String>,
-    /// See `installed`.
     pub removed: Vec<String>,
-    /// See `installed`.
     pub malformed: Vec<String>,
 }
 
