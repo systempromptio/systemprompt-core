@@ -1,67 +1,75 @@
 # Changelog
 
-## [Unreleased]
+## [0.5.0] - 2026-04-29
+
+### Added
+
+- `cowork`: `auth::ChainError` enum and `AuthFailedSource::is_terminal()` predicate distinguishing transient vs permanent provider failures.
+- `cowork`: `auth::evaluate_chain()` — testable provider-chain evaluator.
+- `cowork`: exit code `10` on `cli run` / `cli whoami` for transient failure on the configured preferred provider.
+- `cowork`: `JwtAudience::Cowork` variant (`crates/shared/models/src/auth/enums.rs`).
+- `cowork`: `SecretsBootstrap::manifest_signing_secret_seed() -> Result<[u8; 32], _>` accessor.
+- `cowork`: `--force-replay` CLI flag bypasses replay-protection checks.
+- `cowork`: `--allow-tofu` CLI flag re-enables live pubkey fetch when MDM rollout is unavailable.
+- `cowork`: `systemprompt admin cowork rotate-signing-key` CLI.
+- `cowork`: integration tests for replay protection and pubkey pinning.
 
 ### Changed
 
-- **Cowork: root-and-branch idiomatic-Rust refactor — all eight phases (A–H) complete.** Phases E–H follow-up to the earlier A–D commit:
+- **Breaking** (`cowork`): `auth::acquire_bearer` and `auth::mint_fresh` return `Result<HelperOutput, ChainError>` (was `Option<HelperOutput>`).
+- **Breaking** (`cowork`): `UiEvent::{SyncFinished, LoginFinished, LogoutFinished, SetGatewayFinished}` and `HostUiEvent::{ProfileGenerateFinished, ProfileInstallFinished}` payloads carry `Arc<GuiError>` instead of `GuiError`.
+- **Breaking** (`cowork`): `gateway::GatewayClient` request timeout reduced from 30 s to 10 s.
+- **Breaking** (`cowork`): `String` error returns in `sync`, `manifest`, `http`, `setup` replaced by `thiserror`-derived enums (`SyncError`, `ManifestError`, `GatewayError`, `SetupError`).
+- **Breaking** (`cowork`): `SyncError::ApplyFailed(String)` is now `ApplyFailed(ApplyError)` (typed enum: `HashMismatch`, `UnsafePath`, `Network`, `Io`, `Serialize`).
+- **Breaking** (`cowork`): `install::install` and `install::uninstall` return `Result<_, InstallError>` (was `Result<_, ExitCode>`).
+- **Breaking** (`cowork`): plugin file route moved from `/plugins/{plugin_id}/{rel}` to `/v1/cowork/plugins/{plugin_id}/{rel}`; legacy route removed.
+- `cowork`: library logs route through `tracing` with a stderr formatter preserving the `[systemprompt-cowork] {msg}` line format.
 
-  Phase E (idiomatic primitives): replaced `gui/server_util.rs::mint_csrf_token` (which hashed `SystemTime` nanos + pid + a stack-pointer cast — UB under optimisation) with `rand::rngs::OsRng` filling 32 bytes; removed the hand-rolled `url_decode`/`parse_query` state machine in favour of `form_urlencoded::parse`; renamed `gui::state::decode_jwt_identity` to `decode_jwt_identity_unverified` (security posture is now in the type name — the gateway already verified the signature, this only projects the payload for display).
+### Removed
 
-  Phase F (type-safety hygiene): `install::bootstrap::write_version_sentinel` now serialises a typed `#[derive(Serialize)] struct VersionSentinel` instead of `serde_json::json!({})` (compile-time shape validation, no `.unwrap_or_default` swallowing). Builders for `gateway::manifest::SignedManifest` (13 fields, mixed required/optional — `SignedManifest::builder(...).with_user(...).with_plugins(...).build()`) and `integration::claude_desktop::shared::ProfileGenInputs` (4 fields, 1 optional). Replaced `serde_json::to_string(_).unwrap_or_else(|_| "[]".into())` in `gui/server_json.rs::snapshot_to_json` and `gui/server.rs::serve_log` with proper error returns: encode failure now responds 500 with the underlying `serde_json::Error` instead of silently shipping a stub body.
-
-  Phase G (file size + DRY): `install/mod.rs` (was 421 LOC) split into `install/summary.rs` (`render_install_summary`, `render_uninstall_summary`) and `install/schedule_emit.rs` (`emit_schedule`) — mod.rs back under 300. `gui/state.rs` (was 307 LOC) split into `gui/state/counters.rs` (`read_index_count`, `count_plugin_dirs`, `count_malformed_plugin_dirs`) and `gui/state/jwt.rs` (`decode_jwt_identity_unverified`, `JwtClaims`) — state.rs down to 235. Three duplicated provider-chain constructions in `auth/mod.rs::mint_fresh`, `cli/run.rs`, and `cli/whoami.rs` consolidated into `auth::provider_chain(cfg) -> Vec<Box<dyn AuthProvider>>`. Dropped the eleven `lib.rs` glob re-exports (`pub use auth::{cache, keystore, ...}; pub use config::paths; pub use gateway as http; pub use gateway::manifest; pub use obs::{output, tracing_init};`) — every internal callsite now uses the canonical full path.
-
-  Phase H (typed errors): new `install::InstallError` thiserror enum (`BinaryPath`, `OrgPluginsUnresolvable`, `Bootstrap`, `Sentinel`, `MdmApply`, `MobileconfigApply`, `MobileconfigUnsupported`, `Schedule`) replaces the `Result<T, ExitCode>` anti-pattern in `install::install` and `install::uninstall`; CLI converts at the boundary in `cli/install.rs` and `cli/uninstall.rs`. New `sync::apply::ApplyError` thiserror enum (`HashMismatch`, `UnsafePath`, `Network`, `Io`, `Serialize`, plus `Detail` fallback) replaces `Result<T, String>` across `sync/apply/{mod,plugin,agent,skill,mcp}.rs`; `SyncError::ApplyFailed(String)` becomes `ApplyFailed(ApplyError)` for typed propagation.
-
-  Acceptance criteria all met: `unsafe` outside the two cordoned Windows-FFI files = 0; `println!`/`eprintln!`/`print!` outside `cli/` and `main.rs` = 0 (only the justified pre-subscriber `eprintln!` in `obs.rs` remains, with an inline `#[allow]`); `install/mod.rs` and `gui/state.rs` both ≤300 LOC. New deps: `rand`, `form_urlencoded`. All 24 tests in `crates/tests/unit/cowork/{paths,install,sync,manifest}/` pass.
-
-- **Cowork: phases A–D of the root-and-branch idiomatic-Rust refactor.** A multi-phase quality sweep over `bin/cowork/` measured against `development:rust-coding-standards`. Phase A: enforced lint config in `bin/cowork/Cargo.toml` (`unsafe_code = "deny"`, `clippy::unwrap_used = "deny"`, `panic`/`todo`/`unimplemented`/`dbg_macro` deny, plus warn-level for `expect_used`, `print_*`, `mod_module_files`, casts, and `needless_pass_by_value`). Phase B: replaced 18 `.expect("...poisoned")` panics on lock acquisition by migrating `gui/state.rs` to `parking_lot::RwLock`, and `gui/server.rs::ActivityLog` + `gui/worker.rs::WorkerPool` to `parking_lot::Mutex`. Phase C: pulled `println!`/`print!`/`eprintln!` out of library code — `install::install()` now returns a structured `InstallSummary` (with `MdmDisplay` and `ScheduleEmit`) and `install::uninstall()` returns `UninstallSummary`, both rendered by `cli/install.rs` and `cli/uninstall.rs`; the `sync::sync()` watch loop moved into `cli/sync.rs` (lib exposes `sync::run_once` and `sync::warn_unsafe_flags`); `validate::validate()` collapsed into `cli/validate.rs`; `obs.rs` retains a single justified pre-subscriber `eprintln!` with an inline `#[allow(clippy::print_stderr)]`. Phase D: replaced the unix `libc::signal`/`libc::_exit` handler in `gui/mod.rs` with `ctrlc` posting `UiEvent::Quit` via `EventLoopProxy` (cooperative shutdown — `Drop` runs for tray, server sockets, worker threads); replaced the Windows `GetConsoleWindow`/`GetStdHandle`/`GetFileType` FFI in `cli/args.rs` with `is-terminal`'s safe `IsTerminal::is_terminal`. Remaining `unsafe` is cordoned to `winproc.rs` and `auth/keystore/windows.rs` only — both files carry a per-file `#![allow(unsafe_code)]` and every `unsafe` block has a `// SAFETY:` invariant comment. New deps: `parking_lot`, `ctrlc`, `is-terminal`. Tests previously inline at `bin/cowork/src/config/paths.rs::tests` and integration tests at `bin/cowork/tests/{install_pubkey,replay}.rs` moved to dedicated test crates at `crates/tests/unit/cowork/{paths,install,sync}/` — all 21 tests pass. Phases E–H (idiomatic primitives via `rand`/`urlencoding`, builders for `SignedManifest`/`ProfileGenInputs`, file-size split for `install/mod.rs` and `gui/state.rs`, and typed `InstallError`/`ApplyError` enums replacing `Result<T, ExitCode>` and `Result<T, String>`) follow in subsequent commits.
+- **Breaking** (`cowork`): `GuiError::Msg` variant and the manual `Clone` impl on `GuiError`.
+- **Breaking** (`cowork`): `http_local::request::parse(&mut TcpStream)`. Use `parse_from_read` or `parse_buffered`.
+- **Breaking** (`cowork`): implicit `fetch_pubkey()` on `cowork install`. Pubkey must be pinned out of band.
+- **Breaking** (`cowork`): `--no-pubkey-fetch` CLI flag.
+- **Breaking** (`cowork`): `validate_cowork_jwt` no longer accepts `JwtAudience::Api` as a fallback.
+- All inline (`//`) and doc (`///`) comments under `bin/cowork/src/`.
+- Unused `CODE_DOMAIN` constant in `integration::claude_desktop::shared`.
 
 ### Fixed
 
-- **Cowork: stop subprocesses from rotating the manifest signing seed on every API restart.** `SecretsBootstrap::init` runs in every spawned binary (agents via `crates/entry/cli/src/bootstrap.rs`, MCP servers via their own `main.rs`). Subprocesses are launched with `SYSTEMPROMPT_SUBPROCESS=1` set, which routes them through `load_from_env`. The parent never copied `MANIFEST_SIGNING_SECRET_SEED` into the spawn env, so each child saw `manifest_signing_secret_seed = None`, ran `ensure_manifest_signing_seed`, generated a fresh seed, and persisted it back to the on-disk secrets file — silently clobbering whatever the parent had loaded. Net effect: every API restart rotated the cowork manifest signing key, breaking pinned-pubkey verification on cowork clients. Fix is two-part: (1) `crates/domain/agent/src/services/agent_orchestration/process.rs` and `crates/domain/mcp/src/services/process/spawner.rs` now propagate `MANIFEST_SIGNING_SECRET_SEED` from the parent's loaded `Secrets` struct into the subprocess env; (2) `secrets_bootstrap.rs::ensure_manifest_signing_seed` now `bail!`s when running with `SYSTEMPROMPT_SUBPROCESS=1` and no seed in env, so any new spawn site that forgets propagation fails loudly at startup instead of silently regenerating.
-
-- **`Secrets::parse` now strips JSON `null` values before deserialization.** The combination of `#[serde(flatten)] HashMap<String, String>` for the `custom` overflow field and explicit `Option<String>` provider fields meant that any `"openai": null` / `"gemini": null` literal in `secrets.json` would fail the whole `serde_json::from_str` call with `invalid type: null, expected a string`. The bootstrap path swallowed that error and fell back to env-loading with a `None` seed, which then triggered the seed-rotation cascade described above. `crates/shared/models/src/secrets.rs::parse` now intermediates through `serde_json::Value`, removes null entries from the root object, and only then deserializes into `Secrets` — so `null` and "field absent" are treated identically.
-
-- **Cowork: `install --apply` now `chown`s the org-plugins directory to `$SUDO_USER`.** Previously, `sudo systemprompt-cowork install --apply` left `/Library/Application Support/Claude/org-plugins` owned by root, so the GUI (running as the user) failed the next `sync` with `Permission denied (os error 13)` while creating the staging subdir. `bin/cowork/src/install/bootstrap.rs::bootstrap_directory` now detects `SUDO_USER`, resolves its uid:gid via `/usr/bin/id`, and shells out to `/usr/sbin/chown -R` on the org-plugins root and metadata dir after creation. No-op when not run via sudo.
+- `cowork`: proxy dropped HTTP/1.1 trailers as silent empty data frames; non-data frames are now filtered before the upstream body is forwarded.
+- `cowork`: proxy `io::Error` boundary preserves the source chain instead of stringifying.
+- `cowork`: tokio runtime initialiser returns `io::Error` on the `OnceLock` race instead of `process::abort`.
+- `cowork`: proxy listener binds IPv4 loopback first, falls back to IPv6 loopback. Prior dual-stack `[::]:port` bind exposed the proxy to non-loopback peers on hosts where `IPV6_V6ONLY` was off.
+- `cowork`: Windows Claude Desktop profile generator emits `inferenceModels` as `REG_MULTI_SZ` (`hex(7):`-encoded UTF-16LE) instead of comma-joined `REG_SZ`.
+- `cowork`: `auth::cache::write` and `proxy::secret::load_or_mint` log a warning when `chmod 0600` fails on the cached file instead of swallowing the error.
+- `cowork`: `Secrets::parse` strips JSON `null` values before deserialization (prevented bootstrap fallback that triggered seed-rotation).
+- `cowork`: subprocess agents and MCP servers no longer rotate the manifest signing seed on parent restart. `MANIFEST_SIGNING_SECRET_SEED` now propagates through `Command::env`; `ensure_manifest_signing_seed` `bail!`s under `SYSTEMPROMPT_SUBPROCESS=1` with no seed.
+- `cowork`: `install --apply` `chown`s the org-plugins directory to `$SUDO_USER` (uid:gid resolved via `/usr/bin/id`); previously left root-owned and broke subsequent GUI sync with `EACCES`.
+- `cowork`: macOS GUI compile against current `objc2_foundation` (`NSURL::fileURLWithPath` returns `Retained<NSURL>`, not `Option`).
 
 ### Security
 
-- **Phase 2 Track F — independent manifest signing key.** Cowork manifest signing no longer derives its ed25519 seed by hashing the JWT HMAC secret. The seed now lives under a dedicated `manifest_signing_secret_seed` field in the secrets file (a base64-encoded 32-byte value), generated on first bootstrap via `OsRng` and persisted back to disk. `crates/infra/security/src/manifest_signing.rs::signing_key` now calls `SigningKey::from_bytes(&seed)` directly; the prior `Sha256(DOMAIN_SEPARATOR || jwt_secret)` derivation and the `DOMAIN_SEPARATOR` constant are deleted with no compatibility shim per the no-legacy directive. Compromise of the JWT HMAC secret no longer compromises manifest signatures. New `systemprompt admin cowork rotate-signing-key` CLI generates a fresh seed, persists it to the secrets file, and prints the resulting base64 ed25519 pubkey for distribution.
+- `cowork`: manifest signing key is independent. Ed25519 seed lives under a dedicated `manifest_signing_secret_seed` field in the secrets file (base64-encoded 32 bytes), generated via `OsRng` on first bootstrap. The prior `Sha256(DOMAIN_SEPARATOR || jwt_secret)` derivation and the `DOMAIN_SEPARATOR` constant are removed. JWT HMAC compromise no longer compromises manifest signatures.
+- `cowork`: out-of-band manifest pubkey pinning. `cowork sync` returns `SyncError::PubkeyNotPinned` (exit `8`) when no pinned pubkey is on disk. Pinning sources: `cowork install --apply --pubkey <base64>` (writes to `HKCU\SOFTWARE\Policies\Claude` on Windows / `com.anthropic.claudefordesktop` Managed Preferences on macOS), `[sync].pinned_pubkey` in `systemprompt-cowork.toml`, or `SP_COWORK_POLICY_PUBKEY`. Policy-provided value overrides operator-set value with a `tracing::warn!` on divergence. `cowork validate` reports an unpinned pubkey as `[fail]` (was `[warn]`).
+- `cowork`: distinct JWT audience. `issue_cowork_access_with` mints `audience: vec![JwtAudience::Cowork]`. A cowork JWT cannot call generic API endpoints; an API JWT cannot hit cowork routes.
+- `cowork`: tenant-scoped plugin file route validates the cowork JWT, resolves plugin ownership against the caller's enrolled plugins, and canonicalises the file path against the plugins root.
+- `cowork`: manifest replay protection. Manifests carry `not_before = now()` as a required signed field. `sync::run_once` rejects `manifest_version` ≤ last applied (`SyncError::ReplayedManifest`) and `not_before` outside ±5 min of local clock (`SyncError::ManifestSkew`). `last-sync.json` persists `last_applied_manifest_version`.
+- `cowork`: manifest signatures use RFC 8785 (JCS) canonical JSON. `crates/infra/security/src/manifest_signing.rs` exposes `sign_value<T: Serialize>` and `canonicalize<T>`; signer and verifier produce byte-identical canonical output.
 
-- **Phase 2 Track G — out-of-band manifest pubkey pinning for cowork.** Eliminates the trust-on-first-use (TOFU) window where `cowork install` and the first `cowork sync` would fetch the manifest signing pubkey over the same HTTPS channel they were about to authenticate against. New posture is fail-closed: `cowork sync` now returns `SyncError::PubkeyNotPinned` (exit code 8) when no pinned pubkey is on disk, instead of silently fetching one. Operators pin the pubkey out of band via:
-  - `cowork install --apply --pubkey <base64>` — writes `inferenceManifestPubkey` to `HKCU\SOFTWARE\Policies\Claude` on Windows or the `com.anthropic.claudefordesktop` Managed Preferences plist on macOS, so MDM (Jamf/Intune/Mosyle/Group Policy) can roll the value to a fleet.
-  - `[sync].pinned_pubkey` in `systemprompt-cowork.toml` for non-MDM installs.
-  - `SP_COWORK_POLICY_PUBKEY` env override for local testing.
+### Internal
 
-  At agent startup, `bin/cowork/src/config.rs::load` reads the policy-provided value and prefers it over any operator-set value, emitting a `tracing::warn!` if it overrides a divergent operator entry so fleet drift is visible. The implicit `fetch_pubkey()` call in `cowork install` is removed entirely (no grace fallback, per the no-legacy directive). Recovery path for ops who can't roll out MDM yet: explicit `--allow-tofu` flag on `cowork sync` re-enables the live fetch with a loud warning. `cowork validate` now reports an unpinned pubkey as `[fail]` (was `[warn]`) and exits non-zero. New tests in `bin/cowork/tests/install_pubkey.rs`. CLI flag `--no-pubkey-fetch` is removed (was a workaround for the now-deleted TOFU path).
-
-- **Phase 1 Track A — RFC 8785 (JCS) canonical JSON for cowork manifest signing** (#10). Field-order stability is no longer coincidental — both signer and verifier now serialise via `serde_jcs::to_string`. `crates/infra/security/src/manifest_signing.rs` gains `sign_value<T: Serialize>` and `canonicalize<T>` built on JCS; `bin/cowork/src/manifest.rs::canonical_payload` switches to the same path. New unit tests at `crates/tests/unit/infra/security/manifest_signing_jcs/` assert byte-identical canonical output across signer and verifier paths, sign+verify round-trip, and alphabetical key ordering.
-
-- **Phase 1 Track B — distinct JWT audience for cowork tokens** (#14). `issue_cowork_access_with` now mints `audience: vec![JwtAudience::Cowork]` (`crates/domain/oauth/src/services/cowork.rs`) instead of `JwtAudience::Api`. A stolen cowork JWT can no longer call generic API endpoints, and a stolen API JWT can no longer hit cowork routes. The companion `validate_cowork_jwt` change in `systemprompt-template` accepts only `Cowork` — the legacy `Api` grace fallback was stripped per the no-legacy directive.
-
-- **Phase 1 Track C — tenant-scoped cowork plugin file route** (#13). Cowork client switches from the unscoped `/plugins/{plugin_id}/{rel}` URL to `/v1/cowork/plugins/{plugin_id}/{rel}` (`bin/cowork/src/http.rs`). The new template handler validates the cowork JWT, looks up the plugin against the user's enrolled plugins, canonicalises the file path against the plugins root, and streams bytes with a guessed content-type. The legacy unscoped route is removed entirely (no 410-Gone shim) per the no-legacy directive.
-
-- **Phase 1 Track D — cowork manifest replay protection** (#11). Every issued manifest now carries `not_before = now()` as a required signed field. After signature verification, `bin/cowork/src/sync.rs::run_once` rejects:
-  - `manifest_version` ≤ last applied (`SyncError::ReplayedManifest`)
-  - `not_before` outside ±5 minutes of local clock (`SyncError::ManifestSkew`)
-
-  `last-sync.json` persists `last_applied_manifest_version`. New `--force-replay` CLI flag bypasses both checks with a `tracing::warn!`. 13 integration tests in `bin/cowork/tests/replay.rs` cover same/older/newer versions, ±10m skew rejection, ±30s skew acceptance, force-replay bypass, and canonical payload field ordering.
-
-### Changed
-
-- **Phase 1 Track E — cowork: typed errors + tracing throughout** (#12). Replaced `String` error returns in `bin/cowork/src/{sync,manifest,http,setup}.rs` with `thiserror`-derived enums (`SyncError`, `ManifestError`, `GatewayError`, `SetupError`). Library diagnostics now route through `tracing` with a custom stderr formatter that preserves the prior `[systemprompt-cowork] {msg}` line format byte-for-byte. `crate::output::diag` is a thin `tracing::warn!` wrapper; the CLI entry initialises a stderr-targeted `fmt` subscriber via `tracing_init`.
-
-- **Phase 0 of the cowork sync + auth pipeline hardening (shared prep, no-op behaviourally).** Lands the cross-cutting glue every Phase 1 track depended on:
-  - `JwtAudience::Cowork` variant added to `crates/shared/models/src/auth/enums.rs` (covers `as_str` and `FromStr`).
-  - `SecretsBootstrap::manifest_signing_secret_seed() -> Result<[u8; 32], _>` accessor added in `crates/shared/models/src/secrets_bootstrap.rs`. Returns the existing JWT-derived seed as a fallback so signature semantics are unchanged; Phase 2 Track F will swap the source to a dedicated secret without changing call sites.
-  - `serde_jcs = "0.1"` added to `crates/infra/security/Cargo.toml` and `bin/cowork/Cargo.toml`. `thiserror`, `tracing`, and `tracing-subscriber` added to `bin/cowork/Cargo.toml`.
-  - Workspace `sha2` added to `crates/shared/models/Cargo.toml` for the seed-derivation helper.
-
-### Fixed
-
-- **`NSURL::fileURLWithPath` macOS GUI compile fix** (#15). Current `objc2_foundation` returns `Retained<NSURL>` directly (non-null), so the prior `if let Some(url) = ...` guard failed to compile on macOS. Drop the `Option` match in `bin/cowork/src/gui/window/mod.rs`. CI's release matrix only builds `aarch64-apple-darwin`, so the next tag would have hit this without the fix.
+- `cowork`: lint config in `bin/cowork/Cargo.toml` denies `unsafe_code`, `clippy::unwrap_used`, `panic`, `todo`, `unimplemented`, `dbg_macro`; warns on `expect_used`, `print_*`, `mod_module_files`, casts, `needless_pass_by_value`. Pedantic clippy: 0 warnings.
+- `cowork`: `.expect("…poisoned")` lock panics replaced by `parking_lot::RwLock` / `parking_lot::Mutex`.
+- `cowork`: `println!` / `print!` / `eprintln!` confined to `cli/` and `main.rs`.
+- `cowork`: Unix signal handling moved from `libc::signal` / `libc::_exit` to `ctrlc` posting `UiEvent::Quit` via `EventLoopProxy` (cooperative shutdown).
+- `cowork`: Windows terminal detection moved from `GetConsoleWindow` / `GetStdHandle` / `GetFileType` FFI to `is-terminal::IsTerminal`.
+- `cowork`: `unsafe` blocks confined to `winproc.rs` and `auth/keystore/windows.rs` (Win32 FFI).
+- `cowork`: builders for `gateway::manifest::SignedManifest` (13 fields) and `integration::claude_desktop::shared::ProfileGenInputs` (4 fields).
+- `cowork`: `serde_json::to_string(_).unwrap_or_else(|_| "[]".into())` in `gui/server_json` and `gui/server::serve_log` replaced with proper 500 error returns.
+- `cowork`: `gui/server_util::mint_csrf_token` rewritten on `rand::rngs::OsRng`; hand-rolled `url_decode` / `parse_query` replaced by `form_urlencoded`.
+- `cowork`: tests moved from inline `#[cfg(test)]` and `bin/cowork/tests/` to dedicated test crates under `crates/tests/unit/cowork/{paths,install,sync,manifest,proxy,auth,http_local,integration}`.
+- New deps: `serde_jcs`, `thiserror`, `tracing`, `tracing-subscriber`, `parking_lot`, `ctrlc`, `is-terminal`, `rand`, `form_urlencoded`. Workspace `sha2` added to `crates/shared/models`.
 
 ## [0.4.0] - 2026-04-24
 
