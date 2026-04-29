@@ -194,7 +194,7 @@ async fn build_sync_config(
     let local_services_path = project.as_path().join("services");
 
     let sync_config = SyncConfigBuilder::new(
-        tenant_id.as_str(),
+        tenant_id.clone(),
         &creds.api_url,
         &creds.api_token,
         local_services_path.to_string_lossy(),

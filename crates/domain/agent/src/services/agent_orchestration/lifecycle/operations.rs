@@ -17,7 +17,7 @@ impl AgentLifecycle {
         let start = Instant::now();
 
         self.publish_event(AgentEvent::AgentStartRequested {
-            agent_id: AgentId::from(agent_name),
+            agent_id: AgentId::new(agent_name),
         });
 
         let agent_config = self.db_service.get_agent_config(agent_name).await?;
@@ -56,7 +56,7 @@ impl AgentLifecycle {
             tracing::debug!("Agent started: {} :{}", agent_config.name, agent_config.port);
 
             self.publish_event(AgentEvent::AgentStarted {
-                agent_id: AgentId::from(agent_name),
+                agent_id: AgentId::new(agent_name),
                 pid,
                 port: agent_config.port,
             });
@@ -71,7 +71,7 @@ impl AgentLifecycle {
 
         if let Err(ref e) = result {
             self.publish_event(AgentEvent::AgentFailed {
-                agent_id: AgentId::from(agent_name),
+                agent_id: AgentId::new(agent_name),
                 error: e.to_string(),
             });
 
@@ -94,7 +94,7 @@ impl AgentLifecycle {
             if process::kill_process(pid) {
                 tracing::debug!(agent_name = %agent_name, pid = %pid, "Killed process");
                 self.publish_event(AgentEvent::AgentStopped {
-                    agent_id: AgentId::from(agent_name),
+                    agent_id: AgentId::new(agent_name),
                     exit_code: None,
                 });
             } else {
@@ -105,7 +105,7 @@ impl AgentLifecycle {
         self.db_service.remove_agent_service(agent_name).await?;
 
         self.publish_event(AgentEvent::AgentDisabled {
-            agent_id: AgentId::from(agent_name),
+            agent_id: AgentId::new(agent_name),
         });
 
         tracing::debug!("Agent disabled: {}", agent_name);
@@ -129,7 +129,7 @@ impl AgentLifecycle {
         tracing::debug!(agent_name = %agent_name, "Restarting agent");
 
         self.publish_event(AgentEvent::AgentRestartRequested {
-            agent_id: AgentId::from(agent_name),
+            agent_id: AgentId::new(agent_name),
             reason: "User requested restart".to_string(),
         });
 
@@ -145,7 +145,7 @@ impl AgentLifecycle {
             }
 
             self.publish_event(AgentEvent::AgentStopped {
-                agent_id: AgentId::from(agent_name),
+                agent_id: AgentId::new(agent_name),
                 exit_code: None,
             });
 

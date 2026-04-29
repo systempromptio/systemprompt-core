@@ -34,8 +34,8 @@ impl ContextRepository {
         })?;
 
         Ok(UserContext {
-            context_id: row.context_id.into(),
-            user_id: row.user_id.into(),
+            context_id: ContextId::new(row.context_id),
+            user_id: UserId::new(row.user_id),
             name: row.name,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -63,8 +63,8 @@ impl ContextRepository {
         Ok(rows
             .into_iter()
             .map(|r| UserContext {
-                context_id: r.context_id.into(),
-                user_id: r.user_id.into(),
+                context_id: ContextId::new(r.context_id),
+                user_id: UserId::new(r.user_id),
                 name: r.name,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
@@ -101,8 +101,8 @@ impl ContextRepository {
         Ok(rows
             .into_iter()
             .map(|r| UserContextWithStats {
-                context_id: r.context_id.into(),
-                user_id: r.user_id.into(),
+                context_id: ContextId::new(r.context_id),
+                user_id: UserId::new(r.user_id),
                 name: r.name,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
@@ -133,8 +133,8 @@ impl ContextRepository {
         .map_err(RepositoryError::database)?;
 
         Ok(row.map(|r| UserContext {
-            context_id: r.context_id.into(),
-            user_id: r.user_id.into(),
+            context_id: ContextId::new(r.context_id),
+            user_id: UserId::new(r.user_id),
             name: r.name,
             created_at: r.created_at,
             updated_at: r.updated_at,

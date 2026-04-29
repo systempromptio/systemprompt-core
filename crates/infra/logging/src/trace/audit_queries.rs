@@ -2,7 +2,7 @@ use anyhow::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 
 use super::models::{AuditLookupResult, AuditToolCallRow, ConversationMessage, LinkedMcpCall};
 
@@ -129,8 +129,8 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
         output_tokens: r.output_tokens,
         cost_microdollars: r.cost_microdollars,
         latency_ms: r.latency_ms,
-        task_id: r.task_id.map(Into::into),
-        trace_id: r.trace_id.map(Into::into),
+        task_id: r.task_id.map(TaskId::new),
+        trace_id: r.trace_id.map(TraceId::new),
     }
 }
 

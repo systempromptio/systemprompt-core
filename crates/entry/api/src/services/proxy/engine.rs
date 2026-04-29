@@ -98,7 +98,7 @@ impl ProxyEngine {
                         "Enriching session-only request with cached identity"
                     );
                     req_context = req_context
-                        .with_user_id(UserId::from(identity.user.clone()))
+                        .with_user_id(UserId::new(identity.user.clone()))
                         .with_user_type(
                             identity
                                 .user_type

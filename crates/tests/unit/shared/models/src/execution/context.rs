@@ -130,13 +130,13 @@ fn request_context_with_task_sets_both_task_and_source() {
 
 #[test]
 fn request_context_with_ai_tool_call_id() {
-    let ctx = test_context().with_ai_tool_call_id(AiToolCallId::from("ai-call-1".to_string()));
+    let ctx = test_context().with_ai_tool_call_id(AiToolCallId::new("ai-call-1".to_string()));
     assert!(ctx.ai_tool_call_id().is_some());
 }
 
 #[test]
 fn request_context_with_mcp_execution_id() {
-    let ctx = test_context().with_mcp_execution_id(McpExecutionId::from("mcp-exec-1".to_string()));
+    let ctx = test_context().with_mcp_execution_id(McpExecutionId::new("mcp-exec-1".to_string()));
     assert!(ctx.mcp_execution_id().is_some());
 }
 

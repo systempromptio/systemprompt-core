@@ -17,7 +17,7 @@ use systemprompt_models::UserContext;
 #[test]
 fn test_context_message_serialize() {
     let message = ContextMessage {
-        message_id: MessageId::from("msg-123"),
+        message_id: MessageId::new("msg-123"),
         role: "user".to_string(),
         created_at: Utc::now(),
         sequence_number: 1,
@@ -50,7 +50,7 @@ fn test_context_message_deserialize() {
 #[test]
 fn test_context_message_debug() {
     let message = ContextMessage {
-        message_id: MessageId::from("msg-debug"),
+        message_id: MessageId::new("msg-debug"),
         role: "user".to_string(),
         created_at: Utc::now(),
         sequence_number: 0,
@@ -65,7 +65,7 @@ fn test_context_message_debug() {
 #[test]
 fn test_context_message_clone() {
     let message = ContextMessage {
-        message_id: MessageId::from("msg-clone"),
+        message_id: MessageId::new("msg-clone"),
         role: "system".to_string(),
         created_at: Utc::now(),
         sequence_number: 5,
@@ -112,14 +112,14 @@ fn test_context_detail_with_messages() {
         },
         messages: vec![
             ContextMessage {
-                message_id: MessageId::from("msg-1"),
+                message_id: MessageId::new("msg-1"),
                 role: "user".to_string(),
                 created_at: Utc::now(),
                 sequence_number: 1,
                 parts: vec![serde_json::json!({"text": "Hello"})],
             },
             ContextMessage {
-                message_id: MessageId::from("msg-2"),
+                message_id: MessageId::new("msg-2"),
                 role: "assistant".to_string(),
                 created_at: Utc::now(),
                 sequence_number: 2,
@@ -140,8 +140,8 @@ fn test_context_detail_with_messages() {
 #[test]
 fn test_context_state_event_tool_execution_completed_context_id() {
     let event = ContextStateEvent::ToolExecutionCompleted {
-        context_id: ContextId::from("ctx-tool-exec"),
-        execution_id: McpExecutionId::from("exec-123"),
+        context_id: ContextId::new("ctx-tool-exec"),
+        execution_id: McpExecutionId::new("exec-123"),
         tool_name: "search".to_string(),
         server_name: "brave".to_string(),
         output: Some("Results".to_string()),
@@ -157,7 +157,7 @@ fn test_context_state_event_tool_execution_completed_context_id() {
 fn test_context_state_event_task_status_changed_context_id() {
     let event = ContextStateEvent::TaskStatusChanged {
         task: systemprompt_agent::Task::default(),
-        context_id: ContextId::from("ctx-task-status"),
+        context_id: ContextId::new("ctx-task-status"),
         timestamp: Utc::now(),
     };
 
@@ -167,7 +167,7 @@ fn test_context_state_event_task_status_changed_context_id() {
 #[test]
 fn test_context_state_event_context_created() {
     let event = ContextStateEvent::ContextCreated {
-        context_id: ContextId::from("ctx-new"),
+        context_id: ContextId::new("ctx-new"),
         context: UserContext {
             context_id: ContextId::new("ctx-new"),
             name: "New Context".to_string(),
@@ -184,7 +184,7 @@ fn test_context_state_event_context_created() {
 #[test]
 fn test_context_state_event_context_updated() {
     let event = ContextStateEvent::ContextUpdated {
-        context_id: ContextId::from("ctx-updated"),
+        context_id: ContextId::new("ctx-updated"),
         name: "Updated Name".to_string(),
         timestamp: Utc::now(),
     };
@@ -195,7 +195,7 @@ fn test_context_state_event_context_updated() {
 #[test]
 fn test_context_state_event_context_deleted() {
     let event = ContextStateEvent::ContextDeleted {
-        context_id: ContextId::from("ctx-deleted"),
+        context_id: ContextId::new("ctx-deleted"),
         timestamp: Utc::now(),
     };
 
@@ -214,7 +214,7 @@ fn test_context_state_event_heartbeat_no_context_id() {
 #[test]
 fn test_context_state_event_current_agent() {
     let event = ContextStateEvent::CurrentAgent {
-        context_id: ContextId::from("ctx-current-agent"),
+        context_id: ContextId::new("ctx-current-agent"),
         agent_name: Some("test-agent".to_string()),
         timestamp: Utc::now(),
     };
@@ -234,7 +234,7 @@ fn test_context_state_event_timestamp() {
 #[test]
 fn test_context_state_event_serialize() {
     let event = ContextStateEvent::ContextUpdated {
-        context_id: ContextId::from("ctx-serialize"),
+        context_id: ContextId::new("ctx-serialize"),
         name: "Serialized".to_string(),
         timestamp: Utc::now(),
     };

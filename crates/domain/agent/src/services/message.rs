@@ -6,7 +6,7 @@ use crate::models::a2a::{Message, MessageRole, Part, TextPart};
 use crate::repository::context::message::PersistMessageWithTxParams;
 use crate::repository::task::TaskRepository;
 use systemprompt_database::{DatabaseProvider, DatabaseTransaction, DbPool};
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 
 pub struct PersistMessageInTxParams<'a> {
@@ -181,7 +181,7 @@ impl MessageService {
 
         let message = Message {
             role: MessageRole::User,
-            message_id: message_id.clone().into(),
+            message_id: MessageId::new(message_id.clone()),
             task_id: Some(task_id.clone()),
             context_id: context_id.clone(),
             parts: vec![Part::Text(TextPart {

@@ -1,5 +1,6 @@
 //! Tests for sync configuration types
 
+use systemprompt_identifiers::TenantId;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult};
 
 mod sync_direction_tests {
@@ -17,7 +18,7 @@ mod sync_config_builder_tests {
 
     fn test_builder() -> SyncConfig {
         SyncConfig::builder(
-            "tenant-1",
+            TenantId::new("tenant-1"),
             "https://api.example.com",
             "token123",
             "/services",
@@ -87,7 +88,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_direction_sets_direction() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_direction(SyncDirection::Pull)
             .build();
         assert_eq!(config.direction, SyncDirection::Pull);
@@ -95,7 +96,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_dry_run_true() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_dry_run(true)
             .build();
         assert!(config.dry_run);
@@ -103,7 +104,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_dry_run_false() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_dry_run(false)
             .build();
         assert!(!config.dry_run);
@@ -111,7 +112,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_verbose_true() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_verbose(true)
             .build();
         assert!(config.verbose);
@@ -119,7 +120,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_verbose_false() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_verbose(false)
             .build();
         assert!(!config.verbose);
@@ -127,7 +128,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_hostname_some() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_hostname(Some("host.example.com".to_string()))
             .build();
         assert_eq!(config.hostname, Some("host.example.com".to_string()));
@@ -135,7 +136,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_hostname_none() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_hostname(None)
             .build();
         assert!(config.hostname.is_none());
@@ -143,7 +144,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_sync_token_some() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_sync_token(Some("sync-token-123".to_string()))
             .build();
         assert_eq!(config.sync_token, Some("sync-token-123".to_string()));
@@ -151,7 +152,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_sync_token_none() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_sync_token(None)
             .build();
         assert!(config.sync_token.is_none());
@@ -159,7 +160,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn with_local_database_url() {
-        let config = SyncConfig::builder("t", "url", "token", "/path")
+        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_local_database_url("postgres://localhost/db")
             .build();
         assert_eq!(
@@ -170,7 +171,7 @@ mod sync_config_builder_tests {
 
     #[test]
     fn builder_chain_all_options() {
-        let config = SyncConfig::builder("tenant", "api", "token", "/srv")
+        let config = SyncConfig::builder(TenantId::new("tenant"), "api", "token", "/srv")
             .with_direction(SyncDirection::Pull)
             .with_dry_run(true)
             .with_verbose(true)

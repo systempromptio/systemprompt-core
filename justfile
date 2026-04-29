@@ -13,6 +13,10 @@ default:
 lint-raw-ids:
     ./scripts/lint-raw-ids.sh
 
+# Reject SomeId::from() and "...".into() on typed-ID fields (call-site convention)
+lint-id-construction:
+    ./scripts/lint-id-construction.sh
+
 # Build workspace
 build:
     cargo build --workspace
@@ -144,6 +148,9 @@ style-check:
     echo ""
     echo "4️⃣  Checking sqlx::query allowlist..."
     ./ci/check-sqlx.sh
+    echo ""
+    echo "5️⃣  Checking typed-ID construction..."
+    ./scripts/lint-id-construction.sh
     echo ""
     echo "✅ All style checks passed!"
 

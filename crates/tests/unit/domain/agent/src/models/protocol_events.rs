@@ -13,15 +13,15 @@ use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 
 fn create_test_artifact(id: &str) -> Artifact {
     Artifact {
-        id: ArtifactId::from(id),
+        id: ArtifactId::new(id),
         title: Some("test-artifact".to_string()),
         description: Some("Test artifact description".to_string()),
         parts: vec![],
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             "text".to_string(),
-            ContextId::from("ctx-1"),
-            TaskId::from("task-1"),
+            ContextId::new("ctx-1"),
+            TaskId::new("task-1"),
         ),
     }
 }

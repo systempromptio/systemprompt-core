@@ -33,7 +33,7 @@ pub async fn update_context(
         },
     };
     let user_id = &req_ctx.auth.user_id;
-    let context_id = ContextId::from(context_id_str);
+    let context_id = ContextId::new(context_id_str);
 
     match context_repo
         .update_context_name(&context_id, user_id, &request.name)

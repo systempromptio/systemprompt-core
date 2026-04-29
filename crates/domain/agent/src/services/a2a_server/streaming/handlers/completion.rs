@@ -102,7 +102,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
                 parts: vec![Part::Text(TextPart {
                     text: full_text.clone(),
                 })],
-                message_id: message_id.to_string().into(),
+                message_id: MessageId::new(message_id.to_string()),
                 task_id: Some(task_id.clone()),
                 context_id: context_id.clone(),
                 metadata: None,
@@ -197,7 +197,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
                     parts: vec![Part::Text(TextPart {
                         text: full_text.clone(),
                     })],
-                    message_id: message_id.to_string().into(),
+                    message_id: MessageId::new(message_id.to_string()),
                     task_id: Some(task_id.clone()),
                     context_id: context_id.clone(),
                     metadata: None,

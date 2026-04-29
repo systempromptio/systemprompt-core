@@ -1,3 +1,4 @@
+use systemprompt_identifiers::TenantId;
 use systemprompt_sync::{SyncConfig, SyncDirection};
 
 mod sync_api_client_tests {
@@ -104,7 +105,7 @@ mod sync_service_tests {
     #[test]
     fn creation() {
         let config =
-            SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
+            SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services").build();
 
         let service = SyncService::new(config);
         let debug_str = format!("{:?}", service);
@@ -114,7 +115,7 @@ mod sync_service_tests {
     #[test]
     fn with_full_config() {
         let config =
-            SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+            SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
                 .with_direction(SyncDirection::Pull)
                 .with_dry_run(true)
                 .with_verbose(true)
@@ -193,7 +194,7 @@ mod file_sync_service_tests {
     #[test]
     fn creation() {
         let config =
-            SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
+            SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services").build();
 
         let api_client =
             SyncApiClient::new("https://api.com", "token").expect("test client");
