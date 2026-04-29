@@ -57,6 +57,8 @@ impl Default for WorkerPool {
     }
 }
 
+const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+
 impl Drop for WorkerPool {
     fn drop(&mut self) {
         let drained: Vec<JoinHandle<()>> = {
@@ -64,7 +66,16 @@ impl Drop for WorkerPool {
             std::mem::take(&mut *guard)
         };
         for handle in drained {
-            let _ = handle.join();
+            let id = handle.thread().id();
+            let deadline = std::time::Instant::now() + SHUTDOWN_TIMEOUT;
+            while !handle.is_finished() && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            if handle.is_finished() {
+                let _ = handle.join();
+            } else {
+                tracing::warn!(thread = ?id, "worker did not exit cleanly within 2s");
+            }
         }
     }
 }

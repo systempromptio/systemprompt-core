@@ -1,15 +1,17 @@
-#![allow(dead_code)]
-
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::collections::BTreeMap;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::Deserialize;
-
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::HostConfigSchema;
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const CODE_DOMAIN: &str = "com.anthropic.claudecode";
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "inferenceProvider",
     "inferenceGatewayBaseUrl",
@@ -20,6 +22,7 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "deploymentOrganizationUuid",
 ];
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const REQUIRED_KEYS: &[&str] = &[
     "inferenceProvider",
     "inferenceGatewayBaseUrl",
@@ -27,6 +30,7 @@ pub(super) const REQUIRED_KEYS: &[&str] = &[
     "inferenceModels",
 ];
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
     required_keys: REQUIRED_KEYS,
     display_keys: KEYS_OF_INTEREST,
@@ -34,6 +38,7 @@ pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
 
 const DEFAULT_MODELS: &[&str] = &["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"];
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Clone, Default)]
 pub(super) struct DomainRead {
     pub source_path: Option<String>,
@@ -42,29 +47,19 @@ pub(super) struct DomainRead {
 
 pub use crate::integration::host_app::ProfileGenInputs;
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct GenerateProfileBody {
-    #[serde(default)]
-    pub gateway_base_url: Option<String>,
-    #[serde(default)]
-    pub api_key: Option<String>,
-    #[serde(default)]
-    pub models: Option<Vec<String>>,
-    #[serde(default)]
-    pub organization_uuid: Option<String>,
-}
-
 #[must_use]
 pub fn default_models() -> Vec<String> {
     DEFAULT_MODELS.iter().map(|s| (*s).to_string()).collect()
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {
     if key == "inferenceGatewayApiKey" {
         return format!(
@@ -75,6 +70,7 @@ pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {
     raw
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn make_uuids() -> (String, String) {
     let n = now_unix();
     let payload_uuid = format!(

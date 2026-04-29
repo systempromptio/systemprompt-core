@@ -11,7 +11,7 @@ use macos as os;
 #[cfg(target_os = "windows")]
 use windows as os;
 
-pub use shared::{GenerateProfileBody, ProfileGenInputs, default_models};
+pub use shared::{ProfileGenInputs, default_models};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
