@@ -29,10 +29,10 @@ fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
         .enable_all()
         .build()?;
     let _ = RUNTIME.set(Arc::new(rt));
-    #[allow(clippy::expect_used)]
-    Ok(RUNTIME
-        .get()
-        .expect("RUNTIME populated on the previous line"))
+    Ok(RUNTIME.get().unwrap_or_else(|| {
+        diag("proxy: tokio runtime OnceLock unexpectedly empty after set");
+        std::process::abort()
+    }))
 }
 
 pub fn start_default() -> Option<&'static ProxyHandle> {
