@@ -85,7 +85,7 @@ pub fn mint_fresh(cfg: &config::Config) -> Option<HelperOutput> {
                 let _ = cache::write(&out);
                 return Some(out);
             },
-            Err(AuthError::NotConfigured | AuthError::Failed(_)) => {},
+            Err(AuthError::NotConfigured | AuthError::Failed { .. }) => {},
         }
     }
     None

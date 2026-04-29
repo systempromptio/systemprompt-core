@@ -32,20 +32,16 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     let open_folder_item = MenuItem::new("Open config folder", true, None);
     let quit_item = MenuItem::new("Quit", true, None);
 
-    let to_tray = |e: muda::Error| GuiError::Tray(e.to_string());
-    menu.append(&identity_item).map_err(to_tray)?;
-    menu.append(&last_sync_item).map_err(to_tray)?;
-    menu.append(&PredefinedMenuItem::separator())
-        .map_err(to_tray)?;
-    menu.append(&sync_item).map_err(to_tray)?;
-    menu.append(&validate_item).map_err(to_tray)?;
-    menu.append(&PredefinedMenuItem::separator())
-        .map_err(to_tray)?;
-    menu.append(&open_settings_item).map_err(to_tray)?;
-    menu.append(&open_folder_item).map_err(to_tray)?;
-    menu.append(&PredefinedMenuItem::separator())
-        .map_err(to_tray)?;
-    menu.append(&quit_item).map_err(to_tray)?;
+    menu.append(&identity_item)?;
+    menu.append(&last_sync_item)?;
+    menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&sync_item)?;
+    menu.append(&validate_item)?;
+    menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&open_settings_item)?;
+    menu.append(&open_folder_item)?;
+    menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&quit_item)?;
 
     let mut bindings = HashMap::new();
     bindings.insert(sync_item.id().clone(), UiEvent::SyncRequested);
@@ -61,8 +57,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
         .with_tooltip("systemprompt-cowork")
         .with_icon(icon)
         .with_icon_as_template(cfg!(target_os = "macos"))
-        .build()
-        .map_err(|e| GuiError::Tray(e.to_string()))?;
+        .build()?;
 
     Ok(TrayHandles {
         _tray: tray,
@@ -130,9 +125,7 @@ fn format_last_sync(snap: &AppStateSnapshot) -> String {
 }
 
 fn decode_icon() -> GuiResult<Icon> {
-    let img = image::load_from_memory(TRAY_ICON_PNG)
-        .map_err(|e| GuiError::Icon(e.to_string()))?
-        .to_rgba8();
+    let img = image::load_from_memory(TRAY_ICON_PNG)?.to_rgba8();
     let (w, h) = img.dimensions();
-    Icon::from_rgba(img.into_raw(), w, h).map_err(|e| GuiError::Icon(e.to_string()))
+    Icon::from_rgba(img.into_raw(), w, h).map_err(GuiError::from)
 }

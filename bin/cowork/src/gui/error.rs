@@ -1,41 +1,52 @@
 use thiserror::Error;
 
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Error)]
 pub enum GuiError {
     #[error("io: {0}")]
-    Io(String),
-    #[error("http: {0}")]
-    Http(String),
+    Io(#[from] std::io::Error),
+
     #[error("auth: {0}")]
-    Auth(String),
+    Auth(#[from] crate::auth::setup::SetupError),
+
     #[error("sync: {0}")]
-    Sync(String),
-    #[error("tray: {0}")]
-    Tray(String),
+    Sync(#[from] crate::sync::SyncError),
+
+    #[error("gateway: {0}")]
+    Gateway(#[from] crate::gateway::GatewayError),
+
+    #[error("profile: {context}: {source}")]
+    Profile {
+        context: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("tray menu: {0}")]
+    TrayMenu(#[from] muda::Error),
+
+    #[error("tray build: {0}")]
+    TrayBuild(#[from] tray_icon::Error),
+
+    #[error("icon decode: {0}")]
+    IconImage(#[from] image::ImageError),
+
     #[error("icon: {0}")]
-    Icon(String),
-    #[error("window: {0}")]
-    Window(String),
-    #[error("profile: {0}")]
-    Profile(String),
+    Icon(#[from] tray_icon::BadIcon),
+
+    #[error("window: {context}: {source}")]
+    Window {
+        context: String,
+        #[source]
+        source: WindowError,
+    },
 }
 
-impl From<std::io::Error> for GuiError {
-    fn from(e: std::io::Error) -> Self {
-        Self::Io(e.to_string())
-    }
-}
-
-impl From<crate::auth::setup::SetupError> for GuiError {
-    fn from(e: crate::auth::setup::SetupError) -> Self {
-        Self::Auth(e.to_string())
-    }
-}
-
-impl From<crate::sync::SyncError> for GuiError {
-    fn from(e: crate::sync::SyncError) -> Self {
-        Self::Sync(e.to_string())
-    }
+#[derive(Debug, Error)]
+pub enum WindowError {
+    #[error(transparent)]
+    Os(#[from] winit::error::OsError),
+    #[error(transparent)]
+    Wry(#[from] wry::Error),
 }
 
 pub type GuiResult<T> = std::result::Result<T, GuiError>;

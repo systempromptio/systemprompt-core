@@ -1,5 +1,5 @@
 use crate::auth::keystore;
-use crate::auth::providers::{AuthError, AuthProvider};
+use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use crate::auth::types::{HelperOutput, MtlsRequest};
 use crate::config::Config;
 use crate::gateway::GatewayClient;
@@ -40,16 +40,20 @@ impl AuthProvider for MtlsProvider {
 
         let cert = keystore::platform_source()
             .load()
-            .map_err(|e| AuthError::Failed(e.to_string()))?;
+            .map_err(|e| AuthError::Failed {
+                provider: "mtls",
+                source: AuthFailedSource::Keystore(e),
+            })?;
 
         let req = MtlsRequest {
             device_cert_fingerprint: cert.fingerprint,
             session_id: SessionId::generate(),
         };
         let client = GatewayClient::new(self.base_url.clone());
-        let resp = client
-            .mtls_exchange(&req)
-            .map_err(|e| AuthError::Failed(e.to_string()))?;
+        let resp = client.mtls_exchange(&req).map_err(|e| AuthError::Failed {
+            provider: "mtls",
+            source: AuthFailedSource::Gateway(e),
+        })?;
         Ok(resp.into())
     }
 }

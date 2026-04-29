@@ -107,7 +107,10 @@ pub(crate) fn on_profile_install_requested(app: &mut GuiApp, host_id: &str, path
         move || {
             host.install_profile(&path)
                 .map(|_| path_clone.clone())
-                .map_err(|e| GuiError::Profile(e.to_string()))
+                .map_err(|e| GuiError::Profile {
+                    context: "host install_profile".into(),
+                    source: e,
+                })
         },
         move |result| {
             UiEvent::Host(HostUiEvent::ProfileInstallFinished {
@@ -146,13 +149,13 @@ fn generate_profile_for(
         .map(|h| h.port)
         .unwrap_or(crate::proxy::DEFAULT_PROXY_PORT);
 
-    let loopback_secret = crate::proxy::secret::load_or_mint()
-        .map_err(|e| GuiError::Profile(format!("loopback secret: {e}")))?;
+    let loopback_secret = crate::proxy::secret::load_or_mint().map_err(|e| GuiError::Profile {
+        context: "loopback secret".into(),
+        source: e,
+    })?;
 
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = GatewayClient::new(gateway_base)
-        .fetch_cowork_profile()
-        .map_err(|e| GuiError::Profile(format!("fetch /v1/cowork/profile failed: {e}")))?;
+    let server_profile = GatewayClient::new(gateway_base).fetch_cowork_profile()?;
 
     let models = if server_profile.models.is_empty() {
         crate::integration::claude_desktop::default_models()
@@ -161,11 +164,14 @@ fn generate_profile_for(
     };
 
     let inputs = ProfileGenInputs {
-        gateway_base_url: format!("http://localhost:{port}"),
+        gateway_base_url: format!("http://127.0.0.1:{port}"),
         api_key: loopback_secret,
         models,
         organization_uuid: server_profile.organization_uuid,
     };
     host.generate_profile(&inputs)
-        .map_err(|e| GuiError::Profile(e.to_string()))
+        .map_err(|e| GuiError::Profile {
+            context: "host generate_profile".into(),
+            source: e,
+        })
 }
