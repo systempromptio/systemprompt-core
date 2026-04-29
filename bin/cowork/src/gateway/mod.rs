@@ -3,6 +3,7 @@ pub mod manifest;
 use crate::auth::types::{AuthResponse, CoworkProfile, MtlsRequest, SessionExchangeRequest};
 use crate::gateway::manifest::SignedManifest;
 use std::time::Duration;
+use systemprompt_identifiers::ValidatedUrl;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayError {
@@ -51,20 +52,24 @@ pub enum GatewayError {
 }
 
 pub struct GatewayClient {
-    base_url: String,
+    base_url: ValidatedUrl,
     agent: ureq::Agent,
 }
 
 impl GatewayClient {
-    pub fn new(base_url: String) -> Self {
+    pub fn new(base_url: ValidatedUrl) -> Self {
         let agent = ureq::AgentBuilder::new()
             .timeout(Duration::from_secs(30))
             .build();
         Self { base_url, agent }
     }
 
-    pub fn base_url(&self) -> &str {
+    pub fn base_url(&self) -> &ValidatedUrl {
         &self.base_url
+    }
+
+    pub fn base_url_str(&self) -> &str {
+        self.base_url.as_str()
     }
 
     pub fn fetch_pubkey(&self) -> Result<String, GatewayError> {
@@ -202,6 +207,10 @@ impl GatewayClient {
     }
 
     fn url(&self, path: &str) -> String {
-        format!("{}{}", self.base_url.trim_end_matches('/'), path)
+        format!(
+            "{}{}",
+            self.base_url.as_str().trim_end_matches('/'),
+            path
+        )
     }
 }

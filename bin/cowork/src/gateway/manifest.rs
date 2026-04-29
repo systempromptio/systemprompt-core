@@ -1,7 +1,12 @@
+use crate::ids::{
+    ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName, ToolName,
+    ToolPolicy,
+};
 use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -30,8 +35,8 @@ pub struct SignedManifest {
     pub manifest_version: String,
     pub issued_at: String,
     pub not_before: String,
-    pub user_id: String,
-    pub tenant_id: Option<String>,
+    pub user_id: UserId,
+    pub tenant_id: Option<TenantId>,
     #[serde(default)]
     pub user: Option<UserInfo>,
     pub plugins: Vec<PluginEntry>,
@@ -41,12 +46,12 @@ pub struct SignedManifest {
     pub agents: Vec<AgentEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub revocations: Vec<String>,
-    pub signature: String,
+    pub signature: ManifestSignature,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserInfo {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     #[serde(default)]
@@ -57,35 +62,35 @@ pub struct UserInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginEntry {
-    pub id: String,
+    pub id: PluginId,
     pub version: String,
-    pub sha256: String,
+    pub sha256: Sha256Digest,
     pub files: Vec<PluginFile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginFile {
     pub path: String,
-    pub sha256: String,
+    pub sha256: Sha256Digest,
     pub size: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillEntry {
-    pub id: String,
-    pub name: String,
+    pub id: SkillId,
+    pub name: SkillName,
     pub description: String,
     pub file_path: String,
     #[serde(default)]
     pub tags: Vec<String>,
-    pub sha256: String,
+    pub sha256: Sha256Digest,
     pub instructions: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentEntry {
-    pub id: String,
-    pub name: String,
+    pub id: AgentId,
+    pub name: AgentName,
     pub display_name: String,
     pub description: String,
     pub version: String,
@@ -109,8 +114,8 @@ pub struct AgentEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManagedMcpServer {
-    pub name: String,
-    pub url: String,
+    pub name: ManagedMcpServerName,
+    pub url: ValidatedUrl,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transport: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -118,7 +123,7 @@ pub struct ManagedMcpServer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_policy: Option<BTreeMap<String, String>>,
+    pub tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
 }
 
 impl SignedManifest {
@@ -136,7 +141,7 @@ impl SignedManifest {
         let key = VerifyingKey::from_bytes(&arr).map_err(ManifestError::PubkeyParse)?;
 
         let sig_bytes = base64::engine::general_purpose::STANDARD
-            .decode(self.signature.trim())
+            .decode(self.signature.as_str().trim())
             .map_err(ManifestError::SignatureBase64)?;
         if sig_bytes.len() != 64 {
             return Err(ManifestError::SignatureLength(sig_bytes.len()));
@@ -158,8 +163,8 @@ impl SignedManifest {
         manifest_version: impl Into<String>,
         issued_at: impl Into<String>,
         not_before: impl Into<String>,
-        user_id: impl Into<String>,
-        signature: impl Into<String>,
+        user_id: impl Into<UserId>,
+        signature: impl Into<ManifestSignature>,
     ) -> SignedManifestBuilder {
         SignedManifestBuilder {
             manifest_version: manifest_version.into(),
@@ -182,9 +187,9 @@ pub struct SignedManifestBuilder {
     manifest_version: String,
     issued_at: String,
     not_before: String,
-    user_id: String,
-    signature: String,
-    tenant_id: Option<String>,
+    user_id: UserId,
+    signature: ManifestSignature,
+    tenant_id: Option<TenantId>,
     user: Option<UserInfo>,
     plugins: Vec<PluginEntry>,
     skills: Vec<SkillEntry>,
@@ -194,7 +199,7 @@ pub struct SignedManifestBuilder {
 }
 
 impl SignedManifestBuilder {
-    pub fn with_tenant_id(mut self, tenant_id: impl Into<String>) -> Self {
+    pub fn with_tenant_id(mut self, tenant_id: impl Into<TenantId>) -> Self {
         self.tenant_id = Some(tenant_id.into());
         self
     }
@@ -252,8 +257,8 @@ struct CanonicalView<'a> {
     manifest_version: &'a str,
     issued_at: &'a str,
     not_before: &'a str,
-    user_id: &'a str,
-    tenant_id: Option<&'a str>,
+    user_id: &'a UserId,
+    tenant_id: Option<&'a TenantId>,
     user: Option<&'a UserInfo>,
     plugins: &'a [PluginEntry],
     skills: &'a [SkillEntry],
@@ -268,7 +273,7 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
         issued_at: &m.issued_at,
         not_before: &m.not_before,
         user_id: &m.user_id,
-        tenant_id: m.tenant_id.as_deref(),
+        tenant_id: m.tenant_id.as_ref(),
         user: m.user.as_ref(),
         plugins: &m.plugins,
         skills: &m.skills,
