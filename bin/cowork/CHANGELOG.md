@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Host integration refactor — `gui/claude/` → `gui/hosts/`, host registry, proxy probe
+
+Generalises the Claude-Desktop-specific GUI integration surface into a host-agnostic registry so future host apps (Cursor, Zed, Continue, etc.) can plug in without forking the dispatch tree.
+
+- `gui/claude/` renamed to `gui/hosts/` — `dispatch.rs`, `events.rs`, `handlers.rs`, `mod.rs`, `serde.rs`, `state.rs`, `tick.rs` all moved. Public surface follows the new naming.
+- New `integration/registry.rs` — `HostApp` trait + registry that enumerates installed host apps and routes setup/teardown calls.
+- New `integration/host_app.rs` — common `HostApp` shape (id, display name, install/uninstall/probe).
+- New `integration/proxy_probe.rs` — host-agnostic proxy reachability probe extracted from the per-host modules.
+- New `integration/stub_host/` (gated behind `dev-stub-host` feature) — in-memory host implementation for tests / dev runs.
+- New `integration/claude_desktop/win_reg_parser.rs` — isolated Windows registry parser for Claude Desktop's managed prefs.
+- `Cargo.toml` adds `[features]` block with `dev-stub-host` opt-in feature.
+- Web UI (`web/{index.html,app.js,style.css}`) updated to render the host-registry-driven view.
+- `crates/tests/unit/cowork/integration/` adds coverage for the new registry and stub host.
+
 ### Settings window + marketplace listing + typed-ID rollout
 
 Native settings window is now actually rendered (wry WebView2/WKWebView), the dashboard gains a marketplace listing pane backed by an on-disk scan of installed plugins/skills/hooks/MCP/agents, and the entire `bin/cowork` tree adopts the typed-identifier discipline used by the rest of the systemprompt-core codebase.

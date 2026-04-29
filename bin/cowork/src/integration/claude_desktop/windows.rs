@@ -3,18 +3,16 @@
 use std::io::Write;
 
 use super::shared::{
-    DESKTOP_DOMAIN, GeneratedProfile, KEYS_OF_INTEREST, ManagedDomain, ProfileGenInputs,
-    make_uuids, now_unix, redact_if_sensitive,
+    DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, now_unix,
+    redact_if_sensitive,
 };
+use crate::integration::host_app::GeneratedProfile;
 use crate::winproc;
 
 const POLICY_KEY: &str = r"SOFTWARE\Policies\Claude";
 
-pub(super) fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
-    let mut out = ManagedDomain {
-        domain: domain.to_string(),
-        ..Default::default()
-    };
+pub(super) fn read_domain(domain: &str) -> DomainRead {
+    let mut out = DomainRead::default();
 
     if domain != DESKTOP_DOMAIN {
         return out;
@@ -33,15 +31,8 @@ pub(super) fn read_domain(domain: &str, required: &[&str]) -> ManagedDomain {
                     .insert(canonical.to_string(), redact_if_sensitive(canonical, value));
             }
         }
-        out.installed = !out.keys.is_empty();
         break;
     }
-
-    out.missing_required = required
-        .iter()
-        .filter(|k| !out.keys.contains_key(**k))
-        .map(|k| (*k).to_string())
-        .collect();
 
     out
 }
@@ -113,34 +104,15 @@ fn query_key(full: &str) -> Option<Vec<(String, String)>> {
     let text = String::from_utf8_lossy(&output.stdout);
     let mut values = Vec::new();
     for line in text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with("HKEY_") {
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() || trimmed.starts_with("HKEY_") {
             continue;
         }
-        if let Some((name, value)) = parse_reg_line(line) {
+        if let Some((name, value)) = super::win_reg_parser::parse_reg_line(trimmed) {
             values.push((name, value));
         }
     }
     Some(values)
-}
-
-fn parse_reg_line(line: &str) -> Option<(String, String)> {
-    let mut parts = line
-        .splitn(3, char::is_whitespace)
-        .filter(|s| !s.is_empty());
-    let name = parts.next()?.to_string();
-    let kind = parts.next()?;
-    let value = parts.next().unwrap_or("").trim().to_string();
-    let value = if kind == "REG_DWORD" {
-        value
-            .strip_prefix("0x")
-            .and_then(|hex| u64::from_str_radix(hex, 16).ok())
-            .map(|n| n.to_string())
-            .unwrap_or(value)
-    } else {
-        value
-    };
-    Some((name, value))
 }
 
 fn canonical_key_name(name: &str) -> Option<&'static str> {
@@ -169,13 +141,15 @@ fn render_reg(inputs: &ProfileGenInputs) -> String {
         reg_escape(&inputs.api_key)
     ));
     out.push_str("\"inferenceGatewayAuthScheme\"=\"bearer\"\r\n");
-    if !inputs.models.is_empty() {
-        let models = inputs.models.join(",");
-        out.push_str(&format!(
-            "\"inferenceModels\"=\"{}\"\r\n",
-            reg_escape(&models)
-        ));
-    }
+    let models = if inputs.models.is_empty() {
+        super::shared::default_models().join(",")
+    } else {
+        inputs.models.join(",")
+    };
+    out.push_str(&format!(
+        "\"inferenceModels\"=\"{}\"\r\n",
+        reg_escape(&models)
+    ));
     if let Some(uuid) = inputs.organization_uuid.as_deref() {
         if !uuid.is_empty() {
             out.push_str(&format!(

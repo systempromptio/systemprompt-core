@@ -1,5 +1,5 @@
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub mod claude;
+pub mod hosts;
 pub mod connection;
 pub mod dispatch;
 pub mod error;
@@ -155,7 +155,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         dispatch::dispatch(self, event_loop, UiEvent::OpenSettings);
         let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        claude::tick::request_initial_probe(self);
+        hosts::tick::request_initial_probe(self);
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
@@ -188,7 +188,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
         }
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        claude::tick::maybe_probe(self);
+        hosts::tick::maybe_probe(self);
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));
     }
 }

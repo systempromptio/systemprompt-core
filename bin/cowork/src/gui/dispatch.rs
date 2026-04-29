@@ -29,6 +29,6 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
         },
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        UiEvent::Claude(e) => crate::gui::claude::dispatch::handle(app, e),
+        UiEvent::Host(e) => crate::gui::hosts::dispatch::handle(app, e),
     }
 }

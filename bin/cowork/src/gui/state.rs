@@ -15,7 +15,9 @@ pub use jwt::decode_jwt_identity_unverified;
 use crate::auth::{cache, setup};
 use crate::config::{self, paths};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use crate::gui::claude::state::ClaudeState;
+use crate::gui::hosts::state::HostsState;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::integration::{HostAppSnapshot, ProxyHealth};
 use crate::validate::ValidationReport;
 
 use counters::{count_malformed_plugin_dirs, count_plugin_dirs, read_index_count};
@@ -84,7 +86,7 @@ pub struct AppStateSnapshot {
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    pub claude: ClaudeState,
+    pub hosts: HostsState,
 }
 
 impl AppStateSnapshot {
@@ -153,28 +155,61 @@ impl AppState {
     }
 
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    pub fn apply_claude_integration(
-        &self,
-        snap: crate::integration::claude_desktop::ClaudeIntegrationSnapshot,
-    ) {
+    pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
         let mut guard = self.inner.write();
-        guard.claude.integration = Some(snap);
-        guard.claude.probe_in_flight = false;
+        let entry = guard.hosts.entry(host_id);
+        entry.snapshot = Some(snap);
+        entry.probe_in_flight = false;
     }
 
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    pub fn mark_claude_probing(&self) -> bool {
+    pub fn mark_host_probing(&self, host_id: &str) -> bool {
         let mut guard = self.inner.write();
-        if guard.claude.probe_in_flight {
+        let entry = guard.hosts.entry(host_id);
+        if entry.probe_in_flight {
             return false;
         }
-        guard.claude.probe_in_flight = true;
+        entry.probe_in_flight = true;
         true
     }
 
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    pub fn set_last_generated_profile(&self, path: String) {
-        self.inner.write().claude.last_generated_profile = Some(path);
+    pub fn set_last_generated_profile(&self, host_id: &str, path: String) {
+        let mut guard = self.inner.write();
+        guard.hosts.entry(host_id).last_generated_profile = Some(path);
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub fn mark_proxy_probing(&self) -> bool {
+        let mut guard = self.inner.write();
+        if guard.hosts.proxy_probe_in_flight {
+            return false;
+        }
+        guard.hosts.proxy_probe_in_flight = true;
+        true
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub fn apply_proxy_health(&self, health: ProxyHealth) {
+        let mut guard = self.inner.write();
+        guard.hosts.local_proxy = health;
+        guard.hosts.proxy_probe_in_flight = false;
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub fn first_configured_proxy_url(&self) -> Option<String> {
+        let guard = self.inner.read();
+        guard
+            .hosts
+            .by_id
+            .values()
+            .filter_map(|h| h.snapshot.as_ref())
+            .find_map(|s| {
+                s.profile_keys
+                    .get("inferenceGatewayBaseUrl")
+                    .filter(|s| !s.is_empty())
+                    .cloned()
+            })
     }
 
     fn reload_into(snap: &mut AppStateSnapshot) {
