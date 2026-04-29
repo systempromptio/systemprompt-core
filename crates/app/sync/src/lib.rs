@@ -71,7 +71,7 @@ pub struct SyncConfigBuilder {
 
 impl SyncConfigBuilder {
     pub fn new(
-        tenant_id: TenantId,
+        tenant_id: impl Into<TenantId>,
         api_url: impl Into<String>,
         api_token: impl Into<String>,
         services_path: impl Into<String>,
@@ -80,7 +80,7 @@ impl SyncConfigBuilder {
             direction: SyncDirection::Push,
             dry_run: false,
             verbose: false,
-            tenant_id,
+            tenant_id: tenant_id.into(),
             api_url: api_url.into(),
             api_token: api_token.into(),
             services_path: services_path.into(),
@@ -138,7 +138,7 @@ impl SyncConfigBuilder {
 
 impl SyncConfig {
     pub fn builder(
-        tenant_id: TenantId,
+        tenant_id: impl Into<TenantId>,
         api_url: impl Into<String>,
         api_token: impl Into<String>,
         services_path: impl Into<String>,

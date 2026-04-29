@@ -171,10 +171,10 @@ impl PresentationCardArtifact {
 
     pub fn with_skill(
         mut self,
-        skill_id: impl Into<String>,
+        skill_id: impl Into<SkillId>,
         skill_name: impl Into<String>,
     ) -> Self {
-        let id = SkillId::new(skill_id);
+        let id = skill_id.into();
         self.skill_id = Some(id.to_string());
         self.skill_name = Some(skill_name.into());
         self.metadata.skill_id = Some(id);

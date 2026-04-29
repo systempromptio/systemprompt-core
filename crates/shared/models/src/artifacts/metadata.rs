@@ -101,8 +101,8 @@ impl ExecutionMetadataBuilder {
         self
     }
 
-    pub fn with_skill(mut self, id: impl Into<String>, name: impl Into<String>) -> Self {
-        self.skill_id = Some(SkillId::new(id));
+    pub fn with_skill(mut self, id: impl Into<SkillId>, name: impl Into<String>) -> Self {
+        self.skill_id = Some(id.into());
         self.skill_name = Some(name.into());
         self
     }
@@ -143,8 +143,8 @@ impl ExecutionMetadata {
         self
     }
 
-    pub fn with_skill(mut self, id: impl Into<String>, name: impl Into<String>) -> Self {
-        self.skill_id = Some(SkillId::new(id));
+    pub fn with_skill(mut self, id: impl Into<SkillId>, name: impl Into<String>) -> Self {
+        self.skill_id = Some(id.into());
         self.skill_name = Some(name.into());
         self
     }
