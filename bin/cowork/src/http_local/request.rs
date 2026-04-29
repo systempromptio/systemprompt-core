@@ -36,11 +36,20 @@ impl Request {
 
 pub fn parse(stream: &mut TcpStream) -> Result<Request> {
     let mut reader = BufReader::new(stream);
-    let request_line = read_request_line(&mut reader)?;
+    parse_buffered(&mut reader)
+}
+
+pub fn parse_from_read<R: Read>(reader: R) -> Result<Request> {
+    let mut buf = BufReader::new(reader);
+    parse_buffered(&mut buf)
+}
+
+pub fn parse_buffered<R: BufRead>(reader: &mut R) -> Result<Request> {
+    let request_line = read_request_line(reader)?;
     let (method, path, query) = parse_request_line(&request_line)?;
-    let parsed_headers = read_headers(&mut reader, request_line.len())?;
+    let parsed_headers = read_headers(reader, request_line.len())?;
     let body = read_body(
-        &mut reader,
+        reader,
         parsed_headers.content_length,
         parsed_headers.transfer_encoding.as_deref(),
     )?;
@@ -60,7 +69,7 @@ struct ParsedHeaders {
     transfer_encoding: Option<String>,
 }
 
-fn read_request_line(reader: &mut BufReader<&mut TcpStream>) -> Result<String> {
+fn read_request_line<R: BufRead>(reader: &mut R) -> Result<String> {
     let mut line = String::new();
     reader.read_line(&mut line)?;
     Ok(line)
@@ -80,10 +89,7 @@ fn parse_request_line(line: &str) -> Result<(String, String, String)> {
     Ok((method, path, query))
 }
 
-fn read_headers(
-    reader: &mut BufReader<&mut TcpStream>,
-    initial_bytes: usize,
-) -> Result<ParsedHeaders> {
+fn read_headers<R: BufRead>(reader: &mut R, initial_bytes: usize) -> Result<ParsedHeaders> {
     let mut headers: Vec<(String, String)> = Vec::new();
     let mut total = initial_bytes;
     let mut content_length = 0usize;
@@ -121,8 +127,8 @@ fn read_headers(
     })
 }
 
-fn read_body(
-    reader: &mut BufReader<&mut TcpStream>,
+fn read_body<R: BufRead>(
+    reader: &mut R,
     content_length: usize,
     transfer_encoding: Option<&str>,
 ) -> Result<Vec<u8>> {

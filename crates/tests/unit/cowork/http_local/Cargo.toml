@@ -1,0 +1,14 @@
+[package]
+name = "systemprompt-cowork-http-local-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-cowork HTTP/1.1 request parser"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-cowork = { workspace = true }

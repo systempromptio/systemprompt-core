@@ -6414,6 +6414,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-cowork-auth-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-cowork",
+]
+
+[[package]]
+name = "systemprompt-cowork-http-local-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-cowork",
+]
+
+[[package]]
 name = "systemprompt-cowork-install-tests"
 version = "0.0.11"
 dependencies = [
