@@ -36,7 +36,7 @@ impl AuthProvider for SessionProvider {
             return Err(AuthError::NotConfigured);
         }
 
-        let server = LoopbackServer::bind().map_err(AuthError::Failed)?;
+        let server = LoopbackServer::bind().map_err(|e| AuthError::Failed(e.to_string()))?;
         let callback = server.callback_url();
         let auth_url = build_auth_url(self.base_url.as_str(), callback.as_str());
 
@@ -48,7 +48,7 @@ impl AuthProvider for SessionProvider {
 
         let captured = server
             .accept_callback(Duration::from_secs(LOOPBACK_TIMEOUT_SECS))
-            .map_err(AuthError::Failed)?;
+            .map_err(|e| AuthError::Failed(e.to_string()))?;
 
         let req = SessionExchangeRequest {
             code: captured.code,

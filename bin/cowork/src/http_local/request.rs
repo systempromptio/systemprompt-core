@@ -1,6 +1,8 @@
 use std::io::{BufRead, BufReader, Read};
 use std::net::TcpStream;
 
+use super::{HttpLocalError, Result};
+
 pub const MAX_HEADER_BYTES: usize = 32 * 1024;
 pub const MAX_BODY_BYTES: usize = 16 * 1024 * 1024;
 
@@ -30,7 +32,7 @@ impl Request {
     }
 }
 
-pub fn parse(stream: &mut TcpStream) -> Result<Request, String> {
+pub fn parse(stream: &mut TcpStream) -> Result<Request> {
     let mut reader = BufReader::new(stream);
     let request_line = read_request_line(&mut reader)?;
     let (method, path, query) = parse_request_line(&request_line)?;
@@ -56,21 +58,16 @@ struct ParsedHeaders {
     transfer_encoding: Option<String>,
 }
 
-fn read_request_line(reader: &mut BufReader<&mut TcpStream>) -> Result<String, String> {
+fn read_request_line(reader: &mut BufReader<&mut TcpStream>) -> Result<String> {
     let mut line = String::new();
-    reader
-        .read_line(&mut line)
-        .map_err(|e| format!("read request line: {e}"))?;
+    reader.read_line(&mut line)?;
     Ok(line)
 }
 
-fn parse_request_line(line: &str) -> Result<(String, String, String), String> {
+fn parse_request_line(line: &str) -> Result<(String, String, String)> {
     let mut parts = line.split_whitespace();
-    let method = parts
-        .next()
-        .ok_or_else(|| "missing method".to_string())?
-        .to_string();
-    let raw_target = parts.next().ok_or_else(|| "missing target".to_string())?;
+    let method = parts.next().ok_or(HttpLocalError::MissingMethod)?.to_string();
+    let raw_target = parts.next().ok_or(HttpLocalError::MissingTarget)?;
     let (path, query) = match raw_target.split_once('?') {
         Some((p, q)) => (p.to_string(), q.to_string()),
         None => (raw_target.to_string(), String::new()),
@@ -81,19 +78,17 @@ fn parse_request_line(line: &str) -> Result<(String, String, String), String> {
 fn read_headers(
     reader: &mut BufReader<&mut TcpStream>,
     initial_bytes: usize,
-) -> Result<ParsedHeaders, String> {
+) -> Result<ParsedHeaders> {
     let mut headers: Vec<(String, String)> = Vec::new();
     let mut total = initial_bytes;
     let mut content_length = 0usize;
     let mut transfer_encoding: Option<String> = None;
     loop {
         let mut header = String::new();
-        reader
-            .read_line(&mut header)
-            .map_err(|e| format!("read header: {e}"))?;
+        reader.read_line(&mut header)?;
         total += header.len();
         if total > MAX_HEADER_BYTES {
-            return Err("headers too large".into());
+            return Err(HttpLocalError::HeadersTooLarge);
         }
         let trimmed = header.trim_end_matches(['\r', '\n']);
         if trimmed.is_empty() {
@@ -105,7 +100,9 @@ fn read_headers(
         let name = name.trim().to_string();
         let value = value.trim().to_string();
         if name.eq_ignore_ascii_case("content-length") {
-            content_length = value.parse::<usize>().map_err(|e| e.to_string())?;
+            content_length = value
+                .parse::<usize>()
+                .map_err(HttpLocalError::ParseContentLength)?;
         }
         if name.eq_ignore_ascii_case("transfer-encoding") {
             transfer_encoding = Some(value.to_ascii_lowercase());
@@ -123,34 +120,29 @@ fn read_body(
     reader: &mut BufReader<&mut TcpStream>,
     content_length: usize,
     transfer_encoding: Option<&str>,
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<u8>> {
     if content_length > MAX_BODY_BYTES {
-        return Err(format!("body too large: {content_length}"));
+        return Err(HttpLocalError::BodyTooLarge(content_length));
     }
     let mut body = Vec::new();
     if transfer_encoding.is_some_and(|te| te.contains("chunked")) {
         read_chunked(reader, &mut body)?;
     } else if content_length > 0 {
         body.resize(content_length, 0);
-        reader
-            .read_exact(&mut body)
-            .map_err(|e| format!("read body: {e}"))?;
+        reader.read_exact(&mut body)?;
     }
     Ok(body)
 }
 
-fn read_chunked<R: BufRead>(reader: &mut R, out: &mut Vec<u8>) -> Result<(), String> {
+fn read_chunked<R: BufRead>(reader: &mut R, out: &mut Vec<u8>) -> Result<()> {
     loop {
         let mut size_line = String::new();
-        reader
-            .read_line(&mut size_line)
-            .map_err(|e| format!("read chunk size: {e}"))?;
+        reader.read_line(&mut size_line)?;
         let size_str = size_line.trim_end_matches(['\r', '\n']);
         let size_str = size_str.split(';').next().unwrap_or("0").trim();
-        let size =
-            usize::from_str_radix(size_str, 16).map_err(|e| format!("chunk size parse: {e}"))?;
+        let size = usize::from_str_radix(size_str, 16).map_err(HttpLocalError::ParseChunkSize)?;
         if out.len() + size > MAX_BODY_BYTES {
-            return Err("chunked body too large".into());
+            return Err(HttpLocalError::ChunkedBodyTooLarge);
         }
         if size == 0 {
             let mut trailer = String::new();
@@ -159,12 +151,8 @@ fn read_chunked<R: BufRead>(reader: &mut R, out: &mut Vec<u8>) -> Result<(), Str
         }
         let start = out.len();
         out.resize(start + size, 0);
-        reader
-            .read_exact(&mut out[start..])
-            .map_err(|e| format!("read chunk: {e}"))?;
+        reader.read_exact(&mut out[start..])?;
         let mut crlf = [0u8; 2];
-        reader
-            .read_exact(&mut crlf)
-            .map_err(|e| format!("read chunk crlf: {e}"))?;
+        reader.read_exact(&mut crlf)?;
     }
 }

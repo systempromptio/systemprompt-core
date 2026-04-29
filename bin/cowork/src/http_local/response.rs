@@ -1,6 +1,8 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
+use super::Result;
+
 fn reason_phrase(status: u16) -> &'static str {
     match status {
         200 => "OK",
@@ -75,7 +77,7 @@ pub fn write_chunked(
     reason: &str,
     headers: &[(String, String)],
     body: &mut dyn Read,
-) -> Result<(), String> {
+) -> Result<()> {
     let mut had_content_length = false;
     let mut had_transfer_encoding = false;
     let mut head = format!("HTTP/1.1 {status} {reason}\r\n");
@@ -96,9 +98,7 @@ pub fn write_chunked(
         head.push_str("Transfer-Encoding: chunked\r\n");
     }
     head.push_str("Connection: close\r\n\r\n");
-    stream
-        .write_all(head.as_bytes())
-        .map_err(|e| format!("write header: {e}"))?;
+    stream.write_all(head.as_bytes())?;
     stream.flush().ok();
 
     let mut buf = [0u8; 4096];
@@ -108,35 +108,25 @@ pub fn write_chunked(
                 Ok(0) => break,
                 Ok(n) => {
                     let chunk_header = format!("{:x}\r\n", n);
-                    stream
-                        .write_all(chunk_header.as_bytes())
-                        .map_err(|e| format!("write chunk header: {e}"))?;
-                    stream
-                        .write_all(&buf[..n])
-                        .map_err(|e| format!("write chunk body: {e}"))?;
-                    stream
-                        .write_all(b"\r\n")
-                        .map_err(|e| format!("write chunk crlf: {e}"))?;
+                    stream.write_all(chunk_header.as_bytes())?;
+                    stream.write_all(&buf[..n])?;
+                    stream.write_all(b"\r\n")?;
                     stream.flush().ok();
                 },
-                Err(e) => return Err(format!("upstream read: {e}")),
+                Err(e) => return Err(e.into()),
             }
         }
-        stream
-            .write_all(b"0\r\n\r\n")
-            .map_err(|e| format!("write final chunk: {e}"))?;
+        stream.write_all(b"0\r\n\r\n")?;
         stream.flush().ok();
     } else {
         loop {
             match body.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
-                    stream
-                        .write_all(&buf[..n])
-                        .map_err(|e| format!("write body: {e}"))?;
+                    stream.write_all(&buf[..n])?;
                     stream.flush().ok();
                 },
-                Err(e) => return Err(format!("upstream read: {e}")),
+                Err(e) => return Err(e.into()),
             }
         }
     }
