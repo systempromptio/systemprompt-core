@@ -1,13 +1,14 @@
-use super::{DeviceCert, DeviceCertSource, sha256_der};
+use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use std::{env, fs};
 
 pub struct LinuxKeystore;
 
 impl DeviceCertSource for LinuxKeystore {
-    fn load(&self) -> Result<DeviceCert, String> {
-        let path = env::var("SP_COWORK_DEVICE_CERT")
-            .map_err(|_| "SP_COWORK_DEVICE_CERT unset; no device cert on Linux".to_string())?;
-        let bytes = fs::read(&path).map_err(|e| format!("read {path}: {e}"))?;
+    fn load(&self) -> Result<DeviceCert, KeystoreError> {
+        let path = env::var("SP_COWORK_DEVICE_CERT").map_err(|_| {
+            KeystoreError::NotConfigured("SP_COWORK_DEVICE_CERT unset; no device cert on Linux")
+        })?;
+        let bytes = fs::read(&path)?;
         let der = pem_to_der(&bytes).unwrap_or(bytes);
         Ok(DeviceCert {
             fingerprint: sha256_der(&der)?,

@@ -152,11 +152,26 @@
     }
   });
 
+  $("setup-pat").addEventListener("focus", () => {
+    const input = $("setup-pat");
+    if (input.dataset.saved === "1") {
+      input.value = "";
+      delete input.dataset.saved;
+    }
+  });
+
   $("setup-connect").addEventListener("click", () => {
-    const token = $("setup-pat").value.trim();
+    const input = $("setup-pat");
     const gateway = $("setup-gateway").value.trim();
     if (!gateway) { setSetupError("Enter the gateway URL."); return; }
-    if (!token)   { setSetupError("Paste your personal access token."); return; }
+    if (input.dataset.saved === "1") {
+      setSetupError("");
+      lastSavedGateway = gateway;
+      post("/api/probe");
+      return;
+    }
+    const token = input.value.trim();
+    if (!token) { setSetupError("Paste your personal access token."); return; }
     setSetupError("");
     lastSavedGateway = gateway;
     post("/api/login", { token, gateway });
@@ -445,6 +460,14 @@
         lastSavedGateway = next;
       }
       updateSetupPatLink();
+    }
+    const patInput = $("setup-pat");
+    if (snap.pat_present && document.activeElement !== patInput && patInput.dataset.saved !== "1" && patInput.value === "") {
+      patInput.value = "•".repeat(24);
+      patInput.dataset.saved = "1";
+    } else if (!snap.pat_present && patInput.dataset.saved === "1") {
+      patInput.value = "";
+      delete patInput.dataset.saved;
     }
     const dot = $("setup-gateway-dot");
     const msg = $("setup-gateway-msg");
