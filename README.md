@@ -34,25 +34,20 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 
 ---
 
-- **Embed it** — `systemprompt = { version = "0.4.2", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
+- **Embed it** — `systemprompt = { version = "0.4.3", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
 - **Evaluate it running** — clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) for a turnkey demo. `just build && just setup-local <key> && just start` runs 40+ scripted demos against the live binary.
 
 ---
 
 <details>
-<summary><strong>What's new in v0.4.2</strong> — cowork sync + auth pipeline hardened</summary>
+<summary><strong>What's new</strong></summary>
 
-Eight-issue hardening pass shipped across Phase 0–2 (Phase 3 mTLS pending):
+- **0.4.3** — independent ed25519 manifest signing key, RFC 8785 (JCS) canonical JSON for signatures, distinct `JwtAudience::Cowork`, subprocess seed propagation fix. See [`CHANGELOG.md`](CHANGELOG.md).
+- **0.4.x** — tenant-scoped plugin file route, structured `SyncSummary` / `ValidationReport` returns.
+- **0.3.x** — typed error enums via `thiserror` across the workspace, `tracing` in library code.
+- **0.2.x** — workspace published to crates.io as 30 `systemprompt-*` crates.
 
-- **RFC 8785 (JCS) canonical JSON** for all manifest signing — `serde_jcs::to_string` on both `manifest_signing::sign_payload` (`crates/infra/security`) and `bin/cowork/src/manifest.rs::canonical_payload`. Field-order stability is now contract, not coincidence.
-- **Distinct `JwtAudience::Cowork`** for cowork JWTs (`crates/shared/models/src/auth/enums.rs`). Cowork tokens no longer accepted at general-API endpoints; gateway tokens no longer accepted at cowork endpoints.
-- **Independent Ed25519 manifest signing key** (`crates/infra/security/src/manifest_signing.rs`). Seed loaded from `SecretsBootstrap::manifest_signing_secret_seed()`; no longer derived from the JWT HMAC. New CLI: `systemprompt admin cowork rotate-signing-key`.
-- **Out-of-band pubkey pinning** for cowork agents — `cowork install --apply --pubkey <base64>` writes the pin to Windows registry / macOS managed prefs. `cowork sync` refuses TOFU unless `--allow-tofu` is set; `validate` fails-closed when no pin.
-- **Tenant-scoped plugin file route** at `/v1/cowork/plugins/{plugin_id}/{*path}` (template host). Old `/plugins/...` route removed.
-- **Manifest replay protection** — `not_before` field in the signed payload, plus monotonic `manifest_version` check in `bin/cowork/src/sync.rs`. 5-minute clock-skew tolerance; override with `--force-replay`.
-- **Typed errors throughout cowork** — `SyncError`, `ManifestError`, `GatewayError`, `SetupError` via `thiserror`. `tracing` replaces stderr `println!` in library code.
-
-All 30 crates publish at `0.4.2` on crates.io.
+The `bin/cowork` binary tracks an independent semver — see [`bin/cowork/README.md`](bin/cowork/README.md) and [`bin/cowork/CHANGELOG.md`](bin/cowork/CHANGELOG.md).
 
 </details>
 
@@ -139,7 +134,7 @@ Open **http://localhost:8080**, point Claude Code / Claude Desktop at it, and wa
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.4.2", features = ["full"] }
+systemprompt = { version = "0.4.3", features = ["full"] }
 ```
 
 See [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
@@ -250,7 +245,7 @@ Registration is a single macro — `register_extension!` lives in [`crates/share
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.4.2", features = ["full"] }
+systemprompt = { version = "0.4.3", features = ["full"] }
 ```
 
 ```rust
@@ -341,7 +336,7 @@ Pull in only what you need through the `systemprompt` facade.
 systemprompt = { version = "0.4.2", features = ["core", "database"] }
 
 # Building a product binary
-systemprompt = { version = "0.4.2", features = ["full"] }
+systemprompt = { version = "0.4.3", features = ["full"] }
 ```
 
 ```rust

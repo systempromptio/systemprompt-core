@@ -5842,7 +5842,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5873,7 +5873,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
@@ -5904,7 +5904,7 @@ dependencies = [
  "serde_yaml",
  "systemprompt-agent",
  "systemprompt-database",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-traits",
@@ -5915,7 +5915,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5939,7 +5939,7 @@ dependencies = [
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
@@ -5964,7 +5964,7 @@ dependencies = [
  "sqlx",
  "systemprompt-ai",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-traits",
  "tempfile",
@@ -5974,7 +5974,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5988,7 +5988,7 @@ dependencies = [
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.18",
@@ -6011,7 +6011,7 @@ dependencies = [
  "sqlx",
  "systemprompt-analytics",
  "systemprompt-database",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "tokio",
  "uuid",
@@ -6019,7 +6019,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-api"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -6058,7 +6058,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-mcp",
@@ -6095,7 +6095,7 @@ dependencies = [
  "serde_json",
  "systemprompt-agent",
  "systemprompt-api",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-oauth",
  "tokio",
@@ -6103,7 +6103,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cli"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6143,7 +6143,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-generator",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-mcp",
@@ -6177,7 +6177,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "systemprompt-cli",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "tempfile",
  "thiserror 2.0.18",
@@ -6186,7 +6186,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6194,7 +6194,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "thiserror 2.0.18",
  "tokio",
@@ -6208,7 +6208,7 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-client",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "tokio",
  "wiremock",
@@ -6216,7 +6216,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -6232,7 +6232,7 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-client",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "thiserror 2.0.18",
@@ -6251,7 +6251,7 @@ dependencies = [
  "chrono",
  "serde_json",
  "systemprompt-cloud",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "tempfile",
  "tokio",
@@ -6265,7 +6265,7 @@ dependencies = [
  "futures",
  "serde_json",
  "systemprompt-events",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-test-mocks",
  "tokio",
@@ -6274,7 +6274,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "regex",
@@ -6303,7 +6303,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6326,7 +6326,7 @@ dependencies = [
  "systemprompt-cloud",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
@@ -6348,7 +6348,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "systemprompt-content",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "tempfile",
  "tokio",
@@ -6362,14 +6362,14 @@ dependencies = [
  "chrono",
  "serde_json",
  "systemprompt-agent",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "uuid",
 ]
 
 [[package]]
 name = "systemprompt-cowork"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -6397,7 +6397,7 @@ dependencies = [
  "serde_jcs",
  "serde_json",
  "sha2",
- "systemprompt-identifiers 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "systemprompt-identifiers 0.4.2",
  "thiserror 2.0.18",
  "time",
  "tokio",
@@ -6479,7 +6479,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6491,7 +6491,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.18",
@@ -6515,7 +6515,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-events"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6523,7 +6523,7 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "tokio",
  "tracing",
@@ -6535,14 +6535,14 @@ version = "0.0.11"
 dependencies = [
  "serde_json",
  "systemprompt-events",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "tokio",
 ]
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6581,7 +6581,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6597,7 +6597,7 @@ dependencies = [
  "systemprompt-cloud",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
@@ -6617,7 +6617,7 @@ dependencies = [
  "serde_json",
  "systemprompt-extension",
  "systemprompt-files",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-traits",
  "tokio",
  "uuid",
@@ -6625,7 +6625,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6650,7 +6650,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-files",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
@@ -6685,19 +6685,6 @@ dependencies = [
 [[package]]
 name = "systemprompt-identifiers"
 version = "0.4.2"
-dependencies = [
- "anyhow",
- "chrono",
- "schemars",
- "serde",
- "serde_json",
- "sqlx",
- "uuid",
-]
-
-[[package]]
-name = "systemprompt-identifiers"
-version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e92bc2f9188ba703ea7946f8606b8b852b8a400fa2290e674d36deea64f5b50"
 dependencies = [
@@ -6710,18 +6697,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-identifiers"
+version = "0.4.3"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-identifiers-tests"
 version = "0.0.11"
 dependencies = [
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-traits",
  "uuid",
 ]
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "serde",
@@ -6749,7 +6749,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6766,7 +6766,7 @@ dependencies = [
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.18",
@@ -6784,14 +6784,14 @@ version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "tokio",
 ]
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6815,7 +6815,7 @@ dependencies = [
  "sse-stream",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
@@ -6837,7 +6837,7 @@ version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-mcp",
  "systemprompt-models",
  "tokio",
@@ -6846,7 +6846,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6865,7 +6865,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.18",
@@ -6882,7 +6882,7 @@ dependencies = [
  "indexmap",
  "serde_json",
  "serde_yaml",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-traits",
  "tempfile",
@@ -6892,7 +6892,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6914,7 +6914,7 @@ dependencies = [
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-security",
@@ -6937,7 +6937,7 @@ dependencies = [
  "sha2",
  "sqlx",
  "systemprompt-database",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-users",
@@ -6957,7 +6957,7 @@ dependencies = [
  "jsonwebtoken",
  "serde",
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-traits",
@@ -6976,14 +6976,14 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-agent",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "uuid",
 ]
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6993,7 +6993,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "thiserror 2.0.18",
 ]
 
@@ -7002,14 +7002,14 @@ name = "systemprompt-provider-contracts-tests"
 version = "0.0.11"
 dependencies = [
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-provider-contracts",
  "tokio",
 ]
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -7023,7 +7023,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-files",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
@@ -7040,7 +7040,7 @@ dependencies = [
  "axum",
  "serde_json",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-traits",
@@ -7050,7 +7050,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-scheduler"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7065,7 +7065,7 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
@@ -7087,7 +7087,7 @@ version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-scheduler",
  "systemprompt-traits",
@@ -7096,7 +7096,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7107,7 +7107,7 @@ dependencies = [
  "jsonwebtoken",
  "serde",
  "serde_jcs",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "thiserror 2.0.18",
  "tokio",
@@ -7128,7 +7128,7 @@ dependencies = [
  "serde_jcs",
  "serde_json",
  "systemprompt-cowork",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-security",
  "tokio",
@@ -7136,7 +7136,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-sync"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7152,7 +7152,7 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-content",
  "systemprompt-database",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
@@ -7175,7 +7175,7 @@ dependencies = [
  "serde_json",
  "systemprompt-agent",
  "systemprompt-content",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-sync",
  "tempfile",
  "tokio",
@@ -7183,7 +7183,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-template-provider"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "async-trait",
  "systemprompt-provider-contracts",
@@ -7203,7 +7203,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-templates"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7264,7 +7264,7 @@ dependencies = [
  "sqlx",
  "systemprompt-database",
  "systemprompt-events",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-traits",
  "tokio",
@@ -7273,7 +7273,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7284,7 +7284,7 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-provider-contracts",
  "thiserror 2.0.18",
  "uuid",
@@ -7307,7 +7307,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7321,7 +7321,7 @@ dependencies = [
  "subtle",
  "systemprompt-database",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
@@ -7337,7 +7337,7 @@ dependencies = [
  "chrono",
  "serde_json",
  "systemprompt-extension",
- "systemprompt-identifiers 0.4.2",
+ "systemprompt-identifiers 0.4.3",
  "systemprompt-traits",
  "systemprompt-users",
  "tokio",

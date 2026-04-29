@@ -6,10 +6,18 @@ Format: .mobileconfig (managed preference)
   <string>gateway</string>
   <key>inferenceGatewayBaseUrl</key>
   <string>{gateway}</string>
-  <key>inferenceCredentialHelper</key>
-  <string>{binary}</string>
-  <key>inferenceCredentialHelperTtlSec</key>
-  <integer>3600</integer>
+  <key>inferenceGatewayApiKey</key>
+  <string>&lt;loopback-secret-from-~/Library/Application Support/systemprompt/cowork-loopback.key&gt;</string>
   <key>inferenceGatewayAuthScheme</key>
   <string>bearer</string>
+  <key>disableEssentialTelemetry</key>
+  <string>true</string>
+  <key>disableNonessentialTelemetry</key>
+  <string>true</string>
+  <key>disableNonessentialServices</key>
+  <string>true</string>
+  <key>disableAutoUpdates</key>
+  <string>true</string>
+  <key>disableDeploymentModeChooser</key>
+  <string>true</string>
 </dict>

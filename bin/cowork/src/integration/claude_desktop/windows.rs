@@ -146,9 +146,10 @@ fn render_reg(inputs: &ProfileGenInputs) -> String {
     } else {
         inputs.models.clone()
     };
+    let models_json = serde_json::to_string(&models).unwrap_or_else(|_| "[]".into());
     out.push_str(&format!(
-        "\"inferenceModels\"=hex(7):{}\r\n",
-        multi_sz_hex(&models)
+        "\"inferenceModels\"=\"{}\"\r\n",
+        reg_escape(&models_json)
     ));
     if let Some(uuid) = inputs.organization_uuid.as_deref() {
         if !uuid.is_empty() {
@@ -163,20 +164,4 @@ fn render_reg(inputs: &ProfileGenInputs) -> String {
 
 fn reg_escape(s: &str) -> String {
     s.replace('\\', r"\\").replace('"', "\\\"")
-}
-
-fn multi_sz_hex(values: &[String]) -> String {
-    let mut bytes: Vec<u8> = Vec::new();
-    for s in values {
-        for unit in s.encode_utf16() {
-            bytes.extend_from_slice(&unit.to_le_bytes());
-        }
-        bytes.extend_from_slice(&[0, 0]);
-    }
-    bytes.extend_from_slice(&[0, 0]);
-    bytes
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<Vec<_>>()
-        .join(",")
 }

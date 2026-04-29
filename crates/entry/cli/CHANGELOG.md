@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.3] - 2026-04-29
+
+### Added
+
+- `systemprompt admin cowork rotate-signing-key` generates a fresh ed25519 seed, persists it to the secrets file, and prints the resulting base64 pubkey.
+
 ## [0.3.0] - 2026-04-22
 
 ### Changed
