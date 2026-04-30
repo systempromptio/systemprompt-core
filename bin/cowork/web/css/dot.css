@@ -1,0 +1,18 @@
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 2px oklch(0 0 0 / 0.15);
+}
+.dot-unknown { background: var(--sp-muted); }
+.dot-probing { background: var(--sp-warn); animation: pulse 1.2s ease-in-out infinite; }
+.dot-ok      { background: var(--sp-ok); }
+.dot-err     { background: var(--sp-err); }
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1.0; }
+}
+.dot-warn { background: var(--sp-warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-warn) 18%, transparent); }

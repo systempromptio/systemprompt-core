@@ -54,7 +54,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
 
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
-        .with_tooltip("systemprompt-cowork")
+        .with_tooltip("systemprompt-bridge")
         .with_icon(icon)
         .with_icon_as_template(cfg!(target_os = "macos"))
         .build()?;

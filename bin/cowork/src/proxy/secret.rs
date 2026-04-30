@@ -7,7 +7,7 @@ use rand::RngCore as _;
 
 use crate::ids::{LoopbackSecret, ProxySecret};
 
-const LOOPBACK_FILENAME: &str = "cowork-loopback.key";
+const LOOPBACK_FILENAME: &str = "bridge-loopback.key";
 
 #[must_use]
 pub fn secret_path() -> Option<PathBuf> {

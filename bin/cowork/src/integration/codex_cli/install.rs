@@ -13,10 +13,10 @@ const BACKUP_RETENTION: usize = 3;
 const PROVIDER_ID: &str = "systemprompt";
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join("systemprompt-cowork");
+    let dir = std::env::temp_dir().join("systemprompt-bridge");
     std::fs::create_dir_all(&dir)?;
     let (payload_uuid, profile_uuid) = config::make_uuids();
-    let path = dir.join(format!("codex-cowork-{}.toml", config::now_unix()));
+    let path = dir.join(format!("codex-bridge-{}.toml", config::now_unix()));
 
     let toml_text = render_fragment(inputs)?;
     std::fs::File::create(&path)?.write_all(toml_text.as_bytes())?;
@@ -200,7 +200,7 @@ fn derive_otel_endpoint(gateway: &str) -> String {
 fn backup_existing(target: &Path, text: &str) -> std::io::Result<()> {
     let stamp = config::now_unix();
     let backup_name = format!(
-        "{}.cowork-backup-{stamp}",
+        "{}.bridge-backup-{stamp}",
         target.file_name().and_then(|s| s.to_str()).unwrap_or("config.toml"),
     );
     let backup_path = target.with_file_name(backup_name);
@@ -216,7 +216,7 @@ fn prune_backups(target: &Path) -> std::io::Result<()> {
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("config.toml");
-    let prefix = format!("{stem}.cowork-backup-");
+    let prefix = format!("{stem}.bridge-backup-");
 
     let mut backups: Vec<PathBuf> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok())

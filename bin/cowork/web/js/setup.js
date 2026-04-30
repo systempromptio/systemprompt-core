@@ -87,4 +87,67 @@ export function initSetup() {
     lastSavedGateway = gateway;
     post("/api/login", { token, gateway }, append);
   });
+
+  const skip = $("setup-skip-agents");
+  if (skip) skip.addEventListener("click", () => {
+    post("/api/setup/complete", null, append);
+    setSetupStep("done");
+  });
+  const finish = $("setup-finish");
+  if (finish) finish.addEventListener("click", () => {
+    post("/api/setup/complete", null, append);
+    setSetupStep("done");
+  });
+  const open = $("setup-open");
+  if (open) open.addEventListener("click", () => {
+    document.body.classList.remove("setup-mode");
+  });
+}
+
+export function setSetupStep(step) {
+  document.body.dataset.setupStep = step;
+  const label = $("setup-step-label");
+  if (label) {
+    const map = { connect: "Step 1 of 3", agents: "Step 2 of 3", done: "Step 3 of 3" };
+    label.textContent = map[step] || "";
+  }
+}
+
+export function renderSetupAgents(snap) {
+  const list = $("setup-agents-list");
+  if (!list) return;
+  const hosts = snap.host_apps || [];
+  list.replaceChildren();
+  if (hosts.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "No agents available on this platform.";
+    list.appendChild(empty);
+    return;
+  }
+  for (const host of hosts) {
+    const row = document.createElement("div");
+    row.className = "setup-agent-row";
+    const installed = host.snapshot?.profile_state?.kind === "installed";
+    row.dataset.state = installed ? "installed" : "absent";
+    const meta = document.createElement("div");
+    meta.className = "setup-agent-meta";
+    const name = document.createElement("div");
+    name.className = "setup-agent-name";
+    name.textContent = host.display_name + (host.kind === "cli_tool" ? " · CLI" : " · Desktop");
+    const desc = document.createElement("div");
+    desc.className = "setup-agent-desc";
+    desc.textContent = host.description || "";
+    meta.append(name, desc);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = installed ? "ghost" : "primary";
+    btn.textContent = installed ? "Installed ✓" : "Install profile";
+    btn.disabled = installed;
+    btn.addEventListener("click", () => {
+      post(`/api/hosts/${encodeURIComponent(host.id)}/profile/generate`, null, append);
+    });
+    row.append(meta, btn);
+    list.appendChild(row);
+  }
 }

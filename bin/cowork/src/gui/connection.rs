@@ -13,7 +13,33 @@ use crate::gui::state::AppState;
 use crate::http_local::{ResponseBuilder, parse_from_read};
 
 const HTML: &str = include_str!("../../web/index.html");
-const STYLE: &str = include_str!("../../web/style.css");
+const STYLE_PARTS: &[&str] = &[
+    include_str!("../../web/css/tokens.css"),
+    include_str!("../../web/css/fonts.css"),
+    include_str!("../../web/css/reset.css"),
+    include_str!("../../web/css/kbd.css"),
+    include_str!("../../web/css/dot.css"),
+    include_str!("../../web/css/badge.css"),
+    include_str!("../../web/css/button.css"),
+    include_str!("../../web/css/topbar.css"),
+    include_str!("../../web/css/rail.css"),
+    include_str!("../../web/css/shell.css"),
+    include_str!("../../web/css/drawer.css"),
+    include_str!("../../web/css/marketplace-base.css"),
+    include_str!("../../web/css/marketplace-list.css"),
+    include_str!("../../web/css/marketplace-detail.css"),
+    include_str!("../../web/css/status.css"),
+    include_str!("../../web/css/settings.css"),
+    include_str!("../../web/css/setup.css"),
+    include_str!("../../web/css/agents.css"),
+    include_str!("../../web/css/log.css"),
+    include_str!("../../web/css/footer.css"),
+    include_str!("../../web/css/responsive.css"),
+];
+
+fn style_concat() -> String {
+    STYLE_PARTS.join("\n")
+}
 const ICON_SVG: &str = include_str!("../../assets/icon.svg");
 const LOGO_SVG: &str = include_str!("../../assets/logo.svg");
 const FONT_INTER_REGULAR: &[u8] = include_bytes!("../../assets/fonts/Inter-Regular.woff2");
@@ -163,7 +189,7 @@ pub fn handle_connection(
 
 fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> {
     let html = HTML
-        .replace("__STYLE__", STYLE)
+        .replace("__STYLE__", &style_concat())
         .replace("__VERSION__", VERSION)
         .replace("__ICON_SVG__", ICON_SVG)
         .replace("__LOGO_SVG__", LOGO_SVG)

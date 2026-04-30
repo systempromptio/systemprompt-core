@@ -10,8 +10,8 @@ fn main() {
             "LegalCopyright",
             "Copyright (C) 2026 Edward Burton. BUSL-1.1.",
         );
-        res.set("OriginalFilename", "systemprompt-cowork.exe");
-        res.set("InternalName", "systemprompt-cowork");
+        res.set("OriginalFilename", "systemprompt-bridge.exe");
+        res.set("InternalName", "systemprompt-bridge");
         if let Err(e) = res.compile() {
             eprintln!("cargo:warning=winresource compile failed: {e}");
         }

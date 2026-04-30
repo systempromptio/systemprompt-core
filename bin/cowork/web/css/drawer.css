@@ -1,0 +1,61 @@
+.activity {
+  border-left: 1px solid var(--sp-line);
+  background: oklch(0.20 0.01 48 / 0.6);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sp-line);
+  flex-shrink: 0;
+}
+.activity-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--sp-muted);
+}
+.activity-lane {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10.5px;
+  color: var(--sp-muted);
+  font-variant-numeric: tabular-nums;
+}
+.activity-lane .lane-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.activity-lane b {
+  font-weight: 700;
+  color: var(--sp-text);
+  font-size: 12px;
+}
+.activity-lane .lane-label {
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.activity .log {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  max-height: none;
+  padding: 12px 14px;
+  font-size: 11.5px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

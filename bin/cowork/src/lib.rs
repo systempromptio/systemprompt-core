@@ -26,11 +26,11 @@ pub(crate) mod winproc;
 
 use std::process::ExitCode;
 
-const HELP: &str = "systemprompt-cowork <command>
+const HELP: &str = "systemprompt-bridge <command>
 
 Commands (credential helper):
   run                        (default) Emit JWT envelope to stdout
-  login <sp-live-...>        Store a PAT securely and wire up systemprompt-cowork.toml
+  login <sp-live-...>        Store a PAT securely and wire up systemprompt-bridge.toml
     [--gateway <url>]
   logout                     Remove the stored PAT and its config section
   clean                      Wipe all local cowork state (config + PAT + token cache).
@@ -69,9 +69,9 @@ Commands (plugin + MCP sync):
   help                       Show this help
 
 Env overrides:
-  SP_COWORK_CONFIG           Path to systemprompt-cowork.toml
-  SP_COWORK_PAT              Inline PAT (overrides file-based [pat])
-  SP_COWORK_GATEWAY_URL      Override gateway_url
+  SP_BRIDGE_CONFIG           Path to systemprompt-bridge.toml
+  SP_BRIDGE_PAT              Inline PAT (overrides file-based [pat])
+  SP_BRIDGE_GATEWAY_URL      Override gateway_url
 ";
 
 #[must_use]

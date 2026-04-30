@@ -1,25 +1,25 @@
 [workspace]
 
 [package]
-name = "systemprompt-cowork"
+name = "systemprompt-bridge"
 version = "0.6.0"
 edition = "2024"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
-description = "Credential helper + plugin/MCP sync agent for Anthropic's Claude Cowork, targeting the systemprompt.io gateway."
+description = "Credential helper + plugin/MCP sync agent that bridges multiple coding agents (Claude Desktop, Codex CLI) to the systemprompt.io gateway."
 publish = false
 
 build = "build.rs"
 
 [lib]
-name = "systemprompt_cowork"
+name = "systemprompt_bridge"
 path = "src/lib.rs"
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 winresource = "0.1"
 
 [[bin]]
-name = "systemprompt-cowork"
+name = "systemprompt-bridge"
 path = "src/main.rs"
 
 [dependencies]

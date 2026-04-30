@@ -70,7 +70,7 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]
 "inferenceProvider"="gateway"
 "inferenceGatewayBaseUrl"="{gateway}"
-"inferenceGatewayApiKey"="<loopback-secret-from-%APPDATA%\\systemprompt\\cowork-loopback.key>"
+"inferenceGatewayApiKey"="<loopback-secret-from-%APPDATA%\\systemprompt\\bridge-loopback.key>"
 "inferenceGatewayAuthScheme"="bearer"
 "disableEssentialTelemetry"="true"
 "disableNonessentialTelemetry"="true"
@@ -85,7 +85,7 @@ Environment-based configuration (user shell profile or systemd-user Environment=
 
 export CLAUDE_INFERENCE_PROVIDER=gateway
 export CLAUDE_INFERENCE_GATEWAY_BASE_URL={gateway}
-export CLAUDE_INFERENCE_GATEWAY_API_KEY=<loopback-secret-from-$XDG_CONFIG_HOME/systemprompt/cowork-loopback.key>
+export CLAUDE_INFERENCE_GATEWAY_API_KEY=<loopback-secret-from-$XDG_CONFIG_HOME/systemprompt/bridge-loopback.key>
 export CLAUDE_INFERENCE_GATEWAY_AUTH_SCHEME=bearer
 "
         ),

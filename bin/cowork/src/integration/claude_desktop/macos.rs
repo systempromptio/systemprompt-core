@@ -62,10 +62,10 @@ pub(super) fn list_claude_processes() -> Vec<String> {
 }
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join("systemprompt-cowork");
+    let dir = std::env::temp_dir().join("systemprompt-bridge");
     std::fs::create_dir_all(&dir)?;
     let (payload_uuid, profile_uuid) = make_uuids();
-    let path = dir.join(format!("claude-cowork-{}.mobileconfig", now_unix()));
+    let path = dir.join(format!("claude-bridge-{}.mobileconfig", now_unix()));
 
     let xml = render_profile(inputs, &payload_uuid, &profile_uuid);
     std::fs::File::create(&path)?.write_all(xml.as_bytes())?;

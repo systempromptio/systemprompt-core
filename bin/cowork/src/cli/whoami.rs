@@ -17,7 +17,7 @@ pub(crate) fn cmd_whoami() -> ExitCode {
             return ExitCode::from(10);
         },
         Err(ChainError::NoneSucceeded) => {
-            diag("no credential available; run `systemprompt-cowork login` first");
+            diag("no credential available; run `systemprompt-bridge login` first");
             return ExitCode::from(5);
         },
     };

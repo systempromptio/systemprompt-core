@@ -42,9 +42,9 @@ pub fn template(os: Os, binary: &Path) -> String {
 #[must_use]
 pub fn template_filename(os: Os) -> &'static str {
     match os {
-        Os::Mac => "io.systemprompt.cowork-sync.plist",
-        Os::Windows => "systemprompt-cowork-sync.xml",
-        Os::Linux => "systemprompt-cowork-sync.service+timer",
+        Os::Mac => "io.systemprompt.bridge-sync.plist",
+        Os::Windows => "systemprompt-bridge-sync.xml",
+        Os::Linux => "systemprompt-bridge-sync.service+timer",
     }
 }
 
@@ -52,17 +52,17 @@ pub fn template_filename(os: Os) -> &'static str {
 pub fn install_hint(os: Os) -> &'static str {
     match os {
         Os::Mac => {
-            "Save to ~/Library/LaunchAgents/io.systemprompt.cowork-sync.plist, then: launchctl \
-             bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.systemprompt.cowork-sync.plist"
+            "Save to ~/Library/LaunchAgents/io.systemprompt.bridge-sync.plist, then: launchctl \
+             bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.systemprompt.bridge-sync.plist"
         },
         Os::Windows => {
-            "Save as systemprompt-cowork-sync.xml, then: schtasks /Create /TN \
-             \"SystempromptCoworkSync\" /XML systemprompt-cowork-sync.xml"
+            "Save as systemprompt-bridge-sync.xml, then: schtasks /Create /TN \
+             \"SystempromptBridgeSync\" /XML systemprompt-bridge-sync.xml"
         },
         Os::Linux => {
-            "Split into ~/.config/systemd/user/systemprompt-cowork-sync.{service,timer}, then: \
+            "Split into ~/.config/systemd/user/systemprompt-bridge-sync.{service,timer}, then: \
              systemctl --user daemon-reload && systemctl --user enable --now \
-             systemprompt-cowork-sync.timer"
+             systemprompt-bridge-sync.timer"
         },
     }
 }

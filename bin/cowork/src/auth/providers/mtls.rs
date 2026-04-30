@@ -18,9 +18,9 @@ impl MtlsProvider {
             .as_ref()
             .and_then(|m| m.cert_keystore_ref.as_ref())
             .is_some()
-            || std::env::var("SP_COWORK_DEVICE_CERT").is_ok()
-            || std::env::var("SP_COWORK_DEVICE_CERT_LABEL").is_ok()
-            || std::env::var("SP_COWORK_DEVICE_CERT_SHA256").is_ok();
+            || std::env::var("SP_BRIDGE_DEVICE_CERT").is_ok()
+            || std::env::var("SP_BRIDGE_DEVICE_CERT_LABEL").is_ok()
+            || std::env::var("SP_BRIDGE_DEVICE_CERT_SHA256").is_ok();
         Self {
             base_url: crate::config::gateway_url_or_default(config),
             configured,

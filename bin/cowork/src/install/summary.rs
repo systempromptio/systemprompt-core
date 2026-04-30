@@ -9,7 +9,7 @@ use crate::config::paths::{self, Scope};
 #[must_use]
 pub fn render_install_summary(s: &InstallSummary) -> String {
     let mut out = String::new();
-    out.push_str("Installed systemprompt-cowork integration\n");
+    out.push_str("Installed systemprompt-bridge integration\n");
     let scope_label = match s.location.scope {
         Scope::System => "system-wide",
         Scope::User => "per-user",
@@ -45,7 +45,7 @@ pub fn render_install_summary(s: &InstallSummary) -> String {
     );
     let _ = writeln!(out, "  binary:      {}", s.binary.display());
     out.push_str(
-        "  Run `systemprompt-cowork sync` to populate user identity, skills, agents, and MCP \
+        "  Run `systemprompt-bridge sync` to populate user identity, skills, agents, and MCP \
          servers.\n",
     );
 
@@ -115,7 +115,7 @@ pub fn render_uninstall_summary(s: &UninstallSummary) -> String {
         },
         CredentialsOutcome::Kept => {
             out.push_str(
-                "Credentials left intact. Use `systemprompt-cowork uninstall --purge` to also \
+                "Credentials left intact. Use `systemprompt-bridge uninstall --purge` to also \
                  clear them.\n",
             );
         },

@@ -8,7 +8,7 @@ pub(crate) fn cmd_login(args: &[String]) -> ExitCode {
     let token = match args.get(2) {
         Some(t) if !t.is_empty() => t.clone(),
         _ => {
-            diag("usage: systemprompt-cowork login <sp-live-...> [--gateway <url>]");
+            diag("usage: systemprompt-bridge login <sp-live-...> [--gateway <url>]");
             return ExitCode::from(64);
         },
     };
@@ -16,10 +16,10 @@ pub(crate) fn cmd_login(args: &[String]) -> ExitCode {
 
     match setup::login(&token, gateway.as_deref()) {
         Ok(paths) => {
-            println!("Stored PAT for systemprompt-cowork helper.");
+            println!("Stored PAT for systemprompt-bridge helper.");
             println!("  config: {}", paths.config_file.display());
             println!("  secret: {} (0600)", paths.pat_file.display());
-            println!("Next: run `systemprompt-cowork` to fetch a JWT.");
+            println!("Next: run `systemprompt-bridge` to fetch a JWT.");
             ExitCode::SUCCESS
         },
         Err(e) => {

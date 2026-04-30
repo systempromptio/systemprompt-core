@@ -3494,7 +3494,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-cowork"
+name = "systemprompt-bridge"
 version = "0.6.0"
 dependencies = [
  "base64",

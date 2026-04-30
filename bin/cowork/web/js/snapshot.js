@@ -2,7 +2,7 @@ import { $, setDot, setBadge, fmtRelative } from "./dom.js?t=__TOKEN__";
 import { post } from "./api.js?t=__TOKEN__";
 import { append } from "./activity.js?t=__TOKEN__";
 import { syncRailIndicator } from "./tabs.js?t=__TOKEN__";
-import { setSetupError, updateSetupPatLink, setLastSavedGateway } from "./setup.js?t=__TOKEN__";
+import { setSetupError, updateSetupPatLink, setLastSavedGateway, setSetupStep, renderSetupAgents } from "./setup.js?t=__TOKEN__";
 
 const hostCards = new Map();
 
@@ -233,17 +233,66 @@ function renderHosts(snap) {
     const placeholder = $("agents-list");
     if (placeholder && placeholder.children.length === 0) {
       const empty = document.createElement("div");
-      empty.className = "muted host-list-empty";
-      empty.textContent = "No host apps registered on this platform.";
+      empty.className = "agents-list-empty";
+      empty.textContent = "No agents registered on this platform.";
       placeholder.replaceChildren(empty);
     }
     return;
   } else {
     const placeholder = $("agents-list");
-    const noHostsMsg = placeholder?.querySelector(":scope > .host-list-empty");
+    const noHostsMsg = placeholder?.querySelector(":scope > .agents-list-empty, :scope > .host-list-empty");
     if (noHostsMsg) noHostsMsg.remove();
   }
   for (const host of list) renderHostCard(host, snap);
+  const railCount = $("rail-count-agents");
+  if (railCount) railCount.textContent = String(list.length);
+}
+
+function presenceState(host) {
+  const kind = host.snapshot?.profile_state?.kind;
+  if (kind === "installed" && host.snapshot?.host_running) return "ok";
+  if (kind === "installed") return "warn";
+  if (kind === "partial") return "warn";
+  if (kind === "absent") return "err";
+  return "unknown";
+}
+
+function renderAgentPresence(snap) {
+  const cluster = $("agent-presence");
+  if (!cluster) return;
+  const list = snap.host_apps || [];
+  cluster.replaceChildren();
+  for (const host of list) {
+    const dot = document.createElement("span");
+    dot.className = "agent-dot";
+    dot.dataset.agent = host.id;
+    dot.dataset.state = presenceState(host);
+    const stateLabel = dot.dataset.state === "ok" ? "running"
+      : dot.dataset.state === "warn" ? "needs attention"
+      : dot.dataset.state === "err" ? "not installed"
+      : "unknown";
+    dot.title = `${host.display_name} · ${stateLabel}`;
+    dot.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("sp-jump-tab", { detail: { tab: "agents", agent: host.id } }));
+    });
+    cluster.appendChild(dot);
+  }
+}
+
+function renderAgentsSummary(snap) {
+  const dot = $("agents-summary-dot");
+  const text = $("agents-summary-text");
+  if (!dot || !text) return;
+  const list = snap.host_apps || [];
+  if (list.length === 0) {
+    setDot(dot, "dot-unknown");
+    text.textContent = "no agents registered";
+    return;
+  }
+  const installed = list.filter((h) => h.snapshot?.profile_state?.kind === "installed").length;
+  const running = list.filter((h) => h.snapshot?.host_running).length;
+  setDot(dot, installed === list.length ? "dot-ok" : installed > 0 ? "dot-warn" : "dot-err");
+  text.textContent = `${installed} of ${list.length} agents configured · ${running} running`;
 }
 
 function renderOverallBadge(snap) {
@@ -286,8 +335,20 @@ function isConfigured(snap) {
 }
 
 function applySetupMode(snap) {
-  const setup = !isConfigured(snap);
+  const configured = isConfigured(snap);
+  const onboarded = snap.agents_onboarded === true;
+  const anyInstalled = (snap.host_apps || []).some((h) => h.snapshot?.profile_state?.kind === "installed");
+  const setup = !(configured && (onboarded || anyInstalled));
   document.body.classList.toggle("setup-mode", setup);
+
+  if (setup) {
+    if (!configured) {
+      setSetupStep("connect");
+    } else {
+      setSetupStep("agents");
+      renderSetupAgents(snap);
+    }
+  }
   if (!setup) { setSetupError(""); return; }
 
   const gwInput = $("setup-gateway");
@@ -353,6 +414,8 @@ export function applySnapshot(snap) {
   renderCloud(snap);
   renderProxy(snap);
   renderHosts(snap);
+  renderAgentPresence(snap);
+  renderAgentsSummary(snap);
   renderOverallBadge(snap);
   renderMarketplaceBadge(snap);
   applySetupMode(snap);

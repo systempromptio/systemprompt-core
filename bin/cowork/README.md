@@ -1,4 +1,4 @@
-# systemprompt-cowork
+# systemprompt-bridge
 
 Credential helper, signed-manifest sync agent, and local inference proxy for Anthropic's Claude on the systemprompt.io gateway.
 
@@ -8,7 +8,7 @@ One binary, three roles:
 2. **Sync agent.** Pulls the user's signed plugin + skill + agent + MCP allowlist manifest from the gateway into Cowork's `org-plugins/` mount.
 3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. Claude Desktop's profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; cowork swaps the bearer to a fresh JWT before forwarding upstream. JWT rotation never leaves the host.
 
-Diagnostics on stderr. `tracing` JSON via `SP_COWORK_LOG_FORMAT=json`. Exit 0 on success.
+Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on success.
 
 ---
 
@@ -83,14 +83,14 @@ For the full build, release, versioning, and per-OS reference, see [`documentati
 
 | Variable | Purpose |
 |---|---|
-| `SP_COWORK_CONFIG` | Path to `systemprompt-cowork.toml` (default: `<config_dir>/systemprompt/systemprompt-cowork.toml`) |
-| `SP_COWORK_GATEWAY_URL` | Gateway base URL (default `https://gateway.systemprompt.io`) |
-| `SP_COWORK_PAT` | Inline PAT (overrides file-based `[pat]`) |
-| `SP_COWORK_POLICY_PUBKEY` | Pinned manifest signing pubkey (overrides operator value) |
-| `SP_COWORK_LOG_FORMAT` | `json` for structured logs; default human-readable |
-| `SP_COWORK_DEVICE_CERT_SHA256` | Pin a specific device cert by SHA-256 fingerprint |
+| `SP_BRIDGE_CONFIG` | Path to `systemprompt-bridge.toml` (default: `<config_dir>/systemprompt/systemprompt-bridge.toml`) |
+| `SP_BRIDGE_GATEWAY_URL` | Gateway base URL (default `https://gateway.systemprompt.io`) |
+| `SP_BRIDGE_PAT` | Inline PAT (overrides file-based `[pat]`) |
+| `SP_BRIDGE_POLICY_PUBKEY` | Pinned manifest signing pubkey (overrides operator value) |
+| `SP_BRIDGE_LOG_FORMAT` | `json` for structured logs; default human-readable |
+| `SP_BRIDGE_DEVICE_CERT_SHA256` | Pin a specific device cert by SHA-256 fingerprint |
 
-Cache lives at the OS cache dir under `systemprompt-cowork/cache.json` (mode 0600 on Unix).
+Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 0600 on Unix).
 
 ---
 
