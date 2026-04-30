@@ -25,11 +25,11 @@ async function safePost(path, body, btn) {
 }
 
 const ACTIONS = {
-  sync: () => safePost("/api/sync"),
-  validate: () => safePost("/api/validate"),
-  "open-folder": () => safePost("/api/open_folder"),
-  recheck: () => safePost("/api/probe"),
-  logout: () => safePost("/api/logout"),
+  sync: (btn) => safePost("/api/sync", undefined, btn),
+  validate: (btn) => safePost("/api/validate", undefined, btn),
+  "open-folder": (btn) => safePost("/api/open_folder", undefined, btn),
+  recheck: (btn) => safePost("/api/probe", undefined, btn),
+  logout: (btn) => safePost("/api/logout", undefined, btn),
   "change-gateway": () => openSetupMode(),
   "mkt-back": () => selectMarketplaceItem(null),
   "mkt-search-clear": () => setMarketplaceSearch(""),
@@ -65,12 +65,12 @@ function dispatch(actionEl, event) {
   } else if (action === "mkt-install") {
     const id = actionEl.dataset.id;
     if (id) {
-      safePost("/api/marketplace/install", { id });
+      safePost("/api/marketplace/install", { id }, actionEl);
     }
   } else if (action === "mkt-uninstall") {
     const id = actionEl.dataset.id;
     if (id) {
-      safePost("/api/marketplace/uninstall", { id });
+      safePost("/api/marketplace/uninstall", { id }, actionEl);
     }
   } else if (action === "mkt-copy") {
     const value = actionEl.dataset.value;
@@ -80,12 +80,12 @@ function dispatch(actionEl, event) {
   } else if (action === "host-generate") {
     const host = actionEl.dataset.host;
     if (host) {
-      safePost(`/api/hosts/${encodeURIComponent(host)}/profile/generate`);
+      safePost(`/api/hosts/${encodeURIComponent(host)}/profile/generate`, undefined, actionEl);
     }
   } else if (action === "host-reverify") {
     const host = actionEl.dataset.host;
     if (host) {
-      safePost(`/api/hosts/${encodeURIComponent(host)}/probe`);
+      safePost(`/api/hosts/${encodeURIComponent(host)}/probe`, undefined, actionEl);
     }
   } else if (action === "host-install") {
     const host = actionEl.dataset.host;
@@ -95,7 +95,7 @@ function dispatch(actionEl, event) {
     } else if (!path) {
       append(`[${host}] No generated profile yet — click Generate first.`);
     } else {
-      safePost(`/api/hosts/${encodeURIComponent(host)}/profile/install`, { path });
+      safePost(`/api/hosts/${encodeURIComponent(host)}/profile/install`, { path }, actionEl);
     }
   } else if (action === "agent-jump") {
     const agent = actionEl.dataset.agent;
@@ -110,7 +110,7 @@ function dispatch(actionEl, event) {
   } else {
     const handler = ACTIONS[action];
     if (handler) {
-      handler();
+      handler(actionEl);
     }
   }
 }
