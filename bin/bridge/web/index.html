@@ -28,166 +28,39 @@
     </div>
 
     <div class="sp-topbar__center">
-      <nav class="sp-crumb" id="crumb" aria-label="Breadcrumb">
-        <span class="sp-crumb__sep" aria-hidden="true">/</span>
-        <span class="sp-crumb__current" id="crumb-current">Marketplace</span>
-      </nav>
+      <sp-crumb></sp-crumb>
     </div>
 
     <div class="sp-topbar__right">
-      <span class="sp-agent__presence" id="agent-presence" aria-label="Connected agents"></span>
-      <span id="sync-pill" class="sp-sync-pill" data-state="idle" aria-live="polite" title="Sync status">
-        <span class="sp-sync-pill__dot" aria-hidden="true"></span>
-        <span class="sp-sync-pill__label">idle</span>
-        <button type="button" id="sync-cancel" class="sp-sync-pill__cancel" hidden data-l10n-id="sync-cancel" aria-label="Cancel sync">Cancel</button>
-      </span>
+      <sp-agent-presence class="sp-agent__presence" aria-label="Connected agents"></sp-agent-presence>
+      <sp-sync-pill data-state="idle" title="Sync status"></sp-sync-pill>
     </div>
   </header>
 
   <main id="main" class="sp-shell" role="main">
-    <nav class="sp-rail" role="tablist" aria-label="Sections" data-active-ready="false">
-      <div class="sp-rail-section">
-        <div class="sp-rail-section__label" data-l10n-id="nav-section-navigate">Navigate</div>
-        <button class="sp-rail-tab" data-tab="marketplace" role="tab" aria-selected="true" aria-keyshortcuts="Meta+1 Control+1" type="button">
-          <span class="sp-rail-tab__glyph" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7l9-4.5z"/><path d="M3 7l9 4.5L21 7"/><path d="M12 11.5V21.5"/></svg>
-          </span>
-          <span class="sp-rail-tab__label" data-l10n-id="nav-marketplace">Marketplace</span>
-          <span class="sp-rail-tab__count" id="rail-count-marketplace">0</span>
-          <span class="sp-rail-tab__shortcut" aria-hidden="true">⌘1</span>
-        </button>
-        <button class="sp-rail-tab" data-tab="agents" role="tab" aria-selected="false" aria-keyshortcuts="Meta+2 Control+2" type="button">
-          <span class="sp-rail-tab__glyph" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-          </span>
-          <span class="sp-rail-tab__label" data-l10n-id="nav-agents">Agents</span>
-          <span class="sp-rail-tab__count" id="rail-count-agents">0</span>
-          <span class="sp-rail-tab__shortcut" aria-hidden="true">⌘2</span>
-        </button>
-        <button class="sp-rail-tab" data-tab="status" role="tab" aria-selected="false" aria-keyshortcuts="Meta+3 Control+3" type="button">
-          <span class="sp-rail-tab__glyph" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
-          </span>
-          <span class="sp-rail-tab__label" data-l10n-id="nav-status">Status</span>
-          <span class="sp-rail-tab__count" id="rail-count-status" hidden></span>
-          <span class="sp-rail-tab__shortcut" aria-hidden="true">⌘3</span>
-        </button>
-        <button class="sp-rail-tab" data-tab="settings" role="tab" aria-selected="false" aria-keyshortcuts="Meta+4 Control+4" type="button">
-          <span class="sp-rail-tab__glyph" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>
-          </span>
-          <span class="sp-rail-tab__label" data-l10n-id="nav-settings">Settings</span>
-          <span class="sp-rail-tab__shortcut" aria-hidden="true">⌘4</span>
-        </button>
-      </div>
-
-      <div class="sp-rail__spacer"></div>
-      <div class="sp-rail__divider" aria-hidden="true"></div>
-
-      <div class="sp-rail-profile" aria-label="Profile and workspace">
-        <span class="sp-avatar__mark" aria-hidden="true"><span id="rail-profile-initials">SP</span></span>
-        <span class="sp-rail-profile__meta">
-          <span class="sp-rail-profile__id" id="rail-profile-id">bridge workspace</span>
-          <span class="sp-rail-profile__sub" id="rail-profile-sub">v__VERSION__</span>
-        </span>
-      </div>
-    </nav>
+    <sp-rail data-version="v__VERSION__"></sp-rail>
 
     <div class="sp-content">
       <section class="sp-tab__panel" data-tab="marketplace" role="tabpanel" hidden>
-        <header class="sp-tab__header">
-          <h1 data-l10n-id="marketplace-heading">Marketplace</h1>
-          <span id="marketplace-status" class="sp-badge sp-badge--muted">—</span>
-        </header>
-
-        <div class="sp-mkt">
-          <ul class="sp-mkt-cats" role="tablist" aria-label="Marketplace categories">
-            <li class="sp-mkt-cats__label" aria-hidden="true" data-l10n-id="marketplace-categories">Categories</li>
-            <li class="sp-mkt-cat" data-kind="plugins" role="tab" aria-selected="true" tabindex="0">
-              <span class="sp-mkt-cat__glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M18 13v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
-              </span>
-              <span class="sp-mkt-cat__name" data-l10n-id="marketplace-cat-plugins">Plugins</span>
-              <span class="sp-mkt-cat__count is-zero" id="card-plugins">0</span>
-            </li>
-            <li class="sp-mkt-cat" data-kind="skills" role="tab" aria-selected="false" tabindex="0">
-              <span class="sp-mkt-cat__glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
-              </span>
-              <span class="sp-mkt-cat__name" data-l10n-id="marketplace-cat-skills">Skills</span>
-              <span class="sp-mkt-cat__count is-zero" id="card-skills">0</span>
-            </li>
-            <li class="sp-mkt-cat" data-kind="hooks" role="tab" aria-selected="false" tabindex="0">
-              <span class="sp-mkt-cat__glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v8"/><path d="M12 12a4 4 0 1 0 4 4"/></svg>
-              </span>
-              <span class="sp-mkt-cat__name" data-l10n-id="marketplace-cat-hooks">Hooks</span>
-              <span class="sp-mkt-cat__count is-zero" id="card-hooks">0</span>
-            </li>
-            <li class="sp-mkt-cat" data-kind="mcp" role="tab" aria-selected="false" tabindex="0">
-              <span class="sp-mkt-cat__glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01"/><path d="M7 17h.01"/></svg>
-              </span>
-              <span class="sp-mkt-cat__name" data-l10n-id="marketplace-cat-mcp">MCP servers</span>
-              <span class="sp-mkt-cat__count is-zero" id="card-mcp">0</span>
-            </li>
-            <li class="sp-mkt-cat" data-kind="agents" role="tab" aria-selected="false" tabindex="0">
-              <span class="sp-mkt-cat__glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-              </span>
-              <span class="sp-mkt-cat__name" data-l10n-id="marketplace-cat-agents">Agents</span>
-              <span class="sp-mkt-cat__count is-zero" id="card-agents">0</span>
-            </li>
-          </ul>
-
-          <div class="sp-mkt-list">
-            <label class="sp-mkt-search__wrap">
-              <svg class="sp-mkt-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input id="mkt-search" class="sp-mkt-search" type="search" placeholder="Search…" data-l10n-placeholder="marketplace-search-placeholder" autocomplete="off" spellcheck="false" />
-              <span class="sp-mkt-search__kbd" aria-hidden="true">⌘F</span>
-            </label>
-            <ul class="sp-mkt-items" id="mkt-items"></ul>
-          </div>
-
-          <article class="sp-mkt-detail" id="mkt-detail">
-            <div class="sp-mkt-empty">
-              <span class="sp-mkt-empty__glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              </span>
-              <span class="sp-mkt-empty__title" data-l10n-id="marketplace-empty-title">Select an item</span>
-              <span class="sp-mkt-empty__sub">Pick from the list, or use <span class="sp-kbd">⌘F</span> to search.</span>
-            </div>
-          </article>
-        </div>
-
-        <footer class="sp-mkt-actions">
-          <button id="btn-sync"        data-action="sync"        class="sp-btn-primary" type="button" data-l10n-id="sync-button">Sync now</button>
-          <button data-action="validate"                          class="sp-btn-ghost"   type="button" data-l10n-id="marketplace-action-validate">Validate</button>
-          <button data-action="open-folder"                       class="sp-btn-ghost"   type="button" data-l10n-id="marketplace-action-open-folder">Open folder</button>
-          <span id="mkt-meta" class="sp-mkt-actions__meta" data-state="never" title="—">
-            <span class="sp-dot" aria-hidden="true"></span>
-            <span id="last-sync" data-l10n-id="last-sync-never">never synced</span>
-          </span>
-          <span id="plugins-dir" hidden></span>
-        </footer>
+        <sp-marketplace></sp-marketplace>
       </section>
 
       <section class="sp-tab__panel" data-tab="agents" role="tabpanel" hidden>
         <header class="sp-tab__header">
           <h1 data-l10n-id="agents-heading">Agents</h1>
-          <span id="agents-overall-badge" class="sp-badge sp-badge--muted" data-l10n-id="agents-checking">checking…</span>
+          <sp-overall-badge></sp-overall-badge>
         </header>
         <p class="sp-tab__lede sp-u-muted" data-l10n-id="agents-lede">
           systemprompt bridge routes any number of coding agents through a single local proxy.
           Install the configuration profile for each agent you want governed; they all run simultaneously.
         </p>
-        <div id="agents-list"></div>
+        <sp-hosts-list></sp-hosts-list>
       </section>
 
       <section class="sp-tab__panel" data-tab="status" role="tabpanel" hidden>
         <header class="sp-tab__header">
           <h1 data-l10n-id="status-heading">Status</h1>
-          <span id="overall-badge" class="sp-badge sp-badge--muted" data-l10n-id="status-checking">checking…</span>
+          <sp-overall-badge></sp-overall-badge>
         </header>
 
         <section class="sp-status-group" data-group="cloud">
@@ -203,32 +76,7 @@
             <h2 data-l10n-id="status-proxy-heading">Local proxy</h2>
             <p class="sp-status-group__caption" data-l10n-id="status-proxy-caption">The 127.0.0.1 endpoint host apps call instead of the Anthropic API.</p>
           </header>
-          <table class="sp-status__board">
-            <tbody>
-              <tr>
-                <th data-l10n-id="status-proxy-health">Health</th>
-                <td>
-                  <div class="sp-status__row">
-                    <span id="proxy-dot" class="sp-dot sp-dot--unknown" aria-hidden="true"></span>
-                    <span id="proxy-text" data-l10n-id="status-checking">checking…</span>
-                  </div>
-                  <div id="proxy-detail" class="sp-status__detail sp-u-mono sp-u-muted">—</div>
-                </td>
-                <td class="sp-status__actions"></td>
-              </tr>
-              <tr>
-                <th data-l10n-id="status-proxy-endpoints">Inference endpoints</th>
-                <td>
-                  <div class="sp-status__row">
-                    <span id="endpoints-dot" class="sp-dot sp-dot--unknown" aria-hidden="true"></span>
-                    <span id="endpoints-text">—</span>
-                  </div>
-                  <div class="sp-status__detail sp-u-muted" data-l10n-id="status-proxy-endpoints-detail">Models the proxy advertises to host apps.</div>
-                </td>
-                <td class="sp-status__actions"></td>
-              </tr>
-            </tbody>
-          </table>
+          <sp-proxy-status></sp-proxy-status>
         </section>
 
         <section class="sp-status-group" data-group="agents-summary">
@@ -236,248 +84,35 @@
             <h2 data-l10n-id="status-agents-heading">Agents</h2>
             <p class="sp-status-group__caption"><span data-l10n-id="status-agents-caption-prefix">Coding agents routed through systemprompt bridge. Manage them in the</span> <a href="#" data-jump-tab="agents" data-l10n-id="status-agents-tab-link">Agents tab</a>.</p>
           </header>
-          <table class="sp-status__board">
-            <tbody>
-              <tr>
-                <th data-l10n-id="status-agents-connected">Connected</th>
-                <td>
-                  <div class="sp-status__row">
-                    <span id="agents-summary-dot" class="sp-dot sp-dot--unknown" aria-hidden="true"></span>
-                    <span id="agents-summary-text">—</span>
-                  </div>
-                </td>
-                <td class="sp-status__actions">
-                  <button class="sp-btn-ghost" data-jump-tab="agents" type="button" data-l10n-id="status-open-agents">Open agents</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <sp-agents-summary></sp-agents-summary>
         </section>
 
-        <template id="host-card-template">
-          <article class="sp-host-card">
-            <header class="sp-host-card__head">
-              <h3 class="sp-host-card__name">—</h3>
-              <span class="sp-badge sp-badge--muted" data-role="badge">checking…</span>
-            </header>
-            <table class="sp-status__board">
-              <tbody>
-                <tr>
-                  <th>Configuration profile</th>
-                  <td>
-                    <div class="sp-status__row">
-                      <span class="sp-dot sp-dot--unknown" data-role="profile-dot" aria-hidden="true"></span>
-                      <span data-role="profile-text">checking…</span>
-                    </div>
-                    <div class="sp-status__detail sp-u-mono sp-u-muted" data-role="profile-detail">—</div>
-                  </td>
-                  <td class="sp-status__actions">
-                    <button class="sp-btn-primary" data-role="generate" type="button">Generate</button>
-                    <button class="sp-btn-ghost"   data-role="install"  type="button" disabled>Install</button>
-                    <button class="sp-btn-ghost"   data-role="reverify" type="button">Re-verify</button>
-                  </td>
-                </tr>
-                <tr>
-                  <th>Process</th>
-                  <td>
-                    <div class="sp-status__row">
-                      <span class="sp-dot sp-dot--unknown" data-role="running-dot" aria-hidden="true"></span>
-                      <span data-role="running-text">checking…</span>
-                    </div>
-                    <div class="sp-status__detail sp-u-mono sp-u-muted" data-role="running-detail">—</div>
-                  </td>
-                  <td class="sp-status__actions"></td>
-                </tr>
-              </tbody>
-            </table>
-            <details class="sp-status__prefs">
-              <summary>Resolved profile keys</summary>
-              <pre class="sp-log" data-role="prefs">—</pre>
-            </details>
-            <div class="sp-claude__warn" data-role="jwt-warn" hidden></div>
-          </article>
-        </template>
       </section>
 
       <section class="sp-tab__panel" data-tab="settings" role="tabpanel" hidden>
         <header class="sp-tab__header">
           <h1 data-l10n-id="settings-heading">Settings</h1>
         </header>
-        <div class="sp-kv__grid">
-          <div class="sp-kv">
-            <label data-l10n-id="settings-gateway-label">Gateway URL</label>
-            <div id="settings-gateway" class="sp-value sp-u-mono sp-u-muted">—</div>
-          </div>
-          <div class="sp-kv">
-            <label data-l10n-id="settings-plugins-label">Plugins directory</label>
-            <div id="settings-plugins-dir" class="sp-value sp-u-mono sp-u-muted">—</div>
-          </div>
-          <div class="sp-kv">
-            <label data-l10n-id="settings-config-label">Config file</label>
-            <div id="settings-config" class="sp-value sp-u-mono sp-u-muted">—</div>
-          </div>
-          <div class="sp-kv">
-            <label data-l10n-id="settings-schedule-label">Sync schedule</label>
-            <div class="sp-value sp-u-muted" data-l10n-id="settings-schedule-value">manual (trigger from Marketplace)</div>
-          </div>
-        </div>
-        <div class="sp-row">
-          <button data-action="open-folder" class="sp-btn-ghost" type="button" data-l10n-id="settings-action-open-folder">Open config folder</button>
-          <button data-action="validate" class="sp-btn-ghost" type="button" data-l10n-id="settings-action-validate">Run validate</button>
-          <button data-action="change-gateway" class="sp-btn-ghost" type="button" data-l10n-id="settings-action-change-gateway">Change gateway</button>
-        </div>
-        <p class="sp-settings__note sp-u-muted">
-          <span data-l10n-id="settings-licensing-note-prefix">Demo build — for production licensing contact</span>
-          <a href="mailto:ed@systemprompt.io">ed@systemprompt.io</a>.
-        </p>
+        <sp-settings></sp-settings>
       </section>
     </div>
 
-    <aside class="sp-activity" id="activity-drawer" aria-label="Activity log">
-      <header class="sp-activity__header">
-        <span class="sp-activity__title" data-l10n-id="activity-title">Activity</span>
-        <div class="sp-activity-lane" aria-label="Activity totals">
-          <span class="sp-activity-lane__stat"><b id="lane-msgs">0</b><span class="sp-activity-lane__label" data-l10n-id="activity-msgs">msgs</span></span>
-          <span class="sp-activity-lane__stat"><b id="lane-tin">0</b><span class="sp-activity-lane__label" data-l10n-id="activity-tin">in</span></span>
-          <span class="sp-activity-lane__stat"><b id="lane-tout">0</b><span class="sp-activity-lane__label" data-l10n-id="activity-tout">out</span></span>
-        </div>
-      </header>
-      <div id="log" class="sp-log sp-log-virtual" role="log" aria-live="polite" aria-atomic="false" tabindex="0">
-        <div class="sp-log-virtual__spacer-top" aria-hidden="true"></div>
-        <ol class="sp-log-virtual__viewport"></ol>
-        <div class="sp-log-virtual__spacer-bottom" aria-hidden="true"></div>
-      </div>
-      <section class="sp-activity__help" aria-label="Help &amp; support">
-        <header class="sp-activity__help-title" data-l10n-id="activity-help-title">Help &amp; Support</header>
-        <div class="sp-activity__help-actions">
-          <button data-action="open-log-folder" class="sp-btn-ghost" type="button" data-l10n-id="activity-open-log-folder">Open log folder</button>
-          <button data-action="export-bundle" class="sp-btn-ghost" type="button" data-l10n-id="activity-export-bundle">Export diagnostic bundle</button>
-        </div>
-      </section>
-    </aside>
+    <sp-activity-log></sp-activity-log>
   </main>
 
-  <section id="setup" class="sp-setup" aria-labelledby="setup-heading">
-    <div class="sp-setup__card">
-      <div class="sp-setup__hero">
-        <div class="sp-setup__mark">__LOGO_SVG__</div>
-        <div class="sp-setup__eyebrow"><span data-l10n-id="setup-eyebrow-prefix">DEMO BUILD</span> · v__VERSION__ · <span id="setup-step-label">Step 1 of 3</span></div>
-        <h1 id="setup-heading" data-l10n-id="setup-heading">Welcome to systemprompt bridge</h1>
-        <p class="sp-setup__lede" data-l10n-id="setup-lede">
-          systemprompt bridge routes one or more coding agents through your enterprise gateway.
-          Connect this device, pick the agents you want governed, and you're done.
-        </p>
-      </div>
+  <sp-setup id="setup" class="sp-setup" aria-labelledby="setup-heading" data-version="__VERSION__" data-platform="__PLATFORM__" data-platform-display="__PLATFORM_DISPLAY__">
+    <template data-slot="logo">__LOGO_SVG__</template>
+  </sp-setup>
 
-      <div class="sp-setup__step" data-step="connect">
-        <div class="sp-setup__field">
-          <label for="setup-gateway" data-l10n-id="setup-gateway-label">Gateway URL</label>
-          <input id="setup-gateway" type="url" placeholder="http://127.0.0.1:8080" data-l10n-placeholder="setup-gateway-placeholder" autocomplete="off" spellcheck="false" />
-          <div class="sp-setup__status">
-            <span id="setup-gateway-dot" class="sp-dot sp-dot--unknown" aria-hidden="true"></span>
-            <span id="setup-gateway-msg" class="sp-u-muted" data-l10n-id="setup-gateway-empty">enter a URL to probe…</span>
-          </div>
-        </div>
+  <sp-footer
+    data-platform="__PLATFORM__"
+    data-platform-display="__PLATFORM_DISPLAY__"
+    data-version="__VERSION__"
+    data-git-sha="__GIT_SHA__"
+    data-build-date="__BUILD_DATE__"
+  ></sp-footer>
 
-        <div class="sp-setup__field">
-          <label for="setup-pat" data-l10n-id="setup-pat-label">Personal access token</label>
-          <input id="setup-pat" type="password" placeholder="sp-live-…" data-l10n-placeholder="setup-pat-placeholder" autocomplete="off" spellcheck="false" />
-          <p class="sp-setup__hint">
-            <span data-l10n-id="setup-pat-hint">Don't have one yet?</span>
-            <a id="setup-pat-link" data-action="setup-pat-link" class="sp-setup__pat-link" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true" data-l10n-id="setup-pat-link">
-              Open the gateway admin login →
-            </a>
-            <span class="sp-setup__hint-detail" data-l10n-id="setup-pat-detail">Sign in there, issue a device PAT, then paste it above.</span>
-          </p>
-        </div>
-
-        <div class="sp-setup__actions">
-          <button id="setup-connect" data-action="setup-connect" class="sp-btn-primary" type="button">
-            <span class="sp-btn__icon sp-btn__icon--default" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M9 9V5a2 2 0 1 1 4 0v4"/><path d="M15 9V5a2 2 0 1 1 4 0v4"/><path d="M5 9h14v4a7 7 0 0 1-14 0z"/><path d="M12 16v5"/></svg>
-            </span>
-            <span class="sp-btn__icon sp-btn__icon--busy" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9" /><path d="M21 3v6h-6" opacity=".4"/></svg>
-            </span>
-            <span class="sp-btn__label" data-l10n-id="login-button">Connect</span>
-          </button>
-          <span id="setup-error" class="sp-setup__error" hidden></span>
-        </div>
-      </div>
-
-      <div class="sp-setup__step" data-step="agents">
-        <p class="sp-setup__lede" data-l10n-id="setup-agents-lede">Pick the coding agents you want systemprompt bridge to govern. You can install more later from the Agents tab.</p>
-        <div id="setup-agents-list" class="sp-setup-agent-list" aria-live="polite"></div>
-        <div class="sp-setup__actions">
-          <button data-action="setup-skip-agents" class="sp-btn-ghost" type="button" data-l10n-id="setup-skip-agents">Skip — set up later</button>
-          <button data-action="setup-finish" class="sp-btn-primary" type="button">
-            <span class="sp-btn__icon sp-btn__icon--default" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
-            </span>
-            <span class="sp-btn__icon sp-btn__icon--busy" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6" opacity=".4"/></svg>
-            </span>
-            <span class="sp-btn__label" data-l10n-id="setup-finish">Finish</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="sp-setup__step" data-step="done">
-        <p class="sp-setup__lede" data-l10n-id="setup-done-lede">systemprompt bridge is ready. Open the workspace to manage agents, sync the marketplace, and watch the proxy.</p>
-        <div class="sp-setup__actions">
-          <button data-action="setup-open" class="sp-btn-primary" type="button">
-            <span class="sp-btn__icon sp-btn__icon--default" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
-            </span>
-            <span class="sp-btn__icon sp-btn__icon--busy" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6" opacity=".4"/></svg>
-            </span>
-            <span class="sp-btn__label" data-l10n-id="setup-open">Open systemprompt bridge</span>
-          </button>
-        </div>
-      </div>
-
-      <aside class="sp-setup__warning" role="note">
-        <strong data-l10n-id="setup-warning-strong">Demo software.</strong> <span data-l10n-id="setup-warning-body">This build of systemprompt bridge is
-        provided for demonstration purposes only and is not licensed
-        for production use.</span>
-      </aside>
-
-      <p class="sp-setup__meta">
-        <a class="sp-setup__docs" href="https://systemprompt.io/docs/bridge/__PLATFORM__" target="_blank" rel="noopener noreferrer">
-          Documentation for __PLATFORM_DISPLAY__ →
-        </a>
-        <span class="sp-setup__meta-sep">·</span>
-        <span>Licensing — <a href="mailto:ed@systemprompt.io?subject=systemprompt%20bridge%20licensing">ed@systemprompt.io</a></span>
-      </p>
-    </div>
-  </section>
-
-  <footer class="sp-footer" role="contentinfo">
-    <div class="sp-footer__left">
-      <span class="sp-footer__stat" id="footer-stat-host" title="Host status">
-        <span id="footer-host-dot" class="sp-dot sp-dot--unknown" aria-hidden="true"></span>
-        <span id="footer-host-text">__PLATFORM_DISPLAY__</span>
-      </span>
-      <span class="sp-footer__sep" aria-hidden="true">·</span>
-      <span class="sp-footer__path" id="config-path" title="Config path">—</span>
-    </div>
-    <div class="sp-footer__meta">
-      <span class="sp-footer__version" title="Build __GIT_SHA__ committed __BUILD_DATE__">v__VERSION__ (__GIT_SHA__, __BUILD_DATE__)</span>
-      <span class="sp-footer__sep" aria-hidden="true">·</span>
-      <a href="https://systemprompt.io/docs/bridge/__PLATFORM__" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-docs">docs</a>
-      <span class="sp-footer__sep" aria-hidden="true">·</span>
-      <a href="mailto:ed@systemprompt.io" data-l10n-id="footer-licensing">licensing</a>
-    </div>
-    <div class="sp-footer__right">
-      <span class="sp-footer__hint"><span class="sp-kbd">⌘1</span><span class="sp-kbd">⌘2</span><span class="sp-kbd">⌘3</span><span class="sp-kbd">⌘4</span> <span data-l10n-id="footer-tabs-hint">tabs</span></span>
-    </div>
-  </footer>
-
-  <div id="sp-toast" class="sp-toast" role="status" aria-live="polite" hidden>
-    <span id="sp-toast-msg" class="sp-toast__msg"></span>
-    <button id="sp-toast-close" class="sp-toast__close" type="button" data-l10n-aria="toast-dismiss" aria-label="Dismiss">×</button>
-  </div>
+  <sp-toast></sp-toast>
 
   <script type="module" src="/assets/js/index.js?t=__TOKEN__" defer></script>
 </body>

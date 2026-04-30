@@ -61,7 +61,6 @@ pub(crate) fn on_login_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("login-pull-manifest"));
-            app.state.set_message(i18n::t("login-stored"));
             super::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
@@ -79,7 +78,6 @@ pub(crate) fn on_login_finished(
             };
             let line = i18n::t_args(key, &[("error", &raw)]);
             app.append_log(&line);
-            app.state.set_message(line.clone());
             app.state.reload();
             app.refresh_ui();
             Err(BridgeError::new(
@@ -145,7 +143,6 @@ pub(crate) fn on_set_gateway_finished(
         Err(e) => {
             let line = i18n::t_args("gateway-set-failure", &[("error", &e.to_string())]);
             app.append_log(&line);
-            app.state.set_message(line.clone());
             app.state.reload();
             Err(BridgeError::new(
                 ErrorScope::Gateway,
@@ -189,13 +186,11 @@ pub(crate) fn on_logout_finished(
         Ok(()) => {
             let msg = i18n::t("logout-success");
             app.append_log(&msg);
-            app.state.set_message(msg);
             Ok(())
         },
         Err(e) => {
             let line = i18n::t_args("logout-failure", &[("error", &e.to_string())]);
             app.append_log(&line);
-            app.state.set_message(line.clone());
             Err(BridgeError::new(
                 ErrorScope::Identity,
                 ErrorCode::Internal,

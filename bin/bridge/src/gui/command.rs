@@ -45,12 +45,6 @@ struct HostInstallArgs {
     path: String,
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct MarketplaceItemArgs {
-    id: String,
-}
-
 pub(crate) fn dispatch(
     app: &mut GuiApp,
     id: u64,
@@ -233,15 +227,6 @@ pub(crate) fn dispatch(
                 },
             );
             CommandOutcome::Async
-        },
-        "marketplace.install" | "marketplace.uninstall" => match parse::<MarketplaceItemArgs>(args)
-        {
-            Ok(_) => CommandOutcome::Sync(Err(BridgeError::new(
-                ErrorScope::Marketplace,
-                ErrorCode::NotFound,
-                "marketplace install/uninstall not implemented",
-            ))),
-            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "diagnostics.exportBundle" => {
             send(

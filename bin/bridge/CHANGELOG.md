@@ -4,6 +4,43 @@
 
 ### Added
 
+- **Phase 3 frontend rewrite — full migration from HTTP polling + delegated dispatcher to Lit components + IPC channels.** Every legacy panel under `web/js/` is now an `sp-*` custom element extending `BridgeElement`, hydrated from `state.snapshot` and refreshed by the appropriate channel (`state.changed`, `host.changed`, `proxy.changed`, `proxy.stats`, `sync.progress`, `error`, `log`).
+  - **23 new Lit components** in `bin/bridge/web/js/components/`:
+    - **Stateless info panels (Phase 3a)**: `sp-proxy-status`, `sp-agent-presence`, `sp-agents-summary`, `sp-overall-badge`, `sp-sync-pill`, `sp-rail-profile`, `sp-footer`, `sp-crumb`.
+    - **Interactive panels (Phase 3b)**: `sp-rail` (replaces `tabs.js` + `rail-indicator.js`, owns ⌘1–⌘4 and ⌘F shortcuts, persists `cowork.tab` to `localStorage`, broadcasts `crumb:set`), `sp-toast`, `sp-activity-log`, `sp-host-card`, `sp-hosts-list`, `sp-settings`.
+    - **Marketplace + setup wizards (Phase 3c)**: `sp-marketplace`, `sp-marketplace-list`, `sp-marketplace-detail`, `sp-setup`, `sp-setup-gateway`, `sp-setup-agents`.
+    - All components use light DOM (`createRenderRoot() { return this; }`) so existing CSS class selectors apply unchanged.
+  - **Incremental host updates** — `sp-hosts-list` keeps a `Map<id, host>` and merges per-host deltas from the `host.changed` channel without re-fetching the full snapshot. `sp-agent-presence`, `sp-agents-summary`, and `sp-setup-agents` likewise merge per-host payloads in place.
+  - **`bridge.js` shims** added: `openLogFolder`, `diagnosticsExportBundle`, `diagnosticsInfo`. `setup-open` cross-component event lets `sp-settings` reopen the setup wizard.
+  - **`crumb:set` `CustomEvent`** decouples breadcrumb updates from `tabs.js`. `mkt:count` `CustomEvent` lets `sp-marketplace` push the marketplace total into `sp-rail` without a shared atom.
+
+### Changed
+
+- **HTTP control-plane server cut to single-instance focus only.** `gui::server::Server` reduced from a full HTTP router (state polling, log polling, marketplace listing, action dispatch, asset serving) to ~85 lines that handle exclusively `POST /api/focus_window` with constant-time CSRF check. The webview already loads via the `sp://app/` custom protocol (`window/native.rs::serve_custom_asset`), so no asset serving needs the HTTP path. Second-launch instances still ping the focus endpoint via `single_instance::ping_focus_running_instance`.
+- **`assets::lookup_path` no longer takes a CSRF-token argument** — the `sp://` protocol bypasses it. `__TOKEN__` placeholders in CSS/JS modules are substituted with empty strings.
+- **`last_action_message` removed** from `AppStateSnapshot`, `AppStateSnapshotBuilder`, and `StatePayload`. `AppState::set_message` deleted along with all 8 call sites in `handlers/sync.rs` and `handlers/auth.rs`. Toast surfacing now flows exclusively through the `error` IPC channel (`ipc_runtime::emit_error`), which is structured (`{scope, code, message}`) rather than a free-form snapshot field. `sp-toast` simplified to listen to `error` only; `sp-setup-gateway` stops parsing `last_action_message` for failure detection.
+- **Marketplace install/uninstall buttons removed** from `sp-marketplace-detail`. Cloud sync (`sync::run_once`) is the install mechanism — signed manifests pulled from the gateway materialize plugins/skills/hooks/agents into `org_plugins_effective()`. Per-item buttons were redundant with sync. Dropped: `marketplace.install` / `marketplace.uninstall` IPC commands, the `MarketplaceItemArgs` struct, and the `bridge.marketplaceInstall` / `marketplaceUninstall` shims.
+- **`tabs.js` decoupled from `crumb.js`**: `activateTab` now dispatches `document.dispatchEvent(new CustomEvent("crumb:set", { detail: { name } }))` instead of importing `setCrumb`. (Then both files were deleted entirely as `sp-rail` and `sp-crumb` took over.)
+- **`web/index.html` reduced from ~485 to ~120 lines.** Wholesale markup blocks for the rail nav, marketplace tab (categories list + items + detail + actions footer), agents tab, host-card `<template>`, settings panel, activity drawer, setup wizard, and footer all replaced with single `<sp-*>` tags that own their own rendering.
+- **`web/js/index.js` reduced from 64 to 43 lines.** No more `applySnapshot`, `subscribePolling`, `subscribeLog`, or `initEvents`/`initKeyboard`/`initTabs`/`initSetup`/`initMarketplace`/`initToast`. Final form: theme + i18n init, side-effect imports for every component, atom hydration from `state.changed`.
+- **`gui/command.rs`**: added `openLogFolder` as an alias for `diagnostics.openLogDirectory`.
+
+### Removed
+
+- **18 legacy frontend modules deleted**: `agents.js`, `api.js`, `crumb.js`, `dom.js`, `drawer.js`, `events/keyboard.js`, `events/registry.js`, `footer.js`, `hosts.js`, `hosts/card.js`, `marketplace.js`, `marketplace/detail.js`, `marketplace/glyph.js`, `marketplace/list.js`, `marketplace/state.js`, `overall-badge.js`, `profile.js`, `proxy.js`, `rail-indicator.js`, `setup.js`, `setup/agents.js`, `setup/gateway.js`, `setup/mode.js`, `state.js`, `sync-pill.js`, `tabs.js`. Subdirectories `events/`, `hosts/`, `marketplace/`, `setup/` removed.
+- **2 backend Rust modules deleted**: `gui/connection.rs` (HTTP request parsing + CSRF validation + GET routing), `gui/action_dispatch.rs` (POST `/api/<action>` → `UiEvent`).
+- **`gui/server_util.rs` trimmed** — `parse_query` and `now_unix` removed; only `mint_csrf_token` and `constant_time_eq` remain.
+- **`server_json::snapshot_to_json`** removed (was used only by the deleted HTTP server).
+- **`http_local`-based connection handling, `last_action_message` field**, `set_message` setter, builder method `with_last_action_message`, the `last_action_message` payload field, and the `csrf_token` query-parameter validation on asset URLs.
+
+### Notes
+
+- The `sp://app/` custom-protocol asset path remains the only way the webview loads HTML/CSS/JS; the `lit-all.min.js` vendor bundle is served as-is and special-cased to skip `__TOKEN__` substitution.
+- `marketplace.list` IPC command and listing payload retained — it surfaces what's already been synced to disk by `sync::run_once`. There is no separate "catalog vs installed" model.
+- Single-instance focus across platforms continues to work via the trimmed HTTP server.
+
+### Earlier in this Unreleased window
+
 - **Phase 3 follow-ups (3F.A / 3F.B / 3F.C)**:
   - **Cross-platform menu bar** — `gui::menu::attach_to_window(&MenuBarHandles, &Window)` on Windows extracts the HWND via `raw-window-handle` and calls muda `init_for_hwnd`, attached after settings-window creation. macOS continues to use app-wide `init_for_nsapp`. New direct dep on `raw-window-handle = "0.6"` for the Windows target. Native menu items now go through `i18n::t`.
   - **Cancellation plumbing + UI** — `AppState::install_cancel`/`clear_cancel`/`cancel_scope`/`cancel_all` keyed by a new `CancelScope` enum (`Sync`, `Login`, `GatewayProbe`). `sync`, `login`, `set-gateway`, `logout`, and `gateway_probe` handlers now wrap their `spawn_blocking` futures in `tokio::select!` against a child token; on cancel the result is dropped and a sensible failure outcome is emitted. `on_sync_finished` distinguishes `cancelled` from `failed` and emits a `cancelled` `sync.progress` phase. New `UiEvent::CancelInFlight { scope, reply_to }` + `gui/handlers/cancel.rs`. New IPC command `cancel` (scope `sync` | `login` | `gateway` | `all`) + `bridge.cancel(scope)` JS helper. New Cancel button (`#sync-cancel`) in the sync pill, hidden by default, shown when `sync_in_flight`, wired to `bridge.cancel("sync")`.

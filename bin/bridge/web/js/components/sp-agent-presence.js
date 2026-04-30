@@ -36,9 +36,15 @@ export class SpAgentPresence extends BridgeElement {
     super.connectedCallback();
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
-    this.bridgeSubscribe("host.changed", () => {
-      bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
-    });
+    this.bridgeSubscribe("host.changed", (host) => this._mergeHost(host));
+  }
+
+  _mergeHost(host) {
+    if (!host || !host.id || !this.snapshot) { return; }
+    const list = (this.snapshot.host_apps || []).slice();
+    const idx = list.findIndex((h) => h.id === host.id);
+    if (idx >= 0) { list[idx] = host; } else { list.push(host); }
+    this.snapshot = { ...this.snapshot, host_apps: list };
   }
 
   updated() {

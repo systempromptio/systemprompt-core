@@ -25,7 +25,6 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         return;
     }
     app.state.set_sync_in_flight(true);
-    app.state.set_message("Sync started…");
     app.append_log("Sync started…");
     app.refresh_ui();
     ipc_runtime::emit_sync_progress(app, "started", None);
@@ -68,7 +67,6 @@ pub(crate) fn on_sync_finished(
     let bridge_result = match result {
         Ok(summary) => {
             let line = summary.one_line();
-            app.state.set_message(line.clone());
             app.append_log(&line);
             ipc_runtime::emit_sync_progress(app, "completed", Some(line.clone()));
             Ok(json!({ "summary": line }))
@@ -91,7 +89,6 @@ pub(crate) fn on_sync_finished(
                     ErrorCode::Internal,
                 )
             };
-            app.state.set_message(line.clone());
             app.append_log(&line);
             ipc_runtime::emit_sync_progress(app, phase, Some(line.clone()));
             Err(BridgeError::new(scope, code, line))

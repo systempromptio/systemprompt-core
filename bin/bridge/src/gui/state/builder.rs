@@ -57,11 +57,6 @@ impl AppStateSnapshotBuilder {
         self
     }
 
-    pub fn with_last_action_message(mut self, value: Option<String>) -> Self {
-        self.snap.last_action_message = value;
-        self
-    }
-
     pub fn with_last_validation(mut self, value: Option<ValidationReport>) -> Self {
         self.snap.last_validation = value;
         self
