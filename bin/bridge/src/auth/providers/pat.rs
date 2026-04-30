@@ -3,6 +3,7 @@ use crate::auth::types::HelperOutput;
 use crate::config::Config;
 use crate::gateway::GatewayClient;
 use crate::ids::PatToken;
+use async_trait::async_trait;
 use std::{env, fs};
 use systemprompt_identifiers::ValidatedUrl;
 
@@ -32,16 +33,18 @@ impl PatProvider {
     }
 }
 
+#[async_trait]
 impl AuthProvider for PatProvider {
     fn name(&self) -> &'static str {
         "pat"
     }
 
-    fn authenticate(&self) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(&self) -> Result<HelperOutput, AuthError> {
         let pat = self.pat_source.as_ref().ok_or(AuthError::NotConfigured)?;
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
             .pat_exchange(pat.as_str())
+            .await
             .map_err(|e| AuthError::Failed {
                 provider: "pat",
                 source: AuthFailedSource::Gateway(e),

@@ -1,4 +1,5 @@
 use crate::auth::types::HelperOutput;
+use async_trait::async_trait;
 use thiserror::Error;
 
 pub mod mtls;
@@ -50,7 +51,8 @@ impl AuthFailedSource {
     }
 }
 
-pub trait AuthProvider {
+#[async_trait]
+pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    fn authenticate(&self) -> Result<HelperOutput, AuthError>;
+    async fn authenticate(&self) -> Result<HelperOutput, AuthError>;
 }

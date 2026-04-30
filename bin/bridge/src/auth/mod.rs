@@ -27,27 +27,25 @@ pub enum ChainError {
     },
 }
 
-pub fn acquire_bearer(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
+pub async fn acquire_bearer(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
     if let Some(out) = cache::read_valid() {
         return Ok(out);
     }
-    run_chain(cfg, true)
+    run_chain(cfg, true).await
 }
 
-#[must_use]
-pub fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
+pub async fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
     if let Some(out) = cache::read_valid() {
         return Some(out);
     }
-    mint_fresh(cfg).ok()
+    mint_fresh(cfg).await.ok()
 }
 
-#[must_use]
-pub fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<HelperOutput> {
+pub async fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<HelperOutput> {
     if let Some(out) = cache::read_with_threshold(threshold_secs) {
         return Some(out);
     }
-    mint_fresh(cfg).ok()
+    mint_fresh(cfg).await.ok()
 }
 
 #[must_use]
@@ -97,8 +95,8 @@ pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
     ]
 }
 
-pub fn mint_fresh(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
-    run_chain(cfg, true)
+pub async fn mint_fresh(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
+    run_chain(cfg, true).await
 }
 
 fn preferred_provider(cfg: &config::Config) -> Option<&'static str> {
@@ -112,11 +110,11 @@ fn preferred_provider(cfg: &config::Config) -> Option<&'static str> {
     None
 }
 
-fn run_chain(cfg: &config::Config, write_cache: bool) -> Result<HelperOutput, ChainError> {
+async fn run_chain(cfg: &config::Config, write_cache: bool) -> Result<HelperOutput, ChainError> {
     let chain = provider_chain(cfg);
     let preferred = preferred_provider(cfg);
     let providers: Vec<&dyn AuthProvider> = chain.iter().map(AsRef::as_ref).collect();
-    let result = evaluate_chain(&providers, preferred);
+    let result = evaluate_chain(&providers, preferred).await;
     if write_cache
         && let Ok(out) = result.as_ref()
         && let Err(e) = cache::write(out)
@@ -126,12 +124,12 @@ fn run_chain(cfg: &config::Config, write_cache: bool) -> Result<HelperOutput, Ch
     result
 }
 
-pub fn evaluate_chain(
+pub async fn evaluate_chain(
     chain: &[&dyn AuthProvider],
     preferred: Option<&'static str>,
 ) -> Result<HelperOutput, ChainError> {
     for p in chain {
-        match p.authenticate() {
+        match p.authenticate().await {
             Ok(out) => return Ok(out),
             Err(AuthError::NotConfigured) => {},
             Err(AuthError::Failed { provider, source }) => {

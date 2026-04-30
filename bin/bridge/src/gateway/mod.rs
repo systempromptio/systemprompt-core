@@ -74,8 +74,6 @@ pub enum GatewayError {
         status: reqwest::StatusCode,
         endpoint: &'static str,
     },
-    #[error("runtime unavailable: {0}")]
-    Runtime(String),
     #[error("serialize: {0}")]
     Serialize(#[from] serde_json::Error),
 }
@@ -99,20 +97,15 @@ fn shared_client() -> reqwest::Client {
 pub struct GatewayClient {
     base_url: ValidatedUrl,
     http: reqwest::Client,
-    rt: tokio::runtime::Handle,
 }
 
 impl GatewayClient {
     #[must_use]
     pub fn new(base_url: ValidatedUrl) -> Self {
-        let http = shared_client();
-        let rt = crate::proxy::runtime_handle()
-            .or_else(|_| tokio::runtime::Handle::try_current().map_err(|_| ()))
-            .unwrap_or_else(|()| {
-                tracing::warn!("gateway: no shared runtime available; using current");
-                tokio::runtime::Handle::current()
-            });
-        Self { base_url, http, rt }
+        Self {
+            base_url,
+            http: shared_client(),
+        }
     }
 
     #[must_use]
@@ -129,16 +122,12 @@ impl GatewayClient {
         format!("{}{}", self.base_url.as_str().trim_end_matches('/'), path)
     }
 
-    fn block_on<F: std::future::Future>(&self, fut: F) -> F::Output {
-        self.rt.block_on(fut)
-    }
-
     #[tracing::instrument(
         level = "debug",
         skip(self),
         fields(endpoint = "pubkey", status, latency_ms)
     )]
-    pub async fn fetch_pubkey_async(&self) -> Result<String, GatewayError> {
+    pub async fn fetch_pubkey(&self) -> Result<String, GatewayError> {
         #[derive(serde::Deserialize)]
         struct PubkeyResponse {
             #[serde(default)]
@@ -166,16 +155,12 @@ impl GatewayClient {
         body.pubkey.ok_or(GatewayError::PubkeyMissing)
     }
 
-    pub fn fetch_pubkey(&self) -> Result<String, GatewayError> {
-        self.block_on(self.fetch_pubkey_async())
-    }
-
     #[tracing::instrument(
         level = "debug",
         skip(self, bearer),
         fields(endpoint = "manifest", status, latency_ms)
     )]
-    pub async fn fetch_manifest_async(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
+    pub async fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
         let url = self.url("/v1/cowork/manifest");
         let started = Instant::now();
         let resp = self
@@ -197,16 +182,12 @@ impl GatewayClient {
             .map_err(|e| GatewayError::ManifestDecode(Box::new(e)))
     }
 
-    pub fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
-        self.block_on(self.fetch_manifest_async(bearer))
-    }
-
     #[tracing::instrument(
         level = "debug",
         skip(self, bearer),
         fields(plugin_id, path, status, latency_ms)
     )]
-    pub async fn fetch_plugin_file_async(
+    pub async fn fetch_plugin_file(
         &self,
         bearer: &str,
         plugin_id: &str,
@@ -243,21 +224,12 @@ impl GatewayClient {
         Ok(bytes.to_vec())
     }
 
-    pub fn fetch_plugin_file(
-        &self,
-        bearer: &str,
-        plugin_id: &str,
-        relative_path: &str,
-    ) -> Result<Vec<u8>, GatewayError> {
-        self.block_on(self.fetch_plugin_file_async(bearer, plugin_id, relative_path))
-    }
-
     #[tracing::instrument(
         level = "debug",
         skip(self, bearer),
         fields(endpoint = "whoami", status, latency_ms)
     )]
-    pub async fn fetch_whoami_async(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
+    pub async fn fetch_whoami(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
         let url = self.url("/v1/cowork/whoami");
         let started = Instant::now();
         let resp = self
@@ -279,16 +251,12 @@ impl GatewayClient {
             .map_err(|e| GatewayError::WhoamiDecode(Box::new(e)))
     }
 
-    pub fn fetch_whoami(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
-        self.block_on(self.fetch_whoami_async(bearer))
-    }
-
     #[tracing::instrument(
         level = "debug",
         skip(self),
         fields(endpoint = "profile", status, latency_ms)
     )]
-    pub async fn fetch_cowork_profile_async(&self) -> Result<CoworkProfile, GatewayError> {
+    pub async fn fetch_cowork_profile(&self) -> Result<CoworkProfile, GatewayError> {
         let url = self.url("/v1/cowork/profile");
         let started = Instant::now();
         let resp = self
@@ -309,16 +277,12 @@ impl GatewayClient {
             .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))
     }
 
-    pub fn fetch_cowork_profile(&self) -> Result<CoworkProfile, GatewayError> {
-        self.block_on(self.fetch_cowork_profile_async())
-    }
-
     #[tracing::instrument(
         level = "debug",
         skip(self),
         fields(endpoint = "health", status, latency_ms)
     )]
-    pub async fn health_async(&self) -> Result<(), GatewayError> {
+    pub async fn health(&self) -> Result<(), GatewayError> {
         let url = self.url("/health");
         let started = Instant::now();
         let resp = self
@@ -337,35 +301,16 @@ impl GatewayClient {
         Ok(())
     }
 
-    pub fn health(&self) -> Result<(), GatewayError> {
-        self.block_on(self.health_async())
+    pub async fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
+        self.post_json("/v1/auth/cowork/mtls", req, "mtls").await
     }
 
-    pub async fn mtls_exchange_async(
-        &self,
-        req: &MtlsRequest,
-    ) -> Result<AuthResponse, GatewayError> {
-        self.post_json_async("/v1/auth/cowork/mtls", req, "mtls")
-            .await
-    }
-
-    pub fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
-        self.block_on(self.mtls_exchange_async(req))
-    }
-
-    pub async fn session_exchange_async(
+    pub async fn session_exchange(
         &self,
         req: &SessionExchangeRequest,
     ) -> Result<AuthResponse, GatewayError> {
-        self.post_json_async("/v1/auth/cowork/session", req, "session")
+        self.post_json("/v1/auth/cowork/session", req, "session")
             .await
-    }
-
-    pub fn session_exchange(
-        &self,
-        req: &SessionExchangeRequest,
-    ) -> Result<AuthResponse, GatewayError> {
-        self.block_on(self.session_exchange_async(req))
     }
 
     #[tracing::instrument(
@@ -373,7 +318,7 @@ impl GatewayClient {
         skip(self, pat),
         fields(endpoint = "pat", status, latency_ms)
     )]
-    pub async fn pat_exchange_async(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
+    pub async fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
         let url = self.url("/v1/auth/cowork/pat");
         let started = Instant::now();
         let resp = self
@@ -397,11 +342,7 @@ impl GatewayClient {
             .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
     }
 
-    pub fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
-        self.block_on(self.pat_exchange_async(pat))
-    }
-
-    async fn post_json_async<T: serde::Serialize>(
+    async fn post_json<T: serde::Serialize>(
         &self,
         path: &str,
         body: &T,

@@ -84,13 +84,13 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
 }
 
 #[tracing::instrument(level = "info")]
-pub fn run_once(
+pub async fn run_once(
     allow_unsigned: bool,
     force_replay: bool,
     allow_tofu: bool,
 ) -> Result<SyncSummary, SyncError> {
-    let fetch = manifest::fetch_authenticated_manifest()?;
-    manifest::verify_signature(&fetch, allow_unsigned, allow_tofu)?;
+    let fetch = manifest::fetch_authenticated_manifest().await?;
+    manifest::verify_signature(&fetch, allow_unsigned, allow_tofu).await?;
 
     let location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
     if !location.path.is_dir() {
@@ -120,6 +120,7 @@ pub fn run_once(
         &fetch.manifest,
         &location,
     )
+    .await
     .map_err(SyncError::ApplyFailed)?;
 
     persist_last_sync(&last_sync_path, &fetch.manifest, &report, now);

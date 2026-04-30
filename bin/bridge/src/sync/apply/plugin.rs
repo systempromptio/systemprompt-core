@@ -15,7 +15,7 @@ pub struct PluginApplyOutcome {
 }
 
 #[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
-pub fn apply_plugins(
+pub async fn apply_plugins(
     client: &GatewayClient,
     bearer: &str,
     manifest: &SignedManifest,
@@ -30,7 +30,7 @@ pub fn apply_plugins(
         if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
         }
-        if let Some(change) = sync_one_plugin(client, bearer, plugin, root, staging_root)? {
+        if let Some(change) = sync_one_plugin(client, bearer, plugin, root, staging_root).await? {
             match change {
                 PluginChange::Installed(id) => installed.push(id),
                 PluginChange::Updated(id) => updated.push(id),
@@ -69,7 +69,7 @@ enum PluginChange {
 }
 
 #[tracing::instrument(level = "debug", skip(client, bearer, plugin), fields(plugin_id = %plugin.id))]
-fn sync_one_plugin(
+async fn sync_one_plugin(
     client: &GatewayClient,
     bearer: &str,
     plugin: &PluginEntry,
@@ -86,7 +86,7 @@ fn sync_one_plugin(
     }
 
     let stage = staging_root.join(plugin.id.as_str());
-    fetch_plugin_into_staging(client, bearer, plugin, &stage)?;
+    fetch_plugin_into_staging(client, bearer, plugin, &stage).await?;
 
     let staged_hash = directory_hash(&stage).map_err(|e| super::ApplyError::Io {
         context: format!("hash staged {}", plugin.id),
@@ -119,7 +119,7 @@ fn sync_one_plugin(
     }))
 }
 
-fn fetch_plugin_into_staging(
+async fn fetch_plugin_into_staging(
     client: &GatewayClient,
     bearer: &str,
     plugin: &PluginEntry,
@@ -140,7 +140,9 @@ fn fetch_plugin_into_staging(
                 source: e,
             })?;
         }
-        let bytes = client.fetch_plugin_file(bearer, plugin.id.as_str(), &file.path)?;
+        let bytes = client
+            .fetch_plugin_file(bearer, plugin.id.as_str(), &file.path)
+            .await?;
         let actual = sha256_hex(&bytes);
         if !sha256_matches(&actual, &file.sha256) {
             return Err(super::ApplyError::HashMismatch {

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows GUI rendered a blank `about:blank` window.** wry 0.55 rewrites custom URI schemes to `http://<scheme>.<host>/...` on Windows/Android because WebView2 cannot register arbitrary schemes, so navigating to `sp://app/index.html` silently failed. Use `http://sp.app/index.html` on those targets and allow the rewritten origin in `allow_navigation`.
+- **Native menu bar showed raw i18n keys** (`menu-edit`, `menu-view`, `menu-help`, …). The menu builder calls `i18n::t("menu-*")` but `web/i18n/en-US/bridge.ftl` had no matching entries, so the fallback returned the keys verbatim. Added the seven missing translations.
+
 ### Changed
 
 - **Bridge frontend rewritten off Lit.js — pure vanilla Web Components.** All 22 `sp-*` components migrated from `LitElement` to a 110-line `SpElement` base (`web/js/components/sp-element.js`) with reactive setters, microtask-batched re-render, and `data-action` / `data-input` event delegation. `vendor/lit-all.min.js` deleted. `js/atoms.js` deleted (unused by components — bridge state subscription is the single source of truth).

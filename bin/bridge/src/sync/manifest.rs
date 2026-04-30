@@ -11,18 +11,19 @@ pub struct ManifestFetch {
     pub manifest: SignedManifest,
 }
 
-pub fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
+pub async fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
 
     let bearer = match crate::auth::cache::read_valid() {
         Some(out) => out.token,
-        None => fetch_fresh_token().ok_or(SyncError::NoCredential)?,
+        None => fetch_fresh_token().await.ok_or(SyncError::NoCredential)?,
     };
 
     let client = GatewayClient::new(gateway);
     let manifest = client
         .fetch_manifest(bearer.expose())
+        .await
         .map_err(|e| SyncError::Network(e.to_string()))?;
 
     Ok(ManifestFetch {
@@ -32,7 +33,7 @@ pub fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
     })
 }
 
-pub fn verify_signature(
+pub async fn verify_signature(
     fetch: &ManifestFetch,
     allow_unsigned: bool,
     allow_tofu: bool,
@@ -40,14 +41,17 @@ pub fn verify_signature(
     if allow_unsigned {
         return Ok(());
     }
-    let pubkey = resolve_pubkey(&fetch.client, allow_tofu)?;
+    let pubkey = resolve_pubkey(&fetch.client, allow_tofu).await?;
     fetch
         .manifest
         .verify(pubkey.as_str())
         .map_err(|e| SyncError::SignatureFailed(e.to_string()))
 }
 
-fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<PinnedPubKey, SyncError> {
+async fn resolve_pubkey(
+    client: &GatewayClient,
+    allow_tofu: bool,
+) -> Result<PinnedPubKey, SyncError> {
     if let Some(k) = config::pinned_pubkey() {
         return Ok(k);
     }
@@ -57,6 +61,7 @@ fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<PinnedPubK
     tracing::info!("first-run trust-on-first-use: fetching manifest pubkey from gateway");
     let fetched = client
         .fetch_pubkey()
+        .await
         .map_err(|e| SyncError::Network(e.to_string()))?;
     let _ = config::persist_pinned_pubkey(&fetched);
     let prefix: String = fetched.chars().take(12).collect();
@@ -66,7 +71,7 @@ fn resolve_pubkey(client: &GatewayClient, allow_tofu: bool) -> Result<PinnedPubK
     Ok(PinnedPubKey::new(fetched))
 }
 
-fn fetch_fresh_token() -> Option<Secret> {
+async fn fetch_fresh_token() -> Option<Secret> {
     use crate::auth::providers::{AuthError, AuthProvider};
     let cfg = config::load();
     let chain: Vec<Box<dyn AuthProvider>> = vec![
@@ -75,7 +80,7 @@ fn fetch_fresh_token() -> Option<Secret> {
         Box::new(crate::auth::providers::pat::PatProvider::new(&cfg)),
     ];
     for p in &chain {
-        match p.authenticate() {
+        match p.authenticate().await {
             Ok(out) => {
                 let _ = crate::auth::cache::write(&out);
                 return Some(out.token);

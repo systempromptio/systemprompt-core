@@ -54,6 +54,10 @@ pub fn runtime_handle() -> std::io::Result<tokio::runtime::Handle> {
     runtime().map(|rt| rt.handle().clone())
 }
 
+pub fn block_on<F: std::future::Future>(fut: F) -> std::io::Result<F::Output> {
+    runtime().map(|rt| rt.block_on(fut))
+}
+
 fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
     if let Some(rt) = RUNTIME.get() {
         return Ok(rt);

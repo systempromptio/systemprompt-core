@@ -24,6 +24,9 @@ const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
 
 const SP_PROTOCOL: &str = "sp";
 const SP_HOST: &str = "app";
+#[cfg(any(target_os = "windows", target_os = "android"))]
+const SP_INDEX_URL: &str = "http://sp.app/index.html";
+#[cfg(not(any(target_os = "windows", target_os = "android")))]
 const SP_INDEX_URL: &str = "sp://app/index.html";
 
 pub struct SettingsWindow {
@@ -175,7 +178,10 @@ fn not_found() -> Response<Cow<'static, [u8]>> {
 }
 
 fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
-    if target.starts_with("sp://") || target.starts_with("about:") {
+    if target.starts_with("sp://")
+        || target.starts_with("http://sp.app")
+        || target.starts_with("about:")
+    {
         return true;
     }
     if let Some(origin) = legacy_origin
