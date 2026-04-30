@@ -83,10 +83,9 @@ export async function copyToClipboard(button, value) {
     await navigator.clipboard.writeText(value);
     button.dataset.copied = "true";
     button.textContent = "Copied ✓";
-    setTimeout(() => {
-      button.removeAttribute("data-copied");
-      button.textContent = "Copy";
-    }, 1200);
+    await button.animate([{}, {}], { duration: 1200 }).finished;
+    button.removeAttribute("data-copied");
+    button.textContent = "Copy";
   } catch (e) {
     console.error("clipboard write failed", e);
   }
