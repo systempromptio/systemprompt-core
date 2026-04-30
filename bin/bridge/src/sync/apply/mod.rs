@@ -6,8 +6,8 @@ pub use error::ApplyError;
 pub use synthetic_plugin::write_synthetic_plugin;
 
 use crate::config::paths::{self, OrgPluginsLocation};
-use crate::gateway::manifest::{SignedManifest, UserInfo};
 use crate::gateway::GatewayClient;
+use crate::gateway::manifest::{SignedManifest, UserInfo};
 use std::fs;
 use std::path::Path;
 

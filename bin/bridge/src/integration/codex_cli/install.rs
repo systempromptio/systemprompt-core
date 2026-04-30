@@ -236,7 +236,7 @@ fn base64_encode(input: &[u8]) -> String {
     let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
     let mut chunks = input.chunks_exact(3);
     for chunk in &mut chunks {
-        let n = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
+        let n = (u32::from(chunk[0]) << 16) | (u32::from(chunk[1]) << 8) | u32::from(chunk[2]);
         out.push(CHARS[((n >> 18) & 0x3f) as usize] as char);
         out.push(CHARS[((n >> 12) & 0x3f) as usize] as char);
         out.push(CHARS[((n >> 6) & 0x3f) as usize] as char);
@@ -245,14 +245,14 @@ fn base64_encode(input: &[u8]) -> String {
     let rem = chunks.remainder();
     match rem.len() {
         1 => {
-            let n = (rem[0] as u32) << 16;
+            let n = u32::from(rem[0]) << 16;
             out.push(CHARS[((n >> 18) & 0x3f) as usize] as char);
             out.push(CHARS[((n >> 12) & 0x3f) as usize] as char);
             out.push('=');
             out.push('=');
         },
         2 => {
-            let n = ((rem[0] as u32) << 16) | ((rem[1] as u32) << 8);
+            let n = (u32::from(rem[0]) << 16) | (u32::from(rem[1]) << 8);
             out.push(CHARS[((n >> 18) & 0x3f) as usize] as char);
             out.push(CHARS[((n >> 12) & 0x3f) as usize] as char);
             out.push(CHARS[((n >> 6) & 0x3f) as usize] as char);
