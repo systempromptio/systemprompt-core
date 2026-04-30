@@ -13,10 +13,10 @@ use tokio_util::sync::CancellationToken;
 
 pub use jwt::decode_jwt_identity_unverified;
 
+use crate::agents_state::{self, AgentsState};
 use crate::auth::{cache, setup};
 use crate::config::{self, paths};
 
-use crate::gui::agents_state::{self, AgentsState};
 use crate::gui::hosts::state::HostsState;
 
 use crate::integration::{HostAppSnapshot, ProxyHealth};
@@ -248,6 +248,10 @@ impl AppState {
 
     pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
         let mut guard = self.inner.write();
+        if !guard.agents.is_enabled(host_id) {
+            guard.hosts.by_id.remove(host_id);
+            return;
+        }
         let entry = guard.hosts.entry(host_id);
         entry.snapshot = Some(snap);
         entry.probe_in_flight = false;

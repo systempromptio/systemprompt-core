@@ -93,6 +93,9 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
+    if let Err(e) = crate::agents_state::delete() {
+        return Err(SetupError::Io(format!("clear agents state: {e}")));
+    }
     Ok(CleanReport {
         paths,
         pat_removed,

@@ -195,6 +195,12 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
                         format!("unknown host: {}", a.host_id),
                     )));
                 }
+                let was_enabled = app.state.is_host_enabled(&a.host_id);
+                if was_enabled == a.enabled {
+                    return CommandOutcome::Sync(Ok(
+                        json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": false }),
+                    ));
+                }
                 if let Err(e) = app.state.set_host_enabled(&a.host_id, a.enabled) {
                     return CommandOutcome::Sync(Err(BridgeError::new(
                         ErrorScope::Internal,
@@ -218,7 +224,9 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
                     );
                 }
                 crate::gui::ipc_runtime::emit_state(app);
-                CommandOutcome::Sync(Ok(json!({ "hostId": a.host_id, "enabled": a.enabled })))
+                CommandOutcome::Sync(Ok(
+                    json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": true }),
+                ))
             },
             Err(e) => CommandOutcome::Sync(Err(e)),
         },

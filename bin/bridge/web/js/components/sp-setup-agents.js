@@ -10,15 +10,22 @@ export class SpSetupAgents extends SpElement {
       const id = trigger.dataset.hostId;
       if (!id) { return; }
       trigger.disabled = true;
+      let stage = "enable";
       try {
         await bridge.agentsSetEnabled(id, true);
+        stage = "generate";
         const gen = await bridge.hostProfileGenerate(id);
         const path = gen && (gen.path || gen.profile_path);
-        if (path) {
-          await bridge.hostProfileInstall(id, path);
+        if (!path) {
+          throw new Error("generate did not return a path");
         }
+        stage = "install";
+        await bridge.hostProfileInstall(id, path);
       } catch (e) {
-        console.warn("install-host", e);
+        console.warn(`install-host (${stage})`, e);
+        const msg = (e && e.message) || String(e);
+        trigger.dataset.failedStage = stage;
+        trigger.title = `${stage} failed: ${msg}`;
         trigger.disabled = false;
       }
     });
