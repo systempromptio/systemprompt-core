@@ -1,6 +1,6 @@
 import { $ } from "../dom.js?t=__TOKEN__";
 import { apiPost } from "../api.js?t=__TOKEN__";
-import { reportError } from "../drawer.js?t=__TOKEN__";
+import { append, reportError, showToast } from "../drawer.js?t=__TOKEN__";
 
 let gatewayDebounceTimer = null;
 let lastSavedGateway = "";
@@ -89,24 +89,36 @@ export const initGateway = () => {
   }
 };
 
+let connectPendingSince = 0;
+
 const setConnectPending = (pending) => {
   const btn = document.querySelector('[data-action="setup-connect"], #setup-connect');
   if (!btn) {
     return;
   }
+  const label = btn.querySelector(".sp-btn__label") || btn;
   if (pending) {
-    btn.dataset.label = btn.dataset.label || btn.textContent;
-    btn.textContent = "Connecting…";
+    if (!btn.dataset.label) {
+      btn.dataset.label = label.textContent;
+    }
+    label.textContent = "Connecting…";
     btn.disabled = true;
     btn.setAttribute("aria-busy", "true");
+    connectPendingSince = Date.now();
   } else {
     if (btn.dataset.label) {
-      btn.textContent = btn.dataset.label;
+      label.textContent = btn.dataset.label;
     }
     btn.disabled = false;
     btn.removeAttribute("aria-busy");
+    connectPendingSince = 0;
   }
 };
+
+export const isConnectPending = () => connectPendingSince > 0;
+export const connectPendingDurationMs = () =>
+  connectPendingSince > 0 ? Date.now() - connectPendingSince : 0;
+export const clearConnectPending = () => setConnectPending(false);
 
 export const connectFromSetup = () => {
   const input = $("setup-pat");
@@ -123,12 +135,14 @@ export const connectFromSetup = () => {
     setSetupError("");
     lastSavedGateway = gateway;
     setConnectPending(true);
-    apiPost("/api/probe")
-      .catch((e) => {
-        reportError(String(e.message || e));
-        setSetupError(`Probe failed: ${e.message || e}`);
-      })
-      .finally(() => setTimeout(() => setConnectPending(false), 1500));
+    showToast(`Re-probing ${gateway}…`, "info", 4000);
+    append(`Re-probing ${gateway}…`);
+    apiPost("/api/probe").catch((e) => {
+      const msg = String(e.message || e);
+      reportError(msg);
+      setSetupError(`Probe failed: ${msg}`);
+      setConnectPending(false);
+    });
     return;
   }
   const token = input.value.trim();
@@ -139,12 +153,14 @@ export const connectFromSetup = () => {
   setSetupError("");
   lastSavedGateway = gateway;
   setConnectPending(true);
-  apiPost("/api/login", { token, gateway })
-    .catch((e) => {
-      reportError(String(e.message || e));
-      setSetupError(`Login failed: ${e.message || e}`);
-    })
-    .finally(() => setTimeout(() => setConnectPending(false), 2000));
+  showToast(`Connecting to ${gateway}…`, "info", 6000);
+  append(`Submitting PAT to ${gateway} …`);
+  apiPost("/api/login", { token, gateway }).catch((e) => {
+    const msg = String(e.message || e);
+    reportError(msg);
+    setSetupError(`Login failed: ${msg}`);
+    setConnectPending(false);
+  });
 };
 
 export const editSetupPat = () => {
