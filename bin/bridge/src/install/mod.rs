@@ -153,13 +153,12 @@ fn bootstrap_install(
 }
 
 fn persist_optional_config(gateway_url: Option<&str>, pubkey: Option<&str>) {
-    if let Some(url) = gateway_url {
-        if let Err(e) = config::ensure_gateway_url(url) {
+    if let Some(url) = gateway_url
+        && let Err(e) = config::ensure_gateway_url(url) {
             diag(&format!(
                 "warning: could not persist gateway_url to config: {e}"
             ));
         }
-    }
     if let Some(pubkey) = pubkey {
         match config::persist_pinned_pubkey(pubkey) {
             Ok(()) => tracing::info!(

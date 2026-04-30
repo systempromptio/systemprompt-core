@@ -11,21 +11,17 @@ pub(super) struct DomainRead {
 
 pub(super) fn read_config() -> DomainRead {
     let managed = config::managed_config_path();
-    if managed.exists() {
-        if let Ok(text) = std::fs::read_to_string(&managed) {
-            if let Some(read) = parse_into_keys(&text, &managed.display().to_string()) {
+    if managed.exists()
+        && let Ok(text) = std::fs::read_to_string(&managed)
+            && let Some(read) = parse_into_keys(&text, &managed.display().to_string()) {
                 return read;
             }
-        }
-    }
     let user = config::user_config_path();
-    if user.exists() {
-        if let Ok(text) = std::fs::read_to_string(&user) {
-            if let Some(read) = parse_into_keys(&text, &user.display().to_string()) {
+    if user.exists()
+        && let Ok(text) = std::fs::read_to_string(&user)
+            && let Some(read) = parse_into_keys(&text, &user.display().to_string()) {
                 return read;
             }
-        }
-    }
     DomainRead::default()
 }
 

@@ -33,7 +33,6 @@ use crate::gui::state::{AppState, GatewayStatus, now_unix};
 use crate::gui::window::SettingsWindow;
 use crate::obs::output::diag;
 use tokio::runtime::Handle;
-use tokio_util::sync::CancellationToken;
 
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 const PROXY_STATS_TICK_SECS: u64 = 1;
@@ -96,7 +95,6 @@ pub(crate) struct GuiApp {
     pub(crate) menu_bar: Option<menu::MenuBarHandles>,
     pub(crate) server: Option<Server>,
     pub(crate) runtime: Handle,
-    pub(crate) cancel: CancellationToken,
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
 }
@@ -116,7 +114,6 @@ impl GuiApp {
             menu_bar: None,
             server: None,
             runtime,
-            cancel: CancellationToken::new(),
             settings_window: None,
             last_proxy_stats_tick: Instant::now(),
         }
@@ -199,13 +196,11 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             ipc_runtime::emit_theme_changed(self, label);
             return;
         }
-        if let WindowEvent::CloseRequested = event {
-            if let Some(win) = &self.settings_window {
-                if win.id() == id {
+        if let WindowEvent::CloseRequested = event
+            && let Some(win) = &self.settings_window
+                && win.id() == id {
                     win.hide();
                 }
-            }
-        }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {

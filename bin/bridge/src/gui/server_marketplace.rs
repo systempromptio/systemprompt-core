@@ -300,13 +300,11 @@ fn first_existing(candidates: &[PathBuf]) -> Option<PathBuf> {
 
 fn read_first_existing(candidates: &[PathBuf]) -> Option<String> {
     for c in candidates {
-        if let Ok(meta) = std::fs::metadata(c) {
-            if meta.is_file() && meta.len() <= README_MAX_BYTES as u64 {
-                if let Ok(text) = std::fs::read_to_string(c) {
+        if let Ok(meta) = std::fs::metadata(c)
+            && meta.is_file() && meta.len() <= README_MAX_BYTES as u64
+                && let Ok(text) = std::fs::read_to_string(c) {
                     return Some(text);
                 }
-            }
-        }
     }
     None
 }
