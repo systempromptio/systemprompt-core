@@ -1,5 +1,4 @@
-import { html, nothing } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 
@@ -16,19 +15,15 @@ function classify(snap) {
   return { state: "idle", text: t("gateway-not-signed-in") || "needs sign-in" };
 }
 
-export class SpSyncPill extends BridgeElement {
-  static properties = { snapshot: { state: true }, progress: { state: true } };
-
+export class SpSyncPill extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
     this.progress = null;
+    this.registerAction("cancel-sync", (_, e) => this._onCancel(e));
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     this.classList.add("sp-sync-pill");
     this.setAttribute("aria-live", "polite");
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
@@ -36,7 +31,7 @@ export class SpSyncPill extends BridgeElement {
     this.bridgeSubscribe("sync.progress", (p) => { this.progress = p; });
   }
 
-  updated() {
+  afterRender() {
     const snap = this.snapshot || {};
     const v = classify(snap);
     this.dataset.state = v.state;
@@ -54,14 +49,16 @@ export class SpSyncPill extends BridgeElement {
   render() {
     const snap = this.snapshot || {};
     const v = classify(snap);
-    return html`
+    const cancel = snap.sync_in_flight
+      ? `<button type="button" class="sp-sync-pill__cancel" data-l10n-id="sync-cancel" aria-label="Cancel sync" data-action="cancel-sync">Cancel</button>`
+      : "";
+    return `
       <span class="sp-sync-pill__dot" aria-hidden="true"></span>
-      <span class="sp-sync-pill__label">${v.text}</span>
-      ${snap.sync_in_flight
-        ? html`<button type="button" class="sp-sync-pill__cancel" data-l10n-id="sync-cancel" aria-label="Cancel sync" @click=${(e) => this._onCancel(e)}>Cancel</button>`
-        : nothing}
+      <span class="sp-sync-pill__label">${escapeHtml(v.text)}</span>
+      ${cancel}
     `;
   }
 }
 
+reactive(SpSyncPill.prototype, ["snapshot", "progress"]);
 customElements.define("sp-sync-pill", SpSyncPill);

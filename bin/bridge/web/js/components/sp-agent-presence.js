@@ -1,5 +1,4 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 
 function presenceState(host) {
@@ -22,18 +21,13 @@ function syncRailCount(count) {
   if (el) { el.textContent = String(count); }
 }
 
-export class SpAgentPresence extends BridgeElement {
-  static properties = { snapshot: { state: true } };
-
+export class SpAgentPresence extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
     this.bridgeSubscribe("host.changed", (host) => this._mergeHost(host));
@@ -47,24 +41,20 @@ export class SpAgentPresence extends BridgeElement {
     this.snapshot = { ...this.snapshot, host_apps: list };
   }
 
-  updated() {
+  afterRender() {
     const list = (this.snapshot && this.snapshot.host_apps) || [];
     syncRailCount(list.length);
   }
 
   render() {
     const list = (this.snapshot && this.snapshot.host_apps) || [];
-    return html`${list.map((host) => {
+    return list.map((host) => {
       const state = presenceState(host);
-      return html`<span
-        class="sp-agent__dot"
-        data-action="agent-jump"
-        data-agent=${host.id}
-        data-state=${state}
-        title="${host.display_name} · ${presenceLabel(state)}"
-      ></span>`;
-    })}`;
+      const title = `${host.display_name} · ${presenceLabel(state)}`;
+      return `<span class="sp-agent__dot" data-action="agent-jump" data-agent="${escapeHtml(host.id)}" data-state="${state}" title="${escapeHtml(title)}"></span>`;
+    }).join("");
   }
 }
 
+reactive(SpAgentPresence.prototype, ["snapshot"]);
 customElements.define("sp-agent-presence", SpAgentPresence);

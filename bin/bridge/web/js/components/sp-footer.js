@@ -1,5 +1,4 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 
 function fmtCount(n) {
@@ -23,18 +22,13 @@ function dotClass(state) {
   return "sp-dot--warn";
 }
 
-export class SpFooter extends BridgeElement {
-  static properties = { snapshot: { state: true } };
-
+export class SpFooter extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     this.classList.add("sp-footer");
     this.setAttribute("role", "contentinfo");
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
@@ -53,30 +47,31 @@ export class SpFooter extends BridgeElement {
     const gitSha = this.dataset.gitSha || "";
     const buildDate = this.dataset.buildDate || "";
 
-    return html`
+    return `
       <div class="sp-footer__left">
         <span class="sp-footer__stat" title="Host status">
           <span class="sp-dot ${dotClass(hostState(snap))}" aria-hidden="true"></span>
-          <span>${platformDisplay}</span>
+          <span>${escapeHtml(platformDisplay)}</span>
         </span>
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <span class="sp-footer__path" title="Config path">${snap.config_file || "—"}</span>
+        <span class="sp-footer__path" title="Config path">${escapeHtml(snap.config_file || "—")}</span>
       </div>
       <div class="sp-footer__meta">
-        <span class="sp-footer__version" title="Build ${gitSha} committed ${buildDate}">v${version} (${gitSha}, ${buildDate})</span>
+        <span class="sp-footer__version" title="Build ${escapeHtml(gitSha)} committed ${escapeHtml(buildDate)}">v${escapeHtml(version)} (${escapeHtml(gitSha)}, ${escapeHtml(buildDate)})</span>
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <a href="https://systemprompt.io/docs/bridge/${platform}" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-docs">docs</a>
+        <a href="https://systemprompt.io/docs/bridge/${escapeHtml(platform)}" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-docs">docs</a>
         <span class="sp-footer__sep" aria-hidden="true">·</span>
         <a href="mailto:ed@systemprompt.io" data-l10n-id="footer-licensing">licensing</a>
       </div>
       <div class="sp-footer__right">
         <span class="sp-footer__hint"><span class="sp-kbd">⌘1</span><span class="sp-kbd">⌘2</span><span class="sp-kbd">⌘3</span><span class="sp-kbd">⌘4</span> <span data-l10n-id="footer-tabs-hint">tabs</span></span>
       </div>
-      <span hidden data-role="lane-msgs">${fmtCount(stats.messages_total)}</span>
-      <span hidden data-role="lane-tin">${fmtCount(stats.tokens_in_total)}</span>
-      <span hidden data-role="lane-tout">${fmtCount(stats.tokens_out_total)}</span>
+      <span hidden data-role="lane-msgs">${escapeHtml(fmtCount(stats.messages_total))}</span>
+      <span hidden data-role="lane-tin">${escapeHtml(fmtCount(stats.tokens_in_total))}</span>
+      <span hidden data-role="lane-tout">${escapeHtml(fmtCount(stats.tokens_out_total))}</span>
     `;
   }
 }
 
+reactive(SpFooter.prototype, ["snapshot"]);
 customElements.define("sp-footer", SpFooter);

@@ -1,5 +1,4 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 
 function summaryView(list) {
@@ -12,18 +11,13 @@ function summaryView(list) {
   return { dot, label: `${installed} of ${list.length} agents configured · ${running} running` };
 }
 
-export class SpAgentsSummary extends BridgeElement {
-  static properties = { snapshot: { state: true } };
-
+export class SpAgentsSummary extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
     this.bridgeSubscribe("host.changed", (host) => this._mergeHost(host));
@@ -40,7 +34,7 @@ export class SpAgentsSummary extends BridgeElement {
   render() {
     const list = (this.snapshot && this.snapshot.host_apps) || [];
     const view = summaryView(list);
-    return html`
+    return `
       <table class="sp-status__board">
         <tbody>
           <tr>
@@ -48,7 +42,7 @@ export class SpAgentsSummary extends BridgeElement {
             <td>
               <div class="sp-status__row">
                 <span class="sp-dot ${view.dot}" aria-hidden="true"></span>
-                <span>${view.label}</span>
+                <span>${escapeHtml(view.label)}</span>
               </div>
             </td>
             <td class="sp-status__actions">
@@ -61,4 +55,5 @@ export class SpAgentsSummary extends BridgeElement {
   }
 }
 
+reactive(SpAgentsSummary.prototype, ["snapshot"]);
 customElements.define("sp-agents-summary", SpAgentsSummary);

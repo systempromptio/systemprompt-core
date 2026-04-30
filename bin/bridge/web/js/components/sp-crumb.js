@@ -1,5 +1,5 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 
 export const TAB_LABELS = {
   marketplace: "Marketplace",
@@ -8,9 +8,7 @@ export const TAB_LABELS = {
   settings: "Settings",
 };
 
-export class SpCrumb extends BridgeElement {
-  static properties = { label: { state: true }, changing: { state: true } };
-
+export class SpCrumb extends SpElement {
   constructor() {
     super();
     this.label = TAB_LABELS.marketplace;
@@ -27,30 +25,27 @@ export class SpCrumb extends BridgeElement {
     };
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     this.classList.add("sp-crumb");
     this.setAttribute("aria-label", "Breadcrumb");
-    document.addEventListener("crumb:set", this._onSet);
+    this._unsub = onBridgeEvent("crumb:set", this._onSet);
   }
 
-  disconnectedCallback() {
-    document.removeEventListener("crumb:set", this._onSet);
-    super.disconnectedCallback();
+  onDisconnect() {
+    if (this._unsub) { this._unsub(); this._unsub = null; }
   }
 
-  updated() {
+  afterRender() {
     this.dataset.changing = this.changing ? "true" : "false";
   }
 
   render() {
-    return html`
+    return `
       <span class="sp-crumb__sep" aria-hidden="true">/</span>
-      <span class="sp-crumb__current">${this.label}</span>
+      <span class="sp-crumb__current">${escapeHtml(this.label)}</span>
     `;
   }
 }
 
+reactive(SpCrumb.prototype, ["label", "changing"]);
 customElements.define("sp-crumb", SpCrumb);

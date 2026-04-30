@@ -1,5 +1,4 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 
 function proxyView(proxy) {
@@ -21,26 +20,21 @@ function collectInferenceModels(snap) {
     const raw = host.snapshot && host.snapshot.profile_keys && host.snapshot.profile_keys.inferenceModels;
     if (raw) {
       for (const m of raw.split(",")) {
-        const t = m.trim();
-        if (t && !seen.has(t)) { seen.add(t); out.push(t); }
+        const trimmed = m.trim();
+        if (trimmed && !seen.has(trimmed)) { seen.add(trimmed); out.push(trimmed); }
       }
     }
   }
   return out;
 }
 
-export class SpProxyStatus extends BridgeElement {
-  static properties = { snapshot: { state: true } };
-
+export class SpProxyStatus extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
     this.bridgeSubscribe("proxy.changed", () => {
@@ -58,35 +52,28 @@ export class SpProxyStatus extends BridgeElement {
     const epText = models.length === 0 ? "no models configured yet" : models.join(", ");
     const epMuted = models.length === 0;
 
-    return html`
-      <table class="sp-status__board">
-        <tbody>
-          <tr>
-            <th data-l10n-id="status-proxy-health">Health</th>
-            <td>
-              <div class="sp-status__row">
-                <span class="sp-dot ${view.dot}" aria-hidden="true"></span>
-                <span>${view.label}</span>
-              </div>
-              <div class="sp-status__detail sp-u-mono ${url ? "" : "sp-u-muted"}">${url || "(no proxy URL configured yet)"}</div>
-            </td>
-            <td class="sp-status__actions"></td>
-          </tr>
-          <tr>
-            <th data-l10n-id="status-proxy-endpoints">Inference endpoints</th>
-            <td>
-              <div class="sp-status__row">
-                <span class="sp-dot ${epDot}" aria-hidden="true"></span>
-                <span class=${epMuted ? "sp-u-muted" : ""}>${epText}</span>
-              </div>
-              <div class="sp-status__detail sp-u-muted" data-l10n-id="status-proxy-endpoints-detail">Models the proxy advertises to host apps.</div>
-            </td>
-            <td class="sp-status__actions"></td>
-          </tr>
-        </tbody>
-      </table>
+    return `
+      <table class="sp-status__board"><tbody>
+        <tr>
+          <th data-l10n-id="status-proxy-health">Health</th>
+          <td>
+            <div class="sp-status__row"><span class="sp-dot ${view.dot}" aria-hidden="true"></span><span>${escapeHtml(view.label)}</span></div>
+            <div class="sp-status__detail sp-u-mono ${url ? "" : "sp-u-muted"}">${escapeHtml(url || "(no proxy URL configured yet)")}</div>
+          </td>
+          <td class="sp-status__actions"></td>
+        </tr>
+        <tr>
+          <th data-l10n-id="status-proxy-endpoints">Inference endpoints</th>
+          <td>
+            <div class="sp-status__row"><span class="sp-dot ${epDot}" aria-hidden="true"></span><span class="${epMuted ? "sp-u-muted" : ""}">${escapeHtml(epText)}</span></div>
+            <div class="sp-status__detail sp-u-muted" data-l10n-id="status-proxy-endpoints-detail">Models the proxy advertises to host apps.</div>
+          </td>
+          <td class="sp-status__actions"></td>
+        </tr>
+      </tbody></table>
     `;
   }
 }
 
+reactive(SpProxyStatus.prototype, ["snapshot"]);
 customElements.define("sp-proxy-status", SpProxyStatus);

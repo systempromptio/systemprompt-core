@@ -33,10 +33,9 @@ const CSS_FILES: &[(&str, &str)] = &[
     ("log", include_str!("../../web/css/log.css")),
     ("footer", include_str!("../../web/css/footer.css")),
     ("responsive", include_str!("../../web/css/responsive.css")),
+    ("toast", include_str!("../../web/css/toast.css")),
     ("main", include_str!("../../web/css/main.css")),
 ];
-
-const LIT_VENDOR: &str = include_str!("../../web/vendor/lit-all.min.js");
 
 const ICON_SVG: &str = include_str!("../../assets/icon.svg");
 const LOGO_SVG: &str = include_str!("../../assets/logo.svg");
@@ -48,16 +47,31 @@ const FONT_OPENSANS_BOLD: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Bo
 const JS_MODULES: &[(&str, &str)] = &[
     ("i18n", include_str!("../../web/js/i18n.js")),
     ("theme", include_str!("../../web/js/theme.js")),
-    ("atoms", include_str!("../../web/js/atoms.js")),
     ("bridge", include_str!("../../web/js/bridge.js")),
     ("index", include_str!("../../web/js/index.js")),
+    (
+        "events/bridge-events",
+        include_str!("../../web/js/events/bridge-events.js"),
+    ),
+    (
+        "services/marketplace-service",
+        include_str!("../../web/js/services/marketplace-service.js"),
+    ),
+    (
+        "utils/rail-tabs",
+        include_str!("../../web/js/utils/rail-tabs.js"),
+    ),
+    (
+        "utils/gateway",
+        include_str!("../../web/js/utils/gateway.js"),
+    ),
     (
         "components/log-virtual",
         include_str!("../../web/js/components/log-virtual.js"),
     ),
     (
-        "components/base",
-        include_str!("../../web/js/components/base.js"),
+        "components/sp-element",
+        include_str!("../../web/js/components/sp-element.js"),
     ),
     (
         "components/sp-cloud-status",
@@ -219,12 +233,6 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
         return Some(Asset::text(
             "text/css; charset=utf-8",
             src.replace("__TOKEN__", ""),
-        ));
-    }
-    if path == "/assets/js/vendor/lit-all.js" {
-        return Some(Asset::text(
-            "application/javascript; charset=utf-8",
-            LIT_VENDOR.to_string(),
         ));
     }
     if let Some(name) = path
