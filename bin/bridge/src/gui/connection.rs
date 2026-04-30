@@ -3,8 +3,7 @@ use std::sync::Arc;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
-use serde::Deserialize;
-
+use crate::gui::action_dispatch::handle_action;
 use crate::gui::events::UiEvent;
 use crate::gui::server::ActivityLog;
 use crate::gui::server_json::snapshot_to_json;
@@ -15,28 +14,37 @@ use crate::http_local::{ResponseBuilder, parse_from_read};
 const HTML: &str = include_str!("../../web/index.html");
 
 const CSS_FILES: &[(&str, &str)] = &[
-    ("tokens",              include_str!("../../web/css/tokens.css")),
-    ("fonts",               include_str!("../../web/css/fonts.css")),
-    ("reset",               include_str!("../../web/css/reset.css")),
-    ("kbd",                 include_str!("../../web/css/kbd.css")),
-    ("dot",                 include_str!("../../web/css/dot.css")),
-    ("badge",               include_str!("../../web/css/badge.css")),
-    ("button",              include_str!("../../web/css/button.css")),
-    ("topbar",              include_str!("../../web/css/topbar.css")),
-    ("rail",                include_str!("../../web/css/rail.css")),
-    ("shell",               include_str!("../../web/css/shell.css")),
-    ("drawer",              include_str!("../../web/css/drawer.css")),
-    ("marketplace-base",    include_str!("../../web/css/marketplace-base.css")),
-    ("marketplace-list",    include_str!("../../web/css/marketplace-list.css")),
-    ("marketplace-detail",  include_str!("../../web/css/marketplace-detail.css")),
-    ("status",              include_str!("../../web/css/status.css")),
-    ("settings",            include_str!("../../web/css/settings.css")),
-    ("setup",               include_str!("../../web/css/setup.css")),
-    ("agents",              include_str!("../../web/css/agents.css")),
-    ("log",                 include_str!("../../web/css/log.css")),
-    ("footer",              include_str!("../../web/css/footer.css")),
-    ("responsive",          include_str!("../../web/css/responsive.css")),
-    ("main",                include_str!("../../web/css/main.css")),
+    ("tokens", include_str!("../../web/css/tokens.css")),
+    ("fonts", include_str!("../../web/css/fonts.css")),
+    ("reset", include_str!("../../web/css/reset.css")),
+    ("kbd", include_str!("../../web/css/kbd.css")),
+    ("dot", include_str!("../../web/css/dot.css")),
+    ("badge", include_str!("../../web/css/badge.css")),
+    ("button", include_str!("../../web/css/button.css")),
+    ("topbar", include_str!("../../web/css/topbar.css")),
+    ("rail", include_str!("../../web/css/rail.css")),
+    ("shell", include_str!("../../web/css/shell.css")),
+    ("drawer", include_str!("../../web/css/drawer.css")),
+    (
+        "marketplace-base",
+        include_str!("../../web/css/marketplace-base.css"),
+    ),
+    (
+        "marketplace-list",
+        include_str!("../../web/css/marketplace-list.css"),
+    ),
+    (
+        "marketplace-detail",
+        include_str!("../../web/css/marketplace-detail.css"),
+    ),
+    ("status", include_str!("../../web/css/status.css")),
+    ("settings", include_str!("../../web/css/settings.css")),
+    ("setup", include_str!("../../web/css/setup.css")),
+    ("agents", include_str!("../../web/css/agents.css")),
+    ("log", include_str!("../../web/css/log.css")),
+    ("footer", include_str!("../../web/css/footer.css")),
+    ("responsive", include_str!("../../web/css/responsive.css")),
+    ("main", include_str!("../../web/css/main.css")),
 ];
 
 const ICON_SVG: &str = include_str!("../../assets/icon.svg");
@@ -47,30 +55,54 @@ const FONT_OPENSANS_REGULAR: &[u8] = include_bytes!("../../assets/fonts/OpenSans
 const FONT_OPENSANS_BOLD: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Bold.woff2");
 
 const JS_MODULES: &[(&str, &str)] = &[
-    ("agents",              include_str!("../../web/js/agents.js")),
-    ("api",                 include_str!("../../web/js/api.js")),
-    ("cloud",               include_str!("../../web/js/cloud.js")),
-    ("crumb",               include_str!("../../web/js/crumb.js")),
-    ("dom",                 include_str!("../../web/js/dom.js")),
-    ("drawer",              include_str!("../../web/js/drawer.js")),
-    ("footer",              include_str!("../../web/js/footer.js")),
-    ("hosts",               include_str!("../../web/js/hosts.js")),
-    ("index",               include_str!("../../web/js/index.js")),
-    ("marketplace",         include_str!("../../web/js/marketplace.js")),
-    ("overall-badge",       include_str!("../../web/js/overall-badge.js")),
-    ("profile",             include_str!("../../web/js/profile.js")),
-    ("proxy",               include_str!("../../web/js/proxy.js")),
-    ("rail-indicator",      include_str!("../../web/js/rail-indicator.js")),
-    ("setup",               include_str!("../../web/js/setup.js")),
-    ("state",               include_str!("../../web/js/state.js")),
-    ("sync-pill",           include_str!("../../web/js/sync-pill.js")),
-    ("tabs",                include_str!("../../web/js/tabs.js")),
-    ("events/keyboard",     include_str!("../../web/js/events/keyboard.js")),
-    ("events/registry",     include_str!("../../web/js/events/registry.js")),
-    ("marketplace/detail",  include_str!("../../web/js/marketplace/detail.js")),
-    ("marketplace/glyph",   include_str!("../../web/js/marketplace/glyph.js")),
-    ("marketplace/list",    include_str!("../../web/js/marketplace/list.js")),
-    ("marketplace/state",   include_str!("../../web/js/marketplace/state.js")),
+    ("agents", include_str!("../../web/js/agents.js")),
+    ("api", include_str!("../../web/js/api.js")),
+    ("cloud", include_str!("../../web/js/cloud.js")),
+    ("crumb", include_str!("../../web/js/crumb.js")),
+    ("dom", include_str!("../../web/js/dom.js")),
+    ("drawer", include_str!("../../web/js/drawer.js")),
+    ("footer", include_str!("../../web/js/footer.js")),
+    ("hosts", include_str!("../../web/js/hosts.js")),
+    ("index", include_str!("../../web/js/index.js")),
+    ("marketplace", include_str!("../../web/js/marketplace.js")),
+    (
+        "overall-badge",
+        include_str!("../../web/js/overall-badge.js"),
+    ),
+    ("profile", include_str!("../../web/js/profile.js")),
+    ("proxy", include_str!("../../web/js/proxy.js")),
+    (
+        "rail-indicator",
+        include_str!("../../web/js/rail-indicator.js"),
+    ),
+    ("setup", include_str!("../../web/js/setup.js")),
+    ("state", include_str!("../../web/js/state.js")),
+    ("sync-pill", include_str!("../../web/js/sync-pill.js")),
+    ("tabs", include_str!("../../web/js/tabs.js")),
+    (
+        "events/keyboard",
+        include_str!("../../web/js/events/keyboard.js"),
+    ),
+    (
+        "events/registry",
+        include_str!("../../web/js/events/registry.js"),
+    ),
+    (
+        "marketplace/detail",
+        include_str!("../../web/js/marketplace/detail.js"),
+    ),
+    (
+        "marketplace/glyph",
+        include_str!("../../web/js/marketplace/glyph.js"),
+    ),
+    (
+        "marketplace/list",
+        include_str!("../../web/js/marketplace/list.js"),
+    ),
+    (
+        "marketplace/state",
+        include_str!("../../web/js/marketplace/state.js"),
+    ),
 ];
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -98,34 +130,6 @@ pub struct ConnectionContext<'a> {
     pub tx: &'a Sender<UiEvent>,
     pub csrf_token: &'a str,
     pub log: &'a ActivityLog,
-}
-
-#[derive(Debug, Deserialize)]
-struct LoginBody {
-    token: crate::auth::secret::Secret,
-    #[serde(default)]
-    gateway: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SetGatewayBody {
-    url: String,
-}
-
-
-#[derive(Debug, Deserialize)]
-struct InstallProfileBody {
-    path: String,
-}
-
-
-fn parse_host_id(path: &str, prefix: &str, suffix: &str) -> Option<String> {
-    let rest = path.strip_prefix(prefix)?;
-    let id = rest.strip_suffix(suffix)?;
-    if id.is_empty() || id.contains('/') {
-        return None;
-    }
-    Some(id.to_string())
 }
 
 #[tracing::instrument(skip_all, fields(peer = ?stream.peer_addr().ok()))]
@@ -159,33 +163,8 @@ pub fn handle_connection(
     tracing::debug!(method = %req.method, path = %req.path, "dispatching");
     let route = (req.method.as_str(), req.path.as_str());
     if let ("GET", path) = route {
-        if let Some(name) = path
-            .strip_prefix("/assets/css/")
-            .and_then(|s| s.strip_suffix(".css"))
-        {
-            if let Some((_, src)) = CSS_FILES.iter().find(|(n, _)| *n == name) {
-                let body = src.replace("__TOKEN__", ctx.csrf_token);
-                return write_response(
-                    &mut stream,
-                    200,
-                    "text/css; charset=utf-8",
-                    body.as_bytes(),
-                );
-            }
-        }
-        if let Some(name) = path
-            .strip_prefix("/assets/js/")
-            .and_then(|s| s.strip_suffix(".js"))
-        {
-            if let Some((_, src)) = JS_MODULES.iter().find(|(n, _)| *n == name) {
-                let body = src.replace("__TOKEN__", ctx.csrf_token);
-                return write_response(
-                    &mut stream,
-                    200,
-                    "application/javascript; charset=utf-8",
-                    body.as_bytes(),
-                );
-            }
+        if let Some(asset) = serve_static_asset(path, ctx.csrf_token) {
+            return write_response(&mut stream, 200, asset.content_type, &asset.body);
         }
     }
     match route {
@@ -214,6 +193,37 @@ pub fn handle_connection(
         ("POST", path) => handle_action(&mut stream, ctx.tx, ctx.log, path, &req.body),
         _ => write_response(&mut stream, 404, "text/plain", b"not found"),
     }
+}
+
+struct StaticAsset {
+    content_type: &'static str,
+    body: Vec<u8>,
+}
+
+fn serve_static_asset(path: &str, csrf_token: &str) -> Option<StaticAsset> {
+    if let Some(name) = path
+        .strip_prefix("/assets/css/")
+        .and_then(|s| s.strip_suffix(".css"))
+    {
+        if let Some((_, src)) = CSS_FILES.iter().find(|(n, _)| *n == name) {
+            return Some(StaticAsset {
+                content_type: "text/css; charset=utf-8",
+                body: src.replace("__TOKEN__", csrf_token).into_bytes(),
+            });
+        }
+    }
+    if let Some(name) = path
+        .strip_prefix("/assets/js/")
+        .and_then(|s| s.strip_suffix(".js"))
+    {
+        if let Some((_, src)) = JS_MODULES.iter().find(|(n, _)| *n == name) {
+            return Some(StaticAsset {
+                content_type: "application/javascript; charset=utf-8",
+                body: src.replace("__TOKEN__", csrf_token).into_bytes(),
+            });
+        }
+    }
+    None
 }
 
 fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> {
@@ -264,119 +274,6 @@ fn serve_log(stream: &mut TcpStream, log: &ActivityLog, since: u64) -> std::io::
             format!("encode error: {e}").as_bytes(),
         ),
     }
-}
-
-#[tracing::instrument(skip(stream, tx, log, body), fields(action = path))]
-fn handle_action(
-    stream: &mut TcpStream,
-    tx: &Sender<UiEvent>,
-    log: &ActivityLog,
-    path: &str,
-    body: &[u8],
-) -> std::io::Result<()> {
-    let event = match path {
-        "/api/sync" => UiEvent::SyncRequested,
-        "/api/validate" => UiEvent::ValidateRequested,
-        "/api/probe" => UiEvent::GatewayProbeRequested,
-        "/api/logout" => UiEvent::LogoutRequested,
-        "/api/open_folder" => UiEvent::OpenConfigFolder,
-        "/api/gateway" => match serde_json::from_slice::<SetGatewayBody>(body) {
-            Ok(b) => UiEvent::SetGatewayRequested(b.url),
-            Err(e) => {
-                return write_response(
-                    stream,
-                    400,
-                    "text/plain",
-                    format!("bad gateway body: {e}").as_bytes(),
-                );
-            },
-        },
-        "/api/login" => match serde_json::from_slice::<LoginBody>(body) {
-            Ok(b) => UiEvent::LoginRequested {
-                token: b.token,
-                gateway: b.gateway,
-            },
-            Err(e) => {
-                return write_response(
-                    stream,
-                    400,
-                    "text/plain",
-                    format!("bad login body: {e}").as_bytes(),
-                );
-            },
-        },
-        
-        "/api/proxy/probe" => {
-            UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProxyProbeRequested)
-        },
-        
-        p if p.starts_with("/api/hosts/") && p.ends_with("/probe") => {
-            match parse_host_id(p, "/api/hosts/", "/probe") {
-                Some(host_id) => {
-                    UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProbeRequested {
-                        host_id,
-                    })
-                },
-                None => return write_response(stream, 404, "text/plain", b"not found"),
-            }
-        },
-        
-        p if p.starts_with("/api/hosts/") && p.ends_with("/profile/generate") => {
-            match parse_host_id(p, "/api/hosts/", "/profile/generate") {
-                Some(host_id) => UiEvent::Host(
-                    crate::gui::hosts::events::HostUiEvent::ProfileGenerateRequested { host_id },
-                ),
-                None => return write_response(stream, 404, "text/plain", b"not found"),
-            }
-        },
-        
-        p if p.starts_with("/api/hosts/") && p.ends_with("/profile/install") => {
-            match parse_host_id(p, "/api/hosts/", "/profile/install") {
-                Some(host_id) => match serde_json::from_slice::<InstallProfileBody>(body) {
-                    Ok(b) => UiEvent::Host(
-                        crate::gui::hosts::events::HostUiEvent::ProfileInstallRequested {
-                            host_id,
-                            path: b.path,
-                        },
-                    ),
-                    Err(e) => {
-                        return write_response(
-                            stream,
-                            400,
-                            "text/plain",
-                            format!("bad install body: {e}").as_bytes(),
-                        );
-                    },
-                },
-                None => return write_response(stream, 404, "text/plain", b"not found"),
-            }
-        },
-
-        p if p.starts_with("/api/agents/") && p.ends_with("/uninstall") => {
-            match parse_host_id(p, "/api/agents/", "/uninstall") {
-                Some(host_id) => UiEvent::AgentUninstall { host_id },
-                None => return write_response(stream, 404, "text/plain", b"not found"),
-            }
-        },
-
-        p if p.starts_with("/api/agents/") && p.ends_with("/open-config") => {
-            match parse_host_id(p, "/api/agents/", "/open-config") {
-                Some(host_id) => UiEvent::AgentOpenConfig { host_id },
-                None => return write_response(stream, 404, "text/plain", b"not found"),
-            }
-        },
-
-        "/api/setup/complete" => UiEvent::SetupComplete,
-
-        _ => return write_response(stream, 404, "text/plain", b"not found"),
-    };
-
-    if tx.send(event).is_err() {
-        log.append("ipc bridge closed");
-        tracing::error!("event bridge closed");
-        return write_response(stream, 500, "text/plain", b"event bridge closed");
-    }
-    write_response(stream, 204, "text/plain", b"")
 }
 
 fn write_response(

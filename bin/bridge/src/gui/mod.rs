@@ -1,3 +1,4 @@
+pub mod action_dispatch;
 pub mod connection;
 pub mod dispatch;
 pub mod error;
@@ -154,7 +155,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         self.refresh_ui();
         dispatch::dispatch(self, event_loop, UiEvent::OpenSettings);
         let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
-        
+
         hosts::tick::request_initial_probe(self);
     }
 
@@ -187,7 +188,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
             let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
         }
-        
+
         hosts::tick::maybe_probe(self);
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));
     }
