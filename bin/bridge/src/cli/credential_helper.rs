@@ -41,7 +41,7 @@ pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
         "codex-cli" => emit_codex(&out),
         other => {
             eprintln!("{}", error_json(&format!("unknown host id: {other}")));
-            return ExitCode::from(64);
+            ExitCode::from(64)
         },
     }
 }

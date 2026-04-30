@@ -107,10 +107,7 @@ const JS_MODULES: &[(&str, &str)] = &[
         "setup/gateway",
         include_str!("../../web/js/setup/gateway.js"),
     ),
-    (
-        "setup/agents",
-        include_str!("../../web/js/setup/agents.js"),
-    ),
+    ("setup/agents", include_str!("../../web/js/setup/agents.js")),
     ("setup/mode", include_str!("../../web/js/setup/mode.js")),
     ("hosts/card", include_str!("../../web/js/hosts/card.js")),
 ];
