@@ -8,7 +8,6 @@ use super::error::GuiResult;
 use super::events::UiEvent;
 use crate::i18n;
 
-#[allow(dead_code)]
 pub struct MenuBarHandles {
     pub menu: Menu,
 }

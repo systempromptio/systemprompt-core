@@ -9,7 +9,6 @@ pub enum ErrorScope {
     Marketplace,
     Host,
     Proxy,
-    Setup,
     Internal,
 }
 

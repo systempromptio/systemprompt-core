@@ -27,6 +27,8 @@
 
 ### Removed
 
+- **Phase 4 — orphaned `http_local` module deleted.** `bin/bridge/src/http_local/` (mod, request, response, hop_by_hop) had zero remaining callers after Phase 3 cut the HTTP control plane. `pub mod http_local;` removed from `lib.rs`.
+- **Phase 4 dead-code cleanup**: `Server::csrf_token` field inlined into the listener thread (the cloned token is sufficient); `#[allow(dead_code)]` markers removed from `gui/server.rs::Server` and `gui/menu.rs::MenuBarHandles`. `ErrorScope::Setup` variant dropped — no remaining call sites.
 - **18 legacy frontend modules deleted**: `agents.js`, `api.js`, `crumb.js`, `dom.js`, `drawer.js`, `events/keyboard.js`, `events/registry.js`, `footer.js`, `hosts.js`, `hosts/card.js`, `marketplace.js`, `marketplace/detail.js`, `marketplace/glyph.js`, `marketplace/list.js`, `marketplace/state.js`, `overall-badge.js`, `profile.js`, `proxy.js`, `rail-indicator.js`, `setup.js`, `setup/agents.js`, `setup/gateway.js`, `setup/mode.js`, `state.js`, `sync-pill.js`, `tabs.js`. Subdirectories `events/`, `hosts/`, `marketplace/`, `setup/` removed.
 - **2 backend Rust modules deleted**: `gui/connection.rs` (HTTP request parsing + CSRF validation + GET routing), `gui/action_dispatch.rs` (POST `/api/<action>` → `UiEvent`).
 - **`gui/server_util.rs` trimmed** — `parse_query` and `now_unix` removed; only `mint_csrf_token` and `constant_time_eq` remain.
@@ -35,6 +37,7 @@
 
 ### Notes
 
+- Single-instance focus continues to use a 127.0.0.1 TCP listener (loopback + CSRF). A FIXME in `gui/server.rs` tracks the future migration to Unix domain sockets / Windows named pipes.
 - The `sp://app/` custom-protocol asset path remains the only way the webview loads HTML/CSS/JS; the `lit-all.min.js` vendor bundle is served as-is and special-cased to skip `__TOKEN__` substitution.
 - `marketplace.list` IPC command and listing payload retained — it surfaces what's already been synced to disk by `sync::run_once`. There is no separate "catalog vs installed" model.
 - Single-instance focus across platforms continues to work via the trimmed HTTP server.
