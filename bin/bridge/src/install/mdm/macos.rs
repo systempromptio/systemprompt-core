@@ -15,7 +15,9 @@ const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
     include_str!("../templates/mobileconfig_pubkey_line.tmpl");
 
 fn loopback_api_key() -> String {
-    crate::proxy::secret::load_or_mint().unwrap_or_default()
+    crate::proxy::secret::for_profile()
+        .map(crate::ids::LoopbackSecret::into_inner)
+        .unwrap_or_default()
 }
 
 pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {

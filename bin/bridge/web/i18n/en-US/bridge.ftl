@@ -24,6 +24,8 @@ sync-button = Sync now
 sync-success = synced
 sync-in-flight = syncing
 sync-cancel = Cancel
+sync-cancelled = Sync cancelled.
+sync-failure = Sync failed: { $error }
 
 # Gateway ---------------------------------------------------------------------
 gateway-unreachable = offline
