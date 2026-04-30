@@ -21,6 +21,7 @@ package-lock.json
 *.tsx
 tsconfig.json
 tsconfig.*.json
+!bin/bridge/web/js/types/*.ts
 
 # Database files
 /database/*.db
