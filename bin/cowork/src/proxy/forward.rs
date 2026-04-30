@@ -145,7 +145,7 @@ fn build_upstream_headers(
         .map_err(|e| ForwardError::BadHeader(format!("authorization: {e}")))?;
     headers.insert(reqwest::header::AUTHORIZATION, bearer);
     headers.insert(
-        reqwest::header::HeaderName::from_static("x-cowork-proxied"),
+        reqwest::header::HeaderName::from_static("x-systemprompt-bridge"),
         reqwest::header::HeaderValue::from_static("1"),
     );
 

@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
-    #[error("no valid credential available; run `systemprompt-cowork login` first")]
+    #[error("no valid credential available; run `systemprompt-bridge login` first")]
     NoCredential,
     #[error("{0}")]
     Network(String),
@@ -11,7 +11,7 @@ pub enum SyncError {
     #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
     #[error(
-        "org-plugins directory does not exist at {path} — run `sudo systemprompt-cowork install \
+        "org-plugins directory does not exist at {path} — run `sudo systemprompt-bridge install \
          --apply` to provision it (Claude Desktop only reads from this system path on macOS)"
     )]
     PathMissing { path: String },

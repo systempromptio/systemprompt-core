@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-pub const METADATA_DIR: &str = ".systemprompt-cowork";
+pub const METADATA_DIR: &str = ".systemprompt-bridge";
 pub const VERSION_SENTINEL: &str = "version.json";
 pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
 pub const USER_FRAGMENT: &str = "user.json";

@@ -35,7 +35,7 @@ pub fn pinned_pubkey() -> Option<PinnedPubKey> {
 
 #[must_use]
 pub fn policy_pubkey() -> Option<PinnedPubKey> {
-    if let Ok(value) = env::var("SP_COWORK_POLICY_PUBKEY") {
+    if let Ok(value) = env::var("SP_BRIDGE_POLICY_PUBKEY") {
         let trimmed = value.trim();
         if !trimmed.is_empty() {
             return Some(PinnedPubKey::new(trimmed));

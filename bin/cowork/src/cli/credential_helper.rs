@@ -30,7 +30,7 @@ pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
         Err(ChainError::NoneSucceeded) => {
             eprintln!(
                 "{}",
-                error_json("no credential available; run `systemprompt-cowork login`")
+                error_json("no credential available; run `systemprompt-bridge login`")
             );
             return ExitCode::from(5);
         },

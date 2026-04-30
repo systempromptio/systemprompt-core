@@ -11,7 +11,7 @@ pub mod output {
     }
 
     pub fn diag(msg: &str) {
-        tracing::warn!(target: "systemprompt_cowork", "{msg}");
+        tracing::warn!(target: "systemprompt_bridge", "{msg}");
     }
 }
 
@@ -33,7 +33,7 @@ pub mod tracing_init {
     static LOG_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
 
     fn json_format_requested() -> bool {
-        std::env::var("SP_COWORK_LOG_FORMAT").is_ok_and(|v| v.eq_ignore_ascii_case("json"))
+        std::env::var("SP_BRIDGE_LOG_FORMAT").is_ok_and(|v| v.eq_ignore_ascii_case("json"))
     }
 
     pub fn init() {
@@ -72,7 +72,7 @@ pub mod tracing_init {
             #[allow(clippy::print_stderr)]
             {
                 eprintln!(
-                    "[systemprompt-cowork] cannot create log dir {}: {e}",
+                    "[systemprompt-bridge] cannot create log dir {}: {e}",
                     dir.display()
                 );
             }
@@ -84,12 +84,12 @@ pub mod tracing_init {
     #[cfg(target_os = "windows")]
     fn log_dir() -> Option<PathBuf> {
         std::env::var_os("LOCALAPPDATA")
-            .map(|p| PathBuf::from(p).join("Claude").join("systemprompt-cowork"))
+            .map(|p| PathBuf::from(p).join("Claude").join("systemprompt-bridge"))
     }
 
     #[cfg(target_os = "macos")]
     fn log_dir() -> Option<PathBuf> {
-        dirs::home_dir().map(|h| h.join("Library").join("Logs").join("systemprompt-cowork"))
+        dirs::home_dir().map(|h| h.join("Library").join("Logs").join("systemprompt-bridge"))
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -97,7 +97,7 @@ pub mod tracing_init {
         std::env::var_os("XDG_STATE_HOME")
             .map(PathBuf::from)
             .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("state")))
-            .map(|base| base.join("systemprompt-cowork"))
+            .map(|base| base.join("systemprompt-bridge"))
     }
 
     fn log_file() -> Option<&'static Mutex<File>> {
@@ -181,7 +181,7 @@ pub mod tracing_init {
             let mut visitor = MessageVisitor(&mut message);
             event.record(&mut visitor);
             let unquoted = strip_debug_quotes(&message);
-            writeln!(writer, "[systemprompt-cowork] {unquoted}")
+            writeln!(writer, "[systemprompt-bridge] {unquoted}")
         }
     }
 

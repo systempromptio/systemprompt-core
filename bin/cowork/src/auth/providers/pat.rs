@@ -13,7 +13,7 @@ pub struct PatProvider {
 
 impl PatProvider {
     pub fn new(config: &Config) -> Self {
-        let pat_source = env::var("SP_COWORK_PAT")
+        let pat_source = env::var("SP_BRIDGE_PAT")
             .ok()
             .or_else(|| {
                 config

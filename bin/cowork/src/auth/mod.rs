@@ -52,7 +52,7 @@ pub fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<Help
 
 #[must_use]
 pub fn has_credential_source(cfg: &config::Config) -> bool {
-    if std::env::var("SP_COWORK_PAT")
+    if std::env::var("SP_BRIDGE_PAT")
         .ok()
         .is_some_and(|s| !s.is_empty())
     {

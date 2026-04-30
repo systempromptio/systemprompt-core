@@ -32,7 +32,7 @@ fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
     }
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(worker_thread_count())
-        .thread_name("cowork-rt")
+        .thread_name("bridge-rt")
         .enable_all()
         .build()?;
     let arc = Arc::new(rt);

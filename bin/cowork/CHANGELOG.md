@@ -20,7 +20,7 @@
 - `activity::ActivityLog` ring buffer (1000 entries) capturing live proxy/sync events for the GUI activity feed.
 - `proxy::usage` response-stream tap: `is_messages_path`, `wrap_response_stream`. Counts `/v1/messages` calls and sums input/output tokens from JSON and SSE bodies.
 - `ProxyStats::messages_total`, `tokens_in_total`, `tokens_out_total` counters.
-- `sync::apply::synthetic_plugin` writer: managed skills, agents, and `.mcp.json` are now materialised as a single synthetic Claude plugin (`systemprompt-managed`) under the org plugins root, instead of separate fragments under `.systemprompt-cowork/`.
+- `sync::apply::synthetic_plugin` writer: managed skills, agents, and `.mcp.json` are now materialised as a single synthetic Claude plugin (`systemprompt-managed`) under the org plugins root, instead of separate fragments under `.systemprompt-bridge/`.
 - `paths::SYNTHETIC_PLUGIN_NAME` constant (`systemprompt-managed`).
 - `ApplyError::ReservedPluginId` — manifests containing a plugin with the reserved synthetic-plugin id are rejected.
 - GUI: split monolithic `web/app.js` into ES modules under `web/js/` (`main`, `api`, `dom`, `tabs`, `setup`, `marketplace`, `activity`, `snapshot`).
@@ -28,7 +28,7 @@
 
 ### Changed
 
-- **Breaking**: managed assets layout. Skills, agents, and managed MCP servers no longer live under `.systemprompt-cowork/{skills,agents,managed-mcp.json}`; they are written into the synthetic plugin directory `<org-plugins>/systemprompt-managed/{skills,agents,.mcp.json}`. `install` summary, `status`, and GUI counters now read from the new location.
+- **Breaking**: managed assets layout. Skills, agents, and managed MCP servers no longer live under `.systemprompt-bridge/{skills,agents,managed-mcp.json}`; they are written into the synthetic plugin directory `<org-plugins>/systemprompt-managed/{skills,agents,.mcp.json}`. `install` summary, `status`, and GUI counters now read from the new location.
 - `install --uninstall` removes the synthetic plugin directory in addition to the metadata directory.
 - Plugin sync no longer prunes the synthetic plugin as a stale entry.
 - Malformed-plugin counter accepts both `.claude-plugin/plugin.json` and `claude-plugin/plugin.json`, and excludes the synthetic plugin.
@@ -120,7 +120,7 @@
 ### Added
 
 - `whoami` subcommand prints authenticated identity from the gateway.
-- `sync` materialises `user.json`, `skills/<id>/{metadata.json, SKILL.md}`, `agents/<name>.json` under `.systemprompt-cowork/`.
+- `sync` materialises `user.json`, `skills/<id>/{metadata.json, SKILL.md}`, `agents/<name>.json` under `.systemprompt-bridge/`.
 - `status` surfaces identity and skill/agent counts from on-disk fragments.
 
 ### Changed
@@ -138,7 +138,7 @@
 
 ### Changed
 
-- **Breaking**: crate renamed to `systemprompt-cowork` (binary `systemprompt-cowork`, lib `systemprompt_cowork`).
+- **Breaking**: crate renamed to `systemprompt-bridge` (binary `systemprompt-bridge`, lib `systemprompt_bridge`).
 - Manual release via `cargo-zigbuild` + `gh release create` on tag `cowork-v*` (Linux x86_64 + Windows x86_64 binaries).
 
 ## [0.1.0] - unreleased

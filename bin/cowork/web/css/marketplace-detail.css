@@ -1,0 +1,168 @@
+.mkt-detail {
+  padding: 22px 24px;
+  overflow-y: auto;
+  animation: mkt-detail-in var(--sp-dur-normal) var(--sp-ease-out);
+}
+@keyframes mkt-detail-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+.mkt-detail-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.mkt-detail-icon {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sp-corners-sm);
+  background: var(--sp-bg-elev-2);
+  border: 1px solid var(--sp-line);
+  color: var(--sp-accent);
+  box-shadow: var(--sp-shadow-inner-glow);
+}
+.mkt-detail-icon svg { width: 22px; height: 22px; }
+.mkt-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.mkt-detail h2 {
+  font-family: var(--sp-font-display);
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sp-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mkt-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.mkt-detail-summary {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sp-muted-strong);
+  max-width: 60ch;
+}
+
+.mkt-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--sp-line-soft);
+}
+.mkt-detail-actions button {
+  padding: 7px 12px;
+  font-size: 12px;
+  border-radius: var(--sp-corners-sm);
+}
+
+.mkt-detail-section { margin-top: 16px; }
+.mkt-detail-section h3 {
+  font-family: var(--sp-font-display);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--sp-muted);
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.mkt-detail-readme {
+  position: relative;
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+  padding: 14px 16px;
+  font-family: var(--sp-font-body);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: inset 0 1px 0 oklch(0 0 0 / 0.2);
+  -webkit-mask-image: linear-gradient(to bottom, black 86%, transparent 100%);
+          mask-image: linear-gradient(to bottom, black 86%, transparent 100%);
+}
+.mkt-detail-path-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+  padding: 8px 10px;
+}
+.mkt-detail-path-row svg { width: 14px; height: 14px; color: var(--sp-muted); }
+.mkt-detail-path {
+  font-family: var(--sp-font-mono);
+  font-size: 11.5px;
+  color: var(--sp-muted-strong);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.mkt-detail-copy {
+  font-family: var(--sp-font-display);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sp-muted-strong);
+  background: transparent;
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: color var(--sp-dur-fast) var(--sp-ease-out),
+              border-color var(--sp-dur-fast) var(--sp-ease-out),
+              background var(--sp-dur-fast) var(--sp-ease-out);
+}
+.mkt-detail-copy:hover { color: var(--sp-text); border-color: var(--sp-accent-ring); background: var(--sp-bg-elev-2); }
+.mkt-detail-copy[data-copied="true"] { color: var(--sp-ok); border-color: color-mix(in srgb, var(--sp-ok) 50%, transparent); }
+
+.mkt-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  margin-top: -1px;
+  border: 1px solid var(--sp-line);
+  border-radius: 0 0 var(--sp-corners-md) var(--sp-corners-md);
+  background: var(--sp-bg-elev-1);
+}
+.mkt-actions .mkt-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sp-muted);
+  font-size: 11.5px;
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: var(--sp-corners-pill);
+  background: var(--sp-bg-elev-2);
+  border: 1px solid var(--sp-line-soft);
+}
+.mkt-actions .mkt-meta .dot {
+  width: 6px;
+  height: 6px;
+  margin: 0;
+  background: var(--sp-ok);
+  flex: none;
+}
+.mkt-actions .mkt-meta[data-state="never"] .dot { background: var(--sp-muted); }
+.mkt-actions .mkt-meta[data-state="err"]   .dot { background: var(--sp-err); }

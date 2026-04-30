@@ -73,7 +73,7 @@ impl Config {
             .and_then(|s| toml::from_str(&s).ok())
             .unwrap_or_default();
 
-        if let Ok(url) = env::var("SP_COWORK_GATEWAY_URL") {
+        if let Ok(url) = env::var("SP_BRIDGE_GATEWAY_URL") {
             if let Ok(parsed) = ValidatedUrl::try_new(url.trim()) {
                 cfg.gateway_url = Some(parsed);
             }
@@ -126,11 +126,11 @@ pub fn load() -> Config {
 
 #[must_use]
 pub fn config_path() -> Option<PathBuf> {
-    if let Ok(explicit) = env::var("SP_COWORK_CONFIG") {
+    if let Ok(explicit) = env::var("SP_BRIDGE_CONFIG") {
         return Some(PathBuf::from(explicit));
     }
     let base = dirs::config_dir()?;
-    Some(base.join("systemprompt").join("systemprompt-cowork.toml"))
+    Some(base.join("systemprompt").join("systemprompt-bridge.toml"))
 }
 
 pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {

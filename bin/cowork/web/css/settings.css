@@ -1,0 +1,27 @@
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  background: var(--sp-bg-elev-1);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-md);
+  padding: 22px 24px;
+}
+.settings-note { font-size: 12px; margin: 6px 0 0; }
+.settings-note a { color: var(--sp-accent); }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.card {
+  background: var(--sp-bg-elev-2);
+  border: 1px solid var(--sp-line);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+}
+.card-num   { font-size: 26px; font-weight: 700; color: var(--sp-accent); }
+.card-label { font-size: 11px; color: var(--sp-muted); text-transform: uppercase; letter-spacing: 1px; }

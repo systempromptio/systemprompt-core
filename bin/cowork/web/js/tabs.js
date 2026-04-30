@@ -2,6 +2,7 @@ import { $ } from "./dom.js?t=__TOKEN__";
 
 const TAB_LABELS = {
   marketplace: "Marketplace",
+  agents: "Agents",
   status: "Status",
   settings: "Settings",
 };
@@ -60,7 +61,19 @@ export function initTabs() {
     const t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     if (e.key === "1") { e.preventDefault(); activateTab("marketplace"); }
-    else if (e.key === "2") { e.preventDefault(); activateTab("status"); }
-    else if (e.key === "3") { e.preventDefault(); activateTab("settings"); }
+    else if (e.key === "2") { e.preventDefault(); activateTab("agents"); }
+    else if (e.key === "3") { e.preventDefault(); activateTab("status"); }
+    else if (e.key === "4") { e.preventDefault(); activateTab("settings"); }
+  });
+
+  document.addEventListener("click", (e) => {
+    const target = e.target.closest("[data-jump-tab]");
+    if (!target) return;
+    e.preventDefault();
+    activateTab(target.dataset.jumpTab);
+  });
+
+  window.addEventListener("sp-jump-tab", (e) => {
+    if (e.detail && e.detail.tab) activateTab(e.detail.tab);
   });
 }

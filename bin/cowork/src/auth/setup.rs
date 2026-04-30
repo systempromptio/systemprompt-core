@@ -2,8 +2,8 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const PAT_FILENAME: &str = "systemprompt-cowork.pat";
-const CONFIG_FILENAME: &str = "systemprompt-cowork.toml";
+const PAT_FILENAME: &str = "systemprompt-bridge.pat";
+const CONFIG_FILENAME: &str = "systemprompt-bridge.toml";
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 const PAT_PREFIX: &str = "sp-live-";
 
@@ -189,7 +189,7 @@ fn write_config_file(
 
     let pat_path_str = pat_file.to_string_lossy().replace('\\', "\\\\");
     let contents = format!(
-        "# Written by `systemprompt-cowork login`. Edit gateway_url if you move the \
+        "# Written by `systemprompt-bridge login`. Edit gateway_url if you move the \
          server.\ngateway_url = \"{gateway}\"\n\n[pat]\nfile = \"{pat_path_str}\"\n"
     );
     atomic_write(path, contents.as_bytes(), false)
@@ -204,7 +204,7 @@ fn atomic_write(target: &Path, bytes: &[u8], secret: bool) -> Result<(), SetupEr
         target
             .file_name()
             .and_then(|s| s.to_str())
-            .unwrap_or("systemprompt-cowork")
+            .unwrap_or("systemprompt-bridge")
     ));
     {
         let mut f = create_restricted(&tmp, secret)?;
