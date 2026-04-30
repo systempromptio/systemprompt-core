@@ -1,3 +1,7 @@
+/** @typedef {import("./types/BridgeError").BridgeError} BridgeError */
+/** @typedef {import("./types/IpcReplyPayload").IpcReplyPayload} IpcReplyPayload */
+/** @typedef {import("./types/IpcRequest").IpcRequest} IpcRequest */
+
 let nextId = 1;
 
 function ensureBridge() {

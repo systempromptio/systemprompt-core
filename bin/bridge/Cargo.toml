@@ -57,10 +57,12 @@ ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.8"
 systemprompt-identifiers = { version = "0.4.2", default-features = false }
+ts-rs = { version = "10", optional = true }
 
 [features]
 default = []
 dev-stub-host = []
+ts-export = ["dep:ts-rs"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
