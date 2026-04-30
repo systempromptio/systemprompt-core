@@ -25,6 +25,7 @@ pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: Repl
         return;
     };
     if !app.state.mark_host_probing(host_id) {
+        app.append_log(format!("[{host_id}] re-verify already in flight"));
         if let Some(id) = reply_to {
             let err = BridgeError::new(
                 ErrorScope::Host,
@@ -35,6 +36,7 @@ pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: Repl
         }
         return;
     }
+    app.append_log(format!("[{host_id}] re-verifying profile and process"));
     let host_id_owned = host_id.to_string();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
@@ -56,6 +58,7 @@ pub(crate) fn on_probe_finished(
     snapshot: HostAppSnapshot,
     reply_to: ReplyId,
 ) {
+    let summary = describe_snapshot(&snapshot);
     app.state.apply_host_snapshot(host_id, snapshot);
     let _ = app
         .proxy
@@ -64,9 +67,27 @@ pub(crate) fn on_probe_finished(
         }));
     app.refresh_ui();
     ipc_runtime::emit_host_changed(app, host_id);
+    app.append_log(format!("[{host_id}] re-verify complete — {summary}"));
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::single_host_value(&snap, host_id);
     finish(app, Ok(json!({ "snapshot": value })), reply_to);
+}
+
+fn describe_snapshot(snap: &HostAppSnapshot) -> String {
+    use crate::integration::ProfileState;
+    let profile = match &snap.profile_state {
+        ProfileState::Installed => "profile installed".to_string(),
+        ProfileState::Partial { missing_required } => {
+            format!("profile partial (missing: {})", missing_required.join(", "))
+        },
+        ProfileState::Absent => "profile not installed".to_string(),
+    };
+    let process = if snap.host_running {
+        "process running"
+    } else {
+        "process not running"
+    };
+    format!("{profile}, {process}")
 }
 
 pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
@@ -247,7 +268,16 @@ async fn generate_profile_for(
 
     let port = crate::proxy::handle()
         .map(|h| h.port)
-        .unwrap_or(crate::proxy::DEFAULT_PROXY_PORT);
+        .ok_or_else(|| GuiError::Profile {
+            context: "proxy not running".into(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::ConnectionRefused,
+                format!(
+                    "local proxy is not listening on port {}; cannot generate a profile that points to a dead endpoint",
+                    crate::proxy::DEFAULT_PROXY_PORT
+                ),
+            ),
+        })?;
 
     let loopback_secret = crate::proxy::secret::for_profile()
         .map(crate::ids::LoopbackSecret::into_inner)

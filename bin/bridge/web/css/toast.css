@@ -1,3 +1,5 @@
+.sp-toast[hidden] { display: none; }
+
 .sp-toast {
   position: fixed;
   bottom: var(--sp-space-6);

@@ -45,7 +45,7 @@ fn install_termination_handlers(proxy: EventLoopProxy<UiEvent>) {
 
 #[tracing::instrument]
 pub fn run() -> ExitCode {
-    crate::proxy::start_default();
+    let proxy_started = crate::proxy::start_default().is_some();
 
     let event_loop = match EventLoop::<UiEvent>::with_user_event().build() {
         Ok(el) => el,
@@ -79,6 +79,18 @@ pub fn run() -> ExitCode {
     };
     let app_state = AppState::new_loaded();
     let mut app = GuiApp::new(app_state, tx, proxy, runtime);
+
+    if proxy_started {
+        if let Some(h) = crate::proxy::handle() {
+            app.append_log(format!("local proxy listening on 127.0.0.1:{}", h.port));
+        }
+    } else {
+        app.append_log(format!(
+            "local proxy FAILED to start on port {} — host requests will be refused. \
+             Another process may be bound to that port; check the log file for details.",
+            crate::proxy::DEFAULT_PROXY_PORT
+        ));
+    }
 
     if let Err(e) = event_loop.run_app(&mut app) {
         diag(&format!("gui: event loop error: {e}"));
