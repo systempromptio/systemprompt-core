@@ -25,13 +25,13 @@ function syncPillStateForFooter(snap) {
 
 function dotClass(state) {
   if (state === "ok") {
-    return "dot-ok";
+    return "sp-dot--ok";
   } else if (state === "running") {
-    return "dot-probing";
+    return "sp-dot--probing";
   } else if (state === "err") {
-    return "dot-err";
+    return "sp-dot--err";
   } else {
-    return "dot-warn";
+    return "sp-dot--warn";
   }
 }
 
@@ -79,17 +79,17 @@ export function renderFooter(snap) {
   const settingsGateway = $("settings-gateway");
   if (settingsGateway) {
     settingsGateway.textContent = snap.gateway_url || "—";
-    settingsGateway.classList.toggle("muted", !snap.gateway_url);
+    settingsGateway.classList.toggle("sp-u-muted", !snap.gateway_url);
   }
   const settingsPlugins = $("settings-plugins-dir");
   if (settingsPlugins) {
     settingsPlugins.textContent = snap.plugins_dir || "—";
-    settingsPlugins.classList.toggle("muted", !snap.plugins_dir);
+    settingsPlugins.classList.toggle("sp-u-muted", !snap.plugins_dir);
   }
   const settingsConfig = $("settings-config");
   if (settingsConfig) {
     settingsConfig.textContent = snap.config_file || "—";
-    settingsConfig.classList.toggle("muted", !snap.config_file);
+    settingsConfig.classList.toggle("sp-u-muted", !snap.config_file);
   }
   const btnSync = $("btn-sync");
   if (btnSync) {

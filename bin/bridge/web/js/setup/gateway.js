@@ -43,11 +43,11 @@ export const updateSetupPatLink = () => {
   if (gw) {
     link.href = `${gw}/admin/login`;
     link.removeAttribute("aria-disabled");
-    link.classList.remove("disabled");
+    link.classList.remove("is-disabled");
   } else {
     link.href = "#";
     link.setAttribute("aria-disabled", "true");
-    link.classList.add("disabled");
+    link.classList.add("is-disabled");
   }
 };
 
@@ -89,6 +89,25 @@ export const initGateway = () => {
   }
 };
 
+const setConnectPending = (pending) => {
+  const btn = document.querySelector('[data-action="setup-connect"], #setup-connect');
+  if (!btn) {
+    return;
+  }
+  if (pending) {
+    btn.dataset.label = btn.dataset.label || btn.textContent;
+    btn.textContent = "Connecting…";
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+  } else {
+    if (btn.dataset.label) {
+      btn.textContent = btn.dataset.label;
+    }
+    btn.disabled = false;
+    btn.removeAttribute("aria-busy");
+  }
+};
+
 export const connectFromSetup = () => {
   const input = $("setup-pat");
   const gateway = $("setup-gateway").value.trim();
@@ -96,10 +115,20 @@ export const connectFromSetup = () => {
     setSetupError("Enter the gateway URL.");
     return;
   }
+  if (!/^https?:\/\//i.test(gateway)) {
+    setSetupError("Gateway URL must start with http:// or https://");
+    return;
+  }
   if (input.dataset.saved === "1") {
     setSetupError("");
     lastSavedGateway = gateway;
-    apiPost("/api/probe").catch((e) => reportError(String(e.message || e)));
+    setConnectPending(true);
+    apiPost("/api/probe")
+      .catch((e) => {
+        reportError(String(e.message || e));
+        setSetupError(`Probe failed: ${e.message || e}`);
+      })
+      .finally(() => setTimeout(() => setConnectPending(false), 1500));
     return;
   }
   const token = input.value.trim();
@@ -109,7 +138,13 @@ export const connectFromSetup = () => {
   }
   setSetupError("");
   lastSavedGateway = gateway;
-  apiPost("/api/login", { token, gateway }).catch((e) => reportError(String(e.message || e)));
+  setConnectPending(true);
+  apiPost("/api/login", { token, gateway })
+    .catch((e) => {
+      reportError(String(e.message || e));
+      setSetupError(`Login failed: ${e.message || e}`);
+    })
+    .finally(() => setTimeout(() => setConnectPending(false), 2000));
 };
 
 export const editSetupPat = () => {

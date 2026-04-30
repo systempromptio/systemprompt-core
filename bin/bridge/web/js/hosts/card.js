@@ -2,7 +2,7 @@ import { setDot, setBadge } from "../dom.js?t=__TOKEN__";
 
 export const refsFromNode = (node) => ({
   root: node,
-  name: node.querySelector(".host-card-name"),
+  name: node.querySelector(".sp-host-card__name"),
   badge: node.querySelector('[data-role="badge"]'),
   profileDot: node.querySelector('[data-role="profile-dot"]'),
   profileText: node.querySelector('[data-role="profile-text"]'),
@@ -23,48 +23,48 @@ const applyProfileState = (refs, hs) => {
   const installed = profileState.kind === "installed";
   const partial = profileState.kind === "partial";
   if (installed) {
-    setDot(refs.profileDot, "dot-ok");
+    setDot(refs.profileDot, "sp-dot--ok");
     refs.profileText.textContent = "installed";
   } else if (partial) {
-    setDot(refs.profileDot, "dot-warn");
+    setDot(refs.profileDot, "sp-dot--warn");
     refs.profileText.textContent = `partial (missing: ${missing.join(", ")})`;
   } else {
-    setDot(refs.profileDot, "dot-err");
+    setDot(refs.profileDot, "sp-dot--err");
     refs.profileText.textContent = "not installed";
   }
   refs.profileDetail.textContent = hs.profile_source || "—";
-  refs.profileDetail.classList.toggle("muted", !hs.profile_source);
+  refs.profileDetail.classList.toggle("sp-u-muted", !hs.profile_source);
   return { installed, partial };
 };
 
 const applyRunningState = (refs, hs) => {
   if (hs.host_running) {
-    setDot(refs.runningDot, "dot-ok");
+    setDot(refs.runningDot, "sp-dot--ok");
     refs.runningText.textContent = "running";
     refs.runningDetail.textContent = (hs.host_processes || []).join(", ") || "process detected";
-    refs.runningDetail.classList.remove("muted");
+    refs.runningDetail.classList.remove("sp-u-muted");
   } else {
-    setDot(refs.runningDot, "dot-warn");
+    setDot(refs.runningDot, "sp-dot--warn");
     refs.runningText.textContent = "not running";
     refs.runningDetail.textContent = "launch the app to verify routing";
-    refs.runningDetail.classList.add("muted");
+    refs.runningDetail.classList.add("sp-u-muted");
   }
 };
 
 const chooseBadge = (installed, partial, proxyState) => {
   if (!installed) {
-    return { text: "profile not installed", cls: "badge-warn" };
+    return { text: "profile not installed", cls: "sp-badge--warn" };
   }
   if (partial) {
-    return { text: "partial", cls: "badge-warn" };
+    return { text: "partial", cls: "sp-badge--warn" };
   }
   if (proxyState === "Unconfigured") {
-    return { text: "awaiting first launch", cls: "badge-warn" };
+    return { text: "awaiting first launch", cls: "sp-badge--warn" };
   }
   if (proxyState === "Listening") {
-    return { text: "healthy", cls: "badge-ok" };
+    return { text: "healthy", cls: "sp-badge--ok" };
   }
-  return { text: "local proxy down", cls: "badge-err" };
+  return { text: "local proxy down", cls: "sp-badge--err" };
 };
 
 const applyPrefs = (refs, hs) => {
@@ -107,7 +107,7 @@ export const renderHostCard = (refs, host, snap) => {
   applyInstallButton(refs, host);
   const hs = host.snapshot;
   if (!hs) {
-    setBadge(refs.badge, "probing…", "badge-muted");
+    setBadge(refs.badge, "probing…", "sp-badge--muted");
     return;
   }
   const { installed, partial } = applyProfileState(refs, hs);

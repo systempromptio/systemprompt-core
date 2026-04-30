@@ -4,16 +4,16 @@ import { chip, emptyBlock } from "./glyph.js?t=__TOKEN__";
 
 function buildItem(it, i) {
   const li = document.createElement("li");
-  li.className = "mkt-item";
+  li.className = "sp-mkt-item";
   li.dataset.id = it.id;
   li.dataset.action = "mkt-item";
   li.style.setProperty("--sp-mkt-item-i", String(Math.min(i, 8)));
   li.setAttribute("aria-selected", String(it.id === mktState.selectedId));
 
   const row = document.createElement("div");
-  row.className = "mkt-item-row";
+  row.className = "sp-mkt-item__row";
   const name = document.createElement("span");
-  name.className = "mkt-item-name";
+  name.className = "sp-mkt-item__name";
   name.textContent = it.name || it.id;
   row.append(name);
   if (it.source) {
@@ -23,7 +23,7 @@ function buildItem(it, i) {
 
   if (it.summary) {
     const meta = document.createElement("div");
-    meta.className = "mkt-item-meta";
+    meta.className = "sp-mkt-item__meta";
     meta.textContent = it.summary;
     li.append(meta);
   }
@@ -38,7 +38,7 @@ export function updateCounts() {
   for (const kind of MKT_KINDS) {
     const n = (mktState.data[kind] || []).length;
     total += n;
-    const el = document.querySelector(`.mkt-cat[data-kind="${kind}"] .mkt-cat-count`);
+    const el = document.querySelector(`.sp-mkt-cat[data-kind="${kind}"] .sp-mkt-cat__count`);
     if (el) {
       el.textContent = String(n);
       el.classList.toggle("is-zero", n === 0);
@@ -70,7 +70,7 @@ export function renderList() {
 }
 
 export function syncCategorySelection() {
-  for (const cat of document.querySelectorAll(".mkt-cat")) {
+  for (const cat of document.querySelectorAll(".sp-mkt-cat")) {
     cat.setAttribute("aria-selected", cat.dataset.kind === mktState.kind ? "true" : "false");
   }
 }

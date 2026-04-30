@@ -22,25 +22,25 @@ function applyProxyStatus(proxy) {
   const state = (proxy.state || "Unknown").toString();
   const dot = $("proxy-dot");
   const text = $("proxy-text");
-  let cls = "dot-unknown";
+  let cls = "sp-dot--unknown";
   let label = state;
   if (state === "Listening") {
-    cls = "dot-ok";
+    cls = "sp-dot--ok";
     label = `listening · ${proxy.latency_ms ?? "?"}ms`;
   } else if (state === "Refused") {
-    cls = "dot-err";
+    cls = "sp-dot--err";
     label = "connection refused";
   } else if (state === "Timeout") {
-    cls = "dot-err";
+    cls = "sp-dot--err";
     label = "timed out";
   } else if (state === "HttpError") {
-    cls = "dot-err";
+    cls = "sp-dot--err";
     label = `error: ${proxy.error || "unknown"}`;
   } else if (state === "Unconfigured") {
-    cls = "dot-warn";
+    cls = "sp-dot--warn";
     label = "awaiting first host-app probe";
   } else {
-    cls = "dot-unknown";
+    cls = "sp-dot--unknown";
     label = "checking…";
   }
   setDot(dot, cls);
@@ -50,7 +50,7 @@ function applyProxyStatus(proxy) {
   const detail = $("proxy-detail");
   if (detail) {
     detail.textContent = proxy.url || "(no proxy URL configured yet)";
-    detail.classList.toggle("muted", !proxy.url);
+    detail.classList.toggle("sp-u-muted", !proxy.url);
   }
 }
 
@@ -60,16 +60,16 @@ export function renderProxy(snap) {
   const epDot = $("endpoints-dot");
   const epText = $("endpoints-text");
   if (models.length === 0) {
-    setDot(epDot, "dot-unknown");
+    setDot(epDot, "sp-dot--unknown");
     if (epText) {
       epText.textContent = "no models configured yet";
-      epText.classList.add("muted");
+      epText.classList.add("sp-u-muted");
     }
   } else {
-    setDot(epDot, "dot-ok");
+    setDot(epDot, "sp-dot--ok");
     if (epText) {
       epText.textContent = models.join(", ");
-      epText.classList.remove("muted");
+      epText.classList.remove("sp-u-muted");
     }
   }
 }

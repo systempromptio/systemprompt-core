@@ -15,7 +15,7 @@ function classify(snap) {
 export function renderSyncPill(snap) {
   const pill = $("sync-pill");
   if (pill) {
-    const label = pill.querySelector(".sync-pill-label");
+    const label = pill.querySelector(".sp-sync-pill__label");
     const result = classify(snap);
     pill.dataset.state = result.state;
     if (label) {

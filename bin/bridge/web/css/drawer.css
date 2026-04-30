@@ -1,4 +1,4 @@
-.activity {
+.sp-activity {
   border-left: 1px solid var(--sp-line);
   background: oklch(0.20 0.01 48 / 0.6);
   display: flex;
@@ -6,7 +6,7 @@
   min-height: 0;
   overflow: hidden;
 }
-.activity-header {
+.sp-activity__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -15,14 +15,14 @@
   border-bottom: 1px solid var(--sp-line);
   flex-shrink: 0;
 }
-.activity-title {
+.sp-activity__title {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.4px;
   color: var(--sp-muted);
 }
-.activity-lane {
+.sp-activity-lane {
   display: flex;
   align-items: center;
   gap: var(--sp-space-2-5);
@@ -30,21 +30,21 @@
   color: var(--sp-muted);
   font-variant-numeric: tabular-nums;
 }
-.activity-lane .lane-stat {
+.sp-activity-lane .sp-activity-lane__stat {
   display: inline-flex;
   align-items: baseline;
   gap: var(--sp-space-0-5);
 }
-.activity-lane b {
+.sp-activity-lane b {
   font-weight: 700;
   color: var(--sp-text);
   font-size: 12px;
 }
-.activity-lane .lane-label {
+.sp-activity-lane .sp-activity-lane__label {
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
-.activity .log {
+.sp-activity .sp-log {
   flex: 1;
   min-height: 0;
   margin: 0;

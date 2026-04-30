@@ -48,14 +48,14 @@ const removeStaleCards = (presentIds) => {
 const renderEmptyHosts = (list) => {
   if (list && list.children.length === 0) {
     const empty = document.createElement("div");
-    empty.className = "muted host-list-empty";
+    empty.className = "sp-u-muted sp-host-list__empty";
     empty.textContent = "No host apps registered on this platform.";
     list.replaceChildren(empty);
   }
 };
 
 const clearEmptyMessage = (placeholder) => {
-  const noHostsMsg = placeholder && placeholder.querySelector(":scope > .host-list-empty");
+  const noHostsMsg = placeholder && placeholder.querySelector(":scope > .sp-host-list__empty");
   if (noHostsMsg) {
     noHostsMsg.remove();
   }

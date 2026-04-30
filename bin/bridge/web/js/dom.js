@@ -2,7 +2,7 @@ export const $ = (id) => document.getElementById(id);
 
 export function setDot(el, cls) {
   if (el) {
-    el.classList.remove("dot-unknown", "dot-probing", "dot-ok", "dot-err", "dot-warn");
+    el.classList.remove("sp-dot--unknown", "sp-dot--probing", "sp-dot--ok", "sp-dot--err", "sp-dot--warn");
     el.classList.add(cls);
   }
 }
@@ -10,7 +10,7 @@ export function setDot(el, cls) {
 export function setBadge(el, text, cls) {
   if (el) {
     el.textContent = text;
-    el.classList.remove("badge-muted", "badge-ok", "badge-warn", "badge-err");
+    el.classList.remove("sp-badge--muted", "sp-badge--ok", "sp-badge--warn", "sp-badge--err");
     el.classList.add(cls);
   }
 }

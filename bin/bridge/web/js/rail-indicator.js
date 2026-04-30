@@ -1,7 +1,7 @@
 export function syncRailIndicator() {
-  const rail = document.querySelector(".rail");
+  const rail = document.querySelector(".sp-rail");
   if (rail) {
-    const active = rail.querySelector('.rail-tab[data-tab][aria-selected="true"]');
+    const active = rail.querySelector('.sp-rail-tab[data-tab][aria-selected="true"]');
     if (active) {
       const railRect = rail.getBoundingClientRect();
       const tabRect = active.getBoundingClientRect();

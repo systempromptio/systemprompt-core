@@ -1,25 +1,25 @@
 @media (max-width: 1100px) {
-  .shell { grid-template-columns: 180px minmax(0, 1fr) 280px; }
-  .mkt { grid-template-columns: 160px 240px minmax(0, 1fr); }
+  .sp-shell { grid-template-columns: 180px minmax(0, 1fr) 280px; }
+  .sp-mkt { grid-template-columns: 160px 240px minmax(0, 1fr); }
 }
 @media (max-width: 900px) {
-  .shell { grid-template-columns: 64px minmax(0, 1fr); }
-  .activity { display: none; }
-  .rail { padding: var(--sp-space-3-5) var(--sp-space-2); }
-  .rail-label,
-  .rail-count,
-  .rail-shortcut,
-  .rail-section-label,
-  .rail-profile-meta { display: none; }
-  .rail-tab { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
-  .rail-profile { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
-  .topbar-center { display: none; }
-  .topbar { grid-template-columns: auto auto; justify-content: space-between; }
-  .cmdk-placeholder { display: none; }
-  .footer-left .footer-path { display: none; }
-  .mkt { grid-template-columns: 1fr; }
-  .mkt-cats { flex-direction: row; flex-wrap: wrap; }
+  .sp-shell { grid-template-columns: 64px minmax(0, 1fr); }
+  .sp-activity { display: none; }
+  .sp-rail { padding: var(--sp-space-3-5) var(--sp-space-2); }
+  .sp-rail-tab__label,
+  .sp-rail-tab__count,
+  .sp-rail-tab__shortcut,
+  .sp-rail-section__label,
+  .sp-rail-profile__meta { display: none; }
+  .sp-rail-tab { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
+  .sp-rail-profile { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
+  .sp-topbar__center { display: none; }
+  .sp-topbar { grid-template-columns: auto auto; justify-content: space-between; }
+  .sp-cmdk__placeholder { display: none; }
+  .sp-footer__left .sp-footer__path { display: none; }
+  .sp-mkt { grid-template-columns: 1fr; }
+  .sp-mkt-cats { flex-direction: row; flex-wrap: wrap; }
 }
 @media (max-width: 800px) {
-  .claude-grid { grid-template-columns: 1fr; }
+  .sp-claude__grid { grid-template-columns: 1fr; }
 }

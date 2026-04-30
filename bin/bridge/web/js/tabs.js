@@ -9,10 +9,10 @@ export const TAB_LABELS = {
 };
 
 export function activateTab(name) {
-  for (const btn of document.querySelectorAll(".rail-tab[data-tab]")) {
+  for (const btn of document.querySelectorAll(".sp-rail-tab[data-tab]")) {
     btn.setAttribute("aria-selected", btn.dataset.tab === name ? "true" : "false");
   }
-  for (const panel of document.querySelectorAll(".tab-panel")) {
+  for (const panel of document.querySelectorAll(".sp-tab__panel")) {
     panel.hidden = panel.dataset.tab !== name;
   }
   setCrumb(name);

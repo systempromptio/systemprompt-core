@@ -1,4 +1,4 @@
-.layout {
+.sp-layout {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -6,50 +6,50 @@
   padding: var(--sp-space-4-5) var(--sp-space-6);
 }
 
-.shell {
+.sp-shell {
   flex: 1;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr) 360px;
   gap: 0;
   min-height: 0;
 }
-body.setup-mode .shell { display: none; }
-body.setup-mode .layout { display: none; }
-body:not(.setup-mode) .layout { display: none; }
-body:not(.setup-mode) .setup { display: none; }
+body.is-setup-mode .sp-shell { display: none; }
+body.is-setup-mode .sp-layout { display: none; }
+body:not(.is-setup-mode) .sp-layout { display: none; }
+body:not(.is-setup-mode) .sp-setup { display: none; }
 
-.content {
+.sp-content {
   padding: var(--sp-space-6) var(--sp-space-6);
   overflow-y: auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
-.tab-panel { display: flex; flex-direction: column; gap: var(--sp-space-4-5); min-height: 0; flex: 1; }
-.tab-panel[hidden] { display: none; }
-.tab-header {
+.sp-tab__panel { display: flex; flex-direction: column; gap: var(--sp-space-4-5); min-height: 0; flex: 1; }
+.sp-tab__panel[hidden] { display: none; }
+.sp-tab__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-space-3);
   margin: 0;
 }
-.tab-header h1 {
+.sp-tab__header h1 {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.01em;
   margin: 0;
 }
 
-.panel {
+.sp-panel {
   background: var(--sp-bg-elev-1);
   border: 1px solid var(--sp-line);
   border-radius: 14px;
   padding: var(--sp-space-4-5);
   box-shadow: var(--sp-shadow-2);
 }
-.panel-wide { grid-column: 1 / -1; }
-.panel h2 {
+.sp-panel--wide { grid-column: 1 / -1; }
+.sp-panel h2 {
   margin: 0 0 var(--sp-space-3);
   font-size: 12px;
   text-transform: uppercase;
@@ -58,11 +58,11 @@ body:not(.setup-mode) .setup { display: none; }
   font-weight: 600;
 }
 
-.kv { display: flex; flex-direction: column; gap: var(--sp-space-1); margin-bottom: var(--sp-space-3); }
-.kv label { font-size: 11px; color: var(--sp-muted); text-transform: uppercase; letter-spacing: 1px; }
-.value    { font-size: 14px; }
-.muted    { color: var(--sp-muted); }
-.mono     {
+.sp-kv { display: flex; flex-direction: column; gap: var(--sp-space-1); margin-bottom: var(--sp-space-3); }
+.sp-kv label { font-size: 11px; color: var(--sp-muted); text-transform: uppercase; letter-spacing: 1px; }
+.sp-value    { font-size: 14px; }
+.sp-u-muted    { color: var(--sp-muted); }
+.sp-u-mono     {
   font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
   font-size: 12px;
 }
