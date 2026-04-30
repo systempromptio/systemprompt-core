@@ -20,7 +20,7 @@ pub enum ApplyError {
         "manifest contains a plugin with reserved id `{0}` (used by cowork for managed \
          skills/agents/mcp)"
     )]
-    ReservedPluginId(String),
+    ReservedPluginId(PluginId),
     #[error("plugin fetch failed: {0}")]
     PluginFetch(#[from] crate::gateway::GatewayError),
     #[error("io error in {context}: {source}")]
