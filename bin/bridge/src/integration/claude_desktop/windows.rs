@@ -6,10 +6,9 @@ use super::shared::{
     DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, now_unix,
     redact_if_sensitive,
 };
+use crate::config::store::managed_policy_store;
 use crate::integration::host_app::GeneratedProfile;
 use crate::winproc;
-
-const POLICY_KEY: &str = r"SOFTWARE\Policies\Claude";
 
 pub(super) fn read_domain(domain: &str) -> DomainRead {
     let mut out = DomainRead::default();
@@ -18,22 +17,17 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
         return out;
     }
 
-    for hive in ["HKLM", "HKCU"] {
-        let full = format!(r"{hive}\{POLICY_KEY}");
-        let dump = match query_key(&full) {
-            Some(d) if !d.is_empty() => d,
-            _ => continue,
-        };
-        out.source_path = Some(full);
-        for (name, value) in dump {
-            if let Some(canonical) = canonical_key_name(&name) {
-                out.keys
-                    .insert(canonical.to_string(), redact_if_sensitive(canonical, value));
-            }
-        }
-        break;
+    let read = match managed_policy_store().read_managed_policy_keys(KEYS_OF_INTEREST) {
+        Ok(r) => r,
+        Err(_) => return out,
+    };
+    if read.values.is_empty() {
+        return out;
     }
-
+    out.source_path = read.source;
+    for (name, value) in read.values {
+        out.keys.insert(name.clone(), redact_if_sensitive(&name, value));
+    }
     out
 }
 
@@ -82,32 +76,6 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
         )));
     }
     Ok(())
-}
-
-fn query_key(full: &str) -> Option<Vec<(String, String)>> {
-    let output = winproc::reg_command().args(["query", full]).output().ok()?;
-    if !output.status.success() {
-        return Some(Vec::new());
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut values = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim_start();
-        if trimmed.is_empty() || trimmed.starts_with("HKEY_") {
-            continue;
-        }
-        if let Some((name, value)) = super::win_reg_parser::parse_reg_line(trimmed) {
-            values.push((name, value));
-        }
-    }
-    Some(values)
-}
-
-fn canonical_key_name(name: &str) -> Option<&'static str> {
-    KEYS_OF_INTEREST
-        .iter()
-        .copied()
-        .find(|k| k.eq_ignore_ascii_case(name))
 }
 
 fn render_reg(inputs: &ProfileGenInputs) -> String {
