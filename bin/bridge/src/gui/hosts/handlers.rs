@@ -249,10 +249,12 @@ async fn generate_profile_for(
         .map(|h| h.port)
         .unwrap_or(crate::proxy::DEFAULT_PROXY_PORT);
 
-    let loopback_secret = crate::proxy::secret::load_or_mint().map_err(|e| GuiError::Profile {
-        context: "loopback secret".into(),
-        source: e,
-    })?;
+    let loopback_secret = crate::proxy::secret::for_profile()
+        .map(crate::ids::LoopbackSecret::into_inner)
+        .map_err(|e| GuiError::Profile {
+            context: "loopback secret".into(),
+            source: e,
+        })?;
 
     let gateway_base = config::gateway_url_or_default(&cfg);
     let server_profile = GatewayClient::new(gateway_base).fetch_cowork_profile().await?;

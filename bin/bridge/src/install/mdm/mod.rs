@@ -39,7 +39,9 @@ pub fn windows_policy_values(
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Vec<(&'static str, &'static str, String)> {
-    let api_key = crate::proxy::secret::load_or_mint().unwrap_or_default();
+    let api_key = crate::proxy::secret::for_profile()
+        .map(crate::ids::LoopbackSecret::into_inner)
+        .unwrap_or_default();
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
         ("inferenceGatewayBaseUrl", "REG_SZ", gateway.into()),

@@ -58,7 +58,7 @@ pub fn start(
     runtime_config: SharedRuntimeConfig,
     token_cache: Arc<TokenCache>,
 ) -> std::io::Result<ProxyHandle> {
-    let loopback = secret::load_or_mint_typed()?;
+    let loopback = secret::proxy_init()?;
     let proxy_secret = ProxySecret::new(loopback.into_inner());
     let stats = Arc::new(ProxyStats::default());
 

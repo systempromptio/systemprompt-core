@@ -57,12 +57,14 @@ pub(crate) fn on_sync_finished(
     let bridge_result = match result {
         Ok(summary) => {
             let line = summary.one_line();
+            tracing::info!(summary = %line, "sync completed");
             app.append_log(&line);
             ipc_runtime::emit_sync_progress(app, "completed", Some(&line));
             Ok(json!({ "summary": line }))
         },
         Err(msg) => {
-            let raw = msg.to_string();
+            let raw = format!("{:#}", msg);
+            tracing::error!(error = %raw, "sync failed");
             let cancelled = raw.contains("sync cancelled");
             let (phase, line, scope, code) = if cancelled {
                 (
