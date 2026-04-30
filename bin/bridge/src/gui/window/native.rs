@@ -147,7 +147,7 @@ fn serve_custom_asset(
     if path.is_empty() || path == "/" {
         path = "/index.html".to_string();
     }
-    match assets::lookup_path(&path, "") {
+    match assets::lookup_path(&path) {
         Some(asset) => asset_response(asset),
         None => not_found(),
     }

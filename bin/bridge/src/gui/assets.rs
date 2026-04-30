@@ -46,70 +46,100 @@ const FONT_OPENSANS_REGULAR: &[u8] = include_bytes!("../../assets/fonts/OpenSans
 const FONT_OPENSANS_BOLD: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Bold.woff2");
 
 const JS_MODULES: &[(&str, &str)] = &[
-    ("agents", include_str!("../../web/js/agents.js")),
     ("i18n", include_str!("../../web/js/i18n.js")),
     ("theme", include_str!("../../web/js/theme.js")),
-    ("components/log-virtual", include_str!("../../web/js/components/log-virtual.js")),
-    ("api", include_str!("../../web/js/api.js")),
     ("atoms", include_str!("../../web/js/atoms.js")),
     ("bridge", include_str!("../../web/js/bridge.js")),
+    ("index", include_str!("../../web/js/index.js")),
+    (
+        "components/log-virtual",
+        include_str!("../../web/js/components/log-virtual.js"),
+    ),
     ("components/base", include_str!("../../web/js/components/base.js")),
     (
         "components/sp-cloud-status",
         include_str!("../../web/js/components/sp-cloud-status.js"),
     ),
-    ("crumb", include_str!("../../web/js/crumb.js")),
-    ("dom", include_str!("../../web/js/dom.js")),
-    ("drawer", include_str!("../../web/js/drawer.js")),
-    ("footer", include_str!("../../web/js/footer.js")),
-    ("hosts", include_str!("../../web/js/hosts.js")),
-    ("index", include_str!("../../web/js/index.js")),
-    ("marketplace", include_str!("../../web/js/marketplace.js")),
     (
-        "overall-badge",
-        include_str!("../../web/js/overall-badge.js"),
-    ),
-    ("profile", include_str!("../../web/js/profile.js")),
-    ("proxy", include_str!("../../web/js/proxy.js")),
-    (
-        "rail-indicator",
-        include_str!("../../web/js/rail-indicator.js"),
-    ),
-    ("setup", include_str!("../../web/js/setup.js")),
-    ("state", include_str!("../../web/js/state.js")),
-    ("sync-pill", include_str!("../../web/js/sync-pill.js")),
-    ("tabs", include_str!("../../web/js/tabs.js")),
-    (
-        "events/keyboard",
-        include_str!("../../web/js/events/keyboard.js"),
+        "components/sp-proxy-status",
+        include_str!("../../web/js/components/sp-proxy-status.js"),
     ),
     (
-        "events/registry",
-        include_str!("../../web/js/events/registry.js"),
+        "components/sp-agent-presence",
+        include_str!("../../web/js/components/sp-agent-presence.js"),
     ),
     (
-        "marketplace/detail",
-        include_str!("../../web/js/marketplace/detail.js"),
+        "components/sp-agents-summary",
+        include_str!("../../web/js/components/sp-agents-summary.js"),
     ),
     (
-        "marketplace/glyph",
-        include_str!("../../web/js/marketplace/glyph.js"),
+        "components/sp-overall-badge",
+        include_str!("../../web/js/components/sp-overall-badge.js"),
     ),
     (
-        "marketplace/list",
-        include_str!("../../web/js/marketplace/list.js"),
+        "components/sp-sync-pill",
+        include_str!("../../web/js/components/sp-sync-pill.js"),
     ),
     (
-        "marketplace/state",
-        include_str!("../../web/js/marketplace/state.js"),
+        "components/sp-rail-profile",
+        include_str!("../../web/js/components/sp-rail-profile.js"),
     ),
     (
-        "setup/gateway",
-        include_str!("../../web/js/setup/gateway.js"),
+        "components/sp-footer",
+        include_str!("../../web/js/components/sp-footer.js"),
     ),
-    ("setup/agents", include_str!("../../web/js/setup/agents.js")),
-    ("setup/mode", include_str!("../../web/js/setup/mode.js")),
-    ("hosts/card", include_str!("../../web/js/hosts/card.js")),
+    (
+        "components/sp-crumb",
+        include_str!("../../web/js/components/sp-crumb.js"),
+    ),
+    (
+        "components/sp-rail",
+        include_str!("../../web/js/components/sp-rail.js"),
+    ),
+    (
+        "components/sp-toast",
+        include_str!("../../web/js/components/sp-toast.js"),
+    ),
+    (
+        "components/sp-activity-log",
+        include_str!("../../web/js/components/sp-activity-log.js"),
+    ),
+    (
+        "components/sp-host-card",
+        include_str!("../../web/js/components/sp-host-card.js"),
+    ),
+    (
+        "components/sp-hosts-list",
+        include_str!("../../web/js/components/sp-hosts-list.js"),
+    ),
+    (
+        "components/sp-settings",
+        include_str!("../../web/js/components/sp-settings.js"),
+    ),
+    (
+        "components/sp-marketplace",
+        include_str!("../../web/js/components/sp-marketplace.js"),
+    ),
+    (
+        "components/sp-marketplace-list",
+        include_str!("../../web/js/components/sp-marketplace-list.js"),
+    ),
+    (
+        "components/sp-marketplace-detail",
+        include_str!("../../web/js/components/sp-marketplace-detail.js"),
+    ),
+    (
+        "components/sp-setup",
+        include_str!("../../web/js/components/sp-setup.js"),
+    ),
+    (
+        "components/sp-setup-gateway",
+        include_str!("../../web/js/components/sp-setup-gateway.js"),
+    ),
+    (
+        "components/sp-setup-agents",
+        include_str!("../../web/js/components/sp-setup-agents.js"),
+    ),
 ];
 
 const I18N_FILES: &[(&str, &str)] = &[(
@@ -163,7 +193,7 @@ impl Asset {
     }
 }
 
-pub fn render_index(token: &str) -> String {
+pub fn render_index() -> String {
     HTML.replace("__VERSION__", VERSION)
         .replace("__GIT_SHA__", git_sha_short())
         .replace("__BUILD_DATE__", BUILD_DATE)
@@ -171,15 +201,12 @@ pub fn render_index(token: &str) -> String {
         .replace("__LOGO_SVG__", LOGO_SVG)
         .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
         .replace("__PLATFORM__", PLATFORM_SLUG)
-        .replace("__TOKEN__", token)
+        .replace("__TOKEN__", "")
 }
 
-pub fn lookup_path(path: &str, token: &str) -> Option<Asset> {
+pub fn lookup_path(path: &str) -> Option<Asset> {
     if path == "/" || path == "/index.html" {
-        return Some(Asset::text(
-            "text/html; charset=utf-8",
-            render_index(token),
-        ));
+        return Some(Asset::text("text/html; charset=utf-8", render_index()));
     }
     if let Some(name) = path
         .strip_prefix("/assets/css/")
@@ -188,7 +215,7 @@ pub fn lookup_path(path: &str, token: &str) -> Option<Asset> {
         if let Some((_, src)) = CSS_FILES.iter().find(|(n, _)| *n == name) {
             return Some(Asset::text(
                 "text/css; charset=utf-8",
-                src.replace("__TOKEN__", token),
+                src.replace("__TOKEN__", ""),
             ));
         }
     }
@@ -205,7 +232,7 @@ pub fn lookup_path(path: &str, token: &str) -> Option<Asset> {
         if let Some((_, src)) = JS_MODULES.iter().find(|(n, _)| *n == name) {
             return Some(Asset::text(
                 "application/javascript; charset=utf-8",
-                src.replace("__TOKEN__", token),
+                src.replace("__TOKEN__", ""),
             ));
         }
     }

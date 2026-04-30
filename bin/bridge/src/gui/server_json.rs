@@ -5,10 +5,6 @@ use serde_json::Value;
 
 use crate::gui::state::{AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
 
-pub(crate) fn snapshot_to_json(snap: &AppStateSnapshot) -> Result<String, serde_json::Error> {
-    serde_json::to_string(&StatePayload::from(snap))
-}
-
 pub fn snapshot_value(snap: &AppStateSnapshot) -> Value {
     serde_json::to_value(StatePayload::from(snap)).unwrap_or(Value::Null)
 }
@@ -46,7 +42,6 @@ struct StatePayload<'a> {
     agent_count: Option<usize>,
     plugin_count: Option<usize>,
     sync_in_flight: bool,
-    last_action_message: Option<&'a str>,
     cached_token: Option<CachedTokenPayload>,
     gateway_status: GatewayStatusPayload<'a>,
     verified_identity: Option<VerifiedIdentityPayload<'a>>,
@@ -72,7 +67,6 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             agent_count: snap.agent_count,
             plugin_count: snap.plugin_count,
             sync_in_flight: snap.sync_in_flight,
-            last_action_message: snap.last_action_message.as_deref(),
             cached_token: snap.cached_token.as_ref().map(CachedTokenPayload::from),
             gateway_status: GatewayStatusPayload::from(&snap.gateway_status),
             verified_identity: snap

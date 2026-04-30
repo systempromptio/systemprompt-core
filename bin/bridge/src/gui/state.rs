@@ -78,7 +78,6 @@ pub struct AppStateSnapshot {
     pub agent_count: Option<usize>,
     pub plugins_dir: Option<String>,
     pub sync_in_flight: bool,
-    pub last_action_message: Option<String>,
     pub last_validation: Option<ValidationReport>,
     pub cached_token: Option<CachedToken>,
     pub plugin_count: Option<usize>,
@@ -200,10 +199,6 @@ impl AppState {
 
     pub fn set_sync_in_flight(&self, flag: bool) {
         self.inner.write().sync_in_flight = flag;
-    }
-
-    pub fn set_message(&self, msg: impl Into<String>) {
-        self.inner.write().last_action_message = Some(msg.into());
     }
 
     pub fn set_validation(&self, report: ValidationReport) {
