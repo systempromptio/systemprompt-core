@@ -140,12 +140,13 @@ fn render_reg(inputs: &ProfileGenInputs) -> String {
         reg_escape(&models_json)
     ));
     if let Some(uuid) = inputs.organization_uuid.as_deref()
-        && !uuid.is_empty() {
-            out.push_str(&format!(
-                "\"deploymentOrganizationUuid\"=\"{}\"\r\n",
-                reg_escape(uuid)
-            ));
-        }
+        && !uuid.is_empty()
+    {
+        out.push_str(&format!(
+            "\"deploymentOrganizationUuid\"=\"{}\"\r\n",
+            reg_escape(uuid)
+        ));
+    }
     out
 }
 

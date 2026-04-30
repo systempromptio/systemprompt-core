@@ -164,8 +164,7 @@ mod linux {
             if name_str.parse::<u32>().is_err() {
                 continue;
             }
-            let comm =
-                fs::read_to_string(format!("/proc/{name_str}/comm")).unwrap_or_default();
+            let comm = fs::read_to_string(format!("/proc/{name_str}/comm")).unwrap_or_default();
             let name = comm.trim().to_string();
             let path = fs::read_link(format!("/proc/{name_str}/exe"))
                 .ok()

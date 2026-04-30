@@ -6,10 +6,9 @@ use serde_json::json;
 use zip::ZipWriter;
 use zip::write::FileOptions;
 
-use crate::gui::GuiApp;
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::ipc_runtime;
+use crate::gui::{GuiApp, ipc_runtime};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_open_log_directory(app: &mut GuiApp, reply_to: ReplyId) {

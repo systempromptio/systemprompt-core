@@ -10,9 +10,9 @@ pub mod auth;
 pub mod cli;
 pub mod config;
 pub mod gateway;
-pub mod i18n;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
+pub mod i18n;
 pub mod ids;
 pub mod install;
 pub mod integration;

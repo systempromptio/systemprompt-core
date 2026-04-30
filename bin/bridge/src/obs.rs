@@ -61,8 +61,7 @@ pub mod tracing_init {
             }
             tracing::info!(
                 "log dir: {}",
-                log_dir()
-                    .map_or_else(|| "<disabled>".to_string(), |p| p.display().to_string())
+                log_dir().map_or_else(|| "<disabled>".to_string(), |p| p.display().to_string())
             );
         });
     }
@@ -92,9 +91,7 @@ pub mod tracing_init {
             Err(e) => {
                 #[allow(clippy::print_stderr)]
                 {
-                    eprintln!(
-                        "[systemprompt-bridge] rolling appender init failed: {e}"
-                    );
+                    eprintln!("[systemprompt-bridge] rolling appender init failed: {e}");
                 }
                 return;
             },
@@ -109,7 +106,8 @@ pub mod tracing_init {
         platform_log_dir()
     }
 
-    /// Returns today's rotated log file path. Used by support tooling that wants a single file.
+    /// Returns today's rotated log file path. Used by support tooling that
+    /// wants a single file.
     pub fn log_file_path() -> Option<PathBuf> {
         let dir = log_dir()?;
         let day = chrono::Utc::now().format("%Y-%m-%d");
@@ -135,9 +133,9 @@ pub mod tracing_init {
             .map(|base| base.join("systemprompt-bridge"))
     }
 
-    /// Installs a panic hook that writes a crash dump alongside rotating logs and emits a tracing
-    /// error event. Must be called before [`init`] so panics during subscriber setup are still
-    /// captured.
+    /// Installs a panic hook that writes a crash dump alongside rotating logs
+    /// and emits a tracing error event. Must be called before [`init`] so
+    /// panics during subscriber setup are still captured.
     pub fn install_panic_hook() {
         std::panic::set_hook(Box::new(|info| {
             let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
@@ -153,9 +151,8 @@ pub mod tracing_init {
                 .or_else(|| info.payload().downcast_ref::<String>().cloned())
                 .unwrap_or_else(|| "<non-string panic payload>".to_string());
             let backtrace = backtrace::Backtrace::new();
-            let dump = format!(
-                "panic at {location}\npayload: {payload}\n\nbacktrace:\n{backtrace:?}\n"
-            );
+            let dump =
+                format!("panic at {location}\npayload: {payload}\n\nbacktrace:\n{backtrace:?}\n");
             if let Some(dir) = log_dir() {
                 let _ = std::fs::create_dir_all(&dir);
                 let path = dir.join(format!("bridge-crash-{ts}.log"));

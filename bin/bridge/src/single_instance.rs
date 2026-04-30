@@ -94,9 +94,7 @@ mod windows {
     #![allow(unsafe_code)]
 
     use super::{SingletonGuard, SingletonResult};
-    use windows_sys::Win32::Foundation::{
-        CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE,
-    };
+    use windows_sys::Win32::Foundation::{CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE};
     use windows_sys::Win32::System::Threading::CreateMutexW;
 
     pub(super) struct MutexHandle(HANDLE);

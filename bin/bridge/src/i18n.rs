@@ -52,11 +52,12 @@ fn catalog() -> &'static Catalog {
         let mut messages = parse(FALLBACK_FTL);
         if let Some(locale) = negotiated_locale()
             && locale != "en-US"
-                && let Some(extra) = load_external(&locale) {
-                    for (k, v) in extra {
-                        messages.insert(k, v);
-                    }
-                }
+            && let Some(extra) = load_external(&locale)
+        {
+            for (k, v) in extra {
+                messages.insert(k, v);
+            }
+        }
         Catalog { messages }
     })
 }
@@ -76,18 +77,19 @@ pub fn t_args(id: &str, args: &[(&str, &str)]) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'{'
-            && let Some(end) = template[i..].find('}') {
-                let placeable = template[i + 1..i + end].trim();
-                if let Some(name) = placeable.strip_prefix('$') {
-                    if let Some((_, val)) = args.iter().find(|(k, _)| *k == name) {
-                        out.push_str(val);
-                        i += end + 1;
-                        continue;
-                    }
+            && let Some(end) = template[i..].find('}')
+        {
+            let placeable = template[i + 1..i + end].trim();
+            if let Some(name) = placeable.strip_prefix('$') {
+                if let Some((_, val)) = args.iter().find(|(k, _)| *k == name) {
+                    out.push_str(val);
                     i += end + 1;
                     continue;
                 }
+                i += end + 1;
+                continue;
             }
+        }
         if let Some(ch) = template[i..].chars().next() {
             out.push(ch);
             i += ch.len_utf8();

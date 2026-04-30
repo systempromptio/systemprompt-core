@@ -3,7 +3,8 @@ use std::borrow::Cow;
 use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::{Icon, Window, WindowAttributes, WindowId};
-use wry::http::{Response, header::CONTENT_TYPE};
+use wry::http::Response;
+use wry::http::header::CONTENT_TYPE;
 use wry::{NewWindowResponse, WebView, WebViewBuilder};
 
 use crate::gui::assets::{self, Asset};
@@ -41,8 +42,8 @@ impl SettingsWindow {
 
     pub fn create(
         event_loop: &ActiveEventLoop,
-        proxy: EventLoopProxy<UiEvent>,
-        legacy_origin: Option<String>,
+        proxy: &EventLoopProxy<UiEvent>,
+        legacy_origin: Option<&str>,
     ) -> GuiResult<Self> {
         let attrs = chrome_attributes(
             Window::default_attributes()
@@ -60,7 +61,7 @@ impl SettingsWindow {
                 source: WindowError::Os(e),
             })?;
 
-        let nav_legacy = legacy_origin.clone();
+        let nav_legacy: Option<String> = legacy_origin.map(str::to_owned);
         let ipc_proxy = proxy.clone();
         let webview = WebViewBuilder::new()
             .with_url(SP_INDEX_URL)
@@ -135,9 +136,7 @@ const BRIDGE_BOOTSTRAP: &str = r#"
 })();
 "#;
 
-fn serve_custom_asset(
-    request: &wry::http::Request<Vec<u8>>,
-) -> Response<Cow<'static, [u8]>> {
+fn serve_custom_asset(request: &wry::http::Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
     let uri = request.uri();
     let host_match = uri.host().map(|h| h == SP_HOST).unwrap_or(true);
     if !host_match {
@@ -180,9 +179,10 @@ fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
         return true;
     }
     if let Some(origin) = legacy_origin
-        && target.starts_with(origin) {
-            return true;
-        }
+        && target.starts_with(origin)
+    {
+        return true;
+    }
     if target.starts_with("http://") || target.starts_with("https://") {
         super::open_external_url(target);
         return false;

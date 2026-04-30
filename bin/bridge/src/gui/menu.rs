@@ -93,7 +93,10 @@ pub fn attach_to_window(handles: &MenuBarHandles, window: &Window) -> GuiResult<
 }
 
 #[cfg(target_os = "macos")]
-pub fn attach_to_window(_handles: &MenuBarHandles, _window: &winit::window::Window) -> GuiResult<()> {
+pub fn attach_to_window(
+    _handles: &MenuBarHandles,
+    _window: &winit::window::Window,
+) -> GuiResult<()> {
     Ok(())
 }
 

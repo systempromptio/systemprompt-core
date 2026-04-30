@@ -50,8 +50,7 @@ pub(super) fn list_claude_processes() -> Vec<String> {
                 || path_lower.ends_with("/claude")
                 || name_lower.contains("claude helper")
                 || path_lower.contains("claude helper");
-            let is_code =
-                name_lower.contains("claude code") || path_lower.contains("claude code");
+            let is_code = name_lower.contains("claude code") || path_lower.contains("claude code");
             if matches && !is_code {
                 Some(if path_lower.is_empty() {
                     name_lower

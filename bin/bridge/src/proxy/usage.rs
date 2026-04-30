@@ -31,9 +31,10 @@ where
     };
     stream.scan(TapGuard(Some(tap)), |guard, item| {
         if let (Ok(frame), Some(tap)) = (&item, guard.0.as_mut())
-            && let Some(data) = frame.data_ref() {
-                tap.observe(data);
-            }
+            && let Some(data) = frame.data_ref()
+        {
+            tap.observe(data);
+        }
         future::ready(Some(item))
     })
 }

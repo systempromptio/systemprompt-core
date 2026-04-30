@@ -198,9 +198,10 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         }
         if let WindowEvent::CloseRequested = event
             && let Some(win) = &self.settings_window
-                && win.id() == id {
-                    win.hide();
-                }
+            && win.id() == id
+        {
+            win.hide();
+        }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {

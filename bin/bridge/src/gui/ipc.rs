@@ -104,8 +104,9 @@ pub fn reply_script(id: u64, payload: &IpcReplyPayload) -> String {
 }
 
 pub fn emit_script(channel: &str, payload: &Value) -> String {
-    let channel_json =
-        serde_json::to_string(channel).unwrap_or_else(|_| "\"unknown\"".to_string());
+    let channel_json = serde_json::to_string(channel).unwrap_or_else(|_| "\"unknown\"".to_string());
     let body = serde_json::to_string(payload).unwrap_or_else(|_| "null".to_string());
-    format!("window.__bridge && window.__bridge.emit && window.__bridge.emit({channel_json}, {body});")
+    format!(
+        "window.__bridge && window.__bridge.emit && window.__bridge.emit({channel_json}, {body});"
+    )
 }

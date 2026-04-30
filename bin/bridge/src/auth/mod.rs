@@ -59,28 +59,32 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
         return true;
     }
     if let Some(pat) = cfg.pat.as_ref()
-        && let Some(file) = pat.file.as_ref() {
-            let expanded = expand_home(file);
-            if std::path::Path::new(&expanded).exists() {
-                return true;
-            }
+        && let Some(file) = pat.file.as_ref()
+    {
+        let expanded = expand_home(file);
+        if std::path::Path::new(&expanded).exists() {
+            return true;
         }
+    }
     if let Some(session) = cfg.session.as_ref()
-        && session.enabled.unwrap_or(false) {
-            return true;
-        }
+        && session.enabled.unwrap_or(false)
+    {
+        return true;
+    }
     if let Some(mtls) = cfg.mtls.as_ref()
-        && mtls.cert_keystore_ref.is_some() {
-            return true;
-        }
+        && mtls.cert_keystore_ref.is_some()
+    {
+        return true;
+    }
     false
 }
 
 fn expand_home(path: &str) -> String {
     if let Some(rest) = path.strip_prefix("~/")
-        && let Some(home) = dirs::home_dir() {
-            return home.join(rest).to_string_lossy().into_owned();
-        }
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest).to_string_lossy().into_owned();
+    }
     path.to_string()
 }
 
@@ -115,9 +119,10 @@ fn run_chain(cfg: &config::Config, write_cache: bool) -> Result<HelperOutput, Ch
     let result = evaluate_chain(&providers, preferred);
     if write_cache
         && let Ok(out) = result.as_ref()
-            && let Err(e) = cache::write(out) {
-                diag(&format!("cache write failed (continuing): {e}"));
-            }
+        && let Err(e) = cache::write(out)
+    {
+        diag(&format!("cache write failed (continuing): {e}"));
+    }
     result
 }
 

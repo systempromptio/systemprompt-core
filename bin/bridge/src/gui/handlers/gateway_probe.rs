@@ -2,13 +2,12 @@ use serde_json::json;
 
 use crate::config;
 use crate::gateway::GatewayClient;
-use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::ipc_runtime;
 use crate::gui::state::{
     CancelScope, GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
 };
+use crate::gui::{GuiApp, ipc_runtime};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {

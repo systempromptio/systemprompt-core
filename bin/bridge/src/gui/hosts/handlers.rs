@@ -4,12 +4,11 @@ use serde_json::json;
 
 use crate::config;
 use crate::gateway::GatewayClient;
-use crate::gui::GuiApp;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::ipc_runtime;
+use crate::gui::{GuiApp, ipc_runtime};
 use crate::integration::{
     GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProxyHealth, find_host_by_id, proxy_probe,
 };
@@ -108,11 +107,7 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
     finish(app, Ok(json!({ "health": value })), reply_to);
 }
 
-pub(crate) fn on_profile_generate_requested(
-    app: &mut GuiApp,
-    host_id: &str,
-    reply_to: ReplyId,
-) {
+pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
     let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("generate requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
@@ -127,16 +122,15 @@ pub(crate) fn on_profile_generate_requested(
     let host_id_owned = host_id.to_string();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
-        let result = match tokio::task::spawn_blocking(move || {
-            generate_profile_for(host).map_err(Arc::new)
-        })
-        .await
-        {
-            Ok(r) => r,
-            Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
-                "profile generate task join: {join_err}"
-            ))))),
-        };
+        let result =
+            match tokio::task::spawn_blocking(move || generate_profile_for(host).map_err(Arc::new))
+                .await
+            {
+                Ok(r) => r,
+                Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
+                    "profile generate task join: {join_err}"
+                ))))),
+            };
         let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
             host_id: host_id_owned,
             result,
@@ -164,7 +158,11 @@ pub(crate) fn on_profile_generate_finished(
         Err(e) => {
             let line = format!("[{host_id}] profile generation failed: {e}");
             app.append_log(&line);
-            Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, line))
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::Internal,
+                line,
+            ))
         },
     };
     app.refresh_ui();
@@ -234,7 +232,11 @@ pub(crate) fn on_profile_install_finished(
         Err(e) => {
             let line = format!("[{host_id}] profile install failed: {e}");
             app.append_log(&line);
-            Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, line))
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::Internal,
+                line,
+            ))
         },
     };
     let _ = app

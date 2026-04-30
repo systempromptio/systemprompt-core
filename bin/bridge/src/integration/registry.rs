@@ -8,16 +8,23 @@ use super::codex_cli::CODEX_CLI_HOST;
 #[cfg(feature = "dev-stub-host")]
 use super::stub_host::STUB_HOST;
 
-#[allow(clippy::vec_init_then_push)]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const DESKTOP_HOSTS: &[&'static dyn HostApp] = &[&CLAUDE_DESKTOP_HOST];
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+const DESKTOP_HOSTS: &[&'static dyn HostApp] = &[];
+
+#[cfg(feature = "dev-stub-host")]
+const STUB_HOSTS: &[&'static dyn HostApp] = &[&STUB_HOST];
+#[cfg(not(feature = "dev-stub-host"))]
+const STUB_HOSTS: &[&'static dyn HostApp] = &[];
+
 static REGISTRY: LazyLock<Vec<&'static dyn HostApp>> = LazyLock::new(|| {
-    #[allow(unused_mut)]
-    let mut entries: Vec<&'static dyn HostApp> = Vec::new();
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    entries.push(&CLAUDE_DESKTOP_HOST);
-    entries.push(&CODEX_CLI_HOST);
-    #[cfg(feature = "dev-stub-host")]
-    entries.push(&STUB_HOST);
-    entries
+    DESKTOP_HOSTS
+        .iter()
+        .copied()
+        .chain(std::iter::once(&CODEX_CLI_HOST as &'static dyn HostApp))
+        .chain(STUB_HOSTS.iter().copied())
+        .collect()
 });
 
 pub fn host_apps() -> &'static [&'static dyn HostApp] {
