@@ -1,0 +1,36 @@
+@font-face {
+  font-family: "Inter";
+  src: url("/assets/fonts/Inter-Regular.woff2?t=__TOKEN__") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/assets/fonts/Inter-Bold.woff2?t=__TOKEN__") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "OpenSans";
+  src: url("/assets/fonts/OpenSans-Regular.woff2?t=__TOKEN__") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "OpenSans";
+  src: url("/assets/fonts/OpenSans-Bold.woff2?t=__TOKEN__") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial");
+  size-adjust: 107.4%;
+  ascent-override: 90%;
+  descent-override: 22.43%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "OpenSans Fallback";
+  src: local("Arial");
+  size-adjust: 106.27%;
+  ascent-override: 101.39%;
+  descent-override: 27.78%;
+  line-gap-override: 0%;
+}

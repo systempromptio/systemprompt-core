@@ -1,0 +1,15 @@
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--sp-corners-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+.badge-muted { background: color-mix(in srgb, var(--sp-muted) 20%, transparent); color: var(--sp-muted-strong); }
+.badge-ok    { background: color-mix(in srgb, var(--sp-ok)    18%, transparent); color: var(--sp-ok); }
+.badge-warn  { background: color-mix(in srgb, var(--sp-warn)  18%, transparent); color: var(--sp-warn); }
+.badge-err   { background: color-mix(in srgb, var(--sp-err)   18%, transparent); color: var(--sp-err); }
