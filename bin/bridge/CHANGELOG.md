@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Clippy cleanup — zero warnings on `x86_64-pc-windows-gnu` and host targets under `-D warnings`.**
+  - Removed dead `GuiApp.cancel: CancellationToken` field; cancellation is owned by `AppState.cancels` and per-handler tokens.
+  - Collapsed 32 nested `if let` blocks into stable `let_chains` (autofix).
+  - Switched four `needless_pass_by_value` sites to borrow: `ipc_runtime::handle_inbound(&str)`, `ipc_runtime::emit_sync_progress(Option<&str>)`, `SettingsWindow::create(&EventLoopProxy, Option<&str>)`.
+  - Removed unjustified `#[allow]` attributes:
+    - `clippy::unused_self` on `InstallError::exit_code` — replaced with `InstallError::EXIT_CODE` associated constant.
+    - `clippy::vec_init_then_push` + `unused_mut` in `integration::registry` — refactored to cfg-gated const slices chained into the registry vec.
+  - Audited remaining `#[allow]`s — kept only well-justified FFI (`unsafe_code`), logger-bootstrap fallback (`print_stderr` in `obs.rs`), CLI entry-point output, project-wide stylistic opts in `lib.rs`, `#[cfg(test)]` scopes, and cross-platform signature parity (`unnecessary_wraps` on Linux `org_plugins_system`).
+
 ### Added
 
 - **Phase 3 frontend rewrite — full migration from HTTP polling + delegated dispatcher to Lit components + IPC channels.** Every legacy panel under `web/js/` is now an `sp-*` custom element extending `BridgeElement`, hydrated from `state.snapshot` and refreshed by the appropriate channel (`state.changed`, `host.changed`, `proxy.changed`, `proxy.stats`, `sync.progress`, `error`, `log`).

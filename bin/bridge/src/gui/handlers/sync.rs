@@ -2,14 +2,12 @@ use std::sync::Arc;
 
 use serde_json::json;
 
-use crate::gui::GuiApp;
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::ipc_runtime;
 use crate::gui::state::CancelScope;
-use crate::i18n;
-use crate::{config, sync};
+use crate::gui::{GuiApp, ipc_runtime};
+use crate::{config, i18n, sync};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
@@ -68,7 +66,7 @@ pub(crate) fn on_sync_finished(
         Ok(summary) => {
             let line = summary.one_line();
             app.append_log(&line);
-            ipc_runtime::emit_sync_progress(app, "completed", Some(line.clone()));
+            ipc_runtime::emit_sync_progress(app, "completed", Some(&line));
             Ok(json!({ "summary": line }))
         },
         Err(msg) => {
@@ -90,7 +88,7 @@ pub(crate) fn on_sync_finished(
                 )
             };
             app.append_log(&line);
-            ipc_runtime::emit_sync_progress(app, phase, Some(line.clone()));
+            ipc_runtime::emit_sync_progress(app, phase, Some(&line));
             Err(BridgeError::new(scope, code, line))
         },
     };
@@ -100,11 +98,7 @@ pub(crate) fn on_sync_finished(
     finish_value(app, bridge_result, reply_to);
 }
 
-fn finish_value(
-    app: &GuiApp,
-    result: Result<serde_json::Value, BridgeError>,
-    reply_to: ReplyId,
-) {
+fn finish_value(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {
             ipc_runtime::emit_error(app, &err);

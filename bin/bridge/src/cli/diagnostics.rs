@@ -16,11 +16,7 @@ pub fn short_sha() -> &'static str {
 
 pub fn render() -> String {
     let mut out = String::new();
-    let _ = writeln!(
-        out,
-        "systemprompt-bridge {}",
-        env!("CARGO_PKG_VERSION")
-    );
+    let _ = writeln!(out, "systemprompt-bridge {}", env!("CARGO_PKG_VERSION"));
     let _ = writeln!(out, "commit:    {GIT_SHA}");
     let _ = writeln!(out, "branch:    {GIT_BRANCH}");
     let _ = writeln!(out, "committed: {GIT_COMMIT_DATE}");
@@ -28,7 +24,11 @@ pub fn render() -> String {
     let _ = writeln!(
         out,
         "profile:   {}",
-        if cfg!(debug_assertions) { "debug" } else { "release" }
+        if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
     );
     let _ = writeln!(
         out,
@@ -41,8 +41,7 @@ pub fn render() -> String {
     let _ = writeln!(
         out,
         "  log dir:    {}",
-        crate::obs::log_dir()
-            .map_or_else(|| "<unavailable>".into(), |p| p.display().to_string())
+        crate::obs::log_dir().map_or_else(|| "<unavailable>".into(), |p| p.display().to_string())
     );
     let _ = writeln!(
         out,

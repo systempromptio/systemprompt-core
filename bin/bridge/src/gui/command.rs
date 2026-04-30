@@ -2,12 +2,11 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::auth::secret::Secret;
-use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::server_json;
 use crate::gui::state::CancelScope;
+use crate::gui::{GuiApp, server_json};
 
 pub enum CommandOutcome {
     Sync(Result<Value, BridgeError>),
@@ -45,47 +44,35 @@ struct HostInstallArgs {
     path: String,
 }
 
-pub(crate) fn dispatch(
-    app: &mut GuiApp,
-    id: u64,
-    cmd: &str,
-    args: Value,
-) -> CommandOutcome {
+pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> CommandOutcome {
     let reply_id: ReplyId = Some(id);
     match cmd {
-        "state.snapshot" => CommandOutcome::Sync(Ok(server_json::snapshot_value(
-            &app.state.snapshot(),
-        ))),
+        "state.snapshot" => {
+            CommandOutcome::Sync(Ok(server_json::snapshot_value(&app.state.snapshot())))
+        },
         "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing())),
-        "gateway.set" => {
-            match parse::<GatewaySetArgs>(args) {
-                Ok(a) => {
-                    if a.url.trim().is_empty() {
-                        return CommandOutcome::Sync(Err(BridgeError::new(
-                            ErrorScope::Gateway,
-                            ErrorCode::InvalidArgs,
-                            "gateway url is empty",
-                        )));
-                    }
-                    send(
-                        app,
-                        UiEvent::SetGatewayRequested {
-                            url: a.url,
-                            reply_to: reply_id,
-                        },
-                    );
-                    CommandOutcome::Async
-                },
-                Err(e) => CommandOutcome::Sync(Err(e)),
-            }
+        "gateway.set" => match parse::<GatewaySetArgs>(args) {
+            Ok(a) => {
+                if a.url.trim().is_empty() {
+                    return CommandOutcome::Sync(Err(BridgeError::new(
+                        ErrorScope::Gateway,
+                        ErrorCode::InvalidArgs,
+                        "gateway url is empty",
+                    )));
+                }
+                send(
+                    app,
+                    UiEvent::SetGatewayRequested {
+                        url: a.url,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "gateway.probe" => {
-            send(
-                app,
-                UiEvent::GatewayProbeRequested {
-                    reply_to: reply_id,
-                },
-            );
+            send(app, UiEvent::GatewayProbeRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
         "login" => match parse::<LoginArgs>(args) {
@@ -110,30 +97,15 @@ pub(crate) fn dispatch(
             Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "logout" => {
-            send(
-                app,
-                UiEvent::LogoutRequested {
-                    reply_to: reply_id,
-                },
-            );
+            send(app, UiEvent::LogoutRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
         "sync" => {
-            send(
-                app,
-                UiEvent::SyncRequested {
-                    reply_to: reply_id,
-                },
-            );
+            send(app, UiEvent::SyncRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
         "validate" => {
-            send(
-                app,
-                UiEvent::ValidateRequested {
-                    reply_to: reply_id,
-                },
-            );
+            send(app, UiEvent::ValidateRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
         "host.probe" => match parse::<HostIdArgs>(args) {
@@ -179,9 +151,7 @@ pub(crate) fn dispatch(
         "host.proxy.probe" => {
             send(
                 app,
-                UiEvent::Host(HostUiEvent::ProxyProbeRequested {
-                    reply_to: reply_id,
-                }),
+                UiEvent::Host(HostUiEvent::ProxyProbeRequested { reply_to: reply_id }),
             );
             CommandOutcome::Async
         },
@@ -220,21 +190,11 @@ pub(crate) fn dispatch(
             CommandOutcome::Sync(Ok(json!({})))
         },
         "diagnostics.openLogDirectory" | "openLogFolder" => {
-            send(
-                app,
-                UiEvent::OpenLogDirectory {
-                    reply_to: reply_id,
-                },
-            );
+            send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
             CommandOutcome::Async
         },
         "diagnostics.exportBundle" => {
-            send(
-                app,
-                UiEvent::ExportDiagnosticBundle {
-                    reply_to: reply_id,
-                },
-            );
+            send(app, UiEvent::ExportDiagnosticBundle { reply_to: reply_id });
             CommandOutcome::Async
         },
         "diagnostics.info" => CommandOutcome::Sync(Ok(json!({

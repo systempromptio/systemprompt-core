@@ -50,12 +50,13 @@ pub fn read_last_sync(path: &Path) -> Result<Option<LastSyncState>, ReplayStateE
 
 pub fn check_replay(last: &LastSyncState, incoming: &ManifestVersion) -> Result<(), SyncError> {
     if let Some(prev) = last.last_applied_manifest_version.as_ref()
-        && incoming <= prev {
-            return Err(SyncError::ReplayedManifest {
-                last: prev.to_string(),
-                incoming: incoming.to_string(),
-            });
-        }
+        && incoming <= prev
+    {
+        return Err(SyncError::ReplayedManifest {
+            last: prev.to_string(),
+            incoming: incoming.to_string(),
+        });
+    }
     Ok(())
 }
 

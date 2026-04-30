@@ -24,9 +24,5 @@ pub enum InstallError {
 }
 
 impl InstallError {
-    #[must_use]
-    #[allow(clippy::unused_self)]
-    pub fn exit_code(&self) -> ExitCode {
-        ExitCode::from(1)
-    }
+    pub const EXIT_CODE: ExitCode = ExitCode::FAILURE;
 }

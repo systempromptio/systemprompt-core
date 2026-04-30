@@ -73,9 +73,7 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
             gateway,
             reply_to,
         } => handlers::auth::on_login_requested(app, &token, gateway, reply_to),
-        UiEvent::LogoutRequested { reply_to } => {
-            handlers::auth::on_logout_requested(app, reply_to)
-        },
+        UiEvent::LogoutRequested { reply_to } => handlers::auth::on_logout_requested(app, reply_to),
         UiEvent::SetGatewayRequested { url, reply_to } => {
             handlers::auth::on_set_gateway_requested(app, &url, reply_to)
         },
@@ -113,7 +111,7 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
 
         UiEvent::Host(e) => crate::gui::hosts::dispatch::handle(app, e),
 
-        UiEvent::IpcInbound(raw) => crate::gui::ipc_runtime::handle_inbound(app, raw),
+        UiEvent::IpcInbound(raw) => crate::gui::ipc_runtime::handle_inbound(app, &raw),
         UiEvent::IpcEmit { channel, payload } => {
             crate::gui::ipc_runtime::send_emit(app, channel, &payload)
         },

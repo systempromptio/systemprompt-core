@@ -2,11 +2,9 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::gui::GuiApp;
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::ipc_runtime;
-use crate::gui::window;
+use crate::gui::{GuiApp, ipc_runtime, window};
 use crate::integration::find_host_by_id;
 
 pub(crate) fn on_uninstall(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
@@ -43,8 +41,10 @@ pub(crate) fn on_open_config(app: &mut GuiApp, host_id: &str, reply_to: ReplyId)
                 ));
                 Ok(json!({ "path": path }))
             } else {
-                let msg =
-                    format!("open-config: no resolved config path for {}", host.display_name());
+                let msg = format!(
+                    "open-config: no resolved config path for {}",
+                    host.display_name()
+                );
                 app.append_log(&msg);
                 Err(BridgeError::new(ErrorScope::Host, ErrorCode::NotFound, msg))
             }

@@ -5,8 +5,8 @@ use crate::gui::command::{self, CommandOutcome};
 use crate::gui::events::UiEvent;
 use crate::gui::ipc::{self, BridgeError, IpcReplyPayload, IpcRequest};
 
-pub(crate) fn handle_inbound(app: &mut GuiApp, raw: String) {
-    let req: IpcRequest = match serde_json::from_str(&raw) {
+pub(crate) fn handle_inbound(app: &mut GuiApp, raw: &str) {
+    let req: IpcRequest = match serde_json::from_str(raw) {
         Ok(r) => r,
         Err(e) => {
             app.append_log(format!("ipc: bad request: {e}"));
@@ -77,7 +77,7 @@ pub(crate) fn emit_proxy_changed(app: &GuiApp) {
     send_emit(app, "proxy.changed", &value);
 }
 
-pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<String>) {
+pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str>) {
     let value = json!({
         "phase": phase,
         "summary": summary,

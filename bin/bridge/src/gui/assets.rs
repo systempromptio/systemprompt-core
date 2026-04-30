@@ -55,7 +55,10 @@ const JS_MODULES: &[(&str, &str)] = &[
         "components/log-virtual",
         include_str!("../../web/js/components/log-virtual.js"),
     ),
-    ("components/base", include_str!("../../web/js/components/base.js")),
+    (
+        "components/base",
+        include_str!("../../web/js/components/base.js"),
+    ),
     (
         "components/sp-cloud-status",
         include_str!("../../web/js/components/sp-cloud-status.js"),
@@ -211,12 +214,13 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
     if let Some(name) = path
         .strip_prefix("/assets/css/")
         .and_then(|s| s.strip_suffix(".css"))
-        && let Some((_, src)) = CSS_FILES.iter().find(|(n, _)| *n == name) {
-            return Some(Asset::text(
-                "text/css; charset=utf-8",
-                src.replace("__TOKEN__", ""),
-            ));
-        }
+        && let Some((_, src)) = CSS_FILES.iter().find(|(n, _)| *n == name)
+    {
+        return Some(Asset::text(
+            "text/css; charset=utf-8",
+            src.replace("__TOKEN__", ""),
+        ));
+    }
     if path == "/assets/js/vendor/lit-all.js" {
         return Some(Asset::text(
             "application/javascript; charset=utf-8",
@@ -226,21 +230,20 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
     if let Some(name) = path
         .strip_prefix("/assets/js/")
         .and_then(|s| s.strip_suffix(".js"))
-        && let Some((_, src)) = JS_MODULES.iter().find(|(n, _)| *n == name) {
-            return Some(Asset::text(
-                "application/javascript; charset=utf-8",
-                src.replace("__TOKEN__", ""),
-            ));
-        }
+        && let Some((_, src)) = JS_MODULES.iter().find(|(n, _)| *n == name)
+    {
+        return Some(Asset::text(
+            "application/javascript; charset=utf-8",
+            src.replace("__TOKEN__", ""),
+        ));
+    }
     if let Some(name) = path
         .strip_prefix("/assets/i18n/")
         .and_then(|s| s.strip_suffix(".ftl"))
-        && let Some((_, src)) = I18N_FILES.iter().find(|(n, _)| *n == name) {
-            return Some(Asset::text(
-                "text/plain; charset=utf-8",
-                (*src).to_string(),
-            ));
-        }
+        && let Some((_, src)) = I18N_FILES.iter().find(|(n, _)| *n == name)
+    {
+        return Some(Asset::text("text/plain; charset=utf-8", (*src).to_string()));
+    }
     match path {
         "/assets/fonts/Inter-Regular.woff2" => Some(Asset::raw("font/woff2", FONT_INTER_REGULAR)),
         "/assets/fonts/Inter-Bold.woff2" => Some(Asset::raw("font/woff2", FONT_INTER_BOLD)),

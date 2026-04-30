@@ -14,7 +14,7 @@ pub(crate) fn cmd_uninstall(args: &[String]) -> ExitCode {
         },
         Err(err) => {
             diag(&err.to_string());
-            err.exit_code()
+            install::InstallError::EXIT_CODE
         },
     }
 }
