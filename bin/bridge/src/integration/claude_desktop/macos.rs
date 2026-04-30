@@ -37,24 +37,31 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
 }
 
 pub(super) fn list_claude_processes() -> Vec<String> {
-    let output = match Command::new("/bin/ps").args(["-Ao", "comm"]).output() {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut hits: Vec<String> = text
-        .lines()
-        .filter(|line| {
-            let lower = line.to_ascii_lowercase();
-            (lower.contains("/claude.app/")
-                || lower.ends_with("/claude")
-                || lower.contains("claude helper"))
-                && !lower.contains("claude code")
+    let mut hits: Vec<String> = crate::sysproc::list_processes()
+        .into_iter()
+        .filter_map(|p| {
+            let name_lower = p.name.to_ascii_lowercase();
+            let path_lower = p
+                .path
+                .as_deref()
+                .map(str::to_ascii_lowercase)
+                .unwrap_or_default();
+            let matches = path_lower.contains("/claude.app/")
+                || path_lower.ends_with("/claude")
+                || name_lower.contains("claude helper")
+                || path_lower.contains("claude helper");
+            let is_code =
+                name_lower.contains("claude code") || path_lower.contains("claude code");
+            if matches && !is_code {
+                Some(if path_lower.is_empty() {
+                    name_lower
+                } else {
+                    path_lower
+                })
+            } else {
+                None
+            }
         })
-        .map(|s| s.trim().to_string())
         .collect();
     hits.sort();
     hits.dedup();

@@ -59,3 +59,17 @@
   font-family: var(--sp-font-body);
   font-feature-settings: "ss01", "cv11";
 }
+
+:root[data-contrast="elevated"] {
+  --sp-bg:            oklch(0.14 0.01 45);
+  --sp-bg-elev-1:     oklch(0.17 0.01 48);
+  --sp-bg-elev-2:     oklch(0.20 0.01 48);
+  --sp-bg-glass:      oklch(0.12 0.01 45 / 0.85);
+  --sp-line:          oklch(0.42 0.01 48);
+  --sp-line-soft:     oklch(0.42 0.01 48 / 0.65);
+
+  --sp-text:          oklch(0.99 0.01 80);
+  --sp-muted:         oklch(0.82 0.01 60);
+  --sp-muted-strong:  oklch(0.92 0.01 60);
+}
+

@@ -1,19 +1,28 @@
 use std::collections::HashMap;
 
 use muda::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
-use tray_icon::{Icon, TrayIcon, TrayIconBuilder, TrayIconEvent};
+use tray_icon::{Icon, MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 use super::error::{GuiError, GuiResult};
 use super::events::UiEvent;
 use super::state::{AppStateSnapshot, GatewayStatus};
 
 pub struct TrayHandles {
-    pub _tray: TrayIcon,
+    pub tray: TrayIcon,
     pub menu: Menu,
     pub bindings: HashMap<MenuId, UiEvent>,
     pub identity_item: MenuItem,
     pub last_sync_item: MenuItem,
     pub sync_item: MenuItem,
+    pub icon_normal: Icon,
+    pub icon_alert: Icon,
+    pub status: TrayStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrayStatus {
+    Normal,
+    Alert,
 }
 
 #[cfg(target_os = "macos")]
@@ -44,32 +53,43 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     menu.append(&quit_item)?;
 
     let mut bindings = HashMap::new();
-    bindings.insert(sync_item.id().clone(), UiEvent::SyncRequested);
-    bindings.insert(validate_item.id().clone(), UiEvent::ValidateRequested);
+    bindings.insert(
+        sync_item.id().clone(),
+        UiEvent::SyncRequested { reply_to: None },
+    );
+    bindings.insert(
+        validate_item.id().clone(),
+        UiEvent::ValidateRequested { reply_to: None },
+    );
     bindings.insert(open_settings_item.id().clone(), UiEvent::OpenSettings);
     bindings.insert(open_folder_item.id().clone(), UiEvent::OpenConfigFolder);
     bindings.insert(quit_item.id().clone(), UiEvent::Quit);
 
-    let icon = decode_icon()?;
+    let icon_normal = decode_icon()?;
+    let icon_alert = decode_alert_icon()?;
 
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
+        .with_menu_on_left_click(false)
         .with_tooltip("systemprompt-bridge")
-        .with_icon(icon)
+        .with_icon(icon_normal.clone())
         .with_icon_as_template(cfg!(target_os = "macos"))
         .build()?;
 
     Ok(TrayHandles {
-        _tray: tray,
+        tray,
         menu,
         bindings,
         identity_item,
         last_sync_item,
         sync_item,
+        icon_normal,
+        icon_alert,
+        status: TrayStatus::Normal,
     })
 }
 
-pub fn refresh(handles: &TrayHandles, snap: &AppStateSnapshot) {
+pub fn refresh(handles: &mut TrayHandles, snap: &AppStateSnapshot) {
     handles.identity_item.set_text(format_identity(snap));
     handles.last_sync_item.set_text(format_last_sync(snap));
     handles.sync_item.set_enabled(!snap.sync_in_flight);
@@ -77,6 +97,18 @@ pub fn refresh(handles: &TrayHandles, snap: &AppStateSnapshot) {
         handles.sync_item.set_text("Syncing…");
     } else {
         handles.sync_item.set_text("Sync now");
+    }
+    let target = match snap.gateway_status {
+        GatewayStatus::Unreachable { .. } => TrayStatus::Alert,
+        _ => TrayStatus::Normal,
+    };
+    if target != handles.status {
+        let icon = match target {
+            TrayStatus::Normal => handles.icon_normal.clone(),
+            TrayStatus::Alert => handles.icon_alert.clone(),
+        };
+        let _ = handles.tray.set_icon(Some(icon));
+        handles.status = target;
     }
 }
 
@@ -88,11 +120,16 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
         }
     }
     while let Ok(event) = TrayIconEvent::receiver().try_recv() {
-        if matches!(
-            event,
-            TrayIconEvent::Click { .. } | TrayIconEvent::DoubleClick { .. }
-        ) {
-            out.push(UiEvent::OpenSettings);
+        match event {
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                ..
+            }
+            | TrayIconEvent::DoubleClick {
+                button: MouseButton::Left,
+                ..
+            } => out.push(UiEvent::OpenSettings),
+            _ => {},
         }
     }
     out
@@ -127,5 +164,23 @@ fn format_last_sync(snap: &AppStateSnapshot) -> String {
 fn decode_icon() -> GuiResult<Icon> {
     let img = image::load_from_memory(TRAY_ICON_PNG)?.to_rgba8();
     let (w, h) = img.dimensions();
+    Icon::from_rgba(img.into_raw(), w, h).map_err(GuiError::from)
+}
+
+fn decode_alert_icon() -> GuiResult<Icon> {
+    let mut img = image::load_from_memory(TRAY_ICON_PNG)?.to_rgba8();
+    let (w, h) = img.dimensions();
+    let dot_radius = (w.min(h) / 4).max(3);
+    let cx = w.saturating_sub(dot_radius);
+    let cy = h.saturating_sub(dot_radius);
+    for y in 0..h {
+        for x in 0..w {
+            let dx = x as i32 - cx as i32;
+            let dy = y as i32 - cy as i32;
+            if dx * dx + dy * dy <= (dot_radius as i32).pow(2) {
+                img.put_pixel(x, y, image::Rgba([220, 38, 38, 255]));
+            }
+        }
+    }
     Icon::from_rgba(img.into_raw(), w, h).map_err(GuiError::from)
 }

@@ -1,11 +1,36 @@
 use std::sync::atomic::Ordering;
 
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::gui::state::{AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
 
 pub(crate) fn snapshot_to_json(snap: &AppStateSnapshot) -> Result<String, serde_json::Error> {
     serde_json::to_string(&StatePayload::from(snap))
+}
+
+pub fn snapshot_value(snap: &AppStateSnapshot) -> Value {
+    serde_json::to_value(StatePayload::from(snap)).unwrap_or(Value::Null)
+}
+
+pub fn identity_value(snap: &AppStateSnapshot) -> Value {
+    snap.verified_identity
+        .as_ref()
+        .map(|v| serde_json::to_value(VerifiedIdentityPayload::from(v)).unwrap_or(Value::Null))
+        .unwrap_or(Value::Null)
+}
+
+pub fn single_host_value(snap: &AppStateSnapshot, host_id: &str) -> Value {
+    let payload = crate::gui::hosts::serde::single_host_payload(snap, host_id);
+    serde_json::to_value(payload).unwrap_or(Value::Null)
+}
+
+pub fn local_proxy_value(snap: &AppStateSnapshot) -> Value {
+    serde_json::to_value(&snap.hosts.local_proxy).unwrap_or(Value::Null)
+}
+
+pub fn proxy_stats_value() -> Value {
+    serde_json::to_value(ProxyStatsPayload::current()).unwrap_or(Value::Null)
 }
 
 #[derive(Serialize)]
@@ -64,7 +89,7 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
 }
 
 #[derive(Serialize, Default)]
-struct ProxyStatsPayload {
+pub(crate) struct ProxyStatsPayload {
     forwarded_total: u64,
     messages_total: u64,
     tokens_in_total: u64,

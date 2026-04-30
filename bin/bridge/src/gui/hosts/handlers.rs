@@ -1,86 +1,157 @@
 use std::sync::Arc;
 
+use serde_json::json;
+
 use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gui::GuiApp;
 use crate::gui::error::{GuiError, GuiResult};
-use crate::gui::events::UiEvent;
+use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::HostUiEvent;
+use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
+use crate::gui::ipc_runtime;
 use crate::integration::{
     GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProxyHealth, find_host_by_id, proxy_probe,
 };
 
-pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str) {
+pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
     let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("probe requested for unknown host '{host_id}'"));
+        let err = BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::NotFound,
+            format!("unknown host: {host_id}"),
+        );
+        finish(app, Err(err), reply_to);
         return;
     };
     if !app.state.mark_host_probing(host_id) {
+        if let Some(id) = reply_to {
+            let err = BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::Conflict,
+                "probe already in flight",
+            );
+            ipc_runtime::send_reply_payload(app, id, &IpcReplyPayload::err(err));
+        }
         return;
     }
     let host_id_owned = host_id.to_string();
-    app.pool.spawn_task(
-        app.proxy.clone(),
-        move || Box::new(host.probe()),
-        move |snap| {
-            UiEvent::Host(HostUiEvent::ProbeFinished {
-                host_id: host_id_owned.clone(),
-                snapshot: snap,
-            })
-        },
-    );
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let snap = match tokio::task::spawn_blocking(move || Box::new(host.probe())).await {
+            Ok(s) => s,
+            Err(_) => return,
+        };
+        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
+            host_id: host_id_owned,
+            snapshot: snap,
+            reply_to,
+        }));
+    });
 }
 
-pub(crate) fn on_probe_finished(app: &mut GuiApp, host_id: &str, snapshot: HostAppSnapshot) {
+pub(crate) fn on_probe_finished(
+    app: &mut GuiApp,
+    host_id: &str,
+    snapshot: HostAppSnapshot,
+    reply_to: ReplyId,
+) {
     app.state.apply_host_snapshot(host_id, snapshot);
     let _ = app
         .proxy
-        .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested));
+        .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested {
+            reply_to: None,
+        }));
     app.refresh_ui();
+    ipc_runtime::emit_host_changed(app, host_id);
+    let snap = app.state.snapshot();
+    let value = crate::gui::server_json::single_host_value(&snap, host_id);
+    finish(app, Ok(json!({ "snapshot": value })), reply_to);
 }
 
-pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp) {
+pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
     let url = app.state.first_configured_proxy_url();
     if !app.state.mark_proxy_probing() {
+        if let Some(id) = reply_to {
+            let err = BridgeError::new(
+                ErrorScope::Proxy,
+                ErrorCode::Conflict,
+                "proxy probe already in flight",
+            );
+            ipc_runtime::send_reply_payload(app, id, &IpcReplyPayload::err(err));
+        }
         return;
     }
-    app.pool.spawn_task(
-        app.proxy.clone(),
-        move || Box::new(proxy_probe::probe(url.as_deref())),
-        |health| UiEvent::Host(HostUiEvent::ProxyProbeFinished(health)),
-    );
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let health =
+            match tokio::task::spawn_blocking(move || Box::new(proxy_probe::probe(url.as_deref())))
+                .await
+            {
+                Ok(h) => h,
+                Err(_) => return,
+            };
+        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProxyProbeFinished {
+            health,
+            reply_to,
+        }));
+    });
 }
 
-pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth) {
+pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, reply_to: ReplyId) {
     app.state.apply_proxy_health(health);
     app.refresh_ui();
+    ipc_runtime::emit_proxy_changed(app);
+    let snap = app.state.snapshot();
+    let value = crate::gui::server_json::local_proxy_value(&snap);
+    finish(app, Ok(json!({ "health": value })), reply_to);
 }
 
-pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str) {
+pub(crate) fn on_profile_generate_requested(
+    app: &mut GuiApp,
+    host_id: &str,
+    reply_to: ReplyId,
+) {
     let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("generate requested for unknown host '{host_id}'"));
+        let err = BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::NotFound,
+            format!("unknown host: {host_id}"),
+        );
+        finish(app, Err(err), reply_to);
         return;
     };
     app.append_log(format!("Generating profile for {}…", host.display_name()));
     let host_id_owned = host_id.to_string();
-    app.pool.spawn_task(
-        app.proxy.clone(),
-        move || generate_profile_for(host).map_err(Arc::new),
-        move |result| {
-            UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
-                host_id: host_id_owned.clone(),
-                result,
-            })
-        },
-    );
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let result = match tokio::task::spawn_blocking(move || {
+            generate_profile_for(host).map_err(Arc::new)
+        })
+        .await
+        {
+            Ok(r) => r,
+            Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
+                "profile generate task join: {join_err}"
+            ))))),
+        };
+        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
+            host_id: host_id_owned,
+            result,
+            reply_to,
+        }));
+    });
 }
 
 pub(crate) fn on_profile_generate_finished(
     app: &mut GuiApp,
     host_id: &str,
     result: Result<GeneratedProfile, Arc<GuiError>>,
+    reply_to: ReplyId,
 ) {
-    match result {
+    let bridge_result = match result {
         Ok(p) => {
             app.state
                 .set_last_generated_profile(host_id, p.path.clone());
@@ -88,59 +159,91 @@ pub(crate) fn on_profile_generate_finished(
                 "[{host_id}] profile written: {} ({} bytes)",
                 p.path, p.bytes
             ));
+            Ok(json!({ "path": p.path, "bytes": p.bytes }))
         },
         Err(e) => {
-            app.append_log(format!("[{host_id}] profile generation failed: {e}"));
+            let line = format!("[{host_id}] profile generation failed: {e}");
+            app.append_log(&line);
+            Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, line))
         },
-    }
+    };
     app.refresh_ui();
+    ipc_runtime::emit_host_changed(app, host_id);
+    finish(app, bridge_result, reply_to);
 }
 
-pub(crate) fn on_profile_install_requested(app: &mut GuiApp, host_id: &str, path: String) {
+pub(crate) fn on_profile_install_requested(
+    app: &mut GuiApp,
+    host_id: &str,
+    path: String,
+    reply_to: ReplyId,
+) {
     let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("install requested for unknown host '{host_id}'"));
+        let err = BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::NotFound,
+            format!("unknown host: {host_id}"),
+        );
+        finish(app, Err(err), reply_to);
         return;
     };
     app.append_log(format!("[{host_id}] installing {path}…"));
     let host_id_owned = host_id.to_string();
     let path_clone = path.clone();
-    app.pool.spawn_task(
-        app.proxy.clone(),
-        move || {
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let result = match tokio::task::spawn_blocking(move || {
             host.install_profile(&path)
-                .map(|_| path_clone.clone())
+                .map(|_| path_clone)
                 .map_err(|e| GuiError::Profile {
                     context: "host install_profile".into(),
                     source: e,
                 })
                 .map_err(Arc::new)
-        },
-        move |result| {
-            UiEvent::Host(HostUiEvent::ProfileInstallFinished {
-                host_id: host_id_owned.clone(),
-                result,
-            })
-        },
-    );
+        })
+        .await
+        {
+            Ok(r) => r,
+            Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
+                "profile install task join: {join_err}"
+            ))))),
+        };
+        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileInstallFinished {
+            host_id: host_id_owned,
+            result,
+            reply_to,
+        }));
+    });
 }
 
 pub(crate) fn on_profile_install_finished(
     app: &mut GuiApp,
     host_id: &str,
     result: Result<String, Arc<GuiError>>,
+    reply_to: ReplyId,
 ) {
     let action = find_host_by_id(host_id)
         .map(|h| h.install_action_label())
         .unwrap_or("installed");
-    match result {
-        Ok(path) => app.append_log(format!("[{host_id}] {action}: {path}")),
-        Err(e) => app.append_log(format!("[{host_id}] profile install failed: {e}")),
-    }
+    let bridge_result = match result {
+        Ok(path) => {
+            app.append_log(format!("[{host_id}] {action}: {path}"));
+            Ok(json!({ "path": path }))
+        },
+        Err(e) => {
+            let line = format!("[{host_id}] profile install failed: {e}");
+            app.append_log(&line);
+            Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, line))
+        },
+    };
     let _ = app
         .proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
             host_id: host_id.to_string(),
+            reply_to: None,
         }));
+    finish(app, bridge_result, reply_to);
 }
 
 fn generate_profile_for(
@@ -177,4 +280,21 @@ fn generate_profile_for(
             context: "host generate_profile".into(),
             source: e,
         })
+}
+
+fn finish(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
+    let Some(id) = reply_to else {
+        if let Err(err) = result {
+            ipc_runtime::emit_error(app, &err);
+        }
+        return;
+    };
+    let payload = match result {
+        Ok(v) => IpcReplyPayload::ok(v),
+        Err(err) => {
+            ipc_runtime::emit_error(app, &err);
+            IpcReplyPayload::err(err)
+        },
+    };
+    ipc_runtime::send_reply_payload(app, id, &payload);
 }

@@ -1,7 +1,8 @@
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::time::{Duration, Instant};
+use std::net::SocketAddr;
+use std::time::Duration;
 use systemprompt_identifiers::ValidatedUrl;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::{TcpListener, TcpStream};
 
 pub const LOOPBACK_PORT: u16 = 8767;
 pub const LOOPBACK_TIMEOUT_SECS: u64 = 300;
@@ -38,19 +39,24 @@ pub struct Captured {
 pub struct LoopbackServer {
     listener: TcpListener,
     addr: SocketAddr,
+    rt: tokio::runtime::Handle,
 }
 
 impl LoopbackServer {
     pub fn bind() -> Result<Self> {
-        let listener = TcpListener::bind(("127.0.0.1", LOOPBACK_PORT)).map_err(|source| {
-            LoopbackError::Bind {
-                port: LOOPBACK_PORT,
-                source,
-            }
+        let rt = crate::proxy::runtime_handle()
+            .or_else(|_| tokio::runtime::Handle::try_current().map_err(|_| ()))
+            .map_err(|()| LoopbackError::Io(std::io::Error::other("no tokio runtime available")))?;
+        let listener = rt.block_on(async {
+            TcpListener::bind(("127.0.0.1", LOOPBACK_PORT))
+                .await
+                .map_err(|source| LoopbackError::Bind {
+                    port: LOOPBACK_PORT,
+                    source,
+                })
         })?;
         let addr = listener.local_addr()?;
-        listener.set_nonblocking(true)?;
-        Ok(Self { listener, addr })
+        Ok(Self { listener, addr, rt })
     }
 
     #[must_use]
@@ -62,21 +68,14 @@ impl LoopbackServer {
     }
 
     pub fn accept_callback(self, timeout: Duration) -> Result<Captured> {
-        let deadline = Instant::now() + timeout;
-        loop {
-            if Instant::now() >= deadline {
-                return Err(LoopbackError::Timeout(timeout.as_secs()));
+        let LoopbackServer { listener, rt, .. } = self;
+        rt.block_on(async move {
+            match tokio::time::timeout(timeout, listener.accept()).await {
+                Err(_) => Err(LoopbackError::Timeout(timeout.as_secs())),
+                Ok(Err(e)) => Err(LoopbackError::Io(e)),
+                Ok(Ok((stream, _))) => handle_connection(stream).await,
             }
-            match self.listener.accept() {
-                Ok((stream, _)) => {
-                    return handle_connection(stream);
-                },
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    std::thread::sleep(Duration::from_millis(100));
-                },
-                Err(e) => return Err(e.into()),
-            }
-        }
+        })
     }
 }
 
@@ -84,31 +83,34 @@ fn unreachable_url() -> ValidatedUrl {
     ValidatedUrl::try_new("http://127.0.0.1/").unwrap_or_else(|_| unreachable_url())
 }
 
-fn handle_connection(mut stream: TcpStream) -> Result<Captured> {
-    stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-    let mut reader = BufReader::new(stream.try_clone()?);
-    let request_line = read_request_line(&mut reader)?;
-    drain_headers(&mut reader)?;
+async fn handle_connection(stream: TcpStream) -> Result<Captured> {
+    let (read_half, mut write_half) = stream.into_split();
+    let mut reader = BufReader::new(read_half);
+    let request_line = read_request_line(&mut reader).await?;
+    drain_headers(&mut reader).await?;
 
     let outcome = parse_code(&request_line);
     let (status, body) = match &outcome {
         Ok(_) => ("200 OK", SUCCESS_HTML),
         Err(_) => ("400 Bad Request", ERROR_HTML),
     };
-    write_response(&mut stream, status, body)?;
+    write_response(&mut write_half, status, body).await?;
+    let _ = write_half.shutdown().await;
+    let mut sink = [0u8; 16];
+    let _ = reader.read(&mut sink).await;
     outcome.map(|code| Captured { code })
 }
 
-fn read_request_line<R: BufRead>(reader: &mut R) -> Result<String> {
+async fn read_request_line<R: AsyncBufReadExt + Unpin>(reader: &mut R) -> Result<String> {
     let mut line = String::new();
-    reader.read_line(&mut line)?;
+    reader.read_line(&mut line).await?;
     Ok(line)
 }
 
-fn drain_headers<R: BufRead>(reader: &mut R) -> Result<()> {
+async fn drain_headers<R: AsyncBufReadExt + Unpin>(reader: &mut R) -> Result<()> {
     loop {
         let mut line = String::new();
-        let n = reader.read_line(&mut line)?;
+        let n = reader.read_line(&mut line).await?;
         if n == 0 || line == "\r\n" || line == "\n" {
             return Ok(());
         }
@@ -176,14 +178,17 @@ fn hex_nibble(b: u8) -> Option<u8> {
     }
 }
 
-fn write_response(stream: &mut TcpStream, status: &str, body: &str) -> Result<()> {
+async fn write_response<W: AsyncWriteExt + Unpin>(
+    stream: &mut W,
+    status: &str,
+    body: &str,
+) -> Result<()> {
     let response = format!(
         "HTTP/1.1 {status}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \
          {}\r\nConnection: close\r\n\r\n{body}",
         body.len()
     );
-    stream.write_all(response.as_bytes())?;
-    stream.flush()?;
-    let _ = stream.read(&mut [0u8; 16]);
+    stream.write_all(response.as_bytes()).await?;
+    stream.flush().await?;
     Ok(())
 }

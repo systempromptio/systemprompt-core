@@ -7,9 +7,40 @@
   font-family: var(--sp-font-mono);
   font-size: 12px;
   color: var(--sp-muted-strong);
-  white-space: pre-wrap;
   max-height: 260px;
-  overflow: auto;
   -webkit-user-select: text;
   user-select: text;
 }
+
+.sp-log-virtual {
+  position: relative;
+  overflow-y: auto;
+  height: 260px;
+  contain: strict;
+  display: block;
+}
+
+.sp-log-virtual__viewport {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sp-log-virtual__spacer-top,
+.sp-log-virtual__spacer-bottom {
+  width: 1px;
+}
+
+.sp-log__line {
+  height: 18px;
+  line-height: 18px;
+  font-family: var(--sp-font-mono);
+  font-size: 12px;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-log__line--info { color: var(--sp-muted-strong); }
+.sp-log__line--warn { color: var(--sp-warn); }
+.sp-log__line--error { color: var(--sp-err); }

@@ -38,26 +38,14 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
 }
 
 pub(super) fn list_claude_processes() -> Vec<String> {
-    let output = match winproc::tasklist_command()
-        .args(["/FO", "CSV", "/NH"])
-        .output()
-    {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut hits: Vec<String> = text
-        .lines()
-        .filter_map(|line| {
-            let name = line.split(',').next()?.trim().trim_matches('"');
-            let lower = name.to_ascii_lowercase();
+    let mut hits: Vec<String> = crate::sysproc::list_processes()
+        .into_iter()
+        .filter_map(|p| {
+            let lower = p.name.to_ascii_lowercase();
             let is_claude = lower == "claude.exe" || lower.starts_with("claude helper");
             let is_code = lower.contains("claude code") || lower == "claude-code.exe";
             if is_claude && !is_code {
-                Some(name.to_string())
+                Some(p.name)
             } else {
                 None
             }

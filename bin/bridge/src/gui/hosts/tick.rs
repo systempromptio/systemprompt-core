@@ -27,6 +27,7 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
             .proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
                 host_id: id.to_string(),
+                reply_to: None,
             }));
     }
     if !snap.hosts.proxy_probe_in_flight {
@@ -35,7 +36,9 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
         if due {
             let _ = app
                 .proxy
-                .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested));
+                .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested {
+                    reply_to: None,
+                }));
         }
     }
 }
@@ -46,6 +49,7 @@ pub(crate) fn request_initial_probe(app: &GuiApp) {
             .proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
                 host_id: host.id().to_string(),
+                reply_to: None,
             }));
     }
 }

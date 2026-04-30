@@ -21,10 +21,6 @@ pub(crate) fn reg_command() -> Command {
     silenced_command(system32_path("reg.exe"))
 }
 
-pub(crate) fn tasklist_command() -> Command {
-    silenced_command(system32_path("tasklist.exe"))
-}
-
 fn silenced_command(exe: PathBuf) -> Command {
     let mut cmd = Command::new(exe);
     cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
