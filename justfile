@@ -29,33 +29,33 @@ cli:
 cli-offline:
     SQLX_OFFLINE=true cargo build --bin systemprompt
 
-# Build the Cowork helper + sync agent (credential helper, plugin/MCP sync)
-build-cowork TARGET="":
+# Build the Bridge helper + sync agent (credential helper, plugin/MCP sync)
+build-bridge TARGET="":
     #!/usr/bin/env bash
     set -e
     if [ -n "{{TARGET}}" ]; then
-        cargo build --manifest-path bin/cowork/Cargo.toml --release --target {{TARGET}}
+        cargo build --manifest-path bin/bridge/Cargo.toml --release --target {{TARGET}}
     else
-        cargo build --manifest-path bin/cowork/Cargo.toml --release
+        cargo build --manifest-path bin/bridge/Cargo.toml --release
     fi
 
-# Build systemprompt-cowork for all supported release targets
-build-cowork-all:
-    just build-cowork aarch64-apple-darwin
-    just build-cowork x86_64-apple-darwin
-    just build-cowork x86_64-pc-windows-msvc
-    just build-cowork x86_64-unknown-linux-gnu
+# Build systemprompt-bridge for all supported release targets
+build-bridge-all:
+    just build-bridge aarch64-apple-darwin
+    just build-bridge x86_64-apple-darwin
+    just build-bridge x86_64-pc-windows-msvc
+    just build-bridge x86_64-unknown-linux-gnu
 
-# Wrap the cowork binary in a macOS .app bundle (Info.plist + AppIcon.icns)
-bundle-cowork-mac TARGET="":
+# Wrap the bridge binary in a macOS .app bundle (Info.plist + AppIcon.icns)
+bundle-bridge-mac TARGET="":
     #!/usr/bin/env bash
     set -e
     if [ -n "{{TARGET}}" ]; then
-        just build-cowork {{TARGET}}
-        bin/cowork/scripts/make-mac-app.sh --target {{TARGET}}
+        just build-bridge {{TARGET}}
+        bin/bridge/scripts/make-mac-app.sh --target {{TARGET}}
     else
-        just build-cowork
-        bin/cowork/scripts/make-mac-app.sh
+        just build-bridge
+        bin/bridge/scripts/make-mac-app.sh
     fi
 
 # Prepare sqlx offline cache (requires running database)

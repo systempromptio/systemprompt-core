@@ -2,17 +2,17 @@
 //
 // Generates two PNG assets for the macOS bundle:
 //
-//   bin/cowork/assets/window-icon-1024.png   Dock icon — 1024×1024, brand
+//   bin/bridge/assets/window-icon-1024.png   Dock icon — 1024×1024, brand
 //                                            squircle with subtle drop shadow
 //                                            and chevron mark, ready for
 //                                            iconutil.
 //
-//   bin/cowork/assets/tray-icon.png          Menu bar icon — 44×44 monochrome
+//   bin/bridge/assets/tray-icon.png          Menu bar icon — 44×44 monochrome
 //                                            template (black on transparent),
 //                                            sized for retina display and
 //                                            consumed by the tray-icon crate.
 //
-// Usage: swift bin/cowork/scripts/make-icons.swift <out-dir>
+// Usage: swift bin/bridge/scripts/make-icons.swift <out-dir>
 
 import AppKit
 import Foundation

@@ -52,12 +52,12 @@ Snapshot at time of writing:
 | Repo | Workspace version | `systemprompt` facade dep |
 |---|---|---|
 | `systemprompt-core` | 0.4.0 | n/a (owns the facade) |
-| `bin/cowork/` (in core) | 0.4.0 (independent — not in workspace) | n/a |
+| `bin/bridge/` (in core) | 0.4.0 (independent — not in workspace) | n/a |
 | `systemprompt-deploy` | 0.4.0 | `= "0.4.0"` |
 | `systemprompt-template` | 0.4.2 | `= "0.4.2"` + `[patch.crates-io]` overrides for dev |
 
 Rules:
-- **Cowork (`bin/cowork/Cargo.toml`)** versions independently. Its tag track is `cowork-v*` in core; its workspace membership is none. The crate version and the release tag don't have to match — the binary identifies itself by tag.
+- **Cowork (`bin/bridge/Cargo.toml`)** versions independently. Its tag track is `cowork-v*` in core; its workspace membership is none. The crate version and the release tag don't have to match — the binary identifies itself by tag.
 - **Gateway** versions independently of cowork. Tagged `gateway-v*` in deploy.
 - **Template** is allowed to lag or lead core's facade by patch versions. Forks pin a fixed `systemprompt = "X.Y.Z"`; the `[patch.crates-io]` block exists for local dev against `../systemprompt-core/` and is stripped on fork.
 
@@ -85,7 +85,7 @@ systemprompt = { path = "../systemprompt-core/systemprompt" }
 
 The `[patch.crates-io]` block is dev-only. Forkers must comment it out or delete it; otherwise `cargo build` fails on a missing sibling directory.
 
-**`bin/cowork/Cargo.toml`** is `workspace = false` and versioned independently from the facade. It does not depend on the `systemprompt` facade — it has its own `[dependencies]` block.
+**`bin/bridge/Cargo.toml`** is `workspace = false` and versioned independently from the facade. It does not depend on the `systemprompt` facade — it has its own `[dependencies]` block.
 
 ## Tag hygiene
 
