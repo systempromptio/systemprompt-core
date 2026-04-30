@@ -1,16 +1,9 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import "/assets/js/components/sp-host-card.js";
 
-export class SpHostsList extends BridgeElement {
-  static properties = {
-    hostsById: { state: true },
-    order: { state: true },
-    snapshot: { state: true },
-  };
-
+export class SpHostsList extends SpElement {
   constructor() {
     super();
     this.hostsById = new Map();
@@ -18,10 +11,7 @@ export class SpHostsList extends BridgeElement {
     this.snapshot = null;
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     bridge.stateSnapshot().then((s) => this._applyFullSnapshot(s)).catch(() => {});
     this.bridgeSubscribe("state.changed", (s) => this._applyFullSnapshot(s));
     this.bridgeSubscribe("host.changed", (host) => this._applyHostDelta(host));
@@ -35,6 +25,7 @@ export class SpHostsList extends BridgeElement {
     for (const h of list) { next.set(h.id, h); }
     this.hostsById = next;
     this.order = list.map((h) => h.id);
+    this.invalidate();
   }
 
   _applyHostDelta(host) {
@@ -47,18 +38,27 @@ export class SpHostsList extends BridgeElement {
     } else {
       this.order = [...this.order];
     }
+    this.invalidate();
   }
 
   render() {
     if (this.order.length === 0) {
-      return html`<div class="sp-u-muted sp-host-list__empty">${t("hosts-empty") || "No host apps detected."}</div>`;
+      return `<div class="sp-u-muted sp-host-list__empty">${escapeHtml(t("hosts-empty") || "No host apps detected.")}</div>`;
     }
-    return html`${this.order.map((id) => {
+    return this.order.map((id) => `<sp-host-card data-host-id="${escapeHtml(id)}"></sp-host-card>`).join("");
+  }
+
+  afterRender() {
+    for (const card of this.querySelectorAll("sp-host-card")) {
+      const id = card.dataset.hostId;
       const host = this.hostsById.get(id);
-      if (!host) { return null; }
-      return html`<sp-host-card .host=${host} .snapshot=${this.snapshot} data-host-id=${id}></sp-host-card>`;
-    })}`;
+      if (host) {
+        card.host = host;
+        card.snapshot = this.snapshot;
+      }
+    }
   }
 }
 
+reactive(SpHostsList.prototype, ["snapshot"]);
 customElements.define("sp-hosts-list", SpHostsList);

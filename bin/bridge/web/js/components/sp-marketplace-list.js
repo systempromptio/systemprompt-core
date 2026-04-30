@@ -1,5 +1,4 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 
 const KIND_EMPTY_TITLE = {
   plugins: "No plugins yet",
@@ -18,46 +17,44 @@ function filterItems(items, search) {
     (it.summary || "").toLowerCase().includes(q));
 }
 
-export class SpMarketplaceList extends BridgeElement {
-  static properties = {
-    items: { attribute: false },
-    search: { attribute: false },
-    selectedId: { attribute: false },
-    kind: { attribute: false },
-  };
-
+export class SpMarketplaceList extends SpElement {
   constructor() {
     super();
     this.items = [];
     this.search = "";
     this.selectedId = null;
     this.kind = "plugins";
-  }
-
-  createRenderRoot() { return this; }
-
-  _select(id) {
-    this.dispatchEvent(new CustomEvent("mkt-select", { detail: { id }, bubbles: true, composed: true }));
+    this.registerAction("select-item", (trigger) => {
+      this.dispatchEvent(new CustomEvent("mkt-select", {
+        detail: { id: trigger.dataset.id }, bubbles: true, composed: true,
+      }));
+    });
   }
 
   render() {
     const items = filterItems(this.items || [], this.search);
     if (items.length === 0) {
       const title = this.search ? "No matches" : (KIND_EMPTY_TITLE[this.kind] || "Nothing here yet");
-      return html`<ul class="sp-mkt-items"><li class="sp-mkt-empty--with-sync">
-        <span class="sp-mkt-empty__title">${title}</span>
-      </li></ul>`;
+      return `<ul class="sp-mkt-items"><li class="sp-mkt-empty--with-sync"><span class="sp-mkt-empty__title">${escapeHtml(title)}</span></li></ul>`;
     }
-    return html`<ul class="sp-mkt-items">${items.map((it, i) => html`
-      <li class="sp-mkt-item" data-id=${it.id} aria-selected=${it.id === this.selectedId ? "true" : "false"} style=${`--sp-mkt-item-i: ${Math.min(i, 8)}`} @click=${(e) => { e.stopPropagation(); this._select(it.id); }}>
-        <div class="sp-mkt-item__row">
-          <span class="sp-mkt-item__name">${it.name || it.id}</span>
-          ${it.source ? html`<span class="sp-mkt-chip" data-tone=${it.source === "local" ? "" : "accent"}>${it.source}</span>` : ""}
-        </div>
-        ${it.summary ? html`<div class="sp-mkt-item__meta">${it.summary}</div>` : ""}
-      </li>
-    `)}</ul>`;
+    return `<ul class="sp-mkt-items">${items.map((it, i) => {
+      const selected = it.id === this.selectedId ? "true" : "false";
+      const sourceChip = it.source
+        ? `<span class="sp-mkt-chip" data-tone="${it.source === "local" ? "" : "accent"}">${escapeHtml(it.source)}</span>`
+        : "";
+      const meta = it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
+      return `
+        <li class="sp-mkt-item" data-id="${escapeHtml(it.id)}" aria-selected="${selected}" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
+          <div class="sp-mkt-item__row">
+            <span class="sp-mkt-item__name">${escapeHtml(it.name || it.id)}</span>
+            ${sourceChip}
+          </div>
+          ${meta}
+        </li>
+      `;
+    }).join("")}</ul>`;
   }
 }
 
+reactive(SpMarketplaceList.prototype, ["items", "search", "selectedId", "kind"]);
 customElements.define("sp-marketplace-list", SpMarketplaceList);

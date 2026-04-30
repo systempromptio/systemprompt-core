@@ -1,5 +1,4 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 
 function classify(snap) {
@@ -30,27 +29,22 @@ function classifyHosts(snap) {
   return { text: "checking…", cls: "sp-badge--muted" };
 }
 
-export class SpOverallBadge extends BridgeElement {
-  static properties = { snapshot: { state: true } };
-
+export class SpOverallBadge extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
   }
 
   render() {
-    const snap = this.snapshot || {};
-    const v = classify(snap);
-    return html`<span class="sp-badge ${v.cls}">${v.text}</span>`;
+    const v = classify(this.snapshot || {});
+    return `<span class="sp-badge ${v.cls}">${escapeHtml(v.text)}</span>`;
   }
 }
 
+reactive(SpOverallBadge.prototype, ["snapshot"]);
 customElements.define("sp-overall-badge", SpOverallBadge);

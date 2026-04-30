@@ -8,9 +8,9 @@ function apply() {
   document.documentElement.dataset.contrast = elevated ? "elevated" : "default";
 }
 
-lightQ.addEventListener("change", apply);
-contrastQ.addEventListener("change", apply);
-
-subscribe("os.theme-changed", apply);
-
-apply();
+export function initTheme() {
+  lightQ.addEventListener("change", apply);
+  contrastQ.addEventListener("change", apply);
+  subscribe("os.theme-changed", apply);
+  apply();
+}

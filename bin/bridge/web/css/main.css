@@ -19,46 +19,4 @@
 @import url("./log.css");
 @import url("./footer.css");
 @import url("./responsive.css");
-
-.sp-toast {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 480px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: #2a1a1a;
-  border: 1px solid #d97757;
-  color: #f0e6e0;
-  font-size: 14px;
-  line-height: 1.4;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-.sp-toast[data-kind="error"] {
-  background: #2a1414;
-  border-color: #d94747;
-}
-.sp-toast[data-kind="success"] {
-  background: #14241a;
-  border-color: #47d977;
-}
-.sp-toast__msg {
-  flex: 1;
-  word-break: break-word;
-}
-.sp-toast__close {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 4px;
-  opacity: 0.7;
-}
-.sp-toast__close:hover { opacity: 1; }
-button[aria-busy="true"] { opacity: 0.6; cursor: progress; }
+@import url("./toast.css");

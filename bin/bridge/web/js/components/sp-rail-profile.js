@@ -1,5 +1,4 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 
 const VERSION = (() => {
@@ -12,18 +11,14 @@ function initials(idSrc) {
   return letters || "SP";
 }
 
-export class SpRailProfile extends BridgeElement {
-  static properties = { snapshot: { state: true } };
-
+export class SpRailProfile extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
+    this._baseVersion = "";
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     this.classList.add("sp-rail-profile");
     this.setAttribute("aria-label", "Profile and workspace");
     if (!this._baseVersion) {
@@ -39,14 +34,15 @@ export class SpRailProfile extends BridgeElement {
     const idLabel = (id && (id.email || id.user_id)) || "cowork workspace";
     const subBase = this._baseVersion;
     const sub = tenant ? `${tenant} · ${subBase}` : subBase;
-    return html`
-      <span class="sp-avatar__mark" aria-hidden="true"><span>${initials(id && (id.email || id.user_id))}</span></span>
+    return `
+      <span class="sp-avatar__mark" aria-hidden="true"><span>${escapeHtml(initials(id && (id.email || id.user_id)))}</span></span>
       <span class="sp-rail-profile__meta">
-        <span class="sp-rail-profile__id">${idLabel}</span>
-        <span class="sp-rail-profile__sub">${sub}</span>
+        <span class="sp-rail-profile__id">${escapeHtml(idLabel)}</span>
+        <span class="sp-rail-profile__sub">${escapeHtml(sub)}</span>
       </span>
     `;
   }
 }
 
+reactive(SpRailProfile.prototype, ["snapshot"]);
 customElements.define("sp-rail-profile", SpRailProfile);

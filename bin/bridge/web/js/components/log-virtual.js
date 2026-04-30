@@ -31,7 +31,7 @@ export function createLogVirtual(rootEl, capacity = DEFAULT_CAPACITY) {
       const li = document.createElement("li");
       li.className = `sp-log__line sp-log__line--${entry.level || "info"}`;
       li.textContent = entry.text;
-      frag.appendChild(li);
+      frag.append(li);
     }
     viewport.replaceChildren(frag);
   }

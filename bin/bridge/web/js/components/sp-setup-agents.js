@@ -1,20 +1,20 @@
-import { html } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 
-export class SpSetupAgents extends BridgeElement {
-  static properties = { snapshot: { state: true } };
-
+export class SpSetupAgents extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
+    this.registerAction("install-host", async (trigger) => {
+      const id = trigger.dataset.hostId;
+      if (id) {
+        try { await bridge.hostProfileGenerate(id); } catch (e) { console.warn("generate", e); }
+      }
+    });
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     this.classList.add("sp-setup-agent-list");
     this.setAttribute("aria-live", "polite");
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
@@ -30,30 +30,28 @@ export class SpSetupAgents extends BridgeElement {
     this.snapshot = { ...this.snapshot, host_apps: list };
   }
 
-  async _install(host, e) {
-    e.stopPropagation();
-    try { await bridge.hostProfileGenerate(host.id); } catch (err) { console.warn("generate", err); }
-  }
-
   render() {
     const hosts = (this.snapshot && this.snapshot.host_apps) || [];
     if (hosts.length === 0) {
-      return html`<div class="sp-u-muted">${t("setup-agents-empty") || "No agents detected on this device."}</div>`;
+      return `<div class="sp-u-muted">${escapeHtml(t("setup-agents-empty") || "No agents detected on this device.")}</div>`;
     }
-    return html`${hosts.map((host) => {
+    return hosts.map((host) => {
       const installed = host.snapshot?.profile_state?.kind === "installed";
       const suffix = host.kind === "cli_tool" ? " · CLI" : " · Desktop";
-      return html`
-        <div class="sp-setup-agent" data-state=${installed ? "installed" : "absent"}>
+      const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
+      const label = installed ? "Installed ✓" : "Install profile";
+      return `
+        <div class="sp-setup-agent" data-state="${installed ? "installed" : "absent"}">
           <div class="sp-setup-agent__meta">
-            <div class="sp-setup-agent__name">${host.display_name + suffix}</div>
-            <div class="sp-setup-agent__desc">${host.description || ""}</div>
+            <div class="sp-setup-agent__name">${escapeHtml(host.display_name + suffix)}</div>
+            <div class="sp-setup-agent__desc">${escapeHtml(host.description || "")}</div>
           </div>
-          <button type="button" class=${installed ? "sp-btn-ghost" : "sp-btn-primary"} ?disabled=${installed} @click=${(e) => this._install(host, e)}>${installed ? "Installed ✓" : "Install profile"}</button>
+          <button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}">${escapeHtml(label)}</button>
         </div>
       `;
-    })}`;
+    }).join("");
   }
 }
 
+reactive(SpSetupAgents.prototype, ["snapshot"]);
 customElements.define("sp-setup-agents", SpSetupAgents);

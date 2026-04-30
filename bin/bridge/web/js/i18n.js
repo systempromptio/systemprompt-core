@@ -1,8 +1,3 @@
-// Minimal Fluent-subset loader. Supports `id = value` lines and `{ $arg }`
-// substitution. Comments start with `#`. Unknown keys fall back to the
-// element's existing text content (which is the en-US literal hard-coded
-// in the HTML, so the UI degrades gracefully).
-
 const messages = new Map();
 let activeLocale = "en-US";
 

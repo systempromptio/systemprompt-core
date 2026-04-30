@@ -1,25 +1,16 @@
-import { html, nothing } from "/assets/js/vendor/lit-all.js";
-import { BridgeElement } from "/assets/js/components/base.js";
+import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 
-export class SpToast extends BridgeElement {
-  static properties = {
-    message: { state: true },
-    kind: { state: true },
-    visible: { state: true },
-  };
-
+export class SpToast extends SpElement {
   constructor() {
     super();
     this.message = "";
     this.kind = "info";
     this.visible = false;
     this._timer = null;
+    this.registerAction("dismiss", () => this.hide());
   }
 
-  createRenderRoot() { return this; }
-
-  connectedCallback() {
-    super.connectedCallback();
+  onConnect() {
     this.classList.add("sp-toast");
     this.setAttribute("role", "status");
     this.setAttribute("aria-live", "polite");
@@ -29,9 +20,8 @@ export class SpToast extends BridgeElement {
     });
   }
 
-  disconnectedCallback() {
+  onDisconnect() {
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
-    super.disconnectedCallback();
   }
 
   show(message, kind = "info", durationMs = 6000) {
@@ -49,20 +39,19 @@ export class SpToast extends BridgeElement {
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
   }
 
-  updated() {
+  afterRender() {
     this.hidden = !this.visible;
-    if (this.visible) {
-      this.dataset.kind = this.kind;
-    }
+    if (this.visible) { this.dataset.kind = this.kind; }
   }
 
   render() {
-    if (!this.visible) { return nothing; }
-    return html`
-      <span class="sp-toast__msg">${this.message}</span>
-      <button class="sp-toast__close" type="button" aria-label="Dismiss" @click=${() => this.hide()}>×</button>
+    if (!this.visible) { return ""; }
+    return `
+      <span class="sp-toast__msg">${escapeHtml(this.message)}</span>
+      <button class="sp-toast__close" type="button" aria-label="Dismiss" data-action="dismiss">×</button>
     `;
   }
 }
 
+reactive(SpToast.prototype, ["message", "kind", "visible"]);
 customElements.define("sp-toast", SpToast);
