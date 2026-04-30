@@ -325,13 +325,12 @@ impl AppState {
             snap.plugin_count = count_plugin_dirs(&loc.path);
             snap.malformed_plugin_count = count_malformed_plugin_dirs(&loc.path);
 
-            if let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL)) {
-                if let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes) {
+            if let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
+                && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes) {
                     let when = record.synced_at.as_deref().unwrap_or("unknown");
                     let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
                     snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
                 }
-            }
 
             let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);
             snap.skill_count = counters::count_dir_children(&synthetic.join("skills"));

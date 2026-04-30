@@ -74,11 +74,10 @@ impl Config {
             .and_then(|s| toml::from_str(&s).ok())
             .unwrap_or_default();
 
-        if let Ok(url) = env::var("SP_BRIDGE_GATEWAY_URL") {
-            if let Ok(parsed) = ValidatedUrl::try_new(url.trim()) {
+        if let Ok(url) = env::var("SP_BRIDGE_GATEWAY_URL")
+            && let Ok(parsed) = ValidatedUrl::try_new(url.trim()) {
                 cfg.gateway_url = Some(parsed);
             }
-        }
         if cfg.gateway_url.is_none() {
             cfg.gateway_url = Some(DEFAULT_GATEWAY.clone());
         }

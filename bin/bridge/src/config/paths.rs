@@ -75,14 +75,13 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     }
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(path) = org_plugins_system() {
-            if probe_writable(&path) {
+        if let Some(path) = org_plugins_system()
+            && probe_writable(&path) {
                 return Some(OrgPluginsLocation {
                     path,
                     scope: Scope::System,
                 });
             }
-        }
         org_plugins_user().map(|path| OrgPluginsLocation {
             path,
             scope: Scope::User,
@@ -95,11 +94,10 @@ fn probe_writable(path: &std::path::Path) -> bool {
     if let Ok(metadata) = std::fs::metadata(path) {
         return metadata.is_dir() && !metadata.permissions().readonly();
     }
-    if let Some(parent) = path.parent() {
-        if let Ok(metadata) = std::fs::metadata(parent) {
+    if let Some(parent) = path.parent()
+        && let Ok(metadata) = std::fs::metadata(parent) {
             return metadata.is_dir() && !metadata.permissions().readonly();
         }
-    }
     false
 }
 

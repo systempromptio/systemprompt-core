@@ -139,14 +139,13 @@ fn render_reg(inputs: &ProfileGenInputs) -> String {
         "\"inferenceModels\"=\"{}\"\r\n",
         reg_escape(&models_json)
     ));
-    if let Some(uuid) = inputs.organization_uuid.as_deref() {
-        if !uuid.is_empty() {
+    if let Some(uuid) = inputs.organization_uuid.as_deref()
+        && !uuid.is_empty() {
             out.push_str(&format!(
                 "\"deploymentOrganizationUuid\"=\"{}\"\r\n",
                 reg_escape(uuid)
             ));
         }
-    }
     out
 }
 

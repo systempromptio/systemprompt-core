@@ -162,14 +162,12 @@ async fn handle_request(
         .headers()
         .get(http::header::HOST)
         .and_then(|v| v.to_str().ok())
-    {
-        if !host_is_loopback(host) {
+        && !host_is_loopback(host) {
             return Ok(simple_response(
                 StatusCode::FORBIDDEN,
                 "forbidden: non-loopback host\n",
             ));
         }
-    }
 
     let presented = req
         .headers()

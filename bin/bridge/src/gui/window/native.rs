@@ -179,11 +179,10 @@ fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
     if target.starts_with("sp://") || target.starts_with("about:") {
         return true;
     }
-    if let Some(origin) = legacy_origin {
-        if target.starts_with(origin) {
+    if let Some(origin) = legacy_origin
+        && target.starts_with(origin) {
             return true;
         }
-    }
     if target.starts_with("http://") || target.starts_with("https://") {
         super::open_external_url(target);
         return false;
