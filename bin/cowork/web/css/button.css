@@ -1,0 +1,49 @@
+input[type="url"],
+input[type="password"],
+input[type="text"] {
+  -webkit-user-select: text;
+  user-select: text;
+  background: var(--sp-bg-elev-2);
+  color: var(--sp-text);
+  border: 1px solid var(--sp-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus {
+  border-color: var(--sp-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 25%, transparent);
+}
+
+.row { display: flex; gap: 8px; margin: 6px 0 14px; flex-wrap: wrap; }
+
+button {
+  font: inherit;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--sp-line);
+  background: var(--sp-bg-elev-2);
+  color: var(--sp-text);
+  cursor: pointer;
+  transition: transform 0.04s ease-out, background 0.15s, border-color 0.15s, filter 0.15s;
+}
+button:hover    { background: var(--sp-bg-elev-2); }
+button:active   { transform: translateY(1px); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary {
+  background: linear-gradient(180deg, var(--sp-accent) 0%, var(--sp-accent-deep) 100%);
+  border-color: transparent;
+  color: oklch(0.20 0.04 50);
+  font-weight: 700;
+  box-shadow: 0 4px 16px oklch(0.67 0.18 50 / 0.25);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s;
+}
+button.primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px oklch(0.67 0.18 50 / 0.32);
+}
+button.primary:active { transform: translateY(0); }
+button.ghost { background: transparent; }
