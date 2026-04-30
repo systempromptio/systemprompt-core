@@ -44,6 +44,15 @@ struct HostInstallArgs {
     path: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct OpenExternalUrlArgs {
+    url: String,
+}
+
+fn is_safe_external_url(url: &str) -> bool {
+    url.starts_with("https://")
+}
+
 pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> CommandOutcome {
     let reply_id: ReplyId = Some(id);
     match cmd {
@@ -188,6 +197,25 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
         "openConfigFolder" => {
             send(app, UiEvent::OpenConfigFolder);
             CommandOutcome::Sync(Ok(json!({})))
+        },
+        "openExternalUrl" => match parse::<OpenExternalUrlArgs>(args) {
+            Ok(a) => {
+                if !is_safe_external_url(&a.url) {
+                    return CommandOutcome::Sync(Err(BridgeError::invalid_args(format!(
+                        "refusing to open non-https url: {}",
+                        a.url
+                    ))));
+                }
+                if let Err(e) = opener::open(&a.url) {
+                    return CommandOutcome::Sync(Err(BridgeError::new(
+                        ErrorScope::Internal,
+                        ErrorCode::Internal,
+                        format!("open url failed: {e}"),
+                    )));
+                }
+                CommandOutcome::Sync(Ok(json!({})))
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "diagnostics.openLogDirectory" | "openLogFolder" => {
             send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });

@@ -87,7 +87,7 @@ fn expand_home(path: &str) -> String {
 }
 
 #[must_use]
-pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
+fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
     vec![
         Box::new(MtlsProvider::new(cfg)),
         Box::new(SessionProvider::new(cfg)),

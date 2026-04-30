@@ -14,7 +14,7 @@ struct CacheEntry {
 }
 
 #[must_use]
-pub fn cache_path() -> Option<PathBuf> {
+fn cache_path() -> Option<PathBuf> {
     let base = dirs::cache_dir()?;
     Some(base.join(CACHE_DIR_NAME).join(CACHE_FILE))
 }
@@ -38,7 +38,7 @@ pub fn read_with_threshold(min_remaining_secs: u64) -> Option<HelperOutput> {
 }
 
 #[must_use]
-pub fn is_still_valid(expires_at: u64, now: u64, min_remaining_secs: u64) -> bool {
+fn is_still_valid(expires_at: u64, now: u64, min_remaining_secs: u64) -> bool {
     expires_at > now.saturating_add(min_remaining_secs)
 }
 
@@ -51,15 +51,6 @@ pub fn clear() -> std::io::Result<()> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(e),
     }
-}
-
-#[must_use]
-pub fn ttl_remaining_secs() -> Option<u64> {
-    let path = cache_path()?;
-    let bytes = fs::read(&path).ok()?;
-    let entry: CacheEntry = serde_json::from_slice(&bytes).ok()?;
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
-    Some(entry.expires_at.saturating_sub(now))
 }
 
 pub fn write(output: &HelperOutput) -> std::io::Result<()> {

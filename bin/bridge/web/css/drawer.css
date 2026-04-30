@@ -62,9 +62,12 @@
 .sp-activity__help {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-space-2);
-  padding: var(--sp-space-3) var(--sp-space-3-5);
-  border-top: 1px solid var(--sp-line);
+  gap: var(--sp-space-3);
+  margin: var(--sp-space-3) var(--sp-space-3-5);
+  padding: var(--sp-space-3-5);
+  background: oklch(0.18 0.01 48 / 0.5);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-md, var(--sp-corners-sm));
   flex-shrink: 0;
 }
 .sp-activity__help-title {
@@ -73,9 +76,16 @@
   text-transform: uppercase;
   letter-spacing: 1.4px;
   color: var(--sp-muted);
+  margin: 0;
 }
 .sp-activity__help-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-space-1-5);
+  gap: var(--sp-space-2);
+}
+.sp-activity__help-actions .sp-btn-ghost {
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-space-2-5) var(--sp-space-3);
+  font-size: 12.5px;
 }

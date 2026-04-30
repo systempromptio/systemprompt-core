@@ -31,7 +31,7 @@ pub fn runtime_config() -> SharedRuntimeConfig {
         .clone()
 }
 
-pub fn swap_runtime_config(next: RuntimeConfig) {
+fn swap_runtime_config(next: RuntimeConfig) {
     runtime_config().store(Arc::new(next));
     if let Some(cache) = TOKEN_CACHE.get() {
         let cache = Arc::clone(cache);

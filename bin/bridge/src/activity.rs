@@ -100,12 +100,12 @@ fn now_unix() -> u64 {
 }
 
 #[must_use]
-pub fn jsonl_path() -> Option<PathBuf> {
+fn jsonl_path() -> Option<PathBuf> {
     crate::obs::log_dir().map(|d| d.join("activity.jsonl"))
 }
 
 #[must_use]
-pub fn jsonl_rolled_path() -> Option<PathBuf> {
+fn jsonl_rolled_path() -> Option<PathBuf> {
     crate::obs::log_dir().map(|d| d.join("activity.jsonl.1"))
 }
 

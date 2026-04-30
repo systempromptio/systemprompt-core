@@ -179,13 +179,13 @@ pub fn clear_running_port() {
 }
 
 #[derive(Debug, Clone)]
-pub struct RunningInstance {
-    pub port: u16,
-    pub token: String,
+struct RunningInstance {
+    port: u16,
+    token: String,
 }
 
 #[must_use]
-pub fn read_running_instance() -> Option<RunningInstance> {
+fn read_running_instance() -> Option<RunningInstance> {
     let path = sidecar_path()?;
     let raw = fs::read_to_string(path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
