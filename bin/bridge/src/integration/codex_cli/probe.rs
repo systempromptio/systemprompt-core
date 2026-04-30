@@ -97,6 +97,15 @@ fn list_unix() -> Vec<String> {
 }
 
 fn list_windows() -> Vec<String> {
+    #[cfg(target_os = "windows")]
+    let output = match crate::winproc::tasklist_command()
+        .args(["/FO", "CSV", "/NH"])
+        .output()
+    {
+        Ok(o) => o,
+        Err(_) => return Vec::new(),
+    };
+    #[cfg(not(target_os = "windows"))]
     let output = match Command::new("tasklist")
         .args(["/FO", "CSV", "/NH"])
         .output()
