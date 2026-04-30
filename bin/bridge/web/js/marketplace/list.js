@@ -50,7 +50,7 @@ export function updateCounts() {
     if (railTotal.textContent !== next) {
       railTotal.textContent = next;
       railTotal.dataset.bump = "true";
-      setTimeout(() => { railTotal.dataset.bump = "false"; }, 420);
+      railTotal.addEventListener("animationend", () => { railTotal.dataset.bump = "false"; }, { once: true });
     }
   }
 }
