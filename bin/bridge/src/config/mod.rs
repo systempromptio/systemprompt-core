@@ -1,5 +1,6 @@
 pub mod paths;
 mod profile;
+pub mod redaction;
 
 use serde::Deserialize;
 use std::fmt::Write as _;

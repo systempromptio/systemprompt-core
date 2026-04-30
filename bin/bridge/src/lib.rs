@@ -10,6 +10,7 @@ pub mod auth;
 pub mod cli;
 pub mod config;
 pub mod gateway;
+pub mod i18n;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
 pub mod http_local;
@@ -19,7 +20,10 @@ pub mod integration;
 pub mod obs;
 pub mod proxy;
 pub mod schedule;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(crate) mod single_instance;
 pub mod sync;
+pub(crate) mod sysproc;
 pub mod validate;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
@@ -83,6 +87,8 @@ pub(crate) const fn help() -> &'static str {
 pub fn run() -> ExitCode {
     #[cfg(target_os = "windows")]
     winproc::attach_parent_console_if_present();
+    obs::install_panic_hook();
     obs::tracing_init::init();
+    activity::install_persistent_writer();
     cli::run()
 }

@@ -1,6 +1,7 @@
 pub(crate) mod args;
 mod clean;
 mod credential_helper;
+pub mod diagnostics;
 mod gui;
 mod install;
 mod login;
@@ -35,7 +36,17 @@ pub fn run() -> ExitCode {
         Some("validate") => validate::cmd_validate(),
         Some("uninstall") => uninstall::cmd_uninstall(&args),
         Some("credential-helper") => credential_helper::cmd_credential_helper(&args),
+        Some("diagnostics") => diagnostics::cmd_diagnostics(),
         Some("gui") => gui::cmd_gui(),
+        Some("--version" | "-V" | "version") => {
+            output::print_str(&format!(
+                "systemprompt-bridge {} ({}, {})\n",
+                env!("CARGO_PKG_VERSION"),
+                diagnostics::short_sha(),
+                diagnostics::GIT_COMMIT_DATE,
+            ));
+            ExitCode::SUCCESS
+        },
         Some("help" | "--help" | "-h") => {
             output::print_str(crate::help());
             ExitCode::SUCCESS

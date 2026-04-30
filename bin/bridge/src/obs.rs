@@ -15,13 +15,17 @@ pub mod output {
     }
 }
 
+pub use tracing_init::{init, install_panic_hook, log_dir, log_file_path};
+
 pub mod tracing_init {
     use std::fmt;
-    use std::fs::{File, OpenOptions};
     use std::io::{self, Write};
     use std::path::PathBuf;
-    use std::sync::{Mutex, Once, OnceLock};
+    use std::sync::{Once, OnceLock};
+
     use tracing::{Event, Subscriber};
+    use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
+    use tracing_appender::rolling::{RollingFileAppender, Rotation};
     use tracing_subscriber::EnvFilter;
     use tracing_subscriber::field::Visit;
     use tracing_subscriber::fmt::format::Writer;
@@ -29,8 +33,8 @@ pub mod tracing_init {
     use tracing_subscriber::registry::LookupSpan;
 
     static INIT: Once = Once::new();
-    static LOG_FILE: OnceLock<Mutex<File>> = OnceLock::new();
-    static LOG_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
+    static GUARD: OnceLock<WorkerGuard> = OnceLock::new();
+    static FILE_WRITER: OnceLock<NonBlocking> = OnceLock::new();
 
     fn json_format_requested() -> bool {
         std::env::var("SP_BRIDGE_LOG_FORMAT").is_ok_and(|v| v.eq_ignore_ascii_case("json"))
@@ -38,6 +42,7 @@ pub mod tracing_init {
 
     pub fn init() {
         INIT.call_once(|| {
+            install_file_writer();
             let filter =
                 EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
             if json_format_requested() {
@@ -55,19 +60,17 @@ pub mod tracing_init {
                     .try_init();
             }
             tracing::info!(
-                "log file: {}",
-                log_file_path()
+                "log dir: {}",
+                log_dir()
                     .map_or_else(|| "<disabled>".to_string(), |p| p.display().to_string())
             );
         });
     }
 
-    pub fn log_file_path() -> Option<PathBuf> {
-        LOG_PATH.get_or_init(default_log_path).clone()
-    }
-
-    fn default_log_path() -> Option<PathBuf> {
-        let dir = log_dir()?;
+    fn install_file_writer() {
+        let Some(dir) = log_dir() else {
+            return;
+        };
         if let Err(e) = std::fs::create_dir_all(&dir) {
             #[allow(clippy::print_stderr)]
             {
@@ -76,42 +79,105 @@ pub mod tracing_init {
                     dir.display()
                 );
             }
-            return None;
+            return;
         }
-        Some(dir.join("bridge.log"))
+        let appender = RollingFileAppender::builder()
+            .rotation(Rotation::DAILY)
+            .filename_prefix("bridge")
+            .filename_suffix("log")
+            .max_log_files(7)
+            .build(&dir);
+        let appender = match appender {
+            Ok(a) => a,
+            Err(e) => {
+                #[allow(clippy::print_stderr)]
+                {
+                    eprintln!(
+                        "[systemprompt-bridge] rolling appender init failed: {e}"
+                    );
+                }
+                return;
+            },
+        };
+        let (writer, guard) = tracing_appender::non_blocking(appender);
+        let _ = GUARD.set(guard);
+        let _ = FILE_WRITER.set(writer);
+    }
+
+    /// Returns the directory holding rotating log files and crash dumps.
+    pub fn log_dir() -> Option<PathBuf> {
+        platform_log_dir()
+    }
+
+    /// Returns today's rotated log file path. Used by support tooling that wants a single file.
+    pub fn log_file_path() -> Option<PathBuf> {
+        let dir = log_dir()?;
+        let day = chrono::Utc::now().format("%Y-%m-%d");
+        Some(dir.join(format!("bridge.log.{day}")))
     }
 
     #[cfg(target_os = "windows")]
-    fn log_dir() -> Option<PathBuf> {
+    fn platform_log_dir() -> Option<PathBuf> {
         std::env::var_os("LOCALAPPDATA")
             .map(|p| PathBuf::from(p).join("Claude").join("systemprompt-bridge"))
     }
 
     #[cfg(target_os = "macos")]
-    fn log_dir() -> Option<PathBuf> {
+    fn platform_log_dir() -> Option<PathBuf> {
         dirs::home_dir().map(|h| h.join("Library").join("Logs").join("systemprompt-bridge"))
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    fn log_dir() -> Option<PathBuf> {
+    fn platform_log_dir() -> Option<PathBuf> {
         std::env::var_os("XDG_STATE_HOME")
             .map(PathBuf::from)
             .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("state")))
             .map(|base| base.join("systemprompt-bridge"))
     }
 
-    fn log_file() -> Option<&'static Mutex<File>> {
-        if LOG_FILE.get().is_some() {
-            return LOG_FILE.get();
-        }
-        let path = log_file_path()?;
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .ok()?;
-        let _ = LOG_FILE.set(Mutex::new(file));
-        LOG_FILE.get()
+    /// Installs a panic hook that writes a crash dump alongside rotating logs and emits a tracing
+    /// error event. Must be called before [`init`] so panics during subscriber setup are still
+    /// captured.
+    pub fn install_panic_hook() {
+        std::panic::set_hook(Box::new(|info| {
+            let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
+            let location = info.location().map_or_else(
+                || "<unknown>".to_string(),
+                |l| format!("{}:{}", l.file(), l.line()),
+            );
+            let payload = info
+                .payload()
+                .downcast_ref::<&str>()
+                .copied()
+                .map(str::to_string)
+                .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "<non-string panic payload>".to_string());
+            let backtrace = backtrace::Backtrace::new();
+            let dump = format!(
+                "panic at {location}\npayload: {payload}\n\nbacktrace:\n{backtrace:?}\n"
+            );
+            if let Some(dir) = log_dir() {
+                let _ = std::fs::create_dir_all(&dir);
+                let path = dir.join(format!("bridge-crash-{ts}.log"));
+                let _ = std::fs::write(&path, &dump);
+                tracing::error!(
+                    crash_log = %path.display(),
+                    location = %location,
+                    payload = %payload,
+                    "bridge panicked"
+                );
+            } else {
+                tracing::error!(
+                    location = %location,
+                    payload = %payload,
+                    "bridge panicked (no log dir available)"
+                );
+            }
+            #[allow(clippy::print_stderr)]
+            {
+                eprintln!("{dump}");
+            }
+        }));
     }
 
     struct TeeWriter;
@@ -119,29 +185,29 @@ pub mod tracing_init {
     impl<'a> MakeWriter<'a> for TeeWriter {
         type Writer = TeeWriterImpl;
         fn make_writer(&'a self) -> Self::Writer {
-            TeeWriterImpl
+            TeeWriterImpl {
+                file: FILE_WRITER.get().cloned(),
+            }
         }
     }
 
-    struct TeeWriterImpl;
+    struct TeeWriterImpl {
+        file: Option<NonBlocking>,
+    }
 
     impl Write for TeeWriterImpl {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             let _ = io::stderr().write_all(buf);
-            if let Some(file) = log_file() {
-                if let Ok(mut guard) = file.lock() {
-                    let _ = guard.write_all(buf);
-                }
+            if let Some(file) = self.file.as_mut() {
+                let _ = file.write_all(buf);
             }
             Ok(buf.len())
         }
 
         fn flush(&mut self) -> io::Result<()> {
             let _ = io::stderr().flush();
-            if let Some(file) = log_file() {
-                if let Ok(mut guard) = file.lock() {
-                    let _ = guard.flush();
-                }
+            if let Some(file) = self.file.as_mut() {
+                let _ = file.flush();
             }
             Ok(())
         }

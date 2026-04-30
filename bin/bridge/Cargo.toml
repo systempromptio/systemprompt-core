@@ -17,13 +17,13 @@ path = "src/lib.rs"
 
 [build-dependencies]
 winresource = "0.1"
+vergen = { version = "8", features = ["build", "git", "gitcl"] }
 
 [[bin]]
 name = "systemprompt-bridge"
 path = "src/main.rs"
 
 [dependencies]
-ureq = { version = "2", default-features = false, features = ["tls", "json"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-native-certs = "0.8"
 serde = { version = "1", features = ["derive"] }
@@ -39,8 +39,15 @@ serde_jcs = "0.1"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "json"] }
+tracing-appender = "0.2"
+backtrace = "0.3"
+opener = { version = "0.7", features = ["reveal"] }
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+uuid = { version = "1", features = ["v4"] }
+serde_yaml = "0.9"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
+tokio-util = "0.7"
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["server", "server-auto", "tokio"] }
 http-body-util = "0.1"
@@ -82,6 +89,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_Security_Cryptography",
     "Win32_Storage_FileSystem",
     "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_Threading",
 ] }
 

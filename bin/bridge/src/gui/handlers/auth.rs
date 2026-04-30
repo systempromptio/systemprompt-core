@@ -1,120 +1,210 @@
 use std::sync::Arc;
 
+use serde_json::json;
+
 use crate::auth::secret::Secret;
 use crate::auth::setup;
 use crate::gui::GuiApp;
 use crate::gui::error::GuiError;
-use crate::gui::events::UiEvent;
+use crate::gui::events::{ReplyId, UiEvent};
+use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
+use crate::gui::ipc_runtime;
 
-#[tracing::instrument(level = "debug", skip(app, token), fields(has_gateway = gateway.is_some()))]
-pub(crate) fn on_login_requested(app: &mut GuiApp, token: &Secret, gateway: Option<String>) {
+#[tracing::instrument(level = "info", skip(app, token), fields(has_gateway = gateway.is_some()))]
+pub(crate) fn on_login_requested(
+    app: &mut GuiApp,
+    token: &Secret,
+    gateway: Option<String>,
+    reply_to: ReplyId,
+) {
     let trimmed = Secret::new(token.expose().trim().to_owned());
     if trimmed.is_empty() {
-        app.state.set_message("Login: PAT is empty");
+        let err = BridgeError::new(
+            ErrorScope::Identity,
+            ErrorCode::InvalidArgs,
+            "PAT is empty",
+        );
         app.append_log("Login: PAT is empty");
-        app.refresh_ui();
+        finish_unit(app, Err(err.clone()), reply_to);
         return;
     }
     app.append_log("Saving PAT…");
-    app.pool.spawn_task(
-        app.proxy.clone(),
-        move || {
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let result = match tokio::task::spawn_blocking(move || {
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
-        },
-        UiEvent::LoginFinished,
-    );
+        })
+        .await
+        {
+            Ok(r) => r,
+            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
+                "login task join: {join_err}"
+            ))))),
+        };
+        let _ = proxy.send_event(UiEvent::LoginFinished { result, reply_to });
+    });
 }
 
-pub(crate) fn on_login_finished(app: &mut GuiApp, result: Result<(), Arc<GuiError>>) {
-    match result {
+pub(crate) fn on_login_finished(
+    app: &mut GuiApp,
+    result: Result<(), Arc<GuiError>>,
+    reply_to: ReplyId,
+) {
+    let bridge_result = match result {
         Ok(()) => {
             app.append_log("PAT stored. Pulling manifest…");
             app.state.set_message("PAT stored.");
-            super::gateway_probe::spawn_probe(app);
+            super::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
-            let _ = app.proxy.send_event(UiEvent::SyncRequested);
-            return;
+            let _ = app
+                .proxy
+                .send_event(UiEvent::SyncRequested { reply_to: None });
+            Ok(())
         },
         Err(e) => {
             let line = format!("login failed: {e}");
             app.append_log(&line);
-            app.state.set_message(line);
+            app.state.set_message(line.clone());
+            app.state.reload();
+            app.refresh_ui();
+            Err(BridgeError::new(
+                ErrorScope::Identity,
+                ErrorCode::Unauthorized,
+                line,
+            ))
         },
-    }
-    app.state.reload();
-    app.refresh_ui();
+    };
+    finish_unit(app, bridge_result, reply_to);
 }
 
-#[tracing::instrument(level = "debug", skip(app))]
-pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str) {
+#[tracing::instrument(level = "info", skip(app))]
+pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str, reply_to: ReplyId) {
     let trimmed = gateway.trim().to_owned();
     if trimmed.is_empty() {
-        app.state.set_message("Set gateway: URL is empty");
+        let err = BridgeError::new(
+            ErrorScope::Gateway,
+            ErrorCode::InvalidArgs,
+            "Set gateway: URL is empty",
+        );
         app.append_log("Set gateway: URL is empty");
-        app.refresh_ui();
+        finish_unit(app, Err(err), reply_to);
         return;
     }
     app.append_log(format!("Saving gateway URL {trimmed}…"));
-    app.pool.spawn_task(
-        app.proxy.clone(),
-        move || {
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let result = match tokio::task::spawn_blocking(move || {
             setup::set_gateway_url(&trimmed)
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
-        },
-        UiEvent::SetGatewayFinished,
-    );
+        })
+        .await
+        {
+            Ok(r) => r,
+            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
+                "set-gateway task join: {join_err}"
+            ))))),
+        };
+        let _ = proxy.send_event(UiEvent::SetGatewayFinished { result, reply_to });
+    });
 }
 
-pub(crate) fn on_set_gateway_finished(app: &mut GuiApp, result: Result<(), Arc<GuiError>>) {
-    match result {
+pub(crate) fn on_set_gateway_finished(
+    app: &mut GuiApp,
+    result: Result<(), Arc<GuiError>>,
+    reply_to: ReplyId,
+) {
+    let bridge_result = match result {
         Ok(()) => {
             app.append_log("Gateway URL saved.");
             app.state.reload();
-            super::gateway_probe::spawn_probe(app);
+            super::gateway_probe::spawn_probe(app, None);
+            Ok(())
         },
         Err(e) => {
             let line = format!("set gateway failed: {e}");
             app.append_log(&line);
-            app.state.set_message(line);
+            app.state.set_message(line.clone());
             app.state.reload();
+            Err(BridgeError::new(
+                ErrorScope::Gateway,
+                ErrorCode::Internal,
+                line,
+            ))
         },
-    }
+    };
     app.refresh_ui();
+    finish_unit(app, bridge_result, reply_to);
 }
 
-#[tracing::instrument(level = "debug", skip(app))]
-pub(crate) fn on_logout_requested(app: &mut GuiApp) {
+#[tracing::instrument(level = "info", skip(app))]
+pub(crate) fn on_logout_requested(app: &mut GuiApp, reply_to: ReplyId) {
     app.append_log("Logging out…");
-    app.pool.spawn_task(
-        app.proxy.clone(),
-        || {
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let result = match tokio::task::spawn_blocking(|| {
             setup::logout()
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
-        },
-        UiEvent::LogoutFinished,
-    );
+        })
+        .await
+        {
+            Ok(r) => r,
+            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
+                "logout task join: {join_err}"
+            ))))),
+        };
+        let _ = proxy.send_event(UiEvent::LogoutFinished { result, reply_to });
+    });
 }
 
-pub(crate) fn on_logout_finished(app: &mut GuiApp, result: Result<(), Arc<GuiError>>) {
-    match result {
+pub(crate) fn on_logout_finished(
+    app: &mut GuiApp,
+    result: Result<(), Arc<GuiError>>,
+    reply_to: ReplyId,
+) {
+    let bridge_result = match result {
         Ok(()) => {
             app.append_log("Logged out.");
             app.state.set_message("Logged out.");
+            Ok(())
         },
         Err(e) => {
             let line = format!("logout failed: {e}");
             app.append_log(&line);
-            app.state.set_message(line);
+            app.state.set_message(line.clone());
+            Err(BridgeError::new(
+                ErrorScope::Identity,
+                ErrorCode::Internal,
+                line,
+            ))
         },
-    }
+    };
     app.state.reload();
     app.refresh_ui();
+    ipc_runtime::emit_state(app);
+    finish_unit(app, bridge_result, reply_to);
+}
+
+fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId) {
+    let Some(id) = reply_to else {
+        if let Err(err) = result {
+            ipc_runtime::emit_error(app, &err);
+        }
+        return;
+    };
+    let payload = match result {
+        Ok(()) => crate::gui::ipc::IpcReplyPayload::ok(json!({})),
+        Err(err) => {
+            ipc_runtime::emit_error(app, &err);
+            crate::gui::ipc::IpcReplyPayload::err(err)
+        },
+    };
+    ipc_runtime::send_reply_payload(app, id, &payload);
 }

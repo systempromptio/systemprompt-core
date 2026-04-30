@@ -1,6 +1,21 @@
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
 fn main() {
+    if let Err(e) = vergen::EmitBuilder::builder()
+        .build_timestamp()
+        .git_sha(true)
+        .git_commit_date()
+        .git_branch()
+        .fail_on_error()
+        .emit()
+    {
+        eprintln!("cargo:warning=vergen failed ({e}); falling back to placeholders");
+        println!("cargo:rustc-env=VERGEN_GIT_SHA=unknown");
+        println!("cargo:rustc-env=VERGEN_GIT_COMMIT_DATE=unknown");
+        println!("cargo:rustc-env=VERGEN_BUILD_TIMESTAMP=unknown");
+        println!("cargo:rustc-env=VERGEN_GIT_BRANCH=unknown");
+    }
+
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "windows" {
         let mut res = winresource::WindowsResource::new();
