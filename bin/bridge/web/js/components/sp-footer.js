@@ -21,14 +21,24 @@ function docsUrl(platform) {
   return "https://systemprompt.io/documentation/services/cowork-deployment";
 }
 
+function isMissing(v) {
+  return !v || v === "unknown" || v.startsWith("__");
+}
+
 function hasBuildMeta(sha, date) {
-  return sha && date && sha !== "unknown" && date !== "unknown";
+  return !isMissing(sha) && !isMissing(date);
 }
 
 export class SpFooter extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
+    this.registerAction("open-external", (el, ev) => {
+      const url = el && el.dataset && el.dataset.href;
+      if (!url) { return; }
+      if (ev && typeof ev.preventDefault === "function") { ev.preventDefault(); }
+      bridge.openExternalUrl(url).catch((e) => console.warn("open url failed", url, e));
+    });
   }
 
   onConnect() {
@@ -60,9 +70,9 @@ export class SpFooter extends SpElement {
           ? `<span class="sp-footer__version" title="Build ${escapeHtml(gitSha)} committed ${escapeHtml(buildDate)}">v${escapeHtml(version)} (${escapeHtml(gitSha)}, ${escapeHtml(buildDate)})</span>`
           : `<span class="sp-footer__version">v${escapeHtml(version)}</span>`}
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <a href="${escapeHtml(docsUrl(platform))}" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-docs">docs</a>
+        <a href="${escapeHtml(docsUrl(platform))}" data-href="${escapeHtml(docsUrl(platform))}" data-action="open-external" data-l10n-id="footer-docs">docs</a>
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <a href="https://systemprompt.io/documentation/licensing" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-licensing">licensing</a>
+        <a href="https://systemprompt.io/documentation/licensing" data-href="https://systemprompt.io/documentation/licensing" data-action="open-external" data-l10n-id="footer-licensing">licensing</a>
       </div>
       <div class="sp-footer__right">
         <span class="sp-footer__hint"><span class="sp-kbd">⌘1</span><span class="sp-kbd">⌘2</span><span class="sp-kbd">⌘3</span><span class="sp-kbd">⌘4</span> <span data-l10n-id="footer-tabs-hint">tabs</span></span>

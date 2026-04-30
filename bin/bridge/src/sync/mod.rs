@@ -17,14 +17,6 @@ use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
 
-pub struct SyncOptions {
-    pub watch: bool,
-    pub interval: Option<u64>,
-    pub allow_unsigned: bool,
-    pub force_replay: bool,
-    pub allow_tofu: bool,
-}
-
 #[derive(Debug, Clone)]
 pub struct SyncSummary {
     pub identity: String,

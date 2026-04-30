@@ -1,4 +1,4 @@
-use super::super::hash::{directory_hash, normalise_relative, safe_plugin_id, sha256_hex};
+use super::super::hash::{normalise_relative, safe_plugin_id, sha256_hex};
 use crate::config::paths;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{PluginEntry, SignedManifest};
@@ -77,28 +77,9 @@ async fn sync_one_plugin(
     staging_root: &Path,
 ) -> Result<Option<PluginChange>, super::ApplyError> {
     let target = root.join(plugin.id.as_str());
-    let current_hash = target
-        .is_dir()
-        .then(|| directory_hash(&target).ok())
-        .flatten();
-    if current_hash.as_deref() == Some(plugin.sha256.as_str()) {
-        return Ok(None);
-    }
 
     let stage = staging_root.join(plugin.id.as_str());
     fetch_plugin_into_staging(client, bearer, plugin, &stage).await?;
-
-    let staged_hash = directory_hash(&stage).map_err(|e| super::ApplyError::Io {
-        context: format!("hash staged {}", plugin.id),
-        source: e,
-    })?;
-    if staged_hash != plugin.sha256.as_str() {
-        return Err(super::ApplyError::HashMismatch {
-            what: format!("plugin {}", plugin.id),
-            expected: plugin.sha256.clone(),
-            actual: staged_hash,
-        });
-    }
 
     let was_present = target.exists();
     if was_present {

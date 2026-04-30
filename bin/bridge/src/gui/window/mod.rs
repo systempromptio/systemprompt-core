@@ -23,5 +23,9 @@ fn open_target(target: &str) {
         target_os = "windows" => &["/C", "start", ""],
         _                     => &[],
     };
-    let _ = Command::new(program).args(prefix).arg(target).spawn();
+    tracing::info!(target = %target, program, "opening external target");
+    match Command::new(program).args(prefix).arg(target).spawn() {
+        Ok(_) => {},
+        Err(e) => tracing::error!(target = %target, program, error = %e, "failed to spawn opener"),
+    }
 }

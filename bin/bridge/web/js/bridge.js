@@ -69,6 +69,7 @@ export const bridge = {
   setupComplete:        ()                  => invoke("setup.complete"),
   openConfigFolder:     ()                  => invoke("openConfigFolder"),
   openLogFolder:        ()                  => invoke("openLogFolder"),
+  openExternalUrl:      (url)               => invoke("openExternalUrl", { url }),
   diagnosticsExportBundle: ()               => invoke("diagnostics.exportBundle"),
   diagnosticsInfo:      ()                  => invoke("diagnostics.info"),
   cancel:               (scope)             => invoke("cancel", { scope: scope ?? "all" }),
