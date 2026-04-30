@@ -61,7 +61,7 @@ impl TokenCache {
         .map_err(|e| ForwardError::Auth(format!("auth task join: {e}")))?;
 
         let token = join.ok_or_else(|| {
-            ForwardError::Auth("no JWT available — sign in via cowork GUI".to_string())
+            ForwardError::Auth("no JWT available — sign in via systemprompt-bridge GUI".to_string())
         })?;
 
         tracing::info!("token cache refresh");

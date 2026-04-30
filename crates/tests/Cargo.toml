@@ -182,7 +182,7 @@ systemprompt-generator = { path = "../app/generator" }
 systemprompt-sync = { path = "../app/sync" }
 systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }
-systemprompt-cowork = { path = "../../bin/cowork" }
+systemprompt-bridge = { path = "../../bin/bridge" }
 
 # Testing utility
 trybuild = "1.0"

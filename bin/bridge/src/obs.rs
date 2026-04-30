@@ -78,7 +78,7 @@ pub mod tracing_init {
             }
             return None;
         }
-        Some(dir.join("cowork.log"))
+        Some(dir.join("bridge.log"))
     }
 
     #[cfg(target_os = "windows")]

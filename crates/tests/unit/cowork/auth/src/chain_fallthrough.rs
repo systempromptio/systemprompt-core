@@ -1,10 +1,10 @@
 use std::cell::Cell;
 
-use systemprompt_cowork::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
-use systemprompt_cowork::auth::types::HelperOutput;
-use systemprompt_cowork::auth::{ChainError, evaluate_chain};
-use systemprompt_cowork::gateway::GatewayError;
-use systemprompt_cowork::ids::BearerToken;
+use systemprompt_bridge::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
+use systemprompt_bridge::auth::types::HelperOutput;
+use systemprompt_bridge::auth::{ChainError, evaluate_chain};
+use systemprompt_bridge::gateway::GatewayError;
+use systemprompt_bridge::ids::BearerToken;
 
 struct StubProvider {
     name: &'static str,

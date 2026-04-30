@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use systemprompt_cowork::config::paths::{
+use systemprompt_bridge::config::paths::{
     Scope, org_plugins_effective, org_plugins_system, org_plugins_user,
 };
 

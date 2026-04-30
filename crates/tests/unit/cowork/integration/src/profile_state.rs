@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use systemprompt_cowork::integration::ProfileState;
+use systemprompt_bridge::integration::ProfileState;
 
 fn keys(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
     pairs

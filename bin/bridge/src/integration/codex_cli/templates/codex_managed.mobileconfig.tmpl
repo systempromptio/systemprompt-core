@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadIdentifier</key>
+    <string>io.systemprompt.bridge.codex-cli</string>
+    <key>PayloadUUID</key>
+    <string>{profile_uuid}</string>
+    <key>PayloadDisplayName</key>
+    <string>systemprompt bridge — Codex managed config</string>
+    <key>PayloadDescription</key>
+    <string>Routes Codex CLI, app, and IDE extension inference through your systemprompt.io gateway.</string>
+    <key>PayloadOrganization</key>
+    <string>systemprompt.io</string>
+    <key>PayloadScope</key>
+    <string>User</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadContent</key>
+    <array>
+      <dict>
+        <key>PayloadType</key>
+        <string>com.openai.codex</string>
+        <key>PayloadIdentifier</key>
+        <string>io.systemprompt.bridge.codex-cli.payload</string>
+        <key>PayloadUUID</key>
+        <string>{payload_uuid}</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadDisplayName</key>
+        <string>Codex — Managed configuration</string>
+        <key>PayloadEnabled</key>
+        <true/>
+        <key>config_toml_base64</key>
+        <string>{config_toml_base64}</string>
+      </dict>
+    </array>
+</dict>
+</plist>

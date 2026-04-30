@@ -1,4 +1,4 @@
-use systemprompt_cowork::auth::cache::is_still_valid;
+use systemprompt_bridge::auth::cache::is_still_valid;
 
 const NOW: u64 = 1_700_000_000;
 const THRESHOLD: u64 = 30;

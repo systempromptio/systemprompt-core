@@ -1,15 +1,15 @@
 [package]
-name = "systemprompt-cowork-auth-tests"
+name = "systemprompt-bridge-auth-tests"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-cowork auth cache TTL semantics"
+description = "Unit tests for systemprompt-bridge auth cache TTL semantics"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-cowork = { workspace = true }
+systemprompt-bridge = { workspace = true }
 ureq = "2"

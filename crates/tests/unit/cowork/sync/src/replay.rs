@@ -1,9 +1,9 @@
 use std::fs;
 
-use systemprompt_cowork::gateway::manifest::{SignedManifest, UserId, canonical_payload};
-use systemprompt_cowork::gateway::manifest_version::ManifestVersion;
-use systemprompt_cowork::ids::ManifestSignature;
-use systemprompt_cowork::sync::{
+use systemprompt_bridge::gateway::manifest::{SignedManifest, UserId, canonical_payload};
+use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
+use systemprompt_bridge::ids::ManifestSignature;
+use systemprompt_bridge::sync::{
     LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
 };
 

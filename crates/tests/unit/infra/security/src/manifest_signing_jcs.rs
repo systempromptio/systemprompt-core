@@ -1,10 +1,10 @@
 use std::sync::Once;
 
-use systemprompt_cowork::gateway::manifest::{
+use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest,
     SkillEntry, TenantId, UserId, UserInfo, ValidatedUrl, canonical_payload,
 };
-use systemprompt_cowork::ids::{
+use systemprompt_bridge::ids::{
     ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName,
 };
 
