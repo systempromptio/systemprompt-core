@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Setup wizard's Install button was a no-op.** It only called `host.profile.generate`, which writes a profile file but does not copy it into the OS-managed location, so the host's `profile_state` never flipped to `installed` and the UI stayed on "Install profile" forever. Now the setup-agents handler enables the host (so the new gating doesn't reject the call), generates the profile, and immediately installs the resulting path — three IPCs in sequence — matching the user's intent of "set up this agent".
+- **Local proxy probe always returned `Unconfigured` until at least one host had been installed**, because `AppState::first_configured_proxy_url` derived the probe target from `host.profile_keys.inferenceGatewayBaseUrl` (which only populates after install). The bridge owns the proxy and knows its port — now `first_configured_proxy_url` returns `http://127.0.0.1:<proxy.handle.port>` when the proxy is running, falling back to the host-derived URL only if the proxy hasn't started yet. Cures the "awaiting first launch" badge that stuck even when Claude was actively routing through the proxy.
+
 ### Added
 
 - **Per-agent enable/disable, persisted across runs.** Every registered host (Claude Desktop, Codex CLI, …) now has an explicit `enabled` flag stored in `~/.config/systemprompt/agents.json`. Hosts default to **disabled** so a fresh install never silently probes integrations the user hasn't opted into. New IPC `agents.setEnabled({ hostId, enabled })` toggles the flag, persists it, and (when re-enabling) fires a one-shot manual probe. The host card grows an Enable/Disable button; disabled cards render as a dimmed lede with the toggle and no action buttons. `host.probe`, `host.profile.generate`, `host.profile.install`, `agent.uninstall`, and `agent.openConfig` reject disabled hosts with `Conflict`. Status summaries and the rail's agent count consider only enabled hosts.

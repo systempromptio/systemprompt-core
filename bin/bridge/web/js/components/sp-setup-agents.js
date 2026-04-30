@@ -8,8 +8,18 @@ export class SpSetupAgents extends SpElement {
     this.snapshot = null;
     this.registerAction("install-host", async (trigger) => {
       const id = trigger.dataset.hostId;
-      if (id) {
-        try { await bridge.hostProfileGenerate(id); } catch (e) { console.warn("generate", e); }
+      if (!id) { return; }
+      trigger.disabled = true;
+      try {
+        await bridge.agentsSetEnabled(id, true);
+        const gen = await bridge.hostProfileGenerate(id);
+        const path = gen && (gen.path || gen.profile_path);
+        if (path) {
+          await bridge.hostProfileInstall(id, path);
+        }
+      } catch (e) {
+        console.warn("install-host", e);
+        trigger.disabled = false;
       }
     });
   }

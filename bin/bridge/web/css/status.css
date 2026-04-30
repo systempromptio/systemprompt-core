@@ -57,7 +57,8 @@
   color: var(--sp-muted);
   margin: 0;
 }
-#hosts-list { display: flex; flex-direction: column; gap: var(--sp-space-3-5); }
+sp-hosts-list { display: flex; flex-direction: column; gap: var(--sp-space-3-5); }
+sp-host-card { display: block; }
 .sp-host-list__empty { padding: var(--sp-space-3-5) var(--sp-space-4-5); }
 .sp-host-card {
   background: var(--sp-bg-elev-1);

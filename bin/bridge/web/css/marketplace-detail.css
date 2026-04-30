@@ -8,11 +8,8 @@
   to   { opacity: 1; transform: none; }
 }
 .sp-mkt-detail__head {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: var(--sp-space-3-5);
-  align-items: center;
   margin-bottom: var(--sp-space-3-5);
+  min-width: 0;
 }
 .sp-mkt-detail__title {
   display: flex;
@@ -27,8 +24,8 @@
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--sp-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .sp-mkt-detail__meta {
   display: flex;

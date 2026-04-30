@@ -49,7 +49,7 @@
 .sp-rail-tab {
   position: relative;
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--sp-space-2-5);
   padding: var(--sp-space-2) var(--sp-space-3);
