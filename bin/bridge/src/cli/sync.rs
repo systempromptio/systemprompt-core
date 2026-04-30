@@ -2,6 +2,7 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
+use crate::cli::output;
 use crate::sync;
 
 pub(crate) fn cmd_sync(args: &[String]) -> ExitCode {
@@ -30,7 +31,7 @@ pub(crate) fn cmd_sync(args: &[String]) -> ExitCode {
 fn run_once_print(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) -> ExitCode {
     match sync::run_once(allow_unsigned, force_replay, allow_tofu) {
         Ok(summary) => {
-            println!("{}", summary.one_line());
+            output::print_line(&summary.one_line());
             ExitCode::SUCCESS
         },
         Err(err) => {

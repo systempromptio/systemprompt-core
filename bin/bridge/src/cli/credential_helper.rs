@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 use std::process::ExitCode;
 
 use chrono::{SecondsFormat, Utc};

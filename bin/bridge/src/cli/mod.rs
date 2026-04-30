@@ -1,5 +1,3 @@
-#![allow(clippy::print_stdout, clippy::print_stderr)]
-
 pub(crate) mod args;
 mod clean;
 mod credential_helper;
@@ -7,6 +5,7 @@ mod gui;
 mod install;
 mod login;
 mod logout;
+pub mod output;
 mod run;
 mod status;
 mod sync;
@@ -38,12 +37,12 @@ pub fn run() -> ExitCode {
         Some("credential-helper") => credential_helper::cmd_credential_helper(&args),
         Some("gui") => gui::cmd_gui(),
         Some("help" | "--help" | "-h") => {
-            print!("{}", crate::help());
+            output::print_str(crate::help());
             ExitCode::SUCCESS
         },
         Some(other) => {
             diag(&format!("unknown command: {other}"));
-            eprint!("{}", crate::help());
+            output::eprint_str(crate::help());
             ExitCode::from(64)
         },
     }

@@ -3,6 +3,7 @@ use std::process::ExitCode;
 use systemprompt_identifiers::ValidatedUrl;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
+use crate::cli::output;
 use crate::ids::PinnedPubKey;
 use crate::install;
 use crate::obs::output::diag;
@@ -37,7 +38,7 @@ pub(crate) fn cmd_install(args: &[String]) -> ExitCode {
         apply_mobileconfig,
     }) {
         Ok(summary) => {
-            print!("{}", install::render_install_summary(&summary));
+            output::print_str(&install::render_install_summary(&summary));
             ExitCode::SUCCESS
         },
         Err(err) => {

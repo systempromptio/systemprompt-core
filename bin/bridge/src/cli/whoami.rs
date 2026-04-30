@@ -1,6 +1,7 @@
 use std::process::ExitCode;
 
 use crate::auth::ChainError;
+use crate::cli::output;
 use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
 use crate::{auth, config};
@@ -26,8 +27,8 @@ pub(crate) fn cmd_whoami() -> ExitCode {
     match client.fetch_whoami(out.token.expose()) {
         Ok(value) => {
             match serde_json::to_string_pretty(&value) {
-                Ok(s) => println!("{s}"),
-                Err(_) => println!("{value:?}"),
+                Ok(s) => output::print_line(&s),
+                Err(_) => output::print_line(&format!("{value:?}")),
             }
             ExitCode::SUCCESS
         },
