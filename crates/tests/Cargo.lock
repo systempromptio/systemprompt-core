@@ -6474,6 +6474,7 @@ name = "systemprompt-cowork-sync-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "serde_json",
  "systemprompt-cowork",
 ]
 

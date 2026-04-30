@@ -13,6 +13,8 @@
 //! - HealthChecker builder pattern
 
 #[cfg(test)]
+mod cowork_audience;
+#[cfg(test)]
 mod middleware;
 #[cfg(test)]
 mod models;
@@ -22,5 +24,3 @@ mod routes;
 mod services;
 #[cfg(test)]
 mod static_content;
-#[cfg(test)]
-mod cowork_audience;

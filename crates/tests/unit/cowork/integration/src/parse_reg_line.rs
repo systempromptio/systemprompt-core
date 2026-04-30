@@ -2,13 +2,11 @@ use systemprompt_cowork::integration::claude_desktop::win_reg_parser::parse_reg_
 
 #[test]
 fn reg_sz_with_comma_separated_value_keeps_full_value() {
-    let line = "    inferenceModels    REG_SZ    claude-opus-4-7,claude-sonnet-4-6,claude-haiku-4-5";
+    let line =
+        "    inferenceModels    REG_SZ    claude-opus-4-7,claude-sonnet-4-6,claude-haiku-4-5";
     let (name, value) = parse_reg_line(line.trim_start()).expect("should parse");
     assert_eq!(name, "inferenceModels");
-    assert_eq!(
-        value,
-        "claude-opus-4-7,claude-sonnet-4-6,claude-haiku-4-5"
-    );
+    assert_eq!(value, "claude-opus-4-7,claude-sonnet-4-6,claude-haiku-4-5");
 }
 
 #[test]

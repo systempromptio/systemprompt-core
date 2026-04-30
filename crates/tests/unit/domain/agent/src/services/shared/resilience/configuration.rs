@@ -99,7 +99,9 @@ fn test_retry_config_progression() {
 
     let delays: Vec<Duration> = (0..config.max_attempts)
         .map(|i| {
-            let delay = config.initial_delay.saturating_mul(config.exponential_base.pow(i));
+            let delay = config
+                .initial_delay
+                .saturating_mul(config.exponential_base.pow(i));
             if delay > config.max_delay {
                 config.max_delay
             } else {
@@ -112,4 +114,3 @@ fn test_retry_config_progression() {
     assert_eq!(delays[1], Duration::from_millis(200));
     assert_eq!(delays[2], Duration::from_millis(400));
 }
-

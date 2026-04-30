@@ -15,7 +15,8 @@ pub use shared::{ProfileGenInputs, default_models};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProfileState,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    ProfileState,
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -67,6 +68,26 @@ impl HostApp for ClaudeDesktopHost {
             "imported into Windows Registry"
         } else {
             "loaded into managed preferences"
+        }
+    }
+
+    fn kind(&self) -> HostKind {
+        HostKind::DesktopApp
+    }
+
+    fn description(&self) -> &'static str {
+        "Anthropic's official desktop client for Claude. Routes inference through the systemprompt gateway via managed policy."
+    }
+
+    fn icon_id(&self) -> &'static str {
+        "claude-desktop"
+    }
+
+    fn config_format(&self) -> ConfigFormat {
+        if cfg!(target_os = "windows") {
+            ConfigFormat::Reg
+        } else {
+            ConfigFormat::Plist
         }
     }
 }

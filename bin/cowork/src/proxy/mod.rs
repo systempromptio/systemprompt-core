@@ -2,6 +2,7 @@ pub mod forward;
 pub mod secret;
 pub mod server;
 pub mod token_cache;
+pub mod usage;
 
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;

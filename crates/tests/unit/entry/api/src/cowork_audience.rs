@@ -77,5 +77,8 @@ fn legacy_api_audience_token_rejected() {
 fn non_cowork_non_api_audience_rejected() {
     let token = mint_token(JwtAudience::Mcp.as_str());
     let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Cowork]);
-    assert!(result.is_err(), "Mcp-aud token must be rejected by Cowork validator");
+    assert!(
+        result.is_err(),
+        "Mcp-aud token must be rejected by Cowork validator"
+    );
 }

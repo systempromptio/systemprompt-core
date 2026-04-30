@@ -5,6 +5,7 @@
     clippy::similar_names
 )]
 
+pub mod activity;
 pub mod auth;
 pub mod cli;
 pub mod config;

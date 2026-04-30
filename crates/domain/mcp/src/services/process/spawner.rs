@@ -69,7 +69,10 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
         .env("JWT_SECRET", &secrets.jwt_secret)
         .env(
             "MANIFEST_SIGNING_SECRET_SEED",
-            secrets.manifest_signing_secret_seed.as_deref().unwrap_or(""),
+            secrets
+                .manifest_signing_secret_seed
+                .as_deref()
+                .unwrap_or(""),
         )
         .env("DATABASE_URL", &secrets.database_url)
         .env("DATABASE_TYPE", &config_global.database_type)

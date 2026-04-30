@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bytes::Bytes;
 use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, BodyStream, StreamBody};
@@ -6,7 +8,9 @@ use hyper::{HeaderMap, Request, Response, StatusCode};
 use systemprompt_identifiers::ValidatedUrl;
 use thiserror::Error;
 
+use crate::proxy::server::ProxyStats;
 use crate::proxy::token_cache::TokenCache;
+use crate::proxy::usage;
 
 const HOP_BY_HOP: &[&str] = &[
     "host",
@@ -48,16 +52,18 @@ pub type ForwardResult<T> = Result<T, ForwardError>;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-#[tracing::instrument(level = "debug", skip(req, client, gateway_base, token_cache), fields(method = %req.method(), path = %req.uri().path()))]
+#[tracing::instrument(level = "debug", skip(req, client, gateway_base, token_cache, stats), fields(method = %req.method(), path = %req.uri().path()))]
 pub async fn forward(
     req: Request<Incoming>,
     client: reqwest::Client,
     gateway_base: &ValidatedUrl,
     token_cache: &TokenCache,
+    stats: Arc<ProxyStats>,
 ) -> ForwardResult<Response<ProxyBody>> {
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
     let (parts, body) = req.into_parts();
+    let request_path = parts.uri.path().to_string();
     let url = build_upstream_url(gateway_base, &parts.uri);
 
     let method = reqwest::Method::from_bytes(parts.method.as_str().as_bytes()).map_err(|e| {
@@ -97,11 +103,20 @@ pub async fn forward(
         copy_response_headers(upstream_response.headers(), headers_mut);
     }
 
+    let content_type = upstream_response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    let tap_enabled = status.is_success() && usage::is_messages_path(&request_path);
+
     let upstream_stream = upstream_response
         .bytes_stream()
         .map_ok(Frame::data)
         .map_err(std::io::Error::other);
-    let body: ProxyBody = StreamBody::new(upstream_stream).boxed();
+    let wrapped = usage::wrap_response_stream(&content_type, tap_enabled, stats, upstream_stream);
+    let body: ProxyBody = StreamBody::new(wrapped).boxed();
 
     Ok(response_builder.body(body)?)
 }

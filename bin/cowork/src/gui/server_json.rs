@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use serde::Serialize;
 
 use crate::gui::state::{AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
@@ -25,6 +27,7 @@ struct StatePayload<'a> {
     verified_identity: Option<VerifiedIdentityPayload<'a>>,
     signed_in: bool,
     last_probe_at_unix: Option<u64>,
+    proxy_stats: ProxyStatsPayload,
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[serde(flatten)]
     hosts: crate::gui::hosts::serde::HostsPayload<'a>,
@@ -53,8 +56,38 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
                 .map(VerifiedIdentityPayload::from),
             signed_in: snap.signed_in(),
             last_probe_at_unix: snap.last_probe_at_unix,
+            proxy_stats: ProxyStatsPayload::current(),
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             hosts: crate::gui::hosts::serde::payload(snap),
+        }
+    }
+}
+
+#[derive(Serialize, Default)]
+struct ProxyStatsPayload {
+    forwarded_total: u64,
+    messages_total: u64,
+    tokens_in_total: u64,
+    tokens_out_total: u64,
+    last_status: u64,
+    last_latency_ms: u64,
+    last_forwarded_at_unix: u64,
+}
+
+impl ProxyStatsPayload {
+    fn current() -> Self {
+        let Some(handle) = crate::proxy::handle() else {
+            return Self::default();
+        };
+        let s = &handle.stats;
+        Self {
+            forwarded_total: s.forwarded_total.load(Ordering::Relaxed),
+            messages_total: s.messages_total.load(Ordering::Relaxed),
+            tokens_in_total: s.tokens_in_total.load(Ordering::Relaxed),
+            tokens_out_total: s.tokens_out_total.load(Ordering::Relaxed),
+            last_status: s.last_status.load(Ordering::Relaxed),
+            last_latency_ms: s.last_latency_ms.load(Ordering::Relaxed),
+            last_forwarded_at_unix: s.last_forwarded_at_unix.load(Ordering::Relaxed),
         }
     }
 }

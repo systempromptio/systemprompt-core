@@ -116,7 +116,10 @@ fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .env("JWT_SECRET", &secrets.jwt_secret)
         .env(
             "MANIFEST_SIGNING_SECRET_SEED",
-            secrets.manifest_signing_secret_seed.as_deref().unwrap_or(""),
+            secrets
+                .manifest_signing_secret_seed
+                .as_deref()
+                .unwrap_or(""),
         )
         .env("DATABASE_URL", &secrets.database_url)
         .env("AGENT_NAME", agent_name)

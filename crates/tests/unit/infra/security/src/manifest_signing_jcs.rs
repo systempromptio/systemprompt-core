@@ -140,12 +140,20 @@ fn jcs_output_sorts_keys_alphabetically() {
     let manifest_version = bytes
         .find("\"manifest_version\"")
         .expect("manifest_version key present");
-    let revocations = bytes.find("\"revocations\"").expect("revocations key present");
+    let revocations = bytes
+        .find("\"revocations\"")
+        .expect("revocations key present");
     let user_id = bytes.find("\"user_id\"").expect("user_id key present");
 
     assert!(agents < issued, "agents must precede issued_at");
-    assert!(issued < manifest_version, "issued_at must precede manifest_version");
-    assert!(manifest_version < revocations, "manifest_version must precede revocations");
+    assert!(
+        issued < manifest_version,
+        "issued_at must precede manifest_version"
+    );
+    assert!(
+        manifest_version < revocations,
+        "manifest_version must precede revocations"
+    );
     assert!(revocations < user_id, "revocations must precede user_id");
 }
 
@@ -182,8 +190,7 @@ fn tamper_with_user_id_breaks_signature() {
     };
 
     let mut manifest = sample_manifest();
-    let signature =
-        manifest_signing::sign_value(&signing_view(&manifest)).expect("sign_value");
+    let signature = manifest_signing::sign_value(&signing_view(&manifest)).expect("sign_value");
     manifest.signature = ManifestSignature::new(signature);
     manifest.user_id = UserId::new("user_attacker");
 

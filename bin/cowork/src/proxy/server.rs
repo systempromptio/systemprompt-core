@@ -33,6 +33,9 @@ pub struct ProxyStats {
     pub last_forwarded_at_unix: AtomicU64,
     pub last_status: AtomicU64,
     pub last_latency_ms: AtomicU64,
+    pub messages_total: AtomicU64,
+    pub tokens_in_total: AtomicU64,
+    pub tokens_out_total: AtomicU64,
 }
 
 #[derive(Clone)]
@@ -196,15 +199,19 @@ async fn handle_request(
         ctx.client.clone(),
         ctx.gateway_base.as_ref(),
         ctx.token_cache.as_ref(),
+        Arc::clone(&ctx.stats),
     )
     .await
     {
         Ok(response) => {
             let status = response.status().as_u16();
+            let latency_ms = started.elapsed().as_millis();
             record_stats(&ctx.stats, status, started);
             diag(&format!(
-                "proxy: {method} {path} -> {status} {}ms",
-                started.elapsed().as_millis()
+                "proxy: {method} {path} -> {status} {latency_ms}ms"
+            ));
+            crate::activity::activity_log().append(format!(
+                "proxy: {method} {path} → {status} ({latency_ms}ms)"
             ));
             Ok(response)
         },
@@ -212,8 +219,12 @@ async fn handle_request(
             record_stats(&ctx.stats, StatusCode::BAD_GATEWAY.as_u16(), started);
             if forward::is_client_disconnect(&e) {
                 diag(&format!("proxy: {method} {path} -> client disconnected"));
+                crate::activity::activity_log()
+                    .append(format!("proxy: {method} {path} → client disconnected"));
             } else {
                 diag(&format!("proxy: {method} {path} -> forward error: {e}"));
+                crate::activity::activity_log()
+                    .append(format!("proxy: {method} {path} → error: {e}"));
             }
             Ok(simple_response(StatusCode::BAD_GATEWAY, "bad gateway\n"))
         },

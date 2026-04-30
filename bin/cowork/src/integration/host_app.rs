@@ -70,6 +70,22 @@ pub struct GeneratedProfile {
     pub profile_uuid: String,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HostKind {
+    DesktopApp,
+    CliTool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigFormat {
+    Json,
+    Toml,
+    Plist,
+    Reg,
+}
+
 pub trait HostApp: Send + Sync + 'static {
     fn id(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
@@ -78,4 +94,20 @@ pub trait HostApp: Send + Sync + 'static {
     fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile>;
     fn install_profile(&self, path: &str) -> std::io::Result<()>;
     fn install_action_label(&self) -> &'static str;
+
+    fn kind(&self) -> HostKind {
+        HostKind::DesktopApp
+    }
+
+    fn description(&self) -> &'static str {
+        ""
+    }
+
+    fn icon_id(&self) -> &'static str {
+        self.id()
+    }
+
+    fn config_format(&self) -> ConfigFormat {
+        ConfigFormat::Json
+    }
 }

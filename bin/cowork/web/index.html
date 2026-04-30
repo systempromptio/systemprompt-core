@@ -7,33 +7,80 @@
   <style>__STYLE__</style>
 </head>
 <body class="setup-mode platform-__PLATFORM__">
+  <a href="#main" class="sp-skip-link">Skip to content</a>
+
+  <template id="tpl-mkt-glyph-plugins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M18 13v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></template>
+  <template id="tpl-mkt-glyph-skills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg></template>
+  <template id="tpl-mkt-glyph-hooks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v8"/><path d="M12 12a4 4 0 1 0 4 4"/></svg></template>
+  <template id="tpl-mkt-glyph-mcp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01"/><path d="M7 17h.01"/></svg></template>
+  <template id="tpl-mkt-glyph-agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></template>
+  <template id="tpl-mkt-glyph-folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></template>
+  <template id="tpl-mkt-empty-sub-detail">Pick from the list, or use <span class="kbd">⌘F</span> to search.</template>
+
   <header class="topbar" role="banner">
-    <div class="brand">
-      <span class="brand-mark">__ICON_SVG__</span>
-      <span class="brand-word">__LOGO_SVG__</span>
+    <div class="topbar-left">
+      <a class="brand" href="#" aria-label="systemprompt cowork">
+        <span class="brand-mark">__ICON_SVG__</span>
+        <span class="brand-word">__LOGO_SVG__</span>
+      </a>
+      <span class="topbar-divider" aria-hidden="true"></span>
+      <span class="workspace-pill">cowork</span>
     </div>
-    <div class="topbar-actions">
-      <span class="product-tag">cowork</span>
-      <span id="sync-pill" class="pill pill-idle" aria-live="polite">idle</span>
-      <button id="activity-toggle-top" class="ghost-mini" type="button" aria-label="Toggle activity">
-        Activity <span id="activity-badge" class="activity-badge" hidden>0</span>
-      </button>
+
+    <div class="topbar-center">
+      <nav class="crumb" id="crumb" aria-label="Breadcrumb">
+        <span class="crumb-sep" aria-hidden="true">/</span>
+        <span class="crumb-current" id="crumb-current">Marketplace</span>
+      </nav>
+    </div>
+
+    <div class="topbar-right">
+      <span id="sync-pill" class="sync-pill" data-state="idle" aria-live="polite" title="Sync status">
+        <span class="sync-dot" aria-hidden="true"></span>
+        <span class="sync-pill-label">idle</span>
+      </span>
     </div>
   </header>
 
-  <main class="shell">
-    <nav class="rail" role="tablist" aria-label="Sections">
-      <button class="rail-tab" data-tab="marketplace" role="tab" aria-selected="true" type="button">
-        <span class="rail-glyph">⬢</span><span class="rail-label">Marketplace</span>
-        <span class="rail-count" id="rail-count-marketplace">—</span>
-      </button>
-      <button class="rail-tab" data-tab="status" role="tab" aria-selected="false" type="button">
-        <span class="rail-glyph">◉</span><span class="rail-label">Status</span>
-        <span class="rail-count" id="rail-count-status" hidden></span>
-      </button>
-      <button class="rail-tab" data-tab="settings" role="tab" aria-selected="false" type="button">
-        <span class="rail-glyph">⚙</span><span class="rail-label">Settings</span>
-      </button>
+  <main id="main" class="shell" role="main">
+    <nav class="rail" role="tablist" aria-label="Sections" data-active-ready="false">
+      <div class="rail-section">
+        <div class="rail-section-label">Navigate</div>
+        <button class="rail-tab" data-tab="marketplace" role="tab" aria-selected="true" aria-keyshortcuts="Meta+1 Control+1" type="button">
+          <span class="rail-glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7l9-4.5z"/><path d="M3 7l9 4.5L21 7"/><path d="M12 11.5V21.5"/></svg>
+          </span>
+          <span class="rail-label">Marketplace</span>
+          <span class="rail-count" id="rail-count-marketplace">0</span>
+          <span class="rail-shortcut" aria-hidden="true">⌘1</span>
+        </button>
+        <button class="rail-tab" data-tab="status" role="tab" aria-selected="false" aria-keyshortcuts="Meta+2 Control+2" type="button">
+          <span class="rail-glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+          </span>
+          <span class="rail-label">Status</span>
+          <span class="rail-count" id="rail-count-status" hidden></span>
+          <span class="rail-shortcut" aria-hidden="true">⌘2</span>
+        </button>
+        <button class="rail-tab" data-tab="settings" role="tab" aria-selected="false" aria-keyshortcuts="Meta+3 Control+3" type="button">
+          <span class="rail-glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>
+          </span>
+          <span class="rail-label">Settings</span>
+          <span class="rail-shortcut" aria-hidden="true">⌘3</span>
+        </button>
+      </div>
+
+      <div class="rail-spacer"></div>
+      <div class="rail-divider" aria-hidden="true"></div>
+
+      <div class="rail-profile" aria-label="Profile and workspace">
+        <span class="avatar-mark" aria-hidden="true"><span id="rail-profile-initials">SP</span></span>
+        <span class="rail-profile-meta">
+          <span class="rail-profile-id" id="rail-profile-id">cowork workspace</span>
+          <span class="rail-profile-sub" id="rail-profile-sub">v__VERSION__</span>
+        </span>
+      </div>
     </nav>
 
     <div class="content">
@@ -45,32 +92,61 @@
 
         <div class="mkt">
           <ul class="mkt-cats" role="tablist" aria-label="Marketplace categories">
+            <li class="mkt-cats-label" aria-hidden="true">Categories</li>
             <li class="mkt-cat" data-kind="plugins" role="tab" aria-selected="true" tabindex="0">
-              <span>Plugins</span><span class="mkt-cat-count" id="card-plugins">—</span>
+              <span class="mkt-cat-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M18 13v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+              </span>
+              <span class="mkt-cat-name">Plugins</span>
+              <span class="mkt-cat-count is-zero" id="card-plugins">0</span>
             </li>
             <li class="mkt-cat" data-kind="skills" role="tab" aria-selected="false" tabindex="0">
-              <span>Skills</span><span class="mkt-cat-count" id="card-skills">—</span>
+              <span class="mkt-cat-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+              </span>
+              <span class="mkt-cat-name">Skills</span>
+              <span class="mkt-cat-count is-zero" id="card-skills">0</span>
             </li>
             <li class="mkt-cat" data-kind="hooks" role="tab" aria-selected="false" tabindex="0">
-              <span>Hooks</span><span class="mkt-cat-count" id="card-hooks">—</span>
+              <span class="mkt-cat-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v8"/><path d="M12 12a4 4 0 1 0 4 4"/></svg>
+              </span>
+              <span class="mkt-cat-name">Hooks</span>
+              <span class="mkt-cat-count is-zero" id="card-hooks">0</span>
             </li>
             <li class="mkt-cat" data-kind="mcp" role="tab" aria-selected="false" tabindex="0">
-              <span>MCP servers</span><span class="mkt-cat-count" id="card-mcp">—</span>
+              <span class="mkt-cat-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01"/><path d="M7 17h.01"/></svg>
+              </span>
+              <span class="mkt-cat-name">MCP servers</span>
+              <span class="mkt-cat-count is-zero" id="card-mcp">0</span>
             </li>
             <li class="mkt-cat" data-kind="agents" role="tab" aria-selected="false" tabindex="0">
-              <span>Agents</span><span class="mkt-cat-count" id="card-agents">—</span>
+              <span class="mkt-cat-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+              </span>
+              <span class="mkt-cat-name">Agents</span>
+              <span class="mkt-cat-count is-zero" id="card-agents">0</span>
             </li>
           </ul>
 
           <div class="mkt-list">
-            <input id="mkt-search" class="mkt-search" type="search" placeholder="Search…" autocomplete="off" spellcheck="false" />
-            <ul class="mkt-items" id="mkt-items">
-              <li class="mkt-empty-state">Sync to populate the marketplace.</li>
-            </ul>
+            <label class="mkt-search-wrap">
+              <svg class="mkt-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="mkt-search" class="mkt-search" type="search" placeholder="Search…" autocomplete="off" spellcheck="false" />
+              <span class="mkt-search-kbd" aria-hidden="true">⌘F</span>
+            </label>
+            <ul class="mkt-items" id="mkt-items"></ul>
           </div>
 
           <article class="mkt-detail" id="mkt-detail">
-            <div class="mkt-empty">Pick an item to inspect.</div>
+            <div class="mkt-empty">
+              <span class="mkt-empty-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </span>
+              <span class="mkt-empty-title">Select an item</span>
+              <span class="mkt-empty-sub">Pick from the list, or use <span class="kbd">⌘F</span> to search.</span>
+            </div>
           </article>
         </div>
 
@@ -78,10 +154,11 @@
           <button id="btn-sync"        class="primary" type="button">Sync now</button>
           <button id="btn-validate"    class="ghost"   type="button">Validate</button>
           <button id="btn-open-folder" class="ghost"   type="button">Open folder</button>
-          <span class="mkt-meta">
-            Last sync <span id="last-sync" class="muted">never</span> ·
-            <span id="plugins-dir" class="mono muted">—</span>
+          <span id="mkt-meta" class="mkt-meta" data-state="never" title="—">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="last-sync">never synced</span>
           </span>
+          <span id="plugins-dir" hidden></span>
         </footer>
       </section>
 
@@ -180,7 +257,7 @@
           <article class="host-card">
             <header class="host-card-head">
               <h3 class="host-card-name">—</h3>
-              <span class="host-card-badge badge badge-muted" data-role="badge">checking…</span>
+              <span class="badge badge-muted" data-role="badge">checking…</span>
             </header>
             <table class="status-board">
               <tbody>
@@ -255,10 +332,14 @@
       </section>
     </div>
 
-    <aside class="activity" id="activity-drawer" data-collapsed="false" aria-label="Activity log">
+    <aside class="activity" id="activity-drawer" aria-label="Activity log">
       <header class="activity-header">
         <span class="activity-title">Activity</span>
-        <button id="activity-toggle" class="ghost-mini" type="button" aria-label="Collapse activity">▶</button>
+        <div class="activity-lane" aria-label="Activity totals">
+          <span class="lane-stat"><b id="lane-msgs">0</b><span class="lane-label">msgs</span></span>
+          <span class="lane-stat"><b id="lane-tin">0</b><span class="lane-label">in</span></span>
+          <span class="lane-stat"><b id="lane-tout">0</b><span class="lane-label">out</span></span>
+        </div>
       </header>
       <pre id="log" class="log" aria-live="polite">Ready.</pre>
     </aside>
@@ -320,15 +401,26 @@
   </section>
 
   <footer class="footer" role="contentinfo">
-    <span id="config-path" class="mono muted">—</span>
-    <span class="footer-meta">
-      Demo build ·
-      <a href="https://systemprompt.io/docs/cowork/__PLATFORM__" target="_blank" rel="noopener noreferrer">__PLATFORM_DISPLAY__ docs</a> ·
+    <div class="footer-left">
+      <span class="footer-stat" id="footer-stat-host" title="Host status">
+        <span id="footer-host-dot" class="dot dot-unknown" aria-hidden="true"></span>
+        <span id="footer-host-text">__PLATFORM_DISPLAY__</span>
+      </span>
+      <span class="footer-sep" aria-hidden="true">·</span>
+      <span class="footer-path" id="config-path" title="Config path">—</span>
+    </div>
+    <div class="footer-meta">
+      <span class="version">v__VERSION__</span>
+      <span class="footer-sep" aria-hidden="true">·</span>
+      <a href="https://systemprompt.io/docs/cowork/__PLATFORM__" target="_blank" rel="noopener noreferrer">docs</a>
+      <span class="footer-sep" aria-hidden="true">·</span>
       <a href="mailto:ed@systemprompt.io">licensing</a>
-    </span>
-    <span class="version">v__VERSION__</span>
+    </div>
+    <div class="footer-right">
+      <span class="footer-hint"><span class="kbd">⌘1</span><span class="kbd">⌘2</span><span class="kbd">⌘3</span> tabs</span>
+    </div>
   </footer>
 
-  <script>__SCRIPT__</script>
+  <script type="module" src="/assets/js/main.js?t=__TOKEN__"></script>
 </body>
 </html>

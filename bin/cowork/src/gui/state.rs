@@ -20,7 +20,7 @@ use crate::gui::hosts::state::HostsState;
 use crate::integration::{HostAppSnapshot, ProxyHealth};
 use crate::validate::ValidationReport;
 
-use counters::{count_malformed_plugin_dirs, count_plugin_dirs, read_index_count};
+use counters::{count_malformed_plugin_dirs, count_plugin_dirs};
 
 #[derive(Debug, Deserialize)]
 struct LastSyncRecord {
@@ -263,8 +263,9 @@ impl AppState {
                 }
             }
 
-            snap.skill_count = read_index_count(&meta.join(paths::SKILLS_DIR).join("index.json"));
-            snap.agent_count = read_index_count(&meta.join(paths::AGENTS_DIR).join("index.json"));
+            let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);
+            snap.skill_count = counters::count_dir_children(&synthetic.join("skills"));
+            snap.agent_count = counters::count_md_files(&synthetic.join("agents"));
         }
     }
 }
