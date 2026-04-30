@@ -1,0 +1,37 @@
+import { initEvents } from "./events/registry.js?t=__TOKEN__";
+import { initKeyboard } from "./events/keyboard.js?t=__TOKEN__";
+import { initTabs } from "./tabs.js?t=__TOKEN__";
+import { initSetup, applySetupMode } from "./setup.js?t=__TOKEN__";
+import { initMarketplace, maybeRefreshMarketplace, renderMarketplaceBadge } from "./marketplace.js?t=__TOKEN__";
+import { subscribePolling, subscribeLog } from "./state.js?t=__TOKEN__";
+import { append } from "./drawer.js?t=__TOKEN__";
+import { renderCloud } from "./cloud.js?t=__TOKEN__";
+import { renderProxy } from "./proxy.js?t=__TOKEN__";
+import { renderHosts } from "./hosts.js?t=__TOKEN__";
+import { renderOverallBadge } from "./overall-badge.js?t=__TOKEN__";
+import { renderSyncPill } from "./sync-pill.js?t=__TOKEN__";
+import { renderProfile } from "./profile.js?t=__TOKEN__";
+import { renderFooter } from "./footer.js?t=__TOKEN__";
+import { syncRailIndicator } from "./rail-indicator.js?t=__TOKEN__";
+
+function applySnapshot(snap) {
+  renderCloud(snap);
+  renderProxy(snap);
+  renderHosts(snap);
+  renderOverallBadge(snap);
+  renderMarketplaceBadge(snap);
+  renderSyncPill(snap);
+  renderProfile(snap);
+  renderFooter(snap);
+  applySetupMode(snap);
+  maybeRefreshMarketplace(snap);
+  requestAnimationFrame(syncRailIndicator);
+}
+
+initEvents();
+initKeyboard();
+initTabs();
+initSetup();
+initMarketplace();
+subscribePolling(applySnapshot);
+subscribeLog(append);
