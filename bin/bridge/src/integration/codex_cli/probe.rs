@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
-use std::process::Command;
 
 use super::config::{self, KEYS_OF_INTEREST};
+use crate::sysproc;
 
 #[derive(Debug, Clone, Default)]
 pub(super) struct DomainRead {
@@ -66,68 +66,31 @@ fn stringify(v: &toml::Value) -> String {
 }
 
 pub(super) fn list_codex_processes() -> Vec<String> {
-    if cfg!(target_os = "windows") {
-        list_windows()
-    } else {
-        list_unix()
-    }
-}
-
-fn list_unix() -> Vec<String> {
-    let output = match Command::new("/bin/ps").args(["-Ao", "comm"]).output() {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut hits: Vec<String> = text
-        .lines()
-        .filter(|line| {
-            let lower = line.to_ascii_lowercase();
-            let trimmed = lower.trim_end();
-            trimmed.ends_with("/codex") || trimmed == "codex" || trimmed.contains("/codex.app/")
-        })
-        .map(|s| s.trim().to_string())
-        .collect();
-    hits.sort();
-    hits.dedup();
-    hits
-}
-
-fn list_windows() -> Vec<String> {
-    #[cfg(target_os = "windows")]
-    let output = match crate::winproc::tasklist_command()
-        .args(["/FO", "CSV", "/NH"])
-        .output()
-    {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-    #[cfg(not(target_os = "windows"))]
-    let output = match Command::new("tasklist")
-        .args(["/FO", "CSV", "/NH"])
-        .output()
-    {
-        Ok(o) => o,
-        Err(_) => return Vec::new(),
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut hits: Vec<String> = text
-        .lines()
-        .filter_map(|line| {
-            let first = line
-                .split(',')
-                .next()?
-                .trim_matches('"')
-                .to_ascii_lowercase();
-            if first == "codex.exe" {
-                Some(first)
+    let mut hits: Vec<String> = sysproc::list_processes()
+        .into_iter()
+        .filter_map(|p| {
+            let name_lower = p.name.to_ascii_lowercase();
+            let path_lower = p
+                .path
+                .as_deref()
+                .map(str::to_ascii_lowercase)
+                .unwrap_or_default();
+            if cfg!(target_os = "windows") {
+                if name_lower == "codex.exe" {
+                    return Some(name_lower);
+                }
+                None
             } else {
+                if path_lower.ends_with("/codex")
+                    || path_lower.contains("/codex.app/")
+                    || name_lower == "codex"
+                {
+                    return Some(if path_lower.is_empty() {
+                        name_lower
+                    } else {
+                        path_lower
+                    });
+                }
                 None
             }
         })

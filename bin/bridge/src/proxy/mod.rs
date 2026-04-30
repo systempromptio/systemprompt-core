@@ -26,6 +26,10 @@ fn worker_thread_count() -> usize {
     std::thread::available_parallelism().map_or(2, |n| (n.get() / 2).max(2))
 }
 
+pub fn runtime_handle() -> std::io::Result<tokio::runtime::Handle> {
+    runtime().map(|rt| rt.handle().clone())
+}
+
 fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
     if let Some(rt) = RUNTIME.get() {
         return Ok(rt);

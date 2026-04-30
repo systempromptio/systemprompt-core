@@ -1,0 +1,3 @@
+disallowed-types = [
+    { path = "ureq::Agent", reason = "Use reqwest::Client (shared with proxy). The bridge has a single-runtime policy — see plan/03-phase3-native-polish.md §3.1." },
+]

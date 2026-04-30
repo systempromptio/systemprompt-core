@@ -1,4 +1,6 @@
 pub mod action_dispatch;
+pub mod assets;
+pub mod command;
 pub mod connection;
 pub mod dispatch;
 pub mod error;
@@ -6,6 +8,9 @@ pub mod events;
 pub mod handlers;
 
 pub mod hosts;
+pub mod ipc;
+pub mod ipc_runtime;
+pub mod menu;
 pub mod server;
 pub mod server_json;
 pub mod server_marketplace;
@@ -13,12 +18,11 @@ pub mod server_util;
 pub mod state;
 pub mod tray;
 pub mod window;
-pub mod worker;
 
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use winit::application::ApplicationHandler;
 use winit::event::{StartCause, WindowEvent};
@@ -26,13 +30,16 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy}
 use winit::window::WindowId;
 
 use crate::gui::events::UiEvent;
-use crate::gui::server::{ActivityLog, Server};
+use crate::gui::ipc_runtime;
+use crate::gui::server::Server;
 use crate::gui::state::{AppState, GatewayStatus, now_unix};
 use crate::gui::window::SettingsWindow;
-use crate::gui::worker::WorkerPool;
 use crate::obs::output::diag;
+use tokio::runtime::Handle;
+use tokio_util::sync::CancellationToken;
 
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
+const PROXY_STATS_TICK_SECS: u64 = 1;
 
 fn install_termination_handlers(proxy: EventLoopProxy<UiEvent>) {
     let _ = ctrlc::set_handler(move || {
@@ -55,6 +62,7 @@ pub fn run() -> ExitCode {
 
     let proxy = event_loop.create_proxy();
     install_termination_handlers(proxy.clone());
+    crate::gui::ipc_runtime::install_log_emitter(proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();
@@ -66,8 +74,15 @@ pub fn run() -> ExitCode {
         }
     });
 
+    let runtime = match crate::proxy::runtime_handle() {
+        Ok(h) => h,
+        Err(e) => {
+            diag(&format!("gui: tokio runtime unavailable: {e}"));
+            return ExitCode::from(1);
+        },
+    };
     let app_state = AppState::new_loaded();
-    let mut app = GuiApp::new(app_state, tx, proxy);
+    let mut app = GuiApp::new(app_state, tx, proxy, runtime);
 
     if let Err(e) = event_loop.run_app(&mut app) {
         diag(&format!("gui: event loop error: {e}"));
@@ -81,27 +96,38 @@ pub(crate) struct GuiApp {
     pub(crate) tx: Sender<UiEvent>,
     pub(crate) proxy: EventLoopProxy<UiEvent>,
     pub(crate) tray: Option<tray::TrayHandles>,
+    pub(crate) menu_bar: Option<menu::MenuBarHandles>,
     pub(crate) server: Option<Server>,
-    pub(crate) pool: WorkerPool,
+    pub(crate) runtime: Handle,
+    pub(crate) cancel: CancellationToken,
     pub(crate) settings_window: Option<SettingsWindow>,
+    pub(crate) last_proxy_stats_tick: Instant,
 }
 
 impl GuiApp {
-    fn new(state: Arc<AppState>, tx: Sender<UiEvent>, proxy: EventLoopProxy<UiEvent>) -> Self {
+    fn new(
+        state: Arc<AppState>,
+        tx: Sender<UiEvent>,
+        proxy: EventLoopProxy<UiEvent>,
+        runtime: Handle,
+    ) -> Self {
         Self {
             state,
             tx,
             proxy,
             tray: None,
+            menu_bar: None,
             server: None,
-            pool: WorkerPool::new(),
+            runtime,
+            cancel: CancellationToken::new(),
             settings_window: None,
+            last_proxy_stats_tick: Instant::now(),
         }
     }
 
     pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
-        if let Some(handles) = &self.tray {
+        if let Some(handles) = &mut self.tray {
             tray::refresh(handles, &snap);
         }
     }
@@ -122,14 +148,8 @@ impl GuiApp {
         self.server.as_ref()
     }
 
-    pub(crate) fn log(&self) -> Option<&ActivityLog> {
-        self.server.as_ref().map(|s| s.log())
-    }
-
     pub(crate) fn append_log(&self, line: impl Into<String>) {
-        if let Some(log) = self.log() {
-            log.append(line);
-        }
+        crate::activity::activity_log().append(line);
     }
 }
 
@@ -148,13 +168,23 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         if self.tray.is_none() {
             let snap = self.state.snapshot();
             match tray::build(&snap) {
-                Ok(handles) => self.tray = Some(handles),
+                Ok(mut handles) => {
+                    if self.menu_bar.is_none() {
+                        match menu::install(&mut handles.bindings) {
+                            Ok(menu_handles) => self.menu_bar = Some(menu_handles),
+                            Err(e) => diag(&format!("gui: menu bar init failed: {e}")),
+                        }
+                    }
+                    self.tray = Some(handles);
+                },
                 Err(e) => diag(&format!("gui: tray init failed: {e}")),
             }
         }
         self.refresh_ui();
         dispatch::dispatch(self, event_loop, UiEvent::OpenSettings);
-        let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
+        let _ = self
+            .proxy
+            .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
 
         hosts::tick::request_initial_probe(self);
     }
@@ -164,6 +194,14 @@ impl ApplicationHandler<UiEvent> for GuiApp {
     }
 
     fn window_event(&mut self, _event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+        if let WindowEvent::ThemeChanged(theme) = &event {
+            let label = match theme {
+                winit::window::Theme::Light => "light",
+                winit::window::Theme::Dark => "dark",
+            };
+            ipc_runtime::emit_theme_changed(self, label);
+            return;
+        }
         if let WindowEvent::CloseRequested = event {
             if let Some(win) = &self.settings_window {
                 if win.id() == id {
@@ -186,10 +224,18 @@ impl ApplicationHandler<UiEvent> for GuiApp {
                 .map(|t| now_unix().saturating_sub(t) >= PROBE_INTERVAL_SECS)
                 .unwrap_or(true);
         if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
-            let _ = self.proxy.send_event(UiEvent::GatewayProbeRequested);
+            let _ = self
+                .proxy
+                .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
         }
 
         hosts::tick::maybe_probe(self);
+
+        if self.last_proxy_stats_tick.elapsed() >= Duration::from_secs(PROXY_STATS_TICK_SECS) {
+            self.last_proxy_stats_tick = Instant::now();
+            let _ = self.proxy.send_event(UiEvent::ProxyStatsTick);
+        }
+
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));
     }
 }

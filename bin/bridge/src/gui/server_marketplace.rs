@@ -314,3 +314,9 @@ fn read_first_existing(candidates: &[PathBuf]) -> Option<String> {
 pub fn listing_to_json(listing: &MarketplaceListing) -> Result<String, serde_json::Error> {
     serde_json::to_string(listing)
 }
+
+pub fn listing_to_value(
+    listing: &MarketplaceListing,
+) -> Result<serde_json::Value, serde_json::Error> {
+    serde_json::to_value(listing)
+}
