@@ -107,8 +107,7 @@ fn test_service_configuration_serialize() {
 #[test]
 fn test_runtime_configuration_builder_defaults() {
     let config =
-        RuntimeConfigurationBuilder::new(AgentId::new("agent-1"), "Test Agent".to_string())
-            .build();
+        RuntimeConfigurationBuilder::new(AgentId::new("agent-1"), "Test Agent".to_string()).build();
 
     assert_eq!(config.agent_id.as_str(), "agent-1");
     assert_eq!(config.name, "Test Agent");

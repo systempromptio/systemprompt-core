@@ -2,7 +2,7 @@
 
 [package]
 name = "systemprompt-cowork"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"

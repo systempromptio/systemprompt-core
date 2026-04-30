@@ -1,4 +1,5 @@
 use super::super::hash::{directory_hash, normalise_relative, safe_plugin_id, sha256_hex};
+use crate::config::paths;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{PluginEntry, SignedManifest};
 use crate::ids::Sha256Digest;
@@ -171,6 +172,9 @@ fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, su
             continue;
         };
         if name_str.starts_with('.') {
+            continue;
+        }
+        if name_str == paths::SYNTHETIC_PLUGIN_NAME {
             continue;
         }
         if !expected.contains(name_str) && entry.path().is_dir() {

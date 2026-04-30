@@ -199,10 +199,7 @@ fn run_mdm_step(
 }
 
 #[cfg(target_os = "macos")]
-fn run_apply_mobileconfig(
-    gateway: &str,
-    pubkey: Option<&str>,
-) -> Result<MdmDisplay, InstallError> {
+fn run_apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<MdmDisplay, InstallError> {
     mdm::macos::apply_mobileconfig(gateway, pubkey)
         .map(|lines| MdmDisplay::MobileconfigApplied { lines })
         .map_err(InstallError::MobileconfigApply)
@@ -254,6 +251,11 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
     let staging = paths::staging_dir(&location.path);
     if staging.exists() {
         let _ = fs::remove_dir_all(&staging);
+    }
+
+    let synthetic = location.path.join(paths::SYNTHETIC_PLUGIN_NAME);
+    if synthetic.exists() {
+        let _ = fs::remove_dir_all(&synthetic);
     }
 
     let managed_profile = remove_managed_profile();

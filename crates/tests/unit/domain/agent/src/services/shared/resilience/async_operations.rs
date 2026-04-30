@@ -1,11 +1,12 @@
-//! Async tests for retry_operation, retry_operation_with_backoff, and timeout execution
+//! Async tests for retry_operation, retry_operation_with_backoff, and timeout
+//! execution
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 use systemprompt_agent::services::shared::error::AgentServiceError;
 use systemprompt_agent::services::shared::resilience::{
-    execute_with_timeout, retry_operation, retry_operation_with_backoff, RetryConfiguration,
+    RetryConfiguration, execute_with_timeout, retry_operation, retry_operation_with_backoff,
 };
 
 #[tokio::test]
@@ -132,4 +133,3 @@ async fn test_execute_with_timeout_propagates_error() {
         _ => panic!("Expected Database error"),
     }
 }
-

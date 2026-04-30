@@ -1,5 +1,7 @@
 use anyhow::Result;
-use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, AiToolCallId, ContextId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{ToolContext, ToolProviderError};
 

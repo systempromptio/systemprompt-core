@@ -1,10 +1,9 @@
-mod agent;
 mod error;
-mod mcp;
 mod plugin;
-mod skill;
+mod synthetic_plugin;
 
 pub use error::ApplyError;
+pub use synthetic_plugin::write_synthetic_plugin;
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::gateway::GatewayClient;
@@ -23,13 +22,21 @@ pub fn apply_manifest(
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
 
+    if manifest
+        .plugins
+        .iter()
+        .any(|p| p.id.as_str() == paths::SYNTHETIC_PLUGIN_NAME)
+    {
+        return Err(ApplyError::ReservedPluginId(
+            paths::SYNTHETIC_PLUGIN_NAME.to_string(),
+        ));
+    }
+
     let report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root)?;
 
     let _ = fs::remove_dir_all(&staging_root);
 
-    mcp::write_managed_mcp_fragment(&meta_dir, &manifest.managed_mcp_servers)?;
-    skill::write_skills(&meta_dir, &manifest.skills)?;
-    agent::write_agents(&meta_dir, &manifest.agents)?;
+    synthetic_plugin::write_synthetic_plugin(root, manifest)?;
     write_user(&meta_dir, manifest.user.as_ref())?;
 
     Ok(report)

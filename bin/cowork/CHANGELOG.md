@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.6.0] - 2026-04-30
+
+### Added
+
+- `activity::ActivityLog` ring buffer (1000 entries) capturing live proxy/sync events for the GUI activity feed.
+- `proxy::usage` response-stream tap: `is_messages_path`, `wrap_response_stream`. Counts `/v1/messages` calls and sums input/output tokens from JSON and SSE bodies.
+- `ProxyStats::messages_total`, `tokens_in_total`, `tokens_out_total` counters.
+- `sync::apply::synthetic_plugin` writer: managed skills, agents, and `.mcp.json` are now materialised as a single synthetic Claude plugin (`systemprompt-managed`) under the org plugins root, instead of separate fragments under `.systemprompt-cowork/`.
+- `paths::SYNTHETIC_PLUGIN_NAME` constant (`systemprompt-managed`).
+- `ApplyError::ReservedPluginId` — manifests containing a plugin with the reserved synthetic-plugin id are rejected.
+- GUI: split monolithic `web/app.js` into ES modules under `web/js/` (`main`, `api`, `dom`, `tabs`, `setup`, `marketplace`, `activity`, `snapshot`).
+- GUI: `assets/fonts/` bundled fonts and an activity tab driven by the activity log.
+
+### Changed
+
+- **Breaking**: managed assets layout. Skills, agents, and managed MCP servers no longer live under `.systemprompt-cowork/{skills,agents,managed-mcp.json}`; they are written into the synthetic plugin directory `<org-plugins>/systemprompt-managed/{skills,agents,.mcp.json}`. `install` summary, `status`, and GUI counters now read from the new location.
+- `install --uninstall` removes the synthetic plugin directory in addition to the metadata directory.
+- Plugin sync no longer prunes the synthetic plugin as a stale entry.
+- Malformed-plugin counter accepts both `.claude-plugin/plugin.json` and `claude-plugin/plugin.json`, and excludes the synthetic plugin.
+- Proxy `forward` now takes `Arc<ProxyStats>` and wraps successful `/v1/messages` responses with the usage tap; counters update on the fly.
+- Proxy request handler appends every forwarded request (and client-disconnect / forward errors) to the activity log.
+
+### Removed
+
+- **Breaking**: `paths::MANAGED_MCP_FRAGMENT`, `paths::SKILLS_DIR`, `paths::AGENTS_DIR` constants.
+- **Breaking**: `sync::apply::{agent, mcp, skill}` modules. Replaced by `synthetic_plugin`.
+- `gui::state::counters::read_index_count` (the old skills/agents `index.json` reader).
+- Legacy `bin/cowork/web/app.js`; replaced by ES modules under `web/js/`.
+
 ## [0.5.0] - 2026-04-29
 
 ### Added

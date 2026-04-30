@@ -52,7 +52,8 @@ fn windows_policy_values_includes_pubkey_when_provided() {
 
 #[test]
 fn windows_policy_values_omits_pubkey_when_absent() {
-    let values = systemprompt_cowork::install::windows_policy_values("https://gateway.example", None);
+    let values =
+        systemprompt_cowork::install::windows_policy_values("https://gateway.example", None);
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(!names.contains(&"inferenceManifestPubkey"));
 }

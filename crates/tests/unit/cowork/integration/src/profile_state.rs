@@ -17,7 +17,10 @@ fn empty_keys_means_absent() {
 
 #[test]
 fn all_required_present_means_installed() {
-    let s = ProfileState::from_keys(&["a", "b"], &keys(&[("a", "1"), ("b", "2"), ("extra", "x")]));
+    let s = ProfileState::from_keys(
+        &["a", "b"],
+        &keys(&[("a", "1"), ("b", "2"), ("extra", "x")]),
+    );
     assert!(matches!(s, ProfileState::Installed));
 }
 

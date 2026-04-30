@@ -67,7 +67,10 @@ fn transient_failure_on_preferred_mtls_does_not_fall_through_to_pat() {
     assert!(
         matches!(
             err,
-            ChainError::PreferredTransient { provider: "mtls", .. }
+            ChainError::PreferredTransient {
+                provider: "mtls",
+                ..
+            }
         ),
         "expected PreferredTransient mtls, got: {err:?}",
     );

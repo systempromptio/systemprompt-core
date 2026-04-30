@@ -16,6 +16,11 @@ pub enum ApplyError {
     UnsafeSkillId(SkillId),
     #[error("unsafe agent name in manifest: {0}")]
     UnsafeAgentName(String),
+    #[error(
+        "manifest contains a plugin with reserved id `{0}` (used by cowork for managed \
+         skills/agents/mcp)"
+    )]
+    ReservedPluginId(String),
     #[error("plugin fetch failed: {0}")]
     PluginFetch(#[from] crate::gateway::GatewayError),
     #[error("io error in {context}: {source}")]

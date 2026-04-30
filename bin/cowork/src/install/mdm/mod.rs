@@ -15,11 +15,7 @@ pub fn os_label(os: Os) -> &'static str {
     }
 }
 
-pub fn apply_mdm(
-    os: Os,
-    gateway: &str,
-    pubkey: Option<&str>,
-) -> Result<Vec<String>, String> {
+pub fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     match os {
         #[cfg(target_os = "windows")]
         Os::Windows => windows::apply(gateway, pubkey),

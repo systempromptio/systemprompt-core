@@ -14,9 +14,24 @@ use crate::http_local::{ResponseBuilder, parse_from_read};
 
 const HTML: &str = include_str!("../../web/index.html");
 const STYLE: &str = include_str!("../../web/style.css");
-const SCRIPT: &str = include_str!("../../web/app.js");
 const ICON_SVG: &str = include_str!("../../assets/icon.svg");
 const LOGO_SVG: &str = include_str!("../../assets/logo.svg");
+const FONT_INTER_REGULAR: &[u8] = include_bytes!("../../assets/fonts/Inter-Regular.woff2");
+const FONT_INTER_BOLD: &[u8] = include_bytes!("../../assets/fonts/Inter-Bold.woff2");
+const FONT_OPENSANS_REGULAR: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Regular.woff2");
+const FONT_OPENSANS_BOLD: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Bold.woff2");
+
+const JS_MODULES: &[(&str, &str)] = &[
+    ("main", include_str!("../../web/js/main.js")),
+    ("api", include_str!("../../web/js/api.js")),
+    ("dom", include_str!("../../web/js/dom.js")),
+    ("activity", include_str!("../../web/js/activity.js")),
+    ("tabs", include_str!("../../web/js/tabs.js")),
+    ("setup", include_str!("../../web/js/setup.js")),
+    ("snapshot", include_str!("../../web/js/snapshot.js")),
+    ("marketplace", include_str!("../../web/js/marketplace.js")),
+];
+
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
@@ -73,7 +88,10 @@ fn parse_host_id(path: &str, prefix: &str, suffix: &str) -> Option<String> {
 }
 
 #[tracing::instrument(skip_all, fields(peer = ?stream.peer_addr().ok()))]
-pub fn handle_connection(mut stream: TcpStream, ctx: &ConnectionContext<'_>) -> std::io::Result<()> {
+pub fn handle_connection(
+    mut stream: TcpStream,
+    ctx: &ConnectionContext<'_>,
+) -> std::io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     stream.set_write_timeout(Some(READ_TIMEOUT))?;
 
@@ -99,8 +117,36 @@ pub fn handle_connection(mut stream: TcpStream, ctx: &ConnectionContext<'_>) -> 
 
     tracing::debug!(method = %req.method, path = %req.path, "dispatching");
     let route = (req.method.as_str(), req.path.as_str());
+    if let ("GET", path) = route {
+        if let Some(name) = path
+            .strip_prefix("/assets/js/")
+            .and_then(|s| s.strip_suffix(".js"))
+        {
+            if let Some((_, src)) = JS_MODULES.iter().find(|(n, _)| *n == name) {
+                let body = src.replace("__TOKEN__", ctx.csrf_token);
+                return write_response(
+                    &mut stream,
+                    200,
+                    "application/javascript; charset=utf-8",
+                    body.as_bytes(),
+                );
+            }
+        }
+    }
     match route {
         ("GET", "/") => serve_index(&mut stream, ctx.csrf_token),
+        ("GET", "/assets/fonts/Inter-Regular.woff2") => {
+            write_response(&mut stream, 200, "font/woff2", FONT_INTER_REGULAR)
+        },
+        ("GET", "/assets/fonts/Inter-Bold.woff2") => {
+            write_response(&mut stream, 200, "font/woff2", FONT_INTER_BOLD)
+        },
+        ("GET", "/assets/fonts/OpenSans-Regular.woff2") => {
+            write_response(&mut stream, 200, "font/woff2", FONT_OPENSANS_REGULAR)
+        },
+        ("GET", "/assets/fonts/OpenSans-Bold.woff2") => {
+            write_response(&mut stream, 200, "font/woff2", FONT_OPENSANS_BOLD)
+        },
         ("GET", "/api/state") => serve_state(&mut stream, ctx.state),
         ("GET", "/api/marketplace") => serve_marketplace(&mut stream),
         ("GET", "/api/log") => {
@@ -118,7 +164,6 @@ pub fn handle_connection(mut stream: TcpStream, ctx: &ConnectionContext<'_>) -> 
 fn serve_index(stream: &mut TcpStream, csrf_token: &str) -> std::io::Result<()> {
     let html = HTML
         .replace("__STYLE__", STYLE)
-        .replace("__SCRIPT__", SCRIPT)
         .replace("__VERSION__", VERSION)
         .replace("__ICON_SVG__", ICON_SVG)
         .replace("__LOGO_SVG__", LOGO_SVG)

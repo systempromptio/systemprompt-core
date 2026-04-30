@@ -36,8 +36,7 @@ async fn empty_data_frames_are_preserved_but_trailers_are_dropped() {
     trailers.insert("x-final", "1".parse().unwrap());
     let trailers = Frame::<Bytes>::trailers(trailers);
 
-    let frames: Vec<Result<Frame<Bytes>, std::io::Error>> =
-        vec![Ok(d1), Ok(empty), Ok(trailers)];
+    let frames: Vec<Result<Frame<Bytes>, std::io::Error>> = vec![Ok(d1), Ok(empty), Ok(trailers)];
     let body = StreamBody::new(futures_util::stream::iter(frames));
 
     let collected: Vec<Bytes> = BodyStream::new(body)
@@ -49,5 +48,8 @@ async fn empty_data_frames_are_preserved_but_trailers_are_dropped() {
 
     assert_eq!(collected.len(), 2);
     assert_eq!(collected[0], Bytes::from_static(b"a"));
-    assert!(collected[1].is_empty(), "explicit empty data frame survives");
+    assert!(
+        collected[1].is_empty(),
+        "explicit empty data frame survives"
+    );
 }
