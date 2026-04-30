@@ -1,24 +1,3 @@
-//! Codex host integration (CLI, desktop App, IDE Extension).
-//!
-//! Codex ships a managed-configuration layer that takes precedence over user
-//! config and applies uniformly to the CLI, the desktop app, and the IDE
-//! extension. systemprompt-bridge writes the managed configuration so a single
-//! install governs all three surfaces.
-//!
-//! Managed config locations:
-//! - macOS: MDM `.mobileconfig` payload with `PayloadType = com.openai.codex`
-//!   and key `config_toml_base64` (base64-encoded TOML).
-//! - Linux: `/etc/codex/managed_config.toml` (admin-owned; install requires sudo
-//!   on machines without write access to `/etc/codex`).
-//! - Windows: `~/.codex/managed_config.toml` (read by the app at managed
-//!   precedence; user-writable but app honors precedence over `config.toml`).
-//!
-//! Reference: https://developers.openai.com/codex/enterprise/managed-configuration
-//!
-//! The managed file is owned entirely by systemprompt-bridge; we do not attempt
-//! to merge with user config. Removing the managed config falls back to the
-//! user's `config.toml` automatically.
-
 mod config;
 mod install;
 mod probe;
@@ -84,7 +63,8 @@ impl HostApp for CodexCliHost {
     }
 
     fn description(&self) -> &'static str {
-        "OpenAI's Codex (CLI, desktop app, IDE extension). systemprompt-bridge installs managed configuration that takes precedence over user config across all three surfaces."
+        "OpenAI's Codex (CLI, desktop app, IDE extension). systemprompt-bridge installs managed \
+         configuration that takes precedence over user config across all three surfaces."
     }
 
     fn icon_id(&self) -> &'static str {
