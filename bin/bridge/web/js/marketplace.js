@@ -1,5 +1,6 @@
 import { $ } from "./dom.js?t=__TOKEN__";
 import { apiGet } from "./api.js?t=__TOKEN__";
+import { t } from "./i18n.js?t=__TOKEN__";
 import { mktState } from "./marketplace/state.js?t=__TOKEN__";
 import { renderList, syncCategorySelection, updateCounts } from "./marketplace/list.js?t=__TOKEN__";
 import { renderDetail, copyToClipboard as detailCopy } from "./marketplace/detail.js?t=__TOKEN__";
@@ -66,16 +67,16 @@ export function renderMarketplaceBadge(snap) {
   if (badge) {
     badge.classList.remove("sp-badge--muted", "sp-badge--ok", "sp-badge--warn", "sp-badge--err");
     if (!snap.signed_in) {
-      badge.textContent = "sign-in required";
+      badge.textContent = t("marketplace-badge-signin");
       badge.classList.add("sp-badge--warn");
     } else if (snap.sync_in_flight) {
-      badge.textContent = "syncing";
+      badge.textContent = t("marketplace-badge-syncing");
       badge.classList.add("sp-badge--warn");
     } else if (snap.last_sync_summary) {
-      badge.textContent = "synced";
+      badge.textContent = t("marketplace-badge-synced");
       badge.classList.add("sp-badge--ok");
     } else {
-      badge.textContent = "never synced";
+      badge.textContent = t("marketplace-badge-never");
       badge.classList.add("sp-badge--muted");
     }
   }

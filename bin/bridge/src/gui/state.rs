@@ -9,6 +9,7 @@ use std::time::SystemTime;
 
 use parking_lot::RwLock;
 use serde::Deserialize;
+use tokio_util::sync::CancellationToken;
 
 pub use jwt::decode_jwt_identity_unverified;
 
@@ -106,8 +107,23 @@ pub struct CachedToken {
     pub length: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CancelScope {
+    Sync,
+    Login,
+    GatewayProbe,
+}
+
+#[derive(Default)]
+struct CancelTokens {
+    sync: Option<CancellationToken>,
+    login: Option<CancellationToken>,
+    gateway_probe: Option<CancellationToken>,
+}
+
 pub struct AppState {
     inner: RwLock<AppStateSnapshot>,
+    cancels: RwLock<CancelTokens>,
 }
 
 impl AppState {
@@ -116,7 +132,61 @@ impl AppState {
         Self::reload_into(&mut snap);
         Arc::new(Self {
             inner: RwLock::new(snap),
+            cancels: RwLock::new(CancelTokens::default()),
         })
+    }
+
+    pub fn install_cancel(&self, scope: CancelScope) -> CancellationToken {
+        let token = CancellationToken::new();
+        let mut guard = self.cancels.write();
+        let slot = match scope {
+            CancelScope::Sync => &mut guard.sync,
+            CancelScope::Login => &mut guard.login,
+            CancelScope::GatewayProbe => &mut guard.gateway_probe,
+        };
+        if let Some(prev) = slot.replace(token.clone()) {
+            prev.cancel();
+        }
+        token
+    }
+
+    pub fn clear_cancel(&self, scope: CancelScope) {
+        let mut guard = self.cancels.write();
+        let slot = match scope {
+            CancelScope::Sync => &mut guard.sync,
+            CancelScope::Login => &mut guard.login,
+            CancelScope::GatewayProbe => &mut guard.gateway_probe,
+        };
+        *slot = None;
+    }
+
+    pub fn cancel_scope(&self, scope: CancelScope) -> bool {
+        let mut guard = self.cancels.write();
+        let slot = match scope {
+            CancelScope::Sync => &mut guard.sync,
+            CancelScope::Login => &mut guard.login,
+            CancelScope::GatewayProbe => &mut guard.gateway_probe,
+        };
+        if let Some(token) = slot.take() {
+            token.cancel();
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn cancel_all(&self) {
+        let mut guard = self.cancels.write();
+        for token in [
+            guard.sync.take(),
+            guard.login.take(),
+            guard.gateway_probe.take(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            token.cancel();
+        }
     }
 
     pub fn snapshot(&self) -> AppStateSnapshot {

@@ -1,4 +1,5 @@
 import { $ } from "./dom.js?t=__TOKEN__";
+import { t } from "./i18n.js?t=__TOKEN__";
 import { refsFromNode, renderHostCard } from "./hosts/card.js?t=__TOKEN__";
 
 const hostCards = new Map();
@@ -49,7 +50,7 @@ const renderEmptyHosts = (list) => {
   if (list && list.children.length === 0) {
     const empty = document.createElement("div");
     empty.className = "sp-u-muted sp-host-list__empty";
-    empty.textContent = "No host apps registered on this platform.";
+    empty.textContent = t("hosts-empty");
     list.replaceChildren(empty);
   }
 };

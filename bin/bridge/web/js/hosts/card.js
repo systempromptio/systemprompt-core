@@ -1,4 +1,5 @@
 import { setDot, setBadge } from "../dom.js?t=__TOKEN__";
+import { t } from "../i18n.js?t=__TOKEN__";
 
 export const refsFromNode = (node) => ({
   root: node,
@@ -24,13 +25,13 @@ const applyProfileState = (refs, hs) => {
   const partial = profileState.kind === "partial";
   if (installed) {
     setDot(refs.profileDot, "sp-dot--ok");
-    refs.profileText.textContent = "installed";
+    refs.profileText.textContent = t("host-profile-installed");
   } else if (partial) {
     setDot(refs.profileDot, "sp-dot--warn");
-    refs.profileText.textContent = `partial (missing: ${missing.join(", ")})`;
+    refs.profileText.textContent = t("host-profile-partial", { missing: missing.join(", ") });
   } else {
     setDot(refs.profileDot, "sp-dot--err");
-    refs.profileText.textContent = "not installed";
+    refs.profileText.textContent = t("host-profile-not-installed");
   }
   refs.profileDetail.textContent = hs.profile_source || "—";
   refs.profileDetail.classList.toggle("sp-u-muted", !hs.profile_source);
@@ -40,38 +41,38 @@ const applyProfileState = (refs, hs) => {
 const applyRunningState = (refs, hs) => {
   if (hs.host_running) {
     setDot(refs.runningDot, "sp-dot--ok");
-    refs.runningText.textContent = "running";
-    refs.runningDetail.textContent = (hs.host_processes || []).join(", ") || "process detected";
+    refs.runningText.textContent = t("host-process-running");
+    refs.runningDetail.textContent = (hs.host_processes || []).join(", ") || t("host-process-detected");
     refs.runningDetail.classList.remove("sp-u-muted");
   } else {
     setDot(refs.runningDot, "sp-dot--warn");
-    refs.runningText.textContent = "not running";
-    refs.runningDetail.textContent = "launch the app to verify routing";
+    refs.runningText.textContent = t("host-process-not-running");
+    refs.runningDetail.textContent = t("host-process-detail");
     refs.runningDetail.classList.add("sp-u-muted");
   }
 };
 
 const chooseBadge = (installed, partial, proxyState) => {
   if (!installed) {
-    return { text: "profile not installed", cls: "sp-badge--warn" };
+    return { text: t("host-badge-not-installed"), cls: "sp-badge--warn" };
   }
   if (partial) {
-    return { text: "partial", cls: "sp-badge--warn" };
+    return { text: t("host-badge-partial"), cls: "sp-badge--warn" };
   }
   if (proxyState === "Unconfigured") {
-    return { text: "awaiting first launch", cls: "sp-badge--warn" };
+    return { text: t("host-badge-awaiting"), cls: "sp-badge--warn" };
   }
   if (proxyState === "Listening") {
-    return { text: "healthy", cls: "sp-badge--ok" };
+    return { text: t("host-badge-healthy"), cls: "sp-badge--ok" };
   }
-  return { text: "local proxy down", cls: "sp-badge--err" };
+  return { text: t("host-badge-proxy-down"), cls: "sp-badge--err" };
 };
 
 const applyPrefs = (refs, hs) => {
   const lines = [];
   const keys = hs.profile_keys || {};
   if (Object.keys(keys).length === 0) {
-    lines.push("(no keys present)");
+    lines.push(t("host-prefs-empty"));
   } else {
     for (const [k, v] of Object.entries(keys)) {
       lines.push(`${k} = ${v}`);
@@ -83,7 +84,7 @@ const applyPrefs = (refs, hs) => {
 const applyJwtWarn = (refs, snap, installed) => {
   if (snap.cached_token && snap.cached_token.ttl_seconds < 600 && installed) {
     refs.jwtWarn.hidden = false;
-    refs.jwtWarn.textContent = `JWT in profile expires in ~${snap.cached_token.ttl_seconds}s — re-generate before it lapses.`;
+    refs.jwtWarn.textContent = t("host-jwt-warn", { ttl: snap.cached_token.ttl_seconds });
   } else {
     refs.jwtWarn.hidden = true;
     refs.jwtWarn.textContent = "";

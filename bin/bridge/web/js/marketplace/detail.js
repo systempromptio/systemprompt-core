@@ -1,4 +1,5 @@
 import { $ } from "../dom.js?t=__TOKEN__";
+import { t } from "../i18n.js?t=__TOKEN__";
 import { mktState, KIND_LABEL, KIND_EMPTY_TITLE } from "./state.js?t=__TOKEN__";
 import { chip, glyphFor, cloneTemplate, emptyBlock } from "./glyph.js?t=__TOKEN__";
 
@@ -41,7 +42,7 @@ function buildReadme(text) {
   const sec = document.createElement("section");
   sec.className = "sp-mkt-detail__section";
   const h3 = document.createElement("h3");
-  h3.textContent = "README";
+  h3.textContent = t("marketplace-detail-readme");
   const pre = document.createElement("div");
   pre.className = "sp-mkt-detail__readme";
   pre.textContent = text;
@@ -53,7 +54,7 @@ function buildPathRow(pathStr) {
   const sec = document.createElement("section");
   sec.className = "sp-mkt-detail__section";
   const h3 = document.createElement("h3");
-  h3.textContent = "Path";
+  h3.textContent = t("marketplace-detail-path");
 
   const row = document.createElement("div");
   row.className = "sp-mkt-detail__path-row";
@@ -69,7 +70,7 @@ function buildPathRow(pathStr) {
   const copyBtn = document.createElement("button");
   copyBtn.type = "button";
   copyBtn.className = "sp-mkt-detail__copy";
-  copyBtn.textContent = "Copy";
+  copyBtn.textContent = t("marketplace-detail-copy");
   copyBtn.dataset.action = "mkt-copy";
   copyBtn.dataset.value = pathStr;
 
@@ -82,10 +83,10 @@ export async function copyToClipboard(button, value) {
   try {
     await navigator.clipboard.writeText(value);
     button.dataset.copied = "true";
-    button.textContent = "Copied ✓";
+    button.textContent = t("marketplace-detail-copied");
     await button.animate([{}, {}], { duration: 1200 }).finished;
     button.removeAttribute("data-copied");
-    button.textContent = "Copy";
+    button.textContent = t("marketplace-detail-copy");
   } catch (e) {
     console.error("clipboard write failed", e);
   }

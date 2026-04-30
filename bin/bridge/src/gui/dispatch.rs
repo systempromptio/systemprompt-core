@@ -33,6 +33,7 @@ fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::IpcEmit { .. } => "IpcEmit",
         UiEvent::IpcReply { .. } => "IpcReply",
         UiEvent::ProxyStatsTick => "ProxyStatsTick",
+        UiEvent::CancelInFlight { .. } => "CancelInFlight",
     }
 }
 
@@ -120,5 +121,8 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
             crate::gui::ipc_runtime::send_reply(app, id, payload, ok)
         },
         UiEvent::ProxyStatsTick => crate::gui::ipc_runtime::emit_proxy_stats(app),
+        UiEvent::CancelInFlight { scope, reply_to } => {
+            handlers::cancel::on_cancel_in_flight(app, scope, reply_to)
+        },
     }
 }

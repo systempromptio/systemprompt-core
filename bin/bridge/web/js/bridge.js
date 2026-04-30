@@ -64,5 +64,11 @@ export const bridge = {
   agentOpenConfig:      (hostId)            => invoke("agent.openConfig", { hostId }),
   setupComplete:        ()                  => invoke("setup.complete"),
   openConfigFolder:     ()                  => invoke("openConfigFolder"),
+  openLogFolder:        ()                  => invoke("openLogFolder"),
+  diagnosticsExportBundle: ()               => invoke("diagnostics.exportBundle"),
+  diagnosticsInfo:      ()                  => invoke("diagnostics.info"),
+  marketplaceInstall:   (id)                => invoke("marketplace.install", { id }),
+  marketplaceUninstall: (id)                => invoke("marketplace.uninstall", { id }),
+  cancel:               (scope)             => invoke("cancel", { scope: scope ?? "all" }),
   quit:                 ()                  => invoke("quit"),
 };

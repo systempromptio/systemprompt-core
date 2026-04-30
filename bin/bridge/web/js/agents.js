@@ -1,4 +1,5 @@
 import { $, setDot } from "./dom.js?t=__TOKEN__";
+import { t } from "./i18n.js?t=__TOKEN__";
 
 function presenceState(host) {
   const kind = host.snapshot?.profile_state?.kind;
@@ -17,13 +18,13 @@ function presenceState(host) {
 
 function presenceLabel(state) {
   if (state === "ok") {
-    return "running";
+    return t("agent-presence-running");
   } else if (state === "warn") {
-    return "needs attention";
+    return t("agent-presence-needs-attention");
   } else if (state === "err") {
-    return "not installed";
+    return t("agent-presence-not-installed");
   } else {
-    return "unknown";
+    return t("agent-presence-unknown");
   }
 }
 
@@ -52,13 +53,13 @@ export function renderAgentsSummary(snap) {
     const list = snap.host_apps || [];
     if (list.length === 0) {
       setDot(dot, "sp-dot--unknown");
-      text.textContent = "no agents registered";
+      text.textContent = t("agents-summary-none");
     } else {
       const installed = list.filter((h) => h.snapshot?.profile_state?.kind === "installed").length;
       const running = list.filter((h) => h.snapshot?.host_running).length;
       const klass = installed === list.length ? "sp-dot--ok" : installed > 0 ? "sp-dot--warn" : "sp-dot--err";
       setDot(dot, klass);
-      text.textContent = `${installed} of ${list.length} agents configured · ${running} running`;
+      text.textContent = t("agents-summary-count", { installed, total: list.length, running });
     }
   }
 }

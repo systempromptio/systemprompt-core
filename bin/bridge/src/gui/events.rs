@@ -5,7 +5,7 @@ use serde_json::Value;
 use crate::auth::secret::Secret;
 use crate::gui::error::GuiError;
 use crate::gui::hosts::events::HostUiEvent;
-use crate::gui::state::GatewayProbeOutcome;
+use crate::gui::state::{CancelScope, GatewayProbeOutcome};
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
@@ -95,4 +95,8 @@ pub enum UiEvent {
         ok: bool,
     },
     ProxyStatsTick,
+    CancelInFlight {
+        scope: Option<CancelScope>,
+        reply_to: ReplyId,
+    },
 }

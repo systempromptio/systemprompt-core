@@ -35,6 +35,10 @@ impl SettingsWindow {
         self.window.id()
     }
 
+    pub fn winit_window(&self) -> &Window {
+        &self.window
+    }
+
     pub fn create(
         event_loop: &ActiveEventLoop,
         proxy: EventLoopProxy<UiEvent>,

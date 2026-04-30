@@ -1,4 +1,5 @@
 import { $ } from "../dom.js?t=__TOKEN__";
+import { t } from "../i18n.js?t=__TOKEN__";
 import { renderSetupAgents } from "./agents.js?t=__TOKEN__";
 import {
   setSetupError,
@@ -15,7 +16,11 @@ export const setSetupStep = (step) => {
   if (!label) {
     return;
   }
-  const map = { connect: "Step 1 of 3", agents: "Step 2 of 3", done: "Step 3 of 3" };
+  const map = {
+    connect: t("setup-step-label-connect"),
+    agents: t("setup-step-label-agents"),
+    done: t("setup-step-label-done"),
+  };
   label.textContent = map[step] || "";
 };
 
@@ -67,19 +72,19 @@ const setProbeDot = (dot, msg, snap) => {
   const status = snap.gateway_status || { state: "unknown" };
   if (status.state === "reachable") {
     dot.classList.add("sp-dot--ok");
-    msg.textContent = `reachable · ${status.latency_ms}ms`;
+    msg.textContent = t("setup-gateway-reachable", { latency: status.latency_ms });
     msg.classList.remove("sp-u-muted");
   } else if (status.state === "probing") {
     dot.classList.add("sp-dot--probing");
-    msg.textContent = "probing…";
+    msg.textContent = t("setup-gateway-probing");
     msg.classList.add("sp-u-muted");
   } else if (status.state === "unreachable") {
     dot.classList.add("sp-dot--err");
-    msg.textContent = `unreachable · ${status.reason || "unknown error"}`;
+    msg.textContent = t("setup-gateway-unreachable", { reason: status.reason || t("setup-gateway-unknown-error") });
     msg.classList.remove("sp-u-muted");
   } else {
     dot.classList.add("sp-dot--unknown");
-    msg.textContent = snap.gateway_url ? "not yet probed" : "enter a URL to probe…";
+    msg.textContent = snap.gateway_url ? t("setup-gateway-not-probed") : t("setup-gateway-empty");
     msg.classList.add("sp-u-muted");
   }
   return status;

@@ -4,11 +4,12 @@ use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::IpcReplyPayload;
 use crate::gui::ipc_runtime;
+use crate::i18n;
 use crate::validate;
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_validate_requested(app: &mut GuiApp, reply_to: ReplyId) {
-    app.append_log("Running validation…");
+    app.append_log(i18n::t("validate-running"));
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let report = tokio::task::spawn_blocking(validate::run)

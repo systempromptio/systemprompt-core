@@ -7,6 +7,7 @@ use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::server_json;
+use crate::gui::state::CancelScope;
 
 pub enum CommandOutcome {
     Sync(Result<Value, BridgeError>),
@@ -31,11 +32,23 @@ struct HostIdArgs {
     host_id: String,
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct CancelArgs {
+    scope: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct HostInstallArgs {
     #[serde(rename = "hostId")]
     host_id: String,
     path: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct MarketplaceItemArgs {
+    id: String,
 }
 
 pub(crate) fn dispatch(
@@ -212,7 +225,7 @@ pub(crate) fn dispatch(
             send(app, UiEvent::OpenConfigFolder);
             CommandOutcome::Sync(Ok(json!({})))
         },
-        "diagnostics.openLogDirectory" => {
+        "diagnostics.openLogDirectory" | "openLogFolder" => {
             send(
                 app,
                 UiEvent::OpenLogDirectory {
@@ -220,6 +233,15 @@ pub(crate) fn dispatch(
                 },
             );
             CommandOutcome::Async
+        },
+        "marketplace.install" | "marketplace.uninstall" => match parse::<MarketplaceItemArgs>(args)
+        {
+            Ok(_) => CommandOutcome::Sync(Err(BridgeError::new(
+                ErrorScope::Marketplace,
+                ErrorCode::NotFound,
+                "marketplace install/uninstall not implemented",
+            ))),
+            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "diagnostics.exportBundle" => {
             send(
@@ -239,6 +261,30 @@ pub(crate) fn dispatch(
             "branch": crate::cli::diagnostics::GIT_BRANCH,
             "rendered": crate::cli::diagnostics::render(),
         }))),
+        "cancel" => match parse::<CancelArgs>(args) {
+            Ok(a) => {
+                let scope = match a.scope.as_deref() {
+                    None | Some("all") => None,
+                    Some("sync") => Some(CancelScope::Sync),
+                    Some("login") => Some(CancelScope::Login),
+                    Some("gateway") | Some("gateway-probe") => Some(CancelScope::GatewayProbe),
+                    Some(other) => {
+                        return CommandOutcome::Sync(Err(BridgeError::invalid_args(format!(
+                            "unknown cancel scope: {other}"
+                        ))));
+                    },
+                };
+                send(
+                    app,
+                    UiEvent::CancelInFlight {
+                        scope,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
         "quit" => {
             send(app, UiEvent::Quit);
             CommandOutcome::Sync(Ok(json!({})))
