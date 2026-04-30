@@ -218,7 +218,6 @@ pub fn render_index() -> String {
         .replace("__LOGO_SVG__", LOGO_SVG)
         .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
         .replace("__PLATFORM__", PLATFORM_SLUG)
-        .replace("__TOKEN__", "")
 }
 
 pub fn lookup_path(path: &str) -> Option<Asset> {
@@ -232,7 +231,7 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
     {
         return Some(Asset::text(
             "text/css; charset=utf-8",
-            src.replace("__TOKEN__", ""),
+            (*src).to_string(),
         ));
     }
     if let Some(name) = path
@@ -242,7 +241,7 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
     {
         return Some(Asset::text(
             "application/javascript; charset=utf-8",
-            src.replace("__TOKEN__", ""),
+            (*src).to_string(),
         ));
     }
     if let Some(name) = path

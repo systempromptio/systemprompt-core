@@ -6,6 +6,7 @@
 
 - **Windows GUI rendered a blank `about:blank` window.** wry 0.55 rewrites custom URI schemes to `http://<scheme>.<host>/...` on Windows/Android because WebView2 cannot register arbitrary schemes, so navigating to `sp://app/index.html` silently failed. Use `http://sp.app/index.html` on those targets and allow the rewritten origin in `allow_navigation`.
 - **Native menu bar showed raw i18n keys** (`menu-edit`, `menu-view`, `menu-help`, …). The menu builder calls `i18n::t("menu-*")` but `web/i18n/en-US/bridge.ftl` had no matching entries, so the fallback returned the keys verbatim. Added the seven missing translations.
+- **Removed broken `__TOKEN__` cache-buster.** Every static asset URL carried `?t=__TOKEN__`, but `assets.rs` substituted `__TOKEN__` with the empty string — leaving meaningless `?t=` query strings that did nothing AND created two distinct module identities whenever one file imported `foo.js?t=` and another imported `foo.js`. Modules ran twice, the second `customElements.define` threw `NotSupportedError`, and the GUI rendered an empty body. Stripped the placeholder from `web/index.html`, `web/css/fonts.css`, all 27 imports in `web/js/index.js`, and the three `.replace("__TOKEN__", "")` call sites in `src/gui/assets.rs`. Embedded assets only change on rebuild, so no cache-buster was ever needed.
 
 ### Changed
 
