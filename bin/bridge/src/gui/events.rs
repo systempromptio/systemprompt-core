@@ -33,8 +33,12 @@ pub enum UiEvent {
     GatewayProbeFinished(GatewayProbeOutcome),
     StateRefreshed,
 
-    AgentUninstall { host_id: String },
-    AgentOpenConfig { host_id: String },
+    AgentUninstall {
+        host_id: String,
+    },
+    AgentOpenConfig {
+        host_id: String,
+    },
     SetupComplete,
 
     Host(HostUiEvent),

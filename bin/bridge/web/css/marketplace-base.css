@@ -1,7 +1,7 @@
 .mkt {
   display: grid;
   grid-template-columns: 208px 288px minmax(0, 1fr);
-  gap: 1px;
+  gap: var(--sp-space-px);
   background: var(--sp-line);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-lg);
@@ -21,7 +21,7 @@
   min-height: 0;
 }
 
-.mkt-cats { padding: 14px 10px 10px; gap: 2px; }
+.mkt-cats { padding: var(--sp-space-3-5) var(--sp-space-2-5) var(--sp-space-2-5); gap: var(--sp-space-0-5); }
 .mkt-cats-label {
   font-family: var(--sp-font-display);
   font-size: 10px;
@@ -29,7 +29,7 @@
   letter-spacing: 1.6px;
   text-transform: uppercase;
   color: var(--sp-muted);
-  padding: 4px 12px 8px;
+  padding: var(--sp-space-1) var(--sp-space-3) var(--sp-space-2);
   user-select: none;
 }
 .mkt-cat {
@@ -37,8 +37,8 @@
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: var(--sp-space-2-5);
+  padding: var(--sp-space-2) var(--sp-space-3);
   border-radius: var(--sp-corners-sm);
   cursor: pointer;
   font-size: 13px;
@@ -61,8 +61,8 @@
   content: "";
   position: absolute;
   left: 0;
-  top: 6px;
-  bottom: 6px;
+  top: var(--sp-space-1-5);
+  bottom: var(--sp-space-1-5);
   width: 2px;
   background: var(--sp-accent);
   border-radius: 0 2px 2px 0;
@@ -90,7 +90,7 @@
   color: var(--sp-muted-strong);
   background: var(--sp-bg-elev-2);
   border: 1px solid var(--sp-line);
-  padding: 1px 7px;
+  padding: var(--sp-space-px) var(--sp-space-2);
   border-radius: var(--sp-corners-pill);
   min-width: 22px;
   text-align: center;

@@ -8,7 +8,7 @@
 }
 .status-board th, .status-board td {
   text-align: left;
-  padding: 14px 18px;
+  padding: var(--sp-space-3-5) var(--sp-space-4-5);
   vertical-align: top;
   border-bottom: 1px solid var(--sp-line);
 }
@@ -22,34 +22,34 @@
   width: 200px;
   font-weight: 600;
 }
-.status-row { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
-.status-detail { font-size: 12px; margin-top: 4px; }
+.status-row { display: flex; align-items: center; gap: var(--sp-space-2); font-size: 14px; font-weight: 500; }
+.status-detail { font-size: 12px; margin-top: var(--sp-space-1); }
 .status-actions {
   text-align: right;
   white-space: nowrap;
 }
-.status-actions button { margin-left: 6px; }
+.status-actions button { margin-left: var(--sp-space-1-5); }
 .status-actions:empty::before { content: ""; }
 .status-prefs summary {
   font-size: 12px;
   color: var(--sp-muted);
   cursor: pointer;
-  padding: 8px 0;
+  padding: var(--sp-space-2) 0;
 }
 .status-prefs[open] summary { color: var(--sp-text); }
 
-.status-group { margin-bottom: 22px; }
+.status-group { margin-bottom: var(--sp-space-6); }
 .status-group:last-child { margin-bottom: 0; }
 .status-group-header {
-  margin: 0 0 10px;
-  padding: 0 4px;
+  margin: 0 0 var(--sp-space-2-5);
+  padding: 0 var(--sp-space-1);
 }
 .status-group-header h2 {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.6px;
   color: var(--sp-accent);
-  margin: 0 0 4px;
+  margin: 0 0 var(--sp-space-1);
   font-weight: 700;
 }
 .status-group-caption {
@@ -57,8 +57,8 @@
   color: var(--sp-muted);
   margin: 0;
 }
-#hosts-list { display: flex; flex-direction: column; gap: 14px; }
-.host-list-empty { padding: 14px 18px; }
+#hosts-list { display: flex; flex-direction: column; gap: var(--sp-space-3-5); }
+.host-list-empty { padding: var(--sp-space-3-5) var(--sp-space-4-5); }
 .host-card {
   background: var(--sp-bg-elev-1);
   border: 1px solid var(--sp-line);
@@ -74,44 +74,44 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
+  padding: var(--sp-space-3) var(--sp-space-4-5);
 }
 .host-card-name { margin: 0; font-size: 14px; font-weight: 600; }
-.host-card .status-prefs { padding: 0 18px 10px; }
-.host-card .claude-warn { margin: 0 18px 14px; }
+.host-card .status-prefs { padding: 0 var(--sp-space-4-5) var(--sp-space-2-5); }
+.host-card .claude-warn { margin: 0 var(--sp-space-4-5) var(--sp-space-3-5); }
 
-.hosts-empty { padding: 14px 18px; color: var(--sp-muted); }
+.hosts-empty { padding: var(--sp-space-3-5) var(--sp-space-4-5); color: var(--sp-muted); }
 
 .claude-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--sp-space-3);
+  margin-bottom: var(--sp-space-3);
 }
 .claude-cell {
   background: var(--sp-bg-elev-1);
   border: 1px solid var(--sp-line);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: var(--sp-space-3) var(--sp-space-3-5);
 }
 .cell-label {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--sp-muted);
-  margin-bottom: 6px;
+  margin-bottom: var(--sp-space-1-5);
 }
 .cell-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: var(--sp-space-2);
+  margin-bottom: var(--sp-space-1-5);
   font-weight: 500;
 }
 
 .claude-warn {
-  margin-top: 10px;
-  padding: 10px 12px;
+  margin-top: var(--sp-space-2-5);
+  padding: var(--sp-space-2-5) var(--sp-space-3);
   background: color-mix(in srgb, var(--sp-warn) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--sp-warn) 35%, transparent);
   color: var(--sp-warn);

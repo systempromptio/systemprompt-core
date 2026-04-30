@@ -1,7 +1,7 @@
 use super::super::hash::{directory_hash, normalise_relative, safe_plugin_id, sha256_hex};
 use crate::config::paths;
-use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{PluginEntry, SignedManifest};
+use crate::gateway::GatewayClient;
 use crate::ids::Sha256Digest;
 use std::collections::HashSet;
 use std::fs;

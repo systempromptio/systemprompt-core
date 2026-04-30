@@ -3,7 +3,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  margin-right: 8px;
+  margin-right: var(--sp-space-2);
   vertical-align: middle;
   box-shadow: 0 0 0 2px oklch(0 0 0 / 0.15);
 }

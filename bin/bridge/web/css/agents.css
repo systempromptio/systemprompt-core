@@ -6,20 +6,20 @@ body[data-setup-step="done"]    .setup-step[data-step="done"] { display: block; 
 .setup-agents-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 16px 0 4px;
+  gap: var(--sp-space-2);
+  margin: var(--sp-space-4) 0 var(--sp-space-1);
 }
 .setup-agent-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: var(--sp-space-3);
+  padding: var(--sp-space-3) var(--sp-space-3-5);
   border: 1px solid var(--sp-line);
   border-radius: 8px;
   background: oklch(0.20 0.01 45);
 }
 .setup-agent-row[data-state="installed"] { border-color: oklch(0.65 0.16 145 / 0.5); }
-.setup-agent-meta { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setup-agent-meta { flex: 1; display: flex; flex-direction: column; gap: var(--sp-space-0-5); min-width: 0; }
 .setup-agent-name { font-weight: 600; }
 .setup-agent-desc { font-size: 12px; color: var(--sp-muted); }
 .setup-agent-row button { white-space: nowrap; }
@@ -27,11 +27,11 @@ body[data-setup-step="done"]    .setup-step[data-step="done"] { display: block; 
 .agent-presence {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
+  gap: var(--sp-space-1);
+  padding: var(--sp-space-1) var(--sp-space-1-5);
   border: 1px solid var(--sp-line);
   border-radius: 999px;
-  margin-right: 6px;
+  margin-right: var(--sp-space-1-5);
 }
 .agent-presence:empty { display: none; }
 .agent-dot {
@@ -49,24 +49,24 @@ body[data-setup-step="done"]    .setup-step[data-step="done"] { display: block; 
 .agent-dot[data-state="unknown"] { background: oklch(0.55 0.02 50); }
 
 .tab-lede {
-  margin: 0 0 16px 0;
+  margin: 0 0 var(--sp-space-4) 0;
   font-size: 13px;
   line-height: 1.5;
   max-width: 720px;
 }
 .host-card-kind-chip {
   display: inline-block;
-  padding: 1px 8px;
+  padding: var(--sp-space-px) var(--sp-space-2);
   border: 1px solid var(--sp-line);
   border-radius: 999px;
   font-size: 11px;
   color: var(--sp-muted);
-  margin-left: 8px;
+  margin-left: var(--sp-space-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 .agents-list-empty {
-  padding: 24px;
+  padding: var(--sp-space-6);
   border: 1px dashed var(--sp-line);
   border-radius: 8px;
   text-align: center;
