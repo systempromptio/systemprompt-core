@@ -71,13 +71,13 @@ struct SetGatewayBody {
     url: String,
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+
 #[derive(Debug, Deserialize)]
 struct InstallProfileBody {
     path: String,
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+
 fn parse_host_id(path: &str, prefix: &str, suffix: &str) -> Option<String> {
     let rest = path.strip_prefix(prefix)?;
     let id = rest.strip_suffix(suffix)?;
@@ -251,11 +251,11 @@ fn handle_action(
                 );
             },
         },
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        
         "/api/proxy/probe" => {
             UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProxyProbeRequested)
         },
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        
         p if p.starts_with("/api/hosts/") && p.ends_with("/probe") => {
             match parse_host_id(p, "/api/hosts/", "/probe") {
                 Some(host_id) => {
@@ -266,7 +266,7 @@ fn handle_action(
                 None => return write_response(stream, 404, "text/plain", b"not found"),
             }
         },
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        
         p if p.starts_with("/api/hosts/") && p.ends_with("/profile/generate") => {
             match parse_host_id(p, "/api/hosts/", "/profile/generate") {
                 Some(host_id) => UiEvent::Host(
@@ -275,7 +275,7 @@ fn handle_action(
                 None => return write_response(stream, 404, "text/plain", b"not found"),
             }
         },
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        
         p if p.starts_with("/api/hosts/") && p.ends_with("/profile/install") => {
             match parse_host_id(p, "/api/hosts/", "/profile/install") {
                 Some(host_id) => match serde_json::from_slice::<InstallProfileBody>(body) {
@@ -297,6 +297,23 @@ fn handle_action(
                 None => return write_response(stream, 404, "text/plain", b"not found"),
             }
         },
+
+        p if p.starts_with("/api/agents/") && p.ends_with("/uninstall") => {
+            match parse_host_id(p, "/api/agents/", "/uninstall") {
+                Some(host_id) => UiEvent::AgentUninstall { host_id },
+                None => return write_response(stream, 404, "text/plain", b"not found"),
+            }
+        },
+
+        p if p.starts_with("/api/agents/") && p.ends_with("/open-config") => {
+            match parse_host_id(p, "/api/agents/", "/open-config") {
+                Some(host_id) => UiEvent::AgentOpenConfig { host_id },
+                None => return write_response(stream, 404, "text/plain", b"not found"),
+            }
+        },
+
+        "/api/setup/complete" => UiEvent::SetupComplete,
+
         _ => return write_response(stream, 404, "text/plain", b"not found"),
     };
 

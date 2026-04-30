@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod auth;
 pub mod gateway_probe;
 pub mod quit;

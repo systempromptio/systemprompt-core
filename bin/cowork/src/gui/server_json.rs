@@ -28,7 +28,7 @@ struct StatePayload<'a> {
     signed_in: bool,
     last_probe_at_unix: Option<u64>,
     proxy_stats: ProxyStatsPayload,
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    
     #[serde(flatten)]
     hosts: crate::gui::hosts::serde::HostsPayload<'a>,
 }
@@ -57,7 +57,7 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             signed_in: snap.signed_in(),
             last_probe_at_unix: snap.last_probe_at_unix,
             proxy_stats: ProxyStatsPayload::current(),
-            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            
             hosts: crate::gui::hosts::serde::payload(snap),
         }
     }

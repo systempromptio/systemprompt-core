@@ -1570,3 +1570,83 @@ body.setup-mode .setup  { display: flex; }
 }
 .setup-meta a:hover { color: var(--sp-accent); border-bottom-color: var(--sp-accent); }
 .setup-docs { font-weight: 600; }
+
+/* ===== Multi-agent additions ===== */
+
+/* Splash wizard step machine */
+.setup-step { display: none; }
+body[data-setup-step="connect"] .setup-step[data-step="connect"],
+body[data-setup-step="agents"]  .setup-step[data-step="agents"],
+body[data-setup-step="done"]    .setup-step[data-step="done"] { display: block; }
+
+.setup-agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+.setup-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--sp-line);
+  border-radius: 8px;
+  background: oklch(0.20 0.01 45);
+}
+.setup-agent-row[data-state="installed"] { border-color: oklch(0.65 0.16 145 / 0.5); }
+.setup-agent-meta { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setup-agent-name { font-weight: 600; }
+.setup-agent-desc { font-size: 12px; color: var(--sp-muted); }
+.setup-agent-row button { white-space: nowrap; }
+
+/* Topbar agent presence cluster */
+.agent-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--sp-line);
+  border-radius: 999px;
+  margin-right: 6px;
+}
+.agent-presence:empty { display: none; }
+.agent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: oklch(0.55 0.02 50);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.agent-dot:hover { transform: scale(1.2); }
+.agent-dot[data-state="ok"]      { background: oklch(0.65 0.16 145); }
+.agent-dot[data-state="warn"]    { background: oklch(0.78 0.14 80); }
+.agent-dot[data-state="err"]     { background: oklch(0.62 0.20 28); }
+.agent-dot[data-state="unknown"] { background: oklch(0.55 0.02 50); }
+
+/* Agents tab tweaks */
+.tab-lede {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 720px;
+}
+.host-card-kind-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--sp-line);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--sp-muted);
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.agents-list-empty {
+  padding: 24px;
+  border: 1px dashed var(--sp-line);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--sp-muted);
+}

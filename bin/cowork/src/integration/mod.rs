@@ -1,4 +1,5 @@
 pub mod claude_desktop;
+pub mod codex_cli;
 pub mod host_app;
 pub mod proxy_probe;
 pub mod registry;

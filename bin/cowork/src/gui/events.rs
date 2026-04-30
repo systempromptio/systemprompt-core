@@ -6,7 +6,7 @@ use crate::gui::state::GatewayProbeOutcome;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+
 use crate::gui::hosts::events::HostUiEvent;
 
 #[derive(Debug, Clone)]
@@ -33,6 +33,9 @@ pub enum UiEvent {
     GatewayProbeFinished(GatewayProbeOutcome),
     StateRefreshed,
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    AgentUninstall { host_id: String },
+    AgentOpenConfig { host_id: String },
+    SetupComplete,
+
     Host(HostUiEvent),
 }

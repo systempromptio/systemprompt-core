@@ -2,6 +2,7 @@
 
 pub(crate) mod args;
 mod clean;
+mod credential_helper;
 mod gui;
 mod install;
 mod login;
@@ -34,6 +35,7 @@ pub fn run() -> ExitCode {
         Some("sync") => sync::cmd_sync(&args),
         Some("validate") => validate::cmd_validate(),
         Some("uninstall") => uninstall::cmd_uninstall(&args),
+        Some("credential-helper") => credential_helper::cmd_credential_helper(&args),
         Some("gui") => gui::cmd_gui(),
         Some("help" | "--help" | "-h") => {
             print!("{}", crate::help());

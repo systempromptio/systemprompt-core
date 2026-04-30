@@ -4,6 +4,7 @@ use super::host_app::HostApp;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use super::claude_desktop::CLAUDE_DESKTOP_HOST;
+use super::codex_cli::CODEX_CLI_HOST;
 #[cfg(feature = "dev-stub-host")]
 use super::stub_host::STUB_HOST;
 
@@ -13,6 +14,7 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostApp>> = LazyLock::new(|| {
     let mut entries: Vec<&'static dyn HostApp> = Vec::new();
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     entries.push(&CLAUDE_DESKTOP_HOST);
+    entries.push(&CODEX_CLI_HOST);
     #[cfg(feature = "dev-stub-host")]
     entries.push(&STUB_HOST);
     entries
