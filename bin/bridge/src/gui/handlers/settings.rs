@@ -5,30 +5,30 @@ use crate::config::paths;
 use crate::gui::{GuiApp, window};
 use crate::obs::output::diag;
 
-#[tracing::instrument(level = "debug", skip(app, event_loop))]
+#[tracing::instrument(level = "info", skip(app, event_loop))]
 pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &ActiveEventLoop) {
-    let Some(server) = app.ensure_server() else {
-        return;
-    };
-    let (url, port) = (server.url(), server.port());
+    let legacy_origin = app.ensure_server().map(|s| {
+        let port = s.port();
+        format!("http://127.0.0.1:{port}")
+    });
+    if let Some(server) = app.server.as_ref() {
+        app.append_log(format!("legacy http transport on {}", server.url()));
+    }
 
     if let Some(win) = &app.settings_window {
         win.focus();
-        app.append_log(format!("focusing settings window for {url}"));
+        app.append_log("focusing settings window");
         return;
     }
 
-    match window::SettingsWindow::create(event_loop, &url, port) {
+    match window::SettingsWindow::create(event_loop, app.proxy.clone(), legacy_origin) {
         Ok(win) => {
-            app.append_log(format!("opened native settings window for {url}"));
+            app.append_log("opened native settings window (sp:// custom protocol)");
             app.settings_window = Some(win);
         },
         Err(e) => {
             diag(&format!("gui: native settings window failed: {e}"));
-            app.append_log(format!(
-                "native window unavailable ({e}); falling back to system browser at {url}"
-            ));
-            window::open_external_url(&url);
+            app.append_log(format!("native window unavailable: {e}"));
         },
     }
 }

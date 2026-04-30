@@ -160,7 +160,7 @@
         </div>
 
         <footer class="sp-mkt-actions">
-          <button id="btn-sync"        data-action="sync"        class="sp-btn-primary" type="button">Sync now</button>
+          <button id="btn-sync"        data-action="sync"        class="sp-btn-primary" type="button" data-l10n-id="sync-button">Sync now</button>
           <button data-action="validate"                          class="sp-btn-ghost"   type="button">Validate</button>
           <button data-action="open-folder"                       class="sp-btn-ghost"   type="button">Open folder</button>
           <span id="mkt-meta" class="sp-mkt-actions__meta" data-state="never" title="—">
@@ -194,43 +194,7 @@
             <h2>systemprompt cloud</h2>
             <p class="sp-status-group__caption">The hosted control plane systemprompt bridge talks to. Identity and PAT live here.</p>
           </header>
-          <table class="sp-status__board">
-            <tbody>
-              <tr>
-                <th>Reachability</th>
-                <td>
-                  <div class="sp-status__row">
-                    <span id="server-dot" class="sp-dot sp-dot--unknown" aria-hidden="true"></span>
-                    <span id="server-state-text">checking…</span>
-                  </div>
-                  <div id="server-endpoint" class="sp-status__detail sp-u-mono sp-u-muted">—</div>
-                  <div class="sp-status__detail sp-u-muted">last probe <span id="server-probe">—</span></div>
-                </td>
-                <td class="sp-status__actions">
-                  <button data-action="recheck" class="sp-btn-ghost" type="button">Re-check</button>
-                </td>
-              </tr>
-              <tr>
-                <th>Identity</th>
-                <td>
-                  <div class="sp-status__row">
-                    <span id="identity-dot" class="sp-dot sp-dot--unknown" aria-hidden="true"></span>
-                    <span id="identity" class="sp-value sp-u-muted">(not signed in)</span>
-                  </div>
-                  <div class="sp-status__detail sp-u-muted">
-                    user <span id="identity-user" class="sp-u-mono">—</span> ·
-                    tenant <span id="identity-tenant" class="sp-u-mono">—</span>
-                  </div>
-                  <div class="sp-status__detail sp-u-muted">
-                    token <span id="token-state">no cached JWT</span>
-                  </div>
-                </td>
-                <td class="sp-status__actions">
-                  <button data-action="logout" class="sp-btn-ghost" type="button">Log out</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <sp-cloud-status></sp-cloud-status>
         </section>
 
         <section class="sp-status-group" data-group="proxy">
@@ -377,7 +341,18 @@
           <span class="sp-activity-lane__stat"><b id="lane-tout">0</b><span class="sp-activity-lane__label">out</span></span>
         </div>
       </header>
-      <pre id="log" class="sp-log" aria-live="polite">Ready.</pre>
+      <div id="log" class="sp-log sp-log-virtual" role="log" aria-live="polite" aria-atomic="false" tabindex="0">
+        <div class="sp-log-virtual__spacer-top" aria-hidden="true"></div>
+        <ol class="sp-log-virtual__viewport"></ol>
+        <div class="sp-log-virtual__spacer-bottom" aria-hidden="true"></div>
+      </div>
+      <section class="sp-activity__help" aria-label="Help &amp; support">
+        <header class="sp-activity__help-title">Help &amp; Support</header>
+        <div class="sp-activity__help-actions">
+          <button data-action="open-log-folder" class="sp-btn-ghost" type="button">Open log folder</button>
+          <button data-action="export-bundle" class="sp-btn-ghost" type="button">Export diagnostic bundle</button>
+        </div>
+      </section>
     </aside>
   </main>
 
@@ -423,7 +398,7 @@
             <span class="sp-btn__icon sp-btn__icon--busy" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9" /><path d="M21 3v6h-6" opacity=".4"/></svg>
             </span>
-            <span class="sp-btn__label">Connect</span>
+            <span class="sp-btn__label" data-l10n-id="login-button">Connect</span>
           </button>
           <span id="setup-error" class="sp-setup__error" hidden></span>
         </div>
@@ -487,7 +462,7 @@
       <span class="sp-footer__path" id="config-path" title="Config path">—</span>
     </div>
     <div class="sp-footer__meta">
-      <span class="sp-footer__version">v__VERSION__</span>
+      <span class="sp-footer__version" title="Build __GIT_SHA__ committed __BUILD_DATE__">v__VERSION__ (__GIT_SHA__, __BUILD_DATE__)</span>
       <span class="sp-footer__sep" aria-hidden="true">·</span>
       <a href="https://systemprompt.io/docs/bridge/__PLATFORM__" target="_blank" rel="noopener noreferrer">docs</a>
       <span class="sp-footer__sep" aria-hidden="true">·</span>

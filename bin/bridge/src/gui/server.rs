@@ -23,6 +23,7 @@ impl Server {
         let csrf_token = mint_csrf_token();
         let log: &'static ActivityLog = activity_log();
         tracing::info!(port, "gui-server listening");
+        crate::single_instance::write_running_port(port, &csrf_token);
 
         let csrf_clone = csrf_token.clone();
         std::thread::spawn(move || {

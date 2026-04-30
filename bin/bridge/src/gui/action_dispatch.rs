@@ -69,15 +69,18 @@ fn parse_action(path: &str, body: &[u8]) -> Option<ActionOutcome> {
 
 fn parse_simple(path: &str) -> Option<ActionOutcome> {
     let event = match path {
-        "/api/sync" => UiEvent::SyncRequested,
-        "/api/validate" => UiEvent::ValidateRequested,
-        "/api/probe" => UiEvent::GatewayProbeRequested,
-        "/api/logout" => UiEvent::LogoutRequested,
+        "/api/sync" => UiEvent::SyncRequested { reply_to: None },
+        "/api/validate" => UiEvent::ValidateRequested { reply_to: None },
+        "/api/probe" => UiEvent::GatewayProbeRequested { reply_to: None },
+        "/api/logout" => UiEvent::LogoutRequested { reply_to: None },
         "/api/open_folder" => UiEvent::OpenConfigFolder,
+        "/api/diagnostics/open_log_dir" => UiEvent::OpenLogDirectory { reply_to: None },
+        "/api/diagnostics/export_bundle" => UiEvent::ExportDiagnosticBundle { reply_to: None },
+        "/api/focus_window" => UiEvent::FocusWindow,
         "/api/setup/complete" => UiEvent::SetupComplete,
-        "/api/proxy/probe" => {
-            UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProxyProbeRequested)
-        },
+        "/api/proxy/probe" => UiEvent::Host(
+            crate::gui::hosts::events::HostUiEvent::ProxyProbeRequested { reply_to: None },
+        ),
         _ => return None,
     };
     Some(ActionOutcome::Event(event))
@@ -93,7 +96,10 @@ fn parse_with_body(path: &str, body: &[u8]) -> Option<ActionOutcome> {
 
 fn parse_set_gateway(body: &[u8]) -> ActionOutcome {
     match serde_json::from_slice::<SetGatewayBody>(body) {
-        Ok(b) => ActionOutcome::Event(UiEvent::SetGatewayRequested(b.url)),
+        Ok(b) => ActionOutcome::Event(UiEvent::SetGatewayRequested {
+            url: b.url,
+            reply_to: None,
+        }),
         Err(e) => bad_request(format!("bad gateway body: {e}")),
     }
 }
@@ -103,6 +109,7 @@ fn parse_login(body: &[u8]) -> ActionOutcome {
         Ok(b) => ActionOutcome::Event(UiEvent::LoginRequested {
             token: b.token,
             gateway: b.gateway,
+            reply_to: None,
         }),
         Err(e) => bad_request(format!("bad login body: {e}")),
     }
@@ -121,7 +128,10 @@ fn parse_dynamic(path: &str, body: &[u8]) -> Option<ActionOutcome> {
 fn parse_hosts(path: &str, body: &[u8]) -> Option<ActionOutcome> {
     if path.ends_with("/probe") {
         return Some(host_id_event(path, "/api/hosts/", "/probe", |host_id| {
-            UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProbeRequested { host_id })
+            UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProbeRequested {
+                host_id,
+                reply_to: None,
+            })
         }));
     }
     if path.ends_with("/profile/generate") {
@@ -131,7 +141,10 @@ fn parse_hosts(path: &str, body: &[u8]) -> Option<ActionOutcome> {
             "/profile/generate",
             |host_id| {
                 UiEvent::Host(
-                    crate::gui::hosts::events::HostUiEvent::ProfileGenerateRequested { host_id },
+                    crate::gui::hosts::events::HostUiEvent::ProfileGenerateRequested {
+                        host_id,
+                        reply_to: None,
+                    },
                 )
             },
         ));
@@ -152,6 +165,7 @@ fn parse_profile_install(path: &str, body: &[u8]) -> ActionOutcome {
             crate::gui::hosts::events::HostUiEvent::ProfileInstallRequested {
                 host_id,
                 path: b.path,
+                reply_to: None,
             },
         )),
         Err(e) => bad_request(format!("bad install body: {e}")),
@@ -164,7 +178,10 @@ fn parse_agents(path: &str) -> Option<ActionOutcome> {
             path,
             "/api/agents/",
             "/uninstall",
-            |host_id| UiEvent::AgentUninstall { host_id },
+            |host_id| UiEvent::AgentUninstall {
+                host_id,
+                reply_to: None,
+            },
         ));
     }
     if path.ends_with("/open-config") {
@@ -172,7 +189,10 @@ fn parse_agents(path: &str) -> Option<ActionOutcome> {
             path,
             "/api/agents/",
             "/open-config",
-            |host_id| UiEvent::AgentOpenConfig { host_id },
+            |host_id| UiEvent::AgentOpenConfig {
+                host_id,
+                reply_to: None,
+            },
         ));
     }
     None
