@@ -13,7 +13,8 @@ export class SpToast extends SpElement {
   onConnect() {
     this.classList.add("sp-toast");
     this.setAttribute("role", "status");
-    this.setAttribute("aria-live", "polite");
+    this.setAttribute("aria-live", "assertive");
+    this.setAttribute("aria-atomic", "true");
     this.bridgeSubscribe("error", (err) => {
       const msg = (err && err.message) || "error";
       this.show(msg, "error", 8000);
