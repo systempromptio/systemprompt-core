@@ -13,14 +13,14 @@
 .cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: var(--sp-space-2-5);
+  margin-bottom: var(--sp-space-3-5);
 }
 .card {
   background: var(--sp-bg-elev-2);
   border: 1px solid var(--sp-line);
   border-radius: 12px;
-  padding: 14px;
+  padding: var(--sp-space-3-5);
   text-align: center;
 }
 .card-num   { font-size: 26px; font-weight: 700; color: var(--sp-accent); }
