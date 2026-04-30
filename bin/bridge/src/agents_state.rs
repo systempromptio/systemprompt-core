@@ -30,9 +30,20 @@ impl AgentsState {
     }
 }
 
-fn store_path() -> Option<PathBuf> {
+pub fn store_path() -> Option<PathBuf> {
     let base = dirs::config_dir()?;
     Some(base.join("systemprompt").join(FILENAME))
+}
+
+pub fn delete() -> io::Result<()> {
+    let Some(path) = store_path() else {
+        return Ok(());
+    };
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 pub fn load() -> AgentsState {
@@ -43,6 +54,27 @@ pub fn load() -> AgentsState {
         return AgentsState::default();
     };
     serde_json::from_slice(&bytes).unwrap_or_default()
+}
+
+pub fn store_exists() -> bool {
+    store_path().is_some_and(|p| p.exists())
+}
+
+pub fn migrate_from_existing_profiles() -> (AgentsState, Vec<String>) {
+    let mut state = AgentsState::default();
+    let mut migrated: Vec<String> = Vec::new();
+    for host in crate::integration::host_apps() {
+        let snap = host.probe();
+        let installed = matches!(
+            snap.profile_state,
+            crate::integration::ProfileState::Installed
+        );
+        if installed {
+            state.set_enabled(host.id(), true);
+            migrated.push(host.id().to_string());
+        }
+    }
+    (state, migrated)
 }
 
 pub fn save(state: &AgentsState) -> io::Result<()> {

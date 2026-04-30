@@ -256,7 +256,7 @@ impl GatewayClient {
         skip(self),
         fields(endpoint = "profile", status, latency_ms)
     )]
-    pub async fn fetch_cowork_profile(&self) -> Result<CoworkProfile, GatewayError> {
+    pub async fn fetch_bridge_profile(&self) -> Result<CoworkProfile, GatewayError> {
         let url = self.url("/v1/cowork/profile");
         let started = Instant::now();
         let resp = self

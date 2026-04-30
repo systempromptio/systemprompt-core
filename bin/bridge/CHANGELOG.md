@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- **Tech-debt sweep on the per-agent enabled feature.**
+  - `auth::setup::clean()` now also removes `~/.config/systemprompt/agents.json`. Previously a `clean` left stale enabled state behind.
+  - Existing users get a one-shot migration on first run after upgrade: when no `agents.json` exists yet, `gui::run_agents_migration_if_needed` probes every registered host and auto-enables those whose `profile_state` is already `installed`. The old "everything is silently disabled" behaviour after upgrade is gone.
+  - `apply_host_snapshot` no-ops (and removes any existing entry) when the host has been disabled mid-probe, so an in-flight probe that finishes after a disable can no longer re-insert the host into `state.hosts`.
+  - `agents.setEnabled` is now idempotent: setting the same value twice returns `{ changed: false }` and skips both the activity-log line and the wasted manual probe.
+  - Setup-wizard "Install profile" handler now records which step failed (`enable` / `generate` / `install`) on the button's `data-failed-stage` and surfaces the underlying error message in `title`, so partial failures stop being silent.
+  - `proxy_probe::probe` does an actual HTTP `HEAD /healthz` after the TCP connect and reports the status on `ProxyHealth.http_status`, so a stray process listening on port 48217 no longer claims `Listening` for the bridge proxy.
+  - Renamed `GatewayClient::fetch_cowork_profile` → `fetch_bridge_profile` to finish the cowork→bridge rename on the bridge side. Server endpoint path and `CoworkProfile` type are unchanged (server contract).
+  - Moved `agents_state` from `gui/` to a top-level module so non-GUI builds (`auth::setup::clean`) can reference it without `cfg`-gates.
 - **Setup wizard's Install button was a no-op.** It only called `host.profile.generate`, which writes a profile file but does not copy it into the OS-managed location, so the host's `profile_state` never flipped to `installed` and the UI stayed on "Install profile" forever. Now the setup-agents handler enables the host (so the new gating doesn't reject the call), generates the profile, and immediately installs the resulting path — three IPCs in sequence — matching the user's intent of "set up this agent".
 - **Local proxy probe always returned `Unconfigured` until at least one host had been installed**, because `AppState::first_configured_proxy_url` derived the probe target from `host.profile_keys.inferenceGatewayBaseUrl` (which only populates after install). The bridge owns the proxy and knows its port — now `first_configured_proxy_url` returns `http://127.0.0.1:<proxy.handle.port>` when the proxy is running, falling back to the host-derived URL only if the proxy hasn't started yet. Cures the "awaiting first launch" badge that stuck even when Claude was actively routing through the proxy.
 

@@ -348,7 +348,7 @@ async fn generate_profile_for(
         })?;
 
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = GatewayClient::new(gateway_base).fetch_cowork_profile().await?;
+    let server_profile = GatewayClient::new(gateway_base).fetch_bridge_profile().await?;
 
     let models = if server_profile.models.is_empty() {
         crate::integration::claude_desktop::default_models()

@@ -62,7 +62,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         };
     };
 
-    let stream = match std::net::TcpStream::connect_timeout(
+    let mut stream = match std::net::TcpStream::connect_timeout(
         &resolved,
         std::time::Duration::from_millis(1500),
     ) {
@@ -99,17 +99,59 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         },
     };
 
+    let http_status = match http_head_status(&mut stream, &host) {
+        Ok(s) => s,
+        Err(e) => {
+            return ProxyHealth {
+                url: Some(url.to_string()),
+                state: ProxyProbeState::HttpError,
+                error: Some(e),
+                latency_ms: Some(elapsed_ms(started)),
+                probed_at_unix,
+                ..Default::default()
+            };
+        },
+    };
+
     let latency_ms = elapsed_ms(started);
     let _ = stream.shutdown(std::net::Shutdown::Both);
 
     ProxyHealth {
         url: Some(url.to_string()),
         state: ProxyProbeState::Listening,
-        http_status: None,
+        http_status: Some(http_status),
         latency_ms: Some(latency_ms),
         error: None,
         probed_at_unix,
     }
+}
+
+fn http_head_status(stream: &mut std::net::TcpStream, host: &str) -> Result<u16, String> {
+    use std::io::{Read, Write};
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
+    let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(1500)));
+    let req = format!(
+        "HEAD /healthz HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: \
+         systemprompt-bridge-probe\r\n\r\n",
+    );
+    stream
+        .write_all(req.as_bytes())
+        .map_err(|e| format!("write probe: {e}"))?;
+    let mut buf = [0u8; 64];
+    let n = stream
+        .read(&mut buf)
+        .map_err(|e| format!("read probe: {e}"))?;
+    if n < 12 {
+        return Err(format!("short response: {n} bytes"));
+    }
+    let line = std::str::from_utf8(&buf[..n]).map_err(|e| format!("non-utf8 status: {e}"))?;
+    let mut parts = line.split_whitespace();
+    let _version = parts.next();
+    let code = parts
+        .next()
+        .ok_or_else(|| "missing status code".to_string())?;
+    code.parse::<u16>()
+        .map_err(|e| format!("bad status code '{code}': {e}"))
 }
 
 fn elapsed_ms(started: Instant) -> u64 {
