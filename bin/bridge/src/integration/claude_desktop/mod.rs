@@ -76,7 +76,8 @@ impl HostApp for ClaudeDesktopHost {
     }
 
     fn description(&self) -> &'static str {
-        "Anthropic's official desktop client for Claude. Routes inference through the systemprompt gateway via managed policy."
+        "Anthropic's official desktop client for Claude. Routes inference through the systemprompt \
+         gateway via managed policy."
     }
 
     fn icon_id(&self) -> &'static str {

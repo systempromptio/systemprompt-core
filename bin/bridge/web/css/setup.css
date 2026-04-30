@@ -3,7 +3,7 @@
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 40px 22px;
+  padding: var(--sp-space-10) var(--sp-space-6);
 }
 body.setup-mode .layout { display: none; }
 body.setup-mode .setup  { display: flex; }
@@ -14,7 +14,7 @@ body.setup-mode .setup  { display: flex; }
   background: linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-md);
-  padding: 36px 36px 28px;
+  padding: var(--sp-space-8) var(--sp-space-8) var(--sp-space-7);
   box-shadow:
     var(--sp-shadow-2),
     var(--sp-shadow-accent),
@@ -24,8 +24,8 @@ body.setup-mode .setup  { display: flex; }
 .setup-hero {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 24px;
+  gap: var(--sp-space-2-5);
+  margin-bottom: var(--sp-space-6);
 }
 .setup-mark {
   width: 48px;
@@ -37,7 +37,7 @@ body.setup-mode .setup  { display: flex; }
   background: oklch(0.70 0.17 51 / 0.10);
   border: 1px solid oklch(0.70 0.17 51 / 0.30);
   box-shadow: 0 6px 22px oklch(0.67 0.18 50 / 0.25);
-  margin-bottom: 4px;
+  margin-bottom: var(--sp-space-1);
 }
 .setup-mark svg { width: 28px; height: 28px; display: block; }
 .setup-eyebrow {
@@ -47,7 +47,7 @@ body.setup-mode .setup  { display: flex; }
   text-transform: uppercase;
   color: var(--sp-accent);
   width: fit-content;
-  padding-bottom: 4px;
+  padding-bottom: var(--sp-space-1);
   border-bottom: 1px solid oklch(0.70 0.17 51 / 0.40);
 }
 .setup-card h1 {
@@ -58,14 +58,14 @@ body.setup-mode .setup  { display: flex; }
   line-height: 1.2;
 }
 .setup-lede {
-  margin: 4px 0 0;
+  margin: var(--sp-space-1) 0 0;
   color: var(--sp-muted);
   font-size: 13px;
   line-height: 1.55;
 }
 
-.setup-field { margin-bottom: 18px; display: flex; flex-direction: column; gap: 6px; }
-.setup-field input { border-radius: var(--sp-corners-sm); padding: 12px 14px; }
+.setup-field { margin-bottom: var(--sp-space-4-5); display: flex; flex-direction: column; gap: var(--sp-space-1-5); }
+.setup-field input { border-radius: var(--sp-corners-sm); padding: var(--sp-space-3) var(--sp-space-3-5); }
 .setup-field input:focus {
   border-color: var(--sp-accent);
   box-shadow: 0 0 0 3px oklch(0.70 0.17 51 / 0.30);
@@ -81,18 +81,18 @@ body.setup-mode .setup  { display: flex; }
 .setup-status {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-space-1);
   font-size: 12px;
   min-height: 18px;
 }
 
 .setup-hint {
-  margin: 4px 0 0;
+  margin: var(--sp-space-1) 0 0;
   font-size: 12px;
   color: var(--sp-muted);
   line-height: 1.5;
 }
-.setup-hint-detail { display: block; margin-top: 2px; }
+.setup-hint-detail { display: block; margin-top: var(--sp-space-0-5); }
 .setup-pat-link {
   color: var(--sp-accent);
   text-decoration: none;
@@ -110,10 +110,10 @@ body.setup-mode .setup  { display: flex; }
 .setup-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-top: 22px;
+  gap: var(--sp-space-3-5);
+  margin-top: var(--sp-space-6);
 }
-.setup-actions .primary { padding: 12px 22px; }
+.setup-actions .primary { padding: var(--sp-space-3) var(--sp-space-6); }
 .setup-error {
   font-size: 12px;
   color: oklch(0.72 0.18 25);
@@ -121,8 +121,8 @@ body.setup-mode .setup  { display: flex; }
 }
 
 .setup-warning {
-  margin: 24px 0 0;
-  padding: 12px 14px;
+  margin: var(--sp-space-6) 0 0;
+  padding: var(--sp-space-3) var(--sp-space-3-5);
   font-size: 13px;
   line-height: 1.5;
   color: oklch(0.86 0.13 80);
@@ -134,14 +134,14 @@ body.setup-mode .setup  { display: flex; }
 .setup-warning em { font-style: normal; font-weight: 600; }
 
 .setup-meta {
-  margin: 14px 0 0;
+  margin: var(--sp-space-3-5) 0 0;
   font-size: 12px;
   color: var(--sp-muted);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--sp-space-2-5);
   text-align: center;
   line-height: 1.5;
 }
@@ -150,7 +150,7 @@ body.setup-mode .setup  { display: flex; }
   color: var(--sp-accent);
   text-decoration: none;
   border-bottom: 1px solid oklch(0.70 0.17 51 / 0.45);
-  padding-bottom: 1px;
+  padding-bottom: var(--sp-space-px);
   transition: color 0.15s, border-color 0.15s;
 }
 .setup-meta a:hover { color: var(--sp-accent); border-bottom-color: var(--sp-accent); }

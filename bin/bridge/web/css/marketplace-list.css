@@ -1,4 +1,4 @@
-.mkt-list { padding: 12px 10px 10px; gap: 8px; overflow: hidden; }
+.mkt-list { padding: var(--sp-space-3) var(--sp-space-2-5) var(--sp-space-2-5); gap: var(--sp-space-2); overflow: hidden; }
 .mkt-search-wrap {
   position: relative;
   display: block;
@@ -6,7 +6,7 @@
 }
 .mkt-search-icon {
   position: absolute;
-  left: 10px;
+  left: var(--sp-space-2-5);
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
@@ -16,7 +16,7 @@
 }
 .mkt-search-kbd {
   position: absolute;
-  right: 8px;
+  right: var(--sp-space-2);
   top: 50%;
   transform: translateY(-50%);
   font-family: var(--sp-font-mono);
@@ -25,7 +25,7 @@
   background: var(--sp-bg);
   border: 1px solid var(--sp-line-soft);
   border-radius: 3px;
-  padding: 1px 5px;
+  padding: var(--sp-space-px) var(--sp-space-1);
   pointer-events: none;
   transition: opacity var(--sp-dur-fast) var(--sp-ease-out);
 }
@@ -36,7 +36,7 @@
   color: var(--sp-text);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-sm);
-  padding: 8px 12px 8px 32px;
+  padding: var(--sp-space-2) var(--sp-space-3) var(--sp-space-2) var(--sp-space-8);
   font: inherit;
   font-size: 12px;
   outline: none;
@@ -55,17 +55,17 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-space-0-5);
 }
 .mkt-item {
   position: relative;
-  padding: 9px 12px;
+  padding: var(--sp-space-2) var(--sp-space-3);
   border-radius: var(--sp-corners-sm);
   cursor: pointer;
   font-size: 13px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--sp-space-0-5);
   transition: background var(--sp-dur-fast) var(--sp-ease-out),
               box-shadow var(--sp-dur-fast) var(--sp-ease-out);
   animation: mkt-item-in var(--sp-dur-normal) var(--sp-ease-out) both;
@@ -81,8 +81,8 @@
   content: "";
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: var(--sp-space-2);
+  bottom: var(--sp-space-2);
   width: 2px;
   background: var(--sp-accent);
   border-radius: 0 2px 2px 0;
@@ -90,7 +90,7 @@
 .mkt-item-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-space-2);
   min-width: 0;
 }
 .mkt-item-name {
@@ -115,13 +115,13 @@
 .mkt-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-space-1);
   font-family: var(--sp-font-display);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 2px 6px;
+  padding: var(--sp-space-0-5) var(--sp-space-1-5);
   border-radius: var(--sp-corners-pill);
   color: var(--sp-muted-strong);
   background: var(--sp-bg-elev-2);
@@ -144,21 +144,21 @@
   text-transform: uppercase;
   letter-spacing: 1.4px;
   color: var(--sp-muted);
-  padding: 12px 10px 4px;
+  padding: var(--sp-space-3) var(--sp-space-2-5) var(--sp-space-1);
   border-top: 1px solid var(--sp-line-soft);
-  margin-top: 4px;
+  margin-top: var(--sp-space-1);
 }
-.mkt-group-label:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
+.mkt-group-label:first-child { border-top: none; margin-top: 0; padding-top: var(--sp-space-1); }
 
 .mkt-empty-state, .mkt-empty {
-  padding: 28px 18px;
+  padding: var(--sp-space-7) var(--sp-space-4-5);
   font-size: 13px;
   color: var(--sp-muted);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-space-2);
 }
 .mkt-empty-glyph {
   width: 48px;
@@ -170,7 +170,7 @@
   background: var(--sp-bg-elev-2);
   border: 1px dashed var(--sp-line);
   color: var(--sp-muted);
-  margin-bottom: 4px;
+  margin-bottom: var(--sp-space-1);
 }
 .mkt-empty-glyph svg { width: 22px; height: 22px; }
 .mkt-empty-title {
@@ -180,7 +180,7 @@
   color: var(--sp-text);
 }
 .mkt-empty-sub { font-size: 12px; color: var(--sp-muted); }
-.mkt-empty-actions { margin-top: 6px; }
+.mkt-empty-actions { margin-top: var(--sp-space-1-5); }
 
 .mkt-skeleton {
   height: 44px;

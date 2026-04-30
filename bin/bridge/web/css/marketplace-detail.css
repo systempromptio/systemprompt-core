@@ -1,5 +1,5 @@
 .mkt-detail {
-  padding: 22px 24px;
+  padding: var(--sp-space-6) var(--sp-space-6);
   overflow-y: auto;
   animation: mkt-detail-in var(--sp-dur-normal) var(--sp-ease-out);
 }
@@ -10,9 +10,9 @@
 .mkt-detail-head {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
-  gap: 14px;
+  gap: var(--sp-space-3-5);
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: var(--sp-space-3-5);
 }
 .mkt-detail-icon {
   width: 44px;
@@ -30,7 +30,7 @@
 .mkt-detail-title {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-space-1);
   min-width: 0;
 }
 .mkt-detail h2 {
@@ -46,11 +46,11 @@
 .mkt-detail-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: var(--sp-space-1-5);
+  margin-bottom: var(--sp-space-3-5);
 }
 .mkt-detail-summary {
-  margin: 0 0 14px;
+  margin: 0 0 var(--sp-space-3-5);
   font-size: 13px;
   line-height: 1.6;
   color: var(--sp-muted-strong);
@@ -60,26 +60,26 @@
 .mkt-detail-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-space-2);
   flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
+  margin-bottom: var(--sp-space-4);
+  padding-bottom: var(--sp-space-3-5);
   border-bottom: 1px solid var(--sp-line-soft);
 }
 .mkt-detail-actions button {
-  padding: 7px 12px;
+  padding: var(--sp-space-2) var(--sp-space-3);
   font-size: 12px;
   border-radius: var(--sp-corners-sm);
 }
 
-.mkt-detail-section { margin-top: 16px; }
+.mkt-detail-section { margin-top: var(--sp-space-4); }
 .mkt-detail-section h3 {
   font-family: var(--sp-font-display);
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 1.4px;
   color: var(--sp-muted);
-  margin: 0 0 8px;
+  margin: 0 0 var(--sp-space-2);
   font-weight: 600;
 }
 .mkt-detail-readme {
@@ -87,7 +87,7 @@
   background: var(--sp-bg);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-sm);
-  padding: 14px 16px;
+  padding: var(--sp-space-3-5) var(--sp-space-4);
   font-family: var(--sp-font-body);
   font-size: 13px;
   line-height: 1.55;
@@ -102,11 +102,11 @@
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-space-2-5);
   background: var(--sp-bg);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-sm);
-  padding: 8px 10px;
+  padding: var(--sp-space-2) var(--sp-space-2-5);
 }
 .mkt-detail-path-row svg { width: 14px; height: 14px; color: var(--sp-muted); }
 .mkt-detail-path {
@@ -125,7 +125,7 @@
   background: transparent;
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-sm);
-  padding: 4px 9px;
+  padding: var(--sp-space-1) var(--sp-space-2);
   cursor: pointer;
   transition: color var(--sp-dur-fast) var(--sp-ease-out),
               border-color var(--sp-dur-fast) var(--sp-ease-out),
@@ -137,9 +137,9 @@
 .mkt-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-space-2);
   flex-wrap: wrap;
-  padding: 14px 16px;
+  padding: var(--sp-space-3-5) var(--sp-space-4);
   margin-top: -1px;
   border: 1px solid var(--sp-line);
   border-radius: 0 0 var(--sp-corners-md) var(--sp-corners-md);
@@ -148,11 +148,11 @@
 .mkt-actions .mkt-meta {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-space-1-5);
   color: var(--sp-muted);
   font-size: 11.5px;
   margin-left: auto;
-  padding: 4px 10px;
+  padding: var(--sp-space-1) var(--sp-space-2-5);
   border-radius: var(--sp-corners-pill);
   background: var(--sp-bg-elev-2);
   border: 1px solid var(--sp-line-soft);

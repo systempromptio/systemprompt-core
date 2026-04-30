@@ -17,9 +17,9 @@ h1, h2, h3, h4 { font-family: var(--sp-font-display); }
 
 .sp-skip-link {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 8px 14px;
+  top: var(--sp-space-2);
+  left: var(--sp-space-2);
+  padding: var(--sp-space-2) var(--sp-space-3-5);
   background: var(--sp-accent);
   color: oklch(0.18 0.04 50);
   font-family: var(--sp-font-display);

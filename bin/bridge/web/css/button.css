@@ -7,7 +7,7 @@ input[type="text"] {
   color: var(--sp-text);
   border: 1px solid var(--sp-line);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: var(--sp-space-2-5) var(--sp-space-3);
   font: inherit;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -17,11 +17,11 @@ input:focus {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 25%, transparent);
 }
 
-.row { display: flex; gap: 8px; margin: 6px 0 14px; flex-wrap: wrap; }
+.row { display: flex; gap: var(--sp-space-2); margin: var(--sp-space-1-5) 0 var(--sp-space-3-5); flex-wrap: wrap; }
 
 button {
   font: inherit;
-  padding: 10px 14px;
+  padding: var(--sp-space-2-5) var(--sp-space-3-5);
   border-radius: 10px;
   border: 1px solid var(--sp-line);
   background: var(--sp-bg-elev-2);
