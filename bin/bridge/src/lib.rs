@@ -12,6 +12,13 @@ pub mod config;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
+
+#[cfg(all(
+    feature = "ts-export",
+    not(any(target_os = "windows", target_os = "macos"))
+))]
+#[path = "gui/ipc.rs"]
+pub mod ipc_types;
 pub mod i18n;
 pub mod ids;
 pub mod install;
@@ -90,4 +97,30 @@ pub fn run() -> ExitCode {
     obs::tracing_init::init();
     activity::install_persistent_writer();
     cli::run()
+}
+
+#[cfg(all(test, feature = "ts-export"))]
+mod ts_export_tests {
+    #![allow(clippy::expect_used)]
+
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest};
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    use crate::ipc_types::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest};
+    use ts_rs::TS;
+
+    #[test]
+    #[ignore]
+    fn export_bindings() {
+        assert!(
+            std::env::var_os("TS_RS_EXPORT_DIR").is_some(),
+            "TS_RS_EXPORT_DIR must be set so ts-rs writes paths relative to the crate root. \
+             Run: TS_RS_EXPORT_DIR=. cargo test --features ts-export export_bindings -- --ignored"
+        );
+        BridgeError::export_all().expect("export BridgeError");
+        ErrorScope::export_all().expect("export ErrorScope");
+        ErrorCode::export_all().expect("export ErrorCode");
+        IpcRequest::export_all().expect("export IpcRequest");
+        IpcReplyPayload::export_all().expect("export IpcReplyPayload");
+    }
 }

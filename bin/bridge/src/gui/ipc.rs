@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorScope {
     Gateway,
@@ -13,6 +15,8 @@ pub enum ErrorScope {
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     Unreachable,
@@ -26,11 +30,14 @@ pub enum ErrorCode {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct BridgeError {
     pub scope: ErrorScope,
     pub code: ErrorCode,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts-export", ts(optional, type = "unknown"))]
     pub detail: Option<Value>,
 }
 
@@ -63,19 +70,26 @@ impl BridgeError {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct IpcRequest {
     pub id: u64,
     pub cmd: String,
     #[serde(default)]
+    #[cfg_attr(feature = "ts-export", ts(type = "unknown"))]
     pub args: Value,
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct IpcReplyPayload {
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts-export", ts(optional, type = "unknown"))]
     pub value: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts-export", ts(optional))]
     pub error: Option<BridgeError>,
 }
 
