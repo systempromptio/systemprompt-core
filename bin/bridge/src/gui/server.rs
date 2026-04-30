@@ -9,11 +9,13 @@ use crate::gui::server_util::{constant_time_eq, mint_csrf_token};
 use crate::gui::state::AppState;
 use crate::obs::output::diag;
 
+// FIXME(focus-ipc): replace this 127.0.0.1 TCP listener with Unix domain
+// sockets (Linux/macOS) and a named pipe (Windows). The kernel-enforced
+// per-user namespace would obviate the CSRF token. Kept as TCP+CSRF for now
+// because it works identically across all three platforms in <100 lines.
 #[derive(Clone)]
 pub struct Server {
     port: u16,
-    #[allow(dead_code)]
-    csrf_token: String,
 }
 
 impl Server {
@@ -25,7 +27,6 @@ impl Server {
         tracing::info!(port, "single-instance focus server listening");
         crate::single_instance::write_running_port(port, &csrf_token);
 
-        let csrf_clone = csrf_token.clone();
         std::thread::spawn(move || {
             for conn in listener.incoming() {
                 let stream = match conn {
@@ -36,12 +37,12 @@ impl Server {
                     },
                 };
                 let tx = tx.clone();
-                let token = csrf_clone.clone();
+                let token = csrf_token.clone();
                 std::thread::spawn(move || handle_focus(stream, &tx, &token));
             }
         });
 
-        Ok(Server { port, csrf_token })
+        Ok(Server { port })
     }
 
     pub fn url(&self) -> String {

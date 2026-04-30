@@ -13,7 +13,6 @@ pub mod gateway;
 pub mod i18n;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
-pub mod http_local;
 pub mod ids;
 pub mod install;
 pub mod integration;
