@@ -4,6 +4,7 @@ use crate::auth::types::{HelperOutput, SessionExchangeRequest};
 use crate::config::Config;
 use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
+use async_trait::async_trait;
 use std::process::Command;
 use std::time::Duration;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
@@ -27,20 +28,23 @@ impl SessionProvider {
     }
 }
 
+#[async_trait]
 impl AuthProvider for SessionProvider {
     fn name(&self) -> &'static str {
         "session"
     }
 
-    fn authenticate(&self) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(&self) -> Result<HelperOutput, AuthError> {
         if !self.configured {
             return Err(AuthError::NotConfigured);
         }
 
-        let server = LoopbackServer::bind().map_err(|e| AuthError::Failed {
-            provider: "session",
-            source: AuthFailedSource::Loopback(e),
-        })?;
+        let server = LoopbackServer::bind()
+            .await
+            .map_err(|e| AuthError::Failed {
+                provider: "session",
+                source: AuthFailedSource::Loopback(e),
+            })?;
         let callback = server.callback_url();
         let auth_url = build_auth_url(self.base_url.as_str(), callback.as_str());
 
@@ -52,6 +56,7 @@ impl AuthProvider for SessionProvider {
 
         let captured = server
             .accept_callback(Duration::from_secs(LOOPBACK_TIMEOUT_SECS))
+            .await
             .map_err(|e| AuthError::Failed {
                 provider: "session",
                 source: AuthFailedSource::Loopback(e),
@@ -64,6 +69,7 @@ impl AuthProvider for SessionProvider {
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
             .session_exchange(&req)
+            .await
             .map_err(|e| AuthError::Failed {
                 provider: "session",
                 source: AuthFailedSource::Gateway(e),

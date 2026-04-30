@@ -29,22 +29,14 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Sync);
     app.runtime.spawn(async move {
-        let task = tokio::task::spawn_blocking(|| {
-            let allow_tofu = config::pinned_pubkey().is_none();
-            sync::run_once(false, false, allow_tofu)
-                .map_err(GuiError::from)
-                .map_err(Arc::new)
-        });
+        let allow_tofu = config::pinned_pubkey().is_none();
         let result = tokio::select! {
             _ = token.cancelled() => {
                 Err(Arc::new(GuiError::Io(std::io::Error::other("sync cancelled"))))
             }
-            joined = task => match joined {
-                Ok(r) => r,
-                Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
-                    "sync task join: {join_err}"
-                ))))),
-            },
+            outcome = sync::run_once(false, false, allow_tofu) => {
+                outcome.map_err(GuiError::from).map_err(Arc::new)
+            }
         };
         let _ = proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });

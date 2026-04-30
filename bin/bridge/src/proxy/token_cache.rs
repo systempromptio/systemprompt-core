@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -9,7 +11,9 @@ use crate::{auth, config};
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub type RefreshFn = Arc<dyn Fn(u64) -> Option<HelperOutput> + Send + Sync>;
+pub type RefreshFn = Arc<
+    dyn Fn(u64) -> Pin<Box<dyn Future<Output = Option<HelperOutput>> + Send>> + Send + Sync,
+>;
 
 struct CachedEntry {
     token: HelperOutput,
@@ -35,8 +39,10 @@ impl TokenCache {
     #[must_use]
     pub fn default_for_runtime() -> Self {
         Self::new(Arc::new(|threshold| {
-            let cfg = config::load();
-            auth::read_or_refresh(&cfg, threshold)
+            Box::pin(async move {
+                let cfg = config::load();
+                auth::read_or_refresh(&cfg, threshold).await
+            })
         }))
     }
 
@@ -52,17 +58,14 @@ impl TokenCache {
         }
 
         let refresh = Arc::clone(&self.refresh);
-        let join = tokio::time::timeout(
-            REFRESH_TIMEOUT,
-            tokio::task::spawn_blocking(move || refresh(refresh_threshold_secs)),
-        )
-        .await
-        .map_err(|_| ForwardError::AuthTimeout)?
-        .map_err(|e| ForwardError::Auth(format!("auth task join: {e}")))?;
-
-        let token = join.ok_or_else(|| {
-            ForwardError::Auth("no JWT available — sign in via systemprompt-bridge GUI".to_string())
-        })?;
+        let token = tokio::time::timeout(REFRESH_TIMEOUT, refresh(refresh_threshold_secs))
+            .await
+            .map_err(|_| ForwardError::AuthTimeout)?
+            .ok_or_else(|| {
+                ForwardError::Auth(
+                    "no JWT available — sign in via systemprompt-bridge GUI".to_string(),
+                )
+            })?;
 
         tracing::info!("token cache refresh");
 

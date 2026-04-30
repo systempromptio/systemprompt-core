@@ -3,6 +3,7 @@ use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use crate::auth::types::{HelperOutput, MtlsRequest};
 use crate::config::Config;
 use crate::gateway::GatewayClient;
+use async_trait::async_trait;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
 pub struct MtlsProvider {
@@ -28,12 +29,13 @@ impl MtlsProvider {
     }
 }
 
+#[async_trait]
 impl AuthProvider for MtlsProvider {
     fn name(&self) -> &'static str {
         "mtls"
     }
 
-    fn authenticate(&self) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(&self) -> Result<HelperOutput, AuthError> {
         if !self.configured {
             return Err(AuthError::NotConfigured);
         }
@@ -50,10 +52,13 @@ impl AuthProvider for MtlsProvider {
             session_id: SessionId::generate(),
         };
         let client = GatewayClient::new(self.base_url.clone());
-        let resp = client.mtls_exchange(&req).map_err(|e| AuthError::Failed {
-            provider: "mtls",
-            source: AuthFailedSource::Gateway(e),
-        })?;
+        let resp = client
+            .mtls_exchange(&req)
+            .await
+            .map_err(|e| AuthError::Failed {
+                provider: "mtls",
+                source: AuthFailedSource::Gateway(e),
+            })?;
         Ok(resp.into())
     }
 }

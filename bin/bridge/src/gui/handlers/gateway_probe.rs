@@ -71,38 +71,6 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::GatewayProbe);
     app.runtime.spawn(async move {
-        let task = tokio::task::spawn_blocking(|| {
-            let cfg = config::load();
-            let gateway = config::gateway_url_or_default(&cfg);
-            let client = GatewayClient::new(gateway);
-
-            let started = std::time::Instant::now();
-            let status = match client.health() {
-                Ok(()) => GatewayStatus::Reachable {
-                    latency_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
-                },
-                Err(e) => GatewayStatus::Unreachable {
-                    reason: e.to_string(),
-                },
-            };
-
-            let identity = if matches!(status, GatewayStatus::Reachable { .. })
-                && crate::auth::has_credential_source(&cfg)
-            {
-                obtain_live_token(&cfg).and_then(|tok| decode_jwt_identity_unverified(tok.expose()))
-            } else {
-                if !crate::auth::has_credential_source(&cfg) {
-                    let _ = crate::auth::cache::clear();
-                }
-                None
-            };
-
-            GatewayProbeOutcome {
-                status,
-                identity,
-                at_unix: now_unix(),
-            }
-        });
         let outcome = tokio::select! {
             _ = token.cancelled() => GatewayProbeOutcome {
                 status: GatewayStatus::Unreachable {
@@ -111,18 +79,47 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
                 identity: None,
                 at_unix: now_unix(),
             },
-            joined = task => joined.unwrap_or_else(|_| GatewayProbeOutcome {
-                status: GatewayStatus::Unreachable {
-                    reason: "probe task panicked".into(),
-                },
-                identity: None,
-                at_unix: now_unix(),
-            }),
+            outcome = run_probe() => outcome,
         };
         let _ = proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
     });
 }
 
-fn obtain_live_token(cfg: &config::Config) -> Option<crate::auth::secret::Secret> {
-    crate::auth::obtain_live_token(cfg).map(|out| out.token)
+async fn run_probe() -> GatewayProbeOutcome {
+    let cfg = config::load();
+    let gateway = config::gateway_url_or_default(&cfg);
+    let client = GatewayClient::new(gateway);
+
+    let started = std::time::Instant::now();
+    let status = match client.health().await {
+        Ok(()) => GatewayStatus::Reachable {
+            latency_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        },
+        Err(e) => GatewayStatus::Unreachable {
+            reason: e.to_string(),
+        },
+    };
+
+    let identity = if matches!(status, GatewayStatus::Reachable { .. })
+        && crate::auth::has_credential_source(&cfg)
+    {
+        obtain_live_token(&cfg)
+            .await
+            .and_then(|tok| decode_jwt_identity_unverified(tok.expose()))
+    } else {
+        if !crate::auth::has_credential_source(&cfg) {
+            let _ = crate::auth::cache::clear();
+        }
+        None
+    };
+
+    GatewayProbeOutcome {
+        status,
+        identity,
+        at_unix: now_unix(),
+    }
+}
+
+async fn obtain_live_token(cfg: &config::Config) -> Option<crate::auth::secret::Secret> {
+    crate::auth::obtain_live_token(cfg).await.map(|out| out.token)
 }

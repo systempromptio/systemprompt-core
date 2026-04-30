@@ -39,24 +39,18 @@ pub struct Captured {
 pub struct LoopbackServer {
     listener: TcpListener,
     addr: SocketAddr,
-    rt: tokio::runtime::Handle,
 }
 
 impl LoopbackServer {
-    pub fn bind() -> Result<Self> {
-        let rt = crate::proxy::runtime_handle()
-            .or_else(|_| tokio::runtime::Handle::try_current().map_err(|_| ()))
-            .map_err(|()| LoopbackError::Io(std::io::Error::other("no tokio runtime available")))?;
-        let listener = rt.block_on(async {
-            TcpListener::bind(("127.0.0.1", LOOPBACK_PORT))
-                .await
-                .map_err(|source| LoopbackError::Bind {
-                    port: LOOPBACK_PORT,
-                    source,
-                })
-        })?;
+    pub async fn bind() -> Result<Self> {
+        let listener = TcpListener::bind(("127.0.0.1", LOOPBACK_PORT))
+            .await
+            .map_err(|source| LoopbackError::Bind {
+                port: LOOPBACK_PORT,
+                source,
+            })?;
         let addr = listener.local_addr()?;
-        Ok(Self { listener, addr, rt })
+        Ok(Self { listener, addr })
     }
 
     #[must_use]
@@ -67,15 +61,13 @@ impl LoopbackServer {
         })
     }
 
-    pub fn accept_callback(self, timeout: Duration) -> Result<Captured> {
-        let LoopbackServer { listener, rt, .. } = self;
-        rt.block_on(async move {
-            match tokio::time::timeout(timeout, listener.accept()).await {
-                Err(_) => Err(LoopbackError::Timeout(timeout.as_secs())),
-                Ok(Err(e)) => Err(LoopbackError::Io(e)),
-                Ok(Ok((stream, _))) => handle_connection(stream).await,
-            }
-        })
+    pub async fn accept_callback(self, timeout: Duration) -> Result<Captured> {
+        let LoopbackServer { listener, .. } = self;
+        match tokio::time::timeout(timeout, listener.accept()).await {
+            Err(_) => Err(LoopbackError::Timeout(timeout.as_secs())),
+            Ok(Err(e)) => Err(LoopbackError::Io(e)),
+            Ok(Ok((stream, _))) => handle_connection(stream).await,
+        }
     }
 }
 

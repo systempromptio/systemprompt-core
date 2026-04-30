@@ -29,7 +29,18 @@ pub(crate) fn cmd_sync(args: &[String]) -> ExitCode {
 }
 
 fn run_once_print(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) -> ExitCode {
-    match sync::run_once(allow_unsigned, force_replay, allow_tofu) {
+    let result = match crate::proxy::block_on(sync::run_once(
+        allow_unsigned,
+        force_replay,
+        allow_tofu,
+    )) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("runtime init failed: {e}");
+            return ExitCode::from(70);
+        },
+    };
+    match result {
         Ok(summary) => {
             output::print_line(&summary.one_line());
             ExitCode::SUCCESS

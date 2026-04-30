@@ -129,3 +129,12 @@ setup-step-label-connect = Step 1 of 3
 setup-step-label-agents = Step 2 of 3
 setup-step-label-done = Step 3 of 3
 setup-gateway-not-probed = not yet probed
+
+# Native menu bar ------------------------------------------------------------
+menu-edit = Edit
+menu-view = View
+menu-help = Help
+menu-show-settings = Show settings window
+menu-open-log-folder = Open log folder
+menu-export-bundle = Export diagnostic bundle
+menu-open-config = Open config folder

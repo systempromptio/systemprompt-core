@@ -13,7 +13,7 @@ use std::path::Path;
 
 pub use plugin::PluginApplyOutcome as ApplyReport;
 
-pub fn apply_manifest(
+pub async fn apply_manifest(
     client: &GatewayClient,
     bearer: &str,
     manifest: &SignedManifest,
@@ -30,7 +30,7 @@ pub fn apply_manifest(
         return Err(ApplyError::ReservedPluginId(reserved.id.clone()));
     }
 
-    let report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root)?;
+    let report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
 
     let _ = fs::remove_dir_all(&staging_root);
 

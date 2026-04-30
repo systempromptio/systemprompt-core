@@ -122,15 +122,7 @@ pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str, rep
     let host_id_owned = host_id.to_string();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
-        let result =
-            match tokio::task::spawn_blocking(move || generate_profile_for(host).map_err(Arc::new))
-                .await
-            {
-                Ok(r) => r,
-                Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
-                    "profile generate task join: {join_err}"
-                ))))),
-            };
+        let result = generate_profile_for(host).await.map_err(Arc::new);
         let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
             host_id: host_id_owned,
             result,
@@ -248,7 +240,7 @@ pub(crate) fn on_profile_install_finished(
     finish(app, bridge_result, reply_to);
 }
 
-fn generate_profile_for(
+async fn generate_profile_for(
     host: &'static dyn crate::integration::HostApp,
 ) -> GuiResult<GeneratedProfile> {
     let cfg = config::load();
@@ -263,7 +255,7 @@ fn generate_profile_for(
     })?;
 
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = GatewayClient::new(gateway_base).fetch_cowork_profile()?;
+    let server_profile = GatewayClient::new(gateway_base).fetch_cowork_profile().await?;
 
     let models = if server_profile.models.is_empty() {
         crate::integration::claude_desktop::default_models()

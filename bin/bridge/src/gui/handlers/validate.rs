@@ -10,12 +10,7 @@ pub(crate) fn on_validate_requested(app: &mut GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("validate-running"));
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
-        let report = tokio::task::spawn_blocking(validate::run)
-            .await
-            .unwrap_or_else(|_| validate::ValidationReport {
-                lines: Vec::new(),
-                any_failed: true,
-            });
+        let report = validate::run().await;
         let _ = proxy.send_event(UiEvent::ValidateFinished { report, reply_to });
     });
 }
