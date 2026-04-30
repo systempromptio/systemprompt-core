@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>systemprompt bridge</title>
-  <style>__STYLE__</style>
+  <link rel="stylesheet" href="/assets/css/main.css?t=__TOKEN__">
+  <script>window.__SP_TOKEN__ = "__TOKEN__";</script>
 </head>
 <body class="setup-mode platform-__PLATFORM__" data-setup-step="connect">
   <a href="#main" class="sp-skip-link">Skip to content</a>
@@ -160,9 +161,9 @@
         </div>
 
         <footer class="mkt-actions">
-          <button id="btn-sync"        class="primary" type="button">Sync now</button>
-          <button id="btn-validate"    class="ghost"   type="button">Validate</button>
-          <button id="btn-open-folder" class="ghost"   type="button">Open folder</button>
+          <button id="btn-sync"        data-action="sync"        class="primary" type="button">Sync now</button>
+          <button data-action="validate"                          class="ghost"   type="button">Validate</button>
+          <button data-action="open-folder"                       class="ghost"   type="button">Open folder</button>
           <span id="mkt-meta" class="mkt-meta" data-state="never" title="—">
             <span class="dot" aria-hidden="true"></span>
             <span id="last-sync">never synced</span>
@@ -207,7 +208,7 @@
                   <div class="status-detail muted">last probe <span id="server-probe">—</span></div>
                 </td>
                 <td class="status-actions">
-                  <button id="btn-recheck" class="ghost" type="button">Re-check</button>
+                  <button data-action="recheck" class="ghost" type="button">Re-check</button>
                 </td>
               </tr>
               <tr>
@@ -226,7 +227,7 @@
                   </div>
                 </td>
                 <td class="status-actions">
-                  <button id="btn-logout" class="ghost" type="button">Log out</button>
+                  <button data-action="logout" class="ghost" type="button">Log out</button>
                 </td>
               </tr>
             </tbody>
@@ -357,9 +358,9 @@
           </div>
         </div>
         <div class="row">
-          <button id="btn-settings-folder" class="ghost" type="button">Open config folder</button>
-          <button id="btn-settings-validate" class="ghost" type="button">Run validate</button>
-          <button id="btn-settings-change-gateway" class="ghost" type="button">Change gateway</button>
+          <button data-action="open-folder" class="ghost" type="button">Open config folder</button>
+          <button data-action="validate" class="ghost" type="button">Run validate</button>
+          <button data-action="change-gateway" class="ghost" type="button">Change gateway</button>
         </div>
         <p class="settings-note muted">
           Demo build — for production licensing contact
@@ -408,7 +409,7 @@
           <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" />
           <p class="setup-hint">
             Don't have one yet?
-            <a id="setup-pat-link" class="setup-pat-link" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">
+            <a id="setup-pat-link" data-action="setup-pat-link" class="setup-pat-link" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">
               Open the gateway admin login →
             </a>
             <span class="setup-hint-detail">Sign in there, issue a device PAT, then paste it above.</span>
@@ -416,7 +417,7 @@
         </div>
 
         <div class="setup-actions">
-          <button id="setup-connect" class="primary" type="button">Connect</button>
+          <button id="setup-connect" data-action="setup-connect" class="primary" type="button">Connect</button>
           <span id="setup-error" class="setup-error" hidden></span>
         </div>
       </div>
@@ -425,15 +426,15 @@
         <p class="setup-lede">Pick the coding agents you want systemprompt bridge to govern. You can install more later from the Agents tab.</p>
         <div id="setup-agents-list" class="setup-agents-list" aria-live="polite"></div>
         <div class="setup-actions">
-          <button id="setup-skip-agents" class="ghost" type="button">Skip — set up later</button>
-          <button id="setup-finish" class="primary" type="button">Finish</button>
+          <button data-action="setup-skip-agents" class="ghost" type="button">Skip — set up later</button>
+          <button data-action="setup-finish" class="primary" type="button">Finish</button>
         </div>
       </div>
 
       <div class="setup-step" data-step="done">
         <p class="setup-lede">systemprompt bridge is ready. Open the workspace to manage agents, sync the marketplace, and watch the proxy.</p>
         <div class="setup-actions">
-          <button id="setup-open" class="primary" type="button">Open systemprompt bridge</button>
+          <button data-action="setup-open" class="primary" type="button">Open systemprompt bridge</button>
         </div>
       </div>
 
@@ -474,6 +475,6 @@
     </div>
   </footer>
 
-  <script type="module" src="/assets/js/main.js?t=__TOKEN__"></script>
+  <script type="module" src="/assets/js/index.js?t=__TOKEN__" defer></script>
 </body>
 </html>

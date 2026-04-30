@@ -12,6 +12,7 @@
 
 - `gui::connection`, `gui::dispatch`, `gui::events`, `gui::hosts`, `gui::server_json`, `gui::state`, `gui::mod` — refactored alongside new agents handler and Codex CLI integration.
 - `web/index.html`, `web/style.css`, `web/js/snapshot.js` — GUI updates ahead of the modular asset refactor.
+- GUI assets are now served as 22 modular CSS files and 24 JS ES modules from `/assets/css/*` and `/assets/js/*` instead of inlined into `index.html` via `__STYLE__`/`__SCRIPT__`. Each file is `include_str!`-bundled, served with `?t=<csrf>` token guard, and substituted with the per-request token.
 
 ## [0.6.0] - 2026-04-30
 
