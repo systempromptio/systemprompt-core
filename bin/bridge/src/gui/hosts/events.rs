@@ -4,14 +4,22 @@ use crate::gui::error::GuiError;
 use crate::gui::events::ReplyId;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProbeCause {
+    Tick,
+    Manual,
+}
+
 #[derive(Debug, Clone)]
 pub enum HostUiEvent {
     ProbeRequested {
         host_id: String,
+        cause: ProbeCause,
         reply_to: ReplyId,
     },
     ProbeFinished {
         host_id: String,
+        cause: ProbeCause,
         snapshot: Box<HostAppSnapshot>,
         reply_to: ReplyId,
     },

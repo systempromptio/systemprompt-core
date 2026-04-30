@@ -5,7 +5,6 @@
   justify-content: center;
   padding: var(--sp-space-10) var(--sp-space-6);
 }
-body.is-setup-mode .sp-layout { display: none; }
 body.is-setup-mode .sp-topbar { display: none; }
 body.is-setup-mode .sp-footer { display: none; }
 body.is-setup-mode .sp-setup  { display: flex; }
@@ -89,7 +88,6 @@ body.is-setup-mode .sp-setup  { display: flex; }
   color: var(--sp-muted);
   line-height: 1.5;
 }
-.sp-setup__hint-detail { display: block; margin-top: var(--sp-space-0-5); }
 .sp-setup__pat-link {
   color: var(--sp-accent);
   text-decoration: none;

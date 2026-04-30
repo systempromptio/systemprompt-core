@@ -1,3 +1,4 @@
+pub mod agents_state;
 pub mod assets;
 pub mod command;
 pub mod dispatch;

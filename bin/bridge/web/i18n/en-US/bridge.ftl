@@ -118,6 +118,10 @@ host-badge-partial = partial
 host-badge-awaiting = awaiting first launch
 host-badge-healthy = healthy
 host-badge-proxy-down = local proxy down
+host-badge-disabled = disabled
+host-toggle-enable = Enable
+host-toggle-disable = Disable
+host-disabled-lede = This agent is disabled. Enable it to probe configuration and route inference through the local proxy.
 
 # Agents (tab summary + setup) ------------------------------------------------
 setup-agents-empty = No agents available on this platform.

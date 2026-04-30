@@ -81,38 +81,6 @@ button.sp-btn-primary[disabled] {
   cursor: progress;
 }
 
-button.sp-btn-primary .sp-btn__icon {
-  display: inline-flex;
-  width: 18px;
-  height: 18px;
-  align-items: center;
-  justify-content: center;
-  color: oklch(0.30 0.02 50 / 0.60);
-  transition: color 0.18s ease;
-}
-button.sp-btn-primary .sp-btn__icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-button.sp-btn-primary:hover .sp-btn__icon { color: oklch(0.20 0.04 50); }
-
-button.sp-btn-primary .sp-btn__icon--busy { display: none; }
-button.sp-btn-primary[aria-busy="true"] .sp-btn__icon--default { display: none; }
-button.sp-btn-primary[aria-busy="true"] .sp-btn__icon--busy {
-  display: inline-flex;
-  color: oklch(0.20 0.04 50);
-  animation: sp-btn-spin 0.85s linear infinite;
-}
-@keyframes sp-btn-spin {
-  to { transform: rotate(360deg); }
-}
-
 button.sp-btn-primary .sp-btn__label {
   display: inline-block;
   min-width: 0;

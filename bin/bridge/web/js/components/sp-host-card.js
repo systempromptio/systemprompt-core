@@ -30,18 +30,51 @@ export class SpHostCard extends SpElement {
         try { await bridge.hostProbe(this.host.id); } catch (e) { console.warn("reverify", e); }
       }
     });
+    this.registerAction("toggle-enabled", async (el) => {
+      if (!this.host) { return; }
+      const next = !(this.host.enabled === true);
+      el.disabled = true;
+      try {
+        await bridge.agentsSetEnabled(this.host.id, next);
+      } catch (e) {
+        console.warn("toggle agent", e);
+        el.disabled = false;
+      }
+    });
   }
 
   render() {
     const host = this.host || {};
+    const enabled = host.enabled === true;
     const snap = this.snapshot || {};
-    const hs = host.snapshot || null;
+    const hs = (enabled && host.snapshot) || null;
     const profileState = (hs && hs.profile_state) || { kind: "absent" };
     const missing = profileState.missing_required || [];
     const installed = profileState.kind === "installed";
     const partial = profileState.kind === "partial";
     const proxyState = ((snap.local_proxy && snap.local_proxy.state) || "Unknown").toString();
-    const badge = hs ? chooseBadge(installed, partial, proxyState) : { text: "probing…", cls: "sp-badge--muted" };
+    const badge = enabled
+      ? (hs ? chooseBadge(installed, partial, proxyState) : { text: "probing…", cls: "sp-badge--muted" })
+      : { text: t("host-badge-disabled") || "disabled", cls: "sp-badge--muted" };
+
+    const toggleLabel = enabled
+      ? (t("host-toggle-disable") || "Disable")
+      : (t("host-toggle-enable") || "Enable");
+
+    if (!enabled) {
+      return `
+        <article class="sp-host-card sp-host-card--disabled">
+          <header class="sp-host-card__head">
+            <h3 class="sp-host-card__name">${escapeHtml(host.display_name || "—")}</h3>
+            <span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>
+          </header>
+          <p class="sp-host-card__lede sp-u-muted">${escapeHtml(t("host-disabled-lede") || "This agent is disabled. Enable it to probe configuration and route inference through the local proxy.")}</p>
+          <div class="sp-host-card__toggle">
+            <button class="sp-btn-primary" type="button" data-action="toggle-enabled">${escapeHtml(toggleLabel)}</button>
+          </div>
+        </article>
+      `;
+    }
 
     let profileDot = "sp-dot--err";
     let profileText = t("host-profile-not-installed") || "not installed";
@@ -73,6 +106,7 @@ export class SpHostCard extends SpElement {
         <header class="sp-host-card__head">
           <h3 class="sp-host-card__name">${escapeHtml(host.display_name || "—")}</h3>
           <span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>
+          <button class="sp-btn-ghost sp-host-card__toggle-btn" type="button" data-action="toggle-enabled">${escapeHtml(toggleLabel)}</button>
         </header>
         <table class="sp-status__board"><tbody>
           <tr>

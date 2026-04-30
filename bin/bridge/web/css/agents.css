@@ -54,21 +54,3 @@ body[data-setup-step="done"]    .sp-setup__step[data-step="done"] { display: blo
   line-height: 1.5;
   max-width: 720px;
 }
-.sp-host-card__kind-chip {
-  display: inline-block;
-  padding: var(--sp-space-px) var(--sp-space-2);
-  border: 1px solid var(--sp-line);
-  border-radius: 999px;
-  font-size: 11px;
-  color: var(--sp-muted);
-  margin-left: var(--sp-space-2);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.sp-agent-list__empty {
-  padding: var(--sp-space-6);
-  border: 1px dashed var(--sp-line);
-  border-radius: 8px;
-  text-align: center;
-  color: var(--sp-muted);
-}

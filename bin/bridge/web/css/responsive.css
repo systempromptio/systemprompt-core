@@ -15,11 +15,7 @@
   .sp-rail-profile { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
   .sp-topbar__center { display: none; }
   .sp-topbar { grid-template-columns: auto auto; justify-content: space-between; }
-  .sp-cmdk__placeholder { display: none; }
   .sp-footer__left .sp-footer__path { display: none; }
   .sp-mkt { grid-template-columns: 1fr; }
   .sp-mkt-cats { flex-direction: row; flex-wrap: wrap; }
-}
-@media (max-width: 800px) {
-  .sp-claude__grid { grid-template-columns: 1fr; }
 }

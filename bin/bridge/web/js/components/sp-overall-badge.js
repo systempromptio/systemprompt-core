@@ -13,8 +13,8 @@ function classify(snap) {
 }
 
 function classifyHosts(snap) {
-  const hosts = snap.host_apps || [];
-  if (hosts.length === 0) { return { text: "no host apps", cls: "sp-badge--muted" }; }
+  const hosts = (snap.host_apps || []).filter((h) => h.enabled === true);
+  if (hosts.length === 0) { return { text: "no agents enabled", cls: "sp-badge--muted" }; }
   const proxyState = (snap.local_proxy && snap.local_proxy.state || "Unknown").toString();
   const anyAbsent = hosts.some((h) => (h.snapshot && h.snapshot.profile_state && h.snapshot.profile_state.kind || "absent") === "absent");
   const anyPartial = hosts.some((h) => h.snapshot && h.snapshot.profile_state && h.snapshot.profile_state.kind === "partial");
