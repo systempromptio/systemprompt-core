@@ -2,13 +2,14 @@ import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-elemen
 import { bridge } from "/assets/js/bridge.js";
 
 function summaryView(list) {
-  if (list.length === 0) {
-    return { dot: "sp-dot--unknown", label: "no agents registered" };
+  const enabled = list.filter((h) => h.enabled === true);
+  if (enabled.length === 0) {
+    return { dot: "sp-dot--unknown", label: "no agents enabled" };
   }
-  const installed = list.filter((h) => h.snapshot?.profile_state?.kind === "installed").length;
-  const running = list.filter((h) => h.snapshot?.host_running).length;
-  const dot = installed === list.length ? "sp-dot--ok" : installed > 0 ? "sp-dot--warn" : "sp-dot--err";
-  return { dot, label: `${installed} of ${list.length} agents configured · ${running} running` };
+  const installed = enabled.filter((h) => h.snapshot?.profile_state?.kind === "installed").length;
+  const running = enabled.filter((h) => h.snapshot?.host_running).length;
+  const dot = installed === enabled.length ? "sp-dot--ok" : installed > 0 ? "sp-dot--warn" : "sp-dot--err";
+  return { dot, label: `${installed} of ${enabled.length} agents configured · ${running} running` };
 }
 
 export class SpAgentsSummary extends SpElement {

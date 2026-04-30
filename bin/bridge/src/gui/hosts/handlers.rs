@@ -6,16 +6,24 @@ use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::hosts::events::HostUiEvent;
+use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, ipc_runtime};
 use crate::integration::{
-    GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProxyHealth, find_host_by_id, proxy_probe,
+    GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProfileState, ProxyHealth,
+    find_host_by_id, proxy_probe,
 };
 
-pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
+pub(crate) fn on_probe_requested(
+    app: &mut GuiApp,
+    host_id: &str,
+    cause: ProbeCause,
+    reply_to: ReplyId,
+) {
     let Some(host) = find_host_by_id(host_id) else {
-        app.append_log(format!("probe requested for unknown host '{host_id}'"));
+        if cause == ProbeCause::Manual {
+            app.append_log(format!("probe requested for unknown host '{host_id}'"));
+        }
         let err = BridgeError::new(
             ErrorScope::Host,
             ErrorCode::NotFound,
@@ -24,8 +32,19 @@ pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: Repl
         finish(app, Err(err), reply_to);
         return;
     };
+    if cause == ProbeCause::Manual && !app.state.is_host_enabled(host_id) {
+        let err = BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::Conflict,
+            format!("host '{host_id}' is disabled"),
+        );
+        finish(app, Err(err), reply_to);
+        return;
+    }
     if !app.state.mark_host_probing(host_id) {
-        app.append_log(format!("[{host_id}] re-verify already in flight"));
+        if cause == ProbeCause::Manual {
+            app.append_log(format!("[{host_id}] re-verify already in flight"));
+        }
         if let Some(id) = reply_to {
             let err = BridgeError::new(
                 ErrorScope::Host,
@@ -36,7 +55,9 @@ pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: Repl
         }
         return;
     }
-    app.append_log(format!("[{host_id}] re-verifying profile and process"));
+    if cause == ProbeCause::Manual {
+        app.append_log(format!("[{host_id}] re-verifying profile and process"));
+    }
     let host_id_owned = host_id.to_string();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
@@ -46,6 +67,7 @@ pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: Repl
         };
         let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
             host_id: host_id_owned,
+            cause,
             snapshot: snap,
             reply_to,
         }));
@@ -55,11 +77,18 @@ pub(crate) fn on_probe_requested(app: &mut GuiApp, host_id: &str, reply_to: Repl
 pub(crate) fn on_probe_finished(
     app: &mut GuiApp,
     host_id: &str,
+    cause: ProbeCause,
     snapshot: HostAppSnapshot,
     reply_to: ReplyId,
 ) {
     let summary = describe_snapshot(&snapshot);
-    app.state.apply_host_snapshot(host_id, snapshot);
+    let prev = app
+        .state
+        .snapshot()
+        .hosts
+        .get(host_id)
+        .and_then(|s| s.snapshot.clone());
+    app.state.apply_host_snapshot(host_id, snapshot.clone());
     let _ = app
         .proxy
         .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested {
@@ -67,10 +96,41 @@ pub(crate) fn on_probe_finished(
         }));
     app.refresh_ui();
     ipc_runtime::emit_host_changed(app, host_id);
-    app.append_log(format!("[{host_id}] re-verify complete — {summary}"));
+    let log_line = match cause {
+        ProbeCause::Manual => Some(format!("[{host_id}] re-verify complete — {summary}")),
+        ProbeCause::Tick => state_change_line(host_id, prev.as_ref(), &snapshot),
+    };
+    if let Some(line) = log_line {
+        app.append_log(line);
+    }
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::single_host_value(&snap, host_id);
     finish(app, Ok(json!({ "snapshot": value })), reply_to);
+}
+
+fn state_change_line(
+    host_id: &str,
+    prev: Option<&HostAppSnapshot>,
+    next: &HostAppSnapshot,
+) -> Option<String> {
+    let prev = prev?;
+    let profile_changed = profile_state_kind(&prev.profile_state) != profile_state_kind(&next.profile_state);
+    let process_changed = prev.host_running != next.host_running;
+    if !profile_changed && !process_changed {
+        return None;
+    }
+    Some(format!(
+        "[{host_id}] state changed — {}",
+        describe_snapshot(next)
+    ))
+}
+
+fn profile_state_kind(s: &ProfileState) -> &'static str {
+    match s {
+        ProfileState::Installed => "installed",
+        ProfileState::Partial { .. } => "partial",
+        ProfileState::Absent => "absent",
+    }
 }
 
 fn describe_snapshot(snap: &HostAppSnapshot) -> String {
@@ -256,6 +316,7 @@ pub(crate) fn on_profile_install_finished(
         .proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
             host_id: host_id.to_string(),
+            cause: ProbeCause::Manual,
             reply_to: None,
         }));
     finish(app, bridge_result, reply_to);

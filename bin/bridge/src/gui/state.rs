@@ -16,6 +16,7 @@ pub use jwt::decode_jwt_identity_unverified;
 use crate::auth::{cache, setup};
 use crate::config::{self, paths};
 
+use crate::gui::agents_state::{self, AgentsState};
 use crate::gui::hosts::state::HostsState;
 
 use crate::integration::{HostAppSnapshot, ProxyHealth};
@@ -86,6 +87,7 @@ pub struct AppStateSnapshot {
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,
+    pub agents: AgentsState,
 
     pub hosts: HostsState,
 }
@@ -224,6 +226,25 @@ impl AppState {
         self.inner.write().agents_onboarded = flag;
     }
 
+    pub fn is_host_enabled(&self, host_id: &str) -> bool {
+        self.inner.read().agents.is_enabled(host_id)
+    }
+
+    pub fn set_host_enabled(&self, host_id: &str, flag: bool) -> std::io::Result<()> {
+        let mut guard = self.inner.write();
+        guard.agents.set_enabled(host_id, flag);
+        if !flag {
+            guard.hosts.by_id.remove(host_id);
+        }
+        let snapshot = guard.agents.clone();
+        drop(guard);
+        agents_state::save(&snapshot)
+    }
+
+    pub fn enabled_host_ids(&self) -> Vec<String> {
+        self.inner.read().agents.enabled_ids()
+    }
+
 
     pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
         let mut guard = self.inner.write();
@@ -285,6 +306,7 @@ impl AppState {
     fn reload_into(snap: &mut AppStateSnapshot) {
         let cfg = config::load();
         snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
+        snap.agents = agents_state::load();
 
         match setup::status() {
             Ok(s) => {

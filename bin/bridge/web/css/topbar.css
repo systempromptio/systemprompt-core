@@ -25,8 +25,6 @@ body.is-platform-macos .sp-topbar { padding-left: 92px; }
   color: inherit;
   text-decoration: none;
 }
-.sp-brand__mark { display: inline-flex; }
-.sp-brand__mark svg { width: 30px; height: 30px; display: block; }
 .sp-brand__word { display: inline-flex; height: 20px; }
 .sp-brand__word svg { height: 20px; width: auto; display: block; }
 

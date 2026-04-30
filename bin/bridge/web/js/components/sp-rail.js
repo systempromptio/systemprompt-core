@@ -26,10 +26,10 @@ export class SpRail extends SpElement {
     this.setAttribute("aria-label", "Sections");
     this.dataset.activeReady = "false";
     this.bridgeSubscribe("state.changed", (s) => {
-      this.agentCount = ((s && s.host_apps) || []).length;
+      this.agentCount = ((s && s.host_apps) || []).filter((h) => h.enabled === true).length;
     });
     bridge.stateSnapshot().then((s) => {
-      this.agentCount = ((s && s.host_apps) || []).length;
+      this.agentCount = ((s && s.host_apps) || []).filter((h) => h.enabled === true).length;
     }).catch((e) => console.warn("snapshot failed", e));
     this._unsubMkt = onBridgeEvent("mkt:count", this._onMktCount);
     window.addEventListener("resize", this._onResize);

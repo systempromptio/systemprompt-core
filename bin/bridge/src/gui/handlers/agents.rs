@@ -8,6 +8,10 @@ use crate::gui::{GuiApp, ipc_runtime, window};
 use crate::integration::find_host_by_id;
 
 pub(crate) fn on_uninstall(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
+    if let Some(err) = enabled_guard(app, host_id) {
+        finish(app, Err(err), reply_to);
+        return;
+    }
     let result = match find_host_by_id(host_id) {
         Some(host) => {
             app.append_log(format!(
@@ -29,7 +33,23 @@ pub(crate) fn on_uninstall(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
     finish(app, result, reply_to);
 }
 
+fn enabled_guard(app: &GuiApp, host_id: &str) -> Option<BridgeError> {
+    if app.state.is_host_enabled(host_id) {
+        None
+    } else {
+        Some(BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::Conflict,
+            format!("host '{host_id}' is disabled"),
+        ))
+    }
+}
+
 pub(crate) fn on_open_config(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
+    if let Some(err) = enabled_guard(app, host_id) {
+        finish(app, Err(err), reply_to);
+        return;
+    }
     let result = match find_host_by_id(host_id) {
         Some(host) => {
             let snapshot = host.probe();

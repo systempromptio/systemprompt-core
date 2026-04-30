@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 
 use crate::auth::secret::Secret;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::hosts::events::HostUiEvent;
+use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
@@ -49,8 +49,27 @@ struct OpenExternalUrlArgs {
     url: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct AgentEnabledArgs {
+    #[serde(rename = "hostId")]
+    host_id: String,
+    enabled: bool,
+}
+
 fn is_safe_external_url(url: &str) -> bool {
     url.starts_with("https://")
+}
+
+fn require_enabled(app: &GuiApp, host_id: &str) -> Result<(), BridgeError> {
+    if app.state.is_host_enabled(host_id) {
+        Ok(())
+    } else {
+        Err(BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::Conflict,
+            format!("host '{host_id}' is disabled"),
+        ))
+    }
 }
 
 pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> CommandOutcome {
@@ -119,10 +138,14 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
         },
         "host.probe" => match parse::<HostIdArgs>(args) {
             Ok(a) => {
+                if let Err(err) = require_enabled(app, &a.host_id) {
+                    return CommandOutcome::Sync(Err(err));
+                }
                 send(
                     app,
                     UiEvent::Host(HostUiEvent::ProbeRequested {
                         host_id: a.host_id,
+                        cause: ProbeCause::Manual,
                         reply_to: reply_id,
                     }),
                 );
@@ -132,6 +155,9 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
         },
         "host.profile.generate" => match parse::<HostIdArgs>(args) {
             Ok(a) => {
+                if let Err(err) = require_enabled(app, &a.host_id) {
+                    return CommandOutcome::Sync(Err(err));
+                }
                 send(
                     app,
                     UiEvent::Host(HostUiEvent::ProfileGenerateRequested {
@@ -145,6 +171,9 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
         },
         "host.profile.install" => match parse::<HostInstallArgs>(args) {
             Ok(a) => {
+                if let Err(err) = require_enabled(app, &a.host_id) {
+                    return CommandOutcome::Sync(Err(err));
+                }
                 send(
                     app,
                     UiEvent::Host(HostUiEvent::ProfileInstallRequested {
@@ -154,6 +183,42 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
                     }),
                 );
                 CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "agents.setEnabled" => match parse::<AgentEnabledArgs>(args) {
+            Ok(a) => {
+                if crate::integration::find_host_by_id(&a.host_id).is_none() {
+                    return CommandOutcome::Sync(Err(BridgeError::new(
+                        ErrorScope::Host,
+                        ErrorCode::NotFound,
+                        format!("unknown host: {}", a.host_id),
+                    )));
+                }
+                if let Err(e) = app.state.set_host_enabled(&a.host_id, a.enabled) {
+                    return CommandOutcome::Sync(Err(BridgeError::new(
+                        ErrorScope::Internal,
+                        ErrorCode::Internal,
+                        format!("persist agents state: {e}"),
+                    )));
+                }
+                app.append_log(format!(
+                    "[{}] agent {}",
+                    a.host_id,
+                    if a.enabled { "enabled" } else { "disabled" }
+                ));
+                if a.enabled {
+                    send(
+                        app,
+                        UiEvent::Host(HostUiEvent::ProbeRequested {
+                            host_id: a.host_id.clone(),
+                            cause: ProbeCause::Manual,
+                            reply_to: None,
+                        }),
+                    );
+                }
+                crate::gui::ipc_runtime::emit_state(app);
+                CommandOutcome::Sync(Ok(json!({ "hostId": a.host_id, "enabled": a.enabled })))
             },
             Err(e) => CommandOutcome::Sync(Err(e)),
         },
