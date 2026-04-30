@@ -145,15 +145,21 @@ pub fn handle_connection(
     };
 
     let qs = parse_query(&req.query);
-    let supplied = qs.get("t").map(String::as_str).unwrap_or("");
-    if !constant_time_eq(supplied.as_bytes(), ctx.csrf_token.as_bytes()) {
-        tracing::warn!(path = %req.path, "csrf token mismatch");
-        return write_response(
-            &mut stream,
-            403,
-            "text/plain",
-            b"forbidden: bad or missing ?t token",
-        );
+    let is_static_asset = req.method == "GET"
+        && (req.path.starts_with("/assets/css/")
+            || req.path.starts_with("/assets/js/")
+            || req.path.starts_with("/assets/fonts/"));
+    if !is_static_asset {
+        let supplied = qs.get("t").map(String::as_str).unwrap_or("");
+        if !constant_time_eq(supplied.as_bytes(), ctx.csrf_token.as_bytes()) {
+            tracing::warn!(path = %req.path, "csrf token mismatch");
+            return write_response(
+                &mut stream,
+                403,
+                "text/plain",
+                b"forbidden: bad or missing ?t token",
+            );
+        }
     }
 
     tracing::debug!(method = %req.method, path = %req.path, "dispatching");
