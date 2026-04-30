@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 use std::process::ExitCode;
 
 use chrono::{SecondsFormat, Utc};
@@ -21,9 +23,7 @@ pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
         Err(ChainError::PreferredTransient { provider, source }) => {
             eprintln!(
                 "{}",
-                error_json(&format!(
-                    "transient auth failure on {provider}: {source}"
-                ))
+                error_json(&format!("transient auth failure on {provider}: {source}"))
             );
             return ExitCode::from(10);
         },
