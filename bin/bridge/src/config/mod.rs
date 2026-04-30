@@ -1,6 +1,9 @@
 pub mod paths;
 mod profile;
 pub mod redaction;
+mod runtime;
+
+pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_loaded};
 
 use serde::Deserialize;
 use std::fmt::Write as _;

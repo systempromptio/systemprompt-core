@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use tokio::runtime::Runtime;
 
-use crate::config;
+use crate::config::{self, RuntimeConfig, SharedRuntimeConfig};
 use crate::obs::output::diag;
 
 pub use server::{ProxyHandle, ProxyStats};
@@ -21,6 +21,30 @@ use token_cache::TokenCache;
 
 static HANDLE: OnceLock<ProxyHandle> = OnceLock::new();
 static RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
+static RUNTIME_CONFIG: OnceLock<SharedRuntimeConfig> = OnceLock::new();
+static TOKEN_CACHE: OnceLock<Arc<token_cache::TokenCache>> = OnceLock::new();
+
+#[must_use]
+pub fn runtime_config() -> SharedRuntimeConfig {
+    RUNTIME_CONFIG
+        .get_or_init(config::shared_from_loaded)
+        .clone()
+}
+
+pub fn swap_runtime_config(next: RuntimeConfig) {
+    runtime_config().store(Arc::new(next));
+    if let Some(cache) = TOKEN_CACHE.get() {
+        let cache = Arc::clone(cache);
+        if let Ok(rt) = runtime() {
+            rt.spawn(async move { cache.invalidate().await });
+        }
+    }
+    tracing::info!(target: "bridge::config", "runtime config swapped");
+}
+
+pub fn reload_runtime_config() {
+    swap_runtime_config(RuntimeConfig::from_loaded());
+}
 
 fn worker_thread_count() -> usize {
     std::thread::available_parallelism().map_or(2, |n| (n.get() / 2).max(2))
@@ -57,10 +81,15 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
             return None;
         },
     };
-    let cfg = config::load();
-    let gateway = config::gateway_url_or_default(&cfg);
+    let shared = runtime_config();
     let token_cache = Arc::new(TokenCache::default_for_runtime());
-    let handle = match server::start(rt, DEFAULT_PROXY_PORT, &gateway, Arc::clone(&token_cache)) {
+    let _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
+    let handle = match server::start(
+        rt,
+        DEFAULT_PROXY_PORT,
+        Arc::clone(&shared),
+        Arc::clone(&token_cache),
+    ) {
         Ok(h) => h,
         Err(e) => {
             diag(&format!("proxy: bind failed on {DEFAULT_PROXY_PORT}: {e}"));

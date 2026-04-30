@@ -14,8 +14,7 @@ use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
-use systemprompt_identifiers::ValidatedUrl;
-
+use crate::config::{RuntimeConfig, SharedRuntimeConfig};
 use crate::ids::ProxySecret;
 use crate::obs::output::diag;
 use crate::proxy::token_cache::TokenCache;
@@ -40,20 +39,25 @@ pub struct ProxyStats {
 
 #[derive(Clone)]
 pub(super) struct ProxyContext {
-    pub gateway_base: Arc<ValidatedUrl>,
+    pub runtime_config: SharedRuntimeConfig,
     pub secret: Arc<ProxySecret>,
     pub stats: Arc<ProxyStats>,
     pub client: reqwest::Client,
     pub token_cache: Arc<TokenCache>,
 }
 
+impl ProxyContext {
+    pub fn snapshot(&self) -> Arc<RuntimeConfig> {
+        self.runtime_config.load_full()
+    }
+}
+
 pub fn start(
     rt: &Runtime,
     port: u16,
-    gateway_base_url: &ValidatedUrl,
+    runtime_config: SharedRuntimeConfig,
     token_cache: Arc<TokenCache>,
 ) -> std::io::Result<ProxyHandle> {
-    let gateway_base = gateway_base_url.clone();
     let loopback = secret::load_or_mint_typed()?;
     let proxy_secret = ProxySecret::new(loopback.into_inner());
     let stats = Arc::new(ProxyStats::default());
@@ -61,7 +65,7 @@ pub fn start(
     let client = build_upstream_client()?;
 
     let ctx = ProxyContext {
-        gateway_base: Arc::new(gateway_base),
+        runtime_config,
         secret: Arc::new(proxy_secret),
         stats: stats.clone(),
         client,
@@ -193,10 +197,11 @@ async fn handle_request(
     }
 
     let started = Instant::now();
+    let cfg = ctx.snapshot();
     match forward::forward(
         req,
         ctx.client.clone(),
-        ctx.gateway_base.as_ref(),
+        cfg.gateway_base.as_ref(),
         ctx.token_cache.as_ref(),
         Arc::clone(&ctx.stats),
     )
