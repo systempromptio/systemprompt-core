@@ -70,9 +70,9 @@ Exit codes: `0` success, `2` emit error, `3` whoami error, `5` no credential sou
 This crate is **not** part of the main workspace. Build standalone:
 
 ```bash
-just build-cowork                              # host triple
-just build-cowork aarch64-apple-darwin         # cross target
-just build-cowork-all                          # mac arm+x86, windows x86_64, linux x86_64
+just build-bridge                              # host triple
+just build-bridge aarch64-apple-darwin         # cross target
+just build-bridge-all                          # mac arm+x86, windows x86_64, linux x86_64
 ```
 
 For the full build, release, versioning, and per-OS reference, see [`documentation/cowork/`](../../documentation/cowork/README.md).

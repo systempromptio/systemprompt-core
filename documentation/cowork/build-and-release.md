@@ -5,10 +5,10 @@
 From the root of `systemprompt-core`:
 
 ```bash
-just build-cowork                              # host triple
-just build-cowork aarch64-apple-darwin         # specific target
-just build-cowork-all                          # all four release targets
-just bundle-cowork-mac aarch64-apple-darwin    # binary + .app bundle (Info.plist + AppIcon.icns)
+just build-bridge                              # host triple
+just build-bridge aarch64-apple-darwin         # specific target
+just build-bridge-all                          # all four release targets
+just bundle-bridge-mac aarch64-apple-darwin    # binary + .app bundle (Info.plist + AppIcon.icns)
 ```
 
 `build-cowork-all` produces:
@@ -17,7 +17,7 @@ just bundle-cowork-mac aarch64-apple-darwin    # binary + .app bundle (Info.plis
 - `x86_64-pc-windows-msvc`
 - `x86_64-unknown-linux-gnu`
 
-Release profile (pinned in `bin/cowork/Cargo.toml`) matches CI: `opt-level = "z"`, `lto = "fat"`, `codegen-units = 1`, `strip = "symbols"`. Rebuilding with `--release` from scratch on a cold cache takes 3–5 minutes per target.
+Release profile (pinned in `bin/bridge/Cargo.toml`) matches CI: `opt-level = "z"`, `lto = "fat"`, `codegen-units = 1`, `strip = "symbols"`. Rebuilding with `--release` from scratch on a cold cache takes 3–5 minutes per target.
 
 ## Cutting a cowork release
 
@@ -25,7 +25,7 @@ Cowork ships in two coordinated pushes: one in `systemprompt-core` (build + sign
 
 ### 1. Build & sign in `systemprompt-core`
 
-1. Bump `bin/cowork/Cargo.toml` `version` and update `bin/cowork/CHANGELOG.md`.
+1. Bump `bin/bridge/Cargo.toml` `version` and update `bin/bridge/CHANGELOG.md`.
 2. Commit.
 3. Tag and push:
    ```bash
@@ -136,7 +136,7 @@ The two-product separation: cowork releases never trigger gateway workflows, and
 ## Troubleshooting
 
 **Windows icon not embedded**
-`build.rs` is Windows-only and depends on `winresource`. Confirm `bin/cowork/assets/app-icon.ico` exists and is a valid ICO. PE metadata (FileDescription, ProductName, CompanyName) is also set in `build.rs`.
+`build.rs` is Windows-only and depends on `winresource`. Confirm `bin/bridge/assets/app-icon.ico` exists and is a valid ICO. PE metadata (FileDescription, ProductName, CompanyName) is also set in `build.rs`.
 
 **`cargo ws` skipped a crate's version bump**
 `cargo ws version` sometimes leaves a stale `version = "X.Y.Z"` pin in root `[workspace.dependencies]` for crates it thinks are unchanged. This breaks `cargo update` for downstream consumers. Grep `Cargo.toml` for the prior version string and hand-fix before publishing.

@@ -4,7 +4,7 @@
 
 | Repo | Visibility | Owns | Tag patterns | Publishes to |
 |---|---|---|---|---|
-| `systemprompt-core` | public | Rust workspace (30 `systemprompt-*` crates), `bin/cowork/` binary source, signed cowork binary releases | `cowork-v*` (build+sign), `cowork-mac-v*` (macOS x86_64 separate track), `<crate>@<ver>` (cargo-ws cruft, never pushed) | crates.io, `systempromptio/systemprompt-core` GH Releases |
+| `systemprompt-core` | public | Rust workspace (30 `systemprompt-*` crates), `bin/bridge/` binary source, signed cowork binary releases | `cowork-v*` (build+sign), `cowork-mac-v*` (macOS x86_64 separate track), `<crate>@<ver>` (cargo-ws cruft, never pushed) | crates.io, `systempromptio/systemprompt-core` GH Releases |
 | `systemprompt-deploy` | **private** | Gateway CI/CD: cross-compile, deb/rpm, Docker image, Helm chart, Homebrew tap, Scoop bucket | `gateway-v*` | GHCR, `systempromptio/systemprompt-template` GH Releases (via `RELEASE_UPLOAD_TOKEN`), `charts.systemprompt.io` |
 | `systemprompt-template` | public | Fork-and-compile evaluation template; consumer-facing GH Releases for both products | `cowork-v*` (re-bundles only); receives `gateway-v*` as an upload from deploy | `systempromptio/systemprompt-template` GH Releases |
 
@@ -27,21 +27,21 @@ The pattern: source in core, machinery in deploy, surface in template. There is 
 | MDM snippet generation | ❌ (`install/mdm.rs` errors) | ✅ (`.mobileconfig` profile) | ✅ | ✅ (registry write) |
 | Managed-prefs read | ❌ | ✅ (`/Library/Managed Preferences/$USER/<domain>.plist`) | ✅ | ✅ (`HKLM\SOFTWARE\Policies\Claude` + HKCU) |
 | Process discovery | `ps` | `/bin/ps` | `/bin/ps` | `tasklist` + `GetConsoleProcessList` (`winproc.rs`) |
-| `.app` bundle | n/a | `bin/cowork/scripts/make-mac-app.sh` | same | n/a |
-| Icon embedded in binary | n/a | n/a | n/a | `winresource` via `bin/cowork/build.rs` (ICO from `assets/app-icon.ico`) |
+| `.app` bundle | n/a | `bin/bridge/scripts/make-mac-app.sh` | same | n/a |
+| Icon embedded in binary | n/a | n/a | n/a | `winresource` via `bin/bridge/build.rs` (ICO from `assets/app-icon.ico`) |
 | Release matrix | main 3-OS (`v*`) | main 3-OS (`v*`) | **separate** `cowork-mac-v*` tag | main 3-OS (`v*`) |
 
 ## Critical files
 
 | File | Role |
 |---|---|
-| `bin/cowork/Cargo.toml` | Binary crate, **not** part of the workspace; versioned independently. |
-| `bin/cowork/build.rs` | Windows-only: embeds `assets/app-icon.ico` and PE metadata via `winresource`. |
+| `bin/bridge/Cargo.toml` | Binary crate, **not** part of the workspace; versioned independently. |
+| `bin/bridge/build.rs` | Windows-only: embeds `assets/app-icon.ico` and PE metadata via `winresource`. |
 | `justfile` (root, recipes `build-cowork`, `build-cowork-all`, `bundle-cowork-mac`) | Authoritative local-build commands. CI mirrors these. |
-| `bin/cowork/src/integration/claude_desktop/{macos,windows,shared}.rs` | Per-OS integration with Claude Desktop (managed prefs, MDM, profile generation). |
-| `bin/cowork/src/install/{bootstrap,mdm}.rs` | Install bootstrap (`chown` reset on Unix), MDM dispatch (`apply_mdm()` per OS). |
-| `bin/cowork/src/winproc.rs` | Windows-only console attach + process listing. |
-| `bin/cowork/scripts/make-mac-app.sh` + `make-icons.swift` | macOS `.app` bundling and `.icns` generation. |
+| `bin/bridge/src/integration/claude_desktop/{macos,windows,shared}.rs` | Per-OS integration with Claude Desktop (managed prefs, MDM, profile generation). |
+| `bin/bridge/src/install/{bootstrap,mdm}.rs` | Install bootstrap (`chown` reset on Unix), MDM dispatch (`apply_mdm()` per OS). |
+| `bin/bridge/src/winproc.rs` | Windows-only console attach + process listing. |
+| `bin/bridge/scripts/make-mac-app.sh` + `make-icons.swift` | macOS `.app` bundling and `.icns` generation. |
 | `.github/workflows/release-sign.yml` (this repo) | 3-OS matrix build + cosign keyless sign on `v*`. |
 | `../systemprompt-deploy/.github/workflows/release.yml` | Gateway build + sign on `v*`. |
 | `../systemprompt-template/.github/workflows/release.yml` | Cowork re-bundle on `cowork-v*`. |

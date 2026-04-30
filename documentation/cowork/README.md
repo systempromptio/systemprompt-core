@@ -1,6 +1,6 @@
 # Cowork build, release & versioning
 
-`systemprompt-cowork` is a standalone Rust binary shipped from `bin/cowork/`. It plays two roles in one process: a **credential helper** (emits Anthropic's `inferenceCredentialHelper` JSON to stdout) and a **plugin / MCP sync agent** (pulls signed manifests from a `systemprompt-gateway` into the user's `org-plugins/` directory). On macOS and Windows it also runs as a tray app with a native settings GUI; Linux is CLI-only.
+`systemprompt-cowork` is a standalone Rust binary shipped from `bin/bridge/`. It plays two roles in one process: a **credential helper** (emits Anthropic's `inferenceCredentialHelper` JSON to stdout) and a **plugin / MCP sync agent** (pulls signed manifests from a `systemprompt-gateway` into the user's `org-plugins/` directory). On macOS and Windows it also runs as a tray app with a native settings GUI; Linux is CLI-only.
 
 It ships across three OS targets: `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`, and `x86_64-pc-windows-msvc`. macOS Intel (`x86_64-apple-darwin`) is built separately and tracked under `cowork-mac-v*` tags rather than the main 3-OS matrix (the `macos-13` runner queue made the merged matrix unreliable).
 

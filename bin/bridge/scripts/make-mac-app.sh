@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Wrap the systemprompt-cowork binary in a macOS .app bundle.
+# Wrap the systemprompt-bridge binary in a macOS .app bundle (branded "Cowork").
 #
-# Usage: bin/cowork/scripts/make-mac-app.sh [--target <triple>]
+# Usage: bin/bridge/scripts/make-mac-app.sh [--target <triple>]
 #
-# Reads version from bin/cowork/Cargo.toml, picks the matching release binary,
-# generates an .icns from bin/cowork/assets/window-icon.png, and emits
-# bin/cowork/target/<triple>/release/SystempromptCowork.app
-# (or bin/cowork/target/release/SystempromptCowork.app when no target is given).
+# Reads version from bin/bridge/Cargo.toml, picks the matching release binary,
+# generates an .icns from bin/bridge/assets/window-icon-1024.png, and emits
+# bin/bridge/target/<triple>/release/SystempromptCowork.app
+# (or bin/bridge/target/release/SystempromptCowork.app when no target is given).
 set -euo pipefail
 
 cd "$(dirname "$0")/../../.."  # repo root
@@ -16,20 +16,20 @@ if [[ "${1:-}" == "--target" ]]; then
     TARGET="${2:?--target requires a value}"
 fi
 
-CRATE_DIR="bin/cowork"
+CRATE_DIR="bin/bridge"
 ASSETS="$CRATE_DIR/assets"
 PLIST_TEMPLATE="$CRATE_DIR/macos/Info.plist"
 
 if [[ -n "$TARGET" ]]; then
-    BIN="$CRATE_DIR/target/$TARGET/release/systemprompt-cowork"
+    BIN="$CRATE_DIR/target/$TARGET/release/systemprompt-bridge"
     OUT_DIR="$CRATE_DIR/target/$TARGET/release"
 else
-    BIN="$CRATE_DIR/target/release/systemprompt-cowork"
+    BIN="$CRATE_DIR/target/release/systemprompt-bridge"
     OUT_DIR="$CRATE_DIR/target/release"
 fi
 
 if [[ ! -f "$BIN" ]]; then
-    echo "binary not found at $BIN — build it first (just build-cowork${TARGET:+ $TARGET})" >&2
+    echo "binary not found at $BIN — build it first (just build-bridge${TARGET:+ $TARGET})" >&2
     exit 1
 fi
 
