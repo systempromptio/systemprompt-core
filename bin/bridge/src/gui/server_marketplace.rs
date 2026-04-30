@@ -1,8 +1,17 @@
 use crate::config::paths;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 const README_MAX_BYTES: usize = 32 * 1024;
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum MarketplaceExtra {
+    Plugin(PluginManifest),
+    Frontmatter(FrontmatterExtra),
+    Mcp(McpServerEntry),
+    None,
+}
 
 #[derive(Serialize)]
 struct MarketplaceItem {
@@ -12,7 +21,7 @@ struct MarketplaceItem {
     path: String,
     summary: Option<String>,
     readme: Option<String>,
-    extra: serde_json::Value,
+    extra: MarketplaceExtra,
 }
 
 #[derive(Serialize)]
@@ -23,6 +32,48 @@ pub struct MarketplaceListing {
     mcp: Vec<MarketplaceItem>,
     agents: Vec<MarketplaceItem>,
     plugins_dir: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Default)]
+struct PluginManifest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    homepage: Option<String>,
+}
+
+#[derive(Serialize)]
+struct FrontmatterExtra {
+    id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Default)]
+struct McpServerEntry {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    command: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transport: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct McpRoot {
+    #[serde(default)]
+    #[serde(rename = "mcpServers")]
+    mcp_servers: std::collections::BTreeMap<String, McpServerEntry>,
 }
 
 pub fn build_listing() -> MarketplaceListing {
@@ -73,46 +124,36 @@ fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             path.join(".claude-plugin").join("plugin.json"),
             path.join("claude-plugin").join("plugin.json"),
         ]);
-        let manifest: Option<serde_json::Value> = manifest_path
+        let manifest: Option<PluginManifest> = manifest_path
             .as_ref()
             .and_then(|p| std::fs::read(p).ok())
             .and_then(|b| serde_json::from_slice(&b).ok());
-        let summary = manifest
+        let summary = manifest.as_ref().and_then(|m| m.description.clone());
+        let display_name = manifest
             .as_ref()
-            .and_then(|m| m.get("description"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .and_then(|m| m.name.clone())
+            .unwrap_or_else(|| name.to_string());
         let readme = read_first_existing(&[
             path.join("README.md"),
             path.join("readme.md"),
             path.join("README.txt"),
         ]);
+        let extra = match manifest {
+            Some(m) => MarketplaceExtra::Plugin(m),
+            None => MarketplaceExtra::None,
+        };
         out.push(MarketplaceItem {
             id: name.to_string(),
-            name: manifest
-                .as_ref()
-                .and_then(|m| m.get("name"))
-                .and_then(|v| v.as_str())
-                .unwrap_or(name)
-                .to_string(),
+            name: display_name,
             source: "tenant",
             path: path.display().to_string(),
             summary,
             readme,
-            extra: manifest.unwrap_or(serde_json::Value::Null),
+            extra,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
-}
-
-#[derive(Serialize)]
-struct FrontmatterExtra<'a> {
-    id: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<&'a str>,
 }
 
 fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
@@ -137,12 +178,11 @@ fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
             .as_deref()
             .map(parse_skill_frontmatter)
             .unwrap_or((None, None));
-        let extra = serde_json::to_value(FrontmatterExtra {
-            id,
-            name: frontmatter_name.as_deref(),
-            description: summary.as_deref(),
-        })
-        .unwrap_or(serde_json::Value::Null);
+        let extra = MarketplaceExtra::Frontmatter(FrontmatterExtra {
+            id: id.to_string(),
+            name: frontmatter_name.clone(),
+            description: summary.clone(),
+        });
         out.push(MarketplaceItem {
             id: id.to_string(),
             name: frontmatter_name.unwrap_or_else(|| id.to_string()),
@@ -178,12 +218,11 @@ fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
             .as_deref()
             .map(parse_skill_frontmatter)
             .unwrap_or((None, None));
-        let extra = serde_json::to_value(FrontmatterExtra {
-            id: stem,
-            name: frontmatter_name.as_deref(),
-            description: summary.as_deref(),
-        })
-        .unwrap_or(serde_json::Value::Null);
+        let extra = MarketplaceExtra::Frontmatter(FrontmatterExtra {
+            id: stem.to_string(),
+            name: frontmatter_name.clone(),
+            description: summary.clone(),
+        });
         out.push(MarketplaceItem {
             id: stem.to_string(),
             name: frontmatter_name.unwrap_or_else(|| stem.to_string()),
@@ -235,26 +274,20 @@ fn list_managed_mcp(path: &Path) -> Vec<MarketplaceItem> {
     let Ok(bytes) = std::fs::read(path) else {
         return Vec::new();
     };
-    let Ok(root) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
-        return Vec::new();
-    };
-    let Some(servers) = root.get("mcpServers").and_then(|v| v.as_object()) else {
+    let Ok(root) = serde_json::from_slice::<McpRoot>(&bytes) else {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for (name, value) in servers {
-        let summary = value
-            .get("url")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+    for (name, entry) in root.mcp_servers {
+        let summary = entry.url.clone();
         out.push(MarketplaceItem {
             id: name.clone(),
-            name: name.clone(),
+            name,
             source: "tenant",
             path: path.display().to_string(),
             summary,
             readme: None,
-            extra: value.clone(),
+            extra: MarketplaceExtra::Mcp(entry),
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
