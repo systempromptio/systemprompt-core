@@ -1,18 +1,31 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.0] - 2026-04-30
 
 ### Added
 
 - `integration::codex_cli` — Codex CLI host integration (probe, config, install).
 - `cli::credential_helper` — credential helper command surface.
 - `gui::handlers::agents` — GUI handler module for agents.
+- `web/css/agents.css` — agent presence cluster, setup-step machine, agents-list-empty, host-card kind chip.
+- `web/js/agents.js` — `renderAgentPresence`, `renderAgentsSummary`, `renderAgentsRailCount`.
+- `web/js/events/registry.js` — single document-level click registry dispatching `[data-action]`.
+- `web/js/events/keyboard.js` — single keydown listener for ⌘1/2/3.
+- `web/js/state.js`, `index.js`, `rail-indicator.js`, `crumb.js`, `sync-pill.js`, `profile.js`, `cloud.js`, `proxy.js`, `hosts.js`, `overall-badge.js`, `footer.js`, `marketplace/{detail,glyph,list,state}.js`, `drawer.js`.
 
 ### Changed
 
+- **Breaking**: crate renamed from `bin/cowork` to `bin/bridge` (binary name `systemprompt-bridge`). Workspace `exclude` and tests updated.
 - `gui::connection`, `gui::dispatch`, `gui::events`, `gui::hosts`, `gui::server_json`, `gui::state`, `gui::mod` — refactored alongside new agents handler and Codex CLI integration.
-- `web/index.html`, `web/style.css`, `web/js/snapshot.js` — GUI updates ahead of the modular asset refactor.
-- GUI assets are now served as 22 modular CSS files and 24 JS ES modules from `/assets/css/*` and `/assets/js/*` instead of inlined into `index.html` via `__STYLE__`/`__SCRIPT__`. Each file is `include_str!`-bundled, served with `?t=<csrf>` token guard, and substituted with the per-request token.
+- GUI assets now serve as 22 modular CSS files and 24 JS ES modules from `/assets/css/*` and `/assets/js/*` instead of inlined into `index.html` via `__STYLE__`/`__SCRIPT__`. Each file is `include_str!`-bundled, served with `?t=<csrf>` token guard, and substituted with the per-request token.
+- `web/style.css` (1572 lines, monolithic) split into 22 component files under `web/css/` (`tokens`, `fonts`, `reset`, `kbd`, `dot`, `badge`, `button`, `topbar`, `rail`, `shell`, `drawer`, `marketplace-{base,list,detail}`, `status`, `settings`, `setup`, `agents`, `log`, `footer`, `responsive`, `main`). All custom-property references use the `--sp-*` prefix.
+- `web/js/snapshot.js` and `web/js/marketplace.js` (monolithic) replaced by 24 ES modules with named exports only. Single event registry, `data-action` delegation, `<template>` cloning, no `innerHTML` of multi-element strings, no early returns.
+
+### Removed
+
+- `web/style.css` — split into per-component files.
+- `web/js/snapshot.js`, `web/js/main.js`, `web/js/activity.js` — carved into the new modules.
+- `STYLE` constant, `style_concat()`, `__STYLE__` substitution, and `__SCRIPT__` substitution in `gui::connection`.
 
 ## [0.6.0] - 2026-04-30
 

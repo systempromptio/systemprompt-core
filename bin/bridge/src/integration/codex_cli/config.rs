@@ -6,8 +6,10 @@ use crate::integration::host_app::HostConfigSchema;
 pub(super) const PROVIDER_BASE_URL: &str = "model_providers.systemprompt.base_url";
 pub(super) const PROVIDER_WIRE_API: &str = "model_providers.systemprompt.wire_api";
 pub(super) const PROVIDER_AUTH_COMMAND: &str = "model_providers.systemprompt.auth.command";
-pub(super) const PROVIDER_AUTH_REFRESH: &str = "model_providers.systemprompt.auth.refresh_interval_ms";
-pub(super) const PROVIDER_HEADER_TENANT: &str = "model_providers.systemprompt.http_headers.x-tenant";
+pub(super) const PROVIDER_AUTH_REFRESH: &str =
+    "model_providers.systemprompt.auth.refresh_interval_ms";
+pub(super) const PROVIDER_HEADER_TENANT: &str =
+    "model_providers.systemprompt.http_headers.x-tenant";
 pub(super) const OTEL_EXPORTER: &str = "otel.exporter";
 pub(super) const OTEL_LOG_USER_PROMPT: &str = "otel.log_user_prompt";
 pub(super) const OTEL_ENDPOINT: &str = "otel.exporter.systemprompt.endpoint";
@@ -49,8 +51,16 @@ pub(super) fn codex_home() -> PathBuf {
     PathBuf::from(".codex")
 }
 
-pub(super) fn config_path() -> PathBuf {
+pub(super) fn user_config_path() -> PathBuf {
     codex_home().join("config.toml")
+}
+
+pub(super) fn managed_config_path() -> PathBuf {
+    if cfg!(target_os = "windows") {
+        codex_home().join("managed_config.toml")
+    } else {
+        PathBuf::from("/etc/codex/managed_config.toml")
+    }
 }
 
 pub(super) fn now_unix() -> u64 {

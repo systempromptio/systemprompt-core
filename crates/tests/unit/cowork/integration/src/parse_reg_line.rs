@@ -1,4 +1,4 @@
-use systemprompt_cowork::integration::claude_desktop::win_reg_parser::parse_reg_line;
+use systemprompt_bridge::integration::claude_desktop::win_reg_parser::parse_reg_line;
 
 #[test]
 fn reg_sz_with_comma_separated_value_keeps_full_value() {

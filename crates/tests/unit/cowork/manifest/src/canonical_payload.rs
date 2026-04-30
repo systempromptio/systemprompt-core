@@ -1,8 +1,8 @@
-use systemprompt_cowork::gateway::manifest::{
+use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, SignedManifest, SkillEntry, UserId, UserInfo, canonical_payload,
 };
-use systemprompt_cowork::gateway::manifest_version::ManifestVersion;
-use systemprompt_cowork::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
+use systemprompt_bridge::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
 
 const FAKE_SHA: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 

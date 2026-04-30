@@ -1,18 +1,23 @@
-//! Codex CLI host integration.
+//! Codex host integration (CLI, desktop App, IDE Extension).
 //!
-//! Codex (github.com/openai/codex) is a CLI coding agent. Cowork manages a defined
-//! set of dotted TOML keys inside `~/.codex/config.toml` to route inference through
-//! the systemprompt gateway, redirect OpenTelemetry, disable upstream analytics, and
-//! configure cowork itself as the credential helper via Codex's `auth.command`
-//! contract.
+//! Codex ships a managed-configuration layer that takes precedence over user
+//! config and applies uniformly to the CLI, the desktop app, and the IDE
+//! extension. systemprompt-bridge writes the managed configuration so a single
+//! install governs all three surfaces.
 //!
-//! Limitation: stock `toml = "0.8"` round-tripping drops user comments and reorders
-//! keys. Acceptable trade-off for v1; migrate to `toml_edit` if it bites a user.
+//! Managed config locations:
+//! - macOS: MDM `.mobileconfig` payload with `PayloadType = com.openai.codex`
+//!   and key `config_toml_base64` (base64-encoded TOML).
+//! - Linux: `/etc/codex/managed_config.toml` (admin-owned; install requires sudo
+//!   on machines without write access to `/etc/codex`).
+//! - Windows: `~/.codex/managed_config.toml` (read by the app at managed
+//!   precedence; user-writable but app honors precedence over `config.toml`).
 //!
-//! Future enterprise lock (out of scope v1): add a `LockableHostApp` trait method
-//! that writes to a system-owned config path. Two viable mechanisms — a
-//! Codex-supported system precedence path (does not exist upstream today), or a
-//! shim binary that forces `CODEX_HOME` to a root-owned directory.
+//! Reference: https://developers.openai.com/codex/enterprise/managed-configuration
+//!
+//! The managed file is owned entirely by systemprompt-bridge; we do not attempt
+//! to merge with user config. Removing the managed config falls back to the
+//! user's `config.toml` automatically.
 
 mod config;
 mod install;
@@ -65,10 +70,12 @@ impl HostApp for CodexCliHost {
     }
 
     fn install_action_label(&self) -> &'static str {
-        if cfg!(target_os = "windows") {
-            "merged into %USERPROFILE%\\.codex\\config.toml"
+        if cfg!(target_os = "macos") {
+            "loaded into managed preferences (com.openai.codex)"
+        } else if cfg!(target_os = "windows") {
+            "written to %USERPROFILE%\\.codex\\managed_config.toml"
         } else {
-            "merged into ~/.codex/config.toml"
+            "written to /etc/codex/managed_config.toml"
         }
     }
 
@@ -77,7 +84,7 @@ impl HostApp for CodexCliHost {
     }
 
     fn description(&self) -> &'static str {
-        "OpenAI's open-source coding CLI. Cowork merges managed gateway, OTEL, and credential-helper keys into ~/.codex/config.toml."
+        "OpenAI's Codex (CLI, desktop app, IDE extension). systemprompt-bridge installs managed configuration that takes precedence over user config across all three surfaces."
     }
 
     fn icon_id(&self) -> &'static str {

@@ -1,4 +1,4 @@
-use systemprompt_cowork::http_local::parse_from_read;
+use systemprompt_bridge::http_local::parse_from_read;
 
 #[test]
 fn parses_minimal_get() {

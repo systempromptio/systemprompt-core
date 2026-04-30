@@ -6102,6 +6102,118 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge"
+version = "0.6.0"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "ctrlc",
+ "dirs 5.0.1",
+ "ed25519-dalek",
+ "form_urlencoded",
+ "futures-util",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "image",
+ "is-terminal",
+ "libc",
+ "muda",
+ "parking_lot",
+ "rand 0.8.6",
+ "reqwest 0.12.28",
+ "rustls",
+ "rustls-native-certs",
+ "security-framework",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2",
+ "systemprompt-identifiers 0.4.2",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+ "toml 0.8.2",
+ "tracing",
+ "tracing-subscriber",
+ "tray-icon",
+ "ureq",
+ "windows-sys 0.59.0",
+ "winit",
+ "winresource",
+ "wry",
+ "zeroize",
+]
+
+[[package]]
+name = "systemprompt-bridge-auth-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "ureq",
+]
+
+[[package]]
+name = "systemprompt-bridge-http-local-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+]
+
+[[package]]
+name = "systemprompt-bridge-install-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+]
+
+[[package]]
+name = "systemprompt-bridge-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "tempfile",
+]
+
+[[package]]
+name = "systemprompt-bridge-manifest-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+]
+
+[[package]]
+name = "systemprompt-bridge-paths-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+]
+
+[[package]]
+name = "systemprompt-bridge-proxy-tests"
+version = "0.0.11"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "systemprompt-bridge",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-bridge-sync-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "systemprompt-bridge",
+]
+
+[[package]]
 name = "systemprompt-cli"
 version = "0.4.3"
 dependencies = [
@@ -6365,117 +6477,6 @@ dependencies = [
  "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "uuid",
-]
-
-[[package]]
-name = "systemprompt-cowork"
-version = "0.5.0"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "chrono",
- "ctrlc",
- "dirs 5.0.1",
- "ed25519-dalek",
- "form_urlencoded",
- "futures-util",
- "http",
- "http-body-util",
- "hyper",
- "hyper-util",
- "image",
- "is-terminal",
- "libc",
- "muda",
- "parking_lot",
- "rand 0.8.6",
- "reqwest 0.12.28",
- "rustls",
- "rustls-native-certs",
- "security-framework",
- "serde",
- "serde_jcs",
- "serde_json",
- "sha2",
- "systemprompt-identifiers 0.4.2",
- "thiserror 2.0.18",
- "time",
- "tokio",
- "toml 0.8.2",
- "tracing",
- "tracing-subscriber",
- "tray-icon",
- "ureq",
- "windows-sys 0.59.0",
- "winit",
- "winresource",
- "wry",
- "zeroize",
-]
-
-[[package]]
-name = "systemprompt-cowork-auth-tests"
-version = "0.0.11"
-dependencies = [
- "systemprompt-cowork",
- "ureq",
-]
-
-[[package]]
-name = "systemprompt-cowork-http-local-tests"
-version = "0.0.11"
-dependencies = [
- "systemprompt-cowork",
-]
-
-[[package]]
-name = "systemprompt-cowork-install-tests"
-version = "0.0.11"
-dependencies = [
- "systemprompt-cowork",
-]
-
-[[package]]
-name = "systemprompt-cowork-integration-tests"
-version = "0.0.11"
-dependencies = [
- "systemprompt-cowork",
-]
-
-[[package]]
-name = "systemprompt-cowork-manifest-tests"
-version = "0.0.11"
-dependencies = [
- "systemprompt-cowork",
-]
-
-[[package]]
-name = "systemprompt-cowork-paths-tests"
-version = "0.0.11"
-dependencies = [
- "systemprompt-cowork",
-]
-
-[[package]]
-name = "systemprompt-cowork-proxy-tests"
-version = "0.0.11"
-dependencies = [
- "bytes",
- "futures-util",
- "http-body",
- "http-body-util",
- "hyper",
- "systemprompt-cowork",
- "tokio",
-]
-
-[[package]]
-name = "systemprompt-cowork-sync-tests"
-version = "0.0.11"
-dependencies = [
- "chrono",
- "serde_json",
- "systemprompt-cowork",
 ]
 
 [[package]]
@@ -7128,7 +7129,7 @@ dependencies = [
  "serde",
  "serde_jcs",
  "serde_json",
- "systemprompt-cowork",
+ "systemprompt-bridge",
  "systemprompt-identifiers 0.4.3",
  "systemprompt-models",
  "systemprompt-security",

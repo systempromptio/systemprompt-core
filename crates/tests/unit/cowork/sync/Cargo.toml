@@ -1,17 +1,17 @@
 [package]
-name = "systemprompt-cowork-sync-tests"
+name = "systemprompt-bridge-sync-tests"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-cowork sync replay/skew checks"
+description = "Unit tests for systemprompt-bridge sync replay/skew checks"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-cowork = { workspace = true }
+systemprompt-bridge = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
 

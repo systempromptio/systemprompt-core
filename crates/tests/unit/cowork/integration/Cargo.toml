@@ -1,16 +1,17 @@
 [package]
-name = "systemprompt-cowork-integration-tests"
+name = "systemprompt-bridge-integration-tests"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-cowork integration layer (host apps, registry, registry parser)"
+description = "Unit tests for systemprompt-bridge integration layer (host apps, registry, registry parser)"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-cowork = { workspace = true }
+systemprompt-bridge = { workspace = true }
 
 [dev-dependencies]
+tempfile = "3"

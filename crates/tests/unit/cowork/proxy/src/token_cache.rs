@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use systemprompt_cowork::auth::types::HelperOutput;
-use systemprompt_cowork::ids::BearerToken;
-use systemprompt_cowork::proxy::token_cache::{RefreshFn, TokenCache};
+use systemprompt_bridge::auth::types::HelperOutput;
+use systemprompt_bridge::ids::BearerToken;
+use systemprompt_bridge::proxy::token_cache::{RefreshFn, TokenCache};
 
 fn fake_token(ttl: u64) -> HelperOutput {
     HelperOutput {

@@ -1,4 +1,4 @@
-use systemprompt_cowork::integration::{ProxyProbeState, proxy_probe};
+use systemprompt_bridge::integration::{ProxyProbeState, proxy_probe};
 
 #[test]
 fn no_url_yields_unconfigured_state() {

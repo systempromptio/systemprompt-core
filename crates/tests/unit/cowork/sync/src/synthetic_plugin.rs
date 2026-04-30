@@ -1,16 +1,16 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_cowork::config::paths::SYNTHETIC_PLUGIN_NAME;
-use systemprompt_cowork::gateway::manifest::{
+use systemprompt_bridge::config::paths::SYNTHETIC_PLUGIN_NAME;
+use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ManagedMcpServer, SignedManifest, SkillEntry, UserId,
     ValidatedUrl,
 };
-use systemprompt_cowork::gateway::manifest_version::ManifestVersion;
-use systemprompt_cowork::ids::{
+use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
+use systemprompt_bridge::ids::{
     ManagedMcpServerName, ManifestSignature, Sha256Digest, SkillId, SkillName,
 };
-use systemprompt_cowork::sync::write_synthetic_plugin;
+use systemprompt_bridge::sync::write_synthetic_plugin;
 
 fn tempdir() -> PathBuf {
     let mut p = std::env::temp_dir();

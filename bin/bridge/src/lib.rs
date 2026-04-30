@@ -33,7 +33,7 @@ Commands (credential helper):
   login <sp-live-...>        Store a PAT securely and wire up systemprompt-bridge.toml
     [--gateway <url>]
   logout                     Remove the stored PAT and its config section
-  clean                      Wipe all local cowork state (config + PAT + token cache).
+  clean                      Wipe all local systemprompt-bridge state (config + PAT + token cache).
                              Returns the GUI to a fresh splash. Does not touch
                              org-plugins or managed profiles — see `uninstall --purge`.
   status                     Show config paths and what is currently set up

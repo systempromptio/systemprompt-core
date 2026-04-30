@@ -10,28 +10,38 @@ pub(super) struct DomainRead {
 }
 
 pub(super) fn read_config() -> DomainRead {
-    let path = config::config_path();
-    let mut out = DomainRead::default();
+    let managed = config::managed_config_path();
+    if managed.exists() {
+        if let Ok(text) = std::fs::read_to_string(&managed) {
+            if let Some(read) = parse_into_keys(&text, &managed.display().to_string()) {
+                return read;
+            }
+        }
+    }
+    let user = config::user_config_path();
+    if user.exists() {
+        if let Ok(text) = std::fs::read_to_string(&user) {
+            if let Some(read) = parse_into_keys(&text, &user.display().to_string()) {
+                return read;
+            }
+        }
+    }
+    DomainRead::default()
+}
 
-    let bytes = match std::fs::read_to_string(&path) {
-        Ok(s) => s,
-        Err(_) => return out,
+fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
+    let value: toml::Value = toml::from_str(text).ok()?;
+    let mut out = DomainRead {
+        source_path: Some(source.to_string()),
+        keys: BTreeMap::new(),
     };
-    out.source_path = Some(path.display().to_string());
-
-    let value: toml::Value = match toml::from_str(&bytes) {
-        Ok(v) => v,
-        Err(_) => return out,
-    };
-
     for dotted in KEYS_OF_INTEREST {
         if let Some(raw) = lookup_dotted(&value, dotted) {
             out.keys
                 .insert((*dotted).to_string(), config::redact_if_sensitive(dotted, raw));
         }
     }
-
-    out
+    Some(out)
 }
 
 fn lookup_dotted(root: &toml::Value, dotted: &str) -> Option<String> {
@@ -75,7 +85,7 @@ fn list_unix() -> Vec<String> {
         .filter(|line| {
             let lower = line.to_ascii_lowercase();
             let trimmed = lower.trim_end();
-            trimmed.ends_with("/codex") || trimmed == "codex"
+            trimmed.ends_with("/codex") || trimmed == "codex" || trimmed.contains("/codex.app/")
         })
         .map(|s| s.trim().to_string())
         .collect();
@@ -109,23 +119,6 @@ fn list_windows() -> Vec<String> {
     hits
 }
 
-#[allow(dead_code)]
-pub(super) fn detect_binary() -> Option<String> {
-    let path = std::env::var_os("PATH")?;
-    let exe_name = if cfg!(target_os = "windows") {
-        "codex.exe"
-    } else {
-        "codex"
-    };
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join(exe_name);
-        if candidate.is_file() {
-            return Some(candidate.display().to_string());
-        }
-    }
-    None
-}
-
 pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::Value) -> bool {
     let segments: Vec<&str> = dotted.split('.').collect();
     let mut cur = target;
@@ -136,14 +129,9 @@ pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::
             _ => return false,
         };
         if !table.contains_key(key) {
-            table.insert(
-                key.to_string(),
-                toml::Value::Table(toml::map::Map::new()),
-            );
+            table.insert(key.to_string(), toml::Value::Table(toml::map::Map::new()));
         }
-        cur = table
-            .get_mut(key)
-            .expect("inserted above");
+        cur = table.get_mut(key).expect("inserted above");
         if !matches!(cur, toml::Value::Table(_)) {
             *cur = toml::Value::Table(toml::map::Map::new());
         }
@@ -155,13 +143,4 @@ pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::
     } else {
         false
     }
-}
-
-pub(super) fn read_dotted(root: &toml::Value, dotted: &str) -> Option<toml::Value> {
-    let mut cur = root;
-    for segment in dotted.split('.') {
-        let key = segment.trim_matches('"');
-        cur = cur.as_table()?.get(key)?;
-    }
-    Some(cur.clone())
 }
