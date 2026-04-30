@@ -70,6 +70,8 @@ libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3"
+core-foundation = "0.10"
+core-foundation-sys = "0.8"
 tray-icon = "0.19"
 muda = "0.15"
 winit = "0.30"
@@ -90,6 +92,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_Storage_FileSystem",
     "Win32_System_Console",
     "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Registry",
     "Win32_System_Threading",
 ] }
 

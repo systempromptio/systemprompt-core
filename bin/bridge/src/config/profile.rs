@@ -44,55 +44,18 @@ pub fn policy_pubkey() -> Option<PinnedPubKey> {
     read_policy_pubkey_native().map(PinnedPubKey::new)
 }
 
-#[cfg(target_os = "windows")]
 fn read_policy_pubkey_native() -> Option<String> {
-    let output = crate::winproc::reg_command()
-        .args([
-            "query",
-            r"HKCU\SOFTWARE\Policies\Claude",
-            "/v",
-            "inferenceManifestPubkey",
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
+    let store = super::store::managed_policy_store();
+    let value = store
+        .read_managed_policy("inferenceManifestPubkey")
+        .ok()
+        .flatten()?;
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    for line in stdout.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("inferenceManifestPubkey") {
-            let rest = rest.trim_start();
-            let rest = rest.strip_prefix("REG_SZ").unwrap_or(rest).trim();
-            if !rest.is_empty() {
-                return Some(rest.to_string());
-            }
-        }
-    }
-    None
-}
-
-#[cfg(target_os = "macos")]
-fn read_policy_pubkey_native() -> Option<String> {
-    use std::process::Command;
-    let output = Command::new("defaults")
-        .args([
-            "read",
-            "/Library/Managed Preferences/com.anthropic.claudefordesktop",
-            "inferenceManifestPubkey",
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if value.is_empty() { None } else { Some(value) }
-}
-
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn read_policy_pubkey_native() -> Option<String> {
-    None
 }
 
 pub fn persist_pinned_pubkey(pubkey: &str) -> std::io::Result<()> {

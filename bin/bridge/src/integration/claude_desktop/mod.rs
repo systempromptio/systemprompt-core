@@ -1,5 +1,4 @@
 mod shared;
-pub mod win_reg_parser;
 
 #[cfg(target_os = "macos")]
 mod macos;
