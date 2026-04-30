@@ -53,6 +53,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "str
 futures-util = "0.3"
 bytes = "1"
 parking_lot = "0.12"
+arc-swap = "1"
 ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.8"

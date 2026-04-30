@@ -60,6 +60,7 @@ pub(crate) fn on_login_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("login-pull-manifest"));
+            crate::proxy::reload_runtime_config();
             super::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
@@ -135,6 +136,7 @@ pub(crate) fn on_set_gateway_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("gateway-saved"));
+            crate::proxy::reload_runtime_config();
             app.state.reload();
             super::gateway_probe::spawn_probe(app, None);
             Ok(())
