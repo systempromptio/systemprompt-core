@@ -39,6 +39,7 @@ export class SpRail extends BridgeElement {
     this.marketplaceCount = 0;
     this._onResize = () => this._syncIndicator();
     this._onKeydown = (e) => this._handleKey(e);
+    this._onRailKeydown = (e) => this._handleRailKey(e);
     this._onMktCount = (e) => {
       const total = e.detail && e.detail.total;
       if (typeof total === "number") { this.marketplaceCount = total; }
@@ -68,11 +69,39 @@ export class SpRail extends BridgeElement {
     document.removeEventListener("keydown", this._onKeydown);
     document.removeEventListener("mkt:count", this._onMktCount);
     window.removeEventListener("resize", this._onResize);
+    this.removeEventListener("keydown", this._onRailKeydown);
     super.disconnectedCallback();
   }
 
   firstUpdated() {
     this.activateTab(this.activeTab);
+    this.addEventListener("keydown", this._onRailKeydown);
+  }
+
+  _handleRailKey(e) {
+    const key = e.key;
+    if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "Home" && key !== "End") {
+      return;
+    }
+    const tabs = Array.from(this.querySelectorAll(".sp-rail-tab"));
+    if (tabs.length === 0) { return; }
+    const currentIndex = tabs.findIndex((t) => t.dataset.tab === this.activeTab);
+    let nextIndex = currentIndex;
+    if (key === "ArrowDown") {
+      nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % tabs.length;
+    } else if (key === "ArrowUp") {
+      nextIndex = currentIndex < 0 ? tabs.length - 1 : (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (key === "Home") {
+      nextIndex = 0;
+    } else if (key === "End") {
+      nextIndex = tabs.length - 1;
+    }
+    e.preventDefault();
+    const next = tabs[nextIndex];
+    if (next) {
+      this.activateTab(next.dataset.tab);
+      next.focus();
+    }
   }
 
   updated() {
@@ -123,7 +152,7 @@ export class SpRail extends BridgeElement {
   _tab(name, label, l10n, shortcut, glyph, count) {
     const selected = this.activeTab === name;
     return html`
-      <button class="sp-rail-tab" data-tab=${name} role="tab" aria-selected=${selected ? "true" : "false"} type="button" @click=${(e) => { e.stopPropagation(); this.activateTab(name); }}>
+      <button class="sp-rail-tab" data-tab=${name} role="tab" aria-selected=${selected ? "true" : "false"} tabindex=${selected ? "0" : "-1"} type="button" @click=${(e) => { e.stopPropagation(); this.activateTab(name); }}>
         <span class="sp-rail-tab__glyph" aria-hidden="true">${glyph}</span>
         <span class="sp-rail-tab__label" data-l10n-id=${l10n}>${label}</span>
         ${count == null ? html`<span class="sp-rail-tab__count" hidden></span>` : html`<span class="sp-rail-tab__count">${count}</span>`}
