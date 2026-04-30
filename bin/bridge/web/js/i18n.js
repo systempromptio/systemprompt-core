@@ -43,6 +43,20 @@ export function hydrate(root = document) {
       el.textContent = msg;
     }
   }
+  for (const el of root.querySelectorAll("[data-l10n-placeholder]")) {
+    const id = el.dataset.l10nPlaceholder;
+    const msg = messages.get(id);
+    if (typeof msg === "string") {
+      el.placeholder = msg;
+    }
+  }
+  for (const el of root.querySelectorAll("[data-l10n-aria]")) {
+    const id = el.dataset.l10nAria;
+    const msg = messages.get(id);
+    if (typeof msg === "string") {
+      el.setAttribute("aria-label", msg);
+    }
+  }
 }
 
 async function loadCatalog(locale) {

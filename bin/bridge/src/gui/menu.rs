@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
 use muda::{Menu, MenuId, MenuItem, PredefinedMenuItem, Submenu};
+#[cfg(target_os = "windows")]
+use winit::window::Window;
 
 use super::error::GuiResult;
 use super::events::UiEvent;
+use crate::i18n;
 
 #[allow(dead_code)]
 pub struct MenuBarHandles {
@@ -26,7 +29,7 @@ pub fn install(bindings: &mut HashMap<MenuId, UiEvent>) -> GuiResult<MenuBarHand
         menu.append(&app_menu)?;
     }
 
-    let edit_menu = Submenu::new("Edit", true);
+    let edit_menu = Submenu::new(i18n::t("menu-edit"), true);
     edit_menu.append(&PredefinedMenuItem::undo(None))?;
     edit_menu.append(&PredefinedMenuItem::redo(None))?;
     edit_menu.append(&PredefinedMenuItem::separator())?;
@@ -36,28 +39,28 @@ pub fn install(bindings: &mut HashMap<MenuId, UiEvent>) -> GuiResult<MenuBarHand
     edit_menu.append(&PredefinedMenuItem::select_all(None))?;
     menu.append(&edit_menu)?;
 
-    let view_menu = Submenu::new("View", true);
-    let show_settings = MenuItem::new("Show settings", true, None);
+    let view_menu = Submenu::new(i18n::t("menu-view"), true);
+    let show_settings = MenuItem::new(i18n::t("menu-show-settings"), true, None);
     bindings.insert(show_settings.id().clone(), UiEvent::FocusWindow);
     view_menu.append(&show_settings)?;
     menu.append(&view_menu)?;
 
-    let help_menu = Submenu::new("Help", true);
-    let open_logs = MenuItem::new("Open log folder", true, None);
+    let help_menu = Submenu::new(i18n::t("menu-help"), true);
+    let open_logs = MenuItem::new(i18n::t("menu-open-log-folder"), true, None);
     bindings.insert(
         open_logs.id().clone(),
         UiEvent::OpenLogDirectory { reply_to: None },
     );
     help_menu.append(&open_logs)?;
 
-    let export_bundle = MenuItem::new("Export diagnostic bundle…", true, None);
+    let export_bundle = MenuItem::new(i18n::t("menu-export-bundle"), true, None);
     bindings.insert(
         export_bundle.id().clone(),
         UiEvent::ExportDiagnosticBundle { reply_to: None },
     );
     help_menu.append(&export_bundle)?;
 
-    let open_config = MenuItem::new("Open config folder", true, None);
+    let open_config = MenuItem::new(i18n::t("menu-open-config"), true, None);
     bindings.insert(open_config.id().clone(), UiEvent::OpenConfigFolder);
     help_menu.append(&open_config)?;
 
@@ -69,6 +72,30 @@ pub fn install(bindings: &mut HashMap<MenuId, UiEvent>) -> GuiResult<MenuBarHand
     }
 
     Ok(MenuBarHandles { menu })
+}
+
+#[cfg(target_os = "windows")]
+#[allow(unsafe_code)]
+pub fn attach_to_window(handles: &MenuBarHandles, window: &Window) -> GuiResult<()> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    let handle = window.window_handle().map_err(|e| {
+        crate::gui::error::GuiError::Io(std::io::Error::other(format!(
+            "window handle unavailable: {e}"
+        )))
+    })?;
+    if let RawWindowHandle::Win32(w) = handle.as_raw() {
+        // SAFETY: hwnd is a live HWND owned by the settings Window held by GuiApp;
+        // muda only reads it to attach the native menu bar.
+        unsafe {
+            handles.menu.init_for_hwnd(w.hwnd.get())?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+pub fn attach_to_window(_handles: &MenuBarHandles, _window: &winit::window::Window) -> GuiResult<()> {
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]

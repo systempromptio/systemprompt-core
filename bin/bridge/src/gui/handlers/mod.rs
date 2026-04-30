@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod auth;
+pub mod cancel;
 pub mod diagnostics;
 pub mod gateway_probe;
 pub mod quit;

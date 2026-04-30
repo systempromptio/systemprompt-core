@@ -3650,6 +3650,7 @@ dependencies = [
  "opener",
  "parking_lot",
  "rand 0.8.6",
+ "raw-window-handle",
  "reqwest",
  "rustls",
  "rustls-native-certs",

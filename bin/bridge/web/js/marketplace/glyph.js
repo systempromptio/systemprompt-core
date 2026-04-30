@@ -1,4 +1,5 @@
 import { $ } from "../dom.js?t=__TOKEN__";
+import { t } from "../i18n.js?t=__TOKEN__";
 
 export function cloneTemplate(id) {
   const tpl = $(id);
@@ -39,9 +40,9 @@ export function emptyBlock(kind, hasQuery, withSync, emptyTitleMap) {
   const sub = document.createElement("span");
   sub.className = "sp-mkt-empty__sub";
   if (hasQuery) {
-    sub.textContent = "Try a different term, or clear the search.";
+    sub.textContent = t("marketplace-empty-search-sub");
   } else if (withSync) {
-    sub.textContent = "Run a sync to populate the marketplace.";
+    sub.textContent = t("marketplace-empty-presync-sub");
   } else {
     sub.append(cloneTemplate("tpl-mkt-empty-sub-detail"));
   }
@@ -55,7 +56,7 @@ export function emptyBlock(kind, hasQuery, withSync, emptyTitleMap) {
     btn.type = "button";
     btn.className = "sp-btn-primary";
     btn.dataset.action = "sync";
-    btn.textContent = "Sync now";
+    btn.textContent = t("marketplace-empty-sync-button");
     actions.append(btn);
     el.append(actions);
   }

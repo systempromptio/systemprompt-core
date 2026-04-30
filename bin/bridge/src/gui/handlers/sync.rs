@@ -7,6 +7,8 @@ use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::ipc_runtime;
+use crate::gui::state::CancelScope;
+use crate::i18n;
 use crate::{config, sync};
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -28,19 +30,24 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     app.refresh_ui();
     ipc_runtime::emit_sync_progress(app, "started", None);
     let proxy = app.proxy.clone();
+    let token = app.state.install_cancel(CancelScope::Sync);
     app.runtime.spawn(async move {
-        let result = match tokio::task::spawn_blocking(|| {
+        let task = tokio::task::spawn_blocking(|| {
             let allow_tofu = config::pinned_pubkey().is_none();
             sync::run_once(false, false, allow_tofu)
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
-        })
-        .await
-        {
-            Ok(r) => r,
-            Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
-                "sync task join: {join_err}"
-            ))))),
+        });
+        let result = tokio::select! {
+            _ = token.cancelled() => {
+                Err(Arc::new(GuiError::Io(std::io::Error::other("sync cancelled"))))
+            }
+            joined = task => match joined {
+                Ok(r) => r,
+                Err(join_err) => Err(Arc::new(GuiError::Io(std::io::Error::other(format!(
+                    "sync task join: {join_err}"
+                ))))),
+            },
         };
         let _ = proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
@@ -57,6 +64,7 @@ pub(crate) fn on_sync_finished(
     reply_to: ReplyId,
 ) {
     app.state.set_sync_in_flight(false);
+    app.state.clear_cancel(CancelScope::Sync);
     let bridge_result = match result {
         Ok(summary) => {
             let line = summary.one_line();
@@ -66,15 +74,27 @@ pub(crate) fn on_sync_finished(
             Ok(json!({ "summary": line }))
         },
         Err(msg) => {
-            let line = format!("sync failed: {msg}");
+            let raw = msg.to_string();
+            let cancelled = raw.contains("sync cancelled");
+            let (phase, line, scope, code) = if cancelled {
+                (
+                    "cancelled",
+                    i18n::t("sync-cancelled"),
+                    ErrorScope::Marketplace,
+                    ErrorCode::Conflict,
+                )
+            } else {
+                (
+                    "failed",
+                    i18n::t_args("sync-failure", &[("error", &raw)]),
+                    ErrorScope::Marketplace,
+                    ErrorCode::Internal,
+                )
+            };
             app.state.set_message(line.clone());
             app.append_log(&line);
-            ipc_runtime::emit_sync_progress(app, "failed", Some(line.clone()));
-            Err(BridgeError::new(
-                ErrorScope::Marketplace,
-                ErrorCode::Internal,
-                line,
-            ))
+            ipc_runtime::emit_sync_progress(app, phase, Some(line.clone()));
+            Err(BridgeError::new(scope, code, line))
         },
     };
     app.state.reload();

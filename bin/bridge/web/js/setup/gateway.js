@@ -1,6 +1,7 @@
 import { $ } from "../dom.js?t=__TOKEN__";
 import { apiPost } from "../api.js?t=__TOKEN__";
 import { append, reportError, showToast } from "../drawer.js?t=__TOKEN__";
+import { t } from "../i18n.js?t=__TOKEN__";
 
 let gatewayDebounceTimer = null;
 let lastSavedGateway = "";
@@ -101,7 +102,7 @@ const setConnectPending = (pending) => {
     if (!btn.dataset.label) {
       btn.dataset.label = label.textContent;
     }
-    label.textContent = "Connecting…";
+    label.textContent = t("setup-connecting");
     btn.disabled = true;
     btn.setAttribute("aria-busy", "true");
     connectPendingSince = Date.now();

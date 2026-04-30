@@ -30,7 +30,6 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy}
 use winit::window::WindowId;
 
 use crate::gui::events::UiEvent;
-use crate::gui::ipc_runtime;
 use crate::gui::server::Server;
 use crate::gui::state::{AppState, GatewayStatus, now_unix};
 use crate::gui::window::SettingsWindow;

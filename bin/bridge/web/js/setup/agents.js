@@ -1,9 +1,10 @@
 import { $ } from "../dom.js?t=__TOKEN__";
+import { t } from "../i18n.js?t=__TOKEN__";
 
 const createEmpty = () => {
   const empty = document.createElement("div");
   empty.className = "sp-u-muted";
-  empty.textContent = "No agents available on this platform.";
+  empty.textContent = t("setup-agents-empty");
   return empty;
 };
 

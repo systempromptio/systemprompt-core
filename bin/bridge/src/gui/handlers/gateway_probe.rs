@@ -7,7 +7,7 @@ use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::ipc_runtime;
 use crate::gui::state::{
-    GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
+    CancelScope, GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
 };
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -50,6 +50,7 @@ pub(crate) fn on_gateway_probe_finished(
             "probe outcome unknown",
         )),
     };
+    app.state.clear_cancel(CancelScope::GatewayProbe);
     app.state.apply_probe(outcome);
     app.refresh_ui();
     ipc_runtime::emit_gateway_changed(app);
@@ -69,8 +70,9 @@ pub(crate) fn on_gateway_probe_finished(
 
 pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
+    let token = app.state.install_cancel(CancelScope::GatewayProbe);
     app.runtime.spawn(async move {
-        let outcome = tokio::task::spawn_blocking(|| {
+        let task = tokio::task::spawn_blocking(|| {
             let cfg = config::load();
             let gateway = config::gateway_url_or_default(&cfg);
             let client = GatewayClient::new(gateway);
@@ -101,15 +103,23 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
                 identity,
                 at_unix: now_unix(),
             }
-        })
-        .await
-        .unwrap_or_else(|_| GatewayProbeOutcome {
-            status: GatewayStatus::Unreachable {
-                reason: "probe task panicked".into(),
-            },
-            identity: None,
-            at_unix: now_unix(),
         });
+        let outcome = tokio::select! {
+            _ = token.cancelled() => GatewayProbeOutcome {
+                status: GatewayStatus::Unreachable {
+                    reason: "probe cancelled".into(),
+                },
+                identity: None,
+                at_unix: now_unix(),
+            },
+            joined = task => joined.unwrap_or_else(|_| GatewayProbeOutcome {
+                status: GatewayStatus::Unreachable {
+                    reason: "probe task panicked".into(),
+                },
+                identity: None,
+                at_unix: now_unix(),
+            }),
+        };
         let _ = proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
     });
 }

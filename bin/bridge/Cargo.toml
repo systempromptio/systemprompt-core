@@ -83,6 +83,7 @@ muda = "0.15"
 winit = "0.30"
 wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+raw-window-handle = "0.6"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Security",

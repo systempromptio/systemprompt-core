@@ -1,4 +1,5 @@
 import { $, setDot } from "./dom.js?t=__TOKEN__";
+import { t } from "./i18n.js?t=__TOKEN__";
 
 function collectInferenceModels(snap) {
   const seen = new Set();
@@ -62,7 +63,7 @@ export function renderProxy(snap) {
   if (models.length === 0) {
     setDot(epDot, "sp-dot--unknown");
     if (epText) {
-      epText.textContent = "no models configured yet";
+      epText.textContent = t("proxy-no-models");
       epText.classList.add("sp-u-muted");
     }
   } else {

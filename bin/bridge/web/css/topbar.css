@@ -108,6 +108,21 @@ body.is-platform-macos .sp-topbar { padding-left: 92px; }
 .sp-sync-pill[data-state="ok"] .sp-sync-pill__dot { background: var(--sp-ok); }
 .sp-sync-pill[data-state="err"] { color: var(--sp-err); border-color: color-mix(in srgb, var(--sp-err) 50%, transparent); }
 .sp-sync-pill[data-state="err"] .sp-sync-pill__dot { background: var(--sp-err); }
+.sp-sync-pill__cancel {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  padding: 0 var(--sp-space-1);
+  margin-left: var(--sp-space-1);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.sp-sync-pill__cancel:hover { opacity: 0.85; }
+.sp-sync-pill__cancel[hidden] { display: none; }
 
 .sp-avatar__mark {
   display: inline-flex;
