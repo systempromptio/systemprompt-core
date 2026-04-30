@@ -119,25 +119,20 @@ fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     serde_json::from_slice(&output.stdout).ok()
 }
 
-fn read_key_value(plist_json: &serde_json::Value, domain: &str, key: &str) -> Option<String> {
+fn read_key_value(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Option<String> {
     if let Some(val) = plist_json.get(key) {
         return Some(format_plist_value(key, val));
     }
 
-    let output = Command::new("/usr/bin/defaults")
-        .arg("read")
-        .arg(domain)
-        .arg(key)
-        .output()
-        .ok()?;
-    if !output.status.success() {
+    let raw = crate::config::store::managed_policy_store()
+        .read_managed_policy(key)
+        .ok()
+        .flatten()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
         return None;
     }
-    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if raw.is_empty() {
-        return None;
-    }
-    Some(redact_if_sensitive(key, raw))
+    Some(redact_if_sensitive(key, trimmed.to_string()))
 }
 
 fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
