@@ -37,8 +37,10 @@ fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
     };
     for dotted in KEYS_OF_INTEREST {
         if let Some(raw) = lookup_dotted(&value, dotted) {
-            out.keys
-                .insert((*dotted).to_string(), config::redact_if_sensitive(dotted, raw));
+            out.keys.insert(
+                (*dotted).to_string(),
+                config::redact_if_sensitive(dotted, raw),
+            );
         }
     }
     Some(out)
@@ -95,7 +97,10 @@ fn list_unix() -> Vec<String> {
 }
 
 fn list_windows() -> Vec<String> {
-    let output = match Command::new("tasklist").args(["/FO", "CSV", "/NH"]).output() {
+    let output = match Command::new("tasklist")
+        .args(["/FO", "CSV", "/NH"])
+        .output()
+    {
         Ok(o) => o,
         Err(_) => return Vec::new(),
     };
@@ -106,7 +111,11 @@ fn list_windows() -> Vec<String> {
     let mut hits: Vec<String> = text
         .lines()
         .filter_map(|line| {
-            let first = line.split(',').next()?.trim_matches('"').to_ascii_lowercase();
+            let first = line
+                .split(',')
+                .next()?
+                .trim_matches('"')
+                .to_ascii_lowercase();
             if first == "codex.exe" {
                 Some(first)
             } else {
@@ -128,13 +137,13 @@ pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::
             toml::Value::Table(t) => t,
             _ => return false,
         };
-        if !table.contains_key(key) {
-            table.insert(key.to_string(), toml::Value::Table(toml::map::Map::new()));
+        let entry = table
+            .entry(key.to_string())
+            .or_insert_with(|| toml::Value::Table(toml::map::Map::new()));
+        if !matches!(entry, toml::Value::Table(_)) {
+            *entry = toml::Value::Table(toml::map::Map::new());
         }
-        cur = table.get_mut(key).expect("inserted above");
-        if !matches!(cur, toml::Value::Table(_)) {
-            *cur = toml::Value::Table(toml::map::Map::new());
-        }
+        cur = entry;
     }
     let last = segments[segments.len() - 1].trim_matches('"');
     if let toml::Value::Table(t) = cur {
