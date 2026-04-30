@@ -2,6 +2,7 @@ pub mod paths;
 mod profile;
 pub mod redaction;
 mod runtime;
+pub mod store;
 
 pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_loaded};
 

@@ -3,6 +3,8 @@ import { bridge } from "/assets/js/bridge.js";
 import { TAB_DEFS, TAB_GLYPHS, readInitialTab, persistTab } from "/assets/js/utils/rail-tabs.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 
+const ARROW_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
+
 export class SpRail extends SpElement {
   constructor() {
     super();
@@ -10,11 +12,11 @@ export class SpRail extends SpElement {
     this.agentCount = 0;
     this.marketplaceCount = 0;
     this._onResize = () => this._syncIndicator();
-    this._onRailKeydown = (e) => this._handleRailKey(e);
     this._onMktCount = (e) => {
       const total = e.detail && e.detail.total;
       if (typeof total === "number") { this.marketplaceCount = total; }
     };
+    this._onRailKey = (e) => this._handleRailKey(e);
     this.registerAction("activate-tab", (trigger) => this.activateTab(trigger.dataset.tab));
   }
 
@@ -31,46 +33,35 @@ export class SpRail extends SpElement {
     }).catch(() => {});
     this._unsubMkt = onBridgeEvent("mkt:count", this._onMktCount);
     window.addEventListener("resize", this._onResize);
-    this.addEventListener("keydown", this._onRailKeydown);
+    this.addEventListener("keydown", this._onRailKey);
     queueMicrotask(() => this.activateTab(this.activeTab));
   }
 
   onDisconnect() {
     if (this._unsubMkt) { this._unsubMkt(); this._unsubMkt = null; }
     window.removeEventListener("resize", this._onResize);
-    this.removeEventListener("keydown", this._onRailKeydown);
-  }
-
-  _handleRailKey(e) {
-    const key = e.key;
-    if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "Home" && key !== "End") {
-      return;
-    }
-    const tabs = Array.from(this.querySelectorAll(".sp-rail-tab"));
-    if (tabs.length === 0) { return; }
-    const currentIndex = tabs.findIndex((t) => t.dataset.tab === this.activeTab);
-    let nextIndex = currentIndex;
-    if (key === "ArrowDown") {
-      nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % tabs.length;
-    } else if (key === "ArrowUp") {
-      nextIndex = currentIndex < 0 ? tabs.length - 1 : (currentIndex - 1 + tabs.length) % tabs.length;
-    } else if (key === "Home") {
-      nextIndex = 0;
-    } else if (key === "End") {
-      nextIndex = tabs.length - 1;
-    }
-    e.preventDefault();
-    const next = tabs[nextIndex];
-    if (next) {
-      this.activateTab(next.dataset.tab);
-      next.focus();
-    }
+    this.removeEventListener("keydown", this._onRailKey);
   }
 
   activateTab(name) {
     this.activeTab = name;
     persistTab(name);
     document.dispatchEvent(new CustomEvent("crumb:set", { detail: { name } }));
+  }
+
+  _handleRailKey(e) {
+    if (!ARROW_KEYS.has(e.key)) { return; }
+    const tabs = Array.from(this.querySelectorAll(".sp-rail-tab"));
+    if (tabs.length === 0) { return; }
+    const cur = tabs.findIndex((t) => t.dataset.tab === this.activeTab);
+    let next = cur;
+    if (e.key === "ArrowDown") { next = cur < 0 ? 0 : (cur + 1) % tabs.length; }
+    else if (e.key === "ArrowUp") { next = cur < 0 ? tabs.length - 1 : (cur - 1 + tabs.length) % tabs.length; }
+    else if (e.key === "Home") { next = 0; }
+    else { next = tabs.length - 1; }
+    e.preventDefault();
+    const target = tabs[next];
+    if (target) { this.activateTab(target.dataset.tab); target.focus(); }
   }
 
   afterRender() {
