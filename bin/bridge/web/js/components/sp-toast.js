@@ -42,7 +42,11 @@ export class SpToast extends SpElement {
 
   afterRender() {
     this.hidden = !this.visible;
-    if (this.visible) { this.dataset.kind = this.kind; }
+    if (this.visible) {
+      this.dataset.kind = this.kind;
+    } else {
+      delete this.dataset.kind;
+    }
   }
 
   render() {

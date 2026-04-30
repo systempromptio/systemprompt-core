@@ -1,13 +1,6 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 
-function fmtCount(n) {
-  const v = Number(n) || 0;
-  if (v >= 1_000_000) { return `${(v / 1_000_000).toFixed(1)}M`; }
-  if (v >= 1_000) { return `${(v / 1_000).toFixed(1)}k`; }
-  return String(v);
-}
-
 function hostState(snap) {
   if (snap.sync_in_flight) { return "running"; }
   if (snap.gateway_status && snap.gateway_status.state === "unreachable") { return "err"; }
@@ -22,6 +15,16 @@ function dotClass(state) {
   return "sp-dot--warn";
 }
 
+function docsUrl(platform) {
+  if (platform === "macos") { return "https://systemprompt.io/documentation/services/cowork-deployment-macos"; }
+  if (platform === "windows") { return "https://systemprompt.io/documentation/services/cowork-deployment-windows"; }
+  return "https://systemprompt.io/documentation/services/cowork-deployment";
+}
+
+function hasBuildMeta(sha, date) {
+  return sha && date && sha !== "unknown" && date !== "unknown";
+}
+
 export class SpFooter extends SpElement {
   constructor() {
     super();
@@ -33,14 +36,10 @@ export class SpFooter extends SpElement {
     this.setAttribute("role", "contentinfo");
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
-    this.bridgeSubscribe("proxy.stats", () => {
-      bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
-    });
   }
 
   render() {
     const snap = this.snapshot || {};
-    const stats = snap.proxy_stats || {};
     const platformDisplay = this.dataset.platformDisplay || "";
     const platform = this.dataset.platform || "linux";
     const version = this.dataset.version || "";
@@ -57,18 +56,17 @@ export class SpFooter extends SpElement {
         <span class="sp-footer__path" title="Config path">${escapeHtml(snap.config_file || "—")}</span>
       </div>
       <div class="sp-footer__meta">
-        <span class="sp-footer__version" title="Build ${escapeHtml(gitSha)} committed ${escapeHtml(buildDate)}">v${escapeHtml(version)} (${escapeHtml(gitSha)}, ${escapeHtml(buildDate)})</span>
+        ${hasBuildMeta(gitSha, buildDate)
+          ? `<span class="sp-footer__version" title="Build ${escapeHtml(gitSha)} committed ${escapeHtml(buildDate)}">v${escapeHtml(version)} (${escapeHtml(gitSha)}, ${escapeHtml(buildDate)})</span>`
+          : `<span class="sp-footer__version">v${escapeHtml(version)}</span>`}
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <a href="https://systemprompt.io/docs/bridge/${escapeHtml(platform)}" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-docs">docs</a>
+        <a href="${escapeHtml(docsUrl(platform))}" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-docs">docs</a>
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <a href="mailto:ed@systemprompt.io" data-l10n-id="footer-licensing">licensing</a>
+        <a href="https://systemprompt.io/documentation/licensing" target="_blank" rel="noopener noreferrer" data-l10n-id="footer-licensing">licensing</a>
       </div>
       <div class="sp-footer__right">
         <span class="sp-footer__hint"><span class="sp-kbd">⌘1</span><span class="sp-kbd">⌘2</span><span class="sp-kbd">⌘3</span><span class="sp-kbd">⌘4</span> <span data-l10n-id="footer-tabs-hint">tabs</span></span>
       </div>
-      <span hidden data-role="lane-msgs">${escapeHtml(fmtCount(stats.messages_total))}</span>
-      <span hidden data-role="lane-tin">${escapeHtml(fmtCount(stats.tokens_in_total))}</span>
-      <span hidden data-role="lane-tout">${escapeHtml(fmtCount(stats.tokens_out_total))}</span>
     `;
   }
 }
