@@ -416,7 +416,15 @@
         </div>
 
         <div class="sp-setup__actions">
-          <button id="setup-connect" data-action="setup-connect" class="sp-btn-primary" type="button">Connect</button>
+          <button id="setup-connect" data-action="setup-connect" class="sp-btn-primary" type="button">
+            <span class="sp-btn__icon sp-btn__icon--default" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M9 9V5a2 2 0 1 1 4 0v4"/><path d="M15 9V5a2 2 0 1 1 4 0v4"/><path d="M5 9h14v4a7 7 0 0 1-14 0z"/><path d="M12 16v5"/></svg>
+            </span>
+            <span class="sp-btn__icon sp-btn__icon--busy" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9" /><path d="M21 3v6h-6" opacity=".4"/></svg>
+            </span>
+            <span class="sp-btn__label">Connect</span>
+          </button>
           <span id="setup-error" class="sp-setup__error" hidden></span>
         </div>
       </div>
@@ -426,14 +434,30 @@
         <div id="setup-agents-list" class="sp-setup-agent-list" aria-live="polite"></div>
         <div class="sp-setup__actions">
           <button data-action="setup-skip-agents" class="sp-btn-ghost" type="button">Skip — set up later</button>
-          <button data-action="setup-finish" class="sp-btn-primary" type="button">Finish</button>
+          <button data-action="setup-finish" class="sp-btn-primary" type="button">
+            <span class="sp-btn__icon sp-btn__icon--default" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+            </span>
+            <span class="sp-btn__icon sp-btn__icon--busy" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6" opacity=".4"/></svg>
+            </span>
+            <span class="sp-btn__label">Finish</span>
+          </button>
         </div>
       </div>
 
       <div class="sp-setup__step" data-step="done">
         <p class="sp-setup__lede">systemprompt bridge is ready. Open the workspace to manage agents, sync the marketplace, and watch the proxy.</p>
         <div class="sp-setup__actions">
-          <button data-action="setup-open" class="sp-btn-primary" type="button">Open systemprompt bridge</button>
+          <button data-action="setup-open" class="sp-btn-primary" type="button">
+            <span class="sp-btn__icon sp-btn__icon--default" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+            </span>
+            <span class="sp-btn__icon sp-btn__icon--busy" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6" opacity=".4"/></svg>
+            </span>
+            <span class="sp-btn__label">Open systemprompt bridge</span>
+          </button>
         </div>
       </div>
 

@@ -6,7 +6,7 @@ input[type="text"] {
   background: var(--sp-bg-elev-2);
   color: var(--sp-text);
   border: 1px solid var(--sp-line);
-  border-radius: 10px;
+  border-radius: var(--sp-corners-sm);
   padding: var(--sp-space-2-5) var(--sp-space-3);
   font: inherit;
   outline: none;
@@ -22,97 +22,103 @@ input:focus {
 button {
   font: inherit;
   padding: var(--sp-space-2-5) var(--sp-space-3-5);
-  border-radius: 10px;
+  border-radius: var(--sp-corners-sm);
   border: 1px solid var(--sp-line);
   background: var(--sp-bg-elev-2);
   color: var(--sp-text);
   cursor: pointer;
-  transition: transform 0.04s ease-out, background 0.15s, border-color 0.15s, filter 0.15s;
+  transition: background 0.15s, border-color 0.15s, filter 0.15s, box-shadow 0.15s;
 }
-button:hover    { background: var(--sp-bg-elev-2); }
-button:active   { transform: translateY(1px); }
+button:hover    { border-color: color-mix(in srgb, var(--sp-line) 60%, var(--sp-accent) 40%); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 button.sp-btn-primary {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-space-2);
   background: linear-gradient(180deg, var(--sp-accent) 0%, var(--sp-accent-deep) 100%);
-  border-color: transparent;
+  border: 1px solid color-mix(in srgb, var(--sp-accent-deep) 70%, oklch(0 0 0) 30%);
+  border-radius: var(--sp-corners-sm);
   color: oklch(0.20 0.04 50);
   font-weight: 700;
   letter-spacing: 0.01em;
-  padding: var(--sp-space-3) var(--sp-space-5);
+  padding: var(--sp-space-3) var(--sp-space-4);
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.30) inset,
-    0 -1px 0 oklch(0 0 0 / 0.20) inset,
-    0 4px 14px oklch(0.67 0.18 50 / 0.30),
-    0 1px 2px oklch(0 0 0 / 0.25);
-  transition:
-    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.2s ease,
-    filter 0.15s ease;
-}
-button.sp-btn-primary::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(180deg, oklch(1 0 0 / 0.22) 0%, oklch(1 0 0 / 0) 55%);
-  pointer-events: none;
-  z-index: 1;
-}
-button.sp-btn-primary::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(
-    100deg,
-    oklch(1 0 0 / 0) 0%,
-    oklch(1 0 0 / 0.35) 50%,
-    oklch(1 0 0 / 0) 100%
-  );
-  transform: skewX(-18deg);
-  pointer-events: none;
-  z-index: 2;
-  transition: left 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+    0 -1px 0 oklch(0 0 0 / 0.18) inset,
+    0 4px 14px oklch(0.67 0.18 50 / 0.28),
+    0 1px 2px oklch(0 0 0 / 0.20);
+  transition: filter 0.15s ease, box-shadow 0.2s ease, border-color 0.15s ease;
 }
 button.sp-btn-primary:hover {
-  filter: brightness(1.06) saturate(1.05);
-  transform: translateY(-1px) scale(1.01);
+  filter: brightness(1.06);
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.35) inset,
-    0 -1px 0 oklch(0 0 0 / 0.20) inset,
-    0 10px 26px oklch(0.67 0.18 50 / 0.42),
-    0 2px 4px oklch(0 0 0 / 0.30);
+    0 -1px 0 oklch(0 0 0 / 0.18) inset,
+    0 8px 22px oklch(0.67 0.18 50 / 0.40),
+    0 2px 4px oklch(0 0 0 / 0.25);
 }
-button.sp-btn-primary:hover::after { left: 120%; }
 button.sp-btn-primary:focus-visible {
   outline: none;
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.30) inset,
-    0 -1px 0 oklch(0 0 0 / 0.20) inset,
+    0 -1px 0 oklch(0 0 0 / 0.18) inset,
     0 0 0 3px oklch(0.70 0.17 51 / 0.45),
-    0 4px 14px oklch(0.67 0.18 50 / 0.30);
+    0 4px 14px oklch(0.67 0.18 50 / 0.28);
 }
 button.sp-btn-primary:active {
-  transform: translateY(1px) scale(0.99);
-  filter: brightness(0.97);
+  filter: brightness(0.96);
   box-shadow:
-    0 1px 0 oklch(1 0 0 / 0.20) inset,
-    0 2px 6px oklch(0.67 0.18 50 / 0.25),
-    0 1px 2px oklch(0 0 0 / 0.30);
-  transition-duration: 0.06s;
+    0 1px 0 oklch(1 0 0 / 0.18) inset,
+    0 1px 4px oklch(0 0 0 / 0.30),
+    0 0 0 0 oklch(0.67 0.18 50 / 0);
 }
 button.sp-btn-primary:disabled,
 button.sp-btn-primary[disabled] {
-  filter: saturate(0.5) brightness(0.85);
-  transform: none;
-  box-shadow: 0 1px 2px oklch(0 0 0 / 0.20);
+  filter: saturate(0.55) brightness(0.85);
+  cursor: progress;
 }
-button.sp-btn-primary:disabled::after,
-button.sp-btn-primary[disabled]::after { display: none; }
 
-button.sp-btn-ghost { background: transparent; }
+button.sp-btn-primary .sp-btn__icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  color: oklch(0.30 0.02 50 / 0.60);
+  transition: color 0.18s ease;
+}
+button.sp-btn-primary .sp-btn__icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+button.sp-btn-primary:hover .sp-btn__icon { color: oklch(0.20 0.04 50); }
+
+button.sp-btn-primary .sp-btn__icon--busy { display: none; }
+button.sp-btn-primary[aria-busy="true"] .sp-btn__icon--default { display: none; }
+button.sp-btn-primary[aria-busy="true"] .sp-btn__icon--busy {
+  display: inline-flex;
+  color: oklch(0.20 0.04 50);
+  animation: sp-btn-spin 0.85s linear infinite;
+}
+@keyframes sp-btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+button.sp-btn-primary .sp-btn__label {
+  display: inline-block;
+  min-width: 0;
+}
+
+button.sp-btn-ghost {
+  background: transparent;
+  border-radius: var(--sp-corners-sm);
+}

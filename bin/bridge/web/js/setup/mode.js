@@ -4,6 +4,9 @@ import {
   setSetupError,
   updateSetupPatLink,
   setLastSavedGateway,
+  isConnectPending,
+  connectPendingDurationMs,
+  clearConnectPending,
 } from "./gateway.js?t=__TOKEN__";
 
 export const setSetupStep = (step) => {
@@ -126,6 +129,19 @@ export const applySetupMode = (snap) => {
   );
   const setup = !(configured && (onboarded || anyInstalled));
   document.body.classList.toggle("is-setup-mode", setup);
+
+  if (isConnectPending()) {
+    const probeState = (snap.gateway_status && snap.gateway_status.state) || "unknown";
+    const isResolved =
+      configured ||
+      probeState === "reachable" ||
+      probeState === "unreachable" ||
+      (snap.last_action_message && /(fail|error|reject|invalid)/i.test(snap.last_action_message));
+    if (isResolved || connectPendingDurationMs() > 15000) {
+      clearConnectPending();
+    }
+  }
+
   if (!setup) {
     setSetupError("");
     return;
