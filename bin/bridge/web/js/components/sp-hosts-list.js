@@ -12,7 +12,7 @@ export class SpHostsList extends SpElement {
   }
 
   onConnect() {
-    bridge.stateSnapshot().then((s) => this._applyFullSnapshot(s)).catch(() => {});
+    bridge.stateSnapshot().then((s) => this._applyFullSnapshot(s)).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => this._applyFullSnapshot(s));
     this.bridgeSubscribe("host.changed", (host) => this._applyHostDelta(host));
   }

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Bridge frontend rewritten off Lit.js — pure vanilla Web Components.** All 22 `sp-*` components migrated from `LitElement` to a 110-line `SpElement` base (`web/js/components/sp-element.js`) with reactive setters, microtask-batched re-render, and `data-action` / `data-input` event delegation. `vendor/lit-all.min.js` deleted. `js/atoms.js` deleted (unused by components — bridge state subscription is the single source of truth).
+- **State path unified.** Components subscribe to `bridge.subscribe('state.changed', ...)`, mutate reactive setters, and re-render. `hydrateAtoms` removed from `index.js`. The four parallel communication patterns (bridge sub, atoms, custom events, Lit reactive props) collapse to one.
+- **Centralized event registry at `web/js/events/bridge-events.js`** owns all `document.addEventListener` calls (keydown, mkt:count, crumb:set, setup-open). `theme.js` module-scope listeners wrapped in `initTheme()`. Components subscribe via `onBridgeEvent(name, fn)` instead of registering their own document listeners.
+- **Oversized components split.** `sp-setup-gateway` 211→117 lines (form rendering extracted to `utils/gateway.js::renderGatewayForm`), `sp-marketplace` 161→138 (listing fetch logic moved to `services/marketplace-service.js`), `sp-cloud-status` 161→127, `sp-rail` 160→119 (tab definitions extracted to `utils/rail-tabs.js`). Every JS file ≤150 lines, every CSS file ≤200.
+- **Toast styles tokenised.** Hardcoded hex (`#2a1a1a`, `#d97757`, …) and px (`20px`, `12px`, …) in `main.css` replaced with new `--sp-toast-bg`, `--sp-toast-bg-error`, `--sp-toast-border`, `--sp-toast-fg`, `--sp-toast-shadow`, `--sp-radius-md`, `--sp-z-toast` tokens. Toast block extracted to `web/css/toast.css`.
+- **Empty `.catch(() => {})` handlers replaced** with `.catch((e) => console.warn("snapshot failed", e))` across 19 component snapshot calls — visible failure logging instead of silent swallowing.
+- **`assets.rs` registry updated** to drop `LIT_VENDOR`, `atoms`, `components/base` and register `components/sp-element`, `events/bridge-events`, `services/marketplace-service`, `utils/rail-tabs`, `utils/gateway`, `css/toast`. The `/assets/js/vendor/lit-all.js` route removed.
+- **`i18n.js` leading comment block deleted** (4 lines). `log-virtual.js` switched from `frag.appendChild(li)` to `frag.append(li)`.
+
 ### Fixed
 
 - **Clippy cleanup — zero warnings on `x86_64-pc-windows-gnu` and host targets under `-D warnings`.**

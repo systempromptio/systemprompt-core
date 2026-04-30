@@ -17,7 +17,7 @@ export class SpSetupAgents extends SpElement {
   onConnect() {
     this.classList.add("sp-setup-agent-list");
     this.setAttribute("aria-live", "polite");
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
+    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
     this.bridgeSubscribe("host.changed", (host) => this._mergeHost(host));
   }

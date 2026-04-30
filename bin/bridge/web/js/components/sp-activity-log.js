@@ -30,10 +30,10 @@ export class SpActivityLog extends SpElement {
   onConnect() {
     this.classList.add("sp-activity");
     this.setAttribute("aria-label", "Activity log");
-    bridge.stateSnapshot().then((s) => this._applyStats(s)).catch(() => {});
+    bridge.stateSnapshot().then((s) => this._applyStats(s)).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => this._applyStats(s));
     this.bridgeSubscribe("proxy.stats", () => {
-      bridge.stateSnapshot().then((s) => this._applyStats(s)).catch(() => {});
+      bridge.stateSnapshot().then((s) => this._applyStats(s)).catch((e) => console.warn("snapshot failed", e));
     });
     this.bridgeSubscribe("log", (entry) => this._appendLog(entry && entry.line));
   }

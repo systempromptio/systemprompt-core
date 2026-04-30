@@ -30,7 +30,7 @@ export class SpRail extends SpElement {
     });
     bridge.stateSnapshot().then((s) => {
       this.agentCount = ((s && s.host_apps) || []).length;
-    }).catch(() => {});
+    }).catch((e) => console.warn("snapshot failed", e));
     this._unsubMkt = onBridgeEvent("mkt:count", this._onMktCount);
     window.addEventListener("resize", this._onResize);
     this.addEventListener("keydown", this._onRailKey);

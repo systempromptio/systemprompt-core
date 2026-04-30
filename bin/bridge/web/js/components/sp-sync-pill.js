@@ -26,7 +26,7 @@ export class SpSyncPill extends SpElement {
   onConnect() {
     this.classList.add("sp-sync-pill");
     this.setAttribute("aria-live", "polite");
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
+    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
     this.bridgeSubscribe("sync.progress", (p) => { this.progress = p; });
   }

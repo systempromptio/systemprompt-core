@@ -31,10 +31,10 @@ export class SpFooter extends SpElement {
   onConnect() {
     this.classList.add("sp-footer");
     this.setAttribute("role", "contentinfo");
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
+    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
     this.bridgeSubscribe("proxy.stats", () => {
-      bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
+      bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     });
   }
 
