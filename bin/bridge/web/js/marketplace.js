@@ -64,19 +64,19 @@ export function copyToClipboard(button, value) {
 export function renderMarketplaceBadge(snap) {
   const badge = $("marketplace-status");
   if (badge) {
-    badge.classList.remove("badge-muted", "badge-ok", "badge-warn", "badge-err");
+    badge.classList.remove("sp-badge--muted", "sp-badge--ok", "sp-badge--warn", "sp-badge--err");
     if (!snap.signed_in) {
       badge.textContent = "sign-in required";
-      badge.classList.add("badge-warn");
+      badge.classList.add("sp-badge--warn");
     } else if (snap.sync_in_flight) {
       badge.textContent = "syncing";
-      badge.classList.add("badge-warn");
+      badge.classList.add("sp-badge--warn");
     } else if (snap.last_sync_summary) {
       badge.textContent = "synced";
-      badge.classList.add("badge-ok");
+      badge.classList.add("sp-badge--ok");
     } else {
       badge.textContent = "never synced";
-      badge.classList.add("badge-muted");
+      badge.classList.add("sp-badge--muted");
     }
   }
 }

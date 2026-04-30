@@ -3,19 +3,19 @@ import { $, setDot, fmtRelative } from "./dom.js?t=__TOKEN__";
 function applyServerStatus(status) {
   const dot = $("server-dot");
   const text = $("server-state-text");
-  let cls = "dot-unknown";
+  let cls = "sp-dot--unknown";
   let label = "unknown";
   if (status.state === "reachable") {
-    cls = "dot-ok";
+    cls = "sp-dot--ok";
     label = `reachable · ${status.latency_ms}ms`;
   } else if (status.state === "probing") {
-    cls = "dot-probing";
+    cls = "sp-dot--probing";
     label = "probing…";
   } else if (status.state === "unreachable") {
-    cls = "dot-err";
+    cls = "sp-dot--err";
     label = `unreachable · ${status.reason || "unknown error"}`;
   } else {
-    cls = "dot-unknown";
+    cls = "sp-dot--unknown";
     label = "unknown";
   }
   setDot(dot, cls);
@@ -32,21 +32,21 @@ function applyIdentity(snap, reachable) {
     return;
   }
   if (!reachable) {
-    setDot(idDot, "dot-unknown");
+    setDot(idDot, "sp-dot--unknown");
     idEl.textContent = "(gateway unreachable)";
-    idEl.classList.add("muted");
+    idEl.classList.add("sp-u-muted");
   } else if (id && (id.email || id.user_id)) {
-    setDot(idDot, "dot-ok");
+    setDot(idDot, "sp-dot--ok");
     idEl.textContent = id.email || id.user_id;
-    idEl.classList.remove("muted");
+    idEl.classList.remove("sp-u-muted");
   } else if (snap.pat_present) {
-    setDot(idDot, "dot-probing");
+    setDot(idDot, "sp-dot--probing");
     idEl.textContent = "(verifying credentials…)";
-    idEl.classList.add("muted");
+    idEl.classList.add("sp-u-muted");
   } else {
-    setDot(idDot, "dot-warn");
+    setDot(idDot, "sp-dot--warn");
     idEl.textContent = "(not signed in)";
-    idEl.classList.add("muted");
+    idEl.classList.add("sp-u-muted");
   }
   $("identity-user").textContent = (id && id.user_id) || "—";
   $("identity-tenant").textContent = (id && id.tenant_id) || "—";
@@ -59,12 +59,12 @@ export function renderCloud(snap) {
   const endpoint = $("server-endpoint");
   if (endpoint) {
     endpoint.textContent = snap.gateway_url || "—";
-    endpoint.classList.toggle("muted", !snap.gateway_url);
+    endpoint.classList.toggle("sp-u-muted", !snap.gateway_url);
   }
   const probe = $("server-probe");
   if (probe) {
     probe.textContent = fmtRelative(snap.last_probe_at_unix);
-    probe.classList.toggle("muted", !snap.last_probe_at_unix);
+    probe.classList.toggle("sp-u-muted", !snap.last_probe_at_unix);
   }
 
   applyIdentity(snap, status.state === "reachable");

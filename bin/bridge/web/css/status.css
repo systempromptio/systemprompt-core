@@ -1,4 +1,4 @@
-.status-board {
+.sp-status__board {
   width: 100%;
   border-collapse: collapse;
   background: var(--sp-bg-elev-1);
@@ -6,15 +6,15 @@
   border-radius: var(--sp-corners-md);
   overflow: hidden;
 }
-.status-board th, .status-board td {
+.sp-status__board th, .sp-status__board td {
   text-align: left;
   padding: var(--sp-space-3-5) var(--sp-space-4-5);
   vertical-align: top;
   border-bottom: 1px solid var(--sp-line);
 }
-.status-board tr:last-child th,
-.status-board tr:last-child td { border-bottom: none; }
-.status-board th {
+.sp-status__board tr:last-child th,
+.sp-status__board tr:last-child td { border-bottom: none; }
+.sp-status__board th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
@@ -22,29 +22,29 @@
   width: 200px;
   font-weight: 600;
 }
-.status-row { display: flex; align-items: center; gap: var(--sp-space-2); font-size: 14px; font-weight: 500; }
-.status-detail { font-size: 12px; margin-top: var(--sp-space-1); }
-.status-actions {
+.sp-status__row { display: flex; align-items: center; gap: var(--sp-space-2); font-size: 14px; font-weight: 500; }
+.sp-status__detail { font-size: 12px; margin-top: var(--sp-space-1); }
+.sp-status__actions {
   text-align: right;
   white-space: nowrap;
 }
-.status-actions button { margin-left: var(--sp-space-1-5); }
-.status-actions:empty::before { content: ""; }
-.status-prefs summary {
+.sp-status__actions button { margin-left: var(--sp-space-1-5); }
+.sp-status__actions:empty::before { content: ""; }
+.sp-status__prefs summary {
   font-size: 12px;
   color: var(--sp-muted);
   cursor: pointer;
   padding: var(--sp-space-2) 0;
 }
-.status-prefs[open] summary { color: var(--sp-text); }
+.sp-status__prefs[open] summary { color: var(--sp-text); }
 
-.status-group { margin-bottom: var(--sp-space-6); }
-.status-group:last-child { margin-bottom: 0; }
-.status-group-header {
+.sp-status-group { margin-bottom: var(--sp-space-6); }
+.sp-status-group:last-child { margin-bottom: 0; }
+.sp-status-group__header {
   margin: 0 0 var(--sp-space-2-5);
   padding: 0 var(--sp-space-1);
 }
-.status-group-header h2 {
+.sp-status-group__header h2 {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.6px;
@@ -52,56 +52,54 @@
   margin: 0 0 var(--sp-space-1);
   font-weight: 700;
 }
-.status-group-caption {
+.sp-status-group__caption {
   font-size: 12px;
   color: var(--sp-muted);
   margin: 0;
 }
 #hosts-list { display: flex; flex-direction: column; gap: var(--sp-space-3-5); }
-.host-list-empty { padding: var(--sp-space-3-5) var(--sp-space-4-5); }
-.host-card {
+.sp-host-list__empty { padding: var(--sp-space-3-5) var(--sp-space-4-5); }
+.sp-host-card {
   background: var(--sp-bg-elev-1);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-md);
   overflow: hidden;
 }
-.host-card .status-board {
+.sp-host-card .sp-status__board {
   border: none;
   border-radius: 0;
   border-top: 1px solid var(--sp-line);
 }
-.host-card-head {
+.sp-host-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--sp-space-3) var(--sp-space-4-5);
 }
-.host-card-name { margin: 0; font-size: 14px; font-weight: 600; }
-.host-card .status-prefs { padding: 0 var(--sp-space-4-5) var(--sp-space-2-5); }
-.host-card .claude-warn { margin: 0 var(--sp-space-4-5) var(--sp-space-3-5); }
+.sp-host-card__name { margin: 0; font-size: 14px; font-weight: 600; }
+.sp-host-card .sp-status__prefs { padding: 0 var(--sp-space-4-5) var(--sp-space-2-5); }
+.sp-host-card .sp-claude__warn { margin: 0 var(--sp-space-4-5) var(--sp-space-3-5); }
 
-.hosts-empty { padding: var(--sp-space-3-5) var(--sp-space-4-5); color: var(--sp-muted); }
-
-.claude-grid {
+.sp-claude__grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--sp-space-3);
   margin-bottom: var(--sp-space-3);
 }
-.claude-cell {
+.sp-claude-cell {
   background: var(--sp-bg-elev-1);
   border: 1px solid var(--sp-line);
   border-radius: 14px;
   padding: var(--sp-space-3) var(--sp-space-3-5);
 }
-.cell-label {
+.sp-claude-cell__label {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--sp-muted);
   margin-bottom: var(--sp-space-1-5);
 }
-.cell-status {
+.sp-claude-cell__status {
   display: flex;
   align-items: center;
   gap: var(--sp-space-2);
@@ -109,7 +107,7 @@
   font-weight: 500;
 }
 
-.claude-warn {
+.sp-claude__warn {
   margin-top: var(--sp-space-2-5);
   padding: var(--sp-space-2-5) var(--sp-space-3);
   background: color-mix(in srgb, var(--sp-warn) 10%, transparent);

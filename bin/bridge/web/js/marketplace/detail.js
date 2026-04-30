@@ -4,15 +4,15 @@ import { chip, glyphFor, cloneTemplate, emptyBlock } from "./glyph.js?t=__TOKEN_
 
 function buildDetailHead(selected) {
   const head = document.createElement("div");
-  head.className = "mkt-detail-head";
+  head.className = "sp-mkt-detail__head";
 
   const icon = document.createElement("span");
-  icon.className = "mkt-detail-icon";
+  icon.className = "sp-mkt-detail__icon";
   icon.setAttribute("aria-hidden", "true");
   icon.append(glyphFor(mktState.kind));
 
   const title = document.createElement("div");
-  title.className = "mkt-detail-title";
+  title.className = "sp-mkt-detail__title";
   const h = document.createElement("h2");
   h.textContent = selected.name || selected.id;
   title.append(h);
@@ -23,7 +23,7 @@ function buildDetailHead(selected) {
 
 function buildMetaRow(selected) {
   const row = document.createElement("div");
-  row.className = "mkt-detail-meta";
+  row.className = "sp-mkt-detail__meta";
   row.append(chip(KIND_LABEL[mktState.kind] || mktState.kind, "accent"));
   if (selected.source) {
     row.append(chip(selected.source));
@@ -39,11 +39,11 @@ function buildMetaRow(selected) {
 
 function buildReadme(text) {
   const sec = document.createElement("section");
-  sec.className = "mkt-detail-section";
+  sec.className = "sp-mkt-detail__section";
   const h3 = document.createElement("h3");
   h3.textContent = "README";
   const pre = document.createElement("div");
-  pre.className = "mkt-detail-readme";
+  pre.className = "sp-mkt-detail__readme";
   pre.textContent = text;
   sec.append(h3, pre);
   return sec;
@@ -51,24 +51,24 @@ function buildReadme(text) {
 
 function buildPathRow(pathStr) {
   const sec = document.createElement("section");
-  sec.className = "mkt-detail-section";
+  sec.className = "sp-mkt-detail__section";
   const h3 = document.createElement("h3");
   h3.textContent = "Path";
 
   const row = document.createElement("div");
-  row.className = "mkt-detail-path-row";
+  row.className = "sp-mkt-detail__path-row";
 
   const folder = document.createElement("span");
   folder.setAttribute("aria-hidden", "true");
   folder.append(cloneTemplate("tpl-mkt-glyph-folder"));
 
   const path = document.createElement("span");
-  path.className = "mkt-detail-path";
+  path.className = "sp-mkt-detail__path";
   path.textContent = pathStr;
 
   const copyBtn = document.createElement("button");
   copyBtn.type = "button";
-  copyBtn.className = "mkt-detail-copy";
+  copyBtn.className = "sp-mkt-detail__copy";
   copyBtn.textContent = "Copy";
   copyBtn.dataset.action = "mkt-copy";
   copyBtn.dataset.value = pathStr;
@@ -111,7 +111,7 @@ export function renderDetail() {
 
     if (selected.summary) {
       const p = document.createElement("p");
-      p.className = "mkt-detail-summary";
+      p.className = "sp-mkt-detail__summary";
       p.textContent = selected.summary;
       detail.append(p);
     }

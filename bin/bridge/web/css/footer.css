@@ -1,4 +1,4 @@
-.footer {
+.sp-footer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
@@ -12,57 +12,57 @@
   color: var(--sp-muted);
   font-family: var(--sp-font-display);
 }
-.footer-left {
+.sp-footer__left {
   display: flex;
   align-items: center;
   gap: var(--sp-space-3-5);
   min-width: 0;
 }
-.footer-meta {
+.sp-footer__meta {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-space-2);
   color: var(--sp-muted);
 }
-.footer-meta a {
+.sp-footer__meta a {
   color: var(--sp-muted-strong);
   text-decoration: none;
   border-bottom: 1px dotted transparent;
   transition: color var(--sp-dur-fast) var(--sp-ease-out),
               border-color var(--sp-dur-fast) var(--sp-ease-out);
 }
-.footer-meta a:hover {
+.sp-footer__meta a:hover {
   color: var(--sp-accent);
   border-bottom-color: var(--sp-accent);
 }
-.footer-right {
+.sp-footer__right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: var(--sp-space-1-5);
   color: var(--sp-muted);
 }
-.footer .version {
+.sp-footer .sp-footer__version {
   color: var(--sp-accent);
   font-family: var(--sp-font-mono);
   font-size: 11px;
 }
-.footer-stat {
+.sp-footer__stat {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-space-1-5);
   color: var(--sp-muted);
   white-space: nowrap;
 }
-.footer-stat .dot {
+.sp-footer__stat .sp-dot {
   width: 7px;
   height: 7px;
   margin: 0;
   flex: none;
 }
-.footer-sep { color: var(--sp-line); }
-.footer-path {
+.sp-footer__sep { color: var(--sp-line); }
+.sp-footer__path {
   font-family: var(--sp-font-mono);
   font-size: 11px;
   color: var(--sp-muted);
@@ -71,10 +71,10 @@
   white-space: nowrap;
   min-width: 0;
 }
-.footer-hint {
+.sp-footer__hint {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-space-1);
   font-size: 10.5px;
 }
-.footer-hint .kbd { font-size: 9.5px; padding: 0 var(--sp-space-1); }
+.sp-footer__hint .sp-kbd { font-size: 9.5px; padding: 0 var(--sp-space-1); }

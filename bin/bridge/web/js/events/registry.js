@@ -4,11 +4,23 @@ import { activateTab } from "../tabs.js?t=__TOKEN__";
 import { selectMarketplaceKind, selectMarketplaceItem, setMarketplaceSearch, copyToClipboard } from "../marketplace.js?t=__TOKEN__";
 import { connectFromSetup, editSetupPat, openSetupMode, closeSetupMode, completeSetup } from "../setup.js?t=__TOKEN__";
 
-async function safePost(path, body) {
+async function safePost(path, body, btn) {
+  if (btn) {
+    btn.dataset.busyLabel = btn.dataset.busyLabel || btn.textContent;
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+  }
   try {
     await apiPost(path, body);
   } catch (e) {
     reportError(String(e.message || e));
+  } finally {
+    if (btn) {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.removeAttribute("aria-busy");
+      }, 600);
+    }
   }
 }
 

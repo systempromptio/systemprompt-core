@@ -34,7 +34,7 @@ export function renderAgentPresence(snap) {
     cluster.replaceChildren();
     for (const host of list) {
       const dot = document.createElement("span");
-      dot.className = "agent-dot";
+      dot.className = "sp-agent__dot";
       dot.dataset.action = "agent-jump";
       dot.dataset.agent = host.id;
       const state = presenceState(host);
@@ -51,12 +51,12 @@ export function renderAgentsSummary(snap) {
   if (dot && text) {
     const list = snap.host_apps || [];
     if (list.length === 0) {
-      setDot(dot, "dot-unknown");
+      setDot(dot, "sp-dot--unknown");
       text.textContent = "no agents registered";
     } else {
       const installed = list.filter((h) => h.snapshot?.profile_state?.kind === "installed").length;
       const running = list.filter((h) => h.snapshot?.host_running).length;
-      const klass = installed === list.length ? "dot-ok" : installed > 0 ? "dot-warn" : "dot-err";
+      const klass = installed === list.length ? "sp-dot--ok" : installed > 0 ? "sp-dot--warn" : "sp-dot--err";
       setDot(dot, klass);
       text.textContent = `${installed} of ${list.length} agents configured · ${running} running`;
     }

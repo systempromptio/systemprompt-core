@@ -15,7 +15,7 @@ export function glyphFor(kind) {
 
 export function chip(text, tone, mono) {
   const el = document.createElement("span");
-  el.className = "mkt-chip" + (mono ? " mkt-chip-mono" : "");
+  el.className = "sp-mkt-chip" + (mono ? " sp-mkt-chip--mono" : "");
   if (tone) {
     el.dataset.tone = tone;
   }
@@ -25,19 +25,19 @@ export function chip(text, tone, mono) {
 
 export function emptyBlock(kind, hasQuery, withSync, emptyTitleMap) {
   const el = document.createElement(withSync ? "li" : "div");
-  el.className = withSync ? "mkt-empty-state" : "mkt-empty";
+  el.className = withSync ? "sp-mkt-empty--with-sync" : "sp-mkt-empty";
 
   const glyph = document.createElement("span");
-  glyph.className = "mkt-empty-glyph";
+  glyph.className = "sp-mkt-empty__glyph";
   glyph.setAttribute("aria-hidden", "true");
   glyph.append(glyphFor(kind));
 
   const title = document.createElement("span");
-  title.className = "mkt-empty-title";
+  title.className = "sp-mkt-empty__title";
   title.textContent = hasQuery ? "No matches" : (emptyTitleMap[kind] || "Nothing here yet");
 
   const sub = document.createElement("span");
-  sub.className = "mkt-empty-sub";
+  sub.className = "sp-mkt-empty__sub";
   if (hasQuery) {
     sub.textContent = "Try a different term, or clear the search.";
   } else if (withSync) {
@@ -50,10 +50,10 @@ export function emptyBlock(kind, hasQuery, withSync, emptyTitleMap) {
 
   if (withSync && !hasQuery) {
     const actions = document.createElement("span");
-    actions.className = "mkt-empty-actions";
+    actions.className = "sp-mkt-empty__actions";
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "primary";
+    btn.className = "sp-btn-primary";
     btn.dataset.action = "sync";
     btn.textContent = "Sync now";
     actions.append(btn);

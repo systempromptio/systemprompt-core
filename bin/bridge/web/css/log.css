@@ -1,4 +1,4 @@
-.log {
+.sp-log {
   background: oklch(0.10 0.01 45);
   border: 1px solid var(--sp-line);
   border-radius: 10px;

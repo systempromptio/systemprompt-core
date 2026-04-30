@@ -17,11 +17,11 @@ export const setSetupStep = (step) => {
 };
 
 export const openSetupMode = () => {
-  document.body.classList.add("setup-mode");
+  document.body.classList.add("is-setup-mode");
 };
 
 export const closeSetupMode = () => {
-  document.body.classList.remove("setup-mode");
+  document.body.classList.remove("is-setup-mode");
 };
 
 const isConfigured = (snap) => {
@@ -60,34 +60,44 @@ const syncPatInput = (snap) => {
 };
 
 const setProbeDot = (dot, msg, snap) => {
-  dot.classList.remove("dot-unknown", "dot-probing", "dot-ok", "dot-err");
+  dot.classList.remove("sp-dot--unknown", "sp-dot--probing", "sp-dot--ok", "sp-dot--err");
   const status = snap.gateway_status || { state: "unknown" };
   if (status.state === "reachable") {
-    dot.classList.add("dot-ok");
+    dot.classList.add("sp-dot--ok");
     msg.textContent = `reachable · ${status.latency_ms}ms`;
-    msg.classList.remove("muted");
+    msg.classList.remove("sp-u-muted");
   } else if (status.state === "probing") {
-    dot.classList.add("dot-probing");
+    dot.classList.add("sp-dot--probing");
     msg.textContent = "probing…";
-    msg.classList.add("muted");
+    msg.classList.add("sp-u-muted");
   } else if (status.state === "unreachable") {
-    dot.classList.add("dot-err");
+    dot.classList.add("sp-dot--err");
     msg.textContent = `unreachable · ${status.reason || "unknown error"}`;
-    msg.classList.remove("muted");
+    msg.classList.remove("sp-u-muted");
   } else {
-    dot.classList.add("dot-unknown");
+    dot.classList.add("sp-dot--unknown");
     msg.textContent = snap.gateway_url ? "not yet probed" : "enter a URL to probe…";
-    msg.classList.add("muted");
+    msg.classList.add("sp-u-muted");
   }
   return status;
 };
 
 const setProbeError = (status, snap) => {
   const verified = snap.verified_identity && snap.verified_identity.user_id;
+  const msg = snap.last_action_message || "";
+  const looksLikeFailure = /^(login|set gateway|pat|gateway PAT|sync|probe).*(fail|error|refused|invalid)/i.test(
+    msg,
+  );
+  if (looksLikeFailure) {
+    setSetupError(msg);
+    return;
+  }
   if (status.state === "reachable" && snap.pat_present && !verified) {
     setSetupError("Token rejected by gateway. Issue a fresh PAT and try again.");
   } else if (status.state === "unreachable" && snap.pat_present) {
     setSetupError(`Gateway unreachable: ${status.reason || "unknown error"}`);
+  } else {
+    setSetupError("");
   }
 };
 
@@ -115,7 +125,7 @@ export const applySetupMode = (snap) => {
     (h) => h.snapshot?.profile_state?.kind === "installed",
   );
   const setup = !(configured && (onboarded || anyInstalled));
-  document.body.classList.toggle("setup-mode", setup);
+  document.body.classList.toggle("is-setup-mode", setup);
   if (!setup) {
     setSetupError("");
     return;

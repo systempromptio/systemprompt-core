@@ -4,7 +4,7 @@ import { initTabs } from "./tabs.js?t=__TOKEN__";
 import { initSetup, applySetupMode } from "./setup.js?t=__TOKEN__";
 import { initMarketplace, maybeRefreshMarketplace, renderMarketplaceBadge } from "./marketplace.js?t=__TOKEN__";
 import { subscribePolling, subscribeLog } from "./state.js?t=__TOKEN__";
-import { append } from "./drawer.js?t=__TOKEN__";
+import { append, initToast, syncToastFromState } from "./drawer.js?t=__TOKEN__";
 import { renderCloud } from "./cloud.js?t=__TOKEN__";
 import { renderProxy } from "./proxy.js?t=__TOKEN__";
 import { renderHosts } from "./hosts.js?t=__TOKEN__";
@@ -29,6 +29,7 @@ function applySnapshot(snap) {
   renderFooter(snap);
   applySetupMode(snap);
   maybeRefreshMarketplace(snap);
+  syncToastFromState(snap);
   requestAnimationFrame(syncRailIndicator);
 }
 
@@ -37,5 +38,6 @@ initKeyboard();
 initTabs();
 initSetup();
 initMarketplace();
+initToast();
 subscribePolling(applySnapshot);
 subscribeLog(append);
