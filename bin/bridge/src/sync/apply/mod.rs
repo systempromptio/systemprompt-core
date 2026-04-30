@@ -6,8 +6,8 @@ pub use error::ApplyError;
 pub use synthetic_plugin::write_synthetic_plugin;
 
 use crate::config::paths::{self, OrgPluginsLocation};
-use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{SignedManifest, UserInfo};
+use crate::gateway::GatewayClient;
 use std::fs;
 use std::path::Path;
 
@@ -22,14 +22,12 @@ pub fn apply_manifest(
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
 
-    if manifest
+    if let Some(reserved) = manifest
         .plugins
         .iter()
-        .any(|p| p.id.as_str() == paths::SYNTHETIC_PLUGIN_NAME)
+        .find(|p| p.id.as_str() == paths::SYNTHETIC_PLUGIN_NAME)
     {
-        return Err(ApplyError::ReservedPluginId(
-            paths::SYNTHETIC_PLUGIN_NAME.to_string(),
-        ));
+        return Err(ApplyError::ReservedPluginId(reserved.id.clone()));
     }
 
     let report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root)?;

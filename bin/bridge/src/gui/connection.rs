@@ -15,28 +15,37 @@ use crate::http_local::{ResponseBuilder, parse_from_read};
 const HTML: &str = include_str!("../../web/index.html");
 
 const CSS_FILES: &[(&str, &str)] = &[
-    ("tokens",              include_str!("../../web/css/tokens.css")),
-    ("fonts",               include_str!("../../web/css/fonts.css")),
-    ("reset",               include_str!("../../web/css/reset.css")),
-    ("kbd",                 include_str!("../../web/css/kbd.css")),
-    ("dot",                 include_str!("../../web/css/dot.css")),
-    ("badge",               include_str!("../../web/css/badge.css")),
-    ("button",              include_str!("../../web/css/button.css")),
-    ("topbar",              include_str!("../../web/css/topbar.css")),
-    ("rail",                include_str!("../../web/css/rail.css")),
-    ("shell",               include_str!("../../web/css/shell.css")),
-    ("drawer",              include_str!("../../web/css/drawer.css")),
-    ("marketplace-base",    include_str!("../../web/css/marketplace-base.css")),
-    ("marketplace-list",    include_str!("../../web/css/marketplace-list.css")),
-    ("marketplace-detail",  include_str!("../../web/css/marketplace-detail.css")),
-    ("status",              include_str!("../../web/css/status.css")),
-    ("settings",            include_str!("../../web/css/settings.css")),
-    ("setup",               include_str!("../../web/css/setup.css")),
-    ("agents",              include_str!("../../web/css/agents.css")),
-    ("log",                 include_str!("../../web/css/log.css")),
-    ("footer",              include_str!("../../web/css/footer.css")),
-    ("responsive",          include_str!("../../web/css/responsive.css")),
-    ("main",                include_str!("../../web/css/main.css")),
+    ("tokens", include_str!("../../web/css/tokens.css")),
+    ("fonts", include_str!("../../web/css/fonts.css")),
+    ("reset", include_str!("../../web/css/reset.css")),
+    ("kbd", include_str!("../../web/css/kbd.css")),
+    ("dot", include_str!("../../web/css/dot.css")),
+    ("badge", include_str!("../../web/css/badge.css")),
+    ("button", include_str!("../../web/css/button.css")),
+    ("topbar", include_str!("../../web/css/topbar.css")),
+    ("rail", include_str!("../../web/css/rail.css")),
+    ("shell", include_str!("../../web/css/shell.css")),
+    ("drawer", include_str!("../../web/css/drawer.css")),
+    (
+        "marketplace-base",
+        include_str!("../../web/css/marketplace-base.css"),
+    ),
+    (
+        "marketplace-list",
+        include_str!("../../web/css/marketplace-list.css"),
+    ),
+    (
+        "marketplace-detail",
+        include_str!("../../web/css/marketplace-detail.css"),
+    ),
+    ("status", include_str!("../../web/css/status.css")),
+    ("settings", include_str!("../../web/css/settings.css")),
+    ("setup", include_str!("../../web/css/setup.css")),
+    ("agents", include_str!("../../web/css/agents.css")),
+    ("log", include_str!("../../web/css/log.css")),
+    ("footer", include_str!("../../web/css/footer.css")),
+    ("responsive", include_str!("../../web/css/responsive.css")),
+    ("main", include_str!("../../web/css/main.css")),
 ];
 
 const ICON_SVG: &str = include_str!("../../assets/icon.svg");
@@ -47,30 +56,64 @@ const FONT_OPENSANS_REGULAR: &[u8] = include_bytes!("../../assets/fonts/OpenSans
 const FONT_OPENSANS_BOLD: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Bold.woff2");
 
 const JS_MODULES: &[(&str, &str)] = &[
-    ("agents",              include_str!("../../web/js/agents.js")),
-    ("api",                 include_str!("../../web/js/api.js")),
-    ("cloud",               include_str!("../../web/js/cloud.js")),
-    ("crumb",               include_str!("../../web/js/crumb.js")),
-    ("dom",                 include_str!("../../web/js/dom.js")),
-    ("drawer",              include_str!("../../web/js/drawer.js")),
-    ("footer",              include_str!("../../web/js/footer.js")),
-    ("hosts",               include_str!("../../web/js/hosts.js")),
-    ("index",               include_str!("../../web/js/index.js")),
-    ("marketplace",         include_str!("../../web/js/marketplace.js")),
-    ("overall-badge",       include_str!("../../web/js/overall-badge.js")),
-    ("profile",             include_str!("../../web/js/profile.js")),
-    ("proxy",               include_str!("../../web/js/proxy.js")),
-    ("rail-indicator",      include_str!("../../web/js/rail-indicator.js")),
-    ("setup",               include_str!("../../web/js/setup.js")),
-    ("state",               include_str!("../../web/js/state.js")),
-    ("sync-pill",           include_str!("../../web/js/sync-pill.js")),
-    ("tabs",                include_str!("../../web/js/tabs.js")),
-    ("events/keyboard",     include_str!("../../web/js/events/keyboard.js")),
-    ("events/registry",     include_str!("../../web/js/events/registry.js")),
-    ("marketplace/detail",  include_str!("../../web/js/marketplace/detail.js")),
-    ("marketplace/glyph",   include_str!("../../web/js/marketplace/glyph.js")),
-    ("marketplace/list",    include_str!("../../web/js/marketplace/list.js")),
-    ("marketplace/state",   include_str!("../../web/js/marketplace/state.js")),
+    ("agents", include_str!("../../web/js/agents.js")),
+    ("api", include_str!("../../web/js/api.js")),
+    ("cloud", include_str!("../../web/js/cloud.js")),
+    ("crumb", include_str!("../../web/js/crumb.js")),
+    ("dom", include_str!("../../web/js/dom.js")),
+    ("drawer", include_str!("../../web/js/drawer.js")),
+    ("footer", include_str!("../../web/js/footer.js")),
+    ("hosts", include_str!("../../web/js/hosts.js")),
+    ("index", include_str!("../../web/js/index.js")),
+    ("marketplace", include_str!("../../web/js/marketplace.js")),
+    (
+        "overall-badge",
+        include_str!("../../web/js/overall-badge.js"),
+    ),
+    ("profile", include_str!("../../web/js/profile.js")),
+    ("proxy", include_str!("../../web/js/proxy.js")),
+    (
+        "rail-indicator",
+        include_str!("../../web/js/rail-indicator.js"),
+    ),
+    ("setup", include_str!("../../web/js/setup.js")),
+    ("state", include_str!("../../web/js/state.js")),
+    ("sync-pill", include_str!("../../web/js/sync-pill.js")),
+    ("tabs", include_str!("../../web/js/tabs.js")),
+    (
+        "events/keyboard",
+        include_str!("../../web/js/events/keyboard.js"),
+    ),
+    (
+        "events/registry",
+        include_str!("../../web/js/events/registry.js"),
+    ),
+    (
+        "marketplace/detail",
+        include_str!("../../web/js/marketplace/detail.js"),
+    ),
+    (
+        "marketplace/glyph",
+        include_str!("../../web/js/marketplace/glyph.js"),
+    ),
+    (
+        "marketplace/list",
+        include_str!("../../web/js/marketplace/list.js"),
+    ),
+    (
+        "marketplace/state",
+        include_str!("../../web/js/marketplace/state.js"),
+    ),
+    (
+        "setup/gateway",
+        include_str!("../../web/js/setup/gateway.js"),
+    ),
+    (
+        "setup/agents",
+        include_str!("../../web/js/setup/agents.js"),
+    ),
+    ("setup/mode", include_str!("../../web/js/setup/mode.js")),
+    ("hosts/card", include_str!("../../web/js/hosts/card.js")),
 ];
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -311,11 +354,11 @@ fn handle_action(
                 );
             },
         },
-        
+
         "/api/proxy/probe" => {
             UiEvent::Host(crate::gui::hosts::events::HostUiEvent::ProxyProbeRequested)
         },
-        
+
         p if p.starts_with("/api/hosts/") && p.ends_with("/probe") => {
             match parse_host_id(p, "/api/hosts/", "/probe") {
                 Some(host_id) => {
@@ -326,7 +369,7 @@ fn handle_action(
                 None => return write_response(stream, 404, "text/plain", b"not found"),
             }
         },
-        
+
         p if p.starts_with("/api/hosts/") && p.ends_with("/profile/generate") => {
             match parse_host_id(p, "/api/hosts/", "/profile/generate") {
                 Some(host_id) => UiEvent::Host(
@@ -335,7 +378,7 @@ fn handle_action(
                 None => return write_response(stream, 404, "text/plain", b"not found"),
             }
         },
-        
+
         p if p.starts_with("/api/hosts/") && p.ends_with("/profile/install") => {
             match parse_host_id(p, "/api/hosts/", "/profile/install") {
                 Some(host_id) => match serde_json::from_slice::<InstallProfileBody>(body) {

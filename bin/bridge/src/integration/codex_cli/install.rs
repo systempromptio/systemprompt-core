@@ -30,7 +30,10 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
             profile_uuid,
         })
     } else {
-        let path = dir.join(format!("codex-bridge-{}-managed_config.toml", config::now_unix()));
+        let path = dir.join(format!(
+            "codex-bridge-{}-managed_config.toml",
+            config::now_unix()
+        ));
         std::fs::File::create(&path)?.write_all(toml_text.as_bytes())?;
         Ok(GeneratedProfile {
             path: path.display().to_string(),
@@ -63,7 +66,8 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::PermissionDenied,
                     format!(
-                        "/etc/codex is admin-owned. Copy as root: sudo install -m 0644 {generated_path} {}",
+                        "/etc/codex is admin-owned. Copy as root: sudo install -m 0644 \
+                         {generated_path} {}",
                         target.display()
                     ),
                 ))
@@ -72,7 +76,8 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
             Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 format!(
-                    "cannot create /etc/codex. Copy as root: sudo install -D -m 0644 {generated_path} {}",
+                    "cannot create /etc/codex. Copy as root: sudo install -D -m 0644 \
+                     {generated_path} {}",
                     target.display()
                 ),
             ))
@@ -147,7 +152,11 @@ fn render_managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String> {
         OTEL_EXPORTER,
         toml::Value::String("otlp-http".to_string()),
     );
-    write_dotted(&mut value, OTEL_LOG_USER_PROMPT, toml::Value::Boolean(false));
+    write_dotted(
+        &mut value,
+        OTEL_LOG_USER_PROMPT,
+        toml::Value::Boolean(false),
+    );
     write_dotted(
         &mut value,
         OTEL_ENDPOINT,
@@ -209,7 +218,10 @@ fn atomic_copy(source: &Path, target: &Path) -> std::io::Result<()> {
 }
 
 fn writable(path: &Path) -> bool {
-    let probe = path.join(format!(".systemprompt-bridge-write-test-{}", std::process::id()));
+    let probe = path.join(format!(
+        ".systemprompt-bridge-write-test-{}",
+        std::process::id()
+    ));
     match std::fs::File::create(&probe) {
         Ok(_) => {
             let _ = std::fs::remove_file(&probe);
@@ -220,8 +232,7 @@ fn writable(path: &Path) -> bool {
 }
 
 fn base64_encode(input: &[u8]) -> String {
-    const CHARS: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
     let mut chunks = input.chunks_exact(3);
     for chunk in &mut chunks {
