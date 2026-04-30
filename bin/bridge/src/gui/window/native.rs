@@ -70,6 +70,7 @@ impl SettingsWindow {
             .with_url(SP_INDEX_URL)
             .with_background_color(BG_RGBA)
             .with_accept_first_mouse(true)
+            .with_devtools(true)
             .with_initialization_script(BRIDGE_BOOTSTRAP)
             .with_ipc_handler(move |req| {
                 let body = req.into_body();
@@ -92,7 +93,14 @@ impl SettingsWindow {
         window.set_visible(true);
         window.focus_window();
 
+        #[cfg(debug_assertions)]
+        webview.open_devtools();
+
         Ok(Self { window, webview })
+    }
+
+    pub fn open_devtools(&self) {
+        self.webview.open_devtools();
     }
 
     pub fn focus(&self) {
