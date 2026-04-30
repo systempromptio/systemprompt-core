@@ -53,7 +53,7 @@ export class SpCloudStatus extends SpElement {
     });
     this.bridgeSubscribe("state.changed", (snap) => { this.snapshot = snap; });
     this.bridgeSubscribe("gateway.changed", () => {
-      bridge.stateSnapshot().then((snap) => { this.snapshot = snap; }).catch(() => {});
+      bridge.stateSnapshot().then((snap) => { this.snapshot = snap; }).catch((e) => console.warn("snapshot failed", e));
     });
   }
 

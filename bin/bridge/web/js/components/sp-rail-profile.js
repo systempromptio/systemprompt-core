@@ -24,7 +24,7 @@ export class SpRailProfile extends SpElement {
     if (!this._baseVersion) {
       this._baseVersion = this.dataset.version || VERSION || "";
     }
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch(() => {});
+    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
   }
 

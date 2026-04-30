@@ -34,7 +34,7 @@ export class SpSetup extends SpElement {
       this._logoFragment = tpl.content;
       tpl.remove();
     }
-    bridge.stateSnapshot().then((s) => this._applySnapshot(s)).catch(() => {});
+    bridge.stateSnapshot().then((s) => this._applySnapshot(s)).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => this._applySnapshot(s));
     this._unsubOpen = onBridgeEvent("setup-open", this._onSetupOpen);
   }

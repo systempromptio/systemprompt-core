@@ -41,3 +41,42 @@ export function patLinkFor(gateway) {
   if (gw) { return `${gw}/admin/login`; }
   return "#";
 }
+
+function escapeHtml(s) {
+  if (s == null) { return ""; }
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+export function renderGatewayForm(state) {
+  const probe = probeView(state.snapshot);
+  const link = patLinkFor(state.gateway);
+  const linkDisabled = link === "#";
+  const editBtn = state.patSaved ? `<button class="sp-btn-ghost" type="button" data-action="edit-pat">Edit</button>` : "";
+  const errBlock = state.error ? `<span class="sp-setup__error">${escapeHtml(state.error)}</span>` : "";
+  const btnLabel = state.pending ? (t("setup-connecting") || "Connecting…") : "Connect";
+  return `
+    <div class="sp-setup__field">
+      <label for="setup-gateway" data-l10n-id="setup-gateway-label">Gateway URL</label>
+      <input id="setup-gateway" type="url" placeholder="http://127.0.0.1:8080" autocomplete="off" spellcheck="false" data-input="gateway" />
+      <div class="sp-setup__status">
+        <span class="sp-dot ${probe.dot}" aria-hidden="true"></span>
+        <span class="${probe.muted ? "sp-u-muted" : ""}">${escapeHtml(probe.text)}</span>
+      </div>
+    </div>
+    <div class="sp-setup__field">
+      <label for="setup-pat" data-l10n-id="setup-pat-label">Personal access token</label>
+      <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" data-input="pat" />
+      <p class="sp-setup__hint">
+        <span data-l10n-id="setup-pat-hint">Don't have one yet?</span>
+        <a class="sp-setup__pat-link ${linkDisabled ? "is-disabled" : ""}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" aria-disabled="${linkDisabled}">Open the gateway admin login →</a>
+        ${editBtn}
+      </p>
+    </div>
+    <div class="sp-setup__actions">
+      <button class="sp-btn-primary" type="button" ${state.pending ? "disabled" : ""} data-action="connect">
+        <span class="sp-btn__label">${escapeHtml(btnLabel)}</span>
+      </button>
+      ${errBlock}
+    </div>
+  `;
+}
