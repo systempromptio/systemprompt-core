@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `integration::codex_cli` — Codex CLI host integration (probe, config, install).
+- `cli::credential_helper` — credential helper command surface.
+- `gui::handlers::agents` — GUI handler module for agents.
+
+### Changed
+
+- `gui::connection`, `gui::dispatch`, `gui::events`, `gui::hosts`, `gui::server_json`, `gui::state`, `gui::mod` — refactored alongside new agents handler and Codex CLI integration.
+- `web/index.html`, `web/style.css`, `web/js/snapshot.js` — GUI updates ahead of the modular asset refactor.
+
 ## [0.6.0] - 2026-04-30
 
 ### Added

@@ -134,7 +134,7 @@ function ensureHostCard(host) {
     if (!path) { append(`[${host.id}] No generated profile yet — click Generate first.`); return; }
     post(`/api/hosts/${encodeURIComponent(host.id)}/profile/install`, { path }, append);
   });
-  $("hosts-list").append(node);
+  $("agents-list").append(node);
   hostCards.set(host.id, refs);
   return refs;
 }
@@ -142,6 +142,15 @@ function ensureHostCard(host) {
 function renderHostCard(host, snap) {
   const refs = ensureHostCard(host);
   refs.name.textContent = host.display_name;
+  if (host.kind) {
+    let chip = refs.name.parentElement.querySelector(".host-card-kind-chip");
+    if (!chip) {
+      chip = document.createElement("span");
+      chip.className = "host-card-kind-chip";
+      refs.name.insertAdjacentElement("afterend", chip);
+    }
+    chip.textContent = host.kind === "cli_tool" ? "CLI tool" : "Desktop app";
+  }
   if (host.last_generated_profile) {
     refs.btnInstall.disabled = false;
     refs.btnInstall.dataset.path = host.last_generated_profile;
@@ -221,7 +230,7 @@ function renderHosts(snap) {
     }
   }
   if (list.length === 0) {
-    const placeholder = $("hosts-list");
+    const placeholder = $("agents-list");
     if (placeholder && placeholder.children.length === 0) {
       const empty = document.createElement("div");
       empty.className = "muted host-list-empty";
@@ -230,7 +239,7 @@ function renderHosts(snap) {
     }
     return;
   } else {
-    const placeholder = $("hosts-list");
+    const placeholder = $("agents-list");
     const noHostsMsg = placeholder?.querySelector(":scope > .host-list-empty");
     if (noHostsMsg) noHostsMsg.remove();
   }

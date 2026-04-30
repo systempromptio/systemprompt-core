@@ -6,7 +6,7 @@
   <title>systemprompt cowork</title>
   <style>__STYLE__</style>
 </head>
-<body class="setup-mode platform-__PLATFORM__">
+<body class="setup-mode platform-__PLATFORM__" data-setup-step="connect">
   <a href="#main" class="sp-skip-link">Skip to content</a>
 
   <template id="tpl-mkt-glyph-plugins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M18 13v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></template>
@@ -35,6 +35,7 @@
     </div>
 
     <div class="topbar-right">
+      <span class="agent-presence" id="agent-presence" aria-label="Connected agents"></span>
       <span id="sync-pill" class="sync-pill" data-state="idle" aria-live="polite" title="Sync status">
         <span class="sync-dot" aria-hidden="true"></span>
         <span class="sync-pill-label">idle</span>
@@ -54,20 +55,28 @@
           <span class="rail-count" id="rail-count-marketplace">0</span>
           <span class="rail-shortcut" aria-hidden="true">⌘1</span>
         </button>
-        <button class="rail-tab" data-tab="status" role="tab" aria-selected="false" aria-keyshortcuts="Meta+2 Control+2" type="button">
+        <button class="rail-tab" data-tab="agents" role="tab" aria-selected="false" aria-keyshortcuts="Meta+2 Control+2" type="button">
+          <span class="rail-glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          </span>
+          <span class="rail-label">Agents</span>
+          <span class="rail-count" id="rail-count-agents">0</span>
+          <span class="rail-shortcut" aria-hidden="true">⌘2</span>
+        </button>
+        <button class="rail-tab" data-tab="status" role="tab" aria-selected="false" aria-keyshortcuts="Meta+3 Control+3" type="button">
           <span class="rail-glyph" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
           </span>
           <span class="rail-label">Status</span>
           <span class="rail-count" id="rail-count-status" hidden></span>
-          <span class="rail-shortcut" aria-hidden="true">⌘2</span>
+          <span class="rail-shortcut" aria-hidden="true">⌘3</span>
         </button>
-        <button class="rail-tab" data-tab="settings" role="tab" aria-selected="false" aria-keyshortcuts="Meta+3 Control+3" type="button">
+        <button class="rail-tab" data-tab="settings" role="tab" aria-selected="false" aria-keyshortcuts="Meta+4 Control+4" type="button">
           <span class="rail-glyph" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>
           </span>
           <span class="rail-label">Settings</span>
-          <span class="rail-shortcut" aria-hidden="true">⌘3</span>
+          <span class="rail-shortcut" aria-hidden="true">⌘4</span>
         </button>
       </div>
 
@@ -162,6 +171,18 @@
         </footer>
       </section>
 
+      <section class="tab-panel" data-tab="agents" role="tabpanel" hidden>
+        <header class="tab-header">
+          <h1>Agents</h1>
+          <span id="agents-overall-badge" class="badge badge-muted">checking…</span>
+        </header>
+        <p class="tab-lede muted">
+          systemprompt cowork routes any number of coding agents through a single local proxy.
+          Install the configuration profile for each agent you want governed; they all run simultaneously.
+        </p>
+        <div id="agents-list"></div>
+      </section>
+
       <section class="tab-panel" data-tab="status" role="tabpanel" hidden>
         <header class="tab-header">
           <h1>Status</h1>
@@ -245,12 +266,27 @@
           </table>
         </section>
 
-        <section class="status-group" data-group="hosts" id="hosts-group">
+        <section class="status-group" data-group="agents-summary">
           <header class="status-group-header">
-            <h2>Host apps</h2>
-            <p class="status-group-caption">Third-party apps routed through cowork. Each app has its own configuration profile.</p>
+            <h2>Agents</h2>
+            <p class="status-group-caption">Coding agents routed through cowork. Manage them in the <a href="#" data-jump-tab="agents">Agents tab</a>.</p>
           </header>
-          <div id="hosts-list"></div>
+          <table class="status-board">
+            <tbody>
+              <tr>
+                <th>Connected</th>
+                <td>
+                  <div class="status-row">
+                    <span id="agents-summary-dot" class="dot dot-unknown" aria-hidden="true"></span>
+                    <span id="agents-summary-text">—</span>
+                  </div>
+                </td>
+                <td class="status-actions">
+                  <button class="ghost" data-jump-tab="agents" type="button">Open agents</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
 
         <template id="host-card-template">
@@ -349,39 +385,56 @@
     <div class="setup-card">
       <div class="setup-hero">
         <div class="setup-mark">__ICON_SVG__</div>
-        <div class="setup-eyebrow">DEMO BUILD · v__VERSION__</div>
+        <div class="setup-eyebrow">DEMO BUILD · v__VERSION__ · <span id="setup-step-label">Step 1 of 3</span></div>
         <h1 id="setup-heading">Welcome to systemprompt cowork</h1>
         <p class="setup-lede">
-          Connect this device to your systemprompt gateway. Cowork stays on the
-          splash until the gateway is reachable and your personal access token
-          checks out.
+          systemprompt cowork routes one or more coding agents through your enterprise gateway.
+          Connect this device, pick the agents you want governed, and you're done.
         </p>
       </div>
 
-      <div class="setup-field">
-        <label for="setup-gateway">Gateway URL</label>
-        <input id="setup-gateway" type="url" placeholder="http://127.0.0.1:8080" autocomplete="off" spellcheck="false" />
-        <div class="setup-status">
-          <span id="setup-gateway-dot" class="dot dot-unknown" aria-hidden="true"></span>
-          <span id="setup-gateway-msg" class="muted">enter a URL to probe…</span>
+      <div class="setup-step" data-step="connect">
+        <div class="setup-field">
+          <label for="setup-gateway">Gateway URL</label>
+          <input id="setup-gateway" type="url" placeholder="http://127.0.0.1:8080" autocomplete="off" spellcheck="false" />
+          <div class="setup-status">
+            <span id="setup-gateway-dot" class="dot dot-unknown" aria-hidden="true"></span>
+            <span id="setup-gateway-msg" class="muted">enter a URL to probe…</span>
+          </div>
+        </div>
+
+        <div class="setup-field">
+          <label for="setup-pat">Personal access token</label>
+          <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" />
+          <p class="setup-hint">
+            Don't have one yet?
+            <a id="setup-pat-link" class="setup-pat-link" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">
+              Open the gateway admin login →
+            </a>
+            <span class="setup-hint-detail">Sign in there, issue a device PAT, then paste it above.</span>
+          </p>
+        </div>
+
+        <div class="setup-actions">
+          <button id="setup-connect" class="primary" type="button">Connect</button>
+          <span id="setup-error" class="setup-error" hidden></span>
         </div>
       </div>
 
-      <div class="setup-field">
-        <label for="setup-pat">Personal access token</label>
-        <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" />
-        <p class="setup-hint">
-          Don't have one yet?
-          <a id="setup-pat-link" class="setup-pat-link" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">
-            Open the gateway admin login →
-          </a>
-          <span class="setup-hint-detail">Sign in there, issue a device PAT, then paste it above.</span>
-        </p>
+      <div class="setup-step" data-step="agents">
+        <p class="setup-lede">Pick the coding agents you want cowork to govern. You can install more later from the Agents tab.</p>
+        <div id="setup-agents-list" class="setup-agents-list" aria-live="polite"></div>
+        <div class="setup-actions">
+          <button id="setup-skip-agents" class="ghost" type="button">Skip — set up later</button>
+          <button id="setup-finish" class="primary" type="button">Finish</button>
+        </div>
       </div>
 
-      <div class="setup-actions">
-        <button id="setup-connect" class="primary" type="button">Connect</button>
-        <span id="setup-error" class="setup-error" hidden></span>
+      <div class="setup-step" data-step="done">
+        <p class="setup-lede">cowork is ready. Open the workspace to manage agents, sync the marketplace, and watch the proxy.</p>
+        <div class="setup-actions">
+          <button id="setup-open" class="primary" type="button">Open systemprompt cowork</button>
+        </div>
       </div>
 
       <aside class="setup-warning" role="note">
@@ -417,7 +470,7 @@
       <a href="mailto:ed@systemprompt.io">licensing</a>
     </div>
     <div class="footer-right">
-      <span class="footer-hint"><span class="kbd">⌘1</span><span class="kbd">⌘2</span><span class="kbd">⌘3</span> tabs</span>
+      <span class="footer-hint"><span class="kbd">⌘1</span><span class="kbd">⌘2</span><span class="kbd">⌘3</span><span class="kbd">⌘4</span> tabs</span>
     </div>
   </footer>
 

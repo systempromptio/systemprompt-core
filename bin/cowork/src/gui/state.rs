@@ -14,9 +14,9 @@ pub use jwt::decode_jwt_identity_unverified;
 
 use crate::auth::{cache, setup};
 use crate::config::{self, paths};
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+
 use crate::gui::hosts::state::HostsState;
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+
 use crate::integration::{HostAppSnapshot, ProxyHealth};
 use crate::validate::ValidationReport;
 
@@ -85,7 +85,8 @@ pub struct AppStateSnapshot {
     pub gateway_status: GatewayStatus,
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub agents_onboarded: bool,
+
     pub hosts: HostsState,
 }
 
@@ -154,7 +155,11 @@ impl AppState {
         self.inner.write().verified_identity = None;
     }
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub fn set_agents_onboarded(&self, flag: bool) {
+        self.inner.write().agents_onboarded = flag;
+    }
+
+    
     pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
         let mut guard = self.inner.write();
         let entry = guard.hosts.entry(host_id);
@@ -162,7 +167,7 @@ impl AppState {
         entry.probe_in_flight = false;
     }
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    
     pub fn mark_host_probing(&self, host_id: &str) -> bool {
         let mut guard = self.inner.write();
         let entry = guard.hosts.entry(host_id);
@@ -173,13 +178,13 @@ impl AppState {
         true
     }
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    
     pub fn set_last_generated_profile(&self, host_id: &str, path: String) {
         let mut guard = self.inner.write();
         guard.hosts.entry(host_id).last_generated_profile = Some(path);
     }
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    
     pub fn mark_proxy_probing(&self) -> bool {
         let mut guard = self.inner.write();
         if guard.hosts.proxy_probe_in_flight {
@@ -189,14 +194,14 @@ impl AppState {
         true
     }
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    
     pub fn apply_proxy_health(&self, health: ProxyHealth) {
         let mut guard = self.inner.write();
         guard.hosts.local_proxy = health;
         guard.hosts.proxy_probe_in_flight = false;
     }
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    
     pub fn first_configured_proxy_url(&self) -> Option<String> {
         let guard = self.inner.read();
         guard

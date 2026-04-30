@@ -28,7 +28,10 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
             handlers::gateway_probe::on_gateway_probe_finished(app, o)
         },
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        UiEvent::AgentUninstall { host_id } => handlers::agents::on_uninstall(app, &host_id),
+        UiEvent::AgentOpenConfig { host_id } => handlers::agents::on_open_config(app, &host_id),
+        UiEvent::SetupComplete => handlers::agents::on_setup_complete(app),
+
         UiEvent::Host(e) => crate::gui::hosts::dispatch::handle(app, e),
     }
 }
