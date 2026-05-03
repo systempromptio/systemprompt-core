@@ -1,3 +1,4 @@
+mod common;
 mod docker;
 mod postgres;
 mod profile;

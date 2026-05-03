@@ -4,7 +4,15 @@ use crate::gui::events::UiEvent;
 use crate::gui::{GuiApp, handlers};
 
 fn event_kind(event: &UiEvent) -> &'static str {
-    match event {
+    request_kind(event)
+        .or_else(|| finish_kind(event))
+        .or_else(|| lifecycle_kind(event))
+        .or_else(|| ipc_kind(event))
+        .unwrap_or("Unknown")
+}
+
+fn request_kind(event: &UiEvent) -> Option<&'static str> {
+    Some(match event {
         UiEvent::OpenSettings => "OpenSettings",
         UiEvent::SyncRequested { .. } => "SyncRequested",
         UiEvent::ValidateRequested { .. } => "ValidateRequested",
@@ -15,7 +23,12 @@ fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
-        UiEvent::Quit => "Quit",
+        _ => return None,
+    })
+}
+
+fn finish_kind(event: &UiEvent) -> Option<&'static str> {
+    Some(match event {
         UiEvent::SyncStarted => "SyncStarted",
         UiEvent::SyncFinished { .. } => "SyncFinished",
         UiEvent::ValidateFinished { .. } => "ValidateFinished",
@@ -23,18 +36,32 @@ fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::LogoutFinished { .. } => "LogoutFinished",
         UiEvent::SetGatewayFinished { .. } => "SetGatewayFinished",
         UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
+        _ => return None,
+    })
+}
+
+fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
+    Some(match event {
+        UiEvent::Quit => "Quit",
         UiEvent::StateRefreshed => "StateRefreshed",
         UiEvent::AgentUninstall { .. } => "AgentUninstall",
         UiEvent::AgentOpenConfig { .. } => "AgentOpenConfig",
         UiEvent::SetupComplete => "SetupComplete",
         UiEvent::FocusWindow => "FocusWindow",
         UiEvent::Host(_) => "Host",
+        UiEvent::ProxyStatsTick => "ProxyStatsTick",
+        _ => return None,
+    })
+}
+
+fn ipc_kind(event: &UiEvent) -> Option<&'static str> {
+    Some(match event {
         UiEvent::IpcInbound(_) => "IpcInbound",
         UiEvent::IpcEmit { .. } => "IpcEmit",
         UiEvent::IpcReply { .. } => "IpcReply",
-        UiEvent::ProxyStatsTick => "ProxyStatsTick",
         UiEvent::CancelInFlight { .. } => "CancelInFlight",
-    }
+        _ => return None,
+    })
 }
 
 #[tracing::instrument(
@@ -48,25 +75,56 @@ fn event_kind(event: &UiEvent) -> &'static str {
 )]
 pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: UiEvent) {
     tracing::trace!(?event, "ui dispatch");
+    let event = match dispatch_window(app, event_loop, event) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+    let event = match dispatch_request(app, event) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+    let event = match dispatch_finished(app, event) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+    let event = match dispatch_lifecycle(app, event) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+    dispatch_ipc(app, event);
+}
+
+fn dispatch_window(
+    app: &mut GuiApp,
+    event_loop: &ActiveEventLoop,
+    event: UiEvent,
+) -> Result<(), UiEvent> {
     match event {
         UiEvent::OpenSettings => handlers::settings::on_open_settings(app, event_loop),
-        UiEvent::SyncRequested { reply_to } => handlers::sync::on_sync_requested(app, reply_to),
-        UiEvent::ValidateRequested { reply_to } => {
-            handlers::validate::on_validate_requested(app, reply_to)
-        },
         UiEvent::OpenConfigFolder => handlers::settings::on_open_config_folder(app),
-        UiEvent::OpenLogDirectory { reply_to } => {
-            handlers::diagnostics::on_open_log_directory(app, reply_to)
-        },
-        UiEvent::ExportDiagnosticBundle { reply_to } => {
-            handlers::diagnostics::on_export_diagnostic_bundle(app, reply_to)
-        },
         UiEvent::FocusWindow => {
             if let Some(win) = &app.settings_window {
                 win.focus();
             } else {
                 handlers::settings::on_open_settings(app, event_loop);
             }
+        },
+        other => return Err(other),
+    }
+    Ok(())
+}
+
+fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
+    match event {
+        UiEvent::SyncRequested { reply_to } => handlers::sync::on_sync_requested(app, reply_to),
+        UiEvent::ValidateRequested { reply_to } => {
+            handlers::validate::on_validate_requested(app, reply_to)
+        },
+        UiEvent::OpenLogDirectory { reply_to } => {
+            handlers::diagnostics::on_open_log_directory(app, reply_to)
+        },
+        UiEvent::ExportDiagnosticBundle { reply_to } => {
+            handlers::diagnostics::on_export_diagnostic_bundle(app, reply_to)
         },
         UiEvent::LoginRequested {
             token,
@@ -77,8 +135,16 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
         UiEvent::SetGatewayRequested { url, reply_to } => {
             handlers::auth::on_set_gateway_requested(app, &url, reply_to)
         },
-        UiEvent::Quit => handlers::quit::on_quit(),
-        UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
+        UiEvent::GatewayProbeRequested { reply_to } => {
+            handlers::gateway_probe::on_gateway_probe_requested(app, reply_to)
+        },
+        other => return Err(other),
+    }
+    Ok(())
+}
+
+fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
+    match event {
         UiEvent::SyncFinished { result, reply_to } => {
             handlers::sync::on_sync_finished(app, result, reply_to)
         },
@@ -94,12 +160,18 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
         UiEvent::SetGatewayFinished { result, reply_to } => {
             handlers::auth::on_set_gateway_finished(app, result, reply_to)
         },
-        UiEvent::GatewayProbeRequested { reply_to } => {
-            handlers::gateway_probe::on_gateway_probe_requested(app, reply_to)
-        },
         UiEvent::GatewayProbeFinished { outcome, reply_to } => {
             handlers::gateway_probe::on_gateway_probe_finished(app, outcome, reply_to)
         },
+        other => return Err(other),
+    }
+    Ok(())
+}
+
+fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
+    match event {
+        UiEvent::Quit => handlers::quit::on_quit(),
+        UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
         UiEvent::AgentUninstall { host_id, reply_to } => {
             handlers::agents::on_uninstall(app, &host_id, reply_to)
@@ -108,19 +180,25 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
             handlers::agents::on_open_config(app, &host_id, reply_to)
         },
         UiEvent::SetupComplete => handlers::agents::on_setup_complete(app),
-
         UiEvent::Host(e) => crate::gui::hosts::dispatch::handle(app, e),
+        UiEvent::ProxyStatsTick => crate::gui::emit::emit_proxy_stats(app),
+        other => return Err(other),
+    }
+    Ok(())
+}
 
+fn dispatch_ipc(app: &mut GuiApp, event: UiEvent) {
+    match event {
         UiEvent::IpcInbound(raw) => crate::gui::ipc_runtime::handle_inbound(app, &raw),
         UiEvent::IpcEmit { channel, payload } => {
-            crate::gui::ipc_runtime::send_emit(app, channel, &payload)
+            crate::gui::emit::send_emit(app, channel, &payload)
         },
         UiEvent::IpcReply { id, payload, ok } => {
-            crate::gui::ipc_runtime::send_reply(app, id, payload, ok)
+            crate::gui::emit::send_reply(app, id, payload, ok)
         },
-        UiEvent::ProxyStatsTick => crate::gui::ipc_runtime::emit_proxy_stats(app),
         UiEvent::CancelInFlight { scope, reply_to } => {
             handlers::cancel::on_cancel_in_flight(app, scope, reply_to)
         },
+        _ => unreachable!("event should have been handled by an earlier dispatcher"),
     }
 }

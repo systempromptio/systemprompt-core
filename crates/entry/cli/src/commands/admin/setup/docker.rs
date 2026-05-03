@@ -6,7 +6,7 @@ use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
-use super::postgres::{PostgresConfig, generate_password};
+use super::common::{PostgresConfig, enable_extensions, generate_password, test_connection};
 
 pub async fn setup_docker_postgres_non_interactive(
     config: &PostgresConfig,
@@ -24,16 +24,16 @@ pub async fn setup_docker_postgres_non_interactive(
     create_compose_files_if_missing(&compose_dir, &container, config.port)?;
 
     if is_container_running(&container) {
-        if !super::postgres::test_connection(config).await {
+        if !test_connection(config).await {
             create_database_in_docker(config, &container).await?;
         }
-        super::postgres::enable_extensions(config).await?;
+        enable_extensions(config).await?;
         return Ok(config.clone());
     }
 
     start_compose(config, &compose_dir, &container)?;
     wait_for_postgres_ready(config, &container);
-    super::postgres::enable_extensions(config).await?;
+    enable_extensions(config).await?;
 
     Ok(config.clone())
 }
@@ -102,11 +102,11 @@ pub async fn setup_docker_postgres_interactive(
             .interact()?;
 
         if reuse {
-            if !super::postgres::test_connection(&config).await {
+            if !test_connection(&config).await {
                 CliService::info("Creating database and user in existing container...");
                 create_database_in_docker(&config, &container).await?;
             }
-            super::postgres::enable_extensions(&config).await?;
+            enable_extensions(&config).await?;
             return Ok(config);
         }
 
@@ -125,7 +125,7 @@ pub async fn setup_docker_postgres_interactive(
 
     wait_for_postgres_ready(&config, &container);
 
-    super::postgres::enable_extensions(&config).await?;
+    enable_extensions(&config).await?;
 
     Ok(config)
 }

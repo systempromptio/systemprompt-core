@@ -28,9 +28,9 @@ pub(crate) fn on_validate_finished(
     });
     app.state.set_validation(report);
     app.refresh_ui();
-    ipc_runtime::emit_state(app);
+    emit::emit_state(app);
     if let Some(id) = reply_to {
         let payload = IpcReplyPayload::ok(json!({ "report": report_value }));
-        ipc_runtime::send_reply_payload(app, id, &payload);
+        emit::send_reply_payload(app, id, &payload);
     }
 }

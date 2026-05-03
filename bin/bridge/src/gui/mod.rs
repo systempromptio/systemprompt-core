@@ -1,6 +1,7 @@
 pub mod assets;
 pub mod command;
 pub mod dispatch;
+pub mod emit;
 pub mod error;
 pub mod events;
 pub mod handlers;
@@ -58,7 +59,7 @@ pub fn run() -> ExitCode {
 
     let proxy = event_loop.create_proxy();
     install_termination_handlers(proxy.clone());
-    crate::gui::ipc_runtime::install_log_emitter(proxy.clone());
+    crate::gui::emit::install_log_emitter(proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();
@@ -206,7 +207,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
                 winit::window::Theme::Light => "light",
                 winit::window::Theme::Dark => "dark",
             };
-            ipc_runtime::emit_theme_changed(self, label);
+            emit::emit_theme_changed(self, label);
             return;
         }
         if let WindowEvent::CloseRequested = event

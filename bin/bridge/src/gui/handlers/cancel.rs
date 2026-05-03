@@ -22,7 +22,7 @@ pub(crate) fn on_cancel_in_flight(app: &mut GuiApp, scope: Option<CancelScope>, 
         },
     };
     if let Some(id) = reply_to {
-        ipc_runtime::send_reply_payload(
+        emit::send_reply_payload(
             app,
             id,
             &IpcReplyPayload::ok(json!({ "cancelled": cancelled })),

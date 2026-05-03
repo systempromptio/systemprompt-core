@@ -35,6 +35,42 @@ const MAX_PYTHON_REQUESTS_UA_LENGTH: usize = 30;
 const MAX_GO_HTTP_CLIENT_UA_LENGTH: usize = 30;
 const MAX_RUBY_UA_LENGTH: usize = 25;
 
+const SCANNER_NEEDLES: &[&str] = &[
+    "masscan",
+    "nmap",
+    "nikto",
+    "sqlmap",
+    "havij",
+    "acunetix",
+    "nessus",
+    "openvas",
+    "w3af",
+    "metasploit",
+    "burpsuite",
+    "zap",
+    "zgrab",
+    "censys",
+    "shodan",
+    "palo alto",
+    "cortex",
+    "xpanse",
+    "probe-image-size",
+    "libredtail",
+    "httpclient",
+    "httpunit",
+    "java/",
+    "wp-http",
+    "wp-cron",
+];
+
+const SHORT_UA_NEEDLES: &[(&str, usize)] = &[
+    ("curl", MAX_CURL_UA_LENGTH),
+    ("wget", MAX_WGET_UA_LENGTH),
+    ("python-requests", MAX_PYTHON_REQUESTS_UA_LENGTH),
+    ("go-http-client", MAX_GO_HTTP_CLIENT_UA_LENGTH),
+    ("ruby", MAX_RUBY_UA_LENGTH),
+];
+
 #[derive(Debug, Clone, Copy)]
 pub struct ScannerDetector;
 
@@ -70,39 +106,11 @@ impl ScannerDetector {
             return true;
         }
 
-        ua_lower.contains("masscan")
-            || ua_lower.contains("nmap")
-            || ua_lower.contains("nikto")
-            || ua_lower.contains("sqlmap")
-            || ua_lower.contains("havij")
-            || ua_lower.contains("acunetix")
-            || ua_lower.contains("nessus")
-            || ua_lower.contains("openvas")
-            || ua_lower.contains("w3af")
-            || ua_lower.contains("metasploit")
-            || ua_lower.contains("burpsuite")
-            || ua_lower.contains("zap")
-            || ua_lower.contains("zgrab")
-            || ua_lower.contains("censys")
-            || ua_lower.contains("shodan")
-            || ua_lower.contains("palo alto")
-            || ua_lower.contains("cortex")
-            || ua_lower.contains("xpanse")
-            || ua_lower.contains("probe-image-size")
-            || ua_lower.contains("libredtail")
-            || ua_lower.contains("httpclient")
-            || ua_lower.contains("httpunit")
-            || ua_lower.contains("java/")
+        SCANNER_NEEDLES.iter().any(|n| ua_lower.contains(n))
             || ua_lower.starts_with("wordpress/")
-            || ua_lower.contains("wp-http")
-            || ua_lower.contains("wp-cron")
-            || (ua_lower.contains("curl") && ua_lower.len() < MAX_CURL_UA_LENGTH)
-            || (ua_lower.contains("wget") && ua_lower.len() < MAX_WGET_UA_LENGTH)
-            || (ua_lower.contains("python-requests")
-                && ua_lower.len() < MAX_PYTHON_REQUESTS_UA_LENGTH)
-            || (ua_lower.contains("go-http-client")
-                && ua_lower.len() < MAX_GO_HTTP_CLIENT_UA_LENGTH)
-            || (ua_lower.contains("ruby") && ua_lower.len() < MAX_RUBY_UA_LENGTH)
+            || SHORT_UA_NEEDLES
+                .iter()
+                .any(|(needle, max_len)| ua_lower.contains(needle) && ua_lower.len() < *max_len)
             || Self::is_outdated_browser(&ua_lower)
     }
 

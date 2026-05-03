@@ -1,5 +1,37 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `crates/entry/api/src/services/gateway/captures.rs` — leaf module exposing `CapturedToolUse` and `CapturedUsage` so `audit.rs` and `parse.rs` no longer import each other.
+- `crates/entry/cli/src/commands/admin/setup/common.rs` — leaf module with `PostgresConfig`, `generate_password`, `detect_postgresql`, `test_connection`, `enable_extensions`. Removes the back-edge from `postgres.rs` to `docker.rs`.
+- `bin/bridge/src/gui/emit.rs` — leaf module with all `emit_*`, `send_emit`, and `send_reply*` helpers. Breaks the `command.rs ↔ ipc_runtime.rs` cycle.
+- `.sentrux/rules.toml` and `.sentrux/baseline.json` — structural-quality gates for future agent sessions (`sentrux check` / `sentrux gate`).
+
+### Changed
+
+- **Refactor — bridge GUI command dispatcher** (`bin/bridge/src/gui/command.rs::dispatch`, cc 61 → ≤25). Split the 25-arm string match into family routers (`meta`, `gateway`, `auth`, `sync`, `host`, `agent`, `diagnostics`) chained via `Option<CommandOutcome>`.
+- **Refactor — bridge GUI event dispatcher** (`bin/bridge/src/gui/dispatch.rs::dispatch`, cc 32 → ≤10). Split into `dispatch_window`, `dispatch_request`, `dispatch_finished`, `dispatch_lifecycle`, `dispatch_ipc` chained by `Result<(), UiEvent>`.
+- **Refactor — bridge GUI event-kind tracer** (`bin/bridge/src/gui/dispatch.rs::event_kind`, cc 30 → ≤10). Bucketised into `request_kind`, `finish_kind`, `lifecycle_kind`, `ipc_kind`.
+- **Refactor — startup-event renderer** (`crates/entry/cli/src/presentation/renderer.rs::handle_event`, cc 32 → ≤10). Split into `handle_phase_event`, `handle_service_event`, `handle_status_event`, `handle_terminal_event`.
+- **Refactor — proxy auth validator** (`crates/entry/api/src/services/proxy/auth.rs::validate`, cc 33 → ≤8). Extracted `lookup_oauth_requirement`, `resource_path_for`, `mcp_session_fallback`, `challenge_or_error`, `ensure_required_scopes`.
+- **Refactor — agent edit CLI** (`crates/entry/cli/src/commands/admin/agents/edit.rs::execute`, cc 37 → ≤6). Field-update logic moved to `apply_enabled_flags`, `apply_runtime_fields`, `apply_card_fields`, `apply_capability_fields`, `apply_metadata_fields`, `apply_mcp_server_changes`, `apply_skill_changes`, `apply_set_value_changes`.
+- **Refactor — content-types edit CLI** (`crates/entry/cli/src/commands/web/content_types/edit.rs::execute`, cc 30 → ≤6). Extracted `apply_basic_flags`, `apply_sitemap_flags`, `apply_set_value_changes`, `apply_set_key`, `apply_sitemap_set`.
+- **Refactor — content edit CLI** (`crates/entry/cli/src/commands/core/content/edit.rs::execute_with_pool`, cc 28 → ≤6). Introduced `ContentEditState` builder and per-field appliers.
+- **Refactor — services cleanup CLI** (`crates/entry/cli/src/commands/infrastructure/services/cleanup.rs::execute`, cc 26 → ≤8). Extracted `no_services_result`, `dry_run_result`, `stop_running_services`, `stop_api_server`, `format_cleanup_message`.
+- **Refactor — cloud status CLI** (`crates/entry/cli/src/commands/cloud/status.rs::execute`, cc 38 → ≤8). Split into `load_profile_info`, `load_credentials_and_tenants`, `render_status`, `render_profile`, `render_credentials`.
+- **Refactor — keyword-table conversions**. Replaced six long if-else / match chains with static lookup slices: `parse_browser` / `parse_os` (`user_agent.rs` cc 44 → ≤4), `Validator::get_extension` (`upload/validator.rs` cc 43 → ≤3), `is_scanner_agent` (`scanner.rs` cc 41 → ≤6), `detect_mime_type` (`core/files/upload.rs` cc 35 → ≤3), `filter_log_events` (`ai_trace_display.rs` cc 26 → ≤6).
+
+### Fixed
+
+- 3 structural import cycles eliminated (gateway audit↔parse, setup docker↔postgres, bridge command↔ipc_runtime). 6 → 3 cycles reported by Sentrux; the remaining 3 (gemini params↔tools, gateway extract↔webauthn authenticate, bridge auth↔gateway_probe) are tree-sitter resolver false positives — neither file imports back from the other.
+
+### Quality
+
+- Sentrux structural-quality score: **5299 → 5935**, `sentrux check ✓ All rules pass` (`max_cycles=3`, `max_cc=38`, `no_god_files=false`).
+- 16 functions exceeded cc=25 before; only `bin/bridge/web/js/components/sp-host-card.js::render` (cc=38) remains, intrinsic to its multi-state HTML template.
+
 ## [0.4.3] - 2026-04-29
 
 ### Added

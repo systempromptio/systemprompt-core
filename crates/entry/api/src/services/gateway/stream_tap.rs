@@ -7,7 +7,8 @@ use bytes::{Bytes, BytesMut};
 use futures_util::stream::Stream;
 use serde_json::Value;
 
-use super::audit::{CapturedToolUse, CapturedUsage, GatewayAudit};
+use super::audit::GatewayAudit;
+use super::captures::{CapturedToolUse, CapturedUsage};
 
 #[derive(Default)]
 struct TapState {

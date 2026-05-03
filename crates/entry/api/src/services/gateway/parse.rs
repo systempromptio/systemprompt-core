@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::audit::{CapturedToolUse, CapturedUsage};
+use super::captures::{CapturedToolUse, CapturedUsage};
 
 pub fn extract_from_anthropic_response(bytes: &[u8]) -> (CapturedUsage, Vec<CapturedToolUse>) {
     let Ok(value) = serde_json::from_slice::<Value>(bytes) else {

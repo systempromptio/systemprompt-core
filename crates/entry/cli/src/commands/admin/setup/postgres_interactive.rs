@@ -7,7 +7,9 @@ use std::time::Duration;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
-use super::postgres::{PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection};
+use super::common::{
+    PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
+};
 use crate::CliConfig;
 
 pub async fn setup_interactive(

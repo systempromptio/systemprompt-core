@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod captures;
 pub mod converter;
 pub mod flatten;
 pub mod models;
@@ -12,7 +13,8 @@ pub mod service;
 pub mod stream_tap;
 pub mod upstream;
 
-pub use audit::{CapturedToolUse, CapturedUsage, GatewayAudit, GatewayRequestContext};
+pub use audit::{GatewayAudit, GatewayRequestContext};
+pub use captures::{CapturedToolUse, CapturedUsage};
 pub use registry::GatewayUpstreamRegistry;
 pub use service::{GatewayService, REQUEST_ID_HEADER};
 pub use upstream::{

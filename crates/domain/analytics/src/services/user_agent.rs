@@ -9,73 +9,67 @@ pub fn parse_user_agent(ua: &str) -> (Option<String>, Option<String>, Option<Str
 }
 
 fn parse_device_type(ua_lower: &str) -> String {
-    if ua_lower.contains("mobile") || ua_lower.contains("android") || ua_lower.contains("iphone") {
+    const MOBILE: &[&str] = &["mobile", "android", "iphone"];
+    const TABLET: &[&str] = &["tablet", "ipad"];
+    if MOBILE.iter().any(|s| ua_lower.contains(s)) {
         "mobile".to_string()
-    } else if ua_lower.contains("tablet") || ua_lower.contains("ipad") {
+    } else if TABLET.iter().any(|s| ua_lower.contains(s)) {
         "tablet".to_string()
     } else {
         "desktop".to_string()
     }
 }
 
-fn parse_browser(ua_lower: &str) -> String {
-    if ua_lower.contains("edg/") || ua_lower.contains("edge") {
-        "Edge".to_string()
-    } else if ua_lower.contains("samsungbrowser") {
-        "Samsung Internet".to_string()
-    } else if ua_lower.contains("ucbrowser") || ua_lower.contains("ucweb") {
-        "UC Browser".to_string()
-    } else if ua_lower.contains("yabrowser") {
-        "Yandex".to_string()
-    } else if ua_lower.contains("qqbrowser") {
-        "QQ Browser".to_string()
-    } else if ua_lower.contains("micromessenger") {
-        "WeChat".to_string()
-    } else if ua_lower.contains("silk/") {
-        "Silk".to_string()
-    } else if ua_lower.contains("electron") {
-        "Electron".to_string()
-    } else if ua_lower.contains("cordova") || ua_lower.contains("wv)") {
-        "WebView".to_string()
-    } else if ua_lower.contains("chrome") && !ua_lower.contains("edg") {
-        "Chrome".to_string()
-    } else if ua_lower.contains("firefox") {
-        "Firefox".to_string()
-    } else if ua_lower.contains("safari") && !ua_lower.contains("chrome") {
-        "Safari".to_string()
-    } else if ua_lower.contains("opera") || ua_lower.contains("opr/") {
-        "Opera".to_string()
-    } else if ua_lower.contains("msie") || ua_lower.contains("trident") {
-        "IE".to_string()
-    } else if ua_lower.contains("brave") {
-        "Brave".to_string()
-    } else if ua_lower.contains("vivaldi") {
-        "Vivaldi".to_string()
-    } else if ua_lower.contains("duckduckgo") {
-        "DuckDuckGo".to_string()
-    } else if ua_lower.contains("arc/") {
-        "Arc".to_string()
-    } else {
-        "Other".to_string()
-    }
+struct BrowserRule {
+    name: &'static str,
+    needles: &'static [&'static str],
+    negative: &'static [&'static str],
 }
 
+const BROWSER_RULES: &[BrowserRule] = &[
+    BrowserRule { name: "Edge", needles: &["edg/", "edge"], negative: &[] },
+    BrowserRule { name: "Samsung Internet", needles: &["samsungbrowser"], negative: &[] },
+    BrowserRule { name: "UC Browser", needles: &["ucbrowser", "ucweb"], negative: &[] },
+    BrowserRule { name: "Yandex", needles: &["yabrowser"], negative: &[] },
+    BrowserRule { name: "QQ Browser", needles: &["qqbrowser"], negative: &[] },
+    BrowserRule { name: "WeChat", needles: &["micromessenger"], negative: &[] },
+    BrowserRule { name: "Silk", needles: &["silk/"], negative: &[] },
+    BrowserRule { name: "Electron", needles: &["electron"], negative: &[] },
+    BrowserRule { name: "WebView", needles: &["cordova", "wv)"], negative: &[] },
+    BrowserRule { name: "Chrome", needles: &["chrome"], negative: &["edg"] },
+    BrowserRule { name: "Firefox", needles: &["firefox"], negative: &[] },
+    BrowserRule { name: "Safari", needles: &["safari"], negative: &["chrome"] },
+    BrowserRule { name: "Opera", needles: &["opera", "opr/"], negative: &[] },
+    BrowserRule { name: "IE", needles: &["msie", "trident"], negative: &[] },
+    BrowserRule { name: "Brave", needles: &["brave"], negative: &[] },
+    BrowserRule { name: "Vivaldi", needles: &["vivaldi"], negative: &[] },
+    BrowserRule { name: "DuckDuckGo", needles: &["duckduckgo"], negative: &[] },
+    BrowserRule { name: "Arc", needles: &["arc/"], negative: &[] },
+];
+
+fn parse_browser(ua_lower: &str) -> String {
+    BROWSER_RULES
+        .iter()
+        .find(|r| {
+            r.needles.iter().any(|n| ua_lower.contains(n))
+                && !r.negative.iter().any(|n| ua_lower.contains(n))
+        })
+        .map_or_else(|| "Other".to_string(), |r| r.name.to_string())
+}
+
+const OS_RULES: &[(&str, &[&str])] = &[
+    ("Windows", &["windows"]),
+    ("macOS", &["mac os x", "macos"]),
+    ("Android", &["android"]),
+    ("iOS", &["iphone", "ipad", "ios"]),
+    ("Linux", &["linux"]),
+    ("ChromeOS", &["cros", "chrome os"]),
+    ("BSD", &["freebsd", "openbsd"]),
+];
+
 fn parse_os(ua_lower: &str) -> String {
-    if ua_lower.contains("windows") {
-        "Windows".to_string()
-    } else if ua_lower.contains("mac os x") || ua_lower.contains("macos") {
-        "macOS".to_string()
-    } else if ua_lower.contains("android") {
-        "Android".to_string()
-    } else if ua_lower.contains("iphone") || ua_lower.contains("ipad") || ua_lower.contains("ios") {
-        "iOS".to_string()
-    } else if ua_lower.contains("linux") {
-        "Linux".to_string()
-    } else if ua_lower.contains("cros") || ua_lower.contains("chrome os") {
-        "ChromeOS".to_string()
-    } else if ua_lower.contains("freebsd") || ua_lower.contains("openbsd") {
-        "BSD".to_string()
-    } else {
-        "Other".to_string()
-    }
+    OS_RULES
+        .iter()
+        .find(|(_, needles)| needles.iter().any(|n| ua_lower.contains(n)))
+        .map_or_else(|| "Other".to_string(), |(name, _)| (*name).to_string())
 }

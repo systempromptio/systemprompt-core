@@ -74,20 +74,76 @@ fn require_enabled(app: &GuiApp, host_id: &str) -> Result<(), BridgeError> {
 
 pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> CommandOutcome {
     let reply_id: ReplyId = Some(id);
-    match cmd {
+    if let Some(out) = meta_dispatch(app, cmd, &args, reply_id) {
+        return out;
+    }
+    if let Some(out) = gateway_dispatch(app, cmd, args.clone(), reply_id) {
+        return out;
+    }
+    if let Some(out) = auth_dispatch(app, cmd, args.clone(), reply_id) {
+        return out;
+    }
+    if let Some(out) = sync_dispatch(app, cmd, args.clone(), reply_id) {
+        return out;
+    }
+    if let Some(out) = host_dispatch(app, cmd, args.clone(), reply_id) {
+        return out;
+    }
+    if let Some(out) = agent_dispatch(app, cmd, args.clone(), reply_id) {
+        return out;
+    }
+    if let Some(out) = diagnostics_dispatch(app, cmd, reply_id) {
+        return out;
+    }
+    CommandOutcome::Sync(Err(BridgeError::new(
+        ErrorScope::Internal,
+        ErrorCode::NotFound,
+        format!("unknown command: {cmd}"),
+    )))
+}
+
+fn meta_dispatch(
+    app: &mut GuiApp,
+    cmd: &str,
+    args: &Value,
+    _reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
         "state.snapshot" => {
             CommandOutcome::Sync(Ok(server_json::snapshot_value(&app.state.snapshot())))
         },
         "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing())),
+        "setup.complete" => {
+            send(app, UiEvent::SetupComplete);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
+        "openConfigFolder" => {
+            send(app, UiEvent::OpenConfigFolder);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
+        "openExternalUrl" => open_external_url(args.clone()),
+        "quit" => {
+            send(app, UiEvent::Quit);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
+        _ => return None,
+    })
+}
+
+fn gateway_dispatch(
+    app: &mut GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
         "gateway.set" => match parse::<GatewaySetArgs>(args) {
+            Ok(a) if a.url.trim().is_empty() => CommandOutcome::Sync(Err(BridgeError::new(
+                ErrorScope::Gateway,
+                ErrorCode::InvalidArgs,
+                "gateway url is empty",
+            ))),
             Ok(a) => {
-                if a.url.trim().is_empty() {
-                    return CommandOutcome::Sync(Err(BridgeError::new(
-                        ErrorScope::Gateway,
-                        ErrorCode::InvalidArgs,
-                        "gateway url is empty",
-                    )));
-                }
                 send(
                     app,
                     UiEvent::SetGatewayRequested {
@@ -103,15 +159,26 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
             send(app, UiEvent::GatewayProbeRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        _ => return None,
+    })
+}
+
+fn auth_dispatch(
+    app: &mut GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
         "login" => match parse::<LoginArgs>(args) {
+            Ok(a) if a.token.expose().trim().is_empty() => {
+                CommandOutcome::Sync(Err(BridgeError::new(
+                    ErrorScope::Identity,
+                    ErrorCode::InvalidArgs,
+                    "PAT is empty",
+                )))
+            },
             Ok(a) => {
-                if a.token.expose().trim().is_empty() {
-                    return CommandOutcome::Sync(Err(BridgeError::new(
-                        ErrorScope::Identity,
-                        ErrorCode::InvalidArgs,
-                        "PAT is empty",
-                    )));
-                }
                 send(
                     app,
                     UiEvent::LoginRequested {
@@ -128,6 +195,17 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
             send(app, UiEvent::LogoutRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        _ => return None,
+    })
+}
+
+fn sync_dispatch(
+    app: &mut GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
         "sync" => {
             send(app, UiEvent::SyncRequested { reply_to: reply_id });
             CommandOutcome::Async
@@ -136,100 +214,36 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
             send(app, UiEvent::ValidateRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
-        "host.probe" => match parse::<HostIdArgs>(args) {
-            Ok(a) => {
-                if let Err(err) = require_enabled(app, &a.host_id) {
-                    return CommandOutcome::Sync(Err(err));
-                }
-                send(
-                    app,
-                    UiEvent::Host(HostUiEvent::ProbeRequested {
-                        host_id: a.host_id,
-                        cause: ProbeCause::Manual,
-                        reply_to: reply_id,
-                    }),
-                );
-                CommandOutcome::Async
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
-        },
-        "host.profile.generate" => match parse::<HostIdArgs>(args) {
-            Ok(a) => {
-                if let Err(err) = require_enabled(app, &a.host_id) {
-                    return CommandOutcome::Sync(Err(err));
-                }
-                send(
-                    app,
-                    UiEvent::Host(HostUiEvent::ProfileGenerateRequested {
-                        host_id: a.host_id,
-                        reply_to: reply_id,
-                    }),
-                );
-                CommandOutcome::Async
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
-        },
-        "host.profile.install" => match parse::<HostInstallArgs>(args) {
-            Ok(a) => {
-                if let Err(err) = require_enabled(app, &a.host_id) {
-                    return CommandOutcome::Sync(Err(err));
-                }
-                send(
-                    app,
-                    UiEvent::Host(HostUiEvent::ProfileInstallRequested {
-                        host_id: a.host_id,
-                        path: a.path,
-                        reply_to: reply_id,
-                    }),
-                );
-                CommandOutcome::Async
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
-        },
-        "agents.setEnabled" => match parse::<AgentEnabledArgs>(args) {
-            Ok(a) => {
-                if crate::integration::find_host_by_id(&a.host_id).is_none() {
-                    return CommandOutcome::Sync(Err(BridgeError::new(
-                        ErrorScope::Host,
-                        ErrorCode::NotFound,
-                        format!("unknown host: {}", a.host_id),
-                    )));
-                }
-                let was_enabled = app.state.is_host_enabled(&a.host_id);
-                if was_enabled == a.enabled {
-                    return CommandOutcome::Sync(Ok(
-                        json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": false }),
-                    ));
-                }
-                if let Err(e) = app.state.set_host_enabled(&a.host_id, a.enabled) {
-                    return CommandOutcome::Sync(Err(BridgeError::new(
-                        ErrorScope::Internal,
-                        ErrorCode::Internal,
-                        format!("persist agents state: {e}"),
-                    )));
-                }
-                app.append_log(format!(
-                    "[{}] agent {}",
-                    a.host_id,
-                    if a.enabled { "enabled" } else { "disabled" }
-                ));
-                if a.enabled {
+        "cancel" => match parse::<CancelArgs>(args) {
+            Ok(a) => match cancel_scope(a.scope.as_deref()) {
+                Ok(scope) => {
                     send(
                         app,
-                        UiEvent::Host(HostUiEvent::ProbeRequested {
-                            host_id: a.host_id.clone(),
-                            cause: ProbeCause::Manual,
-                            reply_to: None,
-                        }),
+                        UiEvent::CancelInFlight {
+                            scope,
+                            reply_to: reply_id,
+                        },
                     );
-                }
-                crate::gui::ipc_runtime::emit_state(app);
-                CommandOutcome::Sync(Ok(
-                    json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": true }),
-                ))
+                    CommandOutcome::Async
+                },
+                Err(e) => CommandOutcome::Sync(Err(e)),
             },
             Err(e) => CommandOutcome::Sync(Err(e)),
         },
+        _ => return None,
+    })
+}
+
+fn host_dispatch(
+    app: &mut GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
+        "host.probe" => host_probe(app, args, reply_id),
+        "host.profile.generate" => host_profile_generate(app, args, reply_id),
+        "host.profile.install" => host_profile_install(app, args, reply_id),
         "host.proxy.probe" => {
             send(
                 app,
@@ -237,6 +251,18 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
             );
             CommandOutcome::Async
         },
+        _ => return None,
+    })
+}
+
+fn agent_dispatch(
+    app: &mut GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
+        "agents.setEnabled" => agents_set_enabled(app, args),
         "agent.uninstall" => match parse::<HostIdArgs>(args) {
             Ok(a) => {
                 send(
@@ -263,33 +289,16 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
             },
             Err(e) => CommandOutcome::Sync(Err(e)),
         },
-        "setup.complete" => {
-            send(app, UiEvent::SetupComplete);
-            CommandOutcome::Sync(Ok(json!({})))
-        },
-        "openConfigFolder" => {
-            send(app, UiEvent::OpenConfigFolder);
-            CommandOutcome::Sync(Ok(json!({})))
-        },
-        "openExternalUrl" => match parse::<OpenExternalUrlArgs>(args) {
-            Ok(a) => {
-                if !is_safe_external_url(&a.url) {
-                    return CommandOutcome::Sync(Err(BridgeError::invalid_args(format!(
-                        "refusing to open non-https url: {}",
-                        a.url
-                    ))));
-                }
-                if let Err(e) = opener::open(&a.url) {
-                    return CommandOutcome::Sync(Err(BridgeError::new(
-                        ErrorScope::Internal,
-                        ErrorCode::Internal,
-                        format!("open url failed: {e}"),
-                    )));
-                }
-                CommandOutcome::Sync(Ok(json!({})))
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
-        },
+        _ => return None,
+    })
+}
+
+fn diagnostics_dispatch(
+    app: &mut GuiApp,
+    cmd: &str,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
         "diagnostics.openLogDirectory" | "openLogFolder" => {
             send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
             CommandOutcome::Async
@@ -307,40 +316,146 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
             "branch": crate::cli::diagnostics::GIT_BRANCH,
             "rendered": crate::cli::diagnostics::render(),
         }))),
-        "cancel" => match parse::<CancelArgs>(args) {
-            Ok(a) => {
-                let scope = match a.scope.as_deref() {
-                    None | Some("all") => None,
-                    Some("sync") => Some(CancelScope::Sync),
-                    Some("login") => Some(CancelScope::Login),
-                    Some("gateway") | Some("gateway-probe") => Some(CancelScope::GatewayProbe),
-                    Some(other) => {
-                        return CommandOutcome::Sync(Err(BridgeError::invalid_args(format!(
-                            "unknown cancel scope: {other}"
-                        ))));
-                    },
-                };
-                send(
-                    app,
-                    UiEvent::CancelInFlight {
-                        scope,
-                        reply_to: reply_id,
-                    },
-                );
-                CommandOutcome::Async
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
+        _ => return None,
+    })
+}
+
+fn cancel_scope(label: Option<&str>) -> Result<Option<CancelScope>, BridgeError> {
+    Ok(match label {
+        None | Some("all") => None,
+        Some("sync") => Some(CancelScope::Sync),
+        Some("login") => Some(CancelScope::Login),
+        Some("gateway" | "gateway-probe") => Some(CancelScope::GatewayProbe),
+        Some(other) => {
+            return Err(BridgeError::invalid_args(format!(
+                "unknown cancel scope: {other}"
+            )));
         },
-        "quit" => {
-            send(app, UiEvent::Quit);
-            CommandOutcome::Sync(Ok(json!({})))
+    })
+}
+
+fn open_external_url(args: Value) -> CommandOutcome {
+    match parse::<OpenExternalUrlArgs>(args) {
+        Ok(a) if !is_safe_external_url(&a.url) => {
+            CommandOutcome::Sync(Err(BridgeError::invalid_args(format!(
+                "refusing to open non-https url: {}",
+                a.url
+            ))))
         },
-        other => CommandOutcome::Sync(Err(BridgeError::new(
-            ErrorScope::Internal,
-            ErrorCode::NotFound,
-            format!("unknown command: {other}"),
-        ))),
+        Ok(a) => match opener::open(&a.url) {
+            Ok(()) => CommandOutcome::Sync(Ok(json!({}))),
+            Err(e) => CommandOutcome::Sync(Err(BridgeError::new(
+                ErrorScope::Internal,
+                ErrorCode::Internal,
+                format!("open url failed: {e}"),
+            ))),
+        },
+        Err(e) => CommandOutcome::Sync(Err(e)),
     }
+}
+
+fn host_probe(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
+    match parse::<HostIdArgs>(args) {
+        Ok(a) => {
+            if let Err(err) = require_enabled(app, &a.host_id) {
+                return CommandOutcome::Sync(Err(err));
+            }
+            send(
+                app,
+                UiEvent::Host(HostUiEvent::ProbeRequested {
+                    host_id: a.host_id,
+                    cause: ProbeCause::Manual,
+                    reply_to: reply_id,
+                }),
+            );
+            CommandOutcome::Async
+        },
+        Err(e) => CommandOutcome::Sync(Err(e)),
+    }
+}
+
+fn host_profile_generate(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
+    match parse::<HostIdArgs>(args) {
+        Ok(a) => {
+            if let Err(err) = require_enabled(app, &a.host_id) {
+                return CommandOutcome::Sync(Err(err));
+            }
+            send(
+                app,
+                UiEvent::Host(HostUiEvent::ProfileGenerateRequested {
+                    host_id: a.host_id,
+                    reply_to: reply_id,
+                }),
+            );
+            CommandOutcome::Async
+        },
+        Err(e) => CommandOutcome::Sync(Err(e)),
+    }
+}
+
+fn host_profile_install(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
+    match parse::<HostInstallArgs>(args) {
+        Ok(a) => {
+            if let Err(err) = require_enabled(app, &a.host_id) {
+                return CommandOutcome::Sync(Err(err));
+            }
+            send(
+                app,
+                UiEvent::Host(HostUiEvent::ProfileInstallRequested {
+                    host_id: a.host_id,
+                    path: a.path,
+                    reply_to: reply_id,
+                }),
+            );
+            CommandOutcome::Async
+        },
+        Err(e) => CommandOutcome::Sync(Err(e)),
+    }
+}
+
+fn agents_set_enabled(app: &mut GuiApp, args: Value) -> CommandOutcome {
+    let a = match parse::<AgentEnabledArgs>(args) {
+        Ok(a) => a,
+        Err(e) => return CommandOutcome::Sync(Err(e)),
+    };
+    if crate::integration::find_host_by_id(&a.host_id).is_none() {
+        return CommandOutcome::Sync(Err(BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::NotFound,
+            format!("unknown host: {}", a.host_id),
+        )));
+    }
+    if app.state.is_host_enabled(&a.host_id) == a.enabled {
+        return CommandOutcome::Sync(Ok(
+            json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": false }),
+        ));
+    }
+    if let Err(e) = app.state.set_host_enabled(&a.host_id, a.enabled) {
+        return CommandOutcome::Sync(Err(BridgeError::new(
+            ErrorScope::Internal,
+            ErrorCode::Internal,
+            format!("persist agents state: {e}"),
+        )));
+    }
+    app.append_log(format!(
+        "[{}] agent {}",
+        a.host_id,
+        if a.enabled { "enabled" } else { "disabled" }
+    ));
+    if a.enabled {
+        send(
+            app,
+            UiEvent::Host(HostUiEvent::ProbeRequested {
+                host_id: a.host_id.clone(),
+                cause: ProbeCause::Manual,
+                reply_to: None,
+            }),
+        );
+    }
+    crate::gui::emit::emit_state(app);
+    CommandOutcome::Sync(Ok(
+        json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": true }),
+    ))
 }
 
 fn parse<T: serde::de::DeserializeOwned>(args: Value) -> Result<T, BridgeError> {
