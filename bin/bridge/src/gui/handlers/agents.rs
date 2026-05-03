@@ -84,22 +84,22 @@ pub(crate) fn on_open_config(app: &mut GuiApp, host_id: &str, reply_to: ReplyId)
 pub(crate) fn on_setup_complete(app: &mut GuiApp) {
     app.state.set_agents_onboarded(true);
     app.append_log("setup marked complete by user");
-    ipc_runtime::emit_state(app);
+    emit::emit_state(app);
 }
 
 fn finish(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
         }
         return;
     };
     let payload = match result {
         Ok(v) => IpcReplyPayload::ok(v),
         Err(err) => {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
             IpcReplyPayload::err(err)
         },
     };
-    ipc_runtime::send_reply_payload(app, id, &payload);
+    emit::send_reply_payload(app, id, &payload);
 }

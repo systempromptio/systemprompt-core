@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::process::Command;
 use systemprompt_logging::CliService;
 
-use super::postgres::PostgresConfig;
+use super::common::PostgresConfig;
 
 pub async fn create_database_in_docker(
     config: &PostgresConfig,

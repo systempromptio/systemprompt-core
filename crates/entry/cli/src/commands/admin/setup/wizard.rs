@@ -5,8 +5,9 @@ use dialoguer::{Confirm, Input};
 use std::path::{Path, PathBuf};
 use systemprompt_logging::CliService;
 
-use super::postgres::PostgresConfig;
+use super::common::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
+use super::common;
 use super::{SetupArgs, postgres, profile, secrets};
 use crate::CliConfig;
 
@@ -90,7 +91,7 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
 
     let pg_config = setup_postgres(&args, config, &env_name).await?;
 
-    let connection_status = if postgres::test_connection(&pg_config).await {
+    let connection_status = if common::test_connection(&pg_config).await {
         "connected"
     } else {
         "unreachable"
@@ -173,7 +174,7 @@ fn execute_dry_run(
 
     let connection_status = if args.docker {
         "docker_pending"
-    } else if postgres::detect_postgresql(&args.db_host, args.db_port) {
+    } else if common::detect_postgresql(&args.db_host, args.db_port) {
         "reachable"
     } else {
         "unreachable"

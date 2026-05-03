@@ -216,44 +216,49 @@ impl FileValidator {
             }
         }
 
-        match mime_type.to_lowercase().as_str() {
-            "image/jpeg" => "jpg",
-            "image/png" => "png",
-            "image/gif" => "gif",
-            "image/webp" => "webp",
-            "image/svg+xml" => "svg",
-            "image/bmp" => "bmp",
-            "image/tiff" => "tiff",
-            "image/x-icon" | "image/vnd.microsoft.icon" => "ico",
-            "application/pdf" => "pdf",
-            "text/plain" => "txt",
-            "text/csv" => "csv",
-            "text/markdown" => "md",
-            "text/html" => "html",
-            "application/json" => "json",
-            "application/xml" | "text/xml" => "xml",
-            "application/rtf" => "rtf",
-            "application/msword" => "doc",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
-            "application/vnd.ms-excel" => "xls",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
-            "application/vnd.ms-powerpoint" => "ppt",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation" => "pptx",
-            "audio/mpeg" | "audio/mp3" => "mp3",
-            "audio/wav" | "audio/wave" | "audio/x-wav" => "wav",
-            "audio/ogg" => "ogg",
-            "audio/webm" => "weba",
-            "audio/aac" => "aac",
-            "audio/flac" => "flac",
-            "audio/mp4" | "audio/x-m4a" => "m4a",
-            "video/mp4" => "mp4",
-            "video/webm" => "webm",
-            "video/ogg" => "ogv",
-            "video/quicktime" => "mov",
-            "video/x-msvideo" => "avi",
-            "video/x-matroska" => "mkv",
-            _ => "bin",
-        }
-        .to_string()
+        let lower = mime_type.to_lowercase();
+        MIME_EXTENSION_TABLE
+            .iter()
+            .find(|(mimes, _)| mimes.contains(&lower.as_str()))
+            .map_or("bin", |(_, ext)| *ext)
+            .to_string()
     }
 }
+
+const MIME_EXTENSION_TABLE: &[(&[&str], &str)] = &[
+    (&["image/jpeg"], "jpg"),
+    (&["image/png"], "png"),
+    (&["image/gif"], "gif"),
+    (&["image/webp"], "webp"),
+    (&["image/svg+xml"], "svg"),
+    (&["image/bmp"], "bmp"),
+    (&["image/tiff"], "tiff"),
+    (&["image/x-icon", "image/vnd.microsoft.icon"], "ico"),
+    (&["application/pdf"], "pdf"),
+    (&["text/plain"], "txt"),
+    (&["text/csv"], "csv"),
+    (&["text/markdown"], "md"),
+    (&["text/html"], "html"),
+    (&["application/json"], "json"),
+    (&["application/xml", "text/xml"], "xml"),
+    (&["application/rtf"], "rtf"),
+    (&["application/msword"], "doc"),
+    (&["application/vnd.openxmlformats-officedocument.wordprocessingml.document"], "docx"),
+    (&["application/vnd.ms-excel"], "xls"),
+    (&["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], "xlsx"),
+    (&["application/vnd.ms-powerpoint"], "ppt"),
+    (&["application/vnd.openxmlformats-officedocument.presentationml.presentation"], "pptx"),
+    (&["audio/mpeg", "audio/mp3"], "mp3"),
+    (&["audio/wav", "audio/wave", "audio/x-wav"], "wav"),
+    (&["audio/ogg"], "ogg"),
+    (&["audio/webm"], "weba"),
+    (&["audio/aac"], "aac"),
+    (&["audio/flac"], "flac"),
+    (&["audio/mp4", "audio/x-m4a"], "m4a"),
+    (&["video/mp4"], "mp4"),
+    (&["video/webm"], "webm"),
+    (&["video/ogg"], "ogv"),
+    (&["video/quicktime"], "mov"),
+    (&["video/x-msvideo"], "avi"),
+    (&["video/x-matroska"], "mkv"),
+];

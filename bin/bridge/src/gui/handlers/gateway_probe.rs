@@ -13,7 +13,7 @@ use crate::gui::{GuiApp, ipc_runtime};
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
     app.state.mark_probing();
     app.refresh_ui();
-    ipc_runtime::emit_gateway_changed(app);
+    emit::emit_gateway_changed(app);
     spawn_probe(app, reply_to);
 }
 
@@ -52,11 +52,11 @@ pub(crate) fn on_gateway_probe_finished(
     app.state.clear_cancel(CancelScope::GatewayProbe);
     app.state.apply_probe(outcome);
     app.refresh_ui();
-    ipc_runtime::emit_gateway_changed(app);
+    emit::emit_gateway_changed(app);
 
     let Some(id) = reply_to else {
         if let Err(err) = bridge_result {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
         }
         return;
     };
@@ -64,7 +64,7 @@ pub(crate) fn on_gateway_probe_finished(
         Ok(v) => IpcReplyPayload::ok(v),
         Err(err) => IpcReplyPayload::err(err),
     };
-    ipc_runtime::send_reply_payload(app, id, &payload);
+    emit::send_reply_payload(app, id, &payload);
 }
 
 pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {

@@ -18,14 +18,14 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 ErrorCode::Conflict,
                 "sync already in flight",
             );
-            ipc_runtime::send_reply_payload(app, id, &IpcReplyPayload::err(err));
+            emit::send_reply_payload(app, id, &IpcReplyPayload::err(err));
         }
         return;
     }
     app.state.set_sync_in_flight(true);
     app.append_log("Sync started…");
     app.refresh_ui();
-    ipc_runtime::emit_sync_progress(app, "started", None);
+    emit::emit_sync_progress(app, "started", None);
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Sync);
     app.runtime.spawn(async move {
@@ -59,7 +59,7 @@ pub(crate) fn on_sync_finished(
             let line = summary.one_line();
             tracing::info!(summary = %line, "sync completed");
             app.append_log(&line);
-            ipc_runtime::emit_sync_progress(app, "completed", Some(&line));
+            emit::emit_sync_progress(app, "completed", Some(&line));
             Ok(json!({ "summary": line }))
         },
         Err(msg) => {
@@ -82,29 +82,29 @@ pub(crate) fn on_sync_finished(
                 )
             };
             app.append_log(&line);
-            ipc_runtime::emit_sync_progress(app, phase, Some(&line));
+            emit::emit_sync_progress(app, phase, Some(&line));
             Err(BridgeError::new(scope, code, line))
         },
     };
     app.state.reload();
     app.refresh_ui();
-    ipc_runtime::emit_state(app);
+    emit::emit_state(app);
     finish_value(app, bridge_result, reply_to);
 }
 
 fn finish_value(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
         }
         return;
     };
     let payload = match result {
         Ok(v) => IpcReplyPayload::ok(v),
         Err(err) => {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
             IpcReplyPayload::err(err)
         },
     };
-    ipc_runtime::send_reply_payload(app, id, &payload);
+    emit::send_reply_payload(app, id, &payload);
 }

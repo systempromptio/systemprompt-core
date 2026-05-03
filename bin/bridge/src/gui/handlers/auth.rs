@@ -201,23 +201,23 @@ pub(crate) fn on_logout_finished(
     };
     app.state.reload();
     app.refresh_ui();
-    ipc_runtime::emit_state(app);
+    emit::emit_state(app);
     finish_unit(app, bridge_result, reply_to);
 }
 
 fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
         }
         return;
     };
     let payload = match result {
         Ok(()) => crate::gui::ipc::IpcReplyPayload::ok(json!({})),
         Err(err) => {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
             crate::gui::ipc::IpcReplyPayload::err(err)
         },
     };
-    ipc_runtime::send_reply_payload(app, id, &payload);
+    emit::send_reply_payload(app, id, &payload);
 }

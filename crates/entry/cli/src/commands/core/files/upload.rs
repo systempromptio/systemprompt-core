@@ -91,52 +91,53 @@ pub async fn execute(
     Ok(CommandResult::card(output).with_title("File Uploaded"))
 }
 
+const EXTENSION_MIME_TABLE: &[(&[&str], &str)] = &[
+    (&["jpg", "jpeg"], "image/jpeg"),
+    (&["png"], "image/png"),
+    (&["gif"], "image/gif"),
+    (&["webp"], "image/webp"),
+    (&["svg"], "image/svg+xml"),
+    (&["bmp"], "image/bmp"),
+    (&["tiff", "tif"], "image/tiff"),
+    (&["ico"], "image/x-icon"),
+    (&["pdf"], "application/pdf"),
+    (&["doc"], "application/msword"),
+    (&["docx"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    (&["xls"], "application/vnd.ms-excel"),
+    (&["xlsx"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    (&["ppt"], "application/vnd.ms-powerpoint"),
+    (&["pptx"], "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+    (&["txt"], "text/plain"),
+    (&["csv"], "text/csv"),
+    (&["md"], "text/markdown"),
+    (&["html", "htm"], "text/html"),
+    (&["json"], "application/json"),
+    (&["xml"], "application/xml"),
+    (&["rtf"], "application/rtf"),
+    (&["mp3"], "audio/mpeg"),
+    (&["wav"], "audio/wav"),
+    (&["ogg"], "audio/ogg"),
+    (&["aac"], "audio/aac"),
+    (&["flac"], "audio/flac"),
+    (&["m4a"], "audio/mp4"),
+    (&["mp4"], "video/mp4"),
+    (&["webm"], "video/webm"),
+    (&["mov"], "video/quicktime"),
+    (&["avi"], "video/x-msvideo"),
+    (&["mkv"], "video/x-matroska"),
+];
+
 pub fn detect_mime_type(path: &Path) -> String {
     let extension = path
         .extension()
         .and_then(|e| e.to_str())
         .map(str::to_lowercase);
-
-    match extension.as_deref() {
-        Some("jpg" | "jpeg") => "image/jpeg".to_string(),
-        Some("png") => "image/png".to_string(),
-        Some("gif") => "image/gif".to_string(),
-        Some("webp") => "image/webp".to_string(),
-        Some("svg") => "image/svg+xml".to_string(),
-        Some("bmp") => "image/bmp".to_string(),
-        Some("tiff" | "tif") => "image/tiff".to_string(),
-        Some("ico") => "image/x-icon".to_string(),
-        Some("pdf") => "application/pdf".to_string(),
-        Some("doc") => "application/msword".to_string(),
-        Some("docx") => {
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document".to_string()
-        },
-        Some("xls") => "application/vnd.ms-excel".to_string(),
-        Some("xlsx") => {
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".to_string()
-        },
-        Some("ppt") => "application/vnd.ms-powerpoint".to_string(),
-        Some("pptx") => {
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation".to_string()
-        },
-        Some("txt") => "text/plain".to_string(),
-        Some("csv") => "text/csv".to_string(),
-        Some("md") => "text/markdown".to_string(),
-        Some("html" | "htm") => "text/html".to_string(),
-        Some("json") => "application/json".to_string(),
-        Some("xml") => "application/xml".to_string(),
-        Some("rtf") => "application/rtf".to_string(),
-        Some("mp3") => "audio/mpeg".to_string(),
-        Some("wav") => "audio/wav".to_string(),
-        Some("ogg") => "audio/ogg".to_string(),
-        Some("aac") => "audio/aac".to_string(),
-        Some("flac") => "audio/flac".to_string(),
-        Some("m4a") => "audio/mp4".to_string(),
-        Some("mp4") => "video/mp4".to_string(),
-        Some("webm") => "video/webm".to_string(),
-        Some("mov") => "video/quicktime".to_string(),
-        Some("avi") => "video/x-msvideo".to_string(),
-        Some("mkv") => "video/x-matroska".to_string(),
-        _ => "application/octet-stream".to_string(),
-    }
+    let Some(ext) = extension.as_deref() else {
+        return "application/octet-stream".to_string();
+    };
+    EXTENSION_MIME_TABLE
+        .iter()
+        .find(|(exts, _)| exts.contains(&ext))
+        .map_or("application/octet-stream", |(_, mime)| *mime)
+        .to_string()
 }

@@ -123,54 +123,53 @@ pub async fn execute_ai_trace(
         .with_skip_render())
 }
 
+const NOISE_DETAILS: &[&str] = &[
+    "broadcast execution_step",
+    "resolved redirect",
+    "resolving redirect",
+    "artifacts count",
+    "task.artifacts",
+    "sending json",
+    "received artifact",
+    "received complete event",
+    "setting task.artifacts",
+    "sent complete event",
+];
+
+const SIGNAL_DETAILS: &[&str] = &[
+    "🚀 starting",
+    "agentic loop complete",
+    "loop finished",
+    "processing complete",
+    "ai request",
+    "tool executed",
+    "decision:",
+    "research complete",
+    "synthesis complete",
+];
+
+fn keep_event(event_type: &str, details: &str) -> bool {
+    if event_type == "debug" {
+        return false;
+    }
+    if matches!(event_type, "warn" | "error") {
+        return true;
+    }
+    if NOISE_DETAILS.iter().any(|n| details.contains(n)) {
+        return false;
+    }
+    if SIGNAL_DETAILS.iter().any(|s| details.contains(s)) {
+        return true;
+    }
+    details.contains("iteration") && details.contains("starting")
+}
+
 pub fn filter_log_events(log_events: Vec<TraceEvent>, verbose: bool) -> Vec<TraceEvent> {
     if verbose {
         return log_events;
     }
-
     log_events
         .into_iter()
-        .filter(|e| {
-            let event_type = e.event_type.to_lowercase();
-            let details = e.details.to_lowercase();
-
-            if event_type == "debug" {
-                return false;
-            }
-
-            if event_type == "warn" || event_type == "error" {
-                return true;
-            }
-
-            if details.contains("broadcast execution_step")
-                || details.contains("resolved redirect")
-                || details.contains("resolving redirect")
-                || details.contains("artifacts count")
-                || details.contains("task.artifacts")
-                || details.contains("sending json")
-                || details.contains("received artifact")
-                || details.contains("received complete event")
-                || details.contains("setting task.artifacts")
-                || details.contains("sent complete event")
-            {
-                return false;
-            }
-
-            if details.contains("🚀 starting")
-                || details.contains("agentic loop complete")
-                || details.contains("loop finished")
-                || details.contains("processing complete")
-                || details.contains("ai request")
-                || details.contains("tool executed")
-                || details.contains("iteration") && details.contains("starting")
-                || details.contains("decision:")
-                || details.contains("research complete")
-                || details.contains("synthesis complete")
-            {
-                return true;
-            }
-
-            false
-        })
+        .filter(|e| keep_event(&e.event_type.to_lowercase(), &e.details.to_lowercase()))
         .collect()
 }

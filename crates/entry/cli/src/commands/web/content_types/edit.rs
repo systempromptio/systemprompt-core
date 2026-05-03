@@ -57,7 +57,7 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Conte
     let mut content_config: ContentConfigRaw = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
-    let name = resolve_required(args.name, "name", config, || {
+    let name = resolve_required(args.name.clone(), "name", config, || {
         prompt_content_type_selection(&content_config)
     })?;
 
@@ -67,114 +67,9 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Conte
         .ok_or_else(|| anyhow!("Content type '{}' not found", name))?;
 
     let mut changes = Vec::new();
-
-    if args.enable {
-        source.enabled = true;
-        changes.push("enabled: true".to_string());
-    }
-
-    if args.disable {
-        source.enabled = false;
-        changes.push("enabled: false".to_string());
-    }
-
-    if let Some(path) = args.path {
-        source.path.clone_from(&path);
-        changes.push(format!("path: {}", path));
-    }
-
-    if let Some(description) = args.description {
-        source.description.clone_from(&description);
-        changes.push(format!("description: {}", description));
-    }
-
-    if args.url_pattern.is_some() || args.priority.is_some() || args.changefreq.is_some() {
-        if let Some(ref mut sitemap) = source.sitemap {
-            if let Some(url_pattern) = args.url_pattern {
-                sitemap.url_pattern.clone_from(&url_pattern);
-                changes.push(format!("sitemap.url_pattern: {}", url_pattern));
-            }
-            if let Some(priority) = args.priority {
-                if !(0.0..=1.0).contains(&priority) {
-                    return Err(anyhow!("Priority must be between 0.0 and 1.0"));
-                }
-                sitemap.priority = priority;
-                changes.push(format!("sitemap.priority: {}", priority));
-            }
-            if let Some(changefreq) = args.changefreq {
-                sitemap.changefreq.clone_from(&changefreq);
-                changes.push(format!("sitemap.changefreq: {}", changefreq));
-            }
-        } else {
-            return Err(anyhow!(
-                "Content type '{}' has no sitemap configuration. Create sitemap config first.",
-                name
-            ));
-        }
-    }
-
-    for set_value in &args.set_values {
-        let parts: Vec<&str> = set_value.splitn(2, '=').collect();
-        if parts.len() != 2 {
-            return Err(anyhow!(
-                "Invalid --set format: '{}'. Expected key=value",
-                set_value
-            ));
-        }
-        let key = parts[0];
-        let value = parts[1];
-
-        match key {
-            "description" => {
-                source.description = value.to_string();
-                changes.push(format!("description: {}", value));
-            },
-            "path" => {
-                source.path = value.to_string();
-                changes.push(format!("path: {}", value));
-            },
-            "enabled" => {
-                source.enabled = value
-                    .parse()
-                    .map_err(|_| anyhow!("Invalid boolean value for enabled: '{}'", value))?;
-                changes.push(format!("enabled: {}", value));
-            },
-            "sitemap.url_pattern" => {
-                if let Some(ref mut sitemap) = source.sitemap {
-                    sitemap.url_pattern = value.to_string();
-                    changes.push(format!("sitemap.url_pattern: {}", value));
-                } else {
-                    return Err(anyhow!("No sitemap configuration exists"));
-                }
-            },
-            "sitemap.priority" => {
-                if let Some(ref mut sitemap) = source.sitemap {
-                    let priority: f32 = value
-                        .parse()
-                        .map_err(|_| anyhow!("Invalid float value for priority: '{}'", value))?;
-                    sitemap.priority = priority;
-                    changes.push(format!("sitemap.priority: {}", value));
-                } else {
-                    return Err(anyhow!("No sitemap configuration exists"));
-                }
-            },
-            "sitemap.changefreq" => {
-                if let Some(ref mut sitemap) = source.sitemap {
-                    sitemap.changefreq = value.to_string();
-                    changes.push(format!("sitemap.changefreq: {}", value));
-                } else {
-                    return Err(anyhow!("No sitemap configuration exists"));
-                }
-            },
-            _ => {
-                return Err(anyhow!(
-                    "Unknown configuration key: '{}'. Supported keys: description, path, enabled, \
-                     sitemap.url_pattern, sitemap.priority, sitemap.changefreq",
-                    key
-                ));
-            },
-        }
-    }
+    apply_basic_flags(source, &args, &mut changes);
+    apply_sitemap_flags(source, &args, &mut changes, &name)?;
+    apply_set_value_changes(source, &args.set_values, &mut changes)?;
 
     if changes.is_empty() {
         return Err(anyhow!(
@@ -202,6 +97,146 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Conte
     };
 
     Ok(CommandResult::text(output).with_title(format!("Edit Content Type: {}", name)))
+}
+
+fn apply_basic_flags(
+    source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
+    args: &EditArgs,
+    changes: &mut Vec<String>,
+) {
+    if args.enable {
+        source.enabled = true;
+        changes.push("enabled: true".to_string());
+    }
+    if args.disable {
+        source.enabled = false;
+        changes.push("enabled: false".to_string());
+    }
+    if let Some(ref path) = args.path {
+        source.path.clone_from(path);
+        changes.push(format!("path: {}", path));
+    }
+    if let Some(ref description) = args.description {
+        source.description.clone_from(description);
+        changes.push(format!("description: {}", description));
+    }
+}
+
+fn apply_sitemap_flags(
+    source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
+    args: &EditArgs,
+    changes: &mut Vec<String>,
+    name: &str,
+) -> Result<()> {
+    if args.url_pattern.is_none() && args.priority.is_none() && args.changefreq.is_none() {
+        return Ok(());
+    }
+    let Some(ref mut sitemap) = source.sitemap else {
+        return Err(anyhow!(
+            "Content type '{}' has no sitemap configuration. Create sitemap config first.",
+            name
+        ));
+    };
+    if let Some(ref url_pattern) = args.url_pattern {
+        sitemap.url_pattern.clone_from(url_pattern);
+        changes.push(format!("sitemap.url_pattern: {}", url_pattern));
+    }
+    if let Some(priority) = args.priority {
+        if !(0.0..=1.0).contains(&priority) {
+            return Err(anyhow!("Priority must be between 0.0 and 1.0"));
+        }
+        sitemap.priority = priority;
+        changes.push(format!("sitemap.priority: {}", priority));
+    }
+    if let Some(ref changefreq) = args.changefreq {
+        sitemap.changefreq.clone_from(changefreq);
+        changes.push(format!("sitemap.changefreq: {}", changefreq));
+    }
+    Ok(())
+}
+
+fn apply_set_value_changes(
+    source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
+    set_values: &[String],
+    changes: &mut Vec<String>,
+) -> Result<()> {
+    for set_value in set_values {
+        let parts: Vec<&str> = set_value.splitn(2, '=').collect();
+        if parts.len() != 2 {
+            return Err(anyhow!(
+                "Invalid --set format: '{}'. Expected key=value",
+                set_value
+            ));
+        }
+        apply_set_key(source, parts[0], parts[1], changes)?;
+    }
+    Ok(())
+}
+
+fn apply_set_key(
+    source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
+    key: &str,
+    value: &str,
+    changes: &mut Vec<String>,
+) -> Result<()> {
+    match key {
+        "description" => {
+            source.description = value.to_string();
+            changes.push(format!("description: {}", value));
+        },
+        "path" => {
+            source.path = value.to_string();
+            changes.push(format!("path: {}", value));
+        },
+        "enabled" => {
+            source.enabled = value
+                .parse()
+                .map_err(|_| anyhow!("Invalid boolean value for enabled: '{}'", value))?;
+            changes.push(format!("enabled: {}", value));
+        },
+        "sitemap.url_pattern" | "sitemap.priority" | "sitemap.changefreq" => {
+            apply_sitemap_set(source, key, value, changes)?;
+        },
+        _ => {
+            return Err(anyhow!(
+                "Unknown configuration key: '{}'. Supported keys: description, path, enabled, \
+                 sitemap.url_pattern, sitemap.priority, sitemap.changefreq",
+                key
+            ));
+        },
+    }
+    Ok(())
+}
+
+fn apply_sitemap_set(
+    source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
+    key: &str,
+    value: &str,
+    changes: &mut Vec<String>,
+) -> Result<()> {
+    let sitemap = source
+        .sitemap
+        .as_mut()
+        .ok_or_else(|| anyhow!("No sitemap configuration exists"))?;
+    match key {
+        "sitemap.url_pattern" => {
+            sitemap.url_pattern = value.to_string();
+            changes.push(format!("sitemap.url_pattern: {}", value));
+        },
+        "sitemap.priority" => {
+            let priority: f32 = value
+                .parse()
+                .map_err(|_| anyhow!("Invalid float value for priority: '{}'", value))?;
+            sitemap.priority = priority;
+            changes.push(format!("sitemap.priority: {}", value));
+        },
+        "sitemap.changefreq" => {
+            sitemap.changefreq = value.to_string();
+            changes.push(format!("sitemap.changefreq: {}", value));
+        },
+        _ => unreachable!("apply_sitemap_set called with non-sitemap key: {}", key),
+    }
+    Ok(())
 }
 
 fn prompt_content_type_selection(config: &ContentConfigRaw) -> Result<String> {

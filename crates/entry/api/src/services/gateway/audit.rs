@@ -12,6 +12,7 @@ use systemprompt_ai::repository::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, SessionId, TenantId, TraceId, UserId};
 
+use super::captures::{CapturedToolUse, CapturedUsage};
 use super::models::AnthropicGatewayRequest;
 use super::pricing;
 use std::sync::Mutex;
@@ -30,19 +31,6 @@ pub struct GatewayRequestContext {
     pub model: String,
     pub max_tokens: Option<u32>,
     pub is_streaming: bool,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CapturedUsage {
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-}
-
-#[derive(Debug, Clone)]
-pub struct CapturedToolUse {
-    pub ai_tool_call_id: String,
-    pub tool_name: String,
-    pub tool_input: String,
 }
 
 #[allow(missing_debug_implementations)]

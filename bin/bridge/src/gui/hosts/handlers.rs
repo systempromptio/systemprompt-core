@@ -51,7 +51,7 @@ pub(crate) fn on_probe_requested(
                 ErrorCode::Conflict,
                 "probe already in flight",
             );
-            ipc_runtime::send_reply_payload(app, id, &IpcReplyPayload::err(err));
+            emit::send_reply_payload(app, id, &IpcReplyPayload::err(err));
         }
         return;
     }
@@ -95,7 +95,7 @@ pub(crate) fn on_probe_finished(
             reply_to: None,
         }));
     app.refresh_ui();
-    ipc_runtime::emit_host_changed(app, host_id);
+    emit::emit_host_changed(app, host_id);
     let log_line = match cause {
         ProbeCause::Manual => Some(format!("[{host_id}] re-verify complete — {summary}")),
         ProbeCause::Tick => state_change_line(host_id, prev.as_ref(), &snapshot),
@@ -159,7 +159,7 @@ pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 ErrorCode::Conflict,
                 "proxy probe already in flight",
             );
-            ipc_runtime::send_reply_payload(app, id, &IpcReplyPayload::err(err));
+            emit::send_reply_payload(app, id, &IpcReplyPayload::err(err));
         }
         return;
     }
@@ -182,7 +182,7 @@ pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
 pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, reply_to: ReplyId) {
     app.state.apply_proxy_health(health);
     app.refresh_ui();
-    ipc_runtime::emit_proxy_changed(app);
+    emit::emit_proxy_changed(app);
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::local_proxy_value(&snap);
     finish(app, Ok(json!({ "health": value })), reply_to);
@@ -239,7 +239,7 @@ pub(crate) fn on_profile_generate_finished(
         },
     };
     app.refresh_ui();
-    ipc_runtime::emit_host_changed(app, host_id);
+    emit::emit_host_changed(app, host_id);
     finish(app, bridge_result, reply_to);
 }
 
@@ -372,16 +372,16 @@ async fn generate_profile_for(
 fn finish(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
         }
         return;
     };
     let payload = match result {
         Ok(v) => IpcReplyPayload::ok(v),
         Err(err) => {
-            ipc_runtime::emit_error(app, &err);
+            emit::emit_error(app, &err);
             IpcReplyPayload::err(err)
         },
     };
-    ipc_runtime::send_reply_payload(app, id, &payload);
+    emit::send_reply_payload(app, id, &payload);
 }
