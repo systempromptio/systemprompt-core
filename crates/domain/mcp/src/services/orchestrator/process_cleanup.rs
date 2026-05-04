@@ -84,7 +84,8 @@ async fn restart_stale_binary(
         _ => return Ok(false),
     };
 
-    let Some((stored_mtime, current_mtime)) = get_stale_binary_mtimes(&server.name, &service_info)
+    let Some((stored_mtime, current_mtime)) =
+        get_stale_binary_mtimes(database.app_paths(), &server.name, &service_info)
     else {
         return Ok(false);
     };
@@ -109,9 +110,13 @@ async fn restart_stale_binary(
     Ok(true)
 }
 
-fn get_stale_binary_mtimes(name: &str, service_info: &ServiceInfo) -> Option<(i64, i64)> {
+fn get_stale_binary_mtimes(
+    paths: &systemprompt_models::AppPaths,
+    name: &str,
+    service_info: &ServiceInfo,
+) -> Option<(i64, i64)> {
     let stored_mtime = service_info.binary_mtime?;
-    let current_mtime = get_binary_mtime_for_service(name)?;
+    let current_mtime = get_binary_mtime_for_service(paths, name)?;
 
     (current_mtime != stored_mtime).then_some((stored_mtime, current_mtime))
 }

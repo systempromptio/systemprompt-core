@@ -7,11 +7,13 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::AppPaths;
-use systemprompt_config::SecretsBootstrap;
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_sync::{LocalSyncDirection, LocalSyncResult, SkillsDiffResult, SkillsLocalSync};
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let profile = ProfileBootstrap::get()?;
+    let paths = AppPaths::from_profile(&profile.paths)
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(paths.system().skills().to_path_buf())
 }
 

@@ -37,8 +37,8 @@ impl AppContextBuilder {
 
     pub async fn build(self) -> Result<AppContext> {
         let profile = ProfileBootstrap::get()?;
-        AppPaths::init(&profile.paths)?;
-        systemprompt_files::FilesConfig::init()?;
+        let app_paths = Arc::new(AppPaths::from_profile(&profile.paths)?);
+        systemprompt_files::FilesConfig::init(&app_paths)?;
         let config = Arc::new(Config::get()?.clone());
 
         let database = Arc::new(
@@ -67,7 +67,7 @@ impl AppContextBuilder {
         let extension_registry = Arc::new(registry);
 
         let geoip_reader = AppContext::load_geoip_database(&config, self.show_startup_warnings);
-        let content_config = AppContext::load_content_config(&config);
+        let content_config = AppContext::load_content_config(&config, &app_paths);
         let content_routing = content_routing_from(content_config.as_ref());
         let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
             content_routing.clone(),
@@ -105,6 +105,7 @@ impl AppContextBuilder {
             analytics_service,
             fingerprint_repo,
             user_service,
+            app_paths,
         }))
     }
 }

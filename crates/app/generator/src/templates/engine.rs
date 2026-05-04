@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_models::{AppPaths, Config, WebConfig, WebConfigError};
 use tokio::fs;
 
-pub async fn load_web_config() -> Result<WebConfig, WebConfigError> {
+pub async fn load_web_config(paths: &AppPaths) -> Result<WebConfig, WebConfigError> {
     let config = Config::get().map_err(|e| WebConfigError::InvalidValue {
         field: "config".to_string(),
         message: e.to_string(),
@@ -18,11 +18,6 @@ pub async fn load_web_config() -> Result<WebConfig, WebConfigError> {
 
     let mut web_config: WebConfig =
         serde_yaml::from_str(&content).map_err(WebConfigError::Parse)?;
-
-    let paths = AppPaths::get().map_err(|e| WebConfigError::InvalidValue {
-        field: "paths".to_string(),
-        message: e.to_string(),
-    })?;
 
     web_config.paths.resolve_relative_to(paths.system().root());
     validate_paths(&web_config)?;
@@ -43,7 +38,7 @@ fn validate_paths(config: &WebConfig) -> Result<(), WebConfigError> {
     Ok(())
 }
 
-pub fn get_templates_path(config: &WebConfig) -> PathBuf {
+pub fn get_templates_path(config: &WebConfig, paths: &AppPaths) -> PathBuf {
     let configured = &config.paths.templates;
     if !configured.is_empty() {
         let path = Path::new(configured);
@@ -52,8 +47,5 @@ pub fn get_templates_path(config: &WebConfig) -> PathBuf {
         }
     }
 
-    AppPaths::get().map_or_else(
-        |_| PathBuf::from("templates"),
-        |p| p.web().root().join("templates"),
-    )
+    paths.web().root().join("templates")
 }

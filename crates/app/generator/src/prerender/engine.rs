@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use systemprompt_database::DbPool;
+use systemprompt_models::AppPaths;
 use systemprompt_template_provider::{ComponentContext, PageContext, PagePrepareContext};
 use tokio::fs;
 
@@ -11,8 +12,8 @@ use crate::prerender::content::process_all_sources;
 use crate::prerender::context::{PrerenderContext, load_prerender_context};
 use crate::prerender::utils::{merge_json_data, render_components};
 
-pub async fn prerender_content(db_pool: DbPool) -> Result<()> {
-    let ctx = load_prerender_context(db_pool).await?;
+pub async fn prerender_content(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
+    let ctx = load_prerender_context(db_pool, paths).await?;
     let total_rendered = process_all_sources(&ctx).await?;
     tracing::info!(items_rendered = total_rendered, "Prerendering completed");
     Ok(())
@@ -24,8 +25,8 @@ pub struct PagePrerenderResult {
     pub output_path: PathBuf,
 }
 
-pub async fn prerender_pages(db_pool: DbPool) -> Result<Vec<PagePrerenderResult>> {
-    let ctx = load_prerender_context(db_pool).await?;
+pub async fn prerender_pages(db_pool: DbPool, paths: &AppPaths) -> Result<Vec<PagePrerenderResult>> {
+    let ctx = load_prerender_context(db_pool, paths).await?;
     prerender_pages_with_context(&ctx).await
 }
 

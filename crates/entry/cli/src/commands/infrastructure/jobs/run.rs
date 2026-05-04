@@ -134,8 +134,11 @@ async fn run_single_job(
 
     let db_pool = Arc::clone(ctx.db_pool());
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
+    let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
+        Arc::new(Arc::clone(ctx.app_paths_arc()));
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(&ctx));
-    let job_ctx = JobContext::new(db_pool_any, app_context_any).with_parameters(parameters.clone());
+    let job_ctx = JobContext::new(db_pool_any, app_context_any, app_paths_any)
+        .with_parameters(parameters.clone());
 
     let execute_result = if let Some(job) = ext_job {
         job.execute(&job_ctx).await

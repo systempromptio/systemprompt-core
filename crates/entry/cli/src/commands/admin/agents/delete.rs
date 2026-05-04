@@ -86,7 +86,7 @@ pub async fn execute(
                 Arc::new(ctx.config().clone()),
                 jwt_provider,
             ));
-            AgentOrchestrator::new(agent_state, None).await.ok()
+            AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None).await.ok()
         },
         Err(e) => {
             tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");

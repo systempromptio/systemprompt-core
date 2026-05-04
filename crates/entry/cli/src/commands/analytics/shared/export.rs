@@ -4,6 +4,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::AppPaths;
 
 pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
@@ -15,11 +16,10 @@ pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
         return Ok(user_path.to_path_buf());
     }
 
-    let exports_dir = AppPaths::get()
-        .context("AppPaths not initialized - use an absolute path for export")?
-        .storage()
-        .exports()
-        .to_path_buf();
+    let profile = ProfileBootstrap::get().context("Profile not initialized")?;
+    let paths = AppPaths::from_profile(&profile.paths)
+        .map_err(|e| anyhow::anyhow!("Failed to build paths: {}", e))?;
+    let exports_dir = paths.storage().exports().to_path_buf();
 
     Ok(exports_dir.join(user_path))
 }

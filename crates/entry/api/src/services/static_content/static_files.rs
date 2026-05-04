@@ -8,7 +8,7 @@ use super::config::StaticContentMatcher;
 use systemprompt_content::ContentRepository;
 use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::SourceId;
-use systemprompt_models::{AppPaths, RouteClassifier, RouteType};
+use systemprompt_models::{RouteClassifier, RouteType};
 use systemprompt_runtime::AppContext;
 
 #[derive(Clone, Debug)]
@@ -104,16 +104,7 @@ pub async fn serve_static_content(
     headers: HeaderMap,
     _req_ctx: Option<axum::Extension<systemprompt_models::RequestContext>>,
 ) -> impl IntoResponse {
-    let dist_dir = match AppPaths::get() {
-        Ok(paths) => paths.web().dist().to_path_buf(),
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "AppPaths not initialized",
-            )
-                .into_response();
-        },
-    };
+    let dist_dir = state.ctx.app_paths().web().dist().to_path_buf();
 
     let path = uri.path();
 

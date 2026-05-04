@@ -36,7 +36,7 @@ pub async fn execute(
         jwt_provider,
     ));
 
-    let orchestrator = AgentOrchestrator::new(agent_state, None)
+    let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 

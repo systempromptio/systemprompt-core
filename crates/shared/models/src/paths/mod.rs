@@ -13,12 +13,9 @@ pub use system::SystemPaths;
 pub use web::WebPaths;
 
 use std::path::Path;
-use std::sync::OnceLock;
 
 use crate::profile::PathsConfig;
 use systemprompt_extension::AssetPaths;
-
-static APP_PATHS: OnceLock<AppPaths> = OnceLock::new();
 
 #[derive(Debug, Clone)]
 pub struct AppPaths {
@@ -29,22 +26,7 @@ pub struct AppPaths {
 }
 
 impl AppPaths {
-    pub fn init(profile_paths: &PathsConfig) -> Result<(), PathError> {
-        if APP_PATHS.get().is_some() {
-            return Ok(());
-        }
-        let paths = Self::from_profile(profile_paths)?;
-        APP_PATHS
-            .set(paths)
-            .map_err(|_| PathError::AlreadyInitialized)?;
-        Ok(())
-    }
-
-    pub fn get() -> Result<&'static Self, PathError> {
-        APP_PATHS.get().ok_or(PathError::NotInitialized)
-    }
-
-    fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
+    pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
         Ok(Self {
             system: SystemPaths::from_profile(paths)?,
             web: WebPaths::from_profile(paths),

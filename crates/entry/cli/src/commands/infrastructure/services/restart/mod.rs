@@ -39,7 +39,7 @@ pub(crate) async fn resolve_name(agent_identifier: &str) -> Result<String> {
 
 pub(crate) async fn create_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
     let agent_state = create_agent_state(ctx)?;
-    AgentOrchestrator::new(agent_state, None)
+    AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
         .await
         .context("Failed to initialize agent orchestrator")
 }

@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::body::Body;
-use axum::extract::Query;
+use axum::extract::{Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use flate2::Compression;
@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use systemprompt_models::api::ApiError;
+use systemprompt_runtime::AppContext;
 use tar::{Archive, Builder};
 
 use super::types::{ApiResult, FileEntry, FileManifest, FilesQuery, UploadResult, to_api_error};
@@ -18,7 +19,7 @@ const ALLOWED_DIRS: &[&str] = &[
     "agents", "skills", "content", "mcp", "ai", "config", "profiles",
 ];
 
-fn get_services_path() -> Result<PathBuf, String> {
+fn get_services_path(ctx: &AppContext) -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("SYSTEMPROMPT_SERVICES_PATH") {
         let p = PathBuf::from(&path);
         if p.exists() {
@@ -30,11 +31,9 @@ fn get_services_path() -> Result<PathBuf, String> {
         ));
     }
 
-    if let Ok(paths) = systemprompt_models::AppPaths::get() {
-        let services = paths.system().services();
-        if services.exists() {
-            return Ok(services.to_path_buf());
-        }
+    let services = ctx.app_paths().system().services();
+    if services.exists() {
+        return Ok(services.to_path_buf());
     }
 
     Err("Services path not configured".into())
@@ -212,8 +211,11 @@ fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
 }
 
 #[allow(clippy::unused_async)]
-pub async fn manifest(Query(query): Query<FilesQuery>) -> ApiResult<Json<FileManifest>> {
-    let services_path = get_services_path().map_err(to_api_error)?;
+pub async fn manifest(
+    State(ctx): State<AppContext>,
+    Query(query): Query<FilesQuery>,
+) -> ApiResult<Json<FileManifest>> {
+    let services_path = get_services_path(&ctx).map_err(to_api_error)?;
     let directories = query.directories();
 
     let manifest = collect_files(&services_path, &directories).map_err(to_api_error)?;
@@ -222,8 +224,11 @@ pub async fn manifest(Query(query): Query<FilesQuery>) -> ApiResult<Json<FileMan
 }
 
 #[allow(clippy::unused_async)]
-pub async fn download(Query(query): Query<FilesQuery>) -> Result<Response, ApiError> {
-    let services_path = get_services_path().map_err(to_api_error)?;
+pub async fn download(
+    State(ctx): State<AppContext>,
+    Query(query): Query<FilesQuery>,
+) -> Result<Response, ApiError> {
+    let services_path = get_services_path(&ctx).map_err(to_api_error)?;
     let directories = query.directories();
 
     let manifest = collect_files(&services_path, &directories).map_err(to_api_error)?;
@@ -248,10 +253,11 @@ pub async fn download(Query(query): Query<FilesQuery>) -> Result<Response, ApiEr
 
 #[allow(clippy::unused_async)]
 pub async fn upload(
+    State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
     body: axum::body::Bytes,
 ) -> ApiResult<Json<UploadResult>> {
-    let services_path = get_services_path().map_err(to_api_error)?;
+    let services_path = get_services_path(&ctx).map_err(to_api_error)?;
 
     if query.dry_run {
         let manifest = peek_manifest(&body).map_err(to_api_error)?;

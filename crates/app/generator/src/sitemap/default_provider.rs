@@ -14,8 +14,8 @@ pub struct DefaultSitemapProvider {
 }
 
 impl DefaultSitemapProvider {
-    pub async fn new() -> Result<Self> {
-        let content_config = load_content_config().await?;
+    pub async fn new(paths: &AppPaths) -> Result<Self> {
+        let content_config = load_content_config(paths).await?;
         Ok(Self { content_config })
     }
 
@@ -25,8 +25,7 @@ impl DefaultSitemapProvider {
     }
 }
 
-async fn load_content_config() -> Result<ContentConfigRaw> {
-    let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
+async fn load_content_config(paths: &AppPaths) -> Result<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)

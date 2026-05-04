@@ -114,7 +114,7 @@ mod job_context_tests {
     fn create_context() -> JobContext {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("app".to_string());
-        JobContext::new(db_pool, app_context)
+        JobContext::new(db_pool, app_context, Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>)
     }
 
     #[test]
@@ -158,7 +158,7 @@ mod job_context_tests {
     fn db_pool_downcast_correct_type() {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let ctx = JobContext::new(db_pool, app_context);
+        let ctx = JobContext::new(db_pool, app_context, Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>);
 
         let pool: Option<&i32> = ctx.db_pool();
         assert_eq!(pool, Some(&42));
@@ -168,7 +168,7 @@ mod job_context_tests {
     fn db_pool_downcast_wrong_type() {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let ctx = JobContext::new(db_pool, app_context);
+        let ctx = JobContext::new(db_pool, app_context, Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>);
 
         let pool: Option<&String> = ctx.db_pool();
         assert!(pool.is_none());
@@ -178,7 +178,7 @@ mod job_context_tests {
     fn app_context_downcast_correct_type() {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
-        let ctx = JobContext::new(db_pool, app_context);
+        let ctx = JobContext::new(db_pool, app_context, Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>);
 
         let app: Option<&String> = ctx.app_context();
         assert_eq!(app, Some(&"test".to_string()));
@@ -188,7 +188,7 @@ mod job_context_tests {
     fn app_context_downcast_wrong_type() {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
-        let ctx = JobContext::new(db_pool, app_context);
+        let ctx = JobContext::new(db_pool, app_context, Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>);
 
         let app: Option<&i32> = ctx.app_context();
         assert!(app.is_none());
@@ -198,7 +198,7 @@ mod job_context_tests {
     fn db_pool_arc_returns_clone() {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-        let ctx = JobContext::new(db_pool.clone(), app_context);
+        let ctx = JobContext::new(db_pool.clone(), app_context, Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>);
 
         let returned_arc = ctx.db_pool_arc();
         assert!(Arc::ptr_eq(&db_pool, &returned_arc));
@@ -208,7 +208,7 @@ mod job_context_tests {
     fn app_context_arc_returns_clone() {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
-        let ctx = JobContext::new(db_pool, app_context.clone());
+        let ctx = JobContext::new(db_pool, app_context.clone(), Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>);
 
         let returned_arc = ctx.app_context_arc();
         assert!(Arc::ptr_eq(&app_context, &returned_arc));

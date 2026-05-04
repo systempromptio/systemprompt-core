@@ -20,7 +20,7 @@ pub async fn reconcile_agents(
         jwt_provider,
     ));
 
-    let orchestrator = match AgentOrchestrator::new(agent_state, events).await {
+    let orchestrator = match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
         Ok(orch) => orch,
         Err(e) => {
             if let Some(tx) = events {

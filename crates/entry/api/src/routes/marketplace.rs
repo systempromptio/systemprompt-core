@@ -1,10 +1,9 @@
 use axum::Router;
-use axum::extract::Path as AxumPath;
+use axum::extract::{Path as AxumPath, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use std::path::PathBuf;
-use systemprompt_models::AppPaths;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
@@ -14,16 +13,12 @@ pub fn router() -> Router<AppContext> {
         .route("/plugins/{plugin_id}/{*path}", get(serve_plugin_file))
 }
 
-#[allow(clippy::result_large_err)]
-fn resolve_plugins_path() -> Result<PathBuf, ApiError> {
-    let paths = AppPaths::get().map_err(|e| ApiError::internal_error(e.to_string()))?;
-    Ok(paths.system().services().join("plugins"))
+fn plugins_path(ctx: &AppContext) -> PathBuf {
+    ctx.app_paths().system().services().join("plugins")
 }
 
-#[allow(clippy::result_large_err)]
-fn resolve_system_path() -> Result<PathBuf, ApiError> {
-    let paths = AppPaths::get().map_err(|e| ApiError::internal_error(e.to_string()))?;
-    Ok(paths.system().root().to_path_buf())
+fn system_path(ctx: &AppContext) -> PathBuf {
+    ctx.app_paths().system().root().to_path_buf()
 }
 
 fn resolve_mime_type(path: &std::path::Path) -> &'static str {
@@ -37,9 +32,8 @@ fn resolve_mime_type(path: &std::path::Path) -> &'static str {
     }
 }
 
-async fn serve_marketplace() -> Result<impl IntoResponse, ApiError> {
-    let system_path = resolve_system_path()?;
-    let marketplace_path = system_path.join(".claude-plugin").join("marketplace.json");
+async fn serve_marketplace(State(ctx): State<AppContext>) -> Result<impl IntoResponse, ApiError> {
+    let marketplace_path = system_path(&ctx).join(".claude-plugin").join("marketplace.json");
 
     let content = tokio::fs::read(&marketplace_path).await.map_err(|_| {
         ApiError::not_found(
@@ -60,10 +54,10 @@ async fn serve_marketplace() -> Result<impl IntoResponse, ApiError> {
 const BLOCKED_FILENAMES: &[&str] = &["config.yaml", "config.yml"];
 
 async fn serve_plugin_file(
+    State(ctx): State<AppContext>,
     AxumPath((plugin_id, file_path)): AxumPath<(String, String)>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let plugins_path = resolve_plugins_path()?;
-    let plugin_dir = plugins_path.join(&plugin_id);
+    let plugin_dir = plugins_path(&ctx).join(&plugin_id);
 
     if !plugin_dir.exists() {
         return Err(ApiError::not_found(format!(

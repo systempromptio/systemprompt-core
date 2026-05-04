@@ -6,6 +6,7 @@ pub mod utils;
 
 use crate::McpServerConfig;
 use anyhow::Result;
+use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProcessManager;
@@ -15,8 +16,8 @@ impl ProcessManager {
         Self
     }
 
-    pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
-        spawner::spawn_server(config)
+    pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> Result<u32> {
+        spawner::spawn_server(paths, config)
     }
 
     pub fn is_running(pid: u32) -> bool {
@@ -31,8 +32,8 @@ impl ProcessManager {
         pid_manager::find_process_on_port_with_name(port, name)
     }
 
-    pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
-        spawner::verify_binary(config)
+    pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> Result<()> {
+        spawner::verify_binary(paths, config)
     }
 
     pub fn build_server(config: &McpServerConfig) -> Result<()> {

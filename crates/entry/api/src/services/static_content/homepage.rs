@@ -1,20 +1,14 @@
+use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use systemprompt_models::AppPaths;
 
-use super::static_files::{CACHE_HTML, compute_etag};
+use super::static_files::{CACHE_HTML, StaticContentState, compute_etag};
 
-pub async fn serve_homepage(headers: http::HeaderMap) -> impl IntoResponse {
-    let dist_dir = match AppPaths::get() {
-        Ok(paths) => paths.web().dist().to_path_buf(),
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "AppPaths not initialized",
-            )
-                .into_response();
-        },
-    };
+pub async fn serve_homepage(
+    State(state): State<StaticContentState>,
+    headers: http::HeaderMap,
+) -> impl IntoResponse {
+    let dist_dir = state.ctx.app_paths().web().dist().to_path_buf();
 
     let homepage_path = dist_dir.join("index.html");
 

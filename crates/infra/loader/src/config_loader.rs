@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::AppPaths;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
     AgentConfig, AiConfig, ContentConfig, IncludableString, PartialServicesConfig, PluginConfig,
@@ -98,8 +98,8 @@ impl ConfigLoader {
     }
 
     pub fn from_env() -> Result<Self> {
-        let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
-        let config_path = paths.system().settings().to_path_buf();
+        let profile = ProfileBootstrap::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let config_path = PathBuf::from(profile.paths.config());
         Ok(Self::new(config_path))
     }
 

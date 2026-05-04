@@ -16,21 +16,23 @@ pub fn get_binary_mtime(binary_path: &Path) -> Option<i64> {
         .map(|d| d.as_secs() as i64)
 }
 
-pub fn get_binary_mtime_for_service(service_name: &str) -> Option<i64> {
-    AppPaths::get()
+pub fn get_binary_mtime_for_service(paths: &AppPaths, service_name: &str) -> Option<i64> {
+    paths
+        .build()
+        .resolve_binary(service_name)
         .ok()
-        .and_then(|paths| paths.build().resolve_binary(service_name).ok())
         .and_then(|path| get_binary_mtime(path.as_path()))
 }
 
 pub async fn register_service(
     db_pool: &systemprompt_database::DbPool,
+    paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
     _startup_time: Option<i32>,
 ) -> Result<String> {
     let repo = ServiceRepository::new(db_pool)?;
-    let binary_mtime = get_binary_mtime_for_service(&config.name);
+    let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
 
     tracing::debug!(
         service = %config.name,
@@ -120,12 +122,13 @@ pub async fn update_service_state(
 
 pub async fn register_existing_process(
     db_pool: &systemprompt_database::DbPool,
+    paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
 ) -> Result<String> {
     let repo = ServiceRepository::new(db_pool)?;
 
-    let binary_mtime = get_binary_mtime_for_service(&config.name);
+    let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
 
     repo.create_service(CreateServiceInput {
         name: &config.name,

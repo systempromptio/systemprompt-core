@@ -5,6 +5,7 @@ use systemprompt_models::services::ServicesConfig;
 use systemprompt_models::{AppPaths, ContentSourceConfigRaw};
 use systemprompt_traits::JobResult;
 
+
 use crate::services::IngestionService;
 use crate::{IngestionOptions, IngestionReport, IngestionSource};
 
@@ -16,6 +17,7 @@ struct IngestionStats {
 pub async fn execute_content_ingestion(
     db_pool: &DbPool,
     services_config: &ServicesConfig,
+    paths: &AppPaths,
 ) -> Result<JobResult> {
     let start_time = std::time::Instant::now();
     log_job_started();
@@ -28,7 +30,7 @@ pub async fn execute_content_ingestion(
     }
 
     log_processing_sources(sources.len());
-    let stats = process_all_sources(&ingestion_service, &sources).await?;
+    let stats = process_all_sources(&ingestion_service, &sources, paths).await?;
 
     Ok(build_result(start_time, &stats))
 }
@@ -68,6 +70,7 @@ fn log_processing_sources(count: usize) {
 async fn process_all_sources(
     service: &IngestionService,
     sources: &[(&String, &ContentSourceConfigRaw)],
+    paths: &AppPaths,
 ) -> Result<IngestionStats> {
     let mut stats = IngestionStats {
         processed: 0,
@@ -75,7 +78,7 @@ async fn process_all_sources(
     };
 
     for (name, config) in sources {
-        process_single_source(service, name, config, &mut stats).await?;
+        process_single_source(service, name, config, paths, &mut stats).await?;
     }
 
     Ok(stats)
@@ -85,11 +88,12 @@ async fn process_single_source(
     service: &IngestionService,
     name: &str,
     config: &ContentSourceConfigRaw,
+    paths: &AppPaths,
     stats: &mut IngestionStats,
 ) -> Result<()> {
     tracing::debug!(source = %name, "Ingesting source");
 
-    let content_path = resolve_content_path(&config.path)?;
+    let content_path = resolve_content_path(&config.path, paths);
 
     if let Some(err) = validate_source(name, &content_path) {
         stats.errors += 1;
@@ -102,13 +106,12 @@ async fn process_single_source(
     Ok(())
 }
 
-fn resolve_content_path(path: &str) -> Result<PathBuf> {
+fn resolve_content_path(path: &str, paths: &AppPaths) -> PathBuf {
     let path = Path::new(path);
     if path.is_absolute() {
-        Ok(path.to_path_buf())
+        path.to_path_buf()
     } else {
-        let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
-        Ok(paths.system().services().join(path))
+        paths.system().services().join(path)
     }
 }
 

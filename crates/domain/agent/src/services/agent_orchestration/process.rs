@@ -136,10 +136,11 @@ fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     command
 }
 
-pub fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
-    let paths = AppPaths::get()
-        .map_err(|e| OrchestrationError::ProcessSpawnFailed(format!("Failed to get paths: {e}")))?;
-
+pub fn spawn_detached(
+    paths: &AppPaths,
+    agent_name: &str,
+    port: u16,
+) -> OrchestrationResult<u32> {
     let binary_path = paths.build().resolve_binary("systemprompt").map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to find systemprompt binary: {e}"))
     })?;
@@ -320,12 +321,15 @@ pub fn is_port_in_use(port: u16) -> bool {
     TcpListener::bind(format!("127.0.0.1:{port}")).is_err()
 }
 
-pub fn spawn_detached_process(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
-    spawn_detached(agent_name, port)
+pub fn spawn_detached_process(
+    paths: &AppPaths,
+    agent_name: &str,
+    port: u16,
+) -> OrchestrationResult<u32> {
+    spawn_detached(paths, agent_name, port)
 }
 
-pub fn validate_agent_binary() -> Result<()> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+pub fn validate_agent_binary(paths: &AppPaths) -> Result<()> {
     let binary_path = paths.build().resolve_binary("systemprompt")?;
 
     let metadata = fs::metadata(&binary_path)

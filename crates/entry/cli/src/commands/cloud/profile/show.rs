@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig};
 
 use super::ShowFilter;
@@ -31,7 +32,8 @@ pub fn execute(
 
     let services_config = ConfigLoader::load().ok();
 
-    let full_config = build_config_for_filter(filter, config, services_config.as_ref());
+    let paths = current_app_paths();
+    let full_config = build_config_for_filter(filter, config, services_config.as_ref(), paths.as_ref());
 
     output_config(&full_config, json_output, yaml_output);
     Ok(())
@@ -42,27 +44,32 @@ fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> 
 
     ProfileBootstrap::init_from_path(profile_path)?;
     SecretsBootstrap::init()?;
-    let profile = ProfileBootstrap::get()?;
-    AppPaths::init(&profile.paths)?;
     systemprompt_config::try_init_config()?;
     Ok(())
+}
+
+fn current_app_paths() -> Option<AppPaths> {
+    ProfileBootstrap::get()
+        .ok()
+        .and_then(|p| AppPaths::from_profile(&p.paths).ok())
 }
 
 fn build_config_for_filter(
     filter: ShowFilter,
     config: Option<&Config>,
     services_config: Option<&systemprompt_models::ServicesConfig>,
+    paths: Option<&AppPaths>,
 ) -> FullConfig {
     match filter {
-        ShowFilter::All => build_full_config(config, services_config),
+        ShowFilter::All => build_full_config(config, services_config, paths),
         ShowFilter::Agents => FullConfig::empty()
             .with_agents(services_config.map_or_else(HashMap::new, |s| s.agents.clone())),
         ShowFilter::Mcp => FullConfig::empty()
             .with_mcp_servers(services_config.map_or_else(HashMap::new, |s| s.mcp_servers.clone())),
         ShowFilter::Skills => {
             let mut full = FullConfig::empty();
-            if let Some(cfg) = config {
-                if let Some(skills) = load_skills_config(cfg) {
+            if let (Some(_cfg), Some(p)) = (config, paths) {
+                if let Some(skills) = load_skills_config(p) {
                     full = full.with_skills(skills);
                 }
             }
@@ -75,13 +82,15 @@ fn build_config_for_filter(
         },
         ShowFilter::Content => {
             let mut full = FullConfig::empty();
-            if let Some(content) = load_content_config() {
-                full = full.with_content(content);
+            if let Some(p) = paths {
+                if let Some(content) = load_content_config(p) {
+                    full = full.with_content(content);
+                }
             }
             full
         },
         ShowFilter::Env => config.map_or_else(FullConfig::empty, |cfg| {
-            FullConfig::empty().with_environment(build_env_config(cfg))
+            FullConfig::empty().with_environment(build_env_config(cfg, paths))
         }),
         ShowFilter::Settings => {
             let mut full = FullConfig::empty();
@@ -96,13 +105,16 @@ fn build_config_for_filter(
 fn build_full_config(
     config: Option<&Config>,
     services_config: Option<&systemprompt_models::ServicesConfig>,
+    paths: Option<&AppPaths>,
 ) -> FullConfig {
     let mut full = FullConfig::empty();
 
     if let Some(cfg) = config {
-        full = full.with_environment(build_env_config(cfg));
-        if let Some(skills) = load_skills_config(cfg) {
-            full = full.with_skills(skills);
+        full = full.with_environment(build_env_config(cfg, paths));
+        if let Some(p) = paths {
+            if let Some(skills) = load_skills_config(p) {
+                full = full.with_skills(skills);
+            }
         }
     }
 
@@ -115,8 +127,10 @@ fn build_full_config(
             .with_web(sc.web.clone());
     }
 
-    if let Some(content) = load_content_config() {
-        full = full.with_content(content);
+    if let Some(p) = paths {
+        if let Some(content) = load_content_config(p) {
+            full = full.with_content(content);
+        }
     }
 
     full
@@ -132,8 +146,8 @@ fn build_settings_output(services_config: &systemprompt_models::ServicesConfig) 
     }
 }
 
-fn load_skills_config(_config: &Config) -> Option<SkillsConfig> {
-    let skills_path = AppPaths::get().ok()?.system().skills().to_path_buf();
+fn load_skills_config(paths: &AppPaths) -> Option<SkillsConfig> {
+    let skills_path = paths.system().skills().to_path_buf();
     if !skills_path.exists() {
         return None;
     }
@@ -159,12 +173,8 @@ fn load_skills_config(_config: &Config) -> Option<SkillsConfig> {
     }
 }
 
-fn load_content_config() -> Option<ContentConfigRaw> {
-    let path = AppPaths::get()
-        .ok()?
-        .system()
-        .content_config()
-        .to_path_buf();
+fn load_content_config(paths: &AppPaths) -> Option<ContentConfigRaw> {
+    let path = paths.system().content_config().to_path_buf();
     if !path.exists() {
         return None;
     }
