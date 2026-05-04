@@ -1,3 +1,7 @@
+//! High-level push / pull / diff for the on-disk `services/` directory:
+//! bundles eligible files into a tarball, talks to the cloud, and reports a
+//! per-file diff.
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,56 +16,84 @@ use crate::file_bundler::{
 };
 use crate::{SyncConfig, SyncDirection, SyncOperationResult};
 
+/// In-memory file bundle: a [`FileManifest`] plus the encoded tarball bytes.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileBundle {
+    /// Manifest describing every file in `data`.
     pub manifest: FileManifest,
+    /// Encoded tarball bytes (skipped during JSON serialisation).
     #[serde(skip)]
     pub data: Vec<u8>,
 }
 
+/// Manifest of files contained in a bundle, with a checksum and timestamp.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileManifest {
+    /// Per-file entries.
     pub files: Vec<FileEntry>,
+    /// Time the manifest was generated.
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    /// Cumulative SHA-256 of the manifest itself.
     pub checksum: String,
 }
 
+/// A single file inside a [`FileManifest`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileEntry {
+    /// Relative path inside the bundle.
     pub path: String,
+    /// SHA-256 hex of the file contents.
     pub checksum: String,
+    /// File size in bytes.
     pub size: u64,
 }
 
+/// Per-file classification produced by [`compare_tarball_with_local`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileDiffStatus {
+    /// File exists in the remote bundle but not locally.
     Added,
+    /// File exists on both sides with differing checksums.
     Modified,
+    /// File exists locally but not in the remote bundle.
     Deleted,
+    /// File exists on both sides with identical checksums.
     Unchanged,
 }
 
+/// One row in a [`SyncDiffResult`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncDiffEntry {
+    /// Relative path of the file.
     pub path: String,
+    /// Diff classification.
     pub status: FileDiffStatus,
+    /// File size in bytes.
     pub size: u64,
 }
 
+/// Aggregate diff between a remote bundle and a local services directory.
 #[derive(Debug)]
 pub struct SyncDiffResult {
+    /// Per-file entries.
     pub entries: Vec<SyncDiffEntry>,
+    /// Added file count.
     pub added: usize,
+    /// Modified file count.
     pub modified: usize,
+    /// Deleted file count.
     pub deleted: usize,
+    /// Unchanged file count.
     pub unchanged: usize,
 }
 
 impl SyncDiffResult {
+    /// Whether the diff contains any non-trivial changes.
     pub const fn has_changes(&self) -> bool {
         self.added > 0 || self.modified > 0 || self.deleted > 0
     }
 
+    /// Collect the paths of every file whose status is not `Unchanged`.
     pub fn changed_paths(&self) -> Vec<String> {
         self.entries
             .iter()
@@ -71,12 +103,17 @@ impl SyncDiffResult {
     }
 }
 
+/// Output of [`FileSyncService::download_and_diff`]: the downloaded tarball
+/// plus a precomputed per-file diff against the local services directory.
 #[derive(Debug)]
 pub struct PullDownload {
+    /// Raw tarball bytes downloaded from the cloud.
     pub data: Vec<u8>,
+    /// Per-file diff against the local services directory.
     pub diff: SyncDiffResult,
 }
 
+/// Drives push / pull / diff of an on-disk services directory.
 #[derive(Debug)]
 pub struct FileSyncService {
     config: SyncConfig,
@@ -84,10 +121,12 @@ pub struct FileSyncService {
 }
 
 impl FileSyncService {
+    /// Construct a new file sync service.
     pub const fn new(config: SyncConfig, api_client: SyncApiClient) -> Self {
         Self { config, api_client }
     }
 
+    /// Run the configured push or pull.
     pub async fn sync(&self) -> SyncResult<SyncOperationResult> {
         match self.config.direction {
             SyncDirection::Push => self.push().await,
@@ -95,6 +134,8 @@ impl FileSyncService {
         }
     }
 
+    /// Download the remote tarball and return it together with a per-file
+    /// diff against the local services directory.
     pub async fn download_and_diff(&self) -> SyncResult<PullDownload> {
         let services_path = PathBuf::from(&self.config.services_path);
         let data = self
@@ -107,6 +148,8 @@ impl FileSyncService {
         Ok(PullDownload { data, diff })
     }
 
+    /// Snapshot every directory in [`INCLUDE_DIRS`] into a timestamped
+    /// `backup/<ts>.zip` next to `services_path` and return the path.
     pub fn backup_services(services_path: &Path) -> SyncResult<PathBuf> {
         let project_root = services_path.parent().unwrap_or(services_path);
         let backup_dir = project_root.join("backup");
@@ -131,6 +174,8 @@ impl FileSyncService {
         Ok(zip_path)
     }
 
+    /// Extract the supplied tarball into `services_path`, optionally
+    /// restricted to the relative paths in `paths`.
     pub fn apply(data: &[u8], services_path: &Path, paths: Option<&[String]>) -> SyncResult<usize> {
         paths.map_or_else(
             || extract_tarball(data, services_path),

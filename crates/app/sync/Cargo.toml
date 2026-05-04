@@ -16,7 +16,6 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 [dependencies]
 # Core runtime
 tokio = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
@@ -64,3 +63,6 @@ uuid = { workspace = true }
 
 [lints]
 workspace = true
+
+[package.metadata.docs.rs]
+all-features = true

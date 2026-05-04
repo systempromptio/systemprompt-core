@@ -1,6 +1,8 @@
+//! Compute the diff between skills stored on disk and in the database.
+
 use super::{compute_db_skill_hash, compute_skill_hash};
+use crate::error::{SyncError, SyncResult};
 use crate::models::{DiffStatus, DiskSkill, SkillDiffItem, SkillsDiffResult};
-use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_agent::models::Skill;
@@ -10,20 +12,24 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 use tracing::warn;
 
+/// Computes a structured diff between disk and database skill state.
 #[derive(Debug)]
 pub struct SkillsDiffCalculator {
     skill_repo: SkillRepository,
 }
 
 impl SkillsDiffCalculator {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    /// Construct a calculator backed by the given database pool.
+    pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
-            skill_repo: SkillRepository::new(db)?,
+            skill_repo: SkillRepository::new(db).map_err(SyncError::other)?,
         })
     }
 
-    pub async fn calculate_diff(&self, skills_path: &Path) -> Result<SkillsDiffResult> {
-        let db_skills = self.skill_repo.list_all().await?;
+    /// Compute the [`SkillsDiffResult`] between `skills_path` on disk and the
+    /// skills currently stored in the database.
+    pub async fn calculate_diff(&self, skills_path: &Path) -> SyncResult<SkillsDiffResult> {
+        let db_skills = self.skill_repo.list_all().await.map_err(SyncError::other)?;
         let db_map: HashMap<SkillId, Skill> =
             db_skills.into_iter().map(|s| (s.id.clone(), s)).collect();
 
@@ -79,7 +85,7 @@ impl SkillsDiffCalculator {
         Ok(result)
     }
 
-    fn scan_disk_skills(path: &Path) -> Result<HashMap<SkillId, DiskSkill>> {
+    fn scan_disk_skills(path: &Path) -> SyncResult<HashMap<SkillId, DiskSkill>> {
         let mut skills = HashMap::new();
 
         if !path.exists() {
@@ -113,14 +119,14 @@ impl SkillsDiffCalculator {
     }
 }
 
-fn parse_skill_file(config_path: &Path, skill_dir: &Path) -> Result<DiskSkill> {
+fn parse_skill_file(config_path: &Path, skill_dir: &Path) -> SyncResult<DiskSkill> {
     let config_text = std::fs::read_to_string(config_path)?;
     let config: DiskSkillConfig = serde_yaml::from_str(&config_text)?;
 
     let dir_name = skill_dir
         .file_name()
         .and_then(|n| n.to_str())
-        .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
+        .ok_or_else(|| SyncError::invalid_input("Invalid skill directory name"))?;
 
     let content_path = skill_dir.join(config.content_file());
 
