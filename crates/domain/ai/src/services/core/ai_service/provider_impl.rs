@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use std::collections::HashMap;
 use std::pin::Pin;
 
@@ -42,7 +42,6 @@ impl AiProvider for AiService {
         let stream = Self::generate_stream(self, request)
             .await
             .map_err(boxed_err)?;
-        use futures::StreamExt;
         let mapped = stream.map(|item| item.map_err(boxed_err));
         Ok(Box::pin(mapped))
     }
@@ -60,7 +59,6 @@ impl AiProvider for AiService {
         let stream = Self::generate_with_tools_stream(self, request)
             .await
             .map_err(boxed_err)?;
-        use futures::StreamExt;
         let mapped = stream.map(|item| item.map_err(boxed_err));
         Ok(Box::pin(mapped))
     }

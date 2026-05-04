@@ -56,21 +56,24 @@ pub async fn handle_webauthn_complete(
     };
 
     let user_provider = state.user_provider();
-    let webauthn_service =
-        match WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(user_provider)).await
-        {
-            Ok(service) => service,
-            Err(e) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(WebAuthnCompleteError {
-                        error: "server_error".to_string(),
-                        error_description: format!("WebAuthn service initialization failed: {e}"),
-                    }),
-                )
-                    .into_response();
-            },
-        };
+    let webauthn_service = match WebAuthnRegistry::get_or_create_service(
+        repo.clone(),
+        Arc::clone(user_provider),
+    )
+    .await
+    {
+        Ok(service) => service,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(WebAuthnCompleteError {
+                    error: "server_error".to_string(),
+                    error_description: format!("WebAuthn service initialization failed: {e}"),
+                }),
+            )
+                .into_response();
+        },
+    };
 
     let Ok(verified_user_id) = webauthn_service
         .consume_verified_authentication(&auth_token)

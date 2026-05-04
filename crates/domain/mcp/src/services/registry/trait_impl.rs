@@ -96,7 +96,7 @@ impl McpDeploymentProvider for McpDeploymentProviderImpl {
 
 #[async_trait]
 impl McpRegistryProvider for RegistryManager {
-    async fn get_server(&self, name: &str) -> std::result::Result<McpServerInfo, RegistryError> {
+    async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
         let server = Self::get_server(name).map_err(|e| RegistryError::NotFound(e.to_string()))?;
 
         Ok(McpServerInfo {
@@ -116,7 +116,7 @@ impl McpRegistryProvider for RegistryManager {
         })
     }
 
-    async fn list_enabled_servers(&self) -> std::result::Result<Vec<McpServerInfo>, RegistryError> {
+    async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
         let servers =
             Self::get_enabled_servers().map_err(|e| RegistryError::Unavailable(e.to_string()))?;
 

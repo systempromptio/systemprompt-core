@@ -117,9 +117,8 @@ async fn ensure_session_exists(
 
     let jwt_expiration = systemprompt_models::Config::get()
         .map(|c| c.jwt_access_token_expiration)
-        .map_err(|e| {
+        .inspect_err(|e| {
             error!(error = %e, "Failed to get config for JWT expiration, using default 3600s");
-            e
         })
         .unwrap_or(3600);
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration);

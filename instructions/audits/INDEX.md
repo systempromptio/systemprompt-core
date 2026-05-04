@@ -1,16 +1,19 @@
 # systemprompt-core Audit Index
 
 **Generated:** 2026-05-04
-**Wave:** 1 baseline (concurrent fixes in flight by other Wave 1 agents)
+**Wave:** Wave A complete (shared layer flipped CLEAN), Wave B complete
+(infra + oauth flipped CLEAN). Wave C/D/E target the remaining CRITICAL
+domain, app, and entry crates.
 
 This index lists every published crate in dependency-layer order. Counts are
 from the automated baseline scan (`unwrap`, `println`, `let _`, `.ok()`,
 inline `//`, `///`, files >300 lines, raw String IDs, raw `sqlx::query`,
 `*Manager`, `#[allow(...)]`, `panic!`).
 
-Per Wave 1 instructions, no crate is marked **CLEAN** in this baseline —
-re-validation happens after the wave merges. The `systemprompt-agent`
-entry below pre-dates Wave 1 and was already audited CLEAN.
+Wave A merged at tag `compliance-wave-A` flipped 7 shared-layer crates
+CLEAN. Wave B merged at tag `compliance-wave-B` flipped 5 more crates
+CLEAN: `events`, `security`, `loader`, `database`, `logging`, `config`,
+`cloud`, plus the pulled-forward `oauth` (originally a Wave C target).
 
 ---
 
@@ -18,32 +21,37 @@ entry below pre-dates Wave 1 and was already audited CLEAN.
 
 | Crate | Verdict | Total | Doc |
 |-------|---------|-------|-----|
-| systemprompt-models | CRITICAL | 43 | [systemprompt-models-2026-05.md](systemprompt-models-2026-05.md) |
-| systemprompt-traits | CRITICAL | 17 | [systemprompt-traits-2026-05.md](systemprompt-traits-2026-05.md) |
-| systemprompt-identifiers | NEEDS_WORK | 8 | [systemprompt-identifiers-2026-05.md](systemprompt-identifiers-2026-05.md) |
-| systemprompt-extension | NEEDS_WORK | 3 | [systemprompt-extension-2026-05.md](systemprompt-extension-2026-05.md) |
-| systemprompt-provider-contracts | NEEDS_WORK | 3 | [systemprompt-provider-contracts-2026-05.md](systemprompt-provider-contracts-2026-05.md) |
-| systemprompt-client | NEEDS_WORK | 0 | [systemprompt-client-2026-05.md](systemprompt-client-2026-05.md) |
-| systemprompt-template-provider | NEEDS_WORK | 0 | [systemprompt-template-provider-2026-05.md](systemprompt-template-provider-2026-05.md) |
+| systemprompt-models | CLEAN | 0 | [systemprompt-models-2026-05.md](systemprompt-models-2026-05.md) |
+| systemprompt-traits | CLEAN | 0 | [systemprompt-traits-2026-05.md](systemprompt-traits-2026-05.md) |
+| systemprompt-identifiers | CLEAN | 0 | [systemprompt-identifiers-2026-05.md](systemprompt-identifiers-2026-05.md) |
+| systemprompt-extension | CLEAN | 0 | [systemprompt-extension-2026-05.md](systemprompt-extension-2026-05.md) |
+| systemprompt-provider-contracts | CLEAN | 0 | [systemprompt-provider-contracts-2026-05.md](systemprompt-provider-contracts-2026-05.md) |
+| systemprompt-client | CLEAN | 0 | [systemprompt-client-2026-05.md](systemprompt-client-2026-05.md) |
+| systemprompt-template-provider | CLEAN | 0 | [systemprompt-template-provider-2026-05.md](systemprompt-template-provider-2026-05.md) |
 
 ## Infra Layer
 
 | Crate | Verdict | Total | Doc |
 |-------|---------|-------|-----|
-| systemprompt-database | CRITICAL | 33 | [systemprompt-database-2026-05.md](systemprompt-database-2026-05.md) |
-| systemprompt-events | NEEDS_WORK | 0 | [systemprompt-events-2026-05.md](systemprompt-events-2026-05.md) |
-| systemprompt-security | NEEDS_WORK | 2 | [systemprompt-security-2026-05.md](systemprompt-security-2026-05.md) |
-| systemprompt-config | CRITICAL | 20 | [systemprompt-config-2026-05.md](systemprompt-config-2026-05.md) |
-| systemprompt-logging | CRITICAL | 58 | [systemprompt-logging-2026-05.md](systemprompt-logging-2026-05.md) |
-| systemprompt-loader | NEEDS_WORK | 4 | [systemprompt-loader-2026-05.md](systemprompt-loader-2026-05.md) |
-| systemprompt-cloud | NEEDS_WORK | 9 | [systemprompt-cloud-2026-05.md](systemprompt-cloud-2026-05.md) |
+| systemprompt-database | CLEAN* | 0 | [systemprompt-database-2026-05.md](systemprompt-database-2026-05.md) |
+| systemprompt-events | CLEAN | 0 | [systemprompt-events-2026-05.md](systemprompt-events-2026-05.md) |
+| systemprompt-security | CLEAN | 0 | [systemprompt-security-2026-05.md](systemprompt-security-2026-05.md) |
+| systemprompt-config | CLEAN | 0 | [systemprompt-config-2026-05.md](systemprompt-config-2026-05.md) |
+| systemprompt-logging | CLEAN | 0 | [systemprompt-logging-2026-05.md](systemprompt-logging-2026-05.md) |
+| systemprompt-loader | CLEAN | 0 | [systemprompt-loader-2026-05.md](systemprompt-loader-2026-05.md) |
+| systemprompt-cloud | CLEAN | 0 | [systemprompt-cloud-2026-05.md](systemprompt-cloud-2026-05.md) |
+
+\* `database` is CLEAN-with-residual: `DatabaseProvider` /
+`DatabaseTransaction` traits keep `anyhow::Result` because they are
+`dyn`-used across crates; full typed-error cutover deferred to a future
+wave that touches all consumers in lockstep.
 
 ## Domain Layer
 
 | Crate | Verdict | Total | Doc |
 |-------|---------|-------|-----|
 | systemprompt-users | CRITICAL | 16 | [systemprompt-users-2026-05.md](systemprompt-users-2026-05.md) |
-| systemprompt-oauth | CRITICAL | 66 | [systemprompt-oauth-2026-05.md](systemprompt-oauth-2026-05.md) |
+| systemprompt-oauth | CLEAN | 0 | [systemprompt-oauth-2026-05.md](systemprompt-oauth-2026-05.md) |
 | systemprompt-files | NEEDS_WORK | 9 | [systemprompt-files-2026-05.md](systemprompt-files-2026-05.md) |
 | systemprompt-analytics | CRITICAL | 46 | [systemprompt-analytics-2026-05.md](systemprompt-analytics-2026-05.md) |
 | systemprompt-content | NEEDS_WORK | 9 | [systemprompt-content-2026-05.md](systemprompt-content-2026-05.md) |
@@ -89,9 +97,9 @@ require pushing `anyhow` back into a library crate's public API.
 
 | Verdict | Count |
 |---------|-------|
-| CLEAN | 1 (agent — pre-existing) |
-| NEEDS_WORK | 16 |
-| CRITICAL | 13 |
+| CLEAN | 13 (1 pre-existing agent + 7 Wave A shared + 5 Wave B infra + oauth pulled forward) |
+| NEEDS_WORK | 9 |
+| CRITICAL | 8 |
 
 ## Top 5 Worst Offenders (by total scored violations)
 
@@ -108,5 +116,7 @@ require pushing `anyhow` back into a library crate's public API.
   doc but excluded from the score.
 - `instructions/` is gitignored — the audit docs are committed via
   `git add -f`.
-- Other Wave 1 agents are concurrently fixing source code. Re-run the
-  scanner after the wave merges to promote crates to CLEAN.
+- Wave A and Wave B have flipped 12 crates to CLEAN. Wave C/D/E remain to
+  flip the other domain (users, files, analytics, ai, mcp, content,
+  templates), app (runtime, scheduler, generator, sync), and entry
+  (api, cli) crates plus the facade.
