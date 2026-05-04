@@ -3662,9 +3662,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e92bc2f9188ba703ea7946f8606b8b852b8a400fa2290e674d36deea64f5b50"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
