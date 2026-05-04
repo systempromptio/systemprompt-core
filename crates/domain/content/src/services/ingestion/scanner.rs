@@ -70,7 +70,7 @@ pub fn scan_markdown_files(dir: &Path, recursive: bool) -> ScanResult {
 
 fn validate_markdown_file(path: &Path) -> Result<(), ContentError> {
     let markdown_text = std::fs::read_to_string(path)?;
-    let _ = parse_frontmatter(&markdown_text)?;
+    parse_frontmatter(&markdown_text)?;
     Ok(())
 }
 
