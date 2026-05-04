@@ -12,6 +12,9 @@ categories.workspace = true
 description = "Application runtime for systemprompt.io AI governance infrastructure. AppContext, lifecycle builder, extension registry, and module wiring for the MCP governance pipeline."
 readme = "README.md"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
 
@@ -22,6 +25,7 @@ geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
 [dependencies]
 tokio = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }
 inventory = { workspace = true }
 axum = { workspace = true }
