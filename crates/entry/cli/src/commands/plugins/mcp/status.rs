@@ -8,7 +8,6 @@ use crate::CliConfig;
 use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Args)]
@@ -25,15 +24,15 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<McpStatusOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let paths = AppPaths::get().context("Failed to get application paths")?;
-    let bin_path = paths.build().bin().to_path_buf();
 
     let ctx = AppContext::new()
         .await
         .context("Failed to initialize application context")?;
 
-    let manager =
-        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
+    let bin_path = ctx.app_paths().build().bin().to_path_buf();
+
+    let manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
+        .context("Failed to initialize MCP manager")?;
     let running_servers = manager
         .get_running_servers()
         .await

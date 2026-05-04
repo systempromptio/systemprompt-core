@@ -1,6 +1,5 @@
 use axum::Json;
 use serde_json::json;
-use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 
 use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
@@ -26,14 +25,8 @@ async fn check_service_counts(ctx: &AppContext) -> (usize, &'static str, usize, 
     }
 }
 
-fn check_static_content() -> (bool, bool) {
-    let web_dir = AppPaths::get().map_or_else(
-        |e| {
-            tracing::debug!(error = %e, "Failed to get web dist path, using default");
-            std::path::PathBuf::from("/var/www/html/dist")
-        },
-        |p| p.web().dist().to_path_buf(),
-    );
+fn check_static_content(ctx: &AppContext) -> (bool, bool) {
+    let web_dir = ctx.app_paths().web().dist();
     (
         web_dir.join("index.html").exists(),
         web_dir.join("sitemap.xml").exists(),
@@ -58,7 +51,7 @@ pub async fn handle_health_detail(
     };
 
     let (agent_count, agent_status, mcp_count, mcp_status) = check_service_counts(&ctx).await;
-    let (index_exists, sitemap_exists) = check_static_content();
+    let (index_exists, sitemap_exists) = check_static_content(&ctx);
 
     let db_healthy = db_status == "healthy";
     let services_ok = agent_status != "error" && mcp_status != "error";

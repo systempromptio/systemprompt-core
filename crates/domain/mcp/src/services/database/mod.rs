@@ -3,16 +3,23 @@ pub mod sync;
 
 use crate::McpServerConfig;
 use anyhow::Result;
+use std::sync::Arc;
 use systemprompt_database::ServiceRepository;
+use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseManager {
     db_pool: systemprompt_database::DbPool,
+    app_paths: Arc<AppPaths>,
 }
 
 impl DatabaseManager {
-    pub const fn new(db_pool: systemprompt_database::DbPool) -> Self {
-        Self { db_pool }
+    pub const fn new(db_pool: systemprompt_database::DbPool, app_paths: Arc<AppPaths>) -> Self {
+        Self { db_pool, app_paths }
+    }
+
+    pub fn app_paths(&self) -> &AppPaths {
+        &self.app_paths
     }
 
     pub async fn register_service(
@@ -21,7 +28,7 @@ impl DatabaseManager {
         pid: u32,
         startup_time: Option<i32>,
     ) -> Result<String> {
-        state::register_service(&self.db_pool, config, pid, startup_time).await
+        state::register_service(&self.db_pool, &self.app_paths, config, pid, startup_time).await
     }
 
     pub async fn unregister_service(&self, service_name: &str) -> Result<()> {
@@ -70,7 +77,7 @@ impl DatabaseManager {
         config: &McpServerConfig,
         pid: u32,
     ) -> Result<String> {
-        state::register_existing_process(&self.db_pool, config, pid).await
+        state::register_existing_process(&self.db_pool, &self.app_paths, config, pid).await
     }
 
     pub const fn db_pool(&self) -> &systemprompt_database::DbPool {

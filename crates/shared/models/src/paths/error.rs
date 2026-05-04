@@ -3,12 +3,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum PathError {
-    #[error("AppPaths not initialized - call AppPaths::init() first")]
-    NotInitialized,
-
-    #[error("AppPaths already initialized")]
-    AlreadyInitialized,
-
     #[error("Required path not configured: {field}")]
     NotConfigured { field: &'static str },
 

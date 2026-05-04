@@ -12,7 +12,6 @@ use crate::services::static_content::{
 use axum::routing::get;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
-use systemprompt_models::AppPaths;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEvent, StartupEventSender};
 use systemprompt_users::BannedIpRepository;
 
@@ -201,24 +200,7 @@ pub fn configure_routes(
 
     router = mount_extension_routes(router, ctx, &user_middleware, events)?;
 
-    let paths = match AppPaths::get() {
-        Ok(p) => p,
-        Err(e) => {
-            if let Some(tx) = events {
-                if tx
-                    .unbounded_send(StartupEvent::Warning {
-                        message: format!("Failed to load paths: {e}"),
-                        context: Some("Static content matching will be disabled".to_string()),
-                    })
-                    .is_err()
-                {
-                    tracing::debug!("Startup event receiver dropped");
-                }
-            }
-            return Ok(router);
-        },
-    };
-    let path = paths.system().content_config().to_path_buf();
+    let path = ctx.app_paths().system().content_config().to_path_buf();
     #[allow(clippy::option_if_let_else)]
     let content_matcher = if let Some(path_str) = path.to_str() {
         match StaticContentMatcher::from_config(path_str) {

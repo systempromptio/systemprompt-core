@@ -24,9 +24,7 @@ fn rotate_log_if_needed(log_path: &Path) {
     }
 }
 
-pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
-
+pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> Result<u32> {
     let binary_path = paths
         .build()
         .resolve_binary(&config.binary)
@@ -133,8 +131,7 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
     Ok(pid)
 }
 
-pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> Result<()> {
     let binary_path = paths.build().resolve_binary(&config.binary)?;
 
     let metadata = fs::metadata(&binary_path)

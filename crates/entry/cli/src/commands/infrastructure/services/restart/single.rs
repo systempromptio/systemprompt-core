@@ -117,7 +117,7 @@ pub async fn execute_mcp(
     }
 
     let manager =
-        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
+        McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc())).context("Failed to initialize MCP manager")?;
 
     if build {
         manager

@@ -85,6 +85,6 @@ fn create_mcp_orchestrator(
     ctx: &AppContext,
 ) -> Result<Arc<systemprompt_mcp::services::McpManager>> {
     use systemprompt_mcp::services::McpManager;
-    let manager = McpManager::new(Arc::clone(ctx.db_pool()))?;
+    let manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))?;
     Ok(Arc::new(manager))
 }

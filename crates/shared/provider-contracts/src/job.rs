@@ -53,6 +53,7 @@ impl JobResult {
 pub struct JobContext {
     db_pool: Arc<dyn std::any::Any + Send + Sync>,
     app_context: Arc<dyn std::any::Any + Send + Sync>,
+    app_paths: Arc<dyn std::any::Any + Send + Sync>,
     parameters: HashMap<String, String>,
 }
 
@@ -61,6 +62,7 @@ impl std::fmt::Debug for JobContext {
         f.debug_struct("JobContext")
             .field("db_pool", &"<type-erased>")
             .field("app_context", &"<type-erased>")
+            .field("app_paths", &"<type-erased>")
             .field("parameters", &self.parameters)
             .finish()
     }
@@ -70,10 +72,12 @@ impl JobContext {
     pub fn new(
         db_pool: Arc<dyn std::any::Any + Send + Sync>,
         app_context: Arc<dyn std::any::Any + Send + Sync>,
+        app_paths: Arc<dyn std::any::Any + Send + Sync>,
     ) -> Self {
         Self {
             db_pool,
             app_context,
+            app_paths,
             parameters: HashMap::new(),
         }
     }
@@ -91,12 +95,20 @@ impl JobContext {
         self.app_context.as_ref().downcast_ref::<T>()
     }
 
+    pub fn app_paths<T: 'static>(&self) -> Option<&T> {
+        self.app_paths.as_ref().downcast_ref::<T>()
+    }
+
     pub fn db_pool_arc(&self) -> Arc<dyn std::any::Any + Send + Sync> {
         Arc::clone(&self.db_pool)
     }
 
     pub fn app_context_arc(&self) -> Arc<dyn std::any::Any + Send + Sync> {
         Arc::clone(&self.app_context)
+    }
+
+    pub fn app_paths_arc(&self) -> Arc<dyn std::any::Any + Send + Sync> {
+        Arc::clone(&self.app_paths)
     }
 
     pub const fn parameters(&self) -> &HashMap<String, String> {

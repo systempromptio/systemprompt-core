@@ -138,9 +138,9 @@ pub fn init_secrets() -> Result<()> {
 
 pub fn init_paths() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
-    AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
+    let paths = AppPaths::from_profile(&profile.paths).context("Failed to build paths")?;
     systemprompt_config::try_init_config().context("Failed to initialize configuration")?;
-    FilesConfig::init().context("Failed to initialize files configuration")?;
+    FilesConfig::init(&paths).context("Failed to initialize files configuration")?;
     Ok(())
 }
 

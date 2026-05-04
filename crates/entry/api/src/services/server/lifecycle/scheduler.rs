@@ -48,8 +48,10 @@ pub async fn initialize_scheduler(
     let scheduler_repo = SchedulerRepository::new(&db_pool)?;
 
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(&db_pool));
+    let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
+        Arc::new(Arc::clone(ctx.app_paths_arc()));
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::new(ctx.clone()));
-    let job_ctx = JobContext::new(db_pool_any, app_context_any);
+    let job_ctx = JobContext::new(db_pool_any, app_context_any, app_paths_any);
 
     for job_name in &bootstrap_jobs {
         let job = inventory::iter::<&'static dyn Job>

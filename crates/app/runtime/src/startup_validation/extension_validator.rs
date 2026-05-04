@@ -2,6 +2,7 @@ use std::path::Path;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::{AppPaths, Config};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
@@ -32,11 +33,15 @@ pub fn validate_extensions(config: &Config, report: &mut StartupValidationReport
         validate_single_extension(config, ext.as_ref(), report, verbose);
     }
 
-    match AppPaths::get() {
-        Ok(paths) => validate_extension_assets(&extensions, paths, report, verbose),
+    let paths_result = ProfileBootstrap::get()
+        .map_err(|e| e.to_string())
+        .and_then(|p| AppPaths::from_profile(&p.paths).map_err(|e| e.to_string()));
+
+    match paths_result {
+        Ok(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
         Err(_) if verbose => {
             CliService::output(&format!(
-                "  {} Asset validation skipped (AppPaths not initialized)",
+                "  {} Asset validation skipped (profile not loaded)",
                 BrandColors::dim("○")
             ));
         },

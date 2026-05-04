@@ -13,6 +13,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::LoggingRepository;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 
@@ -68,7 +69,10 @@ pub struct LogsArgs {
 }
 
 fn get_default_logs_dir() -> PathBuf {
-    AppPaths::get().map_or_else(|_| PathBuf::from("/var/log"), |paths| paths.system().logs())
+    ProfileBootstrap::get()
+        .ok()
+        .and_then(|p| AppPaths::from_profile(&p.paths).ok())
+        .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 
 pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<McpLogsOutput>> {

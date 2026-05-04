@@ -41,14 +41,18 @@ impl Job for ContentSyncJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
+        let paths = ctx
+            .app_paths::<Arc<AppPaths>>()
+            .ok_or_else(|| anyhow::anyhow!("AppPaths not available in job context"))?
+            .as_ref();
+
         tracing::info!("Content sync job started");
 
         let direction = get_direction_from_params(ctx)?;
         let delete_orphans = get_bool_param(ctx, "delete_orphans");
         let override_existing = get_bool_param(ctx, "override_existing");
 
-        let config = load_content_config()?;
-        let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let config = load_content_config(paths)?;
         let services_path = paths.system().services();
 
         let sources: Vec<_> = config
@@ -145,8 +149,7 @@ fn get_bool_param(ctx: &JobContext, key: &str) -> bool {
         .is_some_and(|v| v == "true" || v == "1" || v == "yes")
 }
 
-fn load_content_config() -> Result<ContentConfigRaw> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+fn load_content_config(paths: &AppPaths) -> Result<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     if !config_path.exists() {

@@ -177,7 +177,7 @@ pub async fn execute_individual_agent(
         Arc::new(ctx.config().clone()),
         jwt_provider,
     ));
-    let orchestrator = AgentOrchestrator::new(agent_state, None)
+    let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -215,7 +215,7 @@ pub async fn execute_individual_mcp(
     }
 
     let manager =
-        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
+        McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc())).context("Failed to initialize MCP manager")?;
 
     manager.stop_services(Some(server_name.to_string())).await?;
 

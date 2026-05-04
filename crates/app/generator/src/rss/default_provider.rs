@@ -31,9 +31,9 @@ impl std::fmt::Debug for DefaultRssFeedProvider {
 }
 
 impl DefaultRssFeedProvider {
-    pub async fn new(db_pool: DbPool) -> Result<Self> {
-        let content_config = load_content_config().await?;
-        let web_config = load_web_config()
+    pub async fn new(db_pool: DbPool, paths: &AppPaths) -> Result<Self> {
+        let content_config = load_content_config(paths).await?;
+        let web_config = load_web_config(paths)
             .await
             .map_err(|e| anyhow!("Failed to load web config: {}", e))?;
 
@@ -70,8 +70,7 @@ impl DefaultRssFeedProvider {
     }
 }
 
-async fn load_content_config() -> Result<ContentConfigRaw> {
-    let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
+async fn load_content_config(paths: &AppPaths) -> Result<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)

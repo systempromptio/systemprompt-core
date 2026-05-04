@@ -18,6 +18,7 @@ use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, monitor};
 use crate::state::AgentState;
 use systemprompt_identifiers::AgentId;
+use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
@@ -54,6 +55,7 @@ impl std::fmt::Debug for AgentOrchestrator {
 impl AgentOrchestrator {
     pub async fn new(
         agent_state: Arc<AgentState>,
+        app_paths: Arc<AppPaths>,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<Self> {
         tracing::debug!("Initializing Agent Orchestrator");
@@ -65,7 +67,8 @@ impl AgentOrchestrator {
         let event_bus = Arc::new(AgentEventBus::new(100));
 
         let db_service = AgentDatabaseService::new(agent_repo)?;
-        let lifecycle = AgentLifecycle::new(db_pool)?.with_event_bus(Arc::clone(&event_bus));
+        let lifecycle =
+            AgentLifecycle::new(db_pool, app_paths)?.with_event_bus(Arc::clone(&event_bus));
         let reconciler = AgentReconciler::new(db_pool)?;
         let monitor = AgentMonitor::new(db_pool)?;
 

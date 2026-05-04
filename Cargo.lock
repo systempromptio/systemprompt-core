@@ -4816,6 +4816,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "systemprompt-config",
  "systemprompt-extension",
  "systemprompt-models",
  "thiserror 2.0.18",

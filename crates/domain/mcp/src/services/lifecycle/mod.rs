@@ -9,6 +9,8 @@ use crate::services::monitoring::MonitoringManager;
 use crate::services::network::NetworkManager;
 use crate::services::process::ProcessManager;
 use anyhow::Result;
+use std::sync::Arc;
+use systemprompt_models::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 #[derive(Debug, Clone)]
@@ -17,6 +19,7 @@ pub struct LifecycleManager {
     network: NetworkManager,
     database: DatabaseManager,
     monitoring: MonitoringManager,
+    app_paths: Arc<AppPaths>,
 }
 
 impl LifecycleManager {
@@ -25,13 +28,19 @@ impl LifecycleManager {
         network: NetworkManager,
         database: DatabaseManager,
         monitoring: MonitoringManager,
+        app_paths: Arc<AppPaths>,
     ) -> Self {
         Self {
             process,
             network,
             database,
             monitoring,
+            app_paths,
         }
+    }
+
+    pub fn app_paths(&self) -> &AppPaths {
+        &self.app_paths
     }
 
     pub async fn start_server(&self, config: &McpServerConfig) -> Result<()> {

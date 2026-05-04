@@ -148,9 +148,10 @@ pub struct SettingsOutput {
     pub schema_validation_mode: String,
 }
 
-pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConfig {
-    use systemprompt_models::AppPaths;
-
+pub fn build_env_config(
+    config: &systemprompt_models::Config,
+    paths: Option<&systemprompt_models::AppPaths>,
+) -> EnvironmentConfig {
     let env = systemprompt_models::config::Environment::detect();
     let verbosity = systemprompt_models::config::VerbosityLevel::resolve();
 
@@ -172,15 +173,9 @@ pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConf
         systemprompt: SystempromptEnvVars {
             env: format!("{:?}", env),
             verbosity: format!("{:?}", verbosity),
-            services_path: AppPaths::get()
-                .ok()
-                .map(|p| p.system().services().display().to_string()),
-            skills_path: AppPaths::get()
-                .ok()
-                .map(|p| p.system().skills().display().to_string()),
-            config_path: AppPaths::get()
-                .ok()
-                .map(|p| p.system().settings().display().to_string()),
+            services_path: paths.map(|p| p.system().services().display().to_string()),
+            skills_path: paths.map(|p| p.system().skills().display().to_string()),
+            config_path: paths.map(|p| p.system().settings().display().to_string()),
         },
         database: DatabaseEnvVars {
             database_type: config.database_type.clone(),
@@ -197,22 +192,18 @@ pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConf
             burst_multiplier: config.rate_limits.burst_multiplier,
         },
         paths: PathsEnvVars {
-            system_path: AppPaths::get().map_or_else(
-                |_| String::new(),
-                |p| p.system().root().display().to_string(),
-            ),
-            services: AppPaths::get().map_or_else(
-                |_| String::new(),
-                |p| p.system().services().display().to_string(),
-            ),
-            skills: AppPaths::get().map_or_else(
-                |_| String::new(),
-                |p| p.system().skills().display().to_string(),
-            ),
-            services_config: AppPaths::get().map_or_else(
-                |_| String::new(),
-                |p| p.system().settings().display().to_string(),
-            ),
+            system_path: paths
+                .map(|p| p.system().root().display().to_string())
+                .unwrap_or_default(),
+            services: paths
+                .map(|p| p.system().services().display().to_string())
+                .unwrap_or_default(),
+            skills: paths
+                .map(|p| p.system().skills().display().to_string())
+                .unwrap_or_default(),
+            services_config: paths
+                .map(|p| p.system().settings().display().to_string())
+                .unwrap_or_default(),
         },
     }
 }

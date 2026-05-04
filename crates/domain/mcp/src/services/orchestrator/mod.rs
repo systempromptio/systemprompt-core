@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_models::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 mod daemon;
@@ -37,15 +38,22 @@ pub struct McpOrchestrator {
 }
 
 impl McpOrchestrator {
-    pub fn new(db_pool: DbPool) -> Result<Self> {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(db_pool: DbPool, app_paths: Arc<AppPaths>) -> Result<Self> {
         let mut event_bus = EventBus::new(100);
 
         RegistryManager::validate()?;
-        let database = DatabaseManager::new(Arc::clone(&db_pool));
+        let database = DatabaseManager::new(Arc::clone(&db_pool), Arc::clone(&app_paths));
         let network = NetworkManager::new();
         let process = ProcessManager::new();
         let monitoring = MonitoringManager::new();
-        let lifecycle = LifecycleManager::new(process, network, database.clone(), monitoring);
+        let lifecycle = LifecycleManager::new(
+            process,
+            network,
+            database.clone(),
+            monitoring,
+            Arc::clone(&app_paths),
+        );
 
         event_bus.register_handler(Arc::new(LifecycleHandler::new(lifecycle.clone())));
 

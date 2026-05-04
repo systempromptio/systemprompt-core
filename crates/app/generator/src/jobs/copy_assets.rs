@@ -4,12 +4,10 @@ use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
 use systemprompt_models::AppPaths;
 use systemprompt_traits::JobResult;
 
-pub async fn execute_copy_extension_assets() -> Result<JobResult> {
+pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult> {
     let start_time = std::time::Instant::now();
 
     tracing::info!("Copy extension assets job started");
-
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("AppPaths not initialized: {}", e))?;
 
     let registry = ExtensionRegistry::discover();
     let assets = registry.all_required_assets(paths);

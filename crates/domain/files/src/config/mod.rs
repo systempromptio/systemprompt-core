@@ -23,11 +23,11 @@ pub struct FilesConfig {
 }
 
 impl FilesConfig {
-    pub fn init() -> Result<()> {
+    pub fn init(paths: &AppPaths) -> Result<()> {
         if FILES_CONFIG.get().is_some() {
             return Ok(());
         }
-        let config = Self::from_profile()?;
+        let config = Self::from_profile(paths)?;
         config.validate()?;
         if FILES_CONFIG.set(config).is_err() {
             tracing::warn!("FilesConfig was already initialized by a concurrent caller");
@@ -45,7 +45,7 @@ impl FilesConfig {
         FILES_CONFIG.get()
     }
 
-    pub fn from_profile() -> Result<Self> {
+    pub fn from_profile(paths: &AppPaths) -> Result<Self> {
         let profile =
             ProfileBootstrap::get().map_err(|e| anyhow!("Profile not initialized: {}", e))?;
 
@@ -56,7 +56,7 @@ impl FilesConfig {
             .ok_or_else(|| anyhow!("paths.storage not configured in profile"))?
             .clone();
 
-        let yaml_config = Self::load_yaml_config()?;
+        let yaml_config = Self::load_yaml_config(paths)?;
 
         Ok(Self {
             storage_root: PathBuf::from(storage_root),
@@ -65,8 +65,7 @@ impl FilesConfig {
         })
     }
 
-    pub(crate) fn load_yaml_config() -> Result<FilesConfigYaml> {
-        let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
+    pub(crate) fn load_yaml_config(paths: &AppPaths) -> Result<FilesConfigYaml> {
         let config_path = paths.system().services().join("config/files.yaml");
 
         if !config_path.exists() {

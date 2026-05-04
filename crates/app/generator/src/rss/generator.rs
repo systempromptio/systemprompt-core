@@ -9,6 +9,7 @@ use tokio::fs;
 
 use super::default_provider::DefaultRssFeedProvider;
 
+
 #[derive(Debug, Clone)]
 pub struct GeneratedFeed {
     pub filename: String,
@@ -16,16 +17,12 @@ pub struct GeneratedFeed {
     pub item_count: usize,
 }
 
-pub async fn generate_feed(db_pool: DbPool) -> Result<()> {
-    let provider = DefaultRssFeedProvider::new(Arc::clone(&db_pool)).await?;
+pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
+    let provider = DefaultRssFeedProvider::new(Arc::clone(&db_pool), paths).await?;
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![Arc::new(provider)];
     let feeds = generate_feed_with_providers(&providers, db_pool).await?;
 
-    let web_dir = AppPaths::get()
-        .map_err(|e| anyhow!("{}", e))?
-        .web()
-        .dist()
-        .to_path_buf();
+    let web_dir = paths.web().dist().to_path_buf();
 
     for feed in feeds {
         let feed_path = web_dir.join(&feed.filename);

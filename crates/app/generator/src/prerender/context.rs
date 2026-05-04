@@ -38,8 +38,7 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
-pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+pub async fn load_prerender_context(db_pool: DbPool, paths: &AppPaths) -> Result<PrerenderContext> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
@@ -48,13 +47,13 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
     let config: ContentConfigRaw =
         serde_yaml::from_str(&yaml_content).context("Failed to parse content config")?;
 
-    let web_config = load_web_config()
+    let web_config = load_web_config(paths)
         .await
         .context("Failed to load web config")?;
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
-    let template_dir = get_templates_path(&web_config);
+    let template_dir = get_templates_path(&web_config, paths);
     if !template_dir.exists() {
         return Err(anyhow::anyhow!(
             "Template directory not found: {}. Configure profile.paths.web_path or \
@@ -128,11 +127,7 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
         .await
         .context("Failed to initialize template registry")?;
 
-    let dist_dir = AppPaths::get()
-        .map_err(|e| anyhow::anyhow!("{}", e))?
-        .web()
-        .dist()
-        .to_path_buf();
+    let dist_dir = paths.web().dist().to_path_buf();
 
     Ok(PrerenderContext {
         db_pool,

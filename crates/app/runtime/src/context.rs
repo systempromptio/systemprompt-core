@@ -28,6 +28,7 @@ pub struct AppContext {
     analytics_service: Arc<AnalyticsService>,
     fingerprint_repo: Option<Arc<FingerprintRepository>>,
     user_service: Option<Arc<UserService>>,
+    app_paths: Arc<AppPaths>,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -43,6 +44,7 @@ impl std::fmt::Debug for AppContext {
             .field("analytics_service", &"AnalyticsService")
             .field("fingerprint_repo", &self.fingerprint_repo.is_some())
             .field("user_service", &self.user_service.is_some())
+            .field("app_paths", &"AppPaths")
             .finish()
     }
 }
@@ -59,6 +61,7 @@ pub struct AppContextParts {
     pub analytics_service: Arc<AnalyticsService>,
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
+    pub app_paths: Arc<AppPaths>,
 }
 
 impl AppContext {
@@ -83,6 +86,7 @@ impl AppContext {
             analytics_service: parts.analytics_service,
             fingerprint_repo: parts.fingerprint_repo,
             user_service: parts.user_service,
+            app_paths: parts.app_paths,
         }
     }
 
@@ -127,12 +131,8 @@ impl AppContext {
         None
     }
 
-    pub fn load_content_config(config: &Config) -> Option<Arc<ContentConfigRaw>> {
-        let content_config_path = AppPaths::get()
-            .ok()?
-            .system()
-            .content_config()
-            .to_path_buf();
+    pub fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {
+        let content_config_path = app_paths.system().content_config().to_path_buf();
 
         if !content_config_path.exists() {
             CliService::warning(&format!(
@@ -239,6 +239,14 @@ impl AppContext {
 
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {
         &self.route_classifier
+    }
+
+    pub fn app_paths(&self) -> &AppPaths {
+        &self.app_paths
+    }
+
+    pub const fn app_paths_arc(&self) -> &Arc<AppPaths> {
+        &self.app_paths
     }
 }
 

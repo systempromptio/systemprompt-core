@@ -19,7 +19,7 @@ pub async fn start_server(
         tx.mcp_starting(&config.name, config.port);
     }
 
-    ProcessManager::verify_binary(config)?;
+    ProcessManager::verify_binary(manager.app_paths(), config)?;
 
     manager.network().prepare_port(config.port).await?;
 
@@ -28,7 +28,7 @@ pub async fn start_server(
         .wait_for_port_release_with_retry(config.port, MAX_PORT_CLEANUP_ATTEMPTS)
         .await?;
 
-    let pid = ProcessManager::spawn_server(config)?;
+    let pid = ProcessManager::spawn_server(manager.app_paths(), config)?;
 
     let startup_time = wait_for_startup(config, pid, events).await?;
 

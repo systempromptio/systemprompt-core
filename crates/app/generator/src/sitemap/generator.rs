@@ -19,17 +19,16 @@ struct SitemapContext {
     web_dir: std::path::PathBuf,
 }
 
-pub async fn generate_sitemap(db_pool: DbPool) -> Result<()> {
-    let ctx = load_sitemap_context(db_pool).await?;
+pub async fn generate_sitemap(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
+    let ctx = load_sitemap_context(db_pool, paths).await?;
     let urls = collect_sitemap_urls(&ctx).await?;
     write_sitemap_files(&ctx.web_dir, &urls, &ctx.base_url).await?;
     tracing::info!(url_count = urls.len(), "Sitemap generation completed");
     Ok(())
 }
 
-async fn load_sitemap_context(db_pool: DbPool) -> Result<SitemapContext> {
+async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<SitemapContext> {
     let global_config = Config::get()?;
-    let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
@@ -39,11 +38,7 @@ async fn load_sitemap_context(db_pool: DbPool) -> Result<SitemapContext> {
     let config: ContentConfigRaw =
         serde_yaml::from_str(&yaml_content).context("Failed to parse content config")?;
 
-    let web_dir = AppPaths::get()
-        .map_err(|e| anyhow!("{}", e))?
-        .web()
-        .dist()
-        .to_path_buf();
+    let web_dir = paths.web().dist().to_path_buf();
     let base_url = global_config.api_external_url.clone();
 
     tracing::debug!(base_url = %base_url, "Using base URL");
