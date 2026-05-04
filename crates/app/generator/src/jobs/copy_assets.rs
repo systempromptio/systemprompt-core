@@ -1,9 +1,16 @@
-use anyhow::{Context, Result};
+//! Implementation of the `copy_extension_assets` job: walks the extension
+//! registry for required asset declarations and copies them into the build
+//! output directory.
+
 use std::path::Path;
 use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
 use systemprompt_models::AppPaths;
 use systemprompt_traits::JobResult;
 
+use crate::error::{GeneratorResult as Result, PublishError};
+
+/// Copy every asset advertised by registered extensions into the build
+/// `dist/` directory and return a [`JobResult`] summarising the outcome.
 pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult> {
     let start_time = std::time::Instant::now();
 
@@ -61,20 +68,21 @@ async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> R
     let dest_path = dist_dir.join(asset.destination());
 
     if let Some(parent) = dest_path.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+        tokio::fs::create_dir_all(parent).await.map_err(|e| {
+            PublishError::other(format!(
+                "Failed to create directory {}: {e}",
+                parent.display()
+            ))
+        })?;
     }
 
-    tokio::fs::copy(asset.source(), &dest_path)
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to copy asset from {} to {}",
-                asset.source().display(),
-                dest_path.display()
-            )
-        })?;
+    tokio::fs::copy(asset.source(), &dest_path).await.map_err(|e| {
+        PublishError::other(format!(
+            "Failed to copy asset from {} to {}: {e}",
+            asset.source().display(),
+            dest_path.display()
+        ))
+    })?;
 
     tracing::debug!(
         extension = %ext_id,

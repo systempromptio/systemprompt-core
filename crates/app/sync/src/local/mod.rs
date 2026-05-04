@@ -1,3 +1,8 @@
+//! Disk ↔ database sync drivers per content kind.
+//!
+//! Each submodule (agents, skills, content) owns one direction-agnostic
+//! orchestrator that reuses the diff calculators from [`crate::diff`].
+
 mod agents_sync;
 mod content_sync;
 mod skills_sync;

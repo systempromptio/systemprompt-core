@@ -1,23 +1,38 @@
+//! Render the "list" / index route for a content source — e.g. `/blog/` —
+//! which aggregates every entry contributed by the source plus an optional
+//! index content item.
+
 use std::path::Path;
 
-use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_models::{ContentConfigRaw, ParentRoute, WebConfig};
 use systemprompt_template_provider::{ComponentContext, PageContext};
 use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
 
+use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::utils::{merge_json_data, render_components};
 
+/// Inputs required to render a list route.
 pub struct RenderListParams<'a> {
+    /// Every content item that should appear in the list.
     pub items: &'a [serde_json::Value],
+    /// Parsed `content.yaml` (used by template providers).
     pub config: &'a ContentConfigRaw,
+    /// Parsed `web.yaml` (used by template providers).
     pub web_config: &'a WebConfig,
+    /// Parent-route configuration (URL, template, …) for this list.
     pub list_config: &'a ParentRoute,
+    /// Source name (e.g. `blog`) — used to resolve the `*-list` template.
     pub source_name: &'a str,
+    /// Template registry used to render the list and components.
     pub template_registry: &'a TemplateRegistry,
+    /// Build output directory.
     pub dist_dir: &'a Path,
+    /// Optional content item that backs the list page itself (for index pages
+    /// authored as a regular content row with an empty slug).
     pub index_content: Option<&'a serde_json::Value>,
+    /// Database pool passed to page-data providers.
     pub db_pool: &'a DbPool,
 }
 
@@ -31,7 +46,10 @@ impl std::fmt::Debug for RenderListParams<'_> {
     }
 }
 
-pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
+/// Render the configured list / index route into `dist_dir`. Returns an error
+/// if no template is registered for `<source_name>-list` or if any provider
+/// or template render fails.
+pub async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<()> {
     let RenderListParams {
         items,
         config,
@@ -48,7 +66,13 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
 
     let template_name = template_registry
         .find_template_for_content_type(&list_content_type)
-        .ok_or_else(|| anyhow::anyhow!("No template for: {list_content_type}"))?;
+        .ok_or_else(|| {
+            PublishError::template_not_found(
+                list_content_type.clone(),
+                "",
+                template_registry.available_content_types(),
+            )
+        })?;
 
     let mut list_data = serde_json::json!({
         "HAS_INDEX_CONTENT": index_content.is_some(),
@@ -65,7 +89,7 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
         let data = provider
             .provide_page_data(&page_ctx)
             .await
-            .map_err(|e| anyhow::anyhow!("Provider {} failed: {e}", provider.provider_id()))?;
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
         merge_json_data(&mut list_data, &data);
     }
 
@@ -80,7 +104,7 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
 
     let list_html = template_registry
         .render(template_name, &list_data)
-        .context("Failed to render list route")?;
+        .map_err(|e| PublishError::render_failed(template_name, None, e.to_string()))?;
 
     let list_dir = dist_dir.join(list_config.url.trim_start_matches('/'));
     fs::create_dir_all(&list_dir).await?;

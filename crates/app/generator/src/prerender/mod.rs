@@ -1,8 +1,22 @@
+//! Prerender pipeline: turns the content stored in the database into static
+//! HTML files in the build output directory.
+//!
+//! Public surface:
+//!
+//! - [`prerender_content`] / [`prerender_pages`] — top-level entry points
+//! - [`PagePrerenderResult`] — outcome of a single page prerenderer
+//!
+//! Internal helpers are organised by responsibility: `context` (config + DI),
+//! `fetch` (database access), `content` (per-source orchestration), `render`
+//! (per-item HTML rendering), `list` (parent / index pages), and `utils`
+//! (JSON merge and component rendering).
+
 mod content;
 mod context;
 mod engine;
 mod fetch;
 mod list;
+mod render;
 mod utils;
 
 pub use engine::{PagePrerenderResult, prerender_content, prerender_pages};

@@ -1,3 +1,6 @@
+//! Top-level build orchestrator: organises CSS, runs validation, reports
+//! progress, and returns a typed [`BuildError`] on failure.
+
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
 use std::time::Instant;
@@ -6,26 +9,36 @@ use thiserror::Error;
 use super::steps::organize_css;
 use super::validation::validate_build;
 
+/// Convenience `Result` alias for the build module.
 pub type Result<T> = std::result::Result<T, BuildError>;
 
+/// Errors raised by the build pipeline.
 #[derive(Error, Debug)]
 pub enum BuildError {
+    /// CSS reorganisation step failed (typically an `fs::copy` or
+    /// `create_dir_all` failure).
     #[error("CSS organization failed: {0}")]
     CssOrganizationFailed(String),
 
+    /// Post-build validation found a problem (missing `dist/index.html`,
+    /// orphan sitemap URL, …).
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
 
+    /// Filesystem I/O failed.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// An external process returned a non-zero exit code.
     #[error("Process execution error: {0}")]
     ProcessError(String),
 
+    /// Build configuration was invalid or missing.
     #[error("Configuration error: {0}")]
     ConfigError(String),
 }
 
+/// Selects the artefact profile produced by the build.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuildMode {
     Development,
@@ -34,6 +47,8 @@ pub enum BuildMode {
 }
 
 impl BuildMode {
+    /// Parse a [`BuildMode`] from a CLI string. Accepts both long
+    /// (`development`, `production`) and short (`dev`, `prod`) aliases.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
@@ -44,6 +59,7 @@ impl BuildMode {
         }
     }
 
+    /// Canonical lowercase string for this build mode.
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
@@ -54,6 +70,8 @@ impl BuildMode {
     }
 }
 
+/// Drives the end-to-end build of a generated site (CSS organisation +
+/// post-build validation) for a given `web_dir`.
 #[derive(Debug)]
 pub struct BuildOrchestrator {
     web_dir: PathBuf,
@@ -61,16 +79,20 @@ pub struct BuildOrchestrator {
 }
 
 impl BuildOrchestrator {
+    /// Create a new orchestrator pointing at the given web directory.
     #[must_use]
     pub const fn new(web_dir: PathBuf, mode: BuildMode) -> Self {
         Self { web_dir, mode }
     }
 
+    /// Configured build mode.
     #[must_use]
     pub const fn mode(&self) -> BuildMode {
         self.mode
     }
 
+    /// Run the full build (CSS organisation + validation) with progress
+    /// reporting.
     pub async fn build(&self) -> Result<()> {
         let start = Instant::now();
         let pb = create_progress_bar();
@@ -91,6 +113,7 @@ impl BuildOrchestrator {
         Ok(())
     }
 
+    /// Run only the post-build validation step (no CSS reorganisation).
     pub async fn validate_only(&self) -> Result<()> {
         tracing::info!("Validating build");
         validate_build(&self.web_dir).await

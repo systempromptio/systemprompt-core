@@ -1,7 +1,10 @@
+//! Two-way sync between skills stored on disk and the database via the
+//! `systemprompt-agent` skill ingestion + repository layers.
+
 use crate::diff::SkillsDiffCalculator;
+use crate::error::{SyncError, SyncResult};
 use crate::export::export_skill_to_disk;
 use crate::models::{LocalSyncDirection, LocalSyncResult, SkillsDiffResult};
-use anyhow::Result;
 use std::path::PathBuf;
 use systemprompt_agent::repository::content::SkillRepository;
 use systemprompt_agent::services::SkillIngestionService;
@@ -10,6 +13,7 @@ use systemprompt_identifiers::SourceId;
 use systemprompt_models::SkillsConfig;
 use tracing::info;
 
+/// Drives sync between an on-disk skills directory and the database.
 #[derive(Debug)]
 pub struct SkillsLocalSync {
     db: DbPool,
@@ -17,28 +21,41 @@ pub struct SkillsLocalSync {
 }
 
 impl SkillsLocalSync {
+    /// Construct a new sync handle for the given database pool and skills
+    /// directory.
     pub const fn new(db: DbPool, skills_path: PathBuf) -> Self {
         Self { db, skills_path }
     }
 
-    pub async fn calculate_diff(&self) -> Result<SkillsDiffResult> {
-        let calculator = SkillsDiffCalculator::new(&self.db)?;
-        calculator.calculate_diff(&self.skills_path).await
+    /// Compute the [`SkillsDiffResult`] between disk and database without
+    /// applying any changes.
+    pub async fn calculate_diff(&self) -> SyncResult<SkillsDiffResult> {
+        let calculator = SkillsDiffCalculator::new(&self.db).map_err(SyncError::other)?;
+        calculator
+            .calculate_diff(&self.skills_path)
+            .await
+            .map_err(SyncError::other)
     }
 
+    /// Apply `diff` from the database back to disk. When `delete_orphans` is
+    /// `true`, on-disk-only skills are deleted.
     pub async fn sync_to_disk(
         &self,
         diff: &SkillsDiffResult,
         delete_orphans: bool,
-    ) -> Result<LocalSyncResult> {
-        let skill_repo = SkillRepository::new(&self.db)?;
+    ) -> SyncResult<LocalSyncResult> {
+        let skill_repo = SkillRepository::new(&self.db).map_err(SyncError::other)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDisk,
             ..Default::default()
         };
 
         for item in &diff.modified {
-            match skill_repo.get_by_skill_id(&item.skill_id).await? {
+            match skill_repo
+                .get_by_skill_id(&item.skill_id)
+                .await
+                .map_err(SyncError::other)?
+            {
                 Some(skill) => {
                     export_skill_to_disk(&skill, &self.skills_path)?;
                     result.items_synced += 1;
@@ -53,7 +70,11 @@ impl SkillsLocalSync {
         }
 
         for item in &diff.removed {
-            match skill_repo.get_by_skill_id(&item.skill_id).await? {
+            match skill_repo
+                .get_by_skill_id(&item.skill_id)
+                .await
+                .map_err(SyncError::other)?
+            {
                 Some(skill) => {
                     export_skill_to_disk(&skill, &self.skills_path)?;
                     result.items_synced += 1;
@@ -85,13 +106,17 @@ impl SkillsLocalSync {
         Ok(result)
     }
 
+    /// Apply `diff` from disk into the database via the skill ingestion
+    /// service. `delete_orphans` is currently a no-op (skill deletion through
+    /// this path is not supported); callers receive a logged WARN.
     pub async fn sync_to_db(
         &self,
         diff: &SkillsDiffResult,
         skills_config: &SkillsConfig,
         delete_orphans: bool,
-    ) -> Result<LocalSyncResult> {
-        let ingestion_service = SkillIngestionService::new(&self.db)?;
+    ) -> SyncResult<LocalSyncResult> {
+        let ingestion_service =
+            SkillIngestionService::new(&self.db).map_err(SyncError::other)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDatabase,
             ..Default::default()
@@ -100,7 +125,8 @@ impl SkillsLocalSync {
         let source_id = SourceId::new("skills");
         let report = ingestion_service
             .ingest_config(skills_config, source_id, true)
-            .await?;
+            .await
+            .map_err(SyncError::other)?;
 
         result.items_synced += report.files_processed;
 

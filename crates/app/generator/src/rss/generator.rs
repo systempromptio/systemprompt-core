@@ -1,5 +1,7 @@
+//! Top-level RSS feed generation: discovers feed providers, runs each, and
+//! writes the resulting XML files to the build output directory.
+
 use super::xml::{RssChannel, RssItem, build_rss_xml};
-use anyhow::{Context, Result, anyhow};
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -8,15 +10,21 @@ use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
 use tokio::fs;
 
 use super::default_provider::DefaultRssFeedProvider;
+use crate::error::{GeneratorResult as Result, PublishError};
 
-
+/// Generated feed XML ready to be written to disk.
 #[derive(Debug, Clone)]
 pub struct GeneratedFeed {
+    /// Output filename (relative to the build output directory).
     pub filename: String,
+    /// Serialised RSS XML.
     pub xml: String,
+    /// Number of items in the feed.
     pub item_count: usize,
 }
 
+/// Generate every RSS feed produced by the default RSS provider and write
+/// the resulting XML files into `paths.web().dist()`.
 pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
     let provider = DefaultRssFeedProvider::new(Arc::clone(&db_pool), paths).await?;
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![Arc::new(provider)];
@@ -38,11 +46,14 @@ pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
     Ok(())
 }
 
+/// Generate every feed advertised by the supplied providers. Returns the
+/// in-memory XML rather than writing to disk so callers can post-process or
+/// dispatch to a custom destination.
 pub async fn generate_feed_with_providers(
     providers: &[Arc<dyn RssFeedProvider>],
     _db_pool: DbPool,
 ) -> Result<Vec<GeneratedFeed>> {
-    let global_config = Config::get()?;
+    let global_config = Config::get().map_err(PublishError::other)?;
     let base_url = &global_config.api_external_url;
 
     let mut feeds = Vec::new();
@@ -57,12 +68,12 @@ pub async fn generate_feed_with_providers(
             let metadata = provider
                 .feed_metadata(&ctx)
                 .await
-                .context("Failed to fetch feed metadata")?;
+                .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
 
             let items = provider
                 .fetch_items(&ctx, spec.max_items)
                 .await
-                .context("Failed to fetch feed items")?;
+                .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
 
             let rss_items: Vec<RssItem> = items
                 .into_iter()
@@ -94,8 +105,8 @@ pub async fn generate_feed_with_providers(
     }
 
     if feeds.is_empty() {
-        return Err(anyhow!(
-            "No RSS feeds generated. Ensure at least one RssFeedProvider is registered."
+        return Err(PublishError::config(
+            "No RSS feeds generated. Ensure at least one RssFeedProvider is registered.",
         ));
     }
 

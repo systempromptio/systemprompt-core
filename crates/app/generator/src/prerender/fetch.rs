@@ -1,6 +1,8 @@
+//! Helpers for fetching `Content` rows from the database and enriching them
+//! with data contributed by `ContentDataProvider` extensions.
+
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
 use futures::stream::{self, StreamExt};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
@@ -8,19 +10,21 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider};
 
+use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::context::PrerenderContext;
 
 const MAX_RETRIES: u32 = 5;
 const RETRY_DELAY_MS: u64 = 500;
 
+/// Fetch every published `Content` row for the given source, retrying briefly
+/// to absorb the eventual-consistency window after a sync.
 pub async fn fetch_content_for_source(
     ctx: &PrerenderContext,
     source_name: &str,
     source_id: &SourceId,
-) -> Result<Vec<Content>> {
+) -> GeneratorResult<Vec<Content>> {
     let repo = ContentRepository::new(&ctx.db_pool)
-        .map_err(|e| anyhow::anyhow!("{}", e))
-        .context("Failed to create content repository")?;
+        .map_err(|e| PublishError::other(format!("Failed to create content repository: {e}")))?;
     fetch_with_retries(&repo, source_id, source_name).await
 }
 
@@ -28,7 +32,7 @@ async fn fetch_with_retries(
     repo: &ContentRepository,
     source_id: &SourceId,
     source_name: &str,
-) -> Result<Vec<Content>> {
+) -> GeneratorResult<Vec<Content>> {
     let mut last_error = None;
 
     for retry in 0..=MAX_RETRIES {
@@ -51,10 +55,16 @@ async fn fetch_with_retries(
 
     last_error.map_or_else(
         || Ok(Vec::new()),
-        |e| Err(anyhow::anyhow!("{}", e)).context("Failed to fetch content after retries"),
+        |e| {
+            Err(PublishError::other(format!(
+                "Failed to fetch content after retries: {e}"
+            )))
+        },
     )
 }
 
+/// Convert a slice of `Content` rows to the JSON shape expected by templates,
+/// running `ContentDataProvider` enrichment in parallel.
 pub async fn contents_to_json(
     contents: &[Content],
     source_name: &str,
@@ -116,24 +126,28 @@ pub async fn contents_to_json(
         .await
 }
 
+/// Fetch the IDs of the most popular content items for a source over the
+/// configured analytics window. Returns the IDs as strings, ready to be
+/// embedded directly into template data.
 pub async fn fetch_popular_ids(
     ctx: &PrerenderContext,
     source_name: &str,
     source_id: &SourceId,
-) -> Result<Vec<String>> {
+) -> GeneratorResult<Vec<String>> {
     if source_name.is_empty() {
         return Ok(Vec::new());
     }
 
-    let content_repo = ContentRepository::new(&ctx.db_pool)
-        .map_err(|e| anyhow::anyhow!("{}", e))
-        .context("Failed to create content repository for popular IDs")?;
+    let content_repo = ContentRepository::new(&ctx.db_pool).map_err(|e| {
+        PublishError::other(format!(
+            "Failed to create content repository for popular IDs: {e}"
+        ))
+    })?;
 
     let ids = content_repo
         .get_popular_content_ids(source_id, 30, 20)
         .await
-        .map_err(|e| anyhow::anyhow!("{}", e))
-        .context("Failed to get popular content IDs")?;
+        .map_err(|e| PublishError::other(format!("Failed to get popular content IDs: {e}")))?;
 
     Ok(ids.into_iter().map(|id| id.to_string()).collect())
 }

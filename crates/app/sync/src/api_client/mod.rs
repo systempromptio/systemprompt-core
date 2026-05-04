@@ -1,32 +1,28 @@
+//! HTTP client used by sync push/pull/deploy.
+//!
+//! Handles direct-sync vs. cloud-relay endpoint selection, bearer-token
+//! auth, retryable failures with exponential backoff, and typed JSON /
+//! binary response handling.
+
+mod response;
+mod retry;
+
 use std::time::Duration;
 
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_SYNC_DEPLOY_TIMEOUT};
 use tokio::time::sleep;
 
 use crate::error::{SyncError, SyncResult};
+pub use retry::RetryConfig;
 
-#[derive(Debug, Clone, Copy)]
-pub struct RetryConfig {
-    pub max_attempts: u32,
-    pub initial_delay: Duration,
-    pub max_delay: Duration,
-    pub exponential_base: u32,
-}
-
-impl Default for RetryConfig {
-    fn default() -> Self {
-        Self {
-            max_attempts: 5,
-            initial_delay: Duration::from_secs(2),
-            max_delay: Duration::from_secs(30),
-            exponential_base: 2,
-        }
-    }
-}
-
+/// HTTP client for the systemprompt cloud sync API.
+///
+/// Wraps a `reqwest::Client` plus the bearer token, optional direct-sync
+/// hostname/token, and a [`RetryConfig`] for exponential-backoff retries on
+/// upload / download failures.
 #[derive(Clone, Debug)]
 pub struct SyncApiClient {
     client: Client,
@@ -37,25 +33,36 @@ pub struct SyncApiClient {
     retry_config: RetryConfig,
 }
 
+/// Registry credentials returned by the cloud API for `docker login`.
 #[derive(Debug, Deserialize)]
 pub struct RegistryToken {
+    /// Registry hostname.
     pub registry: String,
+    /// Username to log in as.
     pub username: String,
+    /// Bearer token used as the registry password.
     pub token: String,
 }
 
+/// Response body returned by the cloud sync upload endpoint.
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct UploadResponse {
+    /// Number of files the server reports as uploaded.
     pub files_uploaded: usize,
 }
 
+/// Response body returned by the cloud deploy endpoint.
 #[derive(Debug, Deserialize)]
 pub struct DeployResponse {
+    /// Deployment status string (`pending`, `running`, …).
     pub status: String,
+    /// Public URL of the deployed app, when known.
     pub app_url: Option<String>,
 }
 
 impl SyncApiClient {
+    /// Construct a new client targeting `api_url` with the given bearer
+    /// token and the default [`RetryConfig`].
     pub fn new(api_url: &str, token: &str) -> SyncResult<Self> {
         Ok(Self {
             client: Client::builder()
@@ -70,6 +77,10 @@ impl SyncApiClient {
         })
     }
 
+    /// Switch the client to direct-sync mode, talking straight to the
+    /// supplied tenant hostname with `sync_token` instead of routing through
+    /// the central cloud API. When either argument is `None`, the client
+    /// keeps the cloud-relay endpoint.
     pub fn with_direct_sync(
         mut self,
         hostname: Option<String>,
@@ -91,11 +102,10 @@ impl SyncApiClient {
     }
 
     fn calculate_next_delay(&self, current: Duration) -> Duration {
-        current
-            .saturating_mul(self.retry_config.exponential_base)
-            .min(self.retry_config.max_delay)
+        self.retry_config.next_delay(current)
     }
 
+    /// Upload the supplied bundle of files for `tenant_id` with retries.
     pub async fn upload_files(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -120,7 +130,7 @@ impl SyncApiClient {
                 .send()
                 .await?;
 
-            match self.handle_json_response::<UploadResponse>(response).await {
+            match response::handle_json::<UploadResponse>(response).await {
                 Ok(upload) => return Ok(upload),
                 Err(error) if error.is_retryable() && attempt < self.retry_config.max_attempts => {
                     tracing::warn!(
@@ -143,6 +153,7 @@ impl SyncApiClient {
         })
     }
 
+    /// Download the file bundle for `tenant_id` with retries.
     pub async fn download_files(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -164,7 +175,7 @@ impl SyncApiClient {
                 .send()
                 .await?;
 
-            match self.handle_binary_response(response).await {
+            match response::handle_binary(response).await {
                 Ok(data) => return Ok(data),
                 Err(error) if error.is_retryable() && attempt < self.retry_config.max_attempts => {
                     tracing::warn!(
@@ -187,6 +198,8 @@ impl SyncApiClient {
         })
     }
 
+    /// Fetch transient registry credentials for `tenant_id`, used to
+    /// `docker login` before pushing a deploy image.
     pub async fn get_registry_token(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -198,6 +211,8 @@ impl SyncApiClient {
         self.get(&url).await
     }
 
+    /// Trigger a deploy for `tenant_id` using the supplied container image
+    /// reference.
     pub async fn deploy(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -208,6 +223,8 @@ impl SyncApiClient {
             .await
     }
 
+    /// Fetch the Fly.io app name associated with `tenant_id`. Returns
+    /// [`SyncError::TenantNoApp`] if the tenant has no app configured.
     pub async fn get_tenant_app_id(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -221,6 +238,8 @@ impl SyncApiClient {
         info.fly_app_name.ok_or(SyncError::TenantNoApp)
     }
 
+    /// Fetch the cloud database connection string for `tenant_id`. Returns
+    /// a 404 [`SyncError::ApiError`] if no database is provisioned.
     pub async fn get_database_url(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -241,14 +260,13 @@ impl SyncApiClient {
     }
 
     async fn get<T: DeserializeOwned>(&self, url: &str) -> SyncResult<T> {
-        let response = self
+        let resp = self
             .client
             .get(url)
             .header("Authorization", format!("Bearer {}", self.token))
             .send()
             .await?;
-
-        self.handle_json_response(response).await
+        response::handle_json(resp).await
     }
 
     async fn post<T: DeserializeOwned, B: Serialize + Sync>(
@@ -256,47 +274,13 @@ impl SyncApiClient {
         url: &str,
         body: &B,
     ) -> SyncResult<T> {
-        let response = self
+        let resp = self
             .client
             .post(url)
             .header("Authorization", format!("Bearer {}", self.token))
             .json(body)
             .send()
             .await?;
-
-        self.handle_json_response(response).await
-    }
-
-    async fn handle_json_response<T: DeserializeOwned>(
-        &self,
-        response: reqwest::Response,
-    ) -> SyncResult<T> {
-        let status = response.status();
-        if status == StatusCode::UNAUTHORIZED {
-            return Err(SyncError::Unauthorized);
-        }
-        if !status.is_success() {
-            let message = response.text().await?;
-            return Err(SyncError::ApiError {
-                status: status.as_u16(),
-                message,
-            });
-        }
-        Ok(response.json().await?)
-    }
-
-    async fn handle_binary_response(&self, response: reqwest::Response) -> SyncResult<Vec<u8>> {
-        let status = response.status();
-        if !status.is_success() {
-            let message = response
-                .text()
-                .await
-                .unwrap_or_else(|e| format!("(body unreadable: {})", e));
-            return Err(SyncError::ApiError {
-                status: status.as_u16(),
-                message,
-            });
-        }
-        Ok(response.bytes().await?.to_vec())
+        response::handle_json(resp).await
     }
 }
