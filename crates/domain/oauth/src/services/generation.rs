@@ -1,4 +1,6 @@
-use anyhow::{Result, anyhow};
+//! JWT and client-secret generation primitives.
+
+use crate::error::OauthResult as Result;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rand::distr::Alphanumeric;
@@ -58,14 +60,16 @@ pub fn generate_jwt(
     let expires_in_hours = config.expires_in_hours.unwrap_or(24);
 
     if expires_in_hours <= 0 || expires_in_hours > 8760 {
-        return Err(anyhow!(
+        return Err(crate::error::OauthError::from(anyhow::anyhow!(
             "Invalid token expiry: {expires_in_hours} hours. Must be between 1 and 8760 (1 year)"
-        ));
+        )));
     }
 
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
-        .ok_or_else(|| anyhow!("Failed to calculate token expiration"))?
+        .ok_or_else(|| {
+            crate::error::OauthError::from(anyhow::anyhow!("Failed to calculate token expiration"))
+        })?
         .timestamp();
 
     let now = Utc::now().timestamp();
@@ -149,7 +153,9 @@ pub fn generate_anonymous_jwt_with_expiry(
     let expires_in_hours = expires_in_seconds / 3600;
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
-        .ok_or_else(|| anyhow!("Failed to calculate token expiration"))?
+        .ok_or_else(|| {
+            crate::error::OauthError::from(anyhow::anyhow!("Failed to calculate token expiration"))
+        })?
         .timestamp();
 
     let now = Utc::now().timestamp();
@@ -213,7 +219,9 @@ pub fn generate_admin_jwt_with_expiry(
     let expires_in_hours = expires_in_seconds / 3600;
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
-        .ok_or_else(|| anyhow!("Failed to calculate token expiration"))?
+        .ok_or_else(|| {
+            crate::error::OauthError::from(anyhow::anyhow!("Failed to calculate token expiration"))
+        })?
         .timestamp();
 
     let now = Utc::now().timestamp();

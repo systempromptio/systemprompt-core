@@ -1,6 +1,8 @@
+//! Client-to-scope and client-to-redirect-uri join queries.
+
 use super::ClientRepository;
+use crate::error::OauthResult as Result;
 use crate::models::{ClientRelations, OAuthClient, OAuthClientRow};
-use anyhow::Result;
 use std::collections::HashMap;
 use systemprompt_identifiers::ClientId;
 

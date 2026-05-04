@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! Single-use cowork exchange code persistence.
+
+use crate::error::OauthResult as Result;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::UserId;
 

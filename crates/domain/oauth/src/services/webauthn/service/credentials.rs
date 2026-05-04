@@ -1,6 +1,8 @@
+//! `WebAuthn` credential persistence helpers.
+
 use super::WebAuthnService;
+use crate::error::OauthResult as Result;
 use crate::repository::WebAuthnCredentialParams;
-use anyhow::Result;
 use systemprompt_identifiers::UserId;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;

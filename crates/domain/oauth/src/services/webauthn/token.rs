@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! `WebAuthn` challenge token format helpers.
+
+use crate::error::OauthResult as Result;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use rand::RngCore;
@@ -27,10 +29,12 @@ pub fn hash_token(token: &str) -> String {
 
 pub fn validate_token_format(token: &str) -> Result<()> {
     let Some(encoded) = token.strip_prefix(TOKEN_PREFIX) else {
-        anyhow::bail!("Invalid token format: missing prefix");
+        return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            "Invalid token format: missing prefix"
+        )));
     };
-    URL_SAFE_NO_PAD
-        .decode(encoded)
-        .map_err(|_| anyhow::anyhow!("Invalid token format: invalid encoding"))?;
+    URL_SAFE_NO_PAD.decode(encoded).map_err(|_| {
+        crate::error::OauthError::from(anyhow::anyhow!("Invalid token format: invalid encoding"))
+    })?;
     Ok(())
 }

@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! `WebAuthn` setup-token persistence and validation.
+
+use crate::error::OauthResult as Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{TokenId, UserId};

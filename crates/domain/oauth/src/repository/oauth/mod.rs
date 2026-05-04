@@ -1,4 +1,8 @@
+//! Aggregated OAuth repository orchestrating client, code, and token
+//! operations.
+
 mod auth_code;
+mod cleanup;
 mod refresh_token;
 mod scopes;
 mod user;
@@ -10,7 +14,6 @@ use super::{ClientRepository, CreateClientParams, UpdateClientParams};
 use crate::error::{OauthError, OauthResult};
 use crate::models::OAuthClient;
 use crate::services::generate_client_secret;
-use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Instant;
@@ -89,14 +92,14 @@ impl OAuthRepository {
                     duration_ms = duration.as_millis(),
                     "OAuth client creation failed"
                 );
-                Err(e.into())
+                Err(e)
             },
         }
     }
 
     pub async fn list_clients(&self) -> OauthResult<Vec<OAuthClient>> {
         let client_repo = &self.client_repo;
-        client_repo.list().await.map_err(Into::into)
+        client_repo.list().await
     }
 
     pub async fn list_clients_paginated(
@@ -105,15 +108,12 @@ impl OAuthRepository {
         offset: i32,
     ) -> OauthResult<Vec<OAuthClient>> {
         let client_repo = &self.client_repo;
-        client_repo
-            .list_paginated(limit, offset)
-            .await
-            .map_err(Into::into)
+        client_repo.list_paginated(limit, offset).await
     }
 
     pub async fn count_clients(&self) -> OauthResult<i64> {
         let client_repo = &self.client_repo;
-        client_repo.count().await.map_err(Into::into)
+        client_repo.count().await
     }
 
     pub async fn find_client_by_id(
@@ -121,10 +121,7 @@ impl OAuthRepository {
         client_id: &ClientId,
     ) -> OauthResult<Option<OAuthClient>> {
         let client_repo = &self.client_repo;
-        client_repo
-            .get_by_client_id(client_id)
-            .await
-            .map_err(Into::into)
+        client_repo.get_by_client_id(client_id).await
     }
 
     pub async fn find_client_by_redirect_uri(
@@ -132,10 +129,7 @@ impl OAuthRepository {
         redirect_uri: &str,
     ) -> OauthResult<Option<OAuthClient>> {
         let client_repo = &self.client_repo;
-        client_repo
-            .find_by_redirect_uri(redirect_uri)
-            .await
-            .map_err(Into::into)
+        client_repo.find_by_redirect_uri(redirect_uri).await
     }
 
     pub async fn find_client_by_redirect_uri_with_scope(
@@ -147,7 +141,6 @@ impl OAuthRepository {
         client_repo
             .find_by_redirect_uri_with_scope(redirect_uri, required_scopes)
             .await
-            .map_err(Into::into)
     }
 
 
@@ -234,91 +227,5 @@ impl OAuthRepository {
     #[must_use]
     pub fn generate_client_id() -> String {
         format!("client_{}", Uuid::new_v4().simple())
-    }
-
-    pub async fn cleanup_inactive_clients(&self) -> OauthResult<u64> {
-        let client_repo = &self.client_repo;
-        client_repo.cleanup_inactive().await.map_err(Into::into)
-    }
-
-    pub async fn cleanup_old_test_clients(&self, days_old: u32) -> OauthResult<u64> {
-        let client_repo = &self.client_repo;
-        client_repo
-            .cleanup_old_test(days_old)
-            .await
-            .map_err(Into::into)
-    }
-
-    pub async fn cleanup_unused_clients(&self, days_old: u32) -> OauthResult<u64> {
-        let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_old) * 24 * 60 * 60);
-        let client_repo = &self.client_repo;
-        client_repo
-            .delete_unused(cutoff_timestamp)
-            .await
-            .map_err(Into::into)
-    }
-
-    pub async fn cleanup_stale_clients(&self, days_unused: u32) -> OauthResult<u64> {
-        let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_unused) * 24 * 60 * 60);
-        let client_repo = &self.client_repo;
-        client_repo
-            .delete_stale(cutoff_timestamp)
-            .await
-            .map_err(Into::into)
-    }
-
-    pub async fn list_unused_clients(
-        &self,
-        days_old: u32,
-    ) -> OauthResult<Vec<super::ClientUsageSummary>> {
-        let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_old) * 24 * 60 * 60);
-        let client_repo = &self.client_repo;
-        client_repo
-            .list_unused(cutoff_timestamp)
-            .await
-            .map_err(Into::into)
-    }
-
-    pub async fn list_stale_clients(
-        &self,
-        days_unused: u32,
-    ) -> OauthResult<Vec<super::ClientUsageSummary>> {
-        let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_unused) * 24 * 60 * 60);
-        let client_repo = &self.client_repo;
-        client_repo
-            .list_stale(cutoff_timestamp)
-            .await
-            .map_err(Into::into)
-    }
-
-    pub async fn deactivate_old_test_clients(&self, days_old: u32) -> OauthResult<u64> {
-        let client_repo = &self.client_repo;
-        client_repo
-            .deactivate_old_test(days_old)
-            .await
-            .map_err(Into::into)
-    }
-
-    pub async fn list_inactive_clients(&self) -> OauthResult<Vec<super::ClientSummary>> {
-        let client_repo = &self.client_repo;
-        client_repo.list_inactive().await.map_err(Into::into)
-    }
-
-    pub async fn list_old_clients(&self, days_old: u32) -> OauthResult<Vec<super::ClientSummary>> {
-        let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_old) * 24 * 60 * 60);
-        let client_repo = &self.client_repo;
-        client_repo
-            .list_old(cutoff_timestamp)
-            .await
-            .map_err(Into::into)
-    }
-
-    pub async fn update_client_last_used(&self, client_id: &ClientId) -> OauthResult<()> {
-        let now = Utc::now().timestamp();
-        let client_repo = &self.client_repo;
-        client_repo
-            .update_last_used(client_id, now)
-            .await
-            .map_err(Into::into)
     }
 }

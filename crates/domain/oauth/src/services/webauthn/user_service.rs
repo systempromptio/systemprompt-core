@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! User creation/lookup wrapper used by `WebAuthn` flows.
+
+use crate::error::OauthResult as Result;
 use std::sync::Arc;
 use systemprompt_traits::UserProvider;
 
@@ -28,7 +30,7 @@ impl UserCreationService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?
+            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?
         {
             return Ok(existing_user.id.as_str().to_string());
         }
@@ -39,12 +41,12 @@ impl UserCreationService {
             .user_provider
             .create_user(username, email, full_name)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?;
 
         self.user_provider
             .assign_roles(&user.id, &roles)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?;
 
         Ok(user.id.as_str().to_string())
     }
@@ -59,20 +61,24 @@ impl UserCreationService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?
+            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?
             .is_some()
         {
-            return Err(anyhow::anyhow!("email_already_registered"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "email_already_registered"
+            )));
         }
 
         if self
             .user_provider
             .find_by_name(username)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?
+            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?
             .is_some()
         {
-            return Err(anyhow::anyhow!("username_already_taken"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "username_already_taken"
+            )));
         }
 
         self.find_or_create_user_with_webauthn_registration(username, email, full_name, None)

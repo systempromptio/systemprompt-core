@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::services::webauthn::WebAuthnManager;
+use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
@@ -41,7 +41,7 @@ pub async fn start_auth(
     let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =
-        match WebAuthnManager::get_or_create_service(oauth_repo, user_provider).await {
+        match WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await {
             Ok(service) => service,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to initialize WebAuthn");
@@ -144,7 +144,7 @@ pub async fn finish_auth(
     let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =
-        match WebAuthnManager::get_or_create_service(oauth_repo, user_provider).await {
+        match WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await {
             Ok(service) => service,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to initialize WebAuthn");

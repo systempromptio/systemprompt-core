@@ -1,7 +1,9 @@
+//! Linking new passkeys to existing user accounts.
+
 use super::WebAuthnService;
+use crate::error::OauthResult as Result;
 use crate::repository::TokenValidationResult;
 use crate::services::webauthn::token::hash_token;
-use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -48,13 +50,19 @@ impl WebAuthnService {
         let token_record = match validation {
             TokenValidationResult::Valid(record) => record,
             TokenValidationResult::Expired => {
-                anyhow::bail!("Setup token has expired")
+                return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                    "Setup token has expired"
+                )));
             },
             TokenValidationResult::AlreadyUsed => {
-                anyhow::bail!("Setup token has already been used")
+                return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                    "Setup token has already been used"
+                )));
             },
             TokenValidationResult::NotFound => {
-                anyhow::bail!("Invalid setup token")
+                return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                    "Invalid setup token"
+                )));
             },
         };
 
@@ -121,22 +129,30 @@ impl WebAuthnService {
         let validation = self.oauth_repo.validate_setup_token(&token_hash).await?;
 
         let TokenValidationResult::Valid(token_record) = validation else {
-            anyhow::bail!("Invalid or expired setup token")
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "Invalid or expired setup token"
+            )));
         };
 
         let state = {
             let mut states = link_states.lock().await;
-            states
-                .remove(challenge_id)
-                .ok_or_else(|| anyhow::anyhow!("Registration session not found or expired"))?
+            states.remove(challenge_id).ok_or_else(|| {
+                crate::error::OauthError::from(anyhow::anyhow!(
+                    "Registration session not found or expired"
+                ))
+            })?
         };
 
         if state.token_id != token_record.id {
-            anyhow::bail!("Token mismatch");
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "Token mismatch"
+            )));
         }
 
         if state.timestamp.elapsed() > Duration::from_secs(CHALLENGE_EXPIRY_SECONDS) {
-            anyhow::bail!("Registration session expired");
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "Registration session expired"
+            )));
         }
 
         let passkey = self

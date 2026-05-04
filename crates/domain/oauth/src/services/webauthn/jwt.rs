@@ -1,3 +1,5 @@
+//! WebAuthn-issued JWT validator.
+
 use crate::TokenValidator;
 use async_trait::async_trait;
 use systemprompt_models::auth::{AuthError, AuthenticatedUser, JwtAudience};

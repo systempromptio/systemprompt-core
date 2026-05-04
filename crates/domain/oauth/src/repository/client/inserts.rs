@@ -1,6 +1,8 @@
+//! OAuth client INSERT helpers.
+
 use super::ClientRepository;
+use crate::error::OauthResult as Result;
 use crate::models::{GrantType, ResponseType};
-use anyhow::Result;
 use sqlx::{PgConnection, Postgres, Transaction};
 use systemprompt_identifiers::ClientId;
 

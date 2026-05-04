@@ -1,3 +1,5 @@
+//! JWT audience and service-access validation.
+
 use systemprompt_models::auth::JwtAudience;
 
 pub fn validate_service_access(token_audiences: &[JwtAudience], _service_name: &str) -> bool {

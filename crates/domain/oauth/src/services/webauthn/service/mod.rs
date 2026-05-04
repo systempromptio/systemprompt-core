@@ -1,3 +1,5 @@
+//! Inner `WebAuthn` service: registration, authentication, link, credentials.
+
 mod authentication;
 mod credentials;
 mod link;
@@ -10,8 +12,8 @@ use std::time::Duration;
 
 use super::config::WebAuthnConfig;
 use super::user_service::UserCreationService;
+use crate::error::OauthResult as Result;
 use crate::repository::OAuthRepository;
-use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
@@ -122,13 +124,17 @@ impl WebAuthnService {
     pub async fn consume_verified_authentication(&self, token: &str) -> Result<UserId> {
         let data = {
             let mut verified = self.verified_auths.lock().await;
-            verified
-                .remove(token)
-                .ok_or_else(|| anyhow::anyhow!("No verified authentication found for token"))?
+            verified.remove(token).ok_or_else(|| {
+                crate::error::OauthError::from(anyhow::anyhow!(
+                    "No verified authentication found for token"
+                ))
+            })?
         };
 
         if data.timestamp.elapsed() > Duration::from_secs(120) {
-            return Err(anyhow::anyhow!("Verified authentication token expired"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "Verified authentication token expired"
+            )));
         }
 
         Ok(data.user_id)

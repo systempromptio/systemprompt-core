@@ -1,3 +1,5 @@
+//! HTTP request classification helpers (browser vs API client).
+
 use http::HeaderMap;
 
 pub fn is_browser_request(headers: &HeaderMap) -> bool {
