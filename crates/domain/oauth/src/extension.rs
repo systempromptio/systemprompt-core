@@ -17,7 +17,7 @@ impl Extension for OauthExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        30
+        300
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {

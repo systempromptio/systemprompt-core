@@ -52,7 +52,7 @@ impl Extension for UsersExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        10
+        100
     }
 
     fn is_required(&self) -> bool {

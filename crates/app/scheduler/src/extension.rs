@@ -13,7 +13,7 @@ impl Extension for SchedulerExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        55
+        550
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
