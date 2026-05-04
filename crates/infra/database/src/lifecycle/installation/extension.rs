@@ -1,143 +1,40 @@
-use super::migrations::MigrationService;
-use crate::services::{DatabaseProvider, SqlExecutor};
-use anyhow::Result;
-use std::path::Path;
-use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSource, SeedSource};
-use systemprompt_models::modules::{Module, ModuleSchema};
+//! Schema installation from compile-time-registered
+//! [`systemprompt_extension::Extension`] instances (the modern path).
+
+use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSource};
 use tracing::{debug, info, warn};
 
-#[derive(Debug, Clone, Copy)]
-pub struct ModuleInstaller;
+use super::util::table_exists;
+use crate::lifecycle::migrations::MigrationService;
+use crate::services::{DatabaseProvider, SqlExecutor};
 
-impl ModuleInstaller {
-    pub async fn install(module: &Module, db: &dyn DatabaseProvider) -> Result<()> {
-        install_module_schemas_from_source(module, db).await?;
-        install_module_seeds_from_path(module, db).await?;
-        Ok(())
-    }
-}
-
-pub async fn install_module_schemas_from_source(
-    module: &Module,
-    db: &dyn DatabaseProvider,
-) -> Result<()> {
-    let Some(schemas) = &module.schemas else {
-        return Ok(());
-    };
-
-    for schema in schemas {
-        if schema.table.is_empty() {
-            let sql = read_module_schema_sql(module, schema)?;
-            SqlExecutor::execute_statements_parsed(db, &sql).await?;
-            continue;
-        }
-
-        if !table_exists(db, &schema.table).await? {
-            let sql = read_module_schema_sql(module, schema)?;
-            SqlExecutor::execute_statements_parsed(db, &sql).await?;
-        }
-    }
-
-    Ok(())
-}
-
-fn read_module_schema_sql(module: &Module, schema: &ModuleSchema) -> Result<String> {
-    match &schema.sql {
-        SchemaSource::Inline(sql) => Ok(sql.clone()),
-        SchemaSource::File(relative_path) => {
-            let full_path = module.path.join(relative_path);
-            std::fs::read_to_string(&full_path).map_err(|e| {
-                anyhow::anyhow!(
-                    "Failed to read schema file '{}' for module '{}': {e}",
-                    full_path.display(),
-                    module.name
-                )
-            })
-        },
-    }
-}
-
-pub async fn install_module_seeds_from_path(
-    module: &Module,
-    db: &dyn DatabaseProvider,
-) -> Result<()> {
-    let Some(seeds) = &module.seeds else {
-        return Ok(());
-    };
-
-    for seed in seeds {
-        let sql = match &seed.sql {
-            SeedSource::Inline(sql) => sql.clone(),
-            SeedSource::File(relative_path) => {
-                let seed_path = module.path.join(relative_path);
-                if !seed_path.exists() {
-                    anyhow::bail!(
-                        "Seed file not found for module '{}': {}",
-                        module.name,
-                        seed_path.display()
-                    );
-                }
-                std::fs::read_to_string(&seed_path)?
-            },
-        };
-        SqlExecutor::execute_statements_parsed(db, &sql).await?;
-    }
-
-    Ok(())
-}
-
-pub async fn install_schema(db: &dyn DatabaseProvider, schema_path: &Path) -> Result<()> {
-    let schema_content = std::fs::read_to_string(schema_path)?;
-    SqlExecutor::execute_statements_parsed(db, &schema_content).await
-}
-
-pub async fn install_seed(db: &dyn DatabaseProvider, seed_path: &Path) -> Result<()> {
-    let seed_content = std::fs::read_to_string(seed_path)?;
-    SqlExecutor::execute_statements_parsed(db, &seed_content).await
-}
-
-async fn table_exists(db: &dyn DatabaseProvider, table_name: &str) -> Result<bool> {
-    let result = db
-        .query_raw_with(
-            &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1) as exists",
-            vec![serde_json::Value::String(table_name.to_string())],
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, table = %table_name, "Database error checking table existence");
-            anyhow::anyhow!("Database error checking table '{}': {}", table_name, e)
-        })?;
-
-    let exists = result
-        .rows
-        .first()
-        .and_then(|row| row.get("exists"))
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(false);
-
-    Ok(exists)
-}
-
+/// Install every enabled extension's schemas (no opt-out list).
 pub async fn install_extension_schemas(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
-) -> std::result::Result<(), LoaderError> {
+) -> Result<(), LoaderError> {
     install_extension_schemas_with_config(registry, db, &[]).await
 }
 
+/// Install every enabled extension's schemas, skipping ids in
+/// `disabled_extensions`. Migrations are run in extension order after schema
+/// installation completes.
 pub async fn install_extension_schemas_with_config(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
     disabled_extensions: &[String],
-) -> std::result::Result<(), LoaderError> {
+) -> Result<(), LoaderError> {
     let schema_extensions = registry.enabled_schema_extensions(disabled_extensions);
 
     if schema_extensions.is_empty() {
-        log_no_schemas();
+        info!("No extension schemas to install");
         return Ok(());
     }
 
-    log_installing_schemas(schema_extensions.len());
+    info!(
+        "Installing schemas for {} extensions",
+        schema_extensions.len()
+    );
 
     let migration_service = MigrationService::new(db);
 
@@ -155,26 +52,14 @@ pub async fn install_extension_schemas_with_config(
         }
     }
 
-    log_installation_complete();
-    Ok(())
-}
-
-fn log_no_schemas() {
-    info!("No extension schemas to install");
-}
-
-fn log_installing_schemas(count: usize) {
-    info!("Installing schemas for {} extensions", count);
-}
-
-fn log_installation_complete() {
     info!("Extension schema installation complete");
+    Ok(())
 }
 
 async fn install_extension_schema(
     ext: &dyn Extension,
     db: &dyn DatabaseProvider,
-) -> std::result::Result<(), LoaderError> {
+) -> Result<(), LoaderError> {
     let schemas = ext.schemas();
     let extension_id = ext.metadata().id.to_string();
 
@@ -242,12 +127,11 @@ async fn install_extension_schema(
     Ok(())
 }
 
-
 async fn check_table_exists_for_extension(
     db: &dyn DatabaseProvider,
     table: &str,
     extension_id: &str,
-) -> std::result::Result<bool, LoaderError> {
+) -> Result<bool, LoaderError> {
     table_exists(db, table)
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {
@@ -259,7 +143,7 @@ async fn check_table_exists_for_extension(
 fn read_schema_sql(
     schema: &systemprompt_extension::SchemaDefinition,
     extension_id: &str,
-) -> std::result::Result<String, LoaderError> {
+) -> Result<String, LoaderError> {
     match &schema.sql {
         SchemaSource::Inline(sql) => Ok(sql.clone()),
         SchemaSource::File(path) => {
@@ -271,13 +155,12 @@ fn read_schema_sql(
     }
 }
 
-
 async fn validate_extension_columns(
     db: &dyn DatabaseProvider,
     table: &str,
     required_columns: &[String],
     extension_id: &str,
-) -> std::result::Result<(), LoaderError> {
+) -> Result<(), LoaderError> {
     for column in required_columns {
         validate_single_column(db, table, column, extension_id).await?;
     }
@@ -289,7 +172,7 @@ async fn validate_single_column(
     table: &str,
     column: &str,
     extension_id: &str,
-) -> std::result::Result<(), LoaderError> {
+) -> Result<(), LoaderError> {
     let result = db
         .query_raw_with(
             &"SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND \

@@ -1,5 +1,14 @@
+//! Parser/validator for admin-supplied SQL strings.
+//!
+//! Two parse modes are exposed:
+//! - [`AdminSql::parse_readonly`] — only `SELECT`/`WITH`/`EXPLAIN`/`SHOW`/
+//!   `TABLE`/`VALUES` queries with no forbidden keywords.
+//! - [`AdminSql::parse_unrestricted`] — single statement, otherwise free-form.
+
 use thiserror::Error;
 
+/// Default row limit applied by the read-only [`AdminSql::parse_readonly`]
+/// path when callers don't supply an explicit limit.
 pub const DEFAULT_READONLY_ROW_LIMIT: usize = 1000;
 
 const READONLY_PREFIXES: &[&str] = &["select", "with", "explain", "show", "table", "values"];
@@ -23,22 +32,31 @@ const FORBIDDEN_KEYWORDS: &[&str] = &[
     " rename ",
 ];
 
+/// Reasons admin SQL parsing can fail.
 #[derive(Debug, Clone, Copy, Error)]
 pub enum AdminSqlError {
+    /// Input was empty after stripping comments and whitespace.
     #[error("SQL query is empty")]
     Empty,
+    /// Multiple statements were detected separated by `;`.
     #[error("SQL query contains multiple statements; only one is allowed")]
     MultipleStatements,
+    /// First keyword is not in the read-only allowlist.
     #[error("SQL query must begin with SELECT, WITH, EXPLAIN, SHOW, TABLE, or VALUES")]
     NotReadOnly,
+    /// One of the forbidden DDL/DML keywords was found.
     #[error("SQL query contains forbidden keyword for read-only mode")]
     ForbiddenKeyword,
 }
 
+/// Validated SQL string ready to hand to a SQL executor.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdminSql(String);
 
 impl AdminSql {
+    /// Parse a string as a read-only admin SQL statement. Strips comments,
+    /// rejects multi-statement input, requires a read-only leading keyword,
+    /// and rejects any embedded forbidden DDL/DML keyword.
     pub fn parse_readonly(raw: &str) -> Result<Self, AdminSqlError> {
         let stripped = strip_comments(raw);
         let trimmed = stripped.trim();
@@ -67,6 +85,9 @@ impl AdminSql {
         Ok(Self(without_terminator.to_string()))
     }
 
+    /// Parse a string as an unrestricted single-statement admin SQL query.
+    /// Strips comments and rejects multi-statement input but does not enforce
+    /// a leading-keyword allowlist.
     pub fn parse_unrestricted(raw: &str) -> Result<Self, AdminSqlError> {
         let stripped = strip_comments(raw);
         let trimmed = stripped.trim();
@@ -82,6 +103,7 @@ impl AdminSql {
         Ok(Self(without_terminator.to_string()))
     }
 
+    /// Borrow the underlying validated SQL string.
     pub fn as_str(&self) -> &str {
         &self.0
     }

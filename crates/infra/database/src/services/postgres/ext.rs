@@ -1,3 +1,8 @@
+//! Typed-row extension methods over [`PostgresProvider`].
+//!
+//! Part of the documented sqlx allowlist: the SQL is supplied dynamically
+//! through [`QuerySelector`], so compile-time verification is impossible.
+
 use anyhow::{Result, anyhow};
 
 use super::PostgresProvider;
