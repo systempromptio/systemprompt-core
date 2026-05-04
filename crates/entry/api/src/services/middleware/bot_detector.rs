@@ -35,8 +35,8 @@ pub async fn detect_bots_early(mut req: Request, next: Next) -> Response {
         .headers()
         .get("user-agent")
         .and_then(|h| {
-            // Why: non-UTF-8 user-agent is logged at trace and treated as empty
-            // so bot detection falls through to the default classification.
+            // Why: non-UTF-8 user-agent is logged at trace and treated as empty so bot
+            // detection falls through to the default classification.
             h.to_str()
                 .map_err(|e| {
                     tracing::trace!(error = %e, "Invalid UTF-8 in user-agent header");

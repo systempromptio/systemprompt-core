@@ -93,8 +93,8 @@ pub fn spawn_behavioral_detection_task(
             .await
             .unwrap_or(false);
 
-        // Why: behavioral analysis is best-effort — a DB error is logged at
-        // debug and detection falls back to defaults rather than blocking traffic.
+        // Why: behavioral analysis is best-effort — a DB error is logged at debug and
+        // detection falls back to defaults rather than blocking traffic.
         let session_data = session_repo
             .get_session_for_behavioral_analysis(&session_id)
             .await

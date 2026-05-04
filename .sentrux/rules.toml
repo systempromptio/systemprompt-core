@@ -1,5 +1,0 @@
-[constraints]
-max_cycles = 3
-max_coupling = "B"
-max_cc = 38
-no_god_files = false

@@ -94,8 +94,8 @@ fn resolve_client_permissions(
     let client_allowed: Vec<Permission> = client_scopes
         .iter()
         .filter_map(|s| {
-            // Why: invalid scope strings in client configuration are logged and
-            // skipped — `.ok()` here is the filter, not an error discard.
+            // Why: invalid scope strings in client configuration are logged and skipped —
+            // `.ok()` here is the filter, not an error discard.
             Permission::from_str(s)
                 .map_err(|e| {
                     tracing::warn!(scope = %s, error = %e, "Invalid scope in client configuration");

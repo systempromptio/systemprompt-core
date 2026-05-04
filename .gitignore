@@ -114,3 +114,8 @@ coverage-report/
 *.cdx.json
 systemprompt-sbom*
 youtube-walkthrough.md
+
+# locally tracked dev tooling — not for crates.io
+ci/
+.sentrux/
+Screenshot*.png
