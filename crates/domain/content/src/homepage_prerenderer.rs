@@ -1,21 +1,21 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_cloud::constants::storage;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_provider_contracts::{
-    PagePrepareContext, PagePrerenderer, PageRenderSpec, WebConfig,
+    PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderError, ProviderResult, WebConfig,
 };
 
-fn resolve_content_raw<'a>(ctx: &'a PagePrepareContext<'_>) -> Result<&'a ContentConfigRaw> {
+fn resolve_content_raw<'a>(ctx: &'a PagePrepareContext<'_>) -> ProviderResult<&'a ContentConfigRaw> {
     if let Some(services) = ctx.content_config::<ServicesConfig>() {
         return Ok(&services.content.raw);
     }
-    ctx.content_config::<ContentConfigRaw>()
-        .ok_or_else(|| anyhow::anyhow!("ContentConfig not available in context"))
+    ctx.content_config::<ContentConfigRaw>().ok_or_else(|| {
+        ProviderError::Configuration("ContentConfig not available in context".into())
+    })
 }
 
 const PAGE_TYPE: &str = "homepage";
@@ -75,7 +75,7 @@ impl PagePrerenderer for DefaultHomepagePrerenderer {
         100
     }
 
-    async fn prepare(&self, ctx: &PagePrepareContext<'_>) -> Result<Option<PageRenderSpec>> {
+    async fn prepare(&self, ctx: &PagePrepareContext<'_>) -> ProviderResult<Option<PageRenderSpec>> {
         let content_config = resolve_content_raw(ctx)?;
 
         let branding = Self::extract_branding(ctx.web_config, content_config);

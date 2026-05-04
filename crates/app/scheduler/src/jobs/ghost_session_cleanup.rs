@@ -1,7 +1,6 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
 #[derive(Debug, Clone, Copy)]
@@ -21,7 +20,7 @@ impl Job for GhostSessionCleanupJob {
         "0 */10 * * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = std::sync::Arc::clone(
@@ -29,7 +28,7 @@ impl Job for GhostSessionCleanupJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        let pool = db_pool.write_pool_arc()?;
+        let pool = db_pool.write_pool_arc().map_err(|e| anyhow::anyhow!(e))?;
 
         let result = sqlx::query_scalar::<_, i64>(
             r"
@@ -51,7 +50,8 @@ impl Job for GhostSessionCleanupJob {
             ",
         )
         .fetch_one(pool.as_ref())
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
 
         let marked = result as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;

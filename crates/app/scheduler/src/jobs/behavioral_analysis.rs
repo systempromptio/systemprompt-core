@@ -5,7 +5,7 @@ use systemprompt_analytics::{
     HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, SUSTAINED_VELOCITY_MINUTES,
 };
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tracing::{info, warn};
 
@@ -38,7 +38,7 @@ impl Job for BehavioralAnalysisJob {
         "0 0 * * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = std::sync::Arc::clone(

@@ -1,22 +1,22 @@
 use std::sync::Arc;
 
-use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_cloud::constants::storage;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_models::services::ServicesConfig;
-use systemprompt_provider_contracts::{PageContext, PageDataProvider};
+use systemprompt_provider_contracts::{PageContext, PageDataProvider, ProviderError, ProviderResult};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefaultBrandingProvider;
 
-fn resolve_content_raw<'a>(ctx: &'a PageContext<'_>) -> Result<&'a ContentConfigRaw> {
+fn resolve_content_raw<'a>(ctx: &'a PageContext<'_>) -> ProviderResult<&'a ContentConfigRaw> {
     if let Some(services) = ctx.content_config::<ServicesConfig>() {
         return Ok(&services.content.raw);
     }
-    ctx.content_config::<ContentConfigRaw>()
-        .ok_or_else(|| anyhow::anyhow!("ContentConfig not available in PageContext"))
+    ctx.content_config::<ContentConfigRaw>().ok_or_else(|| {
+        ProviderError::Configuration("ContentConfig not available in PageContext".into())
+    })
 }
 
 #[async_trait]
@@ -25,7 +25,7 @@ impl PageDataProvider for DefaultBrandingProvider {
         "default-branding"
     }
 
-    async fn provide_page_data(&self, ctx: &PageContext<'_>) -> Result<Value> {
+    async fn provide_page_data(&self, ctx: &PageContext<'_>) -> ProviderResult<Value> {
         let content_config = resolve_content_raw(ctx)?;
 
         let org = &content_config.metadata.structured_data.organization;

@@ -5,7 +5,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::{
-    RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
+    ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
 };
 use tokio::fs;
 
@@ -100,9 +100,9 @@ impl RssFeedProvider for DefaultRssFeedProvider {
             .collect()
     }
 
-    async fn feed_metadata(&self, ctx: &RssFeedContext<'_>) -> Result<RssFeedMetadata> {
+    async fn feed_metadata(&self, ctx: &RssFeedContext<'_>) -> ProviderResult<RssFeedMetadata> {
         let (title, description) = self.get_source_branding(ctx.source_name);
-        let global_config = Config::get()?;
+        let global_config = Config::get().map_err(|e| anyhow!(e))?;
 
         let language = if self.content_config.metadata.language.is_empty() {
             "en".to_string()
@@ -118,7 +118,11 @@ impl RssFeedProvider for DefaultRssFeedProvider {
         })
     }
 
-    async fn fetch_items(&self, ctx: &RssFeedContext<'_>, limit: i64) -> Result<Vec<RssFeedItem>> {
+    async fn fetch_items(
+        &self,
+        ctx: &RssFeedContext<'_>,
+        limit: i64,
+    ) -> ProviderResult<Vec<RssFeedItem>> {
         let source_config = self
             .content_config
             .content_sources

@@ -1,9 +1,8 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::AppPaths;
-use systemprompt_provider_contracts::{Job, JobContext, JobResult};
+use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 
 use crate::prerender::prerender_content;
 
@@ -24,7 +23,7 @@ impl Job for ContentPrerenderJob {
         "0 0 4 * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
         let db_pool = Arc::clone(
             ctx.db_pool::<DbPool>()
@@ -36,7 +35,9 @@ impl Job for ContentPrerenderJob {
             .as_ref();
 
         tracing::info!("Job started");
-        prerender_content(db_pool, paths).await?;
+        prerender_content(db_pool, paths)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
         let duration_ms = start_time.elapsed().as_millis() as u64;
         tracing::info!(duration_ms = duration_ms, "Job completed");
 

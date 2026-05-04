@@ -1,7 +1,6 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
 use crate::repository::SchedulerRepository;
@@ -23,7 +22,7 @@ impl Job for CleanupEmptyContextsJob {
         "0 0 */2 * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = std::sync::Arc::clone(
