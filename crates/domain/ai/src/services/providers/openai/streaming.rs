@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use futures::{Stream, StreamExt};
 use serde_json::json;
 use std::pin::Pin;
@@ -50,7 +51,7 @@ impl OpenAiProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await?;
-            return Err(anyhow!("OpenAI API error ({status}): {error_text}"));
+            return Err(anyhow!("OpenAI API error ({status}): {error_text}").into());
         }
 
         let stream = response
@@ -58,7 +59,7 @@ impl OpenAiProvider {
             .map(|chunk| -> Result<Vec<StreamChunk>> {
                 match chunk {
                     Ok(bytes) => Ok(parse_openai_sse_chunks(&bytes)),
-                    Err(e) => Err(anyhow!("Stream error: {e}")),
+                    Err(e) => Err(anyhow!("Stream error: {e}").into()),
                 }
             })
             .flat_map(|result| match result {

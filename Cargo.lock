@@ -4383,6 +4383,7 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.18",

@@ -1,3 +1,9 @@
+//! Domain data types for the AI crate.
+//!
+//! Includes request records, message and tool-call rows, status enums,
+//! image-generation parameters, and provider request/response shapes used
+//! internally by the [`crate::services`] module.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
