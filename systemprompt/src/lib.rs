@@ -37,38 +37,38 @@ pub mod database {
     pub use systemprompt_database::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "logging")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logging")))]
 pub mod logging {
     pub use systemprompt_logging::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "config")]
+#[cfg_attr(docsrs, doc(cfg(feature = "config")))]
 pub mod config {
     pub use systemprompt_config::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "loader")]
+#[cfg_attr(docsrs, doc(cfg(feature = "loader")))]
 pub mod loader {
     pub use systemprompt_loader::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "events")]
+#[cfg_attr(docsrs, doc(cfg(feature = "events")))]
 pub mod events {
     pub use systemprompt_events::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "client")]
+#[cfg_attr(docsrs, doc(cfg(feature = "client")))]
 pub mod client {
     pub use systemprompt_client::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "security")]
+#[cfg_attr(docsrs, doc(cfg(feature = "security")))]
 pub mod security {
     pub use systemprompt_security::*;
 }
