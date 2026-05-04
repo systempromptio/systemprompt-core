@@ -1,3 +1,5 @@
+//! Execution-trace identifiers.
+
 crate::define_id!(ExecutionStepId, generate);
 crate::define_id!(LogId, generate, schema);
 crate::define_id!(TokenId, generate);

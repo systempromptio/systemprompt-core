@@ -1,3 +1,24 @@
+/// Declares a typed string-newtype identifier.
+///
+/// Generated impls: `Debug`, `Clone`, `Eq`, `Hash`, `Display`, `serde`,
+/// optional `sqlx::Type`, and `ToDbValue` interop.
+///
+/// Variants:
+///
+/// | Form | Semantics |
+/// |------|-----------|
+/// | `define_id!(Name)` | Plain newtype. `new` accepts any `Into<String>` and never fails. |
+/// | `define_id!(Name, non_empty)` | `try_new` rejects empty strings; `new` panics on empty. |
+/// | `define_id!(Name, validated, validator_fn)` | `try_new` runs `validator_fn(&str) -> Result<(), IdValidationError>`. |
+/// | `define_id!(Name, generate)` | Adds `Name::generate()` returning a fresh UUID-backed value. |
+/// | `define_id!(Name, system)` | Adds `Name::system()` returning the literal `"system"`. |
+/// | `define_id!(Name, generate, system)` | Both `generate()` and `system()` constructors. |
+/// | `define_id!(Name, schema)` | Plain newtype that also derives `schemars::JsonSchema`. |
+/// | `define_id!(Name, generate, schema)` | Schema-derived newtype with `generate()`. |
+///
+/// All variants implement `ToDbValue`/`AsRef<str>`/`Display`, plus
+/// `From<String>`, `From<&str>` for unvalidated forms (and
+/// `TryFrom`/`FromStr`/`Deserialize` for validated forms).
 #[macro_export]
 macro_rules! define_id {
     ($name:ident) => {
@@ -8,10 +29,12 @@ macro_rules! define_id {
         pub struct $name(String);
 
         impl $name {
+            /// Wraps a string value as this typed identifier without validation.
             pub fn new(id: impl Into<String>) -> Self {
                 Self(id.into())
             }
 
+            /// Returns the inner string value.
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -40,6 +63,7 @@ macro_rules! define_id {
         pub struct $name(String);
 
         impl $name {
+            /// Validates and constructs the identifier, rejecting empty strings.
             pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
                 let value = value.into();
                 if value.is_empty() {
@@ -48,11 +72,18 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
+            /// Constructs the identifier, panicking on validation failure.
+            ///
+            /// Prefer `try_new` for any value not known at compile time.
+            // Why: panicking convenience constructor for static call sites where
+            // the input is known-valid; clippy's expect lint is suppressed
+            // because validation failure here is a programmer-bug invariant.
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
             }
 
+            /// Returns the inner string value.
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -70,6 +101,7 @@ macro_rules! define_id {
         pub struct $name(String);
 
         impl $name {
+            /// Validates and constructs the identifier using the supplied validator.
             pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
                 let value = value.into();
                 let validator: fn(&str) -> Result<(), $crate::error::IdValidationError> = $validator;
@@ -77,11 +109,15 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
+            /// Constructs the identifier, panicking on validation failure.
+            // Why: panicking convenience constructor for static call sites
+            // where the input is known-valid.
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 
+            /// Returns the inner string value.
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -95,6 +131,7 @@ macro_rules! define_id {
         $crate::define_id!($name);
 
         impl $name {
+            /// Mints a fresh identifier backed by a v4 UUID.
             pub fn generate() -> Self {
                 Self(uuid::Uuid::new_v4().to_string())
             }
@@ -105,6 +142,7 @@ macro_rules! define_id {
         $crate::define_id!($name);
 
         impl $name {
+            /// Returns the canonical `"system"` identifier.
             pub fn system() -> Self {
                 Self("system".to_string())
             }
@@ -115,10 +153,12 @@ macro_rules! define_id {
         $crate::define_id!($name);
 
         impl $name {
+            /// Mints a fresh identifier backed by a v4 UUID.
             pub fn generate() -> Self {
                 Self(uuid::Uuid::new_v4().to_string())
             }
 
+            /// Returns the canonical `"system"` identifier.
             pub fn system() -> Self {
                 Self("system".to_string())
             }
@@ -133,10 +173,12 @@ macro_rules! define_id {
         pub struct $name(String);
 
         impl $name {
+            /// Wraps a string value as this typed identifier without validation.
             pub fn new(id: impl Into<String>) -> Self {
                 Self(id.into())
             }
 
+            /// Returns the inner string value.
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -161,6 +203,7 @@ macro_rules! define_id {
         $crate::define_id!(@ $name, schema);
 
         impl $name {
+            /// Mints a fresh identifier backed by a v4 UUID.
             pub fn generate() -> Self {
                 Self(uuid::Uuid::new_v4().to_string())
             }
@@ -175,10 +218,12 @@ macro_rules! define_id {
         pub struct $name(String);
 
         impl $name {
+            /// Wraps a string value as this typed identifier without validation.
             pub fn new(id: impl Into<String>) -> Self {
                 Self(id.into())
             }
 
+            /// Returns the inner string value.
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -199,188 +244,3 @@ macro_rules! define_id {
         $crate::__define_id_common!($name);
     };
 }
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __define_id_common {
-    ($name:ident) => {
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.0)
-            }
-        }
-
-        impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str {
-                &self.0
-            }
-        }
-
-        impl $crate::ToDbValue for $name {
-            fn to_db_value(&self) -> $crate::DbValue {
-                $crate::DbValue::String(self.0.clone())
-            }
-        }
-
-        impl $crate::ToDbValue for &$name {
-            fn to_db_value(&self) -> $crate::DbValue {
-                $crate::DbValue::String(self.0.clone())
-            }
-        }
-
-        impl From<$name> for String {
-            fn from(id: $name) -> Self {
-                id.0
-            }
-        }
-
-        impl From<&$name> for String {
-            fn from(id: &$name) -> Self {
-                id.0.clone()
-            }
-        }
-
-        impl PartialEq<&str> for $name {
-            fn eq(&self, other: &&str) -> bool {
-                self.0 == *other
-            }
-        }
-
-        impl PartialEq<str> for $name {
-            fn eq(&self, other: &str) -> bool {
-                self.0 == other
-            }
-        }
-
-        impl PartialEq<$name> for &str {
-            fn eq(&self, other: &$name) -> bool {
-                *self == other.0
-            }
-        }
-
-        impl PartialEq<$name> for str {
-            fn eq(&self, other: &$name) -> bool {
-                self == other.0
-            }
-        }
-
-        impl std::borrow::Borrow<str> for $name {
-            fn borrow(&self) -> &str {
-                &self.0
-            }
-        }
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __define_id_validated_conversions {
-    ($name:ident) => {
-        impl TryFrom<String> for $name {
-            type Error = $crate::error::IdValidationError;
-
-            fn try_from(s: String) -> Result<Self, Self::Error> {
-                Self::try_new(s)
-            }
-        }
-
-        impl TryFrom<&str> for $name {
-            type Error = $crate::error::IdValidationError;
-
-            fn try_from(s: &str) -> Result<Self, Self::Error> {
-                Self::try_new(s)
-            }
-        }
-
-        impl std::str::FromStr for $name {
-            type Err = $crate::error::IdValidationError;
-
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Self::try_new(s)
-            }
-        }
-
-        impl<'de> serde::Deserialize<'de> for $name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let s = String::deserialize(deserializer)?;
-                Self::try_new(s).map_err(serde::de::Error::custom)
-            }
-        }
-    };
-}
-
-pub use __define_id_common;
-pub use __define_id_validated_conversions;
-pub use define_id;
-
-#[macro_export]
-macro_rules! define_token {
-    ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
-        #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-        #[cfg_attr(feature = "sqlx", sqlx(transparent))]
-        #[serde(transparent)]
-        pub struct $name(String);
-
-        impl $name {
-            pub fn new(token: impl Into<String>) -> Self {
-                Self(token.into())
-            }
-
-            pub fn as_str(&self) -> &str {
-                &self.0
-            }
-
-            #[must_use]
-            pub fn redacted(&self) -> String {
-                let len = self.0.len();
-                if len <= 16 {
-                    "*".repeat(len.min(8))
-                } else {
-                    format!("{}...{}", &self.0[..8], &self.0[len - 4..])
-                }
-            }
-        }
-
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.redacted())
-            }
-        }
-
-        impl From<String> for $name {
-            fn from(s: String) -> Self {
-                Self(s)
-            }
-        }
-
-        impl From<&str> for $name {
-            fn from(s: &str) -> Self {
-                Self(s.to_string())
-            }
-        }
-
-        impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str {
-                &self.0
-            }
-        }
-
-        impl $crate::ToDbValue for $name {
-            fn to_db_value(&self) -> $crate::DbValue {
-                $crate::DbValue::String(self.0.clone())
-            }
-        }
-
-        impl $crate::ToDbValue for &$name {
-            fn to_db_value(&self) -> $crate::DbValue {
-                $crate::DbValue::String(self.0.clone())
-            }
-        }
-    };
-}
-
-pub use define_token;
