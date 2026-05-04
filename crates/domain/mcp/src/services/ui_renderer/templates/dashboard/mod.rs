@@ -3,8 +3,8 @@ mod section;
 use super::html::{
     HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
 };
+use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspBuilder, CspPolicy, UiRenderer, UiResource};
-use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
@@ -75,7 +75,7 @@ impl UiRenderer for DashboardRenderer {
         ArtifactType::Dashboard
     }
 
-    async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
+    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let sections = Self::extract_sections(artifact);
         let layout = Self::extract_layout(artifact);
         let title = artifact.title.as_deref().unwrap_or("Dashboard");

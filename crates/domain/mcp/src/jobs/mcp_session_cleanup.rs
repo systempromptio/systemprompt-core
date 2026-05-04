@@ -33,16 +33,17 @@ impl Job for McpSessionCleanupJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        let repo = McpSessionRepository::new(&db_pool)?;
+        let repo =
+            McpSessionRepository::new(&db_pool).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
         let expired = repo
             .cleanup_expired()
             .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
         let deleted = repo
             .delete_stale(STALE_SESSION_RETENTION_DAYS)
             .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

@@ -1,3 +1,35 @@
+//! Native Model Context Protocol (MCP) implementation for systemprompt.io.
+//!
+//! This crate hosts the in-process MCP server runtime, the
+//! registry/orchestrator that supervises per-tenant MCP child processes, the
+//! OAuth2/RBAC middleware, and the tool/resource/UI-renderer abstractions used
+//! across the platform.
+//!
+//! # Layered components
+//!
+//! - [`extension::McpExtension`] — `Extension` registration entry-point.
+//! - [`services::McpManager`], [`services::orchestrator::McpOrchestrator`] —
+//!   top-level service supervisors.
+//! - [`services::registry::RegistryManager`] — registry of MCP servers
+//!   configured via `services.yaml`.
+//! - [`services::tool_provider::McpToolProvider`] — tool-discovery + execution
+//!   facade.
+//! - [`middleware::rbac`] — JWT/proxy-verified RBAC layer.
+//! - [`orchestration`] — multi-server lifecycle/state management.
+//! - [`repository`] — Postgres persistence for sessions, artifacts, tool usage.
+//!
+//! # Feature matrix
+//!
+//! This crate has no Cargo features today; it is built as a single unit. The
+//! facade crate `systemprompt` gates this crate behind the `mcp` / `full`
+//! features.
+//!
+//! # Errors
+//!
+//! All public APIs return [`McpDomainResult`] — a typed `Result` aliased over
+//! [`McpDomainError`]. External error types (`sqlx`, `serde_json`, `io`,
+//! `anyhow`) are composed via `#[from]` on the error enum.
+
 pub(crate) mod capabilities;
 pub(crate) mod cli;
 pub(crate) mod error;
@@ -19,7 +51,10 @@ pub use extension::McpExtension;
 pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
 
+/// Wire-protocol version implemented by this crate's MCP server runtime.
 pub const MCP_PROTOCOL_VERSION: &str = "2024-11-05";
+
+/// Convenience alias for results returned from MCP request handlers.
 pub type McpResult<T> = Result<T, McpError>;
 
 pub use capabilities::{
@@ -57,10 +92,12 @@ pub use systemprompt_models::mcp::{
     McpProvider, McpRegistry, McpServerState,
 };
 
+/// Returns the `rmcp` runtime's currently-advertised protocol version string.
 pub fn mcp_protocol_version() -> String {
     ProtocolVersion::LATEST.to_string()
 }
 
+/// Public re-export of the registry surface.
 pub mod registry {
     pub use crate::services::registry::RegistryManager;
 }
@@ -128,6 +165,8 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     response
 }
 
+/// Build an axum router that mounts the MCP streamable-HTTP service at `/mcp`,
+/// with request logging and SSE-buffer-disable middleware applied.
 pub fn create_router<S>(server: S, db_pool: &DbPool) -> axum::Router
 where
     S: ServerHandler + Clone + Send + Sync + 'static,

@@ -1,6 +1,6 @@
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
+use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -32,7 +32,7 @@ impl UiRenderer for TextRenderer {
         ArtifactType::Text
     }
 
-    async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
+    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let text = Self::extract_text(artifact);
         let title = artifact.title.as_deref().unwrap_or("Text");
 

@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::error::McpDomainResult;
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use systemprompt_database::DatabaseProvider;
@@ -67,7 +68,7 @@ impl<'a> SchemaValidator<'a> {
         service_name: &str,
         service_path: &Path,
         schemas: &[SchemaDefinition],
-    ) -> Result<SchemaValidationReport> {
+    ) -> McpDomainResult<SchemaValidationReport> {
         let mut report = SchemaValidationReport::new(service_name.to_string());
 
         if self.mode == SchemaValidationMode::Skip {
@@ -93,7 +94,7 @@ impl<'a> SchemaValidator<'a> {
 
                     if self.mode == SchemaValidationMode::Strict {
                         report.errors.push(error_msg.clone());
-                        return Err(anyhow::anyhow!(error_msg));
+                        return Err(crate::error::McpDomainError::Internal(error_msg));
                     }
                     report.warnings.push(error_msg);
                 },
@@ -107,7 +108,7 @@ impl<'a> SchemaValidator<'a> {
         &self,
         service_path: &Path,
         schema_def: &SchemaDefinition,
-    ) -> Result<bool> {
+    ) -> McpDomainResult<bool> {
         let table_exists = self.table_exists(&schema_def.table).await?;
 
         if table_exists {
@@ -121,19 +122,23 @@ impl<'a> SchemaValidator<'a> {
             return Ok(true);
         }
 
-        anyhow::bail!(
+        Err(crate::error::McpDomainError::SchemaValidation(format!(
             "Table '{}' does not exist and auto_migrate is disabled",
             schema_def.table
-        );
+        )))
     }
 
-    async fn table_exists(&self, table_name: &str) -> Result<bool> {
+    async fn table_exists(&self, table_name: &str) -> McpDomainResult<bool> {
         let query = "SELECT name FROM sqlite_master WHERE type='table' AND name = ?";
         let row = self.db.fetch_optional(&query, &[&table_name]).await?;
         Ok(row.is_some())
     }
 
-    async fn validate_columns(&self, table_name: &str, required_columns: &[String]) -> Result<()> {
+    async fn validate_columns(
+        &self,
+        table_name: &str,
+        required_columns: &[String],
+    ) -> McpDomainResult<()> {
         let query = format!("PRAGMA table_info({table_name})");
         let rows = self.db.fetch_all(&query, &[]).await?;
 
@@ -152,7 +157,7 @@ impl<'a> SchemaValidator<'a> {
             .collect();
 
         if !missing_columns.is_empty() {
-            anyhow::bail!(
+            return Err(crate::error::McpDomainError::SchemaValidation(format!(
                 "Table '{}' is missing required columns: {}",
                 table_name,
                 missing_columns
@@ -160,13 +165,17 @@ impl<'a> SchemaValidator<'a> {
                     .map(|s| s.as_str())
                     .collect::<Vec<_>>()
                     .join(", ")
-            );
+            )));
         }
 
         Ok(())
     }
 
-    async fn create_table(&self, service_path: &Path, schema_def: &SchemaDefinition) -> Result<()> {
+    async fn create_table(
+        &self,
+        service_path: &Path,
+        schema_def: &SchemaDefinition,
+    ) -> McpDomainResult<()> {
         let sql = SchemaLoader::load_schema_file(service_path, &schema_def.file)
             .with_context(|| format!("Failed to load schema file: {}", schema_def.file))?;
 
@@ -181,10 +190,10 @@ impl<'a> SchemaValidator<'a> {
 
         let table_exists = self.table_exists(&schema_def.table).await?;
         if !table_exists {
-            anyhow::bail!(
+            return Err(crate::error::McpDomainError::SchemaValidation(format!(
                 "Schema executed but table '{}' was not created",
                 schema_def.table
-            );
+            )));
         }
 
         self.validate_columns(&schema_def.table, &schema_def.required_columns)
@@ -199,7 +208,7 @@ impl<'a> SchemaValidator<'a> {
         Ok(())
     }
 
-    pub async fn get_table_info(&self, table_name: &str) -> Result<Vec<(String, String)>> {
+    pub async fn get_table_info(&self, table_name: &str) -> McpDomainResult<Vec<(String, String)>> {
         let query = format!("PRAGMA table_info({table_name})");
         let rows = self.db.fetch_all(&query, &[]).await?;
 

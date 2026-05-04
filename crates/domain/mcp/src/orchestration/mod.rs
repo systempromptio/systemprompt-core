@@ -1,3 +1,5 @@
+//! Publicly re-exported submodule. See submodule rustdoc for details.
+
 mod loader;
 mod models;
 mod state;

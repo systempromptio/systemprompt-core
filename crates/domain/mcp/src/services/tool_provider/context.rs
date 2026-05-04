@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use systemprompt_identifiers::{
     AgentName, AiToolCallId, ContextId, SessionId, TaskId, TraceId, UserId,
 };
@@ -61,14 +61,15 @@ pub fn create_request_context(ctx: &ToolContext) -> Result<RequestContext, ToolP
     Ok(request_ctx)
 }
 
-pub fn load_agent_servers(agent_name: &str) -> Result<Vec<String>> {
+pub fn load_agent_servers(agent_name: &str) -> McpDomainResult<Vec<String>> {
     let config = DeploymentService::load_config()?;
     let agent_name_type = AgentName::new(agent_name);
 
-    let agent = config
-        .agents
-        .get(agent_name_type.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Agent '{agent_name}' not found in services.yaml"))?;
+    let agent = config.agents.get(agent_name_type.as_str()).ok_or_else(|| {
+        crate::error::McpDomainError::Configuration(format!(
+            "Agent {agent_name} not found in services.yaml"
+        ))
+    })?;
 
     Ok(agent.metadata.mcp_servers.clone())
 }
