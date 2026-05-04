@@ -134,6 +134,39 @@ audit:
 file-size:
     @find crates -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' -exec wc -l {} + | awk '$1>300 && $2!="total"'
 
+# Per-crate version of check-bans: scan ONLY one crate's src/ for the same banned patterns.
+# Used by Wave A–E worktree agents in the public-API compliance sweep so they can self-verify
+# without needing the whole workspace to be in a consistent state.
+check-bans-crate CRATE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    fail=0
+    crate_dir=$(find crates -maxdepth 4 -type d -name "{{CRATE}}" 2>/dev/null | head -1)
+    if [ -z "$crate_dir" ]; then
+        # Try mapping systemprompt-foo -> crates/.../foo
+        bare=$(echo "{{CRATE}}" | sed 's/^systemprompt-//; s/^systemprompt$/facade/')
+        crate_dir=$(find crates -maxdepth 4 -type d -name "$bare" 2>/dev/null | head -1)
+    fi
+    if [ -z "$crate_dir" ]; then
+        if [ -d "{{CRATE}}" ]; then crate_dir="{{CRATE}}"; fi
+    fi
+    if [ -z "$crate_dir" ] || [ ! -d "$crate_dir/src" ]; then
+        echo "check-bans-crate: cannot locate crate '{{CRATE}}' (looked under crates/ and as a literal path)"
+        exit 2
+    fi
+    echo "==> scanning $crate_dir/src"
+    echo "==> raw 'pub *: String' fields for *Id"
+    if grep -RInE 'pub +[a-z_]*id +: +String' "$crate_dir/src" 2>/dev/null; then fail=1; fi
+    echo "==> banned '*Manager' type names"
+    if grep -RInE '(struct|trait|impl|enum) +[A-Z][A-Za-z0-9]*Manager\b' "$crate_dir/src" 2>/dev/null; then fail=1; fi
+    echo "==> raw sqlx::query() outside documented allowlist"
+    matches=$(grep -RIn --include='*.rs' -E 'sqlx::query\s*\(' "$crate_dir/src" 2>/dev/null \
+        | grep -vE 'crates/infra/database/src/(admin/|services/postgres/(introspection|query_executor|transaction|ext)\.rs)' \
+        || true)
+    if [ -n "$matches" ]; then echo "$matches"; fail=1; fi
+    if [ $fail -ne 0 ]; then echo "check-bans-crate {{CRATE}}: violations found"; exit 1; fi
+    echo "check-bans-crate {{CRATE}}: ok"
+
 # Bespoke bans clippy can't catch: raw String IDs, *Manager names, raw sqlx::query() outside allowlist
 check-bans:
     #!/usr/bin/env bash
