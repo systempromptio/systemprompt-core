@@ -24,7 +24,7 @@ pub fn get_credentials() -> Result<CloudCredentials> {
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 
     if creds_path.exists() {
-        CloudCredentials::load_from_path(&creds_path)
+        CloudCredentials::load_from_path(&creds_path).map_err(Into::into)
     } else {
         bail!("Not logged in. Run 'systemprompt cloud login' first.")
     }

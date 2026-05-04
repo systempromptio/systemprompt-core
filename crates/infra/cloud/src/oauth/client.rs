@@ -1,16 +1,20 @@
-use anyhow::{Context, Result, anyhow};
+//! Browser-driven OAuth login flow used by `systemprompt cloud
+//! login`.
+
+use std::sync::Arc;
+
 use axum::Router;
 use axum::extract::Query;
 use axum::response::Html;
 use axum::routing::get;
 use reqwest::Client;
-use std::sync::Arc;
 use systemprompt_logging::CliService;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use tokio::sync::{Mutex, oneshot};
 
 use crate::OAuthProvider;
 use crate::constants::oauth::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};
+use crate::error::{CloudError, CloudResult};
 
 #[derive(serde::Deserialize)]
 struct CallbackParams {
@@ -24,18 +28,29 @@ struct AuthorizeResponse {
     authorize_url: String,
 }
 
+/// HTML templates rendered by the embedded callback server.
 #[derive(Debug, Clone, Copy)]
 pub struct OAuthTemplates {
+    /// Page shown when login completes successfully.
     pub success_html: &'static str,
+    /// Page shown on any error.
     pub error_html: &'static str,
 }
 
+/// Spin up the embedded callback server, open the browser, and
+/// resolve to the access token returned by the OAuth provider.
+///
+/// # Errors
+///
+/// Returns [`CloudError::OAuthFlow`] if the flow is cancelled, times
+/// out, or the embedded server stops, plus any propagated network /
+/// I/O errors.
 pub async fn run_oauth_flow(
     api_url: &str,
     provider: OAuthProvider,
     templates: OAuthTemplates,
-) -> Result<String> {
-    let (tx, rx) = oneshot::channel::<Result<String>>();
+) -> CloudResult<String> {
+    let (tx, rx) = oneshot::channel::<CloudResult<String>>();
     let tx = Arc::new(Mutex::new(Some(tx)));
 
     let success_html = templates.success_html.to_string();
@@ -50,15 +65,19 @@ pub async fn run_oauth_flow(
             let success_html = success_html.clone();
             let error_html = error_html.clone();
             async move {
-                let result = if let Some(error) = params.error {
+                let result: CloudResult<String> = if let Some(error) = params.error {
                     let desc = params
                         .error_description
                         .unwrap_or_else(|| "(no description provided)".into());
-                    Err(anyhow!("OAuth error: {} - {}", error, desc))
+                    Err(CloudError::OAuthFlow {
+                        message: format!("OAuth error: {error} - {desc}"),
+                    })
                 } else if let Some(token) = params.access_token {
                     Ok(token)
                 } else {
-                    Err(anyhow!("No token received in callback"))
+                    Err(CloudError::OAuthFlow {
+                        message: "No token received in callback".to_string(),
+                    })
                 };
 
                 let sender = tx.lock().await.take();
@@ -93,8 +112,7 @@ pub async fn run_oauth_flow(
     let client = Client::builder()
         .connect_timeout(HTTP_CONNECT_TIMEOUT)
         .timeout(HTTP_DEFAULT_TIMEOUT)
-        .build()
-        .context("Failed to build OAuth HTTP client")?;
+        .build()?;
     let oauth_endpoint = format!(
         "{}/api/v1/auth/oauth/{}?redirect_uri={}",
         api_url,
@@ -102,29 +120,20 @@ pub async fn run_oauth_flow(
         urlencoding::encode(&redirect_uri)
     );
 
-    let response = client
-        .get(&oauth_endpoint)
-        .send()
-        .await
-        .context("Failed to connect to API")?;
+    let response = client.get(&oauth_endpoint).send().await?;
 
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_else(|e| {
             tracing::warn!(error = %e, "Failed to read OAuth error response body");
-            format!("(body unreadable: {})", e)
+            format!("(body unreadable: {e})")
         });
-        return Err(anyhow!(
-            "Failed to get authorization URL ({}): {}",
-            status,
-            body
-        ));
+        return Err(CloudError::OAuthFlow {
+            message: format!("Failed to get authorization URL ({status}): {body}"),
+        });
     }
 
-    let auth_response: AuthorizeResponse = response
-        .json()
-        .await
-        .context("Failed to parse authorization response")?;
+    let auth_response: AuthorizeResponse = response.json().await?;
 
     let auth_url = auth_response.authorize_url;
 
@@ -147,13 +156,13 @@ pub async fn run_oauth_flow(
 
     tokio::select! {
         result = rx => {
-            result.map_err(|_| anyhow!("Authentication cancelled"))?
+            result.map_err(|_| CloudError::OAuthFlow { message: "Authentication cancelled".to_string() })?
         }
         _ = server => {
-            Err(anyhow!("Server stopped unexpectedly"))
+            Err(CloudError::OAuthFlow { message: "Server stopped unexpectedly".to_string() })
         }
         () = tokio::time::sleep(std::time::Duration::from_secs(CALLBACK_TIMEOUT_SECS)) => {
-            Err(anyhow!("Authentication timed out after {CALLBACK_TIMEOUT_SECS} seconds"))
+            Err(CloudError::OAuthFlow { message: format!("Authentication timed out after {CALLBACK_TIMEOUT_SECS} seconds") })
         }
     }
 }
