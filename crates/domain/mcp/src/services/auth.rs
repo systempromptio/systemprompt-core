@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::error::{McpDomainError, McpDomainResult};
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use systemprompt_models::auth::{JwtAudience, JwtClaims};
@@ -8,7 +8,7 @@ pub fn validate_jwt_token(
     jwt_secret: &str,
     issuer: &str,
     audiences: &[JwtAudience],
-) -> Result<JwtClaims> {
+) -> McpDomainResult<JwtClaims> {
     let mut validation = Validation::new(Algorithm::HS256);
 
     validation.set_issuer(&[issuer]);
@@ -21,12 +21,12 @@ pub fn validate_jwt_token(
         &DecodingKey::from_secret(jwt_secret.as_bytes()),
         &validation,
     )
-    .map_err(|e| anyhow!("JWT validation failed: {e}"))?;
+    .map_err(|e| McpDomainError::Internal(format!("JWT validation failed: {e}")))?;
 
     let now = Utc::now().timestamp();
 
     if token_data.claims.exp < now {
-        return Err(anyhow!("Token has expired"));
+        return Err(McpDomainError::Internal("Token has expired".to_string()));
     }
 
     Ok(token_data.claims)

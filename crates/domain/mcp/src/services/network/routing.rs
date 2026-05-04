@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use axum::Router;
 use systemprompt_models::Config;
 use tower_http::cors::CorsLayer;
@@ -7,7 +7,7 @@ pub fn create_base_router() -> Router {
     Router::new().route("/health", axum::routing::get(health_check))
 }
 
-pub fn apply_cors_layer(router: Router) -> Result<Router> {
+pub fn apply_cors_layer(router: Router) -> McpDomainResult<Router> {
     let config = Config::get()?;
 
     let mut cors_layer = CorsLayer::new()

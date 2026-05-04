@@ -1,6 +1,6 @@
+use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthStatus, perform_health_check};
 use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};
-use anyhow::Result;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 
@@ -17,7 +17,7 @@ pub struct ServiceStatus {
 
 pub async fn get_all_service_status(
     servers: &[McpServerConfig],
-) -> Result<HashMap<String, ServiceStatus>> {
+) -> McpDomainResult<HashMap<String, ServiceStatus>> {
     let mut status_map = HashMap::new();
 
     for server in servers {
@@ -28,7 +28,7 @@ pub async fn get_all_service_status(
     Ok(status_map)
 }
 
-async fn get_service_status(config: &McpServerConfig) -> Result<ServiceStatus> {
+async fn get_service_status(config: &McpServerConfig) -> McpDomainResult<ServiceStatus> {
     match perform_health_check(config).await {
         Ok(health_result) => {
             let state = match health_result.status {

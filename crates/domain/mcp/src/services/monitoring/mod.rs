@@ -3,7 +3,7 @@ pub mod proxy_health;
 pub mod status;
 
 use crate::McpServerConfig;
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -14,14 +14,17 @@ impl MonitoringManager {
         Self
     }
 
-    pub async fn check_health(&self, config: &McpServerConfig) -> Result<health::HealthStatus> {
+    pub async fn check_health(
+        &self,
+        config: &McpServerConfig,
+    ) -> McpDomainResult<health::HealthStatus> {
         health::check_service_health(config).await
     }
 
     pub async fn get_status_for_all(
         &self,
         servers: &[McpServerConfig],
-    ) -> Result<HashMap<String, status::ServiceStatus>> {
+    ) -> McpDomainResult<HashMap<String, status::ServiceStatus>> {
         status::get_all_service_status(servers).await
     }
 

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use systemprompt_database::{DbPool, ServiceRepository};
 
 use super::models::McpServiceState;
@@ -9,13 +9,13 @@ pub struct ServiceStateManager {
 }
 
 impl ServiceStateManager {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
+    pub fn new(db_pool: &DbPool) -> McpDomainResult<Self> {
         Ok(Self {
             service_repo: ServiceRepository::new(db_pool)?,
         })
     }
 
-    pub async fn get_mcp_service(&self, name: &str) -> Result<Option<McpServiceState>> {
+    pub async fn get_mcp_service(&self, name: &str) -> McpDomainResult<Option<McpServiceState>> {
         let service = self.service_repo.get_service_by_name(name).await?;
         Ok(service.map(|s| McpServiceState {
             name: s.name,
@@ -25,7 +25,7 @@ impl ServiceStateManager {
         }))
     }
 
-    pub async fn list_mcp_services(&self) -> Result<Vec<McpServiceState>> {
+    pub async fn list_mcp_services(&self) -> McpDomainResult<Vec<McpServiceState>> {
         let services = self.service_repo.get_mcp_services().await?;
         Ok(services
             .into_iter()
@@ -38,7 +38,7 @@ impl ServiceStateManager {
             .collect())
     }
 
-    pub async fn list_running_mcp_services(&self) -> Result<Vec<McpServiceState>> {
+    pub async fn list_running_mcp_services(&self) -> McpDomainResult<Vec<McpServiceState>> {
         let services = self.service_repo.get_mcp_services().await?;
         Ok(services
             .into_iter()

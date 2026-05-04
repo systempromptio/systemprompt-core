@@ -1,10 +1,13 @@
 use super::LifecycleManager;
 use crate::McpServerConfig;
+use crate::error::McpDomainResult;
 use crate::services::network::NetworkManager;
 use crate::services::process::ProcessManager;
-use anyhow::Result;
 
-pub async fn stop_server(manager: &LifecycleManager, config: &McpServerConfig) -> Result<()> {
+pub async fn stop_server(
+    manager: &LifecycleManager,
+    config: &McpServerConfig,
+) -> McpDomainResult<()> {
     tracing::info!(service = %config.name, "Stopping MCP service");
 
     let Some(pid) = find_running_process(manager, config).await? else {
@@ -29,7 +32,7 @@ pub async fn stop_server(manager: &LifecycleManager, config: &McpServerConfig) -
 async fn find_running_process(
     manager: &LifecycleManager,
     config: &McpServerConfig,
-) -> Result<Option<u32>> {
+) -> McpDomainResult<Option<u32>> {
     if let Some(db_service) = manager.database().get_service_by_name(&config.name).await? {
         if let Some(db_pid) = db_service.pid {
             if ProcessManager::is_running(db_pid as u32) {
@@ -38,14 +41,14 @@ async fn find_running_process(
         }
     }
 
-    ProcessManager::find_pid_by_port(config.port).map_err(Into::into)
+    ProcessManager::find_pid_by_port(config.port)
 }
 
 async fn perform_graceful_shutdown(
     manager: &LifecycleManager,
     config: &McpServerConfig,
     pid: u32,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, pid = pid, "Performing graceful shutdown");
 
     ProcessManager::terminate_gracefully(pid)?;
@@ -62,7 +65,10 @@ async fn perform_graceful_shutdown(
     Ok(())
 }
 
-async fn finalize_shutdown(manager: &LifecycleManager, config: &McpServerConfig) -> Result<()> {
+async fn finalize_shutdown(
+    manager: &LifecycleManager,
+    config: &McpServerConfig,
+) -> McpDomainResult<()> {
     manager
         .database()
         .update_service_status(&config.name, "stopped")
@@ -74,7 +80,10 @@ async fn finalize_shutdown(manager: &LifecycleManager, config: &McpServerConfig)
     Ok(())
 }
 
-async fn cleanup_stale_state(manager: &LifecycleManager, config: &McpServerConfig) -> Result<()> {
+async fn cleanup_stale_state(
+    manager: &LifecycleManager,
+    config: &McpServerConfig,
+) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, "Cleaning up stale database entries");
 
     if let Some(service) = manager.database().get_service_by_name(&config.name).await? {

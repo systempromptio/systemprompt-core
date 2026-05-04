@@ -1,10 +1,11 @@
-use anyhow::{Context, Result};
+use crate::error::McpDomainResult;
+use anyhow::Context;
 use std::process::Command;
 
 use super::utils::process_exists;
 
 #[cfg(unix)]
-pub fn terminate_gracefully(pid: u32) -> Result<()> {
+pub fn terminate_gracefully(pid: u32) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
@@ -15,14 +16,15 @@ pub fn terminate_gracefully(pid: u32) -> Result<()> {
 
     tracing::debug!(pid = pid, "Sending SIGTERM");
 
-    signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
-        .map_err(|e| anyhow::anyhow!("Failed to send SIGTERM to PID {pid}: {e}"))?;
+    signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!("Failed to send SIGTERM to PID {pid}: {e}"))
+    })?;
 
     Ok(())
 }
 
 #[cfg(windows)]
-pub fn terminate_gracefully(pid: u32) -> Result<()> {
+pub fn terminate_gracefully(pid: u32) -> McpDomainResult<()> {
     if !process_exists(pid) {
         tracing::debug!(pid = pid, "Process already terminated, skipping signal");
         return Ok(());
@@ -43,9 +45,9 @@ pub fn terminate_gracefully(pid: u32) -> Result<()> {
     Ok(())
 }
 
+/// Force-kill a unix process by PID, ignoring "process not found" errors.
 #[cfg(unix)]
-#[allow(clippy::unnecessary_wraps)]
-pub fn force_kill(pid: u32) -> Result<()> {
+pub fn force_kill(pid: u32) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
@@ -56,15 +58,15 @@ pub fn force_kill(pid: u32) -> Result<()> {
 
     tracing::debug!(pid = pid, "Force killing process");
 
-    if let Err(e) = signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL) {
-        tracing::warn!(pid = pid, error = %e, "Failed to force kill");
-    }
+    signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!("Failed to force kill PID {pid}: {e}"))
+    })?;
 
     Ok(())
 }
 
 #[cfg(windows)]
-pub fn force_kill(pid: u32) -> Result<()> {
+pub fn force_kill(pid: u32) -> McpDomainResult<()> {
     if !process_exists(pid) {
         tracing::debug!(pid = pid, "Process already terminated, skipping kill");
         return Ok(());
@@ -86,7 +88,7 @@ pub fn force_kill(pid: u32) -> Result<()> {
 }
 
 #[cfg(unix)]
-pub async fn cleanup_port_processes(port: u16) -> Result<Vec<u32>> {
+pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
     tracing::debug!(port = port, "Cleaning up processes on port");
 
     let output = Command::new("lsof")
@@ -121,7 +123,7 @@ pub async fn cleanup_port_processes(port: u16) -> Result<Vec<u32>> {
 }
 
 #[cfg(windows)]
-pub async fn cleanup_port_processes(port: u16) -> Result<Vec<u32>> {
+pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
     tracing::debug!(port = port, "Cleaning up processes on port");
 
     let output = Command::new("netstat")

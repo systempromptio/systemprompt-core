@@ -1,10 +1,13 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use systemprompt_database::DbPool;
 
 use crate::McpServerConfig;
 use crate::services::schema::{SchemaValidationMode, SchemaValidationReport, SchemaValidator};
 
-pub async fn validate_schemas(servers: &[McpServerConfig], db_pool: &DbPool) -> Result<()> {
+pub async fn validate_schemas(
+    servers: &[McpServerConfig],
+    db_pool: &DbPool,
+) -> McpDomainResult<()> {
     let schema_report = validate_and_migrate_schemas(servers, db_pool).await?;
 
     report_schema_errors(&schema_report)?;
@@ -16,7 +19,7 @@ pub async fn validate_schemas(servers: &[McpServerConfig], db_pool: &DbPool) -> 
     Ok(())
 }
 
-fn report_schema_errors(report: &SchemaValidationReport) -> Result<()> {
+fn report_schema_errors(report: &SchemaValidationReport) -> McpDomainResult<()> {
     if report.errors.is_empty() {
         return Ok(());
     }
@@ -25,16 +28,16 @@ fn report_schema_errors(report: &SchemaValidationReport) -> Result<()> {
         tracing::error!(error = %error, "Schema validation error");
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "Schema validation failed with {} errors",
         report.errors.len()
-    ))
+    )))
 }
 
 pub async fn validate_and_migrate_schemas(
     servers: &[McpServerConfig],
     db_pool: &DbPool,
-) -> Result<SchemaValidationReport> {
+) -> McpDomainResult<SchemaValidationReport> {
     let validator = create_schema_validator(db_pool)?;
     let mut combined_report = SchemaValidationReport::new("all".to_string());
 
@@ -45,7 +48,7 @@ pub async fn validate_and_migrate_schemas(
     Ok(combined_report)
 }
 
-fn create_schema_validator(db_pool: &DbPool) -> Result<SchemaValidator<'_>> {
+fn create_schema_validator(db_pool: &DbPool) -> McpDomainResult<SchemaValidator<'_>> {
     use systemprompt_loader::ConfigLoader;
 
     let services_config = ConfigLoader::load()?;

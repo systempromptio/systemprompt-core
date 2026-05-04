@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_models::AppPaths;
 
@@ -30,7 +30,7 @@ pub async fn register_service(
     config: &McpServerConfig,
     pid: u32,
     _startup_time: Option<i32>,
-) -> Result<String> {
+) -> McpDomainResult<String> {
     let repo = ServiceRepository::new(db_pool)?;
     let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
 
@@ -67,15 +67,15 @@ pub async fn register_service(
 pub async fn unregister_service(
     db_pool: &systemprompt_database::DbPool,
     service_name: &str,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let repo = ServiceRepository::new(db_pool)?;
-    repo.delete_service(service_name).await
+    repo.delete_service(service_name).await.map_err(Into::into)
 }
 
 pub async fn get_service_by_name(
     db_pool: &systemprompt_database::DbPool,
     name: &str,
-) -> Result<Option<ServiceInfo>> {
+) -> McpDomainResult<Option<ServiceInfo>> {
     let repo = ServiceRepository::new(db_pool)?;
     let result = repo.get_service_by_name(name).await?;
 
@@ -90,7 +90,7 @@ pub async fn get_service_by_name(
 
 pub async fn get_running_servers(
     db_pool: &systemprompt_database::DbPool,
-) -> Result<Vec<McpServerConfig>> {
+) -> McpDomainResult<Vec<McpServerConfig>> {
     use crate::services::registry::RegistryManager;
 
     let repo = ServiceRepository::new(db_pool)?;
@@ -115,9 +115,11 @@ pub async fn update_service_state(
     name: &str,
     status: &str,
     _pid: Option<u32>,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let repo = ServiceRepository::new(db_pool)?;
-    repo.update_service_status(name, status).await
+    repo.update_service_status(name, status)
+        .await
+        .map_err(Into::into)
 }
 
 pub async fn register_existing_process(
@@ -125,7 +127,7 @@ pub async fn register_existing_process(
     paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
-) -> Result<String> {
+) -> McpDomainResult<String> {
     let repo = ServiceRepository::new(db_pool)?;
 
     let binary_mtime = get_binary_mtime_for_service(paths, &config.name);

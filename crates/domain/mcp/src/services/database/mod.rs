@@ -28,27 +28,19 @@ impl DatabaseManager {
         pid: u32,
         startup_time: Option<i32>,
     ) -> McpDomainResult<String> {
-        state::register_service(&self.db_pool, &self.app_paths, config, pid, startup_time)
-            .await
-            .map_err(Into::into)
+        state::register_service(&self.db_pool, &self.app_paths, config, pid, startup_time).await
     }
 
     pub async fn unregister_service(&self, service_name: &str) -> McpDomainResult<()> {
-        state::unregister_service(&self.db_pool, service_name)
-            .await
-            .map_err(Into::into)
+        state::unregister_service(&self.db_pool, service_name).await
     }
 
     pub async fn get_service_by_name(&self, name: &str) -> McpDomainResult<Option<ServiceInfo>> {
-        state::get_service_by_name(&self.db_pool, name)
-            .await
-            .map_err(Into::into)
+        state::get_service_by_name(&self.db_pool, name).await
     }
 
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
-        state::get_running_servers(&self.db_pool)
-            .await
-            .map_err(Into::into)
+        state::get_running_servers(&self.db_pool).await
     }
 
     pub async fn update_service_status(&self, name: &str, status: &str) -> McpDomainResult<()> {
@@ -64,30 +56,22 @@ impl DatabaseManager {
     }
 
     pub async fn cleanup_stale_services(&self) -> McpDomainResult<()> {
-        sync::cleanup_stale_services(&self.db_pool)
-            .await
-            .map_err(Into::into)
+        sync::cleanup_stale_services(&self.db_pool).await
     }
 
     pub async fn delete_crashed_services(&self) -> McpDomainResult<()> {
-        sync::delete_crashed_services(&self.db_pool)
-            .await
-            .map_err(Into::into)
+        sync::delete_crashed_services(&self.db_pool).await
     }
 
     pub async fn sync_state(&self, servers: &[McpServerConfig]) -> McpDomainResult<()> {
-        sync::sync_database_state(&self.db_pool, servers)
-            .await
-            .map_err(Into::into)
+        sync::sync_database_state(&self.db_pool, servers).await
     }
 
     pub async fn delete_disabled_services(
         &self,
         enabled_servers: &[McpServerConfig],
     ) -> McpDomainResult<usize> {
-        sync::delete_disabled_services(&self.db_pool, enabled_servers)
-            .await
-            .map_err(Into::into)
+        sync::delete_disabled_services(&self.db_pool, enabled_servers).await
     }
 
     pub async fn register_existing_process(
@@ -95,9 +79,7 @@ impl DatabaseManager {
         config: &McpServerConfig,
         pid: u32,
     ) -> McpDomainResult<String> {
-        state::register_existing_process(&self.db_pool, &self.app_paths, config, pid)
-            .await
-            .map_err(Into::into)
+        state::register_existing_process(&self.db_pool, &self.app_paths, config, pid).await
     }
 
     pub const fn db_pool(&self) -> &systemprompt_database::DbPool {

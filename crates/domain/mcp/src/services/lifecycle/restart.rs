@@ -1,9 +1,12 @@
 use super::{LifecycleManager, shutdown, startup};
 use crate::McpServerConfig;
+use crate::error::McpDomainResult;
 use crate::services::process::ProcessManager;
-use anyhow::Result;
 
-pub async fn restart_server(manager: &LifecycleManager, config: &McpServerConfig) -> Result<()> {
+pub async fn restart_server(
+    manager: &LifecycleManager,
+    config: &McpServerConfig,
+) -> McpDomainResult<()> {
     tracing::info!(service = %config.name, "Restarting service");
 
     tracing::debug!(service = %config.name, "Stopping current instance");
@@ -21,15 +24,17 @@ pub async fn restart_server(manager: &LifecycleManager, config: &McpServerConfig
     Ok(())
 }
 
-async fn verify_clean_state(manager: &LifecycleManager, config: &McpServerConfig) -> Result<()> {
+async fn verify_clean_state(
+    manager: &LifecycleManager,
+    config: &McpServerConfig,
+) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, "Verifying clean state");
 
     if let Some(pid) = ProcessManager::find_pid_by_port(config.port)? {
-        return Err(anyhow::anyhow!(
+        return Err(crate::error::McpDomainError::Internal(format!(
             "Port {} still occupied by PID {}",
-            config.port,
-            pid
-        ));
+            config.port, pid
+        )));
     }
 
     if let Some(service) = manager.database().get_service_by_name(&config.name).await? {

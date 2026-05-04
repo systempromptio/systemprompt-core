@@ -1,20 +1,37 @@
+//! Role-based access control for MCP server requests.
+//!
+//! Validates a Bearer JWT (or proxy-verified identity headers) against the
+//! per-server `OAuthRequirement` declared in the registry config.
+
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, JwtClaims, Permission};
+use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
 
 use super::{extract_bearer_token, extract_request_context};
-use crate::services::auth::validate_jwt_token;
 
+#[path = "rbac/jwt.rs"]
+mod jwt;
+#[path = "rbac/proxy.rs"]
+mod proxy;
+
+use jwt::{validate_and_extract_claims, validate_audience, validate_scopes_for_permissions};
+use proxy::try_proxy_verified_auth;
+
+/// A request context that carries a verified authentication token.
 #[derive(Debug, Clone)]
 pub struct AuthenticatedRequestContext {
+    /// The underlying request context (user, session, headers).
     pub context: RequestContext,
+    /// Raw bearer token used for authentication.
     pub auth_token: String,
 }
 
 impl AuthenticatedRequestContext {
+    /// Construct a new authenticated context from a request context and bearer
+    /// token.
     pub const fn new(context: RequestContext, auth_token: String) -> Self {
         Self {
             context,
@@ -22,6 +39,7 @@ impl AuthenticatedRequestContext {
         }
     }
 
+    /// Borrow the bearer token.
     pub fn token(&self) -> &str {
         &self.auth_token
     }
@@ -35,13 +53,17 @@ impl std::ops::Deref for AuthenticatedRequestContext {
     }
 }
 
+/// Outcome of [`enforce_rbac_from_registry`].
 #[derive(Debug)]
 pub enum AuthResult {
+    /// The request did not require authentication.
     Anonymous(RequestContext),
+    /// The request was successfully authenticated.
     Authenticated(AuthenticatedRequestContext),
 }
 
 impl AuthResult {
+    /// Borrow the request context regardless of auth state.
     pub const fn context(&self) -> &RequestContext {
         match self {
             Self::Anonymous(ctx) => ctx,
@@ -49,6 +71,7 @@ impl AuthResult {
         }
     }
 
+    /// Mutably borrow the request context regardless of auth state.
     pub fn context_mut(&mut self) -> &mut RequestContext {
         match self {
             Self::Anonymous(ctx) => ctx,
@@ -56,6 +79,8 @@ impl AuthResult {
         }
     }
 
+    /// Require authentication, returning a typed `McpError` on anonymous
+    /// access.
     pub fn expect_authenticated(self, msg: &str) -> Result<AuthenticatedRequestContext, McpError> {
         match self {
             Self::Authenticated(auth_ctx) => Ok(auth_ctx),
@@ -64,6 +89,8 @@ impl AuthResult {
     }
 }
 
+/// Enforce RBAC for an MCP request against the registry-declared OAuth
+/// requirement.
 #[tracing::instrument(name = "mcp_rbac", skip_all)]
 pub fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
@@ -132,159 +159,6 @@ pub fn enforce_rbac_from_registry(
 
     let authenticated_context = build_authenticated_context(request_context, &claims, token)?;
     Ok(AuthResult::Authenticated(authenticated_context))
-}
-
-fn try_proxy_verified_auth(
-    mcp_context: &McpContext<RoleServer>,
-    request_context: RequestContext,
-    oauth_config: &crate::OAuthRequirement,
-    server_name: &str,
-) -> Result<Option<AuthResult>, McpError> {
-    let parts = mcp_context
-        .extensions
-        .get::<http::request::Parts>()
-        .ok_or_else(|| {
-            McpError::invalid_request("No HTTP parts in MCP context".to_string(), None)
-        })?;
-
-    let proxy_verified = parts
-        .headers
-        .get("x-proxy-verified")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| v == "true");
-
-    if !proxy_verified {
-        return Ok(None);
-    }
-
-    let user_id_str = parts
-        .headers
-        .get("x-user-id")
-        .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| {
-            McpError::invalid_request(
-                "Proxy-verified request missing x-user-id header".to_string(),
-                None,
-            )
-        })?;
-
-    let permissions = parts
-        .headers
-        .get("x-user-permissions")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| systemprompt_models::auth::parse_permissions(s).ok())
-        .ok_or_else(|| {
-            McpError::invalid_request(
-                "Proxy-verified request missing x-user-permissions header".to_string(),
-                None,
-            )
-        })?;
-
-    validate_scopes_for_permissions(server_name, &permissions, oauth_config)?;
-
-    let user_id: uuid::Uuid = user_id_str.parse().map_err(|e| {
-        McpError::invalid_request(format!("Invalid user ID in x-user-id header: {e}"), None)
-    })?;
-    let authenticated_user =
-        AuthenticatedUser::new(user_id, String::new(), String::new(), permissions);
-
-    let token = parts
-        .headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .ok_or_else(|| {
-            McpError::invalid_request(
-                "Proxy-verified request missing Authorization Bearer token".to_string(),
-                None,
-            )
-        })?
-        .to_string();
-
-    let context = request_context
-        .with_user(authenticated_user)
-        .with_user_id(UserId::new(user_id_str.to_string()));
-
-    tracing::info!(
-        server = %server_name,
-        user_id = %user_id_str,
-        "Authorized via proxy-verified identity"
-    );
-
-    Ok(Some(AuthResult::Authenticated(
-        AuthenticatedRequestContext::new(context, token),
-    )))
-}
-
-fn validate_and_extract_claims(server_name: &str, token: &str) -> Result<JwtClaims, McpError> {
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
-        tracing::error!(server = %server_name, error = %e, "Failed to get JWT secret");
-        McpError::invalid_request(format!("Failed to get JWT secret: {e}"), None)
-    })?;
-    let config = systemprompt_models::Config::get().map_err(|e| {
-        tracing::error!(server = %server_name, error = %e, "Failed to get config");
-        McpError::invalid_request(format!("Failed to get config: {e}"), None)
-    })?;
-    validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
-        tracing::error!(server = %server_name, error = %e, "JWT validation failed");
-        McpError::invalid_request(format!("Invalid JWT token: {e}"), None)
-    })
-}
-
-fn validate_audience(
-    server_name: &str,
-    claims: &JwtClaims,
-    oauth_config: &crate::OAuthRequirement,
-) -> Result<(), McpError> {
-    if claims.aud.contains(&oauth_config.audience) {
-        return Ok(());
-    }
-
-    tracing::error!(
-        server = %server_name,
-        expected = %oauth_config.audience,
-        actual = ?claims.aud,
-        "Invalid audience"
-    );
-    Err(McpError::invalid_request(
-        format!(
-            "Invalid audience. Expected '{}', got: {:?}",
-            oauth_config.audience, claims.aud
-        ),
-        None,
-    ))
-}
-
-fn validate_scopes_for_permissions(
-    server_name: &str,
-    user_permissions: &[Permission],
-    oauth_config: &crate::OAuthRequirement,
-) -> Result<(), McpError> {
-    let required_scopes = &oauth_config.scopes;
-
-    let has_required_scope = required_scopes.iter().any(|required| {
-        user_permissions
-            .iter()
-            .any(|user_perm| user_perm.implies(required))
-    });
-
-    if has_required_scope {
-        return Ok(());
-    }
-
-    tracing::error!(
-        server = %server_name,
-        required = ?required_scopes,
-        user_permissions = ?user_permissions,
-        "Insufficient permissions"
-    );
-    Err(McpError::invalid_request(
-        format!(
-            "Insufficient permissions. User must have one of: {required_scopes:?}, but has: \
-             {user_permissions:?}"
-        ),
-        None,
-    ))
 }
 
 fn build_authenticated_context(

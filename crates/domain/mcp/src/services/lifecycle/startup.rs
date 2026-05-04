@@ -1,10 +1,10 @@
 use super::LifecycleManager;
 use crate::McpServerConfig;
+use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthStatus, perform_health_check};
 use crate::services::network::NetworkManager;
 use crate::services::network::port_manager::MAX_PORT_CLEANUP_ATTEMPTS;
 use crate::services::process::ProcessManager;
-use anyhow::Result;
 use std::time::Duration;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
@@ -12,7 +12,7 @@ pub async fn start_server(
     manager: &LifecycleManager,
     config: &McpServerConfig,
     events: Option<&StartupEventSender>,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     tracing::debug!("Starting MCP server: {} :{}", config.name, config.port);
 
     if let Some(tx) = events {
@@ -46,7 +46,7 @@ async fn wait_for_startup(
     config: &McpServerConfig,
     expected_pid: u32,
     events: Option<&StartupEventSender>,
-) -> Result<Option<i32>> {
+) -> McpDomainResult<Option<i32>> {
     tracing::debug!(service = %config.name, "Waiting for service to become available");
 
     let start_time = std::time::Instant::now();
@@ -62,9 +62,9 @@ async fn wait_for_startup(
         }
 
         if !ProcessManager::is_running(expected_pid) {
-            return Err(anyhow::anyhow!(
+            return Err(crate::error::McpDomainError::Internal(format!(
                 "Process {expected_pid} died during startup"
-            ));
+            )));
         }
 
         if !NetworkManager::is_port_responsive(config.port) {
@@ -87,7 +87,7 @@ async fn wait_for_startup(
         tx.mcp_failed(&config.name, &error_msg);
     }
 
-    Err(anyhow::anyhow!("{}", error_msg))
+    Err(crate::error::McpDomainError::Internal(error_msg))
 }
 
 fn calculate_delay(attempt: u32, base_delay: Duration) -> Duration {
@@ -104,7 +104,7 @@ async fn check_health_status(
     max_attempts: u32,
     start_time: std::time::Instant,
     events: Option<&StartupEventSender>,
-) -> Result<Option<i32>> {
+) -> McpDomainResult<Option<i32>> {
     let health_result = match perform_health_check(config).await {
         Ok(r) => r,
         Err(e) => {

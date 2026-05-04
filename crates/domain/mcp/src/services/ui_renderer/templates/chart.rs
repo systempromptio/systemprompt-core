@@ -1,8 +1,8 @@
 use super::html::{
     HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
 };
+use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspBuilder, CspPolicy, UiRenderer, UiResource};
-use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
@@ -146,7 +146,7 @@ impl UiRenderer for ChartRenderer {
         ArtifactType::Chart
     }
 
-    async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
+    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let config = Self::extract_chart_config(artifact);
         let title = artifact.title.as_deref().unwrap_or("Chart");
         let chartjs_config = config.to_chartjs_config();

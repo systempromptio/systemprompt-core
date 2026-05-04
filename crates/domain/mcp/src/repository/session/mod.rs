@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -24,13 +24,13 @@ pub struct McpSessionRepository {
 }
 
 impl McpSessionRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
+    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
+        let pool = db.pool_arc().map_err(|e| {
+            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
+        })?;
+        let write_pool = db.write_pool_arc().map_err(|e| {
+            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
+        })?;
         Ok(Self { pool, write_pool })
     }
 
@@ -39,7 +39,7 @@ impl McpSessionRepository {
         session_id: &SessionId,
         user_id: Option<&UserId>,
         mcp_server_id: Option<&str>,
-    ) -> Result<()> {
+    ) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
             INSERT INTO mcp_sessions (session_id, user_id, mcp_server_id, status)
@@ -56,7 +56,7 @@ impl McpSessionRepository {
         Ok(())
     }
 
-    pub async fn exists(&self, session_id: &SessionId) -> Result<bool> {
+    pub async fn exists(&self, session_id: &SessionId) -> McpDomainResult<bool> {
         let result = sqlx::query_scalar!(
             r#"SELECT EXISTS(SELECT 1 FROM mcp_sessions WHERE session_id = $1) as "exists!""#,
             session_id.as_str()
@@ -67,7 +67,10 @@ impl McpSessionRepository {
         Ok(result)
     }
 
-    pub async fn find_active(&self, session_id: &SessionId) -> Result<Option<McpSessionRecord>> {
+    pub async fn find_active(
+        &self,
+        session_id: &SessionId,
+    ) -> McpDomainResult<Option<McpSessionRecord>> {
         let row = sqlx::query!(
             r#"
             SELECT
@@ -105,7 +108,7 @@ impl McpSessionRepository {
         &self,
         session_id: &SessionId,
         last_event_id: &str,
-    ) -> Result<()> {
+    ) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions
@@ -121,7 +124,7 @@ impl McpSessionRepository {
         Ok(())
     }
 
-    pub async fn update_activity(&self, session_id: &SessionId) -> Result<()> {
+    pub async fn update_activity(&self, session_id: &SessionId) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions
@@ -137,7 +140,7 @@ impl McpSessionRepository {
         Ok(())
     }
 
-    pub async fn close(&self, session_id: &SessionId) -> Result<()> {
+    pub async fn close(&self, session_id: &SessionId) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions
@@ -152,7 +155,7 @@ impl McpSessionRepository {
         Ok(())
     }
 
-    pub async fn delete_stale(&self, retention_days: i32) -> Result<u64> {
+    pub async fn delete_stale(&self, retention_days: i32) -> McpDomainResult<u64> {
         let result = sqlx::query!(
             r#"
             DELETE FROM mcp_sessions
@@ -167,7 +170,7 @@ impl McpSessionRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn cleanup_expired(&self) -> Result<u64> {
+    pub async fn cleanup_expired(&self) -> McpDomainResult<u64> {
         let result = sqlx::query!(
             r#"
             UPDATE mcp_sessions
