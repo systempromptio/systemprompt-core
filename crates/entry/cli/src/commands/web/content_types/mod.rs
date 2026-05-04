@@ -46,7 +46,7 @@ pub fn execute(command: ContentTypesCommands, config: &CliConfig) -> Result<()> 
             Ok(())
         },
         ContentTypesCommands::Edit(args) => {
-            let result = edit::execute(args, config).context("Failed to edit content type")?;
+            let result = edit::execute(&args, config).context("Failed to edit content type")?;
             render_result(&result);
             Ok(())
         },

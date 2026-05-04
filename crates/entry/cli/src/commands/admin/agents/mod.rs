@@ -92,7 +92,7 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
             Ok(())
         },
         AgentsCommands::Edit(args) => {
-            let result = edit::execute(args, config).context("Failed to edit agent")?;
+            let result = edit::execute(&args, config).context("Failed to edit agent")?;
             render_result(&result);
             Ok(())
         },

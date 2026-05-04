@@ -59,7 +59,7 @@ pub enum ProxyError {
     AuthenticationRequired { service: String },
 
     #[error("OAuth challenge response")]
-    AuthChallenge(Response<Body>),
+    AuthChallenge(Box<Response<Body>>),
 
     #[error("Access forbidden for service '{service}'")]
     Forbidden { service: String },
@@ -99,7 +99,7 @@ impl From<ProxyError> for StatusCode {
 impl IntoResponse for ProxyError {
     fn into_response(self) -> Response {
         match self {
-            Self::AuthChallenge(response) => response.into_response(),
+            Self::AuthChallenge(response) => (*response).into_response(),
             ref error => {
                 let status = error.to_status_code();
                 let error_type = match &self {

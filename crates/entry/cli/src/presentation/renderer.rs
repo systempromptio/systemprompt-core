@@ -34,17 +34,14 @@ impl StartupRenderer {
     }
 
     fn handle_event(&mut self, event: StartupEvent) -> bool {
-        let event = match self.handle_phase_event(event) {
-            None => return false,
-            Some(e) => e,
+        let Some(event) = self.handle_phase_event(event) else {
+            return false;
         };
-        let event = match self.handle_service_event(event) {
-            None => return false,
-            Some(e) => e,
+        let Some(event) = self.handle_service_event(event) else {
+            return false;
         };
-        let event = match self.handle_status_event(event) {
-            None => return false,
-            Some(e) => e,
+        let Some(event) = self.handle_status_event(event) else {
+            return false;
         };
         self.handle_terminal_event(event)
     }
