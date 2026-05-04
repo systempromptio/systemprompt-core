@@ -16,7 +16,8 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ClientId, ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
-use systemprompt_models::{Profile, ProfileBootstrap, Secrets, SecretsBootstrap};
+use systemprompt_models::{Profile, Secrets};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{User, UserService};
 

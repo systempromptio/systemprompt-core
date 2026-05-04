@@ -1,6 +1,6 @@
 use anyhow::Result;
 use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use crate::paths::ResolvedPaths;
 

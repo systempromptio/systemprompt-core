@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
 use serde_json::json;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_security::manifest_signing;
 
 pub async fn pubkey() -> impl IntoResponse {

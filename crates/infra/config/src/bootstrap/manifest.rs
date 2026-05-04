@@ -3,7 +3,7 @@ use base64::Engine;
 use rand::RngCore;
 use std::path::Path;
 
-use crate::secrets_bootstrap::SecretsBootstrapError;
+use super::secrets::SecretsBootstrapError;
 
 pub const MANIFEST_SIGNING_SEED_BYTES: usize = 32;
 

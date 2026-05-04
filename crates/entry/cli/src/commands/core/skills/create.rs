@@ -15,7 +15,7 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {

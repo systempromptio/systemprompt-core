@@ -190,7 +190,7 @@ fn extract_user_permissions(
         return Ok(vec![]);
     }
 
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
         .map_err(|e| anyhow::anyhow!("Failed to get JWT secret: {}", e))?;
 
     let config = systemprompt_models::Config::get()

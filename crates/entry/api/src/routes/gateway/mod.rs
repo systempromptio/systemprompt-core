@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_database::DbPool;
 use systemprompt_logging::{LogEntry, LogLevel, LoggingRepository};
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::JwtContextExtractor;

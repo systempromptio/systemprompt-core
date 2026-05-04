@@ -11,7 +11,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_identifiers::SkillId;
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {

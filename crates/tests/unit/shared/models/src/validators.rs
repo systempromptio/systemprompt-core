@@ -1,6 +1,7 @@
+use systemprompt_config::SkillConfigValidator;
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, SkillConfigValidator, WebConfigValidator,
+    RateLimitsConfigValidator, WebConfigValidator,
 };
 use systemprompt_traits::DomainConfig;
 

@@ -8,8 +8,9 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
-use systemprompt_models::{Profile, SecretsBootstrap};
+use systemprompt_config::ProfileBootstrap;
+use systemprompt_models::Profile;
+use systemprompt_config::SecretsBootstrap;
 
 use super::ProfileContext;
 use crate::paths::ResolvedPaths;

@@ -30,6 +30,9 @@ core = [
 # Database support
 database = ["dep:systemprompt-database", "dep:sqlx"]
 
+# Profile/secrets configuration loaders
+config = ["dep:systemprompt-config"]
+
 # MCP support (uses rmcp-macros from rmcp crate)
 mcp = ["dep:rmcp"]
 
@@ -50,7 +53,6 @@ cloud = ["dep:systemprompt-cloud"]
 
 # Granular infrastructure features (also bundled in `full`)
 logging = ["dep:systemprompt-logging"]
-config = ["dep:systemprompt-config"]
 loader = ["dep:systemprompt-loader"]
 events = ["dep:systemprompt-events"]
 client = ["dep:systemprompt-client"]

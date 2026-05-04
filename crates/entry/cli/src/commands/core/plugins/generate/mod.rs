@@ -36,7 +36,7 @@ pub fn execute(
     args: &GenerateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<PluginGenerateAllOutput>> {
-    let profile = systemprompt_models::ProfileBootstrap::get().context("Failed to get profile")?;
+    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let plugins_path = PathBuf::from(profile.paths.plugins());
     let skills_path = PathBuf::from(profile.paths.skills());
     let services_path = PathBuf::from(&profile.paths.services);

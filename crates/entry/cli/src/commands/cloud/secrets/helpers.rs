@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
 use systemprompt_identifiers::TenantId;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 pub fn get_tenant_id() -> Result<TenantId> {
     let profile =

@@ -2,7 +2,7 @@ use std::sync::Once;
 
 use base64::Engine;
 use ed25519_dalek::SigningKey;
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_security::manifest_signing;
 
 const SEED_B64: &str = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";

@@ -37,7 +37,7 @@ impl GatewayService {
             .find_route(&request.model)
             .ok_or_else(|| anyhow!("No gateway route matches model '{}'", request.model))?;
 
-        let secrets = systemprompt_models::SecretsBootstrap::get()
+        let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| anyhow!("Secrets not available: {e}"))?;
 
         let upstream_api_key = secrets.get(&route.api_key_secret).ok_or_else(|| {

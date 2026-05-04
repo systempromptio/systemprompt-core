@@ -17,7 +17,7 @@ pub fn execute(
     _args: ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<HookValidateOutput>> {
-    let profile = systemprompt_models::ProfileBootstrap::get().context("Failed to get profile")?;
+    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let plugins_path = std::path::PathBuf::from(profile.paths.plugins());
 
     let results = validate_all_hooks(&plugins_path)?;

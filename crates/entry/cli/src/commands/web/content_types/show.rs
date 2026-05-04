@@ -8,7 +8,7 @@ use crate::shared::CommandResult;
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_models::content_config::ContentConfigRaw;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::super::types::{
     BrandingInfo, ContentTypeDetailOutput, IndexingInfo, ParentRouteInfo, SitemapInfo,

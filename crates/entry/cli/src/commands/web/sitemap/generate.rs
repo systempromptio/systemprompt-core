@@ -9,7 +9,7 @@ use crate::shared::CommandResult;
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::super::types::SitemapGenerateOutput;
 

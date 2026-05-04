@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::OnceLock;
 
-use crate::profile::Profile;
+use systemprompt_models::profile::Profile;
 
 static PROFILE: OnceLock<Profile> = OnceLock::new();
 static PROFILE_PATH: OnceLock<String> = OnceLock::new();

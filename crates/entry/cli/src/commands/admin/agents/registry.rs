@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::Deserialize;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
 use crate::CliConfig;

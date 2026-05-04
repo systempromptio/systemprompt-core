@@ -12,7 +12,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {

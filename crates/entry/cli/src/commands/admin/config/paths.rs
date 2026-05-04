@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use std::path::Path;
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
 use crate::CliConfig;

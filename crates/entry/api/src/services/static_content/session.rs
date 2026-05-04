@@ -21,7 +21,7 @@ pub async fn ensure_session(
     uri: Option<&http::Uri>,
     ctx: &AppContext,
 ) -> Result<SessionInfo> {
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let config = systemprompt_models::Config::get()?;
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers) {

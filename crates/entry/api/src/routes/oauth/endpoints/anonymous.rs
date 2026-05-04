@@ -108,7 +108,7 @@ pub async fn generate_anonymous_token(
                 .await
             {
                 Ok(session_id) => {
-                    let jwt_secret = match systemprompt_models::SecretsBootstrap::jwt_secret() {
+                    let jwt_secret = match systemprompt_config::SecretsBootstrap::jwt_secret() {
                         Ok(s) => s,
                         Err(e) => {
                             return (
@@ -199,7 +199,7 @@ pub async fn generate_anonymous_token(
         }
     }
 
-    let jwt_secret = match systemprompt_models::SecretsBootstrap::jwt_secret() {
+    let jwt_secret = match systemprompt_config::SecretsBootstrap::jwt_secret() {
         Ok(s) => s,
         Err(e) => {
             return (

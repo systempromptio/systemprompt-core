@@ -5,7 +5,8 @@ use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError, Sessio
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
-use systemprompt_models::{AppPaths, Config, Profile, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{AppPaths, Config, Profile};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
@@ -138,7 +139,7 @@ pub fn init_secrets() -> Result<()> {
 pub fn init_paths() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
-    Config::try_init().context("Failed to initialize configuration")?;
+    systemprompt_config::try_init_config().context("Failed to initialize configuration")?;
     FilesConfig::init().context("Failed to initialize files configuration")?;
     Ok(())
 }

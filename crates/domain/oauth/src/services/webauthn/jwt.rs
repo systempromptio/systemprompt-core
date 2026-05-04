@@ -26,7 +26,7 @@ impl JwtTokenValidator {
             systemprompt_models::Config::get().map_err(|e| AuthError::AuthenticationFailed {
                 message: format!("Failed to get config: {e}"),
             })?;
-        let secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        let secret = systemprompt_config::SecretsBootstrap::jwt_secret()
             .map_err(|e| AuthError::AuthenticationFailed {
                 message: format!("Failed to get JWT secret: {e}"),
             })?

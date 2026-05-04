@@ -4,7 +4,8 @@ use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_database::Database;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, ProfileBootstrap};
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, AppContextParts};

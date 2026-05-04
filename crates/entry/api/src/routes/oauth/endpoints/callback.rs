@@ -156,7 +156,7 @@ async fn exchange_code_for_token(
         .await?;
 
     let access_token_jti = generate_access_token_jti();
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
     let config = JwtConfig {
         permissions: permissions.clone(),

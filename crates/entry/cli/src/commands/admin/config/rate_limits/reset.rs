@@ -1,6 +1,6 @@
 use anyhow::Result;
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::profile::RateLimitsConfig;
 
 use super::ResetArgs;

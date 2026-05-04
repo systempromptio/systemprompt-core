@@ -1,12 +1,8 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
-use std::sync::OnceLock;
 
-pub(crate) static SECRETS: OnceLock<Secrets> = OnceLock::new();
-
-pub(crate) const JWT_SECRET_MIN_LENGTH: usize = 32;
+pub const JWT_SECRET_MIN_LENGTH: usize = 32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Secrets {
@@ -64,16 +60,7 @@ impl Secrets {
         Ok(secrets)
     }
 
-    pub fn load_from_path(secrets_path: &Path) -> Result<Self> {
-        if !secrets_path.exists() {
-            anyhow::bail!("Secrets file not found: {}", secrets_path.display());
-        }
-        let content = std::fs::read_to_string(secrets_path)
-            .with_context(|| format!("Failed to read secrets: {}", secrets_path.display()))?;
-        Self::parse(&content)
-    }
-
-    pub(crate) fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         if self.jwt_secret.len() < JWT_SECRET_MIN_LENGTH {
             anyhow::bail!(
                 "jwt_secret must be at least {} characters (got {})",

@@ -71,7 +71,7 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
 }
 
 fn get_userinfo(token: &str) -> Result<UserinfoResponse> {
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let config = systemprompt_models::Config::get()?;
     let claims = validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences)?;
 

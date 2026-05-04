@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::Path;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::profile::RateLimitsConfig;
 
 use super::helpers::{load_profile_for_edit, save_profile};

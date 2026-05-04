@@ -2,7 +2,7 @@ use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use serde::Serialize;
 use std::sync::OnceLock;
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 
 pub fn signing_key() -> Result<&'static SigningKey, String> {
     static CELL: OnceLock<SigningKey> = OnceLock::new();

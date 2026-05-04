@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use systemprompt_models::Profile;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::validators::WebConfigRaw;
 
 const DEFAULT_TEMPLATES_PATH: &str = "web/templates";

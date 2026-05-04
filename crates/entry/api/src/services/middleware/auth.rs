@@ -95,7 +95,7 @@ impl<S: Send + Sync> FromRequestParts<S> for RequireAuth {
 }
 
 fn extract_optional_user(headers: &HeaderMap) -> Option<AuthenticatedUser> {
-    use systemprompt_models::SecretsBootstrap;
+    use systemprompt_config::SecretsBootstrap;
     use systemprompt_oauth::validate_jwt_token;
     use uuid::Uuid;
 

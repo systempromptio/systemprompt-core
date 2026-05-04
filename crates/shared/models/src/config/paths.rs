@@ -1,5 +1,3 @@
-//! Path error types for configuration.
-
 #[derive(Debug, Clone)]
 pub struct PathNotConfiguredError {
     pub path_name: String,
@@ -8,11 +6,15 @@ pub struct PathNotConfiguredError {
 
 impl PathNotConfiguredError {
     pub fn new(path_name: impl Into<String>) -> Self {
-        use crate::profile_bootstrap::ProfileBootstrap;
         Self {
             path_name: path_name.into(),
-            profile_path: ProfileBootstrap::get_path().ok().map(ToString::to_string),
+            profile_path: None,
         }
+    }
+
+    pub fn with_profile_path(mut self, profile_path: impl Into<String>) -> Self {
+        self.profile_path = Some(profile_path.into());
+        self
     }
 }
 

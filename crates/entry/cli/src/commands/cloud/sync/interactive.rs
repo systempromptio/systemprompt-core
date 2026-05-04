@@ -213,7 +213,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
 }
 
 async fn execute_local_skills_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
-    use systemprompt_models::ProfileBootstrap;
+    use systemprompt_config::ProfileBootstrap;
 
     ProfileBootstrap::init_from_path(&source.path)
         .context("Failed to initialize profile for skills sync")?;

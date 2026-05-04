@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
 use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 

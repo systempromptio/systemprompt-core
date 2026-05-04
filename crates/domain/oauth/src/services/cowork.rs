@@ -9,7 +9,8 @@ use systemprompt_identifiers::{
     ClientId, PolicyVersion, SessionId, SessionSource, TenantId, TraceId, UserId, headers,
 };
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::{Config, SecretsBootstrap};
+use systemprompt_models::Config;
+use systemprompt_config::SecretsBootstrap;
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
 use crate::services::generation::{

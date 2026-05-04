@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::SetArgs;
 use super::helpers::{

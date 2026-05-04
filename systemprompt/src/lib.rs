@@ -176,7 +176,8 @@ pub mod profile {
     pub use systemprompt_models::profile::{
         CloudConfig, CloudValidationMode, Profile, ProfileStyle,
     };
-    pub use systemprompt_models::profile_bootstrap::{ProfileBootstrap, ProfileBootstrapError};
+    #[cfg(feature = "config")]
+    pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};
 }
 
 #[cfg(feature = "cloud")]

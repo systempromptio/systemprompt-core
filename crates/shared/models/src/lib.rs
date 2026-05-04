@@ -1,5 +1,4 @@
 pub mod macros;
-pub mod manifest_seed;
 
 pub mod a2a;
 pub mod admin;
@@ -8,7 +7,6 @@ pub mod ai;
 pub mod api;
 pub mod artifacts;
 pub mod auth;
-pub mod bootstrap;
 pub mod config;
 pub mod content;
 pub mod content_config;
@@ -22,11 +20,9 @@ pub mod net;
 pub mod oauth;
 pub mod paths;
 pub mod profile;
-pub mod profile_bootstrap;
 pub mod repository;
 pub mod routing;
 pub mod secrets;
-pub mod secrets_bootstrap;
 pub mod services;
 pub mod text;
 pub mod time_format;
@@ -126,11 +122,9 @@ pub use profile::{
     PathsConfig, Profile, ProfileInfo, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
     SecurityConfig, SecurityHeadersConfig, ServerConfig, SiteConfig,
 };
-pub use profile_bootstrap::{ProfileBootstrap, ProfileBootstrapError};
 pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};
 pub use routing::{ApiCategory, AssetType, RouteClassifier, RouteType};
 pub use secrets::Secrets;
-pub use secrets_bootstrap::*;
 pub use services::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
     AgentSummary, AiConfig, AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource,

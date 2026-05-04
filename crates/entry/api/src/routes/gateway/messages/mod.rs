@@ -9,7 +9,8 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::{Profile, ProfileBootstrap};
+use systemprompt_models::Profile;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::JwtContextExtractor;
