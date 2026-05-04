@@ -1,3 +1,6 @@
+//! Post-build validation: confirms `dist/index.html` exists and that every
+//! URL in `sitemap.xml` resolves to a generated HTML file.
+
 use quick_xml::de::from_str;
 use serde::Deserialize;
 use std::path::Path;
@@ -22,6 +25,8 @@ struct ValidationError {
     expected_file: String,
 }
 
+/// Validate that the freshly-built `web_dir/dist` directory has the expected
+/// shape and that every sitemap URL resolves to a generated HTML file.
 pub async fn validate_build(web_dir: &Path) -> Result<()> {
     let dist_dir = web_dir.join("dist");
     validate_required_paths(&dist_dir)?;
@@ -90,7 +95,13 @@ fn check_url_exists(
     entry: &UrlEntry,
     dist_dir: &Path,
 ) -> Option<std::result::Result<(), ValidationError>> {
-    let path = extract_path_from_url(&entry.loc).ok()?;
+    let path = match extract_path_from_url(&entry.loc) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(url = %entry.loc, error = %e, "Skipping unparseable sitemap URL");
+            return None;
+        },
+    };
     let html_path = resolve_html_path(dist_dir, &path);
     Some(check_html_exists(&entry.loc, &path, &html_path))
 }

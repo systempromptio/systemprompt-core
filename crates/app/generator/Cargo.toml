@@ -104,5 +104,8 @@ async-trait = { workspace = true }
 default = []
 image-processing = ["dep:image"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -1,3 +1,7 @@
+//! Scheduled jobs registered with the systemprompt scheduler via the
+//! `inventory` crate: content prerender, page prerender, and copy-extension
+//! -assets.
+
 mod content_prerender;
 mod copy_assets;
 mod page_prerender;

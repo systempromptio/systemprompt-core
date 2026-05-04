@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_models::{AppPaths, Config, WebConfig, WebConfigError};
 use tokio::fs;
 
+/// Load and validate `web.yaml` from `paths`, resolving relative path entries
+/// against the system root.
 pub async fn load_web_config(paths: &AppPaths) -> Result<WebConfig, WebConfigError> {
     let config = Config::get().map_err(|e| WebConfigError::InvalidValue {
         field: "config".to_string(),
@@ -38,6 +40,9 @@ fn validate_paths(config: &WebConfig) -> Result<(), WebConfigError> {
     Ok(())
 }
 
+/// Resolve the on-disk templates directory: prefers `web.yaml`'s
+/// `paths.templates` when set and existing, otherwise falls back to
+/// `<web_root>/templates`.
 pub fn get_templates_path(config: &WebConfig, paths: &AppPaths) -> PathBuf {
     let configured = &config.paths.templates;
     if !configured.is_empty() {
