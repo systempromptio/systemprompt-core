@@ -1,16 +1,15 @@
+mod config;
 mod deploy_steps;
 mod pre_sync;
+mod pre_sync_config;
+mod pre_sync_display;
 mod select;
 
 pub use deploy_steps::deploy_with_secrets;
 
-use std::path::PathBuf;
-
 use anyhow::{Context, Result, anyhow, bail};
-use systemprompt_cloud::constants::{build, container, paths};
-use systemprompt_cloud::{
-    CloudApiClient, CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths,
-};
+use systemprompt_cloud::constants::{container, paths};
+use systemprompt_cloud::{CloudApiClient, CloudPath, ProfilePath, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
@@ -20,164 +19,9 @@ use super::tenant::{find_services_config, get_credentials};
 use crate::cli_settings::CliConfig;
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
 use crate::shared::project::ProjectRoot;
+use config::DeployConfig;
 use select::resolve_profile;
-use systemprompt_extension::{AssetPaths, ExtensionRegistry};
 use systemprompt_loader::ConfigLoader;
-
-struct ProjectAssetPaths {
-    storage_files: PathBuf,
-    web_dist: PathBuf,
-}
-
-impl AssetPaths for ProjectAssetPaths {
-    fn storage_files(&self) -> &std::path::Path {
-        &self.storage_files
-    }
-    fn web_dist(&self) -> &std::path::Path {
-        &self.web_dist
-    }
-}
-
-#[derive(Debug)]
-pub struct DeployConfig {
-    pub binary: PathBuf,
-    pub dockerfile: PathBuf,
-    project_root: PathBuf,
-}
-
-impl DeployConfig {
-    pub fn from_project(project: &ProjectRoot, profile_name: &str) -> Result<Self> {
-        let root = project.as_path();
-        let binary = root
-            .join(build::CARGO_TARGET)
-            .join("release")
-            .join(build::BINARY_NAME);
-
-        let ctx = ProjectContext::new(root.to_path_buf());
-        let dockerfile = ctx.profile_dockerfile(profile_name);
-
-        let config = Self {
-            binary,
-            dockerfile,
-            project_root: root.to_path_buf(),
-        };
-        config.validate()?;
-        Ok(config)
-    }
-
-    fn validate(&self) -> Result<()> {
-        if !self.binary.exists() {
-            return Err(anyhow!(
-                "Release binary not found: {}\n\nRun: cargo build --release --bin systemprompt",
-                self.binary.display()
-            ));
-        }
-
-        self.validate_extension_assets()?;
-        self.validate_storage_directory()?;
-        self.validate_templates_directory()?;
-
-        if !self.dockerfile.exists() {
-            return Err(anyhow!(
-                "Dockerfile not found: {}\n\nCreate a Dockerfile at this location",
-                self.dockerfile.display()
-            ));
-        }
-
-        Ok(())
-    }
-
-    fn validate_extension_assets(&self) -> Result<()> {
-        let paths = ProjectAssetPaths {
-            storage_files: self.project_root.join("storage/files"),
-            web_dist: self.project_root.join("web/dist"),
-        };
-        let registry = ExtensionRegistry::discover();
-        let mut missing = Vec::new();
-        let mut outside_context = Vec::new();
-
-        for ext in registry.asset_extensions() {
-            let ext_id = ext.id();
-            for asset in ext.required_assets(&paths) {
-                if !asset.is_required() {
-                    continue;
-                }
-
-                let source = asset.source();
-
-                if !source.exists() {
-                    missing.push(format!("[ext:{}] {}", ext_id, source.display()));
-                    continue;
-                }
-
-                if !source.starts_with(&self.project_root) {
-                    outside_context.push(format!(
-                        "[ext:{}] {} (not under {})",
-                        ext_id,
-                        source.display(),
-                        self.project_root.display()
-                    ));
-                }
-            }
-        }
-
-        if !missing.is_empty() {
-            bail!(
-                "Missing required extension assets:\n  {}\n\nCreate these files or mark them as \
-                 optional.",
-                missing.join("\n  ")
-            );
-        }
-
-        if !outside_context.is_empty() {
-            bail!(
-                "Extension assets outside Docker build context:\n  {}\n\nMove assets inside the \
-                 project directory.",
-                outside_context.join("\n  ")
-            );
-        }
-
-        Ok(())
-    }
-
-    fn validate_storage_directory(&self) -> Result<()> {
-        let storage_dir = self.project_root.join("storage");
-
-        if !storage_dir.exists() {
-            bail!(
-                "Storage directory not found: {}\n\nExpected: storage/\n\nCreate this directory \
-                 for files, images, and other assets.",
-                storage_dir.display()
-            );
-        }
-
-        let files_dir = storage_dir.join("files");
-        if !files_dir.exists() {
-            bail!(
-                "Storage files directory not found: {}\n\nExpected: storage/files/\n\nThis \
-                 directory is required for serving static assets.",
-                files_dir.display()
-            );
-        }
-
-        Ok(())
-    }
-
-    fn validate_templates_directory(&self) -> Result<()> {
-        let templates_dir = self.project_root.join("services/web/templates");
-
-        if !templates_dir.exists() {
-            bail!(
-                "Templates directory not found: {}\n\nExpected: services/web/templates/\n\nCreate \
-                 this directory with your HTML templates.",
-                templates_dir.display()
-            );
-        }
-
-        Ok(())
-    }
-}
-
 
 pub struct DeployArgs {
     pub skip_push: bool,
@@ -250,15 +94,22 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
 
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
 
-    let config = DeployConfig::from_project(&project, &profile.name)?;
+    let deploy_config = DeployConfig::from_project(&project, &profile.name)?;
 
     CliService::key_value("Tenant", tenant_name);
-    CliService::key_value("Binary", &config.binary.display().to_string());
-    CliService::key_value("Dockerfile", &config.dockerfile.display().to_string());
+    CliService::key_value("Binary", &deploy_config.binary.display().to_string());
+    CliService::key_value(
+        "Dockerfile",
+        &deploy_config.dockerfile.display().to_string(),
+    );
 
     let services_config_path = find_services_config(project.as_path())?;
     let services_config = ConfigLoader::load_from_path(&services_config_path)?;
-    validate_profile_dockerfile(&config.dockerfile, project.as_path(), &services_config)?;
+    validate_profile_dockerfile(
+        &deploy_config.dockerfile,
+        project.as_path(),
+        &services_config,
+    )?;
 
     let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
@@ -273,7 +124,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     CliService::key_value("Image", &image);
 
     let spinner = CliService::spinner("Building Docker image...");
-    build_docker_image(project.as_path(), &config.dockerfile, &image)?;
+    build_docker_image(project.as_path(), &deploy_config.dockerfile, &image)?;
     spinner.finish_and_clear();
     CliService::success("Docker image built");
 

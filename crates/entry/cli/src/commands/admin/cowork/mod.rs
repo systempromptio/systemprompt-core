@@ -35,7 +35,7 @@ pub async fn execute(cmd: CoworkCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         CoworkCommands::RotateSigningKey(args) => {
-            let result = rotate_signing_key::execute(args, config).await?;
+            let result = rotate_signing_key::execute(args, config)?;
             render_result(&result);
             Ok(())
         },
