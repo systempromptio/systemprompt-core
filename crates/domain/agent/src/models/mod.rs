@@ -1,3 +1,17 @@
+//! Domain models for the agent crate.
+//!
+//! Submodules:
+//! - [`a2a`] — A2A JSON-RPC protocol types (requests, responses, tasks,
+//!   artifacts)
+//! - [`agent`] — high-level `Agent` aggregate
+//! - [`agent_info`] — lightweight directory listing record
+//! - [`context`] — conversational contexts and per-user views
+//! - [`external_integrations`] — descriptors for downstream MCP / OAuth
+//!   integrations
+//! - [`runtime`] — runtime metadata describing a live agent process
+//! - [`skill`] — skill definitions and metadata
+//! - [`web`] — request/response DTOs for the HTTP admin surface
+
 pub mod a2a;
 pub mod agent;
 pub mod agent_info;

@@ -1,20 +1,36 @@
-use crate::models::a2a::{
-    Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
-};
+//! Helpers used by the MCP bridge to ensure-or-create tasks, broadcast
+//! completion, and persist tool-execution messages.
+
+mod completion;
+mod messages;
+
+pub use completion::complete_task;
+pub use messages::{SaveMessagesForToolExecutionParams, save_messages_for_tool_execution};
+
+use crate::models::a2a::{Task, TaskState, TaskStatus};
 use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
-use crate::services::MessageService;
 use rmcp::ErrorData as McpError;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_models::{Config, TaskMetadata};
+use systemprompt_identifiers::TaskId;
+use systemprompt_models::TaskMetadata;
 
+/// Result of [`ensure_task_exists`] — either an existing task id or a freshly
+/// created one.
 #[derive(Debug)]
 pub struct TaskResult {
+    /// The task id this MCP execution will record against.
     pub task_id: TaskId,
+    /// `true` if this caller is the owner that created the task.
     pub is_owner: bool,
 }
 
+/// Ensure that an MCP execution has a task to record against, creating one
+/// (and a context, if needed) if the request context does not already carry
+/// one.
+///
+/// # Errors
+/// Returns [`McpError`] if any repository operation fails.
 pub async fn ensure_task_exists(
     db_pool: &DbPool,
     request_context: &mut systemprompt_models::execution::context::RequestContext,
@@ -158,172 +174,4 @@ pub async fn ensure_task_exists(
         task_id,
         is_owner: true,
     })
-}
-
-pub async fn complete_task(
-    db_pool: &DbPool,
-    task_id: &TaskId,
-    jwt_token: &str,
-) -> Result<(), McpError> {
-    if let Err(e) = trigger_task_completion_broadcast(db_pool, task_id, jwt_token).await {
-        tracing::error!(
-            task_id = %task_id.as_str(),
-            error = ?e,
-            "Webhook broadcast failed"
-        );
-    }
-
-    Ok(())
-}
-
-async fn trigger_task_completion_broadcast(
-    db_pool: &DbPool,
-    task_id: &TaskId,
-    jwt_token: &str,
-) -> Result<(), McpError> {
-    let task_repo = TaskRepository::new(db_pool).map_err(|e| {
-        McpError::internal_error(format!("Failed to create task repository: {e}"), None)
-    })?;
-
-    let task_info = task_repo
-        .get_task_context_info(task_id)
-        .await
-        .map_err(|e| {
-            McpError::internal_error(format!("Failed to load task for webhook: {e}"), None)
-        })?;
-
-    if let Some(info) = task_info {
-        let context_id = info.context_id;
-        let user_id = info.user_id;
-
-        let config = Config::get().map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let webhook_url = format!("{}/api/v1/webhook/broadcast", config.api_server_url);
-        let webhook_payload = serde_json::json!({
-            "event_type": "task_completed",
-            "entity_id": task_id.as_str(),
-            "context_id": context_id,
-            "user_id": user_id,
-        });
-
-        tracing::debug!(
-            task_id = %task_id.as_str(),
-            context_id = %context_id,
-            "Webhook triggering"
-        );
-
-        let client = reqwest::Client::new();
-        match client
-            .post(webhook_url)
-            .header("Authorization", format!("Bearer {jwt_token}"))
-            .json(&webhook_payload)
-            .timeout(std::time::Duration::from_secs(5))
-            .send()
-            .await
-        {
-            Ok(response) => {
-                if response.status().is_success() {
-                    tracing::debug!(
-                        task_id = %task_id.as_str(),
-                        "Task completed, webhook success"
-                    );
-                } else {
-                    let status = response.status();
-                    tracing::error!(
-                        task_id = %task_id.as_str(),
-                        status = %status,
-                        "Task completed, webhook failed"
-                    );
-                }
-            },
-            Err(e) => {
-                tracing::error!(
-                    task_id = %task_id.as_str(),
-                    error = %e,
-                    "Webhook failed"
-                );
-            },
-        }
-    }
-
-    Ok(())
-}
-
-#[derive(Debug)]
-pub struct SaveMessagesForToolExecutionParams<'a> {
-    pub db_pool: &'a DbPool,
-    pub task_id: &'a TaskId,
-    pub context_id: &'a ContextId,
-    pub tool_name: &'a str,
-    pub tool_result: &'a str,
-    pub artifact: Option<&'a Artifact>,
-    pub user_id: &'a UserId,
-    pub session_id: &'a SessionId,
-    pub trace_id: &'a TraceId,
-}
-
-pub async fn save_messages_for_tool_execution(
-    params: SaveMessagesForToolExecutionParams<'_>,
-) -> Result<(), McpError> {
-    let SaveMessagesForToolExecutionParams {
-        db_pool,
-        task_id,
-        context_id,
-        tool_name,
-        tool_result,
-        artifact,
-        user_id,
-        session_id,
-        trace_id,
-    } = params;
-    let message_service = MessageService::new(db_pool).map_err(|e| {
-        McpError::internal_error(format!("Failed to create message service: {e}"), None)
-    })?;
-
-    let user_message = Message {
-        role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: format!("Execute tool: {tool_name}"),
-        })],
-        message_id: MessageId::generate(),
-        task_id: Some(task_id.clone()),
-        context_id: context_id.clone(),
-        metadata: None,
-        extensions: None,
-        reference_task_ids: None,
-    };
-
-    let agent_text = artifact.map_or_else(
-        || format!("Tool execution completed. Result: {tool_result}"),
-        |artifact| {
-            format!(
-                "Tool execution completed. Result: {}\n\nArtifact created: {} (type: {})",
-                tool_result, artifact.id, artifact.metadata.artifact_type
-            )
-        },
-    );
-
-    let agent_message = Message {
-        role: MessageRole::Agent,
-        parts: vec![Part::Text(TextPart { text: agent_text })],
-        message_id: MessageId::generate(),
-        task_id: Some(task_id.clone()),
-        context_id: context_id.clone(),
-        metadata: None,
-        extensions: None,
-        reference_task_ids: None,
-    };
-
-    message_service
-        .persist_messages(crate::services::PersistMessagesParams {
-            task_id,
-            context_id,
-            messages: vec![user_message, agent_message],
-            user_id: Some(user_id),
-            session_id,
-            trace_id,
-        })
-        .await
-        .map_err(|e| McpError::internal_error(format!("Failed to save messages: {e}"), None))?;
-
-    Ok(())
 }

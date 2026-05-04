@@ -1,17 +1,28 @@
+//! Adapter exposing [`ContextRepository`] through the
+//! [`systemprompt_traits::ContextProvider`] trait so other crates can consume
+//! it without a direct database dependency.
+
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::{ContextProvider, ContextProviderError, ContextWithStats};
 
+use crate::error::AgentError;
 use crate::repository::ContextRepository;
 
+/// Adapter that implements [`ContextProvider`] on top of [`ContextRepository`].
 #[derive(Debug, Clone)]
 pub struct ContextProviderService {
     repo: ContextRepository,
 }
 
 impl ContextProviderService {
-    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
+    /// Construct a new `ContextProviderService` from a shared [`DbPool`].
+    ///
+    /// # Errors
+    /// Returns [`AgentError::Init`] if the inner [`ContextRepository`] cannot
+    /// be initialised.
+    pub fn new(db_pool: &DbPool) -> Result<Self, AgentError> {
         Ok(Self {
             repo: ContextRepository::new(db_pool)?,
         })

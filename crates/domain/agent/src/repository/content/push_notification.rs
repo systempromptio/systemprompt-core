@@ -22,9 +22,19 @@ impl std::fmt::Debug for PushNotificationConfigRepository {
 }
 
 impl PushNotificationConfigRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
+    /// Construct a new `PushNotificationConfigRepository` from a shared
+    /// [`DbPool`].
+    ///
+    /// # Errors
+    /// Returns [`crate::error::AgentError::Init`] if the read or write pool
+    /// cannot be acquired.
+    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
+        let pool = db
+            .pool_arc()
+            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
         Ok(Self { pool, write_pool })
     }
 

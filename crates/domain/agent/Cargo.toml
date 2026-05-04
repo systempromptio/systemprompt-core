@@ -13,6 +13,10 @@ description = "Agent-to-Agent (A2A) protocol for systemprompt.io AI governance: 
 readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lints]
 workspace = true
 
