@@ -1,8 +1,8 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
 use systemprompt_models::ai::tools::McpTool;
+use systemprompt_models::errors::ProviderResult;
 use systemprompt_models::mcp::{
     McpDeploymentProvider, McpRegistry, McpServerState, McpToolProvider,
 };
@@ -15,14 +15,14 @@ use crate::services::deployment::DeploymentService;
 
 #[async_trait]
 impl McpRegistry for RegistryManager {
-    async fn list_servers(&self) -> Result<Vec<String>> {
+    async fn list_servers(&self) -> ProviderResult<Vec<String>> {
         use systemprompt_loader::ConfigLoader;
-        let config = ConfigLoader::load()?;
+        let config = ConfigLoader::load().map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
         Ok(config.mcp_servers.keys().cloned().collect())
     }
 
-    async fn find_server(&self, name: &str) -> Result<Option<McpServerState>> {
-        let server_config = Self::find_server(name)?;
+    async fn find_server(&self, name: &str) -> ProviderResult<Option<McpServerState>> {
+        let server_config = Self::find_server(name).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
         Ok(server_config.map(|config| McpServerState {
             name: config.name,
             host: config.host,
@@ -31,9 +31,9 @@ impl McpRegistry for RegistryManager {
         }))
     }
 
-    async fn server_exists(&self, name: &str) -> Result<bool> {
+    async fn server_exists(&self, name: &str) -> ProviderResult<bool> {
         use systemprompt_loader::ConfigLoader;
-        let config = ConfigLoader::load()?;
+        let config = ConfigLoader::load().map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
         Ok(config.mcp_servers.contains_key(name))
     }
 }
@@ -44,15 +44,17 @@ impl McpToolProvider for RegistryManager {
         &self,
         server_name: &str,
         context: &RequestContext,
-    ) -> Result<Vec<McpTool>> {
-        McpClient::list_tools(server_name, context).await
+    ) -> ProviderResult<Vec<McpTool>> {
+        McpClient::list_tools(server_name, context)
+            .await
+            .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))
     }
 
     async fn load_tools_for_servers(
         &self,
         server_names: &[String],
         context: &RequestContext,
-    ) -> Result<HashMap<String, Vec<McpTool>>> {
+    ) -> ProviderResult<HashMap<String, Vec<McpTool>>> {
         let mut tools_by_server = HashMap::new();
 
         for server_name in server_names {
@@ -79,8 +81,9 @@ pub struct McpDeploymentProviderImpl;
 
 #[async_trait]
 impl McpDeploymentProvider for McpDeploymentProviderImpl {
-    async fn load_config(&self) -> Result<ServicesConfig> {
+    async fn load_config(&self) -> ProviderResult<ServicesConfig> {
         DeploymentService::load_config()
+            .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))
     }
 
     fn protocol_version(&self) -> &'static str {

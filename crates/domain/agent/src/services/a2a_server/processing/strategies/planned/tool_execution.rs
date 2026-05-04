@@ -153,7 +153,7 @@ pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<Exec
                 );
                 return Err(anyhow::anyhow!("Tool execution failed: {}", tool_err));
             }
-            return Err(ai_error);
+            return Err(anyhow::anyhow!("{}", ai_error));
         },
     };
 
@@ -208,7 +208,8 @@ async fn handle_validation_failure(
             model: context.agent_runtime.model.as_deref(),
             max_output_tokens: context.agent_runtime.max_output_tokens,
         })
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if context
         .tx

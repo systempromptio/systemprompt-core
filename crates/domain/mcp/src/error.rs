@@ -50,6 +50,9 @@ pub enum McpDomainError {
     #[error("{0}")]
     Internal(String),
 
+    #[error("Configuration: {0}")]
+    Config(#[from] systemprompt_models::errors::ConfigError),
+
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
