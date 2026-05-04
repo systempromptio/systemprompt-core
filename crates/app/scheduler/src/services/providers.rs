@@ -1,3 +1,7 @@
+//! Adapter exposing the scheduler's [`ProcessCleanup`] under the
+//! [`ProcessCleanupProvider`] trait so that other crates can depend on the
+//! provider contract instead of this crate directly.
+
 use async_trait::async_trait;
 use systemprompt_traits::{ProcessCleanupProvider, ProcessProviderError, ProcessResult};
 

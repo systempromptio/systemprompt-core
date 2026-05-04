@@ -1,6 +1,12 @@
-use crate::models::{JobStatus, SchedulerConfig};
+//! Scheduler core — owns the [`tokio_cron_scheduler::JobScheduler`],
+//! discovers inventory-registered jobs, and dispatches them under a typed
+//! error boundary.
+
+mod dispatch;
+
+use crate::error::{SchedulerError, SchedulerResult};
+use crate::models::SchedulerConfig;
 use crate::repository::SchedulerRepository;
-use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -9,10 +15,11 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::{Job, JobScheduler};
-use tracing::{Instrument, debug, error, info, warn};
+use tracing::{Instrument, debug, info, warn};
 
-type RunningJobs = Arc<Mutex<HashSet<String>>>;
+pub(crate) type RunningJobs = Arc<Mutex<HashSet<String>>>;
 
+/// Lifecycle owner for the cron scheduler and its registered job set.
 #[derive(Debug)]
 pub struct SchedulerService {
     config: SchedulerConfig,
@@ -22,11 +29,13 @@ pub struct SchedulerService {
 }
 
 impl SchedulerService {
+    /// Construct a new scheduler service from configuration, a shared
+    /// [`DbPool`], and the runtime [`AppContext`].
     pub fn new(
         config: SchedulerConfig,
         db_pool: DbPool,
         app_context: Arc<AppContext>,
-    ) -> Result<Self> {
+    ) -> SchedulerResult<Self> {
         let repository = SchedulerRepository::new(&db_pool)?;
         Ok(Self {
             config,
@@ -36,7 +45,9 @@ impl SchedulerService {
         })
     }
 
-    pub async fn start(self) -> Result<()> {
+    /// Start the cron scheduler, registering every enabled job and spawning
+    /// any `run_on_startup` jobs in the background.
+    pub async fn start(self) -> SchedulerResult<()> {
         if !self.config.enabled {
             info!("Scheduler is disabled");
             return Ok(());
@@ -98,7 +109,7 @@ impl SchedulerService {
         tokio::spawn(async move {
             for job_name in startup_job_names {
                 debug!(job_name = %job_name, "Running background startup job");
-                Self::execute_job(
+                dispatch::execute_job(
                     job_name,
                     Arc::clone(&db_pool),
                     repository.clone(),
@@ -123,7 +134,7 @@ impl SchedulerService {
         scheduler: &JobScheduler,
         registered_jobs: &HashMap<&str, &'static dyn JobTrait>,
         running_jobs: &RunningJobs,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         for job_config in &self.config.jobs {
             self.register_single_job(scheduler, registered_jobs, job_config, running_jobs)
                 .await?;
@@ -137,7 +148,7 @@ impl SchedulerService {
         registered_jobs: &HashMap<&str, &'static dyn JobTrait>,
         job_config: &crate::models::JobConfig,
         running_jobs: &RunningJobs,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         if !job_config.enabled {
             debug!("Skipping disabled job: {}", job_config.name);
             return Ok(());
@@ -168,7 +179,7 @@ impl SchedulerService {
         job_name: &str,
         schedule: &str,
         running_jobs: &RunningJobs,
-    ) -> Result<Job> {
+    ) -> SchedulerResult<Job> {
         let job_name_owned = job_name.to_string();
         let schedule_owned = schedule.to_string();
         let db_pool = Arc::clone(&self.db_pool);
@@ -185,143 +196,21 @@ impl SchedulerService {
 
             Box::pin(async move {
                 let span = SystemSpan::new(&format!("scheduler:{job_name}"));
-                Self::execute_job(job_name, db_pool, repository, app_context, running_jobs)
+                dispatch::execute_job(job_name, db_pool, repository, app_context, running_jobs)
                     .instrument(span.span().clone())
                     .await;
             })
-        })?;
+        })
+        .map_err(SchedulerError::from)?;
 
         Ok(job)
     }
+}
 
-    async fn execute_job(
-        job_name: String,
-        db_pool: DbPool,
-        repository: SchedulerRepository,
-        app_context: Arc<AppContext>,
-        running_jobs: RunningJobs,
-    ) {
-        {
-            let mut guard = running_jobs.lock().await;
-            if guard.contains(&job_name) {
-                warn!(job_name = %job_name, "Job already running, skipping this execution");
-                return;
-            }
-            guard.insert(job_name.clone());
-        }
-
-        debug!(job_name = %job_name, "Starting job");
-
-        if let Err(e) = repository
-            .update_job_execution(&job_name, JobStatus::Running, None, None)
-            .await
-        {
-            error!(job_name = %job_name, error = %e, "Failed to set job status to running");
-        }
-
-        if let Err(e) = repository.increment_run_count(&job_name).await {
-            error!(job_name = %job_name, error = %e, "Failed to increment run count");
-        }
-
-        let result = Self::find_and_execute_job(&job_name, db_pool, app_context).await;
-        Self::handle_job_result(&job_name, result, &repository).await;
-
-        {
-            let mut guard = running_jobs.lock().await;
-            guard.remove(&job_name);
-        }
-    }
-
-    fn find_job(job_name: &str) -> Option<&'static dyn JobTrait> {
-        inventory::iter::<&'static dyn JobTrait>
-            .into_iter()
-            .find(|&j| j.name() == job_name)
-            .copied()
-    }
-
-    async fn find_and_execute_job(
-        job_name: &str,
-        db_pool: DbPool,
-        app_context: Arc<AppContext>,
-    ) -> Result<systemprompt_traits::JobResult> {
-        use futures::FutureExt;
-        use std::panic::AssertUnwindSafe;
-
-        let job = Self::find_job(job_name).ok_or_else(|| {
-            error!(job_name = %job_name, "Job not found in inventory");
-            anyhow::anyhow!("Job not found: {}", job_name)
-        })?;
-
-        let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
-            Arc::new(Arc::clone(app_context.app_paths_arc()));
-        let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
-        let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_context);
-        let ctx = JobContext::new(db_pool_any, app_context_any, app_paths_any);
-
-        match AssertUnwindSafe(job.execute(&ctx)).catch_unwind().await {
-            Ok(result) => result.map_err(|e| anyhow::anyhow!(e)),
-            Err(payload) => {
-                let msg = payload
-                    .downcast_ref::<&'static str>()
-                    .map(|s| (*s).to_string())
-                    .or_else(|| payload.downcast_ref::<String>().cloned())
-                    .unwrap_or_else(|| "<non-string panic payload>".to_string());
-                error!(job_name = %job_name, panic = %msg, "Job panicked");
-                Err(anyhow::anyhow!("job panicked: {}", msg))
-            },
-        }
-    }
-
-    async fn handle_job_result(
-        job_name: &str,
-        result: Result<systemprompt_traits::JobResult>,
-        repository: &SchedulerRepository,
-    ) {
-        match result {
-            Ok(job_result) if job_result.success => {
-                Self::record_success(job_name, &job_result, repository).await;
-            },
-            Ok(job_result) => {
-                Self::record_failure(job_name, job_result.message.as_deref(), repository).await;
-                error!(job_name = %job_name, message = ?job_result.message, "Job failed");
-            },
-            Err(e) => {
-                let error_msg = e.to_string();
-                error!(error = %error_msg, "Job failed with error");
-                Self::record_failure(job_name, Some(&error_msg), repository).await;
-            },
-        }
-    }
-
-    async fn record_success(
-        job_name: &str,
-        job_result: &systemprompt_traits::JobResult,
-        repository: &SchedulerRepository,
-    ) {
-        if let Err(e) = repository
-            .update_job_execution(job_name, JobStatus::Success, None, None)
-            .await
-        {
-            error!(job_name = %job_name, error = %e, "Failed to update job execution status");
-        }
-
-        debug!(
-            job_name = %job_name,
-            duration_ms = job_result.duration_ms,
-            "Job completed"
-        );
-    }
-
-    async fn record_failure(
-        job_name: &str,
-        message: Option<&str>,
-        repository: &SchedulerRepository,
-    ) {
-        if let Err(e) = repository
-            .update_job_execution(job_name, JobStatus::Failed, message, None)
-            .await
-        {
-            error!(job_name = %job_name, error = %e, "Failed to update failed job status");
-        }
-    }
+pub(crate) fn make_job_context(db_pool: DbPool, app_context: Arc<AppContext>) -> JobContext {
+    let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
+        Arc::new(Arc::clone(app_context.app_paths_arc()));
+    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
+    let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_context);
+    JobContext::new(db_pool_any, app_context_any, app_paths_any)
 }

@@ -1,10 +1,14 @@
+//! Periodic job that prunes empty conversation contexts older than 1 hour.
+
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
+use crate::error::SchedulerError;
 use crate::repository::SchedulerRepository;
 
+/// Scheduled job that deletes empty conversation contexts.
 #[derive(Debug, Clone, Copy)]
 pub struct CleanupEmptyContextsJob;
 
@@ -27,7 +31,7 @@ impl Job for CleanupEmptyContextsJob {
 
         let db_pool = std::sync::Arc::clone(
             ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
+                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
 
         info!("Job started");

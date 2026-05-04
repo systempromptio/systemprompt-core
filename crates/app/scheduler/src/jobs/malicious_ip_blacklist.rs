@@ -1,11 +1,15 @@
-use anyhow::Result;
+//! Periodic job that classifies and bans malicious IPs based on
+//! request patterns, scanner activity, datacenter ranges, and high-risk
+//! country fan-out.
+
 use async_trait::async_trait;
 use systemprompt_analytics::detection::{DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES};
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tracing::{info, warn};
 
+use crate::error::{SchedulerError, SchedulerResult};
 use crate::repository::{IpSessionRecord, SecurityRepository};
 
 const HIGH_REQUEST_THRESHOLD: i64 = 100;
@@ -13,6 +17,7 @@ const SCANNER_BAN_THRESHOLD: i64 = 3;
 const HIGH_RISK_COUNTRY_THRESHOLD: i64 = 5;
 const BAN_DURATION_DAYS: i64 = 14;
 
+/// Scheduled job that bans malicious IPs based on session patterns.
 #[derive(Debug, Clone, Copy)]
 pub struct MaliciousIpBlacklistJob;
 
@@ -55,16 +60,16 @@ impl Job for MaliciousIpBlacklistJob {
         "0 0 */6 * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = std::sync::Arc::clone(
             ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
+                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
 
         let security_repo = SecurityRepository::new(&db_pool)?;
-        let banned_ip_repo = BannedIpRepository::new(&db_pool)?;
+        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(SchedulerError::from)?;
 
         info!("Starting malicious IP blacklist job");
 
@@ -87,7 +92,7 @@ impl Job for MaliciousIpBlacklistJob {
             Err(e) => {
                 warn!(error = %e, "Failed to cleanup expired bans");
                 0
-            }
+            },
         };
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -105,17 +110,23 @@ impl Job for MaliciousIpBlacklistJob {
     }
 }
 
-async fn find_high_volume_candidates(repo: &SecurityRepository) -> Result<Vec<MaliciousIpCandidate>> {
+async fn find_high_volume_candidates(
+    repo: &SecurityRepository,
+) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
     let records = repo.find_high_volume_ips(HIGH_REQUEST_THRESHOLD).await?;
     Ok(records_to_candidates(records, BanReason::HighRequestVolume))
 }
 
-async fn find_scanner_candidates(repo: &SecurityRepository) -> Result<Vec<MaliciousIpCandidate>> {
+async fn find_scanner_candidates(
+    repo: &SecurityRepository,
+) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
     let records = repo.find_scanner_ips(SCANNER_BAN_THRESHOLD).await?;
     Ok(records_to_candidates(records, BanReason::ScannerActivity))
 }
 
-async fn find_datacenter_candidates(repo: &SecurityRepository) -> Result<Vec<MaliciousIpCandidate>> {
+async fn find_datacenter_candidates(
+    repo: &SecurityRepository,
+) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
     let records = repo.find_recent_ips().await?;
     Ok(records
         .into_iter()
@@ -136,7 +147,7 @@ async fn find_datacenter_candidates(repo: &SecurityRepository) -> Result<Vec<Mal
 
 async fn find_high_risk_country_candidates(
     repo: &SecurityRepository,
-) -> Result<Vec<MaliciousIpCandidate>> {
+) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
     let records = repo
         .find_high_risk_country_ips(HIGH_RISK_COUNTRY_THRESHOLD)
         .await?;
@@ -157,7 +168,10 @@ async fn find_high_risk_country_candidates(
         .collect())
 }
 
-fn records_to_candidates(records: Vec<IpSessionRecord>, reason: BanReason) -> Vec<MaliciousIpCandidate> {
+fn records_to_candidates(
+    records: Vec<IpSessionRecord>,
+    reason: BanReason,
+) -> Vec<MaliciousIpCandidate> {
     records
         .into_iter()
         .filter_map(|r| {
@@ -170,7 +184,10 @@ fn records_to_candidates(records: Vec<IpSessionRecord>, reason: BanReason) -> Ve
         .collect()
 }
 
-async fn process_candidates(candidates: &[MaliciousIpCandidate], repo: &BannedIpRepository) -> u64 {
+async fn process_candidates(
+    candidates: &[MaliciousIpCandidate],
+    repo: &BannedIpRepository,
+) -> u64 {
     let mut banned = 0u64;
 
     for candidate in candidates {
@@ -183,7 +200,7 @@ async fn process_candidates(candidates: &[MaliciousIpCandidate], repo: &BannedIp
                     "Failed to check ban status"
                 );
                 continue;
-            }
+            },
         };
 
         if is_already_banned {
@@ -206,14 +223,14 @@ async fn process_candidates(candidates: &[MaliciousIpCandidate], repo: &BannedIp
                     "Banned malicious IP"
                 );
                 banned += 1;
-            }
+            },
             Err(e) => {
                 warn!(
                     ip = %candidate.ip_address,
                     error = %e,
                     "Failed to ban IP"
                 );
-            }
+            },
         }
     }
 

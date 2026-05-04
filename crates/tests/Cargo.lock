@@ -6040,6 +6040,7 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.18",
@@ -7300,7 +7301,6 @@ dependencies = [
 name = "systemprompt-templates"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "handlebars",
  "indexmap",
