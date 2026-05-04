@@ -1,15 +1,23 @@
-use super::types::{DeployEnvironment, EnvironmentConfig};
-use anyhow::Result;
+//! On-disk writers for the deployment `.env` files produced by the
+//! [`super::ConfigManager`] pipeline.
+
 use std::fs;
 use std::path::{Path, PathBuf};
+
 use systemprompt_logging::CliService;
 
+use super::types::{DeployEnvironment, EnvironmentConfig};
+use crate::error::ConfigResult;
+
+/// Writes `.env`, `.env.<env>`, and the corresponding `web/` files.
 #[derive(Debug)]
 pub struct ConfigWriter {
     project_root: PathBuf,
 }
 
 impl ConfigWriter {
+    /// Create a writer rooted at `project_root`.
+    #[must_use]
     pub const fn new(project_root: PathBuf) -> Self {
         Self { project_root }
     }
@@ -22,13 +30,20 @@ impl ConfigWriter {
         self.project_root.join("web")
     }
 
-    pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> Result<()> {
+    /// Write the resolved variables in `config` as a sorted `KEY=VAL`
+    /// list to `output_path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ConfigError::Io`] on any underlying
+    /// write failure.
+    pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
         let mut lines: Vec<String> = config
             .variables
             .iter()
             .map(|(k, v)| {
                 if v.contains(char::is_whitespace) {
-                    format!("{}=\"{}\"", k, v)
+                    format!("{k}=\"{v}\"")
                 } else {
                     format!("{k}={v}")
                 }
@@ -45,12 +60,20 @@ impl ConfigWriter {
         ));
 
         let var_count = lines.len();
-        CliService::info(&format!("   {} environment variables generated", var_count));
+        CliService::info(&format!("   {var_count} environment variables generated"));
 
         Ok(())
     }
 
-    pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> Result<()> {
+    /// Write the `VITE_*` subset of `config` to the web frontend
+    /// directory, plus the `Local`/`DockerDev` symlink and Docker
+    /// override.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::error::ConfigError::Io`] on any underlying
+    /// write failure.
+    pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> ConfigResult<()> {
         let web_dir = self.resolve_web_dir();
         let web_env_path = web_dir.join(format!(".env.{}", config.environment.as_str()));
 
@@ -84,9 +107,8 @@ impl ConfigWriter {
                 }
                 unix_fs::symlink(target, &env_link)?;
                 CliService::success(&format!(
-                    "Created symlink: {} -> {}",
-                    env_link.display(),
-                    target
+                    "Created symlink: {} -> {target}",
+                    env_link.display()
                 ));
             }
         }

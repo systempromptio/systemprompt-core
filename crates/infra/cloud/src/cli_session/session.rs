@@ -1,15 +1,15 @@
-use anyhow::{Context, Result};
-use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
 use systemprompt_models::auth::UserType;
 
 use super::{LOCAL_SESSION_KEY, SessionKey};
-use crate::error::CloudError;
+use crate::error::{CloudError, CloudResult};
 
 const CURRENT_VERSION: u32 = 4;
 const MIN_SUPPORTED_VERSION: u32 = 3;
@@ -194,32 +194,45 @@ impl CliSession {
         }
     }
 
-    pub fn load_from_path(path: &Path) -> Result<Self> {
+    /// Load and decode a session JSON file.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CloudError::NotAuthenticated`] when the file is
+    /// missing, [`CloudError::SessionVersionMismatch`] for
+    /// out-of-range schema versions, and
+    /// [`CloudError::CredentialsCorrupted`] for parse failures.
+    pub fn load_from_path(path: &Path) -> CloudResult<Self> {
         if !path.exists() {
-            return Err(CloudError::NotAuthenticated.into());
+            return Err(CloudError::NotAuthenticated);
         }
 
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
+        let content = fs::read_to_string(path)?;
 
         let mut session: Self = serde_json::from_str(&content)
             .map_err(|e| CloudError::CredentialsCorrupted { source: e })?;
 
         if session.version < MIN_SUPPORTED_VERSION || session.version > CURRENT_VERSION {
-            return Err(anyhow::anyhow!(
-                "Session file version mismatch: expected {}-{}, got {}. Delete {} and retry.",
-                MIN_SUPPORTED_VERSION,
-                CURRENT_VERSION,
-                session.version,
-                path.display()
-            ));
+            return Err(CloudError::SessionVersionMismatch {
+                min: MIN_SUPPORTED_VERSION,
+                max: CURRENT_VERSION,
+                actual: session.version,
+                path: path.display().to_string(),
+            });
         }
 
         session.version = CURRENT_VERSION;
         Ok(session)
     }
 
-    pub fn save_to_path(&self, path: &Path) -> Result<()> {
+    /// Persist this session to `path` with `0o600` permissions on
+    /// Unix.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CloudError::Io`] / [`CloudError::Json`] on write
+    /// failures.
+    pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
         if let Some(dir) = path.parent() {
             fs::create_dir_all(dir)?;
 
@@ -243,7 +256,12 @@ impl CliSession {
         Ok(())
     }
 
-    pub fn delete_from_path(path: &Path) -> Result<()> {
+    /// Remove the session file at `path` (no-op if absent).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CloudError::Io`] on filesystem failures.
+    pub fn delete_from_path(path: &Path) -> CloudResult<()> {
         if path.exists() {
             fs::remove_file(path)?;
         }

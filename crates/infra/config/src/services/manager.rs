@@ -1,12 +1,19 @@
-use super::types::{DeployEnvironment, EnvironmentConfig};
-use super::writer::ConfigWriter;
-use anyhow::{Result, anyhow};
-use regex::Regex;
+//! `ConfigManager` — generate environment-specific deployment configs
+//! by merging `infrastructure/environments/<env>/config.yaml` over a
+//! shared `base.yaml`.
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use regex::Regex;
 use systemprompt_logging::CliService;
 
+use super::types::{DeployEnvironment, EnvironmentConfig};
+use super::writer::ConfigWriter;
+use crate::error::{ConfigError, ConfigResult};
+
+/// Builds environment-specific `.env` files from layered YAML configs.
 #[derive(Debug)]
 pub struct ConfigManager {
     project_root: PathBuf,
@@ -15,6 +22,9 @@ pub struct ConfigManager {
 }
 
 impl ConfigManager {
+    /// Create a manager rooted at `project_root`. Environment configs
+    /// are expected under `infrastructure/environments/<env>/`.
+    #[must_use]
     pub fn new(project_root: PathBuf) -> Self {
         let environments_dir = project_root.join("infrastructure/environments");
         let writer = ConfigWriter::new(project_root.clone());
@@ -25,7 +35,19 @@ impl ConfigManager {
         }
     }
 
-    pub fn generate_config(&self, environment: DeployEnvironment) -> Result<EnvironmentConfig> {
+    /// Generate the resolved [`EnvironmentConfig`] for `environment`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::EnvironmentConfigMissing`] when a
+    /// required YAML file is absent, [`ConfigError::Yaml`] /
+    /// [`ConfigError::Io`] for malformed inputs, and
+    /// [`ConfigError::UnresolvedVariables`] when `${...}` substitution
+    /// does not converge.
+    pub fn generate_config(
+        &self,
+        environment: DeployEnvironment,
+    ) -> ConfigResult<EnvironmentConfig> {
         CliService::info(&format!(
             "Building configuration for environment: {}",
             environment.as_str()
@@ -38,17 +60,15 @@ impl ConfigManager {
             .join("config.yaml");
 
         if !base_config_path.exists() {
-            return Err(anyhow!(
-                "Base config not found: {}",
-                base_config_path.display()
-            ));
+            return Err(ConfigError::EnvironmentConfigMissing {
+                path: base_config_path,
+            });
         }
 
         if !env_config_path.exists() {
-            return Err(anyhow!(
-                "Environment config not found: {}",
-                env_config_path.display()
-            ));
+            return Err(ConfigError::EnvironmentConfigMissing {
+                path: env_config_path,
+            });
         }
 
         let secrets = self.load_secrets()?;
@@ -77,7 +97,7 @@ impl ConfigManager {
         })
     }
 
-    fn load_secrets(&self) -> Result<HashMap<String, String>> {
+    fn load_secrets(&self) -> ConfigResult<HashMap<String, String>> {
         let secrets_file = self.project_root.join(".env.secrets");
         let mut secrets = HashMap::new();
 
@@ -110,7 +130,7 @@ impl ConfigManager {
         Ok(secrets)
     }
 
-    fn yaml_to_flat_map(yaml_path: &Path) -> Result<HashMap<String, String>> {
+    fn yaml_to_flat_map(yaml_path: &Path) -> ConfigResult<HashMap<String, String>> {
         let content = fs::read_to_string(yaml_path)?;
         let yaml: serde_yaml::Value = serde_yaml::from_str(&content)?;
 
@@ -169,7 +189,7 @@ impl ConfigManager {
     fn resolve_variables(
         mut vars: HashMap<String, String>,
         secrets: &HashMap<String, String>,
-    ) -> Result<HashMap<String, String>> {
+    ) -> ConfigResult<HashMap<String, String>> {
         let var_regex = Regex::new(r"\$\{([^}:]+)(?::-(.*?))?\}")?;
         let max_passes = 5;
 
@@ -199,11 +219,10 @@ impl ConfigManager {
                     .collect();
 
                 if !unresolved.is_empty() {
-                    return Err(anyhow!(
-                        "Failed to resolve after {} passes:\n{}",
-                        max_passes,
-                        unresolved.join("\n")
-                    ));
+                    return Err(ConfigError::UnresolvedVariables {
+                        passes: max_passes,
+                        unresolved: unresolved.join("\n"),
+                    });
                 }
             }
         }
@@ -216,24 +235,24 @@ impl ConfigManager {
         vars: &HashMap<String, String>,
         secrets: &HashMap<String, String>,
         var_regex: &Regex,
-    ) -> Result<String> {
+    ) -> ConfigResult<String> {
         let mut result = value.to_string();
 
         for cap in var_regex.captures_iter(value) {
             let full_match = cap
                 .get(0)
-                .ok_or_else(|| anyhow!("Regex capture group 0 missing"))?
+                .ok_or(ConfigError::MissingCaptureGroup { index: 0 })?
                 .as_str();
             let var_name = cap
                 .get(1)
-                .ok_or_else(|| anyhow!("Regex capture group 1 missing"))?
+                .ok_or(ConfigError::MissingCaptureGroup { index: 1 })?
                 .as_str();
             let default_value = cap.get(2).map(|m| m.as_str());
 
             let replacement = secrets
                 .get(var_name)
                 .cloned()
-                .or_else(|| std::env::var(var_name).ok())
+                .or_else(|| read_env_optional(var_name))
                 .or_else(|| vars.get(var_name).cloned())
                 .unwrap_or_else(|| {
                     default_value.map_or_else(|| full_match.to_string(), ToString::to_string)
@@ -245,11 +264,29 @@ impl ConfigManager {
         Ok(result)
     }
 
-    pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> Result<()> {
+    /// Write a free-standing environment to `output_path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::Io`] on any underlying write failure.
+    pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
         ConfigWriter::write_env_file(config, output_path)
     }
 
-    pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> Result<()> {
+    /// Write the web frontend `.env.<env>` (and dev symlink) using
+    /// the configured project root.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::Io`] on any underlying write failure.
+    pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> ConfigResult<()> {
         self.writer.write_web_env_file(config)
+    }
+}
+
+fn read_env_optional(name: &str) -> Option<String> {
+    match std::env::var(name) {
+        Ok(v) if !v.is_empty() => Some(v),
+        Ok(_) | Err(_) => None,
     }
 }
