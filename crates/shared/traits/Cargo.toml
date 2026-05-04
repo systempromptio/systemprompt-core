@@ -12,6 +12,10 @@ categories.workspace = true
 description = "Trait-first interface contracts for systemprompt.io AI governance infrastructure. Repository, provider, and service abstractions shared across the MCP governance pipeline."
 readme = "README.md"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lints]
 workspace = true
 

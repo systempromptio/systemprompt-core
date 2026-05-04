@@ -1,12 +1,21 @@
+//! Artifact schema trait and built-in JSON Schema helpers.
+
 use serde_json::Value;
 
+/// Tools that produce structured artifacts implement this trait so the
+/// runtime can validate their outputs against a JSON Schema.
 pub trait ArtifactSupport {
+    /// Return the JSON Schema describing the artifact produced by
+    /// `tool_name` when invoked with `arguments`. Returning `None`
+    /// indicates the tool does not produce a structured artifact.
     fn get_output_schema_for_tool(
         &self,
         tool_name: &str,
         arguments: &serde_json::Map<String, Value>,
     ) -> Option<Value>;
 
+    /// Default validator: a tool that reports `has_output` must also
+    /// declare a schema (`has_schema`).
     fn validate_artifact_schema(
         &self,
         _tool_name: &str,
@@ -17,9 +26,12 @@ pub trait ArtifactSupport {
     }
 }
 
+/// Built-in JSON Schema templates for common artifact shapes.
 pub mod schemas {
     use serde_json::{Value, json};
 
+    /// Schema for a `presentation_card` artifact, optionally tagged with a
+    /// theme for downstream renderers.
     #[must_use]
     pub fn presentation_card(theme: Option<&str>) -> Value {
         let mut schema = json!({
@@ -63,6 +75,7 @@ pub mod schemas {
         schema
     }
 
+    /// Schema for a `table` artifact (columns + 2D row array).
     #[must_use]
     pub fn table() -> Value {
         json!({
@@ -85,6 +98,7 @@ pub mod schemas {
         })
     }
 
+    /// Schema for a `chart` artifact, parameterised by chart type.
     #[must_use]
     pub fn chart(chart_type: &str) -> Value {
         json!({
@@ -99,6 +113,7 @@ pub mod schemas {
         })
     }
 
+    /// Schema for a `code` artifact, optionally fixing a default language.
     #[must_use]
     pub fn code(language: Option<&str>) -> Value {
         let mut schema = json!({
@@ -118,6 +133,7 @@ pub mod schemas {
         schema
     }
 
+    /// Schema for a `markdown` artifact.
     #[must_use]
     pub fn markdown() -> Value {
         json!({
