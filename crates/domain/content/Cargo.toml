@@ -13,6 +13,9 @@ description = "Markdown content management, sources, and event tracking for syst
 readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
 
