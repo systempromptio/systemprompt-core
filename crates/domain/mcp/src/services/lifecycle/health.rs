@@ -1,13 +1,13 @@
 use super::LifecycleManager;
 use crate::McpServerConfig;
+use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthCheckResult, HealthStatus, perform_health_check};
 use crate::services::process::ProcessManager;
-use anyhow::Result;
 
 pub async fn check_server_health(
     manager: &LifecycleManager,
     config: &McpServerConfig,
-) -> Result<bool> {
+) -> McpDomainResult<bool> {
     if !is_process_running(manager, config).await? {
         return Ok(false);
     }
@@ -27,7 +27,10 @@ pub async fn check_server_health(
     Ok(is_healthy)
 }
 
-async fn is_process_running(manager: &LifecycleManager, config: &McpServerConfig) -> Result<bool> {
+async fn is_process_running(
+    manager: &LifecycleManager,
+    config: &McpServerConfig,
+) -> McpDomainResult<bool> {
     let Some(pid) = ProcessManager::find_pid_by_port(config.port)? else {
         manager
             .database()
@@ -51,7 +54,7 @@ async fn mark_service_error(
     manager: &LifecycleManager,
     config: &McpServerConfig,
     health_result: &HealthCheckResult,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     manager
         .database()
         .update_service_status(&config.name, "error")

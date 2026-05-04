@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::McpTool;
@@ -19,7 +19,7 @@ pub struct McpToolLoader {
 }
 
 impl McpToolLoader {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
+    pub fn new(db_pool: &DbPool) -> McpDomainResult<Self> {
         Ok(Self {
             service_manager: ServiceStateManager::new(db_pool)?,
             _db_pool: Arc::clone(db_pool),
@@ -30,7 +30,7 @@ impl McpToolLoader {
         &self,
         server_names: &[String],
         context: &RequestContext,
-    ) -> Result<HashMap<String, Vec<McpTool>>> {
+    ) -> McpDomainResult<HashMap<String, Vec<McpTool>>> {
         let deployment_config = DeploymentService::load_config()?;
         let user_permissions = extract_user_permissions(context)?;
 
@@ -65,7 +65,7 @@ impl McpToolLoader {
         &self,
         server_name: &str,
         context: &RequestContext,
-    ) -> Result<Vec<McpTool>> {
+    ) -> McpDomainResult<Vec<McpTool>> {
         let mut retries = 0;
         let max_retries = 3;
 
@@ -73,11 +73,10 @@ impl McpToolLoader {
             match self.service_manager.get_mcp_service(server_name).await {
                 Ok(Some(service)) => {
                     if service.status != "running" {
-                        return Err(anyhow::anyhow!(
+                        return Err(crate::error::McpDomainError::Internal(format!(
                             "MCP server '{}' is not running (status: {})",
-                            server_name,
-                            service.status
-                        ));
+                            server_name, service.status
+                        )));
                     }
                     return McpClient::list_tools(server_name, context).await;
                 },
@@ -88,21 +87,20 @@ impl McpToolLoader {
                         retries += 1;
                         continue;
                     }
-                    return Err(anyhow::anyhow!(
+                    return Err(crate::error::McpDomainError::Internal(format!(
                         "MCP server '{}' not found in services database (after {} retries with \
                          {}ms DB lag tolerance)",
                         server_name,
                         max_retries,
                         100 * (2u64.pow(max_retries as u32) - 1)
-                    ));
+                    )));
                 },
                 Err(e) => {
-                    return Err(anyhow::anyhow!(
+                    return Err(crate::error::McpDomainError::Internal(format!(
                         "Database error querying MCP server '{}': {} (this indicates a database \
                          connectivity issue, not replication lag)",
-                        server_name,
-                        e
-                    ));
+                        server_name, e
+                    )));
                 },
             }
         }
@@ -121,7 +119,7 @@ impl McpToolLoader {
         server_names: &[String],
         base_url: &str,
         context: &RequestContext,
-    ) -> Result<Vec<McpServerMetadata>> {
+    ) -> McpDomainResult<Vec<McpServerMetadata>> {
         if server_names.is_empty() {
             return Ok(vec![]);
         }
@@ -182,7 +180,7 @@ impl McpToolLoader {
 
 fn extract_user_permissions(
     context: &RequestContext,
-) -> Result<Vec<systemprompt_models::auth::Permission>> {
+) -> McpDomainResult<Vec<systemprompt_models::auth::Permission>> {
     use crate::services::auth::validate_jwt_token;
 
     let token = context.auth_token().as_str();
@@ -190,16 +188,18 @@ fn extract_user_permissions(
         return Ok(vec![]);
     }
 
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-        .map_err(|e| anyhow::anyhow!("Failed to get JWT secret: {}", e))?;
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
+        crate::error::McpDomainError::Internal(format!("Failed to get JWT secret: {e}"))
+    })?;
 
-    let config = systemprompt_models::Config::get()
-        .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
+    let config = systemprompt_models::Config::get().map_err(|e| {
+        crate::error::McpDomainError::Internal(format!("Failed to get config: {e}"))
+    })?;
 
     let claims = validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences)
         .map_err(|e| {
         error!(error = %e, "JWT validation failed");
-        anyhow::anyhow!("JWT validation failed: {}", e)
+        crate::error::McpDomainError::Internal(format!("JWT validation failed: {e}"))
     })?;
 
     Ok(claims.get_permissions())

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use std::collections::HashSet;
 use std::sync::Arc;
 use systemprompt_traits::StartupEventSender;
@@ -18,7 +18,9 @@ pub struct StartPendingServersParams<'a> {
     pub events: Option<&'a StartupEventSender>,
 }
 
-pub async fn start_pending_servers(params: StartPendingServersParams<'_>) -> Result<usize> {
+pub async fn start_pending_servers(
+    params: StartPendingServersParams<'_>,
+) -> McpDomainResult<usize> {
     let StartPendingServersParams {
         servers,
         running_names,
@@ -45,7 +47,7 @@ pub async fn start_pending_servers(params: StartPendingServersParams<'_>) -> Res
     notify_reconciliation_complete(events, started_count, servers.len());
 
     if !failed.is_empty() {
-        return Err(anyhow::anyhow!(
+        return Err(crate::error::McpDomainError::Internal(format!(
             "Failed to start {} MCP service(s): {}",
             failed.len(),
             failed
@@ -53,7 +55,7 @@ pub async fn start_pending_servers(params: StartPendingServersParams<'_>) -> Res
                 .map(|(name, err)| format!("{name} ({err})"))
                 .collect::<Vec<_>>()
                 .join(", ")
-        ));
+        )));
     }
 
     Ok(started_count)
@@ -81,7 +83,7 @@ async fn start_single_server(
     database: &DatabaseManager,
     event_bus: &Arc<EventBus>,
     events: Option<&StartupEventSender>,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let start_time = std::time::Instant::now();
 
     match lifecycle.start_server_with_events(server, events).await {
@@ -92,7 +94,7 @@ async fn start_single_server(
         Err(e) => {
             let duration_ms = start_time.elapsed().as_millis() as u64;
             publish_start_failure(server, event_bus, duration_ms, &e.to_string()).await?;
-            Err(e.into())
+            Err(e)
         },
     }
 }
@@ -102,7 +104,7 @@ async fn publish_start_success(
     database: &DatabaseManager,
     event_bus: &Arc<EventBus>,
     duration_ms: u64,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     if let Ok(Some(service_info)) = database.get_service_by_name(&server.name).await {
         event_bus
             .publish(McpEvent::ServiceStartCompleted {
@@ -131,7 +133,7 @@ async fn publish_start_failure(
     event_bus: &Arc<EventBus>,
     duration_ms: u64,
     error_msg: &str,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     event_bus
         .publish(McpEvent::ServiceStartCompleted {
             service_name: server.name.clone(),

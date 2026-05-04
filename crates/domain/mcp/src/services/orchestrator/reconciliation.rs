@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use std::collections::HashSet;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -27,7 +27,7 @@ pub struct ReconcileParams<'a> {
     pub events: Option<&'a StartupEventSender>,
 }
 
-pub async fn reconcile(params: ReconcileParams<'_>) -> Result<usize> {
+pub async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<usize> {
     let ReconcileParams {
         database,
         lifecycle,
@@ -83,7 +83,7 @@ async fn cleanup_orphaned_and_stale(
     database: &DatabaseManager,
     servers: &[McpServerConfig],
     events: Option<&StartupEventSender>,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let orphaned = detect_and_handle_orphaned_processes(servers, database).await?;
     log_and_notify_cleanup(
         orphaned,
@@ -128,7 +128,7 @@ fn log_and_notify_cleanup(
 async fn kill_all_running_servers(
     database: &DatabaseManager,
     events: Option<&StartupEventSender>,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let running_servers = database.get_running_servers().await?;
 
     for server in running_servers {
@@ -147,7 +147,7 @@ async fn kill_single_server(
     database: &DatabaseManager,
     server_name: &str,
     events: Option<&StartupEventSender>,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     if let Ok(Some(service_info)) = database.get_service_by_name(server_name).await {
         if let Some(pid) = service_info.pid {
             if let Some(tx) = events {

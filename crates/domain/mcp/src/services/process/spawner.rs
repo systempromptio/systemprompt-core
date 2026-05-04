@@ -1,5 +1,6 @@
 use crate::McpServerConfig;
-use anyhow::{Context, Result};
+use crate::error::McpDomainResult;
+use anyhow::Context;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -24,7 +25,7 @@ fn rotate_log_if_needed(log_path: &Path) {
     }
 }
 
-pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> Result<u32> {
+pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
     let binary_path = paths
         .build()
         .resolve_binary(&config.binary)
@@ -131,7 +132,7 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> Result<u32> {
     Ok(pid)
 }
 
-pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> Result<()> {
+pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {
     let binary_path = paths.build().resolve_binary(&config.binary)?;
 
     let metadata = fs::metadata(&binary_path)
@@ -147,7 +148,7 @@ pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> Result<()> {
     Ok(())
 }
 
-pub fn build_server(config: &McpServerConfig) -> Result<()> {
+pub fn build_server(config: &McpServerConfig) -> McpDomainResult<()> {
     tracing::info!(service = %config.name, binary = %config.binary, "Building service (debug mode)");
 
     let output = Command::new("cargo")
@@ -172,10 +173,9 @@ pub fn build_server(config: &McpServerConfig) -> Result<()> {
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         tracing::error!(service = %config.name, binary = %config.binary, error = %stderr, "Build failed");
-        Err(anyhow::anyhow!(
+        Err(crate::error::McpDomainError::Internal(format!(
             "Build failed for {} (binary: {})",
-            config.name,
-            config.binary
-        ))
+            config.name, config.binary
+        )))
     }
 }

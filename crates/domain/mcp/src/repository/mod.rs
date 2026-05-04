@@ -1,3 +1,5 @@
+//! Publicly re-exported submodule. See submodule rustdoc for details.
+
 mod artifact;
 mod session;
 mod tool_usage;

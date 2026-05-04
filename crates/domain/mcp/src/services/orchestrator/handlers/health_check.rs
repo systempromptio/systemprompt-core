@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ impl HealthCheckHandler {
 
 #[async_trait]
 impl EventHandler for HealthCheckHandler {
-    async fn handle(&self, event: &McpEvent) -> Result<()> {
+    async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         match event {
             McpEvent::HealthCheckFailed {
                 service_name,

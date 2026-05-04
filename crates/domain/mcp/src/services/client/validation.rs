@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use rmcp::ServiceExt;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransport;
@@ -11,7 +11,7 @@ pub async fn validate_connection(
     service_name: &str,
     host: &str,
     port: u16,
-) -> Result<McpConnectionResult> {
+) -> McpDomainResult<McpConnectionResult> {
     let url = format!("http://{host}:{port}/mcp");
     validate_connection_by_url(service_name, &url).await
 }
@@ -21,7 +21,7 @@ pub async fn validate_connection_with_auth(
     host: &str,
     port: u16,
     requires_oauth: bool,
-) -> Result<McpConnectionResult> {
+) -> McpDomainResult<McpConnectionResult> {
     if requires_oauth {
         Ok(validate_oauth_service(service_name, host, port))
     } else {
@@ -32,7 +32,7 @@ pub async fn validate_connection_with_auth(
 pub async fn validate_connection_by_url(
     service_name: &str,
     url: &str,
-) -> Result<McpConnectionResult> {
+) -> McpDomainResult<McpConnectionResult> {
     let connection_start = std::time::Instant::now();
 
     let connection_result = timeout(
@@ -109,7 +109,7 @@ fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> McpConne
 async fn connect_and_validate(
     url: &str,
     service_name: &str,
-) -> Result<(McpProtocolInfo, ValidationResult)> {
+) -> McpDomainResult<(McpProtocolInfo, ValidationResult)> {
     let transport = StreamableHttpClientTransport::from_uri(url);
 
     let client_info = ClientInfo::new(
@@ -122,9 +122,11 @@ async fn connect_and_validate(
 
     let client = client_info.serve(transport).await?;
 
-    let peer_info = client
-        .peer_info()
-        .ok_or_else(|| anyhow::anyhow!("Failed to get peer info from MCP client"))?;
+    let peer_info = client.peer_info().ok_or_else(|| {
+        crate::error::McpDomainError::Internal(
+            "Failed to get peer info from MCP client".to_string(),
+        )
+    })?;
 
     let server_info = McpProtocolInfo {
         server_name: if peer_info.server_info.name.is_empty() {

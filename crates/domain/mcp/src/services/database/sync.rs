@@ -1,6 +1,6 @@
+use crate::error::McpDomainResult;
 use crate::services::process::utils;
 use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};
-use anyhow::Result;
 use systemprompt_database::ServiceRepository;
 use tokio::net::TcpStream;
 use tokio::time::{Duration, timeout};
@@ -26,7 +26,9 @@ async fn is_service_healthy(port: u16, pid: Option<i32>) -> bool {
     port_healthy && process_alive
 }
 
-pub async fn cleanup_stale_services(db_pool: &systemprompt_database::DbPool) -> Result<()> {
+pub async fn cleanup_stale_services(
+    db_pool: &systemprompt_database::DbPool,
+) -> McpDomainResult<()> {
     let repository = ServiceRepository::new(db_pool)?;
     let services = repository.get_mcp_services().await?;
 
@@ -44,7 +46,9 @@ pub async fn cleanup_stale_services(db_pool: &systemprompt_database::DbPool) -> 
     Ok(())
 }
 
-pub async fn delete_crashed_services(db_pool: &systemprompt_database::DbPool) -> Result<()> {
+pub async fn delete_crashed_services(
+    db_pool: &systemprompt_database::DbPool,
+) -> McpDomainResult<()> {
     let repository = ServiceRepository::new(db_pool)?;
     let services = repository.get_mcp_services().await?;
 
@@ -60,7 +64,7 @@ pub async fn delete_crashed_services(db_pool: &systemprompt_database::DbPool) ->
 pub async fn sync_database_state(
     db_pool: &systemprompt_database::DbPool,
     servers: &[McpServerConfig],
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let repository = ServiceRepository::new(db_pool)?;
 
     for server in servers {
@@ -79,7 +83,7 @@ pub async fn sync_database_state(
 
 pub async fn reconcile_running_processes(
     db_pool: &systemprompt_database::DbPool,
-) -> Result<Vec<String>> {
+) -> McpDomainResult<Vec<String>> {
     let repository = ServiceRepository::new(db_pool)?;
     let mut discrepancies = Vec::new();
 
@@ -108,7 +112,7 @@ pub async fn reconcile_running_processes(
 
 pub async fn repair_database_inconsistencies(
     db_pool: &systemprompt_database::DbPool,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let repository = ServiceRepository::new(db_pool)?;
 
     let services = repository.get_mcp_services().await?;
@@ -134,7 +138,7 @@ pub async fn repair_database_inconsistencies(
 pub async fn delete_disabled_services(
     db_pool: &systemprompt_database::DbPool,
     enabled_servers: &[McpServerConfig],
-) -> Result<usize> {
+) -> McpDomainResult<usize> {
     let repository = ServiceRepository::new(db_pool)?;
     let enabled_names: std::collections::HashSet<&str> =
         enabled_servers.iter().map(|s| s.name.as_str()).collect();

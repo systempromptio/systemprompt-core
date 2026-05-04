@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::error::McpDomainResult;
+use anyhow::Context;
 use rmcp::handler::client::progress::ProgressDispatcher;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProgressNotificationParam};
 use rmcp::service::NotificationContext;
@@ -65,12 +66,12 @@ impl McpClient {
     pub async fn list_tools(
         service_id: &str,
         context: &systemprompt_models::RequestContext,
-    ) -> Result<Vec<McpTool>> {
+    ) -> McpDomainResult<Vec<McpTool>> {
         use crate::services::registry::RegistryManager;
 
         RegistryManager::validate()?;
         let server_config = RegistryManager::find_server(service_id)?
-            .ok_or_else(|| anyhow::anyhow!("MCP server '{service_id}' not found in registry"))?;
+            .ok_or_else(|| crate::error::McpDomainError::ServerNotFound(service_id.to_string()))?;
 
         let url = server_config.endpoint(&Config::get()?.api_server_url);
         let url = rewrite_url_for_internal_use(&url);
@@ -80,8 +81,8 @@ impl McpClient {
         let transport = if requires_auth {
             let user_token = context.auth_token();
             if user_token.as_str().is_empty() {
-                return Err(anyhow::anyhow!(
-                    "User JWT required for authenticated MCP calls"
+                return Err(crate::error::McpDomainError::AuthRequired(
+                    "User JWT required for authenticated MCP calls".to_string(),
                 ));
             }
             let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
@@ -145,12 +146,13 @@ impl McpClient {
         arguments: Option<serde_json::Value>,
         context: &systemprompt_models::RequestContext,
         _db_pool: &DbPool,
-    ) -> Result<rmcp::model::CallToolResult> {
+    ) -> McpDomainResult<systemprompt_models::CallToolResult> {
         use crate::services::registry::RegistryManager;
 
         RegistryManager::validate()?;
-        let server_config = RegistryManager::find_server(service_name)?
-            .ok_or_else(|| anyhow::anyhow!("MCP server '{service_name}' not found in registry"))?;
+        let server_config = RegistryManager::find_server(service_name)?.ok_or_else(|| {
+            crate::error::McpDomainError::ServerNotFound(service_name.to_string())
+        })?;
 
         let url = server_config.endpoint(&Config::get()?.api_server_url);
         let url = rewrite_url_for_internal_use(&url);
@@ -158,7 +160,7 @@ impl McpClient {
         let transport = build_transport(&url, server_config.oauth.required, context)?;
         execute_tool_call(transport, &name, arguments)
             .await
-            .map_err(|e| anyhow::anyhow!("Tool execution failed: {e}"))
+            .map_err(|e| crate::error::McpDomainError::ToolExecutionFailed(e.to_string()))
     }
 }
 
@@ -166,14 +168,14 @@ fn build_transport(
     url: &str,
     requires_auth: bool,
     context: &systemprompt_models::RequestContext,
-) -> Result<StreamableHttpClientTransport<HttpClientWithContext>> {
+) -> McpDomainResult<StreamableHttpClientTransport<HttpClientWithContext>> {
     let client = HttpClientWithContext::new(context.clone());
 
     if requires_auth {
         let user_token = context.auth_token();
         if user_token.as_str().is_empty() {
-            return Err(anyhow::anyhow!(
-                "User JWT required for authenticated MCP calls"
+            return Err(crate::error::McpDomainError::AuthRequired(
+                "User JWT required for authenticated MCP calls".to_string(),
             ));
         }
         let config = StreamableHttpClientTransportConfig::with_uri(url)
@@ -189,7 +191,7 @@ async fn execute_tool_call(
     transport: StreamableHttpClientTransport<HttpClientWithContext>,
     name: &str,
     arguments: Option<serde_json::Value>,
-) -> Result<systemprompt_models::CallToolResult, anyhow::Error> {
+) -> McpDomainResult<systemprompt_models::CallToolResult> {
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),
         Implementation::new("systemprompt-ai-mcp-client", "1.0.0"),
@@ -201,8 +203,8 @@ async fn execute_tool_call(
         Ok(Ok(c)) => c,
         Ok(Err(e)) => return Err(e.into()),
         Err(_) => {
-            return Err(anyhow::anyhow!(
-                "MCP transport serve timed out after 30 seconds"
+            return Err(crate::error::McpDomainError::Internal(
+                "MCP transport serve timed out after 30 seconds".to_string(),
             ));
         },
     };
@@ -212,10 +214,9 @@ async fn execute_tool_call(
         params = params.with_arguments(args);
     }
 
-    let result = client_service
-        .call_tool(params)
-        .await
-        .map_err(|e| anyhow::anyhow!("MCP tool call failed: {e}"));
+    let result = client_service.call_tool(params).await.map_err(|e| {
+        crate::error::McpDomainError::ToolExecutionFailed(format!("MCP tool call failed: {e}"))
+    });
 
     client_service.cancel().await?;
     result

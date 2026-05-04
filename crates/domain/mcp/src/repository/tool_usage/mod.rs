@@ -1,4 +1,8 @@
-use anyhow::Result;
+//! Tool-usage repository — persists each MCP tool execution and aggregates stats.
+
+mod stats;
+
+use crate::error::McpDomainResult;
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -23,17 +27,20 @@ pub struct ToolUsageRepository {
 }
 
 impl ToolUsageRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
+    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
+        let pool = db.pool_arc().map_err(|e| {
+            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
+        })?;
+        let write_pool = db.write_pool_arc().map_err(|e| {
+            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
+        })?;
         Ok(Self { pool, write_pool })
     }
 
-    pub async fn start_execution(&self, request: &ToolExecutionRequest) -> Result<McpExecutionId> {
+    pub async fn start_execution(
+        &self,
+        request: &ToolExecutionRequest,
+    ) -> McpDomainResult<McpExecutionId> {
         if let Some(existing_id) = self.find_existing_execution(request).await? {
             return Ok(existing_id);
         }
@@ -80,7 +87,7 @@ impl ToolUsageRepository {
         &self,
         mcp_execution_id: &McpExecutionId,
         result: &ToolExecutionResult,
-    ) -> Result<()> {
+    ) -> McpDomainResult<()> {
         let id = mcp_execution_id.as_str();
         let duration_ms = (result.completed_at - result.started_at).num_milliseconds() as i32;
         let output_str = result.output.as_ref().and_then(|v| {
@@ -119,7 +126,7 @@ impl ToolUsageRepository {
         &self,
         request: &ToolExecutionRequest,
         result: &ToolExecutionResult,
-    ) -> Result<McpExecutionId> {
+    ) -> McpDomainResult<McpExecutionId> {
         let id = Uuid::new_v4().to_string();
         let mcp_execution_id = McpExecutionId::new(id.clone());
         let status = ExecutionStatus::from_error(result.error_message.is_some()).as_str();
@@ -166,7 +173,7 @@ impl ToolUsageRepository {
         Ok(mcp_execution_id)
     }
 
-    pub async fn find_by_id(&self, id: &McpExecutionId) -> Result<Option<ToolExecution>> {
+    pub async fn find_by_id(&self, id: &McpExecutionId) -> McpDomainResult<Option<ToolExecution>> {
         let id_str = id.as_str();
         let row = sqlx::query!(
             r#"SELECT
@@ -210,7 +217,7 @@ impl ToolUsageRepository {
     pub async fn find_by_ai_call_id(
         &self,
         ai_tool_call_id: &AiToolCallId,
-    ) -> Result<Option<McpExecutionId>> {
+    ) -> McpDomainResult<Option<McpExecutionId>> {
         let id_str = ai_tool_call_id.as_str();
         let result = sqlx::query_scalar!(
             r#"SELECT mcp_execution_id as "mcp_execution_id!" FROM mcp_tool_executions WHERE ai_tool_call_id = $1"#,
@@ -224,7 +231,7 @@ impl ToolUsageRepository {
     async fn find_existing_execution(
         &self,
         request: &ToolExecutionRequest,
-    ) -> Result<Option<McpExecutionId>> {
+    ) -> McpDomainResult<Option<McpExecutionId>> {
         let Some(ai_call_id) = &request.ai_tool_call_id else {
             return Ok(None);
         };
@@ -234,7 +241,7 @@ impl ToolUsageRepository {
     pub async fn find_context_id(
         &self,
         execution_id: &McpExecutionId,
-    ) -> Result<Option<ContextId>> {
+    ) -> McpDomainResult<Option<ContextId>> {
         let id_str = execution_id.as_str();
         let result = sqlx::query_scalar!(
             "SELECT context_id FROM mcp_tool_executions WHERE mcp_execution_id = $1",
@@ -245,46 +252,13 @@ impl ToolUsageRepository {
         Ok(result.flatten().map(ContextId::new))
     }
 
-    pub async fn list_tool_stats(&self, limit: i64) -> Result<Vec<ToolStats>> {
-        let success_status = ExecutionStatus::Success.as_str();
-        let failed_status = ExecutionStatus::Failed.as_str();
-        let rows = sqlx::query!(
-            r#"SELECT
-                tool_name as "tool_name!",
-                server_name as "server_name!",
-                COUNT(*)::bigint as "total_executions!",
-                COUNT(*) FILTER (WHERE status = $1)::bigint as "success_count!",
-                COUNT(*) FILTER (WHERE status = $2)::bigint as "error_count!",
-                AVG(execution_time_ms)::bigint as avg_duration_ms,
-                MIN(execution_time_ms)::bigint as min_duration_ms,
-                MAX(execution_time_ms)::bigint as max_duration_ms
-            FROM mcp_tool_executions
-            GROUP BY tool_name, server_name
-            ORDER BY COUNT(*) DESC
-            LIMIT $3"#,
-            success_status,
-            failed_status,
-            limit
-        )
-        .fetch_all(&*self.pool)
-        .await?;
-
-        Ok(rows
-            .into_iter()
-            .map(|r| ToolStats {
-                tool_name: r.tool_name,
-                server_name: r.server_name,
-                total_executions: r.total_executions,
-                success_count: r.success_count,
-                error_count: r.error_count,
-                avg_duration_ms: r.avg_duration_ms,
-                min_duration_ms: r.min_duration_ms,
-                max_duration_ms: r.max_duration_ms,
-            })
-            .collect())
+    /// List per-tool aggregate execution statistics, ordered by execution count.
+    pub async fn list_tool_stats(&self, limit: i64) -> McpDomainResult<Vec<ToolStats>> {
+        stats::list_tool_stats(&self.pool, limit).await
     }
 
-    pub async fn update_context_timestamp(&self, context_id: &ContextId) -> Result<()> {
+    /// Bump the `updated_at` timestamp on a parent context row.
+    pub async fn update_context_timestamp(&self, context_id: &ContextId) -> McpDomainResult<()> {
         let now = Utc::now();
         let context_id_str = context_id.to_string();
         sqlx::query!(

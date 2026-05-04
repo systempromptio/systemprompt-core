@@ -16,6 +16,10 @@ include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md",
 [lints]
 workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 # Core dependencies
 tokio = { workspace = true, features = ["signal"] }

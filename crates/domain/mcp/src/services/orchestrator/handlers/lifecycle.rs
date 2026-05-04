@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
 use crate::services::lifecycle::LifecycleManager;
@@ -19,7 +19,7 @@ impl LifecycleHandler {
 
 #[async_trait]
 impl EventHandler for LifecycleHandler {
-    async fn handle(&self, event: &McpEvent) -> Result<()> {
+    async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         match event {
             McpEvent::ServiceStartRequested { service_name } => {
                 let config = RegistryManager::get_server(service_name)?;

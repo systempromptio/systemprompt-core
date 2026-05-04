@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -42,17 +42,17 @@ pub struct McpArtifactRepository {
 }
 
 impl McpArtifactRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
+    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
+        let pool = db.pool_arc().map_err(|e| {
+            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
+        })?;
+        let write_pool = db.write_pool_arc().map_err(|e| {
+            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
+        })?;
         Ok(Self { pool, write_pool })
     }
 
-    pub async fn save(&self, artifact: &CreateMcpArtifact) -> Result<()> {
+    pub async fn save(&self, artifact: &CreateMcpArtifact) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
             INSERT INTO mcp_artifacts (
@@ -82,7 +82,10 @@ impl McpArtifactRepository {
         Ok(())
     }
 
-    pub async fn find_by_id(&self, artifact_id: &ArtifactId) -> Result<Option<McpArtifactRecord>> {
+    pub async fn find_by_id(
+        &self,
+        artifact_id: &ArtifactId,
+    ) -> McpDomainResult<Option<McpArtifactRecord>> {
         let row = sqlx::query!(
             r#"
             SELECT
@@ -127,7 +130,7 @@ impl McpArtifactRepository {
         &self,
         server_name: &str,
         limit: i64,
-    ) -> Result<Vec<McpArtifactRecord>> {
+    ) -> McpDomainResult<Vec<McpArtifactRecord>> {
         let rows = sqlx::query!(
             r#"
             SELECT
@@ -174,7 +177,7 @@ impl McpArtifactRepository {
             .collect())
     }
 
-    pub async fn delete(&self, artifact_id: &ArtifactId) -> Result<bool> {
+    pub async fn delete(&self, artifact_id: &ArtifactId) -> McpDomainResult<bool> {
         let result = sqlx::query!(
             r#"DELETE FROM mcp_artifacts WHERE artifact_id = $1"#,
             artifact_id.as_str()
@@ -185,7 +188,7 @@ impl McpArtifactRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    pub async fn cleanup_expired(&self) -> Result<u64> {
+    pub async fn cleanup_expired(&self) -> McpDomainResult<u64> {
         let result = sqlx::query!(
             r#"DELETE FROM mcp_artifacts WHERE expires_at IS NOT NULL AND expires_at < NOW()"#,
         )

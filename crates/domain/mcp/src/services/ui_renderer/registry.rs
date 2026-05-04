@@ -1,5 +1,5 @@
 use super::{UiRenderer, UiResource};
-use anyhow::{Result, anyhow};
+use crate::error::{McpDomainError, McpDomainResult};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_models::a2a::Artifact;
@@ -43,14 +43,13 @@ impl UiRendererRegistry {
         self.renderers.keys().map(String::as_str).collect()
     }
 
-    pub async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
+    pub async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let artifact_type = &artifact.metadata.artifact_type;
 
         let renderer = self.get(artifact_type).ok_or_else(|| {
-            anyhow!(
-                "No renderer registered for artifact type: {}",
-                artifact_type
-            )
+            McpDomainError::Internal(format!(
+                "No renderer registered for artifact type: {artifact_type}"
+            ))
         })?;
 
         renderer.render(artifact).await

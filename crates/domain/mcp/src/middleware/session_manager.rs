@@ -16,7 +16,7 @@ use crate::repository::McpSessionRepository;
 #[derive(Debug)]
 pub enum DatabaseSessionManagerError {
     Local(LocalSessionManagerError),
-    Database(anyhow::Error),
+    Database(crate::error::McpDomainError),
     SessionNotFound(String),
     SessionExpired(String),
     SessionNeedsReconnect(String),
@@ -38,7 +38,7 @@ impl std::error::Error for DatabaseSessionManagerError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Local(e) => Some(e),
-            Self::Database(e) => Some(e.as_ref()),
+            Self::Database(e) => Some(e),
             _ => None,
         }
     }

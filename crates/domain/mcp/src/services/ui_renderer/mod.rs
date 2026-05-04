@@ -5,7 +5,7 @@ pub mod templates;
 pub use csp::{CspBuilder, CspPolicy};
 pub use registry::UiRendererRegistry;
 
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -119,7 +119,7 @@ pub trait UiRenderer: Send + Sync {
         self.artifact_type().to_string() == artifact_type
     }
 
-    async fn render(&self, artifact: &Artifact) -> Result<UiResource>;
+    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource>;
 
     fn csp_policy(&self) -> CspPolicy {
         CspPolicy::strict()

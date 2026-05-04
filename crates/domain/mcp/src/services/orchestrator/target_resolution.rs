@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 
 use super::McpOrchestrator;
 use crate::McpServerConfig;
@@ -9,16 +9,13 @@ impl McpOrchestrator {
         &self,
         service_name: Option<String>,
         enabled_only: bool,
-    ) -> Result<Vec<McpServerConfig>> {
+    ) -> McpDomainResult<Vec<McpServerConfig>> {
         match service_name {
             Some(name) if name == "all" => {
                 if enabled_only {
-                    RegistryManager::get_enabled_servers().map_err(Into::into)
+                    RegistryManager::get_enabled_servers()
                 } else {
-                    self.database
-                        .get_running_servers()
-                        .await
-                        .map_err(Into::into)
+                    self.database.get_running_servers().await
                 }
             },
             Some(name) => {
@@ -27,12 +24,9 @@ impl McpOrchestrator {
             },
             None => {
                 if enabled_only {
-                    RegistryManager::get_enabled_servers().map_err(Into::into)
+                    RegistryManager::get_enabled_servers()
                 } else {
-                    self.database
-                        .get_running_servers()
-                        .await
-                        .map_err(Into::into)
+                    self.database.get_running_servers().await
                 }
             },
         }

@@ -44,9 +44,7 @@ impl LifecycleManager {
     }
 
     pub async fn start_server(&self, config: &McpServerConfig) -> McpDomainResult<()> {
-        startup::start_server(self, config, None)
-            .await
-            .map_err(Into::into)
+        startup::start_server(self, config, None).await
     }
 
     pub async fn start_server_with_events(
@@ -54,27 +52,19 @@ impl LifecycleManager {
         config: &McpServerConfig,
         events: Option<&StartupEventSender>,
     ) -> McpDomainResult<()> {
-        startup::start_server(self, config, events)
-            .await
-            .map_err(Into::into)
+        startup::start_server(self, config, events).await
     }
 
     pub async fn stop_server(&self, config: &McpServerConfig) -> McpDomainResult<()> {
-        shutdown::stop_server(self, config)
-            .await
-            .map_err(Into::into)
+        shutdown::stop_server(self, config).await
     }
 
     pub async fn restart_server(&self, config: &McpServerConfig) -> McpDomainResult<()> {
-        restart::restart_server(self, config)
-            .await
-            .map_err(Into::into)
+        restart::restart_server(self, config).await
     }
 
     pub async fn health_check(&self, config: &McpServerConfig) -> McpDomainResult<bool> {
-        health::check_server_health(self, config)
-            .await
-            .map_err(Into::into)
+        health::check_server_health(self, config).await
     }
 
     pub const fn process(&self) -> &ProcessManager {

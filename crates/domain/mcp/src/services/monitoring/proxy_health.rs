@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use std::net::TcpStream;
 use std::time::Duration;
 use systemprompt_database::ServiceRepository;
@@ -9,13 +9,13 @@ pub struct ProxyHealthCheck {
 }
 
 impl ProxyHealthCheck {
-    pub fn new(db_pool: &systemprompt_database::DbPool) -> Result<Self> {
+    pub fn new(db_pool: &systemprompt_database::DbPool) -> McpDomainResult<Self> {
         Ok(Self {
             service_repo: ServiceRepository::new(db_pool)?,
         })
     }
 
-    pub async fn can_route_traffic(&self, service_name: &str, port: u16) -> Result<bool> {
+    pub async fn can_route_traffic(&self, service_name: &str, port: u16) -> McpDomainResult<bool> {
         let Some(service) = self.service_repo.get_service_by_name(service_name).await? else {
             return Ok(false);
         };
@@ -63,7 +63,7 @@ impl ProxyHealthCheck {
         }
     }
 
-    pub async fn get_routable_services(&self) -> Result<Vec<RoutableService>> {
+    pub async fn get_routable_services(&self) -> McpDomainResult<Vec<RoutableService>> {
         let running_services = self.service_repo.get_all_running_services().await?;
 
         let mut routable = Vec::new();

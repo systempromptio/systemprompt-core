@@ -61,6 +61,45 @@ pub enum McpDomainError {
 
     #[error("extension load: {0}")]
     ExtensionLoad(#[from] systemprompt_loader::ExtensionLoadError),
+
+    #[error("MCP client initialize: {0}")]
+    ClientInitialize(String),
+
+    #[error("MCP service error: {0}")]
+    ServiceError(String),
+
+    #[error("Task join error: {0}")]
+    TaskJoin(#[from] tokio::task::JoinError),
+
+    #[error("Path error: {0}")]
+    Path(String),
+
+    #[error("Config validation: {0}")]
+    ConfigValidation(String),
+}
+
+impl From<rmcp::service::ClientInitializeError> for McpDomainError {
+    fn from(e: rmcp::service::ClientInitializeError) -> Self {
+        Self::ClientInitialize(e.to_string())
+    }
+}
+
+impl From<rmcp::ServiceError> for McpDomainError {
+    fn from(e: rmcp::ServiceError) -> Self {
+        Self::ServiceError(e.to_string())
+    }
+}
+
+impl From<systemprompt_models::errors::ConfigValidationError> for McpDomainError {
+    fn from(e: systemprompt_models::errors::ConfigValidationError) -> Self {
+        Self::ConfigValidation(e.to_string())
+    }
+}
+
+impl From<systemprompt_models::paths::PathError> for McpDomainError {
+    fn from(e: systemprompt_models::paths::PathError) -> Self {
+        Self::Path(e.to_string())
+    }
 }
 
 pub type McpDomainResult<T> = Result<T, McpDomainError>;

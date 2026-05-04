@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
 use crate::services::database::DatabaseManager;
@@ -18,7 +18,7 @@ impl DatabaseSyncHandler {
 
 #[async_trait]
 impl EventHandler for DatabaseSyncHandler {
-    async fn handle(&self, event: &McpEvent) -> Result<()> {
+    async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         match event {
             McpEvent::ServiceStarted { service_name, .. } => {
                 self.database
