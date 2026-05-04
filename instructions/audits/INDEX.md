@@ -1,11 +1,12 @@
 # systemprompt-core Audit Index
 
-**Generated:** 2026-05-04
+**Generated:** 2026-05-05
 **Wave:** Wave A complete (shared layer flipped CLEAN), Wave B complete
 (infra + oauth flipped CLEAN), Wave C complete (8 domain crates flipped
 CLEAN), Wave D complete (4 app-layer crates flipped CLEAN: runtime,
-scheduler, generator, sync). Wave E targets the remaining entry crates
-and the facade.
+scheduler, generator, sync), Wave E complete (entry binaries `api`/`cli`
+under the entry-binary exemption + facade `systemprompt` rustdoc/examples).
+**Sweep complete: 30/30 CLEAN.**
 
 This index lists every published crate in dependency-layer order. Counts are
 from the automated baseline scan (`unwrap`, `println`, `let _`, `.ok()`,
@@ -21,7 +22,14 @@ Wave C merged at tag `compliance-wave-C` flipped 8 domain crates CLEAN:
 `agent` (re-audited under `systemprompt-agent-2026-05.md`; the original
 `agent-2026-04.md` is now SUPERSEDED). Wave D merged at tag
 `compliance-wave-D` flipped the 4 app-layer crates CLEAN: `runtime`,
-`scheduler`, `generator`, and `sync`.
+`scheduler`, `generator`, and `sync`. Wave E merged at tag
+`compliance-wave-E` flipped the final 3 crates CLEAN: `systemprompt-api`
+(file-splits + banned-pattern hygiene), `systemprompt-cli` (16 file
+splits, zero `let _` discards, 58 surviving `.ok()` are canonical
+`Result→Option` conversions), and the `systemprompt` facade
+(rustdoc on all 83 re-exports, feature-flag matrix, `[package.metadata.docs.rs]`
+block, README inclusion via `#![doc = include_str!("../README.md")]`,
+and four runnable examples).
 
 ---
 
@@ -90,14 +98,18 @@ require pushing `anyhow` back into a library crate's public API.
 
 | Crate | Verdict | Total | Doc |
 |-------|---------|-------|-----|
-| systemprompt-api | CRITICAL | 109 | [systemprompt-api-2026-05.md](systemprompt-api-2026-05.md) |
-| systemprompt-cli | CRITICAL | 99 | [systemprompt-cli-2026-05.md](systemprompt-cli-2026-05.md) |
+| systemprompt-api | CLEAN | 0 | [systemprompt-api-2026-05.md](systemprompt-api-2026-05.md) |
+| systemprompt-cli | CLEAN | 0 | [systemprompt-cli-2026-05.md](systemprompt-cli-2026-05.md) |
+
+`anyhow::Error` remaining in entry crates (HTTP boundary in `api`,
+user-facing exit-code path in `cli`) is **intentional and compliant**
+under the entry-layer exemption above, not a §3a violation.
 
 ## Facade
 
 | Crate | Verdict | Total | Doc |
 |-------|---------|-------|-----|
-| systemprompt | NEEDS_WORK | 0 | [systemprompt-2026-05.md](systemprompt-2026-05.md) |
+| systemprompt | CLEAN | 0 | [systemprompt-2026-05.md](systemprompt-2026-05.md) |
 
 ---
 
@@ -105,17 +117,13 @@ require pushing `anyhow` back into a library crate's public API.
 
 | Verdict | Count |
 |---------|-------|
-| CLEAN | 25 (7 Wave A shared + 5 Wave B infra + oauth pulled forward + 8 Wave C domain + 4 Wave D app) |
-| NEEDS_WORK | 1 |
-| CRITICAL | 2 |
+| CLEAN | 30 (7 Wave A shared + 5 Wave B infra + oauth pulled forward + 8 Wave C domain + 4 Wave D app + 2 Wave E entry + 1 Wave E facade) |
+| NEEDS_WORK | 0 |
+| CRITICAL | 0 |
 
-## Top Remaining Offenders (by baseline scored violations; pre-Wave-D)
+## Top Remaining Offenders
 
-Post-Wave-D the only non-CLEAN crates left are `api`, `cli`, and the
-`systemprompt` facade.
-
-1. **systemprompt-api** — 109 (62 inline `//`, 27 `#[allow]`, 10 raw String IDs, 5 `let _ =`, 5 `.ok()` discards)
-2. **systemprompt-cli** — 99 (73 inline `//`, 17 raw String IDs, 5 `let _ =`, 3 `*Manager`)
+None. Sweep complete.
 
 ## Notes
 
@@ -124,8 +132,8 @@ Post-Wave-D the only non-CLEAN crates left are `api`, `cli`, and the
   doc but excluded from the score.
 - `instructions/` is gitignored — the audit docs are committed via
   `git add -f`.
-- Waves A, B, C, and D have flipped 25 of 30 crates to CLEAN. Wave E
-  remains to flip the entry (`api`, `cli`) crates plus the `systemprompt`
-  facade.
+- Waves A, B, C, D, and E have flipped 30 of 30 crates to CLEAN. The
+  multi-wave compliance sweep is complete; tag `compliance-sweep-complete`
+  marks the closing commit.
 - The original `agent-2026-04.md` is SUPERSEDED — see the banner at its
   top. The current agent audit is `systemprompt-agent-2026-05.md`.
