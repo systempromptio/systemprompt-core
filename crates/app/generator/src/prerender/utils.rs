@@ -48,7 +48,10 @@ pub async fn render_components(
                 .map(|html| RenderedComponent::new(component.variable_name(), html))
                 .map_err(|e| anyhow::anyhow!("{}", e))
         } else {
-            component.render(component_ctx).await
+            component
+                .render(component_ctx)
+                .await
+                .map_err(|e| anyhow::anyhow!(e))
         };
 
         match result {

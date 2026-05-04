@@ -1,8 +1,7 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
 use crate::repository::McpSessionRepository;
@@ -26,7 +25,7 @@ impl Job for McpSessionCleanupJob {
         "0 */30 * * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = Arc::clone(
@@ -36,8 +35,14 @@ impl Job for McpSessionCleanupJob {
 
         let repo = McpSessionRepository::new(&db_pool)?;
 
-        let expired = repo.cleanup_expired().await?;
-        let deleted = repo.delete_stale(STALE_SESSION_RETENTION_DAYS).await?;
+        let expired = repo
+            .cleanup_expired()
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        let deleted = repo
+            .delete_stale(STALE_SESSION_RETENTION_DAYS)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

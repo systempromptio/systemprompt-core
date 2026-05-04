@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_provider_contracts::{ComponentContext, ComponentRenderer, RenderedComponent};
+use systemprompt_provider_contracts::{
+    ComponentContext, ComponentRenderer, ProviderResult, RenderedComponent,
+};
 
 const PLACEHOLDER_IMAGE_SVG: &str = r#"<div class="card-image card-image--placeholder">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -30,7 +31,7 @@ impl ComponentRenderer for ListItemsCardRenderer {
         vec!["blog-list".into(), "news-list".into(), "pages-list".into()]
     }
 
-    async fn render(&self, ctx: &ComponentContext<'_>) -> Result<RenderedComponent> {
+    async fn render(&self, ctx: &ComponentContext<'_>) -> ProviderResult<RenderedComponent> {
         let items = ctx.all_items.unwrap_or(&[]);
         let url_prefix = extract_url_prefix(ctx);
 

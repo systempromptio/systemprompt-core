@@ -259,7 +259,7 @@ impl SchedulerService {
         let ctx = JobContext::new(db_pool_any, app_context_any, app_paths_any);
 
         match AssertUnwindSafe(job.execute(&ctx)).catch_unwind().await {
-            Ok(result) => result,
+            Ok(result) => result.map_err(|e| anyhow::anyhow!(e)),
             Err(payload) => {
                 let msg = payload
                     .downcast_ref::<&'static str>()

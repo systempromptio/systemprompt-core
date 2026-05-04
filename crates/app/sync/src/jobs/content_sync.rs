@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::{AppPaths, ContentConfigRaw};
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ContentSyncJob;
@@ -33,7 +33,7 @@ impl Job for ContentSyncJob {
         false
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = Arc::clone(

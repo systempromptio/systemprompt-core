@@ -1,8 +1,7 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
 use crate::UserService;
@@ -26,7 +25,7 @@ impl Job for CleanupAnonymousUsersJob {
         "0 0 * * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = Arc::clone(
@@ -39,7 +38,8 @@ impl Job for CleanupAnonymousUsersJob {
         let user_service = UserService::new(&db_pool)?;
         let deleted_users = user_service
             .cleanup_old_anonymous(ANONYMOUS_USER_RETENTION_DAYS)
-            .await?;
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

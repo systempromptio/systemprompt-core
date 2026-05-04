@@ -4,7 +4,8 @@ use chrono::Utc;
 use std::collections::HashMap;
 use systemprompt_models::{AppPaths, ContentConfigRaw};
 use systemprompt_provider_contracts::{
-    PlaceholderMapping, SitemapContext, SitemapProvider, SitemapSourceSpec, SitemapUrlEntry,
+    PlaceholderMapping, ProviderResult, SitemapContext, SitemapProvider, SitemapSourceSpec,
+    SitemapUrlEntry,
 };
 use tokio::fs;
 
@@ -91,7 +92,7 @@ impl SitemapProvider for DefaultSitemapProvider {
         _ctx: &SitemapContext<'_>,
         content: &serde_json::Value,
         placeholders: &[PlaceholderMapping],
-    ) -> Result<HashMap<String, String>> {
+    ) -> ProviderResult<HashMap<String, String>> {
         let mut resolved = HashMap::new();
 
         for mapping in placeholders {

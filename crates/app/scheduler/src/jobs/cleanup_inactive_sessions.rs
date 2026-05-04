@@ -1,8 +1,7 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::debug;
 
 #[derive(Debug, Clone, Copy)]
@@ -22,7 +21,7 @@ impl Job for CleanupInactiveSessionsJob {
         "0 */10 * * * *"
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
         let db_pool = std::sync::Arc::clone(
