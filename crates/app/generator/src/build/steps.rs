@@ -1,3 +1,7 @@
+//! Post-build CSS reorganisation: moves the well-known content/syntax CSS
+//! files from `dist/` into `dist/css/` so the deployed site has a tidy
+//! per-asset-type layout.
+
 use std::path::Path;
 use tokio::fs;
 
@@ -5,6 +9,7 @@ use super::orchestrator::{BuildError, Result};
 
 const CSS_FILES: &[&str] = &["content.css", "syntax-highlight.css"];
 
+/// Move the well-known CSS files from `dist/` into `dist/css/`.
 pub async fn organize_css(web_dir: &Path) -> Result<()> {
     tracing::debug!("Organizing CSS files");
 

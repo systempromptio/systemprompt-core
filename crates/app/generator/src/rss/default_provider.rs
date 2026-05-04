@@ -1,18 +1,23 @@
-use anyhow::{Context, Result, anyhow};
+//! Default `RssFeedProvider` that emits a feed for every enabled content
+//! source, sourcing items directly from the content repository.
+
 use async_trait::async_trait;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::{
-    ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
+    ProviderError, ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
+    RssFeedSpec,
 };
 use tokio::fs;
 
+use crate::error::{GeneratorResult, PublishError};
 use crate::templates::load_web_config;
 
 const DEFAULT_MAX_ITEMS: i64 = 20;
 
+/// Default RSS feed provider — emits one feed per enabled content source.
 pub struct DefaultRssFeedProvider {
     db_pool: DbPool,
     content_config: ContentConfigRaw,
@@ -31,11 +36,13 @@ impl std::fmt::Debug for DefaultRssFeedProvider {
 }
 
 impl DefaultRssFeedProvider {
-    pub async fn new(db_pool: DbPool, paths: &AppPaths) -> Result<Self> {
+    /// Build a provider from disk: loads `content.yaml` and `web.yaml` from
+    /// `paths` and stores the database pool used by `fetch_items`.
+    pub async fn new(db_pool: DbPool, paths: &AppPaths) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
         let web_config = load_web_config(paths)
             .await
-            .map_err(|e| anyhow!("Failed to load web config: {}", e))?;
+            .map_err(|e| PublishError::other(format!("Failed to load web config: {e}")))?;
 
         Ok(Self {
             db_pool,
@@ -70,14 +77,15 @@ impl DefaultRssFeedProvider {
     }
 }
 
-async fn load_content_config(paths: &AppPaths) -> Result<ContentConfigRaw> {
+async fn load_content_config(paths: &AppPaths) -> GeneratorResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
         .await
-        .context("Failed to read content config")?;
+        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
 
-    serde_yaml::from_str(&yaml_content).context("Failed to parse content config")
+    serde_yaml::from_str(&yaml_content)
+        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))
 }
 
 #[async_trait]
@@ -102,7 +110,8 @@ impl RssFeedProvider for DefaultRssFeedProvider {
 
     async fn feed_metadata(&self, ctx: &RssFeedContext<'_>) -> ProviderResult<RssFeedMetadata> {
         let (title, description) = self.get_source_branding(ctx.source_name);
-        let global_config = Config::get().map_err(|e| anyhow!(e))?;
+        let global_config = Config::get()
+            .map_err(|e| ProviderError::Configuration(format!("Failed to load global config: {e}")))?;
 
         let language = if self.content_config.metadata.language.is_empty() {
             "en".to_string()
@@ -128,21 +137,24 @@ impl RssFeedProvider for DefaultRssFeedProvider {
             .content_sources
             .values()
             .find(|s| s.source_id.as_str() == ctx.source_name)
-            .ok_or_else(|| anyhow!("Source not found: {}", ctx.source_name))?;
+            .ok_or_else(|| ProviderError::NotFound(format!("Source not found: {}", ctx.source_name)))?;
 
         let url_pattern = source_config
             .sitemap
             .as_ref()
             .map_or("/{slug}", |s| s.url_pattern.as_str());
 
-        let repo = ContentRepository::new(&self.db_pool)
-            .map_err(|e| anyhow!("Failed to create content repository: {}", e))?;
+        let repo = ContentRepository::new(&self.db_pool).map_err(|e| {
+            ProviderError::Configuration(format!("Failed to create content repository: {e}"))
+        })?;
 
         let source_id = SourceId::new(ctx.source_name);
         let content_items = repo
             .list_by_source_limited(&source_id, limit)
             .await
-            .context("Failed to fetch content for RSS feed")?;
+            .map_err(|e| {
+                ProviderError::RenderFailed(format!("Failed to fetch content for RSS feed: {e}"))
+            })?;
 
         let items = content_items
             .into_iter()
