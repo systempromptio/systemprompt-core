@@ -1,4 +1,5 @@
 pub mod constants;
+pub mod error;
 pub(crate) mod extension;
 pub mod models;
 pub(crate) mod queries;
@@ -6,6 +7,7 @@ pub mod repository;
 pub mod services;
 pub(crate) mod state;
 
+pub use error::{OauthError, OauthResult};
 pub use extension::OauthExtension;
 
 pub use models::*;

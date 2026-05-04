@@ -1,21 +1,24 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum FilesError {
-    #[error("file not found: {0}")]
-    NotFound(String),
+pub enum OauthError {
+    #[error("provider error: {0}")]
+    Provider(String),
 
-    #[error("storage error: {0}")]
-    Storage(String),
+    #[error("token error: {0}")]
+    Token(String),
+
+    #[error("session error: {0}")]
+    Session(String),
 
     #[error("repository error: {0}")]
     Repository(#[from] sqlx::Error),
 
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
-
     #[error("validation error: {0}")]
     Validation(String),
+
+    #[error("unauthorized: {0}")]
+    Unauthorized(String),
 
     #[error("config error: {0}")]
     Config(String),
@@ -24,4 +27,4 @@ pub enum FilesError {
     Other(#[from] anyhow::Error),
 }
 
-pub type FilesResult<T> = Result<T, FilesError>;
+pub type OauthResult<T> = Result<T, OauthError>;
