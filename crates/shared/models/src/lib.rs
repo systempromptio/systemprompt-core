@@ -1,3 +1,49 @@
+//! Foundation data models for systemprompt.io.
+//!
+//! `systemprompt-models` is the shared `shared/*` crate that every
+//! other layer (`infra`, `domain`, `app`, `entry`) depends on for the
+//! plain DTO and configuration shapes that flow across the system.
+//! It owns the wire types of the public HTTP API, the on-disk profile
+//! and services configuration, the A2A and AG-UI protocol shapes, the
+//! MCP metadata helpers, and the typed error enums returned by every
+//! public function in this crate.
+//!
+//! # Module map
+//!
+//! - [`a2a`] — A2A protocol agent card, message, task, and transport types.
+//! - [`agui`] — AG-UI streaming event protocol.
+//! - [`ai`] — LLM request/response shapes plus the [`ai::AiProvider`] trait.
+//! - [`api`] — public HTTP envelopes, error model, pagination, cloud DTOs.
+//! - [`artifacts`] — typed tool-result artifacts.
+//! - [`auth`] — authenticated user, permission, audience, and PKCE types.
+//! - [`config`] — global [`config::Config`] singleton and validation helpers.
+//! - [`content`], [`content_config`] — published content metadata.
+//! - [`errors`] — `thiserror`-derived public error enums.
+//! - [`events`] — analytics, A2A and system event envelopes.
+//! - [`execution`] — request context and execution-step bookkeeping.
+//! - [`extension`] — extension framework manifest types.
+//! - [`mcp`] — MCP protocol metadata helpers.
+//! - [`modules`] — module manifest tree resolution.
+//! - [`oauth`] — OAuth client / server config shapes.
+//! - [`paths`] — well-known directory layout helpers.
+//! - [`profile`] — on-disk profile and bootstrap configuration.
+//! - [`repository`] — repository lifecycle traits and value objects.
+//! - [`routing`] — request routing classification.
+//! - [`secrets`] — secrets document model.
+//! - [`services`] — services manifest (agents, plugins, hooks, MCP, …).
+//! - [`users`] — public user / session summaries.
+//! - [`validators`] — startup configuration validation passes.
+//!
+//! # Feature flags
+//!
+//! | Feature | Effect |
+//! | ------- | ------ |
+//! | _default_ | All public DTOs and traits, no axum integration. |
+//! | `web` | Adds `axum::IntoResponse` impls for the API envelopes. |
+//!
+//! Public functions return `thiserror`-derived enums from [`errors`];
+//! `anyhow::Error` is never used in a public signature.
+
 pub mod macros;
 
 pub mod a2a;

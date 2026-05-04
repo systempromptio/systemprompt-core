@@ -137,7 +137,7 @@ pub enum AuthError {
     RegistrationFailed { reason: String },
 
     #[error("Internal error: {0}")]
-    Internal(#[from] anyhow::Error),
+    Internal(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

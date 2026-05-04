@@ -1,152 +1,27 @@
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+//! Convenience builder that stamps each [`super::AgUiEvent`] with the
+//! current timestamp and assembles its inner payload.
+
+use chrono::Utc;
 use serde_json::Value;
 use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, SkillId, TaskId};
 
-use super::{
-    AgUiEventType, ArtifactCustomPayload, CustomPayload, ExecutionStepCustomPayload,
-    JsonPatchOperation, MessageRole, MessagesSnapshotPayload, RunErrorPayload, RunFinishedPayload,
-    RunStartedPayload, SkillLoadedCustomPayload, StateDeltaPayload, StateSnapshotPayload,
-    StepFinishedPayload, StepStartedPayload, TextMessageContentPayload, TextMessageEndPayload,
-    TextMessageStartPayload, ToolCallArgsPayload, ToolCallEndPayload, ToolCallResultPayload,
-    ToolCallStartPayload,
-};
+use super::AgUiEvent;
 use crate::a2a::Artifact;
+use crate::agui::{
+    ArtifactCustomPayload, CustomPayload, ExecutionStepCustomPayload, JsonPatchOperation,
+    MessageRole, MessagesSnapshotPayload, RunErrorPayload, RunFinishedPayload, RunStartedPayload,
+    SkillLoadedCustomPayload, StateDeltaPayload, StateSnapshotPayload, StepFinishedPayload,
+    StepStartedPayload, TextMessageContentPayload, TextMessageEndPayload, TextMessageStartPayload,
+    ToolCallArgsPayload, ToolCallEndPayload, ToolCallResultPayload, ToolCallStartPayload,
+};
 use crate::execution::ExecutionStep;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum AgUiEvent {
-    RunStarted {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: RunStartedPayload,
-    },
-    RunFinished {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: RunFinishedPayload,
-    },
-    RunError {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: RunErrorPayload,
-    },
-    StepStarted {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: StepStartedPayload,
-    },
-    StepFinished {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: StepFinishedPayload,
-    },
-    TextMessageStart {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: TextMessageStartPayload,
-    },
-    TextMessageContent {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: TextMessageContentPayload,
-    },
-    TextMessageEnd {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: TextMessageEndPayload,
-    },
-    ToolCallStart {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: ToolCallStartPayload,
-    },
-    ToolCallArgs {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: ToolCallArgsPayload,
-    },
-    ToolCallEnd {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: ToolCallEndPayload,
-    },
-    ToolCallResult {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: ToolCallResultPayload,
-    },
-    StateSnapshot {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: StateSnapshotPayload,
-    },
-    StateDelta {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: StateDeltaPayload,
-    },
-    MessagesSnapshot {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: MessagesSnapshotPayload,
-    },
-    Custom {
-        timestamp: DateTime<Utc>,
-        #[serde(flatten)]
-        payload: Box<CustomPayload>,
-    },
-}
-
-impl AgUiEvent {
-    pub const fn event_type(&self) -> AgUiEventType {
-        match self {
-            Self::RunStarted { .. } => AgUiEventType::RunStarted,
-            Self::RunFinished { .. } => AgUiEventType::RunFinished,
-            Self::RunError { .. } => AgUiEventType::RunError,
-            Self::StepStarted { .. } => AgUiEventType::StepStarted,
-            Self::StepFinished { .. } => AgUiEventType::StepFinished,
-            Self::TextMessageStart { .. } => AgUiEventType::TextMessageStart,
-            Self::TextMessageContent { .. } => AgUiEventType::TextMessageContent,
-            Self::TextMessageEnd { .. } => AgUiEventType::TextMessageEnd,
-            Self::ToolCallStart { .. } => AgUiEventType::ToolCallStart,
-            Self::ToolCallArgs { .. } => AgUiEventType::ToolCallArgs,
-            Self::ToolCallEnd { .. } => AgUiEventType::ToolCallEnd,
-            Self::ToolCallResult { .. } => AgUiEventType::ToolCallResult,
-            Self::StateSnapshot { .. } => AgUiEventType::StateSnapshot,
-            Self::StateDelta { .. } => AgUiEventType::StateDelta,
-            Self::MessagesSnapshot { .. } => AgUiEventType::MessagesSnapshot,
-            Self::Custom { .. } => AgUiEventType::Custom,
-        }
-    }
-
-    pub const fn timestamp(&self) -> DateTime<Utc> {
-        match self {
-            Self::RunStarted { timestamp, .. }
-            | Self::RunFinished { timestamp, .. }
-            | Self::RunError { timestamp, .. }
-            | Self::StepStarted { timestamp, .. }
-            | Self::StepFinished { timestamp, .. }
-            | Self::TextMessageStart { timestamp, .. }
-            | Self::TextMessageContent { timestamp, .. }
-            | Self::TextMessageEnd { timestamp, .. }
-            | Self::ToolCallStart { timestamp, .. }
-            | Self::ToolCallArgs { timestamp, .. }
-            | Self::ToolCallEnd { timestamp, .. }
-            | Self::ToolCallResult { timestamp, .. }
-            | Self::StateSnapshot { timestamp, .. }
-            | Self::StateDelta { timestamp, .. }
-            | Self::MessagesSnapshot { timestamp, .. }
-            | Self::Custom { timestamp, .. } => *timestamp,
-        }
-    }
-}
-
+/// Stateless namespace for [`AgUiEvent`] constructors.
 #[derive(Debug, Clone, Copy)]
 pub struct AgUiEventBuilder;
 
 impl AgUiEventBuilder {
+    /// Build a `RunStarted` event for the given context / task pair.
     pub fn run_started(context_id: ContextId, task_id: TaskId, input: Option<Value>) -> AgUiEvent {
         AgUiEvent::RunStarted {
             timestamp: Utc::now(),
@@ -158,6 +33,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `RunFinished` event with the optional final result.
     pub fn run_finished(
         context_id: ContextId,
         task_id: TaskId,
@@ -173,6 +49,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `RunError` event.
     pub fn run_error(message: String, code: Option<String>) -> AgUiEvent {
         AgUiEvent::RunError {
             timestamp: Utc::now(),
@@ -180,6 +57,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `StepStarted` event tagged with `step_name`.
     pub fn step_started(step_name: impl Into<String>) -> AgUiEvent {
         AgUiEvent::StepStarted {
             timestamp: Utc::now(),
@@ -189,6 +67,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `StepFinished` event tagged with `step_name`.
     pub fn step_finished(step_name: impl Into<String>) -> AgUiEvent {
         AgUiEvent::StepFinished {
             timestamp: Utc::now(),
@@ -198,6 +77,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `TextMessageStart` event for a freshly-opened streaming message.
     pub fn text_message_start(message_id: impl Into<String>, role: MessageRole) -> AgUiEvent {
         AgUiEvent::TextMessageStart {
             timestamp: Utc::now(),
@@ -208,6 +88,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `TextMessageContent` delta event.
     pub fn text_message_content(
         message_id: impl Into<String>,
         delta: impl Into<String>,
@@ -221,6 +102,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `TextMessageEnd` event closing a streaming message.
     pub fn text_message_end(message_id: impl Into<String>) -> AgUiEvent {
         AgUiEvent::TextMessageEnd {
             timestamp: Utc::now(),
@@ -230,6 +112,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `ToolCallStart` event.
     pub fn tool_call_start(
         tool_call_id: impl Into<String>,
         tool_call_name: impl Into<String>,
@@ -245,6 +128,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `ToolCallArgs` delta event.
     pub fn tool_call_args(tool_call_id: impl Into<String>, delta: impl Into<String>) -> AgUiEvent {
         AgUiEvent::ToolCallArgs {
             timestamp: Utc::now(),
@@ -255,6 +139,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `ToolCallEnd` event.
     pub fn tool_call_end(tool_call_id: impl Into<String>) -> AgUiEvent {
         AgUiEvent::ToolCallEnd {
             timestamp: Utc::now(),
@@ -264,6 +149,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `ToolCallResult` event carrying the resolved tool output.
     pub fn tool_call_result(
         message_id: impl Into<String>,
         tool_call_id: impl Into<String>,
@@ -280,6 +166,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `StateSnapshot` event.
     pub fn state_snapshot(snapshot: Value) -> AgUiEvent {
         AgUiEvent::StateSnapshot {
             timestamp: Utc::now(),
@@ -287,6 +174,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `StateDelta` event from a list of JSON-patch operations.
     pub fn state_delta(operations: Vec<JsonPatchOperation>) -> AgUiEvent {
         AgUiEvent::StateDelta {
             timestamp: Utc::now(),
@@ -294,6 +182,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `MessagesSnapshot` event.
     pub fn messages_snapshot(messages: Vec<Value>) -> AgUiEvent {
         AgUiEvent::MessagesSnapshot {
             timestamp: Utc::now(),
@@ -301,6 +190,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a `Custom` event wrapping `payload`.
     pub fn custom(payload: CustomPayload) -> AgUiEvent {
         AgUiEvent::Custom {
             timestamp: Utc::now(),
@@ -308,6 +198,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    /// Build a custom event carrying an [`Artifact`].
     pub fn artifact(artifact: Artifact, task_id: TaskId, context_id: ContextId) -> AgUiEvent {
         Self::custom(CustomPayload::Artifact(Box::new(ArtifactCustomPayload {
             artifact,
@@ -316,12 +207,14 @@ impl AgUiEventBuilder {
         })))
     }
 
+    /// Build a custom event carrying an [`ExecutionStep`].
     pub fn execution_step(step: ExecutionStep, context_id: ContextId) -> AgUiEvent {
         Self::custom(CustomPayload::ExecutionStep(Box::new(
             ExecutionStepCustomPayload { step, context_id },
         )))
     }
 
+    /// Build a custom `SkillLoaded` event.
     pub fn skill_loaded(
         skill_id: SkillId,
         skill_name: String,

@@ -1,9 +1,9 @@
-use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
 use super::enums::UserType;
+use crate::errors::ParseEnumError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -35,7 +35,7 @@ impl Permission {
         Self::ALL_VARIANTS.contains(&role)
     }
 
-    pub fn validate_roles(roles: &[String]) -> std::result::Result<(), Vec<String>> {
+    pub fn validate_roles(roles: &[String]) -> Result<(), Vec<String>> {
         let invalid: Vec<String> = roles
             .iter()
             .filter(|r| !Self::is_valid_role(r))
@@ -110,9 +110,9 @@ impl fmt::Display for Permission {
 }
 
 impl FromStr for Permission {
-    type Err = anyhow::Error;
+    type Err = ParseEnumError;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "admin" => Ok(Self::Admin),
             "user" => Ok(Self::User),
@@ -120,11 +120,13 @@ impl FromStr for Permission {
             "a2a" => Ok(Self::A2a),
             "mcp" => Ok(Self::Mcp),
             "service" => Ok(Self::Service),
-            _ => Err(anyhow!("Invalid permission: {s}")),
+            _ => Err(ParseEnumError::new("permission", s)),
         }
     }
 }
 
+/// Render a list of permissions as a space-separated string suitable for
+/// OAuth `scope` values.
 pub fn permissions_to_string(permissions: &[Permission]) -> String {
     permissions
         .iter()
@@ -133,6 +135,13 @@ pub fn permissions_to_string(permissions: &[Permission]) -> String {
         .join(" ")
 }
 
-pub fn parse_permissions(s: &str) -> Result<Vec<Permission>> {
+/// Parse an OAuth-style space-separated scope string into a vector of
+/// [`Permission`] values.
+///
+/// # Errors
+///
+/// Returns the first [`ParseEnumError`] encountered if any token does not
+/// match a known permission.
+pub fn parse_permissions(s: &str) -> Result<Vec<Permission>, ParseEnumError> {
     s.split_whitespace().map(Permission::from_str).collect()
 }

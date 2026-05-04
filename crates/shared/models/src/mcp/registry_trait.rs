@@ -1,7 +1,8 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use crate::errors::ProviderResult as Result;
 
 use crate::ai::tools::McpTool;
 use crate::execution::context::RequestContext;

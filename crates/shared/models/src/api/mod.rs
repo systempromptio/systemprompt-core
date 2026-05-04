@@ -1,3 +1,5 @@
+//! `api` module — see crate-level docs for context.
+
 pub mod cli_gateway;
 pub mod cloud;
 pub mod contexts;

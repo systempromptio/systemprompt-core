@@ -1,3 +1,5 @@
+//! `admin` module — see crate-level docs for context.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, UserId};

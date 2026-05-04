@@ -1,3 +1,5 @@
+//! `repository` module — see crate-level docs for context.
+
 pub mod process_utils;
 pub mod query_builder;
 pub mod service;

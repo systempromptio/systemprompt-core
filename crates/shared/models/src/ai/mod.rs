@@ -1,3 +1,5 @@
+//! `ai` module — see crate-level docs for context.
+
 pub mod execution_plan;
 pub mod media_types;
 pub mod models;

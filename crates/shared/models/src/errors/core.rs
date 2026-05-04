@@ -1,96 +1,191 @@
-pub use systemprompt_traits::RepositoryError;
+//! The legacy [`CoreError`] umbrella enum — a closed set of variants
+//! covering authentication, session, module, and IO failure modes with
+//! HTTP status code mapping helpers.
 
-use crate::api::ApiError;
-
+/// Umbrella error type carrying both 4xx and 5xx flavours.
+///
+/// New code should prefer one of the focused enums in sibling modules
+/// (e.g. [`super::ConfigValidationError`], [`super::SecretsError`])
+/// and only convert into [`CoreError`] at the API boundary.
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum CoreError {
+    /// A module manifest was missing a required field.
     #[error("Module config missing required field: {field}")]
-    MissingConfigField { field: String },
+    MissingConfigField {
+        /// Name of the missing field.
+        field: String,
+    },
 
+    /// A version string was not a valid semver value.
     #[error("Invalid module version: {version}")]
-    InvalidVersion { version: String },
+    InvalidVersion {
+        /// The offending version string.
+        version: String,
+    },
 
+    /// A module manifest violated a structural constraint.
     #[error("Module {name} configuration invalid: {reason}")]
-    InvalidModuleConfig { name: String, reason: String },
+    InvalidModuleConfig {
+        /// Name of the module being validated.
+        name: String,
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// A module reference could not be resolved.
     #[error("Module {name} not found")]
-    ModuleNotFound { name: String },
+    ModuleNotFound {
+        /// Name of the missing module.
+        name: String,
+    },
 
+    /// A field violated a structural constraint.
     #[error("Invalid module field {field}: {reason}")]
-    InvalidField { field: String, reason: String },
+    InvalidField {
+        /// Name of the offending field.
+        field: String,
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// Two version strings could not be compared.
     #[error("Version comparison failed: {reason}")]
-    VersionComparisonFailed { reason: String },
+    VersionComparisonFailed {
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// Authentication credentials were rejected.
     #[error("Authentication failed: {reason}")]
-    AuthenticationFailed { reason: String },
+    AuthenticationFailed {
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// The provided token was rejected as invalid or expired.
     #[error("Invalid or expired token")]
     InvalidToken,
 
+    /// The provided token has expired.
     #[error("Token expired")]
     TokenExpired,
 
+    /// The token signature does not match.
     #[error("Invalid token signature")]
     InvalidSignature,
 
+    /// A required claim was missing from a JWT.
     #[error("Missing required claim: {claim}")]
-    MissingClaim { claim: String },
+    MissingClaim {
+        /// Name of the missing claim.
+        claim: String,
+    },
 
+    /// The `Authorization` header was malformed.
     #[error("Invalid authorization header")]
     InvalidAuthHeader,
 
+    /// The token did not match the expected format.
     #[error("Invalid token format")]
     InvalidTokenFormat,
 
+    /// The principal is unauthenticated.
     #[error("Unauthorized")]
     Unauthorized,
 
+    /// The principal is authenticated but lacks permission.
     #[error("Forbidden: {reason}")]
-    Forbidden { reason: String },
+    Forbidden {
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// A user record was not found.
     #[error("User not found: {user_id}")]
-    UserNotFound { user_id: String },
+    UserNotFound {
+        /// Identifier of the missing user.
+        user_id: String,
+    },
 
+    /// A session record was not found.
     #[error("Session not found: {session_id}")]
-    SessionNotFound { session_id: String },
+    SessionNotFound {
+        /// Identifier of the missing session.
+        session_id: String,
+    },
 
+    /// A session was rejected as invalid.
     #[error("Invalid session: {reason}")]
-    InvalidSession { reason: String },
+    InvalidSession {
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// The session expiry has passed.
     #[error("Session expired")]
     SessionExpired,
 
+    /// The session cookie was missing.
     #[error("Cookie not found")]
     CookieNotFound,
 
+    /// The session cookie payload was malformed.
     #[error("Invalid cookie format")]
     InvalidCookieFormat,
 
+    /// An underlying database call failed.
     #[error("Database error: {reason}")]
-    DatabaseError { reason: String },
+    DatabaseError {
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// A required SQL table was missing.
     #[error("Table not found: {table}")]
-    TableNotFound { table: String },
+    TableNotFound {
+        /// Name of the missing table.
+        table: String,
+    },
 
+    /// A schema introspection or migration step failed.
     #[error("Schema error: {message}")]
-    SchemaError { message: String },
+    SchemaError {
+        /// Human-readable reason.
+        message: String,
+    },
 
+    /// A required file was missing.
     #[error("File not found: {path}")]
-    FileNotFound { path: String },
+    FileNotFound {
+        /// Path that could not be located.
+        path: String,
+    },
 
+    /// An underlying IO operation failed.
     #[error("IO error: {reason}")]
-    IoError { reason: String },
+    IoError {
+        /// Human-readable reason.
+        reason: String,
+    },
 
+    /// Catch-all for unclassified internal failures.
     #[error("Internal server error: {reason}")]
-    InternalError { reason: String },
+    InternalError {
+        /// Human-readable reason.
+        reason: String,
+    },
 }
 
 impl CoreError {
+    /// Render this error as its `Display` representation.
+    #[must_use]
     pub fn reason(&self) -> String {
         self.to_string()
     }
 
+    /// Map this variant to the canonical HTTP status code that should
+    /// surface to clients.
+    #[must_use]
     pub const fn status_code(&self) -> u16 {
         match self {
             Self::AuthenticationFailed { .. }
@@ -123,14 +218,20 @@ impl CoreError {
         }
     }
 
+    /// True when the variant maps to a 4xx HTTP status.
+    #[must_use]
     pub const fn is_client_error(&self) -> bool {
         self.status_code() < 500
     }
 
+    /// True when the variant maps to a 5xx HTTP status.
+    #[must_use]
     pub const fn is_server_error(&self) -> bool {
         self.status_code() >= 500
     }
 
+    /// True for variants that indicate an authentication failure.
+    #[must_use]
     pub const fn is_auth_error(&self) -> bool {
         matches!(
             self,
@@ -145,10 +246,14 @@ impl CoreError {
         )
     }
 
+    /// True for variants that indicate a permission failure.
+    #[must_use]
     pub const fn is_permission_error(&self) -> bool {
         matches!(self, Self::Forbidden { .. })
     }
 
+    /// True for variants that indicate a missing resource.
+    #[must_use]
     pub const fn is_not_found(&self) -> bool {
         matches!(
             self,
@@ -175,80 +280,10 @@ impl From<&str> for CoreError {
     }
 }
 
-impl From<anyhow::Error> for CoreError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::InternalError {
-            reason: err.to_string(),
-        }
-    }
-}
-
 impl From<std::io::Error> for CoreError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError {
             reason: err.to_string(),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ServiceError {
-    #[error("repository error: {0}")]
-    Repository(#[from] RepositoryError),
-
-    #[error("validation error: {0}")]
-    Validation(String),
-
-    #[error("business logic error: {0}")]
-    BusinessLogic(String),
-
-    #[error("external service error: {0}")]
-    External(String),
-
-    #[error("not found: {0}")]
-    NotFound(String),
-
-    #[error("conflict: {0}")]
-    Conflict(String),
-
-    #[error("unauthorized: {0}")]
-    Unauthorized(String),
-
-    #[error("forbidden: {0}")]
-    Forbidden(String),
-}
-
-impl From<ServiceError> for ApiError {
-    fn from(err: ServiceError) -> Self {
-        match err {
-            ServiceError::Repository(e) => e.into(),
-            ServiceError::Validation(msg) | ServiceError::BusinessLogic(msg) => {
-                Self::bad_request(msg)
-            },
-            ServiceError::NotFound(msg) => Self::not_found(msg),
-            ServiceError::External(msg) => {
-                Self::internal_error(format!("External service error: {msg}"))
-            },
-            ServiceError::Conflict(msg) => Self::conflict(msg),
-            ServiceError::Unauthorized(msg) => Self::unauthorized(msg),
-            ServiceError::Forbidden(msg) => Self::forbidden(msg),
-        }
-    }
-}
-
-impl From<RepositoryError> for ApiError {
-    fn from(err: RepositoryError) -> Self {
-        match err {
-            RepositoryError::NotFound(msg) => Self::not_found(msg),
-            RepositoryError::InvalidData(msg) | RepositoryError::ConstraintViolation(msg) => {
-                Self::bad_request(msg)
-            },
-            RepositoryError::Database(e) => Self::internal_error(format!("Database error: {e}")),
-            RepositoryError::Serialization(e) => {
-                Self::internal_error(format!("Serialization error: {e}"))
-            },
-            RepositoryError::Other(e) => Self::internal_error(format!("Error: {e}")),
-            _ => Self::internal_error(format!("Repository error: {err}")),
         }
     }
 }

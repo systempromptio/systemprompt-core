@@ -1,3 +1,5 @@
+//! `auth` module — see crate-level docs for context.
+
 pub mod claims;
 pub mod cloud_claims;
 pub mod enums;

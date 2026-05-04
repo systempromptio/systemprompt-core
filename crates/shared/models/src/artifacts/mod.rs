@@ -1,3 +1,5 @@
+//! `artifacts` module — see crate-level docs for context.
+
 pub mod audio;
 pub mod card;
 pub mod chart;
