@@ -40,7 +40,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         if let Ok(step) = tracking.track_understanding(task_id.clone()).await {
             if context
                 .tx
-                .send(StreamEvent::ExecutionStepUpdate { step })
+                .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
             {
                 tracing::debug!("Stream receiver dropped during execution");
@@ -62,7 +62,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         if let Ok(step) = tracking.track_completion(task_id).await {
             if context
                 .tx
-                .send(StreamEvent::ExecutionStepUpdate { step })
+                .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
             {
                 tracing::debug!("Stream receiver dropped during completion");

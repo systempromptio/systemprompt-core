@@ -124,7 +124,7 @@ impl MessageProcessor {
     pub async fn process_message_stream(
         &self,
         params: ProcessMessageStreamParams<'_>,
-    ) -> Result<mpsc::UnboundedReceiver<StreamEvent>> {
+    ) -> Result<mpsc::Receiver<StreamEvent>> {
         let stream_processor = StreamProcessor {
             ai_service: Arc::clone(&self.ai_service),
             context_service: self.context_service.clone(),

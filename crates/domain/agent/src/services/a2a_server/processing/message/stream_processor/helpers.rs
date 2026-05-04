@@ -54,7 +54,7 @@ pub struct SynthesizeFinalResponseParams<'a> {
     pub ai_service: Arc<dyn AiProvider>,
     pub agent_runtime: &'a AgentRuntimeInfo,
     pub ai_messages_for_synthesis: Vec<AiMessage>,
-    pub tx: mpsc::UnboundedSender<StreamEvent>,
+    pub tx: mpsc::Sender<StreamEvent>,
     pub request_ctx: RequestContext,
     pub skill_service: Arc<SkillService>,
 }

@@ -45,7 +45,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
         if let Ok(step) = tracking.track_understanding(task_id.clone()).await {
             if context
                 .tx
-                .send(StreamEvent::ExecutionStepUpdate { step })
+                .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
             {
                 tracing::debug!("Stream receiver dropped");
@@ -66,7 +66,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
         if let Ok((_, ref step)) = planning_tracked {
             if context
                 .tx
-                .send(StreamEvent::ExecutionStepUpdate { step: step.clone() })
+                .try_send(StreamEvent::ExecutionStepUpdate { step: step.clone() })
                 .is_err()
             {
                 tracing::debug!("Stream receiver dropped");

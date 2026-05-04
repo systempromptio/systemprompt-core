@@ -2,7 +2,7 @@ use axum::extract::{Extension, State};
 use axum::response::IntoResponse;
 use axum::response::sse::Sse;
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::ReceiverStream;
 
 use super::{StreamState, StreamWithGuard};
 use systemprompt_events::{
@@ -22,7 +22,7 @@ pub async fn stream_context_state(
 
     tracing::info!(user_id = %user_id_str, conn_id = %conn_id, "SSE stream opened");
 
-    let (tx, rx) = mpsc::unbounded_channel();
+    let (tx, rx) = mpsc::channel(1024);
 
     CONTEXT_BROADCASTER
         .register(&user_id, &conn_id, tx.clone())
@@ -45,7 +45,7 @@ pub async fn stream_context_state(
             tracing::info!(conn_id = %conn_id, "SSE snapshot sent");
 
             if let Ok(sse_event) = snapshot_event.to_sse()
-                && tx.send(Ok(sse_event)).is_err()
+                && tx.try_send(Ok(sse_event)).is_err()
             {
                 tracing::error!(conn_id = %conn_id, "Failed to send snapshot");
             }
@@ -57,7 +57,7 @@ pub async fn stream_context_state(
 
     let cleanup_guard =
         ConnectionGuard::new(&CONTEXT_BROADCASTER, user_id.clone(), conn_id.clone());
-    let stream = UnboundedReceiverStream::new(rx);
+    let stream = ReceiverStream::new(rx);
     let stream_with_guard = StreamWithGuard::<ContextEvent>::new(stream, cleanup_guard);
 
     tracing::info!(user_id = %user_id_str, conn_id = %conn_id, "SSE stream ready");

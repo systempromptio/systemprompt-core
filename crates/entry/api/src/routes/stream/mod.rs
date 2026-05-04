@@ -13,7 +13,7 @@ use systemprompt_events::{
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::ReceiverStream;
 
 pub mod contexts;
 
@@ -49,13 +49,13 @@ pub async fn stream_agui_events(
 
 #[derive(Debug)]
 pub struct StreamWithGuard<E: ToSse + Clone + Send + Sync + 'static> {
-    stream: UnboundedReceiverStream<Result<axum::response::sse::Event, Infallible>>,
+    stream: ReceiverStream<Result<axum::response::sse::Event, Infallible>>,
     _cleanup_guard: ConnectionGuard<E>,
 }
 
 impl<E: ToSse + Clone + Send + Sync + 'static> StreamWithGuard<E> {
     pub const fn new(
-        stream: UnboundedReceiverStream<Result<axum::response::sse::Event, Infallible>>,
+        stream: ReceiverStream<Result<axum::response::sse::Event, Infallible>>,
         cleanup_guard: ConnectionGuard<E>,
     ) -> Self {
         Self {
@@ -87,12 +87,12 @@ pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
 
     tracing::info!(user_id = %user_id_str, conn_id = %conn_id, stream = %stream_name, "SSE stream opened");
 
-    let (tx, rx) = mpsc::unbounded_channel();
+    let (tx, rx) = mpsc::channel(1024);
 
     broadcaster.register(&user_id, &conn_id, tx.clone()).await;
 
     let cleanup_guard = ConnectionGuard::new(broadcaster, user_id, conn_id.clone());
-    let stream = UnboundedReceiverStream::new(rx);
+    let stream = ReceiverStream::new(rx);
     let stream_with_guard = StreamWithGuard::<E>::new(stream, cleanup_guard);
 
     tracing::info!(user_id = %user_id_str, conn_id = %conn_id, stream = %stream_name, "SSE stream ready");

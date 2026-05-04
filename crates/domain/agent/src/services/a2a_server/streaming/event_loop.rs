@@ -4,7 +4,7 @@ use axum::response::sse::Event;
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder, RequestContext};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{Message, TaskState};
@@ -16,8 +16,8 @@ use super::handlers::{HandleCompleteParams, HandleErrorParams, handle_complete, 
 use super::webhook_client::WebhookContext;
 
 pub struct ProcessEventsParams {
-    pub tx: UnboundedSender<Event>,
-    pub chunk_rx: UnboundedReceiver<StreamEvent>,
+    pub tx: Sender<Event>,
+    pub chunk_rx: Receiver<StreamEvent>,
     pub task_id: TaskId,
     pub context_id: ContextId,
     pub message_id: MessageId,
@@ -41,7 +41,7 @@ impl std::fmt::Debug for ProcessEventsParams {
 }
 
 struct SendA2aStatusEventParams<'a> {
-    tx: &'a UnboundedSender<Event>,
+    tx: &'a Sender<Event>,
     task_id: &'a TaskId,
     context_id: &'a ContextId,
     state: &'a str,
@@ -72,13 +72,13 @@ fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
             "final": is_final
         }
     });
-    if tx.send(Event::default().data(event.to_string())).is_err() {
+    if tx.try_send(Event::default().data(event.to_string())).is_err() {
         tracing::trace!("Failed to send status event, channel closed");
     }
 }
 
 pub struct EmitRunStartedParams<'a> {
-    pub tx: &'a UnboundedSender<Event>,
+    pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,
     pub context_id: &'a ContextId,
     pub task_id: &'a TaskId,

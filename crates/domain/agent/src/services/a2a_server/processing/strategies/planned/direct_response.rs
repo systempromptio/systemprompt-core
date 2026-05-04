@@ -24,7 +24,7 @@ pub async fn handle_direct_response(
         {
             if exec_ctx
                 .tx
-                .send(StreamEvent::ExecutionStepUpdate { step })
+                .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
             {
                 tracing::debug!("Stream receiver dropped");
@@ -37,7 +37,7 @@ pub async fn handle_direct_response(
     if let Ok(step) = tracking.track_completion(task_id).await {
         if exec_ctx
             .tx
-            .send(StreamEvent::ExecutionStepUpdate { step })
+            .try_send(StreamEvent::ExecutionStepUpdate { step })
             .is_err()
         {
             tracing::debug!("Stream receiver dropped");
@@ -46,7 +46,7 @@ pub async fn handle_direct_response(
 
     if exec_ctx
         .tx
-        .send(StreamEvent::Text(response_text.clone()))
+        .try_send(StreamEvent::Text(response_text.clone()))
         .is_err()
     {
         tracing::debug!("Stream receiver dropped");

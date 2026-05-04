@@ -4,9 +4,11 @@ mod sse;
 use async_trait::async_trait;
 use axum::response::sse::Event;
 use systemprompt_identifiers::UserId;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 
-pub type EventSender = UnboundedSender<Result<Event, std::convert::Infallible>>;
+pub type EventSender = Sender<Result<Event, std::convert::Infallible>>;
+
+pub const SSE_BUFFER: usize = 1024;
 
 pub use sse::ToSse;
 

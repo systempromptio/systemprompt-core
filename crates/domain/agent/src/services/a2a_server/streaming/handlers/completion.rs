@@ -4,7 +4,7 @@ use axum::response::sse::Event;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder, RequestContext, TaskMetadata};
 use systemprompt_traits::validation::Validate;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 
 use crate::models::a2a::protocol::TaskStatusUpdateEvent;
 use crate::models::a2a::{
@@ -18,7 +18,7 @@ use crate::services::a2a_server::streaming::broadcast_task_completed;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
 pub struct HandleCompleteParams<'a> {
-    pub tx: &'a UnboundedSender<Event>,
+    pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,
     pub full_text: String,
     pub artifacts: Vec<Artifact>,
@@ -34,7 +34,7 @@ pub struct HandleCompleteParams<'a> {
 }
 
 fn send_a2a_status_event(
-    tx: &UnboundedSender<Event>,
+    tx: &Sender<Event>,
     task_id: &TaskId,
     context_id: &ContextId,
     status: TaskStatus,
@@ -42,7 +42,7 @@ fn send_a2a_status_event(
 ) {
     let event = TaskStatusUpdateEvent::new(task_id.as_str(), context_id.as_str(), status, is_final);
     let jsonrpc = event.to_jsonrpc_response();
-    if tx.send(Event::default().data(jsonrpc.to_string())).is_err() {
+    if tx.try_send(Event::default().data(jsonrpc.to_string())).is_err() {
         tracing::trace!("Failed to send status event, channel closed");
     }
 }
@@ -239,7 +239,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
 }
 
 pub struct HandleErrorParams<'a> {
-    pub tx: &'a UnboundedSender<Event>,
+    pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,
     pub error: String,
     pub task_id: &'a TaskId,

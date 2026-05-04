@@ -72,7 +72,7 @@ pub struct SynthesizeToolResultsParams<'a> {
     pub tool_calls: &'a [ToolCall],
     pub tool_results: &'a [CallToolResult],
     pub artifacts: &'a [Artifact],
-    pub tx: mpsc::UnboundedSender<StreamEvent>,
+    pub tx: mpsc::Sender<StreamEvent>,
     pub request_context: RequestContext,
     pub skill_service: Arc<SkillService>,
 }
@@ -137,7 +137,7 @@ pub async fn synthesize_tool_results_with_artifacts(
             tracing::info!(text_len = synthesized_text.len(), "Synthesis complete");
 
             if tx
-                .send(StreamEvent::Text(synthesized_text.clone()))
+                .try_send(StreamEvent::Text(synthesized_text.clone()))
                 .is_err()
             {
                 tracing::debug!("Stream receiver dropped during synthesis");
@@ -156,7 +156,7 @@ pub async fn process_without_tools(
     ai_service: Arc<dyn AiProvider>,
     agent_runtime: &AgentRuntimeInfo,
     ai_messages: Vec<AiMessage>,
-    tx: mpsc::UnboundedSender<StreamEvent>,
+    tx: mpsc::Sender<StreamEvent>,
     request_context: RequestContext,
 ) -> Result<(String, Vec<ToolCall>, Vec<CallToolResult>), ()> {
     let (provider, model, max_output_tokens) =
@@ -178,13 +178,13 @@ pub async fn process_without_tools(
                 match chunk {
                     Ok(StreamChunk::Text(text)) => {
                         accumulated_text.push_str(&text);
-                        if tx.send(StreamEvent::Text(text)).is_err() {
+                        if tx.try_send(StreamEvent::Text(text)).is_err() {
                             tracing::debug!("Stream receiver dropped during generation");
                         }
                     },
                     Ok(StreamChunk::Usage { .. }) => {},
                     Err(e) => {
-                        if tx.send(StreamEvent::Error(e.to_string())).is_err() {
+                        if tx.try_send(StreamEvent::Error(e.to_string())).is_err() {
                             tracing::debug!("Stream receiver dropped while sending error");
                         }
                         return Err(());
@@ -194,7 +194,7 @@ pub async fn process_without_tools(
             Ok((accumulated_text, Vec::new(), Vec::new()))
         },
         Err(e) => {
-            if tx.send(StreamEvent::Error(e.to_string())).is_err() {
+            if tx.try_send(StreamEvent::Error(e.to_string())).is_err() {
                 tracing::debug!("Stream receiver dropped while sending error");
             }
             Err(())
