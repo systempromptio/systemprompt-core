@@ -79,7 +79,8 @@ Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) →
 - Zero raw String IDs - use typed identifiers from `systemprompt_identifiers`
 - Typed ID construction (see "Typed Identifiers" below)
 - Services call repositories, never execute SQL directly
-- All queries via compile-time verified macros: `sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()` (never unverified `sqlx::query()`)
+- All queries via compile-time verified macros: `sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()` (never unverified `sqlx::query()`), **except** in `crates/infra/database/src/admin/` and `crates/infra/database/src/services/postgres/{introspection,query_executor,transaction,ext}.rs` where dynamic SQL is the contract (schema discovery, runtime query execution, parameterized builders)
+- Naming: use `*Service` by default. `*Handler` only for HTTP/RPC request handlers. `*Orchestrator` reserved for workflows that span domains. Avoid `*Manager`
 - Schema DDL lives in `{crate}/schema/*.sql` files, embedded via `include_str!()` in extension.rs
 
 ### Typed Identifiers
