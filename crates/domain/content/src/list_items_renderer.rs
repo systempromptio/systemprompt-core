@@ -91,7 +91,11 @@ fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
 fn format_published_date(item: &Value) -> String {
     item.get("published_at")
         .and_then(Value::as_str)
-        .and_then(|d| chrono::DateTime::parse_from_rfc3339(d).ok())
+        .and_then(|d| {
+            chrono::DateTime::parse_from_rfc3339(d)
+                .map_err(|e| tracing::debug!(date = d, error = %e, "discarding unparseable published_at"))
+                .ok()
+        })
         .map_or_else(String::new, |dt| dt.format("%B %d, %Y").to_string())
 }
 
