@@ -26,3 +26,7 @@ thiserror = { workspace = true }
 futures = { workspace = true }
 inventory = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
