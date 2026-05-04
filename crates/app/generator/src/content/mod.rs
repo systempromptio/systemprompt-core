@@ -1,3 +1,6 @@
+//! Markdown rendering, frontmatter extraction, and table-of-contents
+//! generation used by the prerender pipeline.
+
 mod markdown;
 mod toc;
 

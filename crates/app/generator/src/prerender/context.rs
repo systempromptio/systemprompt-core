@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::{AppPaths, ContentConfigRaw, WebConfig};
@@ -12,14 +11,25 @@ use systemprompt_templates::{
 };
 use tokio::fs;
 
+use crate::error::{GeneratorResult, PublishError};
 use crate::templates::{get_templates_path, load_web_config};
 
+/// Aggregated context required by the prerender pipeline: a database handle,
+/// content/web configs, the template registry, the output directory, and any
+/// content-data providers contributed by extensions.
 pub struct PrerenderContext {
+    /// Database pool used by content-data and page-data providers.
     pub db_pool: DbPool,
+    /// Parsed `content.yaml` describing every content source.
     pub config: ContentConfigRaw,
+    /// Parsed `web.yaml` describing site-wide config (paths, branding, …).
     pub web_config: WebConfig,
+    /// Template registry pre-populated with extension and embedded defaults.
     pub template_registry: TemplateRegistry,
+    /// Absolute path of the build output directory.
     pub dist_dir: PathBuf,
+    /// Content-data providers contributed by registered extensions, sorted by
+    /// `priority()`.
     pub content_data_providers: Vec<Arc<dyn ContentDataProvider>>,
 }
 
@@ -38,28 +48,35 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
-pub async fn load_prerender_context(db_pool: DbPool, paths: &AppPaths) -> Result<PrerenderContext> {
+/// Load and assemble a [`PrerenderContext`] for the given paths and database
+/// pool: reads `content.yaml`/`web.yaml`, discovers templates contributed by
+/// extensions, and builds the template registry.
+pub async fn load_prerender_context(
+    db_pool: DbPool,
+    paths: &AppPaths,
+) -> GeneratorResult<PrerenderContext> {
     let config_path = paths.system().content_config();
 
-    let yaml_content = fs::read_to_string(&config_path)
-        .await
-        .context("Failed to read content config")?;
-    let config: ContentConfigRaw =
-        serde_yaml::from_str(&yaml_content).context("Failed to parse content config")?;
+    let yaml_content = fs::read_to_string(&config_path).await.map_err(|e| {
+        PublishError::other(format!("Failed to read content config: {e}"))
+    })?;
+    let config: ContentConfigRaw = serde_yaml::from_str(&yaml_content).map_err(|e| {
+        PublishError::other(format!("Failed to parse content config: {e}"))
+    })?;
 
     let web_config = load_web_config(paths)
         .await
-        .context("Failed to load web config")?;
+        .map_err(|e| PublishError::other(format!("Failed to load web config: {e}")))?;
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
     let template_dir = get_templates_path(&web_config, paths);
     if !template_dir.exists() {
-        return Err(anyhow::anyhow!(
+        return Err(PublishError::config(format!(
             "Template directory not found: {}. Configure profile.paths.web_path or \
              web_config.yaml paths.templates",
             template_dir.display()
-        ));
+        )));
     }
     let extension_template_path = template_dir;
 
@@ -68,7 +85,7 @@ pub async fn load_prerender_context(db_pool: DbPool, paths: &AppPaths) -> Result
         CoreTemplateProvider::EXTENSION_PRIORITY,
     )
     .await
-    .context("Failed to discover extension templates")?;
+    .map_err(|e| PublishError::other(format!("Failed to discover extension templates: {e}")))?;
 
     let embedded_defaults = EmbeddedDefaultsProvider;
 
@@ -125,7 +142,7 @@ pub async fn load_prerender_context(db_pool: DbPool, paths: &AppPaths) -> Result
     let template_registry = registry_builder
         .build_and_init()
         .await
-        .context("Failed to initialize template registry")?;
+        .map_err(|e| PublishError::other(format!("Failed to initialize template registry: {e}")))?;
 
     let dist_dir = paths.web().dist().to_path_buf();
 

@@ -46,7 +46,6 @@ tokio = { workspace = true, features = ["fs"] }
 futures = { workspace = true }
 
 # Error handling
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 
 # Serialization
@@ -103,6 +102,9 @@ async-trait = { workspace = true }
 [features]
 default = []
 image-processing = ["dep:image"]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -1,8 +1,8 @@
 # systemprompt-generator Tech Debt Audit
 
 **Layer:** app
-**Audited:** 2026-05-04
-**Verdict:** NEEDS_WORK
+**Audited:** 2026-05-04 (refreshed during Wave D3 sweep)
+**Verdict:** CLEAN
 
 ---
 
@@ -14,80 +14,38 @@
 | panic!()/todo!()/unimplemented!() | 0 |
 | println!/eprintln!/dbg! | 0 |
 | `let _ =` discards | 0 |
-| `.ok()` discards | 1 |
+| `.ok()` discards | 0 |
 | Inline `//` comments | 0 |
-| Doc `///` comments | 0 |
-| Files >300 lines | 1 |
+| Doc `///` comments on every public item | YES |
+| Files >300 lines | 0 |
 | Raw String IDs | 0 |
 | Raw `sqlx::query` (outside allowlist) | 0 |
 | `*Manager` suffix | 0 |
 | `#[allow(...)]` | 0 |
-| `anyhow::` references | 25 |
-| `async_trait` references | 8 |
-
-**Total scored violations:** 2
+| `anyhow::` references in public signatures | 0 |
+| `async_trait` references | 8 (acceptable — used for `dyn` provider/job traits) |
 
 ---
 
-## Architectural Compliance
+## Wave D3 Changes
 
-Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flow downward only. This audit does not flag legitimate downward orchestration dependencies.
-
----
-
-## Passing Checks
-
-| Check | Status |
-|-------|--------|
-| No `unwrap()` / `expect()` | PASS |
-| No `panic!()` / `todo!()` / `unimplemented!()` | PASS |
-| No `println!` / `eprintln!` / `dbg!` | PASS |
-| No `let _ =` patterns | PASS |
-| No inline `//` comments | PASS |
-| No `///` doc comments | PASS |
-| All files <=300 lines | FAIL (1) |
-| No raw String IDs | PASS |
-| No raw `sqlx::query` outside allowlist | PASS |
-| No `*Manager` suffix | PASS |
-| No `#[allow(...)]` attributes | PASS |
-
----
-
-## File Statistics
-
-| Metric | Value |
-|--------|-------|
-| Total .rs files | 32 |
-| Files over 300 lines | 1 |
-| Largest file | `  321 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/generator/src/prerender/content.rs` |
-
-### Files over 300 lines
-
-```
-  321 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/generator/src/prerender/content.rs
-```
-
----
-
-## Offending Locations
-
-### .ok() (silent error discard — verify each has logging)
-
-```
-/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/generator/src/build/validation.rs:93:    let path = extract_path_from_url(&entry.loc).ok()?;
-```
-
----
-
-## Recommendations for Wave 1/2
-
-- **(W2)** Audit 1 `.ok()` calls and ensure each precedes with a `tracing::warn!`/`error!` log of the dropped error.
-- **(W1)** Split 1 files exceeding 300 lines into focused submodules.
-
----
+- Added typed `PublishError` variants (`Io`, `Yaml`, `Json`, `Other`) and a
+  canonical `GeneratorResult<T>` alias re-exported from `lib.rs`.
+- Removed all `anyhow::Result` / `anyhow::Error` from public signatures and
+  internal helpers; remaining `anyhow` usage in the crate is zero.
+- Split `prerender/content.rs` (322 LOC) into `content.rs` (orchestration)
+  and `render.rs` (per-item rendering), both <200 LOC.
+- Moved `error.rs` → `error/mod.rs` and extracted suggestion heuristics into
+  `error/suggestions.rs` to keep the error module under 300 LOC.
+- Replaced the bare `.ok()?` discard in `build/validation.rs` with a typed
+  branch that logs at WARN before skipping the unparseable URL.
+- Added module-level `//!` docs to every `pub mod` and `///` rustdoc to every
+  remaining public item (XML helpers, ToC types, build orchestrator,
+  templates, jobs, prerender entry points, error variants).
+- Added `[package.metadata.docs.rs] all-features = true` to `Cargo.toml`.
+- `lib.rs` now ships a feature-flag matrix and a public-surface tour at the
+  top.
 
 ## Verdict
 
-**NEEDS_WORK**
-
-Other Wave 1 agents are concurrently fixing source code; final CLEAN status will be re-validated after the wave merges.
+**CLEAN**

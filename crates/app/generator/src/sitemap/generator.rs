@@ -1,4 +1,6 @@
-use anyhow::{Context, Result, anyhow};
+//! Build `sitemap.xml` (and a sitemap index when the URL count exceeds the
+//! 50 000 URL limit) from configured content sources.
+
 use chrono::Utc;
 use std::path::Path;
 use systemprompt_content::ContentRepository;
@@ -8,6 +10,7 @@ use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfi
 use tokio::fs;
 
 use super::xml::{SitemapUrl, build_sitemap_index, build_sitemap_xml};
+use crate::error::{GeneratorResult as Result, PublishError};
 
 const MAX_URLS_PER_SITEMAP: usize = 50_000;
 const SLUG_PLACEHOLDER: &str = "{slug}";
@@ -19,6 +22,11 @@ struct SitemapContext {
     web_dir: std::path::PathBuf,
 }
 
+/// Generate `sitemap.xml` for every enabled content source.
+///
+/// When the URL count exceeds the 50 000-URL per-file limit, falls back to
+/// chunked `sitemap-N.xml` files plus a top-level sitemap index. Output is
+/// written under `paths.web().dist()`.
 pub async fn generate_sitemap(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
     let ctx = load_sitemap_context(db_pool, paths).await?;
     let urls = collect_sitemap_urls(&ctx).await?;
@@ -28,15 +36,15 @@ pub async fn generate_sitemap(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
 }
 
 async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<SitemapContext> {
-    let global_config = Config::get()?;
+    let global_config = Config::get().map_err(PublishError::other)?;
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
         .await
-        .context("Failed to read content config")?;
+        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
 
-    let config: ContentConfigRaw =
-        serde_yaml::from_str(&yaml_content).context("Failed to parse content config")?;
+    let config: ContentConfigRaw = serde_yaml::from_str(&yaml_content)
+        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))?;
 
     let web_dir = paths.web().dist().to_path_buf();
     let base_url = global_config.api_external_url.clone();
@@ -82,7 +90,7 @@ async fn collect_source_urls(
         base_url: &ctx.base_url,
     })
     .await
-    .context(format!("Failed to fetch URLs for {source_name}"))?;
+    .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
     urls.extend(build_parent_url(sitemap_config, &ctx.base_url));
     Ok(urls)
@@ -188,14 +196,13 @@ struct FetchParams<'a> {
 
 async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
     let repo = ContentRepository::new(params.db_pool)
-        .map_err(|e| anyhow!("{}", e))
-        .context("Failed to create content repository")?;
+        .map_err(|e| PublishError::other(format!("Failed to create content repository: {e}")))?;
 
     let source_id = SourceId::new(params.source_id);
     let contents = repo
         .list_by_source(&source_id)
         .await
-        .context("Failed to fetch content for sitemap")?;
+        .map_err(|e| PublishError::other(format!("Failed to fetch content for sitemap: {e}")))?;
 
     Ok(contents
         .iter()

@@ -1,4 +1,6 @@
-use anyhow::{Result, anyhow};
+//! Default `SitemapProvider` that drives sitemap generation from the
+//! crate-local `content.yaml` configuration.
+
 use async_trait::async_trait;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -9,32 +11,40 @@ use systemprompt_provider_contracts::{
 };
 use tokio::fs;
 
+use crate::error::{GeneratorResult, PublishError};
+
+/// Default `SitemapProvider` implementation that emits one source spec per
+/// enabled content source defined in `content.yaml` plus the configured
+/// parent / index URL for each source.
 #[derive(Debug)]
 pub struct DefaultSitemapProvider {
     content_config: ContentConfigRaw,
 }
 
 impl DefaultSitemapProvider {
-    pub async fn new(paths: &AppPaths) -> Result<Self> {
+    /// Load `content.yaml` from `paths` and build a provider from it.
+    pub async fn new(paths: &AppPaths) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
         Ok(Self { content_config })
     }
 
+    /// Construct a provider from an already-parsed [`ContentConfigRaw`]
+    /// without touching the filesystem.
     #[must_use]
     pub const fn from_config(content_config: ContentConfigRaw) -> Self {
         Self { content_config }
     }
 }
 
-async fn load_content_config(paths: &AppPaths) -> Result<ContentConfigRaw> {
+async fn load_content_config(paths: &AppPaths) -> GeneratorResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
         .await
-        .map_err(|e| anyhow!("Failed to read content config: {}", e))?;
+        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
 
     serde_yaml::from_str(&yaml_content)
-        .map_err(|e| anyhow!("Failed to parse content config: {}", e))
+        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))
 }
 
 #[async_trait]

@@ -1,13 +1,17 @@
+//! Scheduled job that synchronises content between disk and database.
+
+use crate::error::{SyncError, SyncResult};
 use crate::local::{ContentDiffEntry, ContentLocalSync};
 use crate::models::LocalSyncDirection;
-use anyhow::{Context, Result};
 use async_trait::async_trait;
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::{AppPaths, ContentConfigRaw};
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
+/// Scheduled job that runs `ContentLocalSync` end-to-end based on the runtime
+/// `direction`/`delete_orphans`/`override_existing` parameters.
 #[derive(Debug, Clone, Copy)]
 pub struct ContentSyncJob;
 
@@ -36,23 +40,26 @@ impl Job for ContentSyncJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
-        );
+        let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
+            ProviderError::Configuration("DbPool not available in job context".into())
+        })?);
 
         let paths = ctx
             .app_paths::<Arc<AppPaths>>()
-            .ok_or_else(|| anyhow::anyhow!("AppPaths not available in job context"))?
+            .ok_or_else(|| {
+                ProviderError::Configuration("AppPaths not available in job context".into())
+            })?
             .as_ref();
 
         tracing::info!("Content sync job started");
 
-        let direction = get_direction_from_params(ctx)?;
+        let direction = get_direction_from_params(ctx)
+            .map_err(|e| ProviderError::InvalidInput(e.to_string()))?;
         let delete_orphans = get_bool_param(ctx, "delete_orphans");
         let override_existing = get_bool_param(ctx, "override_existing");
 
-        let config = load_content_config(paths)?;
+        let config = load_content_config(paths)
+            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
         let services_path = paths.system().services();
 
         let sources: Vec<_> = config
@@ -83,7 +90,11 @@ impl Job for ContentSyncJob {
                     &source.allowed_content_types,
                 )
                 .await
-                .context(format!("Failed to calculate diff for source: {}", name))?;
+                .map_err(|e| {
+                    ProviderError::RenderFailed(format!(
+                        "Failed to calculate diff for source {name}: {e}"
+                    ))
+                })?;
 
             all_diffs.push(ContentDiffEntry {
                 name,
@@ -107,11 +118,14 @@ impl Job for ContentSyncJob {
         }
 
         let result = match direction {
-            LocalSyncDirection::ToDisk => sync.sync_to_disk(&all_diffs, delete_orphans).await?,
-            LocalSyncDirection::ToDatabase => {
-                sync.sync_to_db(&all_diffs, delete_orphans, override_existing)
-                    .await?
-            },
+            LocalSyncDirection::ToDisk => sync
+                .sync_to_disk(&all_diffs, delete_orphans)
+                .await
+                .map_err(|e| ProviderError::RenderFailed(e.to_string()))?,
+            LocalSyncDirection::ToDatabase => sync
+                .sync_to_db(&all_diffs, delete_orphans, override_existing)
+                .await
+                .map_err(|e| ProviderError::RenderFailed(e.to_string()))?,
         };
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -132,14 +146,16 @@ impl Job for ContentSyncJob {
     }
 }
 
-fn get_direction_from_params(ctx: &JobContext) -> Result<LocalSyncDirection> {
+fn get_direction_from_params(ctx: &JobContext) -> SyncResult<LocalSyncDirection> {
     let params = ctx.parameters();
     let direction_str = params.get("direction").map_or("to_db", String::as_str);
 
     match direction_str {
         "to_disk" | "to-disk" | "disk" => Ok(LocalSyncDirection::ToDisk),
         "to_db" | "to-db" | "db" | "to_database" => Ok(LocalSyncDirection::ToDatabase),
-        other => anyhow::bail!("Invalid direction '{}'. Use 'to_disk' or 'to_db'", other),
+        other => Err(SyncError::invalid_input(format!(
+            "Invalid direction '{other}'. Use 'to_disk' or 'to_db'"
+        ))),
     }
 }
 
@@ -149,16 +165,21 @@ fn get_bool_param(ctx: &JobContext, key: &str) -> bool {
         .is_some_and(|v| v == "true" || v == "1" || v == "yes")
 }
 
-fn load_content_config(paths: &AppPaths) -> Result<ContentConfigRaw> {
+fn load_content_config(paths: &AppPaths) -> SyncResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     if !config_path.exists() {
-        anyhow::bail!("Content config not found at: {}", config_path.display());
+        return Err(SyncError::MissingConfig(format!(
+            "Content config not found at: {}",
+            config_path.display()
+        )));
     }
 
-    let content = std::fs::read_to_string(config_path).context("Failed to read content config")?;
-    let config: ContentConfigRaw =
-        serde_yaml::from_str(&content).context("Failed to parse content config")?;
+    let display_path = config_path.display().to_string();
+    let content = std::fs::read_to_string(config_path).map_err(|e| {
+        SyncError::other(format!("Failed to read content config {display_path}: {e}"))
+    })?;
+    let config: ContentConfigRaw = serde_yaml::from_str(&content)?;
     Ok(config)
 }
 

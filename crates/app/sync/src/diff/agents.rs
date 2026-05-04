@@ -1,6 +1,8 @@
+//! Compute the diff between agents stored on disk and in the database.
+
 use super::{compute_agent_hash, compute_db_agent_hash};
+use crate::error::{SyncError, SyncResult};
 use crate::models::{AgentDiffItem, AgentsDiffResult, DiffStatus, DiskAgent};
-use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_agent::models::Agent;
@@ -10,20 +12,24 @@ use systemprompt_identifiers::AgentId;
 use systemprompt_models::{AGENT_CONFIG_FILENAME, DiskAgentConfig, strip_frontmatter};
 use tracing::warn;
 
+/// Computes a structured diff between disk and database agent state.
 #[derive(Debug)]
 pub struct AgentsDiffCalculator {
     agent_repo: AgentRepository,
 }
 
 impl AgentsDiffCalculator {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    /// Construct a calculator backed by the given database pool.
+    pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
-            agent_repo: AgentRepository::new(db)?,
+            agent_repo: AgentRepository::new(db).map_err(SyncError::other)?,
         })
     }
 
-    pub async fn calculate_diff(&self, agents_path: &Path) -> Result<AgentsDiffResult> {
-        let db_agents = self.agent_repo.list_all().await?;
+    /// Compute an [`AgentsDiffResult`] between `agents_path` on disk and the
+    /// agents currently stored in the database.
+    pub async fn calculate_diff(&self, agents_path: &Path) -> SyncResult<AgentsDiffResult> {
+        let db_agents = self.agent_repo.list_all().await.map_err(SyncError::other)?;
         let db_map: HashMap<AgentId, Agent> =
             db_agents.into_iter().map(|a| (a.id.clone(), a)).collect();
 
@@ -76,7 +82,7 @@ impl AgentsDiffCalculator {
         Ok(result)
     }
 
-    fn scan_disk_agents(path: &Path) -> Result<HashMap<AgentId, DiskAgent>> {
+    fn scan_disk_agents(path: &Path) -> SyncResult<HashMap<AgentId, DiskAgent>> {
         let mut agents = HashMap::new();
 
         if !path.exists() {
@@ -110,14 +116,14 @@ impl AgentsDiffCalculator {
     }
 }
 
-fn parse_agent_dir(config_path: &Path, agent_dir: &Path) -> Result<DiskAgent> {
+fn parse_agent_dir(config_path: &Path, agent_dir: &Path) -> SyncResult<DiskAgent> {
     let config_text = std::fs::read_to_string(config_path)?;
     let config: DiskAgentConfig = serde_yaml::from_str(&config_text)?;
 
     let dir_name = agent_dir
         .file_name()
         .and_then(|n| n.to_str())
-        .ok_or_else(|| anyhow!("Invalid agent directory name"))?;
+        .ok_or_else(|| SyncError::invalid_input("Invalid agent directory name"))?;
 
     let agent_id = config
         .id
