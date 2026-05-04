@@ -87,7 +87,7 @@ pub fn execute_follow_mode(
     .with_title("Agent Logs"))
 }
 
-pub fn list_agent_log_files(logs_dir: &Path) -> Result<Vec<String>> {
+fn list_agent_log_files(logs_dir: &Path) -> Result<Vec<String>> {
     let mut files = std::fs::read_dir(logs_dir)
         .context("Failed to read logs directory")?
         .filter_map(Result::ok)

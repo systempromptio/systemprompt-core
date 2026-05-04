@@ -4,21 +4,13 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
-use rmcp::ServiceExt;
-use rmcp::model::{
-    CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, RawContent,
-};
-use rmcp::transport::streamable_http_client::{
-    StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
-};
-use std::time::Duration;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_mcp::services::client::HttpClientWithContext;
-use systemprompt_models::ai::tools::CallToolResult;
 use systemprompt_runtime::AppContext;
-use tokio::time::timeout;
 
+use super::call_client::{
+    ToolCallParams, convert_content, execute_tool_call, list_available_tools,
+};
 use super::types::{McpCallOutput, McpToolContent};
 use crate::CliConfig;
 use crate::interactive::resolve_required;
@@ -133,92 +125,6 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
     Ok(CommandResult::card(output).with_title(format!("Tool Execution: {}", tool_name)))
 }
 
-fn convert_content(raw: &RawContent) -> McpToolContent {
-    match raw {
-        RawContent::Text(text) => McpToolContent {
-            kind: "text".to_string(),
-            text: Some(text.text.clone()),
-            mime_type: None,
-            data: None,
-        },
-        RawContent::Image(image) => McpToolContent {
-            kind: "image".to_string(),
-            text: None,
-            mime_type: Some(image.mime_type.clone()),
-            data: Some(image.data.clone()),
-        },
-        RawContent::Resource(resource) => McpToolContent {
-            kind: "resource".to_string(),
-            text: Some(format!("{:?}", resource.resource)),
-            mime_type: None,
-            data: None,
-        },
-        RawContent::Audio(audio) => McpToolContent {
-            kind: "audio".to_string(),
-            text: None,
-            mime_type: Some(audio.mime_type.clone()),
-            data: Some(audio.data.clone()),
-        },
-        RawContent::ResourceLink(link) => McpToolContent {
-            kind: "resource_link".to_string(),
-            text: Some(link.uri.clone()),
-            mime_type: link.mime_type.clone(),
-            data: None,
-        },
-    }
-}
-
-struct ToolCallParams<'a> {
-    server_name: &'a str,
-    port: u16,
-    tool_name: &'a str,
-    arguments: Option<serde_json::Value>,
-    session_ctx: &'a CliSessionContext,
-    timeout_secs: u64,
-}
-
-async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolResult> {
-    let ToolCallParams {
-        server_name,
-        port,
-        tool_name,
-        arguments,
-        session_ctx,
-        timeout_secs,
-    } = params;
-    let url = format!("http://127.0.0.1:{}/mcp", port);
-
-    let request_context = session_ctx.to_request_context(&format!("cli-{}", server_name));
-    let http_client = HttpClientWithContext::new(request_context);
-    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-        .auth_header(format!("Bearer {}", session_ctx.session_token().as_str()));
-    let transport = StreamableHttpClientTransport::with_client(http_client, config);
-
-    let client_info = ClientInfo::new(
-        ClientCapabilities::default(),
-        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    );
-
-    let client = timeout(
-        Duration::from_secs(timeout_secs),
-        client_info.serve(transport),
-    )
-    .await
-    .context("Connection timeout")?
-    .context("Failed to connect to MCP server")?;
-
-    let mut params = CallToolRequestParams::new(tool_name.to_string());
-    params.arguments = arguments.and_then(|v| v.as_object().cloned());
-
-    let result = client
-        .call_tool(params)
-        .await
-        .context("Tool execution failed")?;
-
-    client.cancel().await?;
-    Ok(result)
-}
-
 fn prompt_server_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
     let mut servers: Vec<&String> = config.mcp_servers.keys().collect();
     servers.sort();
@@ -262,46 +168,4 @@ fn prompt_tool_selection(
         .context("Failed to get tool selection")?;
 
     Ok(tools[selection].clone())
-}
-
-async fn list_available_tools(
-    server_name: &str,
-    port: u16,
-    session_ctx: &CliSessionContext,
-    timeout_secs: u64,
-) -> Result<Vec<String>> {
-    let url = format!("http://127.0.0.1:{}/mcp", port);
-
-    let request_context = session_ctx.to_request_context(&format!("cli-{}", server_name));
-    let http_client = HttpClientWithContext::new(request_context);
-    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-        .auth_header(format!("Bearer {}", session_ctx.session_token().as_str()));
-    let transport = StreamableHttpClientTransport::with_client(http_client, config);
-
-    let client_info = ClientInfo::new(
-        ClientCapabilities::default(),
-        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    );
-
-    let client = timeout(
-        Duration::from_secs(timeout_secs),
-        client_info.serve(transport),
-    )
-    .await
-    .context("Connection timeout")?
-    .context("Failed to connect to MCP server")?;
-
-    let tools_response = client
-        .list_tools(None)
-        .await
-        .context("Failed to list tools")?;
-
-    let tool_names: Vec<String> = tools_response
-        .tools
-        .into_iter()
-        .map(|t| t.name.to_string())
-        .collect();
-
-    client.cancel().await?;
-    Ok(tool_names)
 }

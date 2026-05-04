@@ -12,8 +12,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs;
 
-#[allow(clippy::unused_async)]
-pub async fn execute(
+pub fn execute(
     _args: RotateSigningKeyArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SigningKeyRotatedOutput>> {

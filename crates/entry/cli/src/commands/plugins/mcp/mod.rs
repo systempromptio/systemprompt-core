@@ -1,11 +1,16 @@
 //! MCP server management commands
 
 mod call;
+mod call_client;
 mod list;
 mod list_packages;
 mod logs;
+mod logs_db;
+mod logs_disk;
 mod status;
 mod tools;
+mod tools_client;
+mod tools_schema;
 pub mod types;
 mod validate;
 

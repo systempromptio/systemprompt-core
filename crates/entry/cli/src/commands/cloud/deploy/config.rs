@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow, bail};
-use systemprompt_cloud::constants::build;
 use systemprompt_cloud::ProjectContext;
+use systemprompt_cloud::constants::build;
 use systemprompt_extension::{AssetPaths, ExtensionRegistry};
 
 use crate::shared::project::ProjectRoot;

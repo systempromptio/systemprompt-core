@@ -1,18 +1,13 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
-use futures_util::StreamExt;
-use reqwest::Client;
-use reqwest_eventsource::{Event, EventSource};
-use systemprompt_agent::models::a2a::jsonrpc::{
-    JSON_RPC_VERSION_2_0, JsonRpcResponse, Request, RequestId,
-};
-use systemprompt_agent::models::a2a::protocol::{
-    MessageSendConfiguration, MessageSendParams, TaskStatusUpdateEvent,
-};
+use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, Request, RequestId};
+use systemprompt_agent::models::a2a::protocol::{MessageSendConfiguration, MessageSendParams};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_logging::CliService;
-use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart, methods};
+use systemprompt_models::a2a::{Message, MessageRole, Part, TextPart, methods};
 
+use super::message_request::{NonStreamingRequest, execute_non_streaming};
+use super::message_streaming::execute_streaming;
 use super::types::MessageOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
@@ -56,7 +51,7 @@ pub struct MessageArgs {
     pub json: bool,
 }
 
-fn extract_text_from_parts(parts: &[Part]) -> String {
+pub fn extract_text_from_parts(parts: &[Part]) -> String {
     parts
         .iter()
         .filter_map(|part| match part {
@@ -153,200 +148,4 @@ pub async fn execute(
     let output = result.data;
     CliService::output(output.response.as_deref().unwrap_or("No response"));
     Ok(CommandResult::text(output).with_skip_render())
-}
-
-async fn execute_streaming(
-    agent: &str,
-    agent_url: &str,
-    auth_token: &str,
-    request: &Request<MessageSendParams>,
-    message_text: &str,
-) -> Result<CommandResult<MessageOutput>> {
-    let client = Client::new();
-    let http_request = client
-        .post(agent_url)
-        .header("Content-Type", "application/json")
-        .header("Accept", "text/event-stream")
-        .header("Authorization", format!("Bearer {}", auth_token))
-        .json(request);
-
-    let mut es = EventSource::new(http_request)
-        .map_err(|e| anyhow!("Failed to create SSE connection: {}", e))?;
-
-    let mut final_task: Option<Task> = None;
-    let mut accumulated_text = String::new();
-
-    while let Some(event) = es.next().await {
-        match event {
-            Ok(Event::Open) => {
-                tracing::debug!("SSE connection opened");
-            },
-            Ok(Event::Message(message)) => {
-                match serde_json::from_str::<JsonRpcResponse<TaskStatusUpdateEvent>>(&message.data)
-                {
-                    Ok(response) => {
-                        if let Some(error) = response.error {
-                            let details = error
-                                .data
-                                .map_or_else(String::new, |d| format!("\n\nDetails: {}", d));
-                            anyhow::bail!(
-                                "Agent returned error ({}): {}{}",
-                                error.code,
-                                error.message,
-                                details
-                            );
-                        }
-
-                        if let Some(event) = response.result {
-                            if let Some(ref msg) = event.status.message {
-                                let text = extract_text_from_parts(&msg.parts);
-                                if !text.is_empty() {
-                                    if let Err(e) = std::io::Write::write_all(
-                                        &mut std::io::stdout(),
-                                        text.as_bytes(),
-                                    ) {
-                                        tracing::warn!(error = %e, "stdout write failed");
-                                    }
-                                    if let Err(e) = std::io::Write::flush(&mut std::io::stdout()) {
-                                        tracing::warn!(error = %e, "stdout flush failed");
-                                    }
-                                    accumulated_text.push_str(&text);
-                                }
-                            }
-
-                            if event.is_final {
-                                CliService::output("");
-                                final_task = Some(Task {
-                                    id: event.task_id,
-                                    context_id: event.context_id,
-                                    status: event.status,
-                                    history: None,
-                                    artifacts: None,
-                                    metadata: None,
-                                    created_at: None,
-                                    last_modified: None,
-                                });
-                                break;
-                            }
-                        }
-                    },
-                    Err(e) => {
-                        tracing::debug!(error = %e, data = %message.data, "Failed to parse SSE event");
-                    },
-                }
-            },
-            Err(reqwest_eventsource::Error::StreamEnded) => {
-                tracing::debug!("SSE stream ended");
-                break;
-            },
-            Err(e) => {
-                anyhow::bail!("SSE stream error: {}", e);
-            },
-        }
-    }
-
-    let task = final_task.ok_or_else(|| anyhow!("Stream ended without final task"))?;
-
-    let response = if accumulated_text.is_empty() {
-        task.status
-            .message
-            .as_ref()
-            .map(|msg| extract_text_from_parts(&msg.parts))
-    } else {
-        Some(accumulated_text)
-    };
-
-    let output = MessageOutput {
-        agent: agent.to_string(),
-        task,
-        message_sent: message_text.to_string(),
-        response,
-    };
-
-    Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))
-}
-
-struct NonStreamingRequest<'a> {
-    agent: &'a str,
-    agent_url: &'a str,
-    auth_token: &'a str,
-    request: &'a Request<MessageSendParams>,
-    message_text: &'a str,
-    timeout: u64,
-}
-
-async fn execute_non_streaming(
-    params: NonStreamingRequest<'_>,
-) -> Result<CommandResult<MessageOutput>> {
-    let NonStreamingRequest {
-        agent,
-        agent_url,
-        auth_token,
-        request,
-        message_text,
-        timeout,
-    } = params;
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(timeout))
-        .build()
-        .context("Failed to create HTTP client")?;
-
-    let response = client
-        .post(agent_url)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", auth_token))
-        .json(request)
-        .send()
-        .await
-        .with_context(|| format!("Failed to send message to agent at {}", agent_url))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_else(|_| String::new());
-        anyhow::bail!("Agent request failed with status {}: {}", status, body);
-    }
-
-    let json_response: JsonRpcResponse<Task> = response
-        .json()
-        .await
-        .context("Failed to parse agent response")?;
-
-    if json_response.jsonrpc != JSON_RPC_VERSION_2_0 {
-        anyhow::bail!(
-            "Invalid JSON-RPC version: expected {}, got {}",
-            JSON_RPC_VERSION_2_0,
-            json_response.jsonrpc
-        );
-    }
-
-    if let Some(error) = json_response.error {
-        let details = error
-            .data
-            .map_or_else(String::new, |d| format!("\n\nDetails: {}", d));
-        anyhow::bail!(
-            "Agent returned error ({}): {}{}",
-            error.code,
-            error.message,
-            details
-        );
-    }
-
-    let task = json_response
-        .result
-        .ok_or_else(|| anyhow!("No result in agent response"))?;
-
-    let response = task
-        .status
-        .message
-        .as_ref()
-        .map(|msg| extract_text_from_parts(&msg.parts));
-
-    let output = MessageOutput {
-        agent: agent.to_string(),
-        task,
-        message_sent: message_text.to_string(),
-        response,
-    };
-
-    Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))
 }

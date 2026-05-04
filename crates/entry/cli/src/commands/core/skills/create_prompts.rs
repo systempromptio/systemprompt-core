@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::CliConfig;
 
-pub(super) fn validate_skill_name(name: &str) -> Result<()> {
+pub fn validate_skill_name(name: &str) -> Result<()> {
     if name.len() < 3 || name.len() > 50 {
         return Err(anyhow!("Skill name must be between 3 and 50 characters"));
     }
@@ -23,11 +23,11 @@ pub(super) fn validate_skill_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn normalize_skill_name(name: &str) -> String {
+pub fn normalize_skill_name(name: &str) -> String {
     name.replace('-', "_").to_lowercase()
 }
 
-pub(super) fn check_normalized_conflicts(name: &str, skills_dir: &Path) -> Result<()> {
+pub fn check_normalized_conflicts(name: &str, skills_dir: &Path) -> Result<()> {
     let normalized_name = normalize_skill_name(name);
 
     if !skills_dir.exists() {
@@ -63,7 +63,7 @@ pub(super) fn check_normalized_conflicts(name: &str, skills_dir: &Path) -> Resul
     Ok(())
 }
 
-pub(super) fn title_case(s: &str) -> String {
+pub fn title_case(s: &str) -> String {
     s.split('_')
         .map(|word| {
             let mut chars = word.chars();
@@ -75,7 +75,7 @@ pub(super) fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-pub(super) fn resolve_instructions(
+pub fn resolve_instructions(
     instructions: Option<&str>,
     instructions_file: Option<&str>,
     config: &CliConfig,
@@ -97,50 +97,7 @@ pub(super) fn resolve_instructions(
     Ok(String::new())
 }
 
-pub(super) fn build_skill_markdown(description: &str, instructions: &str) -> String {
-    format!(
-        "---\ndescription: \"{description}\"\n---\n\n{instructions}\n",
-        description = description,
-        instructions = instructions
-    )
-}
-
-pub(super) fn build_skill_config(
-    name: &str,
-    display_name: &str,
-    description: &str,
-    enabled: bool,
-    tags: &[String],
-) -> String {
-    let tags_yaml = if tags.is_empty() {
-        "[]".to_string()
-    } else {
-        tags.iter()
-            .map(|t| format!("  - {}", t))
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
-
-    format!(
-        r#"id: {name}
-name: "{display_name}"
-description: "{description}"
-enabled: {enabled}
-version: "1.0.0"
-file: "SKILL.md"
-assigned_agents:
-  - content
-tags:
-{tags_yaml}"#,
-        name = name,
-        display_name = display_name,
-        description = description,
-        enabled = enabled,
-        tags_yaml = tags_yaml
-    )
-}
-
-pub(super) fn prompt_name() -> Result<String> {
+pub fn prompt_name() -> Result<String> {
     Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Skill name (slug)")
         .validate_with(|input: &String| -> Result<(), &str> {
@@ -159,7 +116,7 @@ pub(super) fn prompt_name() -> Result<String> {
         .context("Failed to get skill name")
 }
 
-pub(super) fn prompt_display_name(default: &str) -> Result<String> {
+pub fn prompt_display_name(default: &str) -> Result<String> {
     Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name")
         .default(title_case(default))
@@ -167,7 +124,7 @@ pub(super) fn prompt_display_name(default: &str) -> Result<String> {
         .context("Failed to get display name")
 }
 
-pub(super) fn prompt_description() -> Result<String> {
+pub fn prompt_description() -> Result<String> {
     Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Description")
         .allow_empty(true)
