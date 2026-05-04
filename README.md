@@ -20,7 +20,7 @@ Every tool call authenticated, scoped, secret-scanned, rate-limited, and audited
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg?style=flat-square)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt?style=flat-square)](https://docs.rs/systemprompt)
-[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](LICENSE)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![Rust 1.75+](https://img.shields.io/badge/rust-1.75+-f97316?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![PostgreSQL 18+](https://img.shields.io/badge/postgres-18+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Template](https://img.shields.io/badge/evaluate-systemprompt--template-16a34a?style=flat-square)](https://github.com/systempromptio/systemprompt-template)
@@ -195,7 +195,7 @@ One binary, eight domains. Every command is discoverable — `systemprompt <doma
 
 A 30-crate Rust workspace that compiles into a single ~50 MB binary. Dependencies flow downward only — no circular references.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │  ENTRY      api · cli                                               │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -368,13 +368,13 @@ Numbers measured on the author's laptop. Reproduce with `./demo/performance/02-b
 
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. **Production use requires a commercial license.** Each version converts to Apache 2.0 four years after publication.
 
-See [LICENSE](LICENSE) for the full terms. Licensing enquiries: [ed@systemprompt.io](mailto:ed@systemprompt.io).
+See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE) for the full terms. Licensing enquiries: [ed@systemprompt.io](mailto:ed@systemprompt.io).
 
 ---
 
 ## Security
 
-Vulnerability disclosure, triage SLAs, and supply-chain integrity are documented in [SECURITY.md](SECURITY.md). Report vulnerabilities to **ed@systemprompt.io** — not via public issues.
+Vulnerability disclosure, triage SLAs, and supply-chain integrity are documented in [SECURITY.md](https://github.com/systempromptio/systemprompt-core/blob/main/SECURITY.md). Report vulnerabilities to **ed@systemprompt.io** — not via public issues.
 
 Release binaries are built in GitHub-hosted CI and signed with Sigstore `cosign` keyless. A CycloneDX SBOM is attached to every release.
 
