@@ -77,6 +77,10 @@ impl GatewayAudit {
     fn effective_model(&self) -> String {
         self.served_model
             .lock()
+            .map_err(|e| {
+                tracing::warn!(error = %e, "served_model mutex poisoned");
+                e
+            })
             .ok()
             .and_then(|s| s.clone())
             .unwrap_or_else(|| self.ctx.model.clone())
