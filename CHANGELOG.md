@@ -4,6 +4,10 @@
 
 ### Added
 
+- **Code-quality remediation pass** addressing findings from the v0.4.3 ruthless review:
+  - **Granular facade features** in `systemprompt/Cargo.toml` — `logging`, `config`, `loader`, `events`, `client`, `security` are now individually selectable instead of being bundled only under `full`. Backwards-compatible: `full` still enables them all.
+  - **`OauthError` and `FilesError` thiserror enums** (`crates/domain/oauth/src/error.rs`, `crates/domain/files/src/error.rs`) with `#[from] sqlx::Error`, `#[from] anyhow::Error`, and `#[from] std::io::Error` conversions. Public APIs can now expose typed errors at boundaries instead of opaque anyhow strings; existing internal anyhow remains and migrates incrementally.
+  - **Migration weight headroom** — extension `migration_weight()` values re-spaced ×10 (database 1→10, users 10→100, scheduler 55→550, etc.). Reserved ranges going forward: 0–99 infra core, 100–199 shared platform, 200–999 domain, 1000+ third-party extensions.
 - `crates/entry/api/src/services/gateway/captures.rs` — leaf module exposing `CapturedToolUse` and `CapturedUsage` so `audit.rs` and `parse.rs` no longer import each other.
 - `crates/entry/cli/src/commands/admin/setup/common.rs` — leaf module with `PostgresConfig`, `generate_password`, `detect_postgresql`, `test_connection`, `enable_extensions`. Removes the back-edge from `postgres.rs` to `docker.rs`.
 - `bin/bridge/src/gui/emit.rs` — leaf module with all `emit_*`, `send_emit`, and `send_reply*` helpers. Breaks the `command.rs ↔ ipc_runtime.rs` cycle.
