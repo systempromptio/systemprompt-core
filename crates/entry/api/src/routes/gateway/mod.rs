@@ -48,11 +48,14 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
             ),
         )
         .with_metadata(metadata);
-        let _ = repo
+        if let Err(e) = repo
             .with_database(true)
             .with_terminal(true)
             .log(entry)
-            .await;
+            .await
+        {
+            tracing::warn!(error = %e, "gateway access log persist failed");
+        }
     }
 
     resp

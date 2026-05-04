@@ -102,7 +102,9 @@ impl GatewayService {
                     "quota exceeded for window {}s (used {}/{:?})",
                     decision.window_seconds, decision.state.requests, decision.limit_requests
                 );
-                let _ = audit.fail(&msg).await;
+                if let Err(e) = audit.fail(&msg).await {
+                    tracing::warn!(error = %e, "quota audit fail failed");
+                }
                 return Err(QuotaExceeded {
                     message: msg,
                     retry_after_seconds: decision.window_seconds,
@@ -124,7 +126,9 @@ impl GatewayService {
         let outcome = match upstream.proxy(upstream_ctx).await {
             Ok(o) => o,
             Err(e) => {
-                let _ = audit.fail(&e.to_string()).await;
+                if let Err(audit_err) = audit.fail(&e.to_string()).await {
+                    tracing::warn!(error = %audit_err, "upstream audit fail failed");
+                }
                 return Err(e);
             },
         };
