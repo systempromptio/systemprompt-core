@@ -111,14 +111,12 @@ pub async fn setup_docker_postgres_interactive(
         }
 
         CliService::info("Stopping existing container...");
-        Command::new("docker")
-            .args(["stop", &container])
-            .output()
-            .ok();
-        Command::new("docker")
-            .args(["rm", &container])
-            .output()
-            .ok();
+        if let Err(e) = Command::new("docker").args(["stop", &container]).output() {
+            tracing::warn!(container = %container, error = %e, "docker stop failed");
+        }
+        if let Err(e) = Command::new("docker").args(["rm", &container]).output() {
+            tracing::warn!(container = %container, error = %e, "docker rm failed");
+        }
     }
 
     start_compose(&config, &compose_dir, &container)?;

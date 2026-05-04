@@ -144,7 +144,9 @@ async fn stop_running_services(
                     service.name, pid
                 ));
             }
-            service_mgmt.mark_service_stopped(&service.name).await.ok();
+            if let Err(e) = service_mgmt.mark_service_stopped(&service.name).await {
+                tracing::warn!(service = %service.name, error = %e, "mark_service_stopped failed");
+            }
             cleaned += 1;
             continue;
         }
