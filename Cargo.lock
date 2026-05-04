@@ -4559,7 +4559,6 @@ dependencies = [
 name = "systemprompt-client"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "chrono",
  "futures",
  "reqwest 0.12.28",
