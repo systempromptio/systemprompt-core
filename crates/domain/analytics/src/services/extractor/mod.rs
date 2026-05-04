@@ -1,3 +1,12 @@
+//! HTTP request → [`SessionAnalytics`] extraction.
+//!
+//! `HeaderValue::to_str().ok()` is used liberally below. That is deliberate:
+//! a non-ASCII header value is not actionable for the analytics pipeline and
+//! must not abort session creation. Treating those headers as absent is the
+//! correct fallback — the corresponding session field stays `None` and
+//! downstream consumers treat the request as un-attributed for that
+//! dimension.
+
 use http::{HeaderMap, Uri};
 use std::collections::HashMap;
 
@@ -9,6 +18,11 @@ use super::detection;
 use super::user_agent::parse_user_agent;
 use crate::GeoIpReader;
 
+mod geoip;
+
+/// Flat view of analytics-relevant request attributes (network identity,
+/// user-agent fingerprint, geolocation, traffic source / UTM tags) extracted
+/// from request headers.
 #[derive(Debug, Clone, Default)]
 pub struct SessionAnalytics {
     pub ip_address: Option<String>,
@@ -33,10 +47,13 @@ pub struct SessionAnalytics {
 }
 
 impl SessionAnalytics {
+    /// Extract analytics from `headers` without `GeoIP` enrichment.
     pub fn from_headers(headers: &HeaderMap) -> Self {
         Self::from_headers_with_geoip(headers, None)
     }
 
+    /// Extract analytics with optional `GeoIP` enrichment from a `MaxMind`
+    /// reader.
     pub fn from_headers_with_geoip(
         headers: &HeaderMap,
         geoip_reader: Option<&GeoIpReader>,
@@ -44,6 +61,8 @@ impl SessionAnalytics {
         Self::from_headers_with_geoip_and_socket(headers, geoip_reader, None)
     }
 
+    /// Extract analytics, also falling back to the connection socket address
+    /// when no `X-Forwarded-For` / `X-Real-IP` header is present.
     pub fn from_headers_with_geoip_and_socket(
         headers: &HeaderMap,
         geoip_reader: Option<&GeoIpReader>,
@@ -119,6 +138,8 @@ impl SessionAnalytics {
         }
     }
 
+    /// Extract analytics, additionally pulling UTM tags and (when the URI
+    /// resolves to an HTML page) entry-URL/landing-page from `uri`.
     pub fn from_headers_and_uri(
         headers: &HeaderMap,
         uri: Option<&Uri>,
@@ -148,6 +169,8 @@ impl SessionAnalytics {
         analytics
     }
 
+    /// Convenience wrapper around [`Self::from_headers_and_uri`] that takes a
+    /// full Axum [`Request`].
     pub fn from_request(
         request: &Request,
         geoip_reader: Option<&GeoIpReader>,
@@ -172,90 +195,19 @@ impl SessionAnalytics {
         })
     }
 
-    #[cfg(feature = "geolocation")]
     fn lookup_geoip(
         ip_str: &str,
         geoip_reader: Option<&GeoIpReader>,
     ) -> Option<(Option<String>, Option<String>, Option<String>)> {
-        let Some(reader) = geoip_reader else {
-            tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: reader not configured");
-            return None;
-        };
-
-        let ip: std::net::IpAddr = match ip_str.parse() {
-            Ok(ip) => ip,
-            Err(e) => {
-                tracing::debug!(ip = %ip_str, error = %e, "GeoIP lookup failed: invalid IP address");
-                return None;
-            },
-        };
-
-        if ip.is_loopback() || ip.is_unspecified() {
-            tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: loopback or unspecified address");
-            return None;
-        }
-
-        if let std::net::IpAddr::V4(ipv4) = ip {
-            if ipv4.is_private() || ipv4.is_link_local() {
-                tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: private or link-local address");
-                return None;
-            }
-        }
-
-        let lookup_result = match reader.lookup(ip) {
-            Ok(result) => result,
-            Err(e) => {
-                tracing::debug!(ip = %ip_str, error = %e, "GeoIP lookup failed: database lookup error");
-                return None;
-            },
-        };
-
-        let city_data: maxminddb::geoip2::City = match lookup_result.decode() {
-            Ok(Some(data)) => data,
-            Ok(None) => {
-                tracing::debug!(ip = %ip_str, "GeoIP lookup returned empty result");
-                return None;
-            },
-            Err(e) => {
-                tracing::debug!(ip = %ip_str, error = %e, "GeoIP decode failed");
-                return None;
-            },
-        };
-
-        let country = city_data.country.iso_code.map(ToString::to_string);
-
-        let region = city_data
-            .subdivisions
-            .first()
-            .and_then(|s| s.iso_code)
-            .map(ToString::to_string);
-
-        let city_name = city_data.city.names.english.map(ToString::to_string);
-
-        Some((country, region, city_name))
-    }
-
-    #[cfg(not(feature = "geolocation"))]
-    const fn lookup_geoip(
-        _ip_str: &str,
-        _geoip_reader: Option<&GeoIpReader>,
-    ) -> Option<(Option<String>, Option<String>, Option<String>)> {
-        None
+        geoip::lookup_geoip(ip_str, geoip_reader)
     }
 
     fn parse_referrer_source(url: &str) -> Option<String> {
-        match url::Url::parse(url) {
-            Ok(parsed_url) => parsed_url
-                .host_str()
-                .map(ToString::to_string)
-                .filter(|host| host.parse::<std::net::IpAddr>().is_err()),
-            Err(err) => {
-                tracing::debug!(url = %url, error = %err, "failed to parse referrer URL");
-                None
-            },
-        }
+        geoip::parse_referrer_source(url)
     }
 
+    /// Returns `true` when the user-agent looks like a bot. AI crawlers are
+    /// classified separately and explicitly excluded from this predicate.
     pub fn is_bot(&self) -> bool {
         if self.is_ai_crawler() {
             return false;
@@ -265,24 +217,28 @@ impl SessionAnalytics {
             .is_none_or(|ua| ua.is_empty() || matches_bot_pattern(ua))
     }
 
+    /// Returns `true` when the user-agent matches a known AI crawler keyword.
     pub fn is_ai_crawler(&self) -> bool {
         self.user_agent
             .as_ref()
             .is_some_and(|ua| matches_ai_crawler(ua))
     }
 
+    /// Returns `true` when the IP belongs to a well-known bot IP range.
     pub fn is_bot_ip(&self) -> bool {
         self.ip_address
             .as_ref()
             .is_some_and(|ip| matches_bot_ip_range(ip))
     }
 
+    /// Returns `true` when the referrer URL matches a spam-farm pattern.
     pub fn is_spam_referrer(&self) -> bool {
         self.referrer_url
             .as_ref()
             .is_some_and(|url| detection::is_spam_referrer(url))
     }
 
+    /// Returns `true` when the IP belongs to a known datacenter / VPN range.
     pub fn is_datacenter_ip(&self) -> bool {
         self.ip_address
             .as_ref()

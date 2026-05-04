@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use systemprompt_identifiers::{FunnelId, SessionId};
 
 use super::FunnelRepository;

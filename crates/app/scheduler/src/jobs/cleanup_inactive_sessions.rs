@@ -31,8 +31,11 @@ impl Job for CleanupInactiveSessionsJob {
 
         debug!("Job started");
 
-        let session_repo = SessionRepository::new(&db_pool)?;
-        let closed_sessions = session_repo.cleanup_inactive(1).await?;
+        let session_repo = SessionRepository::new(&db_pool).map_err(anyhow::Error::new)?;
+        let closed_sessions = session_repo
+            .cleanup_inactive(1)
+            .await
+            .map_err(anyhow::Error::new)?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

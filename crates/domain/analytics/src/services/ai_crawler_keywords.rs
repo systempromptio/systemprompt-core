@@ -1,3 +1,6 @@
+//! Static keyword list and matcher for known AI training / search crawlers.
+
+/// Lowercase substrings identifying AI-platform crawlers and agents.
 pub const AI_CRAWLER_KEYWORDS: &[&str] = &[
     "notebooklm",
     "gemini-deep-research",
@@ -20,6 +23,8 @@ pub const AI_CRAWLER_KEYWORDS: &[&str] = &[
     "cohere-ai",
 ];
 
+/// Returns `true` when `user_agent` contains any keyword from
+/// [`AI_CRAWLER_KEYWORDS`] (case-insensitive).
 pub fn matches_ai_crawler(user_agent: &str) -> bool {
     let ua_lower = user_agent.to_lowercase();
     AI_CRAWLER_KEYWORDS

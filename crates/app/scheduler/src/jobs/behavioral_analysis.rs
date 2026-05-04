@@ -46,12 +46,16 @@ impl Job for BehavioralAnalysisJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        let fingerprint_repo = FingerprintRepository::new(&db_pool)?;
+        let fingerprint_repo =
+            FingerprintRepository::new(&db_pool).map_err(anyhow::Error::new)?;
         let banned_ip_repo = BannedIpRepository::new(&db_pool)?;
 
         info!("Starting behavioral analysis job");
 
-        let fingerprints = fingerprint_repo.get_fingerprints_for_analysis().await?;
+        let fingerprints = fingerprint_repo
+            .get_fingerprints_for_analysis()
+            .await
+            .map_err(anyhow::Error::new)?;
         let stats = process_fingerprints(&fingerprints, &fingerprint_repo, &banned_ip_repo).await;
         let expired_cleaned = match banned_ip_repo.cleanup_expired().await {
             Ok(count) => count,
@@ -161,7 +165,7 @@ fn log_flag_result(
     fingerprint: &str,
     reasons: &[FlagReason],
     new_score: i32,
-    result: &Result<(), anyhow::Error>,
+    result: &systemprompt_analytics::AnalyticsResult<()>,
 ) -> bool {
     match result {
         Ok(()) => {

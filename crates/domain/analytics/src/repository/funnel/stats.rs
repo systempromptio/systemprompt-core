@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::FunnelId;
 
@@ -11,10 +11,9 @@ impl FunnelRepository {
         funnel_id: &FunnelId,
         since: DateTime<Utc>,
     ) -> Result<FunnelStats> {
-        let funnel = self
-            .find_by_id(funnel_id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Funnel not found: {}", funnel_id))?;
+        let funnel = self.find_by_id(funnel_id).await?.ok_or_else(|| {
+            crate::AnalyticsError::SessionNotFound(format!("funnel {}", funnel_id))
+        })?;
 
         let total_entries = sqlx::query_scalar!(
             r#"

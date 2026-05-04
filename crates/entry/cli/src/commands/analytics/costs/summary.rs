@@ -59,7 +59,7 @@ async fn execute_internal(
     let current = repo.get_summary(start, end).await?;
     let previous = repo.get_previous_cost(prev_start, start).await?;
 
-    let total_cost = current.total_cost.unwrap_or(0);
+    let total_cost = current.cost.unwrap_or(0);
     let prev_cost = previous.cost.unwrap_or(0);
     let change_percent = if prev_cost > 0 {
         Some(((total_cost - prev_cost) as f64 / prev_cost as f64) * 100.0)
@@ -67,8 +67,8 @@ async fn execute_internal(
         None
     };
 
-    let avg_cost = if current.total_requests > 0 {
-        total_cost as f64 / current.total_requests as f64
+    let avg_cost = if current.requests > 0 {
+        total_cost as f64 / current.requests as f64
     } else {
         0.0
     };
@@ -80,8 +80,8 @@ async fn execute_internal(
             end.format("%Y-%m-%d %H:%M")
         ),
         total_cost_microdollars: total_cost,
-        total_requests: current.total_requests,
-        total_tokens: current.total_tokens.unwrap_or(0),
+        total_requests: current.requests,
+        total_tokens: current.tokens.unwrap_or(0),
         avg_cost_per_request_microdollars: avg_cost,
         change_percent,
     };
