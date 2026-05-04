@@ -1,4 +1,10 @@
+//! Behavioural-bot detector — combines a battery of heuristic checks across
+//! a single session and across all sessions sharing a fingerprint to assign
+//! a 0-100 suspicion score and a list of triggered [`BehavioralSignal`]s.
+
 mod checks;
+mod fingerprint_checks;
+mod helpers;
 mod types;
 
 pub use types::{BehavioralAnalysisInput, BehavioralAnalysisResult, BehavioralSignal, SignalType};

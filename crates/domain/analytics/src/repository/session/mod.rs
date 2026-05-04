@@ -1,11 +1,17 @@
+//! `SessionRepository` — repository surface over `user_sessions`. Internal
+//! submodules: `queries` (read), `mutations` (write), `behavioral` (bot
+//! detection writes), `behavioral_queries` (bot detection reads), `types`
+//! (DTO/row structs).
+
 mod behavioral;
+mod behavioral_queries;
 mod mutations;
 mod queries;
 mod types;
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
@@ -162,18 +168,23 @@ impl SessionRepository {
         fingerprint_hash: &str,
         window_hours: i64,
     ) -> Result<i64> {
-        queries::count_sessions_by_fingerprint(&self.pool, fingerprint_hash, window_hours).await
+        behavioral_queries::count_sessions_by_fingerprint(
+            &self.pool,
+            fingerprint_hash,
+            window_hours,
+        )
+        .await
     }
 
     pub async fn get_endpoint_sequence(&self, session_id: &SessionId) -> Result<Vec<String>> {
-        queries::get_endpoint_sequence(&self.pool, session_id).await
+        behavioral_queries::get_endpoint_sequence(&self.pool, session_id).await
     }
 
     pub async fn get_request_timestamps(
         &self,
         session_id: &SessionId,
     ) -> Result<Vec<DateTime<Utc>>> {
-        queries::get_request_timestamps(&self.pool, session_id).await
+        behavioral_queries::get_request_timestamps(&self.pool, session_id).await
     }
 
     pub async fn get_total_content_pages(&self) -> Result<i64> {
@@ -184,11 +195,11 @@ impl SessionRepository {
         &self,
         session_id: &SessionId,
     ) -> Result<Option<SessionBehavioralData>> {
-        queries::get_session_for_behavioral_analysis(&self.pool, session_id).await
+        behavioral_queries::get_session_for_behavioral_analysis(&self.pool, session_id).await
     }
 
     pub async fn has_analytics_events(&self, session_id: &SessionId) -> Result<bool> {
-        queries::has_analytics_events(&self.pool, session_id).await
+        behavioral_queries::has_analytics_events(&self.pool, session_id).await
     }
 
     pub async fn count_unique_ips_by_fingerprint(
@@ -196,7 +207,12 @@ impl SessionRepository {
         fingerprint_hash: &str,
         window_days: i64,
     ) -> Result<i64> {
-        queries::count_unique_ips_by_fingerprint(&self.pool, fingerprint_hash, window_days).await
+        behavioral_queries::count_unique_ips_by_fingerprint(
+            &self.pool,
+            fingerprint_hash,
+            window_days,
+        )
+        .await
     }
 
     pub async fn count_engagement_events_by_fingerprint(
@@ -204,8 +220,12 @@ impl SessionRepository {
         fingerprint_hash: &str,
         window_days: i64,
     ) -> Result<i64> {
-        queries::count_engagement_events_by_fingerprint(&self.pool, fingerprint_hash, window_days)
-            .await
+        behavioral_queries::count_engagement_events_by_fingerprint(
+            &self.pool,
+            fingerprint_hash,
+            window_days,
+        )
+        .await
     }
 
     pub async fn get_session_starts_by_fingerprint(
@@ -213,13 +233,18 @@ impl SessionRepository {
         fingerprint_hash: &str,
         window_days: i64,
     ) -> Result<Vec<DateTime<Utc>>> {
-        queries::get_session_starts_by_fingerprint(&self.pool, fingerprint_hash, window_days).await
+        behavioral_queries::get_session_starts_by_fingerprint(
+            &self.pool,
+            fingerprint_hash,
+            window_days,
+        )
+        .await
     }
 
     pub async fn get_session_velocity(
         &self,
         session_id: &SessionId,
     ) -> Result<(Option<i64>, Option<i64>)> {
-        queries::get_session_velocity(&self.pool, session_id).await
+        behavioral_queries::get_session_velocity(&self.pool, session_id).await
     }
 }

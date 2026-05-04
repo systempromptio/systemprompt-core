@@ -1,3 +1,7 @@
+//! Static keyword list and matcher used to flag well-known bot user-agents.
+
+/// Lowercase substrings that identify automated user-agents (search engines,
+/// scrapers, link-preview bots).
 pub const BOT_KEYWORDS: &[&str] = &[
     "bot",
     "crawler",
@@ -89,10 +93,13 @@ pub const BOT_KEYWORDS: &[&str] = &[
     "rv:1.9",
 ];
 
+/// Leading octets associated with major search-engine and social bot ranges.
 pub const BOT_IP_PREFIXES: &[&str] = &[
     "66.249.", "40.77.", "157.55.", "207.46.", "69.171.", "173.252.", "31.13.",
 ];
 
+/// Returns `true` when `user_agent` is empty, suspiciously short, JSON-like,
+/// or one of the placeholder values (`-`, `null`, `unknown`).
 pub fn is_malformed_user_agent(user_agent: &str) -> bool {
     if user_agent.is_empty() || user_agent.len() < 10 {
         return true;
@@ -107,6 +114,8 @@ pub fn is_malformed_user_agent(user_agent: &str) -> bool {
     matches!(lower.as_str(), "-" | "null" | "unknown")
 }
 
+/// Returns `true` when `user_agent` matches a known bot keyword, looks
+/// malformed, or follows the legacy `(compatible; ...)` non-browser pattern.
 pub fn matches_bot_pattern(user_agent: &str) -> bool {
     if is_malformed_user_agent(user_agent) {
         return true;
@@ -133,6 +142,7 @@ pub fn matches_bot_pattern(user_agent: &str) -> bool {
     false
 }
 
+/// Returns `true` when `ip` starts with one of [`BOT_IP_PREFIXES`].
 pub fn matches_bot_ip_range(ip: &str) -> bool {
     BOT_IP_PREFIXES.iter().any(|prefix| ip.starts_with(prefix))
 }

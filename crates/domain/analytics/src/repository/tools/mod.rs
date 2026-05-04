@@ -1,7 +1,7 @@
 mod detail_queries;
 pub(super) mod list_queries;
 
-use anyhow::Result;
+use crate::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;

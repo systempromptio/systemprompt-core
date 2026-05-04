@@ -1,10 +1,13 @@
+//! Public DTO/row types for the analytics crate. Submodules are split by
+//! domain (engagement, events, fingerprint, funnel) plus a `cli` family of
+//! row structs used by `systemprompt-cli` reports.
+
 pub mod cli;
 mod engagement;
 mod events;
 mod fingerprint;
 mod funnel;
 
-#[allow(unused_imports)]
 pub use cli::*;
 pub use engagement::{CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics};
 pub use events::{

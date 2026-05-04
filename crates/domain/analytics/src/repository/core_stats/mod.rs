@@ -3,7 +3,7 @@ mod breakdowns;
 mod leaderboards;
 mod overview;
 
-use anyhow::Result;
+use crate::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;

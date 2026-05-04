@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::{AnalyticsError, Result};
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};
@@ -79,19 +79,19 @@ impl ProviderUsage {
         let provider = row
             .get("provider")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing provider"))?
+            .ok_or_else(|| AnalyticsError::missing_field("provider"))?
             .to_string();
 
         let model = row
             .get("model")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing model"))?
+            .ok_or_else(|| AnalyticsError::missing_field("model"))?
             .to_string();
 
-        let request_count = row
-            .get("request_count")
-            .and_then(serde_json::Value::as_i64)
-            .ok_or_else(|| anyhow!("Missing request_count"))? as i32;
+        let request_count =
+            row.get("request_count")
+                .and_then(serde_json::Value::as_i64)
+                .ok_or_else(|| AnalyticsError::missing_field("request_count"))? as i32;
 
         let total_tokens = row
             .get("total_tokens")
@@ -107,15 +107,16 @@ impl ProviderUsage {
             .get("avg_latency_ms")
             .and_then(serde_json::Value::as_f64);
 
-        let unique_users = row
-            .get("unique_users")
-            .and_then(serde_json::Value::as_i64)
-            .ok_or_else(|| anyhow!("Missing unique_users"))? as i32;
-
-        let unique_sessions =
-            row.get("unique_sessions")
+        let unique_users =
+            row.get("unique_users")
                 .and_then(serde_json::Value::as_i64)
-                .ok_or_else(|| anyhow!("Missing unique_sessions"))? as i32;
+                .ok_or_else(|| AnalyticsError::missing_field("unique_users"))? as i32;
+
+        let unique_sessions = row
+            .get("unique_sessions")
+            .and_then(serde_json::Value::as_i64)
+            .ok_or_else(|| AnalyticsError::missing_field("unique_sessions"))?
+            as i32;
 
         Ok(Self {
             provider,

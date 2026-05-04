@@ -48,12 +48,15 @@ pub struct RequestListRow {
     pub user_id: String,
 }
 
+/// Aggregate cost / volume row for a time window over `ai_requests`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
-#[allow(clippy::struct_field_names)]
 pub struct CostSummaryRow {
-    pub total_requests: i64,
-    pub total_cost: Option<i64>,
-    pub total_tokens: Option<i64>,
+    /// Number of AI requests in the window.
+    pub requests: i64,
+    /// Sum of `cost_microdollars` over the window.
+    pub cost: Option<i64>,
+    /// Sum of `tokens_used` over the window.
+    pub tokens: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]

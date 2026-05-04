@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -26,9 +26,9 @@ impl CostAnalyticsRepository {
             CostSummaryRow,
             r#"
             SELECT
-                COUNT(*)::bigint as "total_requests!",
-                SUM(cost_microdollars)::bigint as "total_cost",
-                SUM(tokens_used)::bigint as "total_tokens"
+                COUNT(*)::bigint as "requests!",
+                SUM(cost_microdollars)::bigint as "cost",
+                SUM(tokens_used)::bigint as "tokens"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
             "#,

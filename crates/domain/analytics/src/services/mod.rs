@@ -1,3 +1,9 @@
+//! Service layer.
+//!
+//! Orchestrators on top of the repository layer. Hosts the
+//! [`AnalyticsService`], throttle/anomaly/behavioural detectors, request
+//! extractors, and provider integrations consumed by the API and CLI.
+
 pub mod ai_crawler_keywords;
 mod ai_provider;
 mod anomaly_detection;

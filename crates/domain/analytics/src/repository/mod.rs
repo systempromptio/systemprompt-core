@@ -1,3 +1,10 @@
+//! Repository layer.
+//!
+//! Typed `*Repository` structs that wrap `DbPool` and expose compile-time-
+//! verified `sqlx::query!` calls for every analytics aggregation, mutation,
+//! and lookup. Public re-exports below form the only supported entry points;
+//! internal submodules are private to the crate.
+
 mod agents;
 mod cli_sessions;
 mod content_analytics;
