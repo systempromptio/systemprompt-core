@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::models::LoggingError;
+type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -58,8 +59,7 @@ pub async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogEn
         id
     )
     .fetch_optional(&**pool)
-    .await
-    .context("Failed to find log by id")?;
+    .await?;
 
     Ok(row.map(row_to_entry))
 }
@@ -84,8 +84,7 @@ pub async fn find_log_by_partial_id(
         pattern
     )
     .fetch_optional(&**pool)
-    .await
-    .context("Failed to find log by partial id")?;
+    .await?;
 
     Ok(row.map(row_to_entry))
 }
@@ -105,8 +104,7 @@ pub async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result
         trace_id
     )
     .fetch_all(&**pool)
-    .await
-    .context("Failed to find logs by trace id")?;
+    .await?;
 
     if !rows.is_empty() {
         return Ok(rows.into_iter().map(row_to_entry).collect());
@@ -128,8 +126,7 @@ pub async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result
         pattern
     )
     .fetch_all(&**pool)
-    .await
-    .context("Failed to find logs by partial trace id")?;
+    .await?;
 
     Ok(rows.into_iter().map(row_to_entry).collect())
 }
@@ -158,8 +155,7 @@ pub async fn list_logs_filtered(
         limit
     )
     .fetch_all(&**pool)
-    .await
-    .context("Failed to list filtered logs")?;
+    .await?;
 
     Ok(rows.into_iter().map(row_to_entry).collect())
 }

@@ -1,10 +1,11 @@
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::TaskId;
 
-use crate::models::LogEntry;
+use crate::models::{LogEntry, LoggingError};
+
+type Result<T> = std::result::Result<T, LoggingError>;
 
 use super::models::{
     AiRequestDetail, AiRequestListItem, AiRequestStats, AiRequestSummary, AuditLookupResult,

@@ -11,7 +11,13 @@ pub struct DatabaseLogService {
 }
 
 impl DatabaseLogService {
-    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
+    /// Construct a database-backed log service from a [`DbPool`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LoggingError`] when the underlying database pool is
+    /// unavailable.
+    pub fn new(db_pool: &DbPool) -> Result<Self, LoggingError> {
         Ok(Self {
             repository: LoggingRepository::new(db_pool)?
                 .with_terminal(false)

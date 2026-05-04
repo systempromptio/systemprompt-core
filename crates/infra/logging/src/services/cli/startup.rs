@@ -4,7 +4,10 @@ use crate::services::cli::theme::BrandColors;
 
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
     let mut out = std::io::stdout();
-    let _ = writeln!(out, "{args}");
+    // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no
+    // recoverable path; recursing into tracing IS the failure mode we are trying to
+    // avoid.
+    writeln!(out, "{args}").ok();
 }
 
 pub fn render_startup_banner(subtitle: Option<&str>) {

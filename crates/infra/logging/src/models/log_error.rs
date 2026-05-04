@@ -51,8 +51,27 @@ pub enum LoggingError {
     #[error("Database connection not available")]
     DatabaseUnavailable,
 
-    #[error("Query operation failed")]
-    QueryError(#[from] anyhow::Error),
+    #[error("Database pool unavailable: {0}")]
+    PoolUnavailable(String),
+
+    #[error("Retention scheduler error")]
+    Scheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
+
+    #[error("No task found matching: {partial_id}")]
+    TaskNotFound { partial_id: String },
+
+    #[error("Required column `{column}` missing or invalid in row")]
+    MissingColumn { column: String },
+
+    #[error("Interactive prompt failed")]
+    #[cfg(feature = "cli")]
+    Prompt(#[from] dialoguer::Error),
+}
+
+impl From<anyhow::Error> for LoggingError {
+    fn from(err: anyhow::Error) -> Self {
+        Self::PoolUnavailable(err.to_string())
+    }
 }
 
 impl LoggingError {

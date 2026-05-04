@@ -1,4 +1,3 @@
-use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId};
@@ -10,8 +9,7 @@ pub async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingEr
         .metadata
         .as_ref()
         .map(serde_json::to_string)
-        .transpose()
-        .context("Failed to serialize log metadata")?;
+        .transpose()?;
 
     let level_str = entry.level.to_string();
 
@@ -44,7 +42,7 @@ pub async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingEr
     )
     .execute(pool)
     .await
-    .context("Failed to create log entry")?;
+    ?;
 
     Ok(())
 }
@@ -54,8 +52,7 @@ pub async fn update_log(pool: &PgPool, id: &LogId, entry: &LogEntry) -> Result<b
         .metadata
         .as_ref()
         .map(serde_json::to_string)
-        .transpose()
-        .context("Failed to serialize log metadata")?;
+        .transpose()?;
 
     let level_str = entry.level.to_string();
 
@@ -74,8 +71,7 @@ pub async fn update_log(pool: &PgPool, id: &LogId, entry: &LogEntry) -> Result<b
         id_str
     )
     .execute(pool)
-    .await
-    .context("Failed to update log entry")?;
+    .await?;
 
     Ok(result.rows_affected() > 0)
 }
@@ -85,8 +81,7 @@ pub async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError>
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = $1", id_str)
         .execute(pool)
-        .await
-        .context("Failed to delete log entry")?;
+        .await?;
 
     Ok(result.rows_affected() > 0)
 }
@@ -100,17 +95,13 @@ pub async fn delete_logs_multiple(pool: &PgPool, ids: &[LogId]) -> Result<u64, L
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = ANY($1)", &id_strs)
         .execute(pool)
-        .await
-        .context("Failed to delete multiple log entries")?;
+        .await?;
 
     Ok(result.rows_affected())
 }
 
 pub async fn clear_all_logs(pool: &PgPool) -> Result<u64, LoggingError> {
-    let result = sqlx::query!("DELETE FROM logs")
-        .execute(pool)
-        .await
-        .context("Failed to clear all logs")?;
+    let result = sqlx::query!("DELETE FROM logs").execute(pool).await?;
 
     Ok(result.rows_affected())
 }
@@ -121,8 +112,7 @@ pub async fn cleanup_logs_before(
 ) -> Result<u64, LoggingError> {
     let result = sqlx::query!("DELETE FROM logs WHERE timestamp < $1", cutoff)
         .execute(pool)
-        .await
-        .context("Failed to cleanup old logs")?;
+        .await?;
 
     Ok(result.rows_affected())
 }
@@ -133,8 +123,7 @@ pub async fn count_logs_before(pool: &PgPool, cutoff: DateTime<Utc>) -> Result<u
         cutoff
     )
     .fetch_one(pool)
-    .await
-    .context("Failed to count logs before cutoff")?;
+    .await?;
 
     Ok(count as u64)
 }
