@@ -9,7 +9,11 @@ use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 use super::config_loaders::load_extension_config;
 
-pub fn validate_extensions(config: &Config, report: &mut StartupValidationReport, verbose: bool) {
+pub(super) fn validate_extensions(
+    config: &Config,
+    report: &mut StartupValidationReport,
+    verbose: bool,
+) {
     let extensions = ExtensionRegistry::discover();
     let config_extensions = extensions.config_extensions();
     let asset_extensions = extensions.asset_extensions();

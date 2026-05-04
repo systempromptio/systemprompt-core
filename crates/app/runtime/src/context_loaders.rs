@@ -1,0 +1,121 @@
+//! Helpers that load optional ancillary state into [`AppContext`].
+//!
+//! These run during [`crate::AppContextBuilder::build`] but are split
+//! out of `context.rs` to keep the main type definition under 300
+//! lines. All of them degrade gracefully: when an underlying file is
+//! missing or invalid they emit a CLI warning and return `None`, since
+//! the affected features (geolocation, landing-page detection) are
+//! optional.
+
+use std::sync::Arc;
+
+use systemprompt_logging::CliService;
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw};
+
+#[cfg(feature = "geolocation")]
+use systemprompt_analytics::GeoIpReader;
+
+/// Load the optional `MaxMind` `GeoIP2` database referenced by `config`.
+///
+/// Returns `None` when the path is unset or the file cannot be opened.
+/// When `show_warnings` is `true`, a CLI warning is printed in those
+/// cases so operators can fix the configuration.
+#[cfg(feature = "geolocation")]
+pub fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
+    let Some(geoip_path) = &config.geoip_database_path else {
+        if show_warnings {
+            CliService::warning(
+                "GeoIP database not configured - geographic data will not be available",
+            );
+            CliService::info("  To enable geographic data:");
+            CliService::info("  1. Download MaxMind GeoLite2-City database from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data");
+            CliService::info(
+                "  2. Add paths.geoip_database to your profile pointing to the .mmdb file",
+            );
+        }
+        return None;
+    };
+
+    match maxminddb::Reader::open_readfile(geoip_path) {
+        Ok(reader) => Some(Arc::new(reader)),
+        Err(e) => {
+            if show_warnings {
+                CliService::warning(&format!(
+                    "Could not load GeoIP database from {geoip_path}: {e}"
+                ));
+                CliService::info("  Geographic data (country/region/city) will not be available.");
+                CliService::info(
+                    "  To fix: Ensure the path is correct and the file is a valid MaxMind .mmdb \
+                     database",
+                );
+            }
+            None
+        },
+    }
+}
+
+/// Stub used when the `geolocation` feature is disabled.
+#[cfg(not(feature = "geolocation"))]
+pub fn load_geoip_database(
+    _config: &Config,
+    _show_warnings: bool,
+) -> Option<systemprompt_analytics::GeoIpReader> {
+    None
+}
+
+/// Load the optional `content.yaml` referenced by `app_paths`.
+///
+/// Rewrites `metadata.structured_data.organization.url` and `logo` so
+/// they are absolute against `config.api_external_url`. Returns `None`
+/// when the file is missing or unparseable; landing-page detection is
+/// then disabled.
+pub fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {
+    let content_config_path = app_paths.system().content_config().to_path_buf();
+
+    if !content_config_path.exists() {
+        CliService::warning(&format!(
+            "Content config not found at: {}",
+            content_config_path.display()
+        ));
+        CliService::info("  Landing page detection will not be available.");
+        return None;
+    }
+
+    let yaml_content = match std::fs::read_to_string(&content_config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            CliService::warning(&format!(
+                "Could not read content config from {}: {}",
+                content_config_path.display(),
+                e
+            ));
+            CliService::info("  Landing page detection will not be available.");
+            return None;
+        },
+    };
+
+    match serde_yaml::from_str::<ContentConfigRaw>(&yaml_content) {
+        Ok(mut content_cfg) => {
+            let base_url = config.api_external_url.trim_end_matches('/');
+
+            content_cfg.metadata.structured_data.organization.url = base_url.to_string();
+
+            let logo = &content_cfg.metadata.structured_data.organization.logo;
+            if logo.starts_with('/') {
+                content_cfg.metadata.structured_data.organization.logo =
+                    format!("{base_url}{logo}");
+            }
+
+            Some(Arc::new(content_cfg))
+        },
+        Err(e) => {
+            CliService::warning(&format!(
+                "Could not parse content config from {}: {}",
+                content_config_path.display(),
+                e
+            ));
+            CliService::info("  Landing page detection will not be available.");
+            None
+        },
+    }
+}

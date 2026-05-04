@@ -1,4 +1,9 @@
-use anyhow::Result;
+//! Builder that assembles an [`AppContext`] from profile + config state.
+//!
+//! The builder owns the bootstrap order: profile -> paths -> files ->
+//! database -> logging -> extensions -> ancillary services. Failures at
+//! any step propagate as [`RuntimeError`](crate::error::RuntimeError).
+
 use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
@@ -9,8 +14,10 @@ use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, AppContextParts};
+use crate::error::RuntimeResult;
 use crate::registry::ModuleApiRegistry;
 
+/// Fluent builder for [`AppContext`].
 #[derive(Debug, Default)]
 pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
@@ -18,24 +25,28 @@ pub struct AppContextBuilder {
 }
 
 impl AppContextBuilder {
+    /// Construct a builder with default settings.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Override extension discovery with an explicit [`ExtensionRegistry`].
     #[must_use]
     pub fn with_extensions(mut self, registry: ExtensionRegistry) -> Self {
         self.extension_registry = Some(registry);
         self
     }
 
+    /// Toggle stderr warnings emitted during context construction.
     #[must_use]
     pub const fn with_startup_warnings(mut self, show: bool) -> Self {
         self.show_startup_warnings = show;
         self
     }
 
-    pub async fn build(self) -> Result<AppContext> {
+    /// Drive the bootstrap sequence and produce an [`AppContext`].
+    pub async fn build(self) -> RuntimeResult<AppContext> {
         let profile = ProfileBootstrap::get()?;
         let app_paths = Arc::new(AppPaths::from_profile(&profile.paths)?);
         systemprompt_files::FilesConfig::init(&app_paths)?;
@@ -110,11 +121,10 @@ impl AppContextBuilder {
     }
 }
 
-#[allow(trivial_casts)]
 fn content_routing_from(
     content_config: Option<&Arc<ContentConfigRaw>>,
 ) -> Option<Arc<dyn ContentRouting>> {
-    content_config
-        .cloned()
-        .map(|c| c as Arc<dyn ContentRouting>)
+    let concrete = Arc::clone(content_config?);
+    let routing: Arc<dyn ContentRouting> = concrete;
+    Some(routing)
 }
