@@ -59,12 +59,12 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 18 |
 | Files over 300 lines | 1 |
-| Largest file | `  316 /var/www/html/systemprompt-core/crates/shared/provider-contracts/src/llm.rs` |
+| Largest file | `  316 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/provider-contracts/src/llm.rs` |
 
 ### Files over 300 lines
 
 ```
-  316 /var/www/html/systemprompt-core/crates/shared/provider-contracts/src/llm.rs
+  316 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/provider-contracts/src/llm.rs
 ```
 
 ---
@@ -74,13 +74,13 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 ### let _ = (fire-and-forget)
 
 ```
-/var/www/html/systemprompt-core/crates/shared/provider-contracts/src/sitemap.rs:44:        let _ = base_url;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/provider-contracts/src/sitemap.rs:44:        let _ = base_url;
 ```
 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/shared/provider-contracts/src/web_config/mod.rs:52:#[allow(clippy::struct_field_names)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/provider-contracts/src/web_config/mod.rs:52:#[allow(clippy::struct_field_names)]
 ```
 
 ---

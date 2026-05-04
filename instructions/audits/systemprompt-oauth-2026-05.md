@@ -59,12 +59,12 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 62 |
 | Files over 300 lines | 1 |
-| Largest file | `   324 /var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/mod.rs` |
+| Largest file | `   324 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/mod.rs` |
 
 ### Files over 300 lines
 
 ```
-   324 /var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/mod.rs
+   324 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/mod.rs
 ```
 
 ---
@@ -74,86 +74,86 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 ### let _ = (fire-and-forget)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/cowork.rs:144:        let _ = write!(out, "{byte:02x}");
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/cowork.rs:155:        let _ = write!(out, "{byte:02x}");
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/cowork.rs:144:        let _ = write!(out, "{byte:02x}");
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/cowork.rs:155:        let _ = write!(out, "{byte:02x}");
 ```
 
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/providers.rs:79:            .filter_map(|p| p.parse().ok())
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/providers.rs:85:            .filter_map(|a| a.parse().ok())
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:24:            .ok()?;
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:36:            .ok()
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:47:            .ok()
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:59:            .ok()?;
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:69:            .ok()?;
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:104:            .ok()?
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:109:            .ok()??;
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:120:            .ok()?;
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/session/lookup.rs:130:            .ok()?;
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/http.rs:12:                .ok()
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/user.rs:60:                    .ok()
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/auth_code.rs:201:                .ok()
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/jwt/authorization.rs:114:                    .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/auth_code.rs:201:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/user.rs:60:                    .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:24:            .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:36:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:47:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:59:            .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:69:            .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:104:            .ok()?
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:109:            .ok()??;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:120:            .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/session/lookup.rs:130:            .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/http.rs:12:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/providers.rs:79:            .filter_map(|p| p.parse().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/providers.rs:85:            .filter_map(|a| a.parse().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/jwt/authorization.rs:114:                    .ok()
 ```
 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/exchange_code.rs:19:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/exchange_code.rs:34:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/setup_token.rs:71:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/setup_token.rs:89:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/setup_token.rs:124:        let rows_affected = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/setup_token.rs:140:        let rows_affected = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/setup_token.rs:156:        let rows_affected = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/webauthn.rs:115:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/webauthn.rs:141:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/webauthn.rs:180:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/refresh_token.rs:75:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/refresh_token.rs:101:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/refresh_token.rs:126:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/refresh_token.rs:138:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/refresh_token.rs:151:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/user.rs:18:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/user.rs:38:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/mutations.rs:32:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/mutations.rs:111:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/mutations.rs:155:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/mutations.rs:174:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/mutations.rs:186:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/mutations.rs:199:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/relations.rs:61:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/relations.rs:79:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/relations.rs:96:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/relations.rs:116:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/relations.rs:133:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:23:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:29:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:35:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:41:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:47:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:79:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:106:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:129:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:150:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/inserts.rs:174:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/auth_code.rs:97:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/auth_code.rs:144:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/oauth/auth_code.rs:231:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/cleanup.rs:8:        let result = sqlx::query!("DELETE FROM oauth_clients WHERE is_active = false")
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/cleanup.rs:16:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/cleanup.rs:29:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/cleanup.rs:43:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/cleanup.rs:54:        let result = sqlx::query!("DELETE FROM oauth_clients WHERE last_used_at < $1", cutoff)
-/var/www/html/systemprompt-core/crates/domain/oauth/src/repository/client/cleanup.rs:118:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/exchange_code.rs:19:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/exchange_code.rs:34:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/setup_token.rs:71:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/setup_token.rs:89:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/setup_token.rs:124:        let rows_affected = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/setup_token.rs:140:        let rows_affected = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/setup_token.rs:156:        let rows_affected = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/mutations.rs:32:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/mutations.rs:111:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/mutations.rs:155:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/mutations.rs:174:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/mutations.rs:186:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/mutations.rs:199:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/webauthn.rs:115:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/webauthn.rs:141:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/webauthn.rs:180:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/relations.rs:61:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/relations.rs:79:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/relations.rs:96:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/relations.rs:116:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/relations.rs:133:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/cleanup.rs:8:        let result = sqlx::query!("DELETE FROM oauth_clients WHERE is_active = false")
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/cleanup.rs:16:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/cleanup.rs:29:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/cleanup.rs:43:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/cleanup.rs:54:        let result = sqlx::query!("DELETE FROM oauth_clients WHERE last_used_at < $1", cutoff)
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/cleanup.rs:118:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:23:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:29:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:35:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:41:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:47:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:79:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:106:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:129:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:150:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/client/inserts.rs:174:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/user.rs:18:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/user.rs:38:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/auth_code.rs:97:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/auth_code.rs:144:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/auth_code.rs:231:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/refresh_token.rs:75:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/refresh_token.rs:101:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/refresh_token.rs:126:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/refresh_token.rs:138:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/repository/oauth/refresh_token.rs:151:        let result = sqlx::query!(
 ```
 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/domain/oauth/src/services/generation.rs:204:#[allow(clippy::too_many_arguments)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/oauth/src/services/generation.rs:204:#[allow(clippy::too_many_arguments)]
 ```
 
 ---

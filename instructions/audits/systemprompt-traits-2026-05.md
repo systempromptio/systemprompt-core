@@ -59,7 +59,7 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 29 |
 | Files over 300 lines | 0 |
-| Largest file | `  237 /var/www/html/systemprompt-core/crates/shared/traits/src/ai_providers.rs` |
+| Largest file | `  237 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/ai_providers.rs` |
 
 ---
 
@@ -68,23 +68,23 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 ### let _ = (fire-and-forget)
 
 ```
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:40:        let _ = self.unbounded_send(StartupEvent::PhaseStarted { phase });
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:44:        let _ = self.unbounded_send(StartupEvent::PhaseCompleted { phase });
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:48:        let _ = self.unbounded_send(StartupEvent::PhaseFailed {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:55:        let _ = self.unbounded_send(StartupEvent::PortAvailable { port });
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:59:        let _ = self.unbounded_send(StartupEvent::PortConflict { port, pid });
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:63:        let _ = self.unbounded_send(StartupEvent::ModulesLoaded { count, modules });
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:67:        let _ = self.unbounded_send(StartupEvent::McpServerStarting {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:74:        let _ = self.unbounded_send(StartupEvent::McpServerHealthCheck {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:82:        let _ = self.unbounded_send(StartupEvent::McpServerReady {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:91:        let _ = self.unbounded_send(StartupEvent::McpServerFailed {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:98:        let _ = self.unbounded_send(StartupEvent::AgentStarting {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:105:        let _ = self.unbounded_send(StartupEvent::AgentReady {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:113:        let _ = self.unbounded_send(StartupEvent::AgentFailed {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:120:        let _ = self.unbounded_send(StartupEvent::ServerListening {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:127:        let _ = self.unbounded_send(StartupEvent::Warning {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:134:        let _ = self.unbounded_send(StartupEvent::Info {
-/var/www/html/systemprompt-core/crates/shared/traits/src/startup_events/ext.rs:145:        let _ = self.unbounded_send(StartupEvent::StartupComplete {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:40:        let _ = self.unbounded_send(StartupEvent::PhaseStarted { phase });
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:44:        let _ = self.unbounded_send(StartupEvent::PhaseCompleted { phase });
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:48:        let _ = self.unbounded_send(StartupEvent::PhaseFailed {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:55:        let _ = self.unbounded_send(StartupEvent::PortAvailable { port });
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:59:        let _ = self.unbounded_send(StartupEvent::PortConflict { port, pid });
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:63:        let _ = self.unbounded_send(StartupEvent::ModulesLoaded { count, modules });
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:67:        let _ = self.unbounded_send(StartupEvent::McpServerStarting {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:74:        let _ = self.unbounded_send(StartupEvent::McpServerHealthCheck {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:82:        let _ = self.unbounded_send(StartupEvent::McpServerReady {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:91:        let _ = self.unbounded_send(StartupEvent::McpServerFailed {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:98:        let _ = self.unbounded_send(StartupEvent::AgentStarting {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:105:        let _ = self.unbounded_send(StartupEvent::AgentReady {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:113:        let _ = self.unbounded_send(StartupEvent::AgentFailed {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:120:        let _ = self.unbounded_send(StartupEvent::ServerListening {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:127:        let _ = self.unbounded_send(StartupEvent::Warning {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:134:        let _ = self.unbounded_send(StartupEvent::Info {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/traits/src/startup_events/ext.rs:145:        let _ = self.unbounded_send(StartupEvent::StartupComplete {
 ```
 
 ---

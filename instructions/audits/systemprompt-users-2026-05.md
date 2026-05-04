@@ -59,7 +59,7 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 27 |
 | Files over 300 lines | 0 |
-| Largest file | `  280 /var/www/html/systemprompt-core/crates/domain/users/src/repository/user/operations.rs` |
+| Largest file | `  280 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/operations.rs` |
 
 ---
 
@@ -68,22 +68,22 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/device_cert.rs:74:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/api_key.rs:78:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/api_key.rs:93:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/merge.rs:14:        let sessions_result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/merge.rs:26:        let tasks_result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/merge.rs:38:        sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, source_id.as_str())
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/operations.rs:246:        let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id.as_str())
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/operations.rs:260:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/session.rs:82:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/session.rs:98:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/list.rs:138:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/user/list.rs:156:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/banned_ip/queries.rs:56:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/banned_ip/queries.rs:92:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/banned_ip/queries.rs:135:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/users/src/repository/banned_ip/queries.rs:149:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/device_cert.rs:74:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/merge.rs:14:        let sessions_result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/merge.rs:26:        let tasks_result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/merge.rs:38:        sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, source_id.as_str())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/api_key.rs:78:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/api_key.rs:93:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/list.rs:138:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/list.rs:156:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/banned_ip/queries.rs:56:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/banned_ip/queries.rs:92:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/banned_ip/queries.rs:135:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/banned_ip/queries.rs:149:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/operations.rs:246:        let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id.as_str())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/operations.rs:260:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/session.rs:82:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/users/src/repository/user/session.rs:98:        let result = sqlx::query!(
 ```
 
 ---

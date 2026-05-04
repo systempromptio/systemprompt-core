@@ -59,7 +59,7 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 4 |
 | Files over 300 lines | 0 |
-| Largest file | `  251 /var/www/html/systemprompt-core/crates/shared/client/src/client.rs` |
+| Largest file | `  251 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/client/src/client.rs` |
 
 ---
 

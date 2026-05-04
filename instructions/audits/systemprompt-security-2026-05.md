@@ -59,7 +59,7 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 |--------|-------|
 | Total .rs files | 14 |
 | Files over 300 lines | 0 |
-| Largest file | `  205 /var/www/html/systemprompt-core/crates/infra/security/src/extraction/token.rs` |
+| Largest file | `  205 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/security/src/extraction/token.rs` |
 
 ---
 
@@ -68,8 +68,8 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/security/src/extraction/header.rs:51:                    .ok()
-/var/www/html/systemprompt-core/crates/infra/security/src/auth/validation.rs:83:                    .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/security/src/auth/validation.rs:83:                    .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/security/src/extraction/header.rs:51:                    .ok()
 ```
 
 ---

@@ -59,12 +59,12 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 |--------|-------|
 | Total .rs files | 32 |
 | Files over 300 lines | 1 |
-| Largest file | `  321 /var/www/html/systemprompt-core/crates/app/generator/src/prerender/content.rs` |
+| Largest file | `  321 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/generator/src/prerender/content.rs` |
 
 ### Files over 300 lines
 
 ```
-  321 /var/www/html/systemprompt-core/crates/app/generator/src/prerender/content.rs
+  321 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/generator/src/prerender/content.rs
 ```
 
 ---
@@ -74,7 +74,7 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/app/generator/src/build/validation.rs:93:    let path = extract_path_from_url(&entry.loc).ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/generator/src/build/validation.rs:93:    let path = extract_path_from_url(&entry.loc).ok()?;
 ```
 
 ---

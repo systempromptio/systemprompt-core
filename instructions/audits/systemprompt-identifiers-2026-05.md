@@ -59,12 +59,12 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 38 |
 | Files over 300 lines | 1 |
-| Largest file | `  386 /var/www/html/systemprompt-core/crates/shared/identifiers/src/macros.rs` |
+| Largest file | `  386 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/macros.rs` |
 
 ### Files over 300 lines
 
 ```
-  386 /var/www/html/systemprompt-core/crates/shared/identifiers/src/macros.rs
+  386 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/macros.rs
 ```
 
 ---
@@ -74,13 +74,13 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/shared/identifiers/src/url.rs:103:    #[allow(clippy::expect_used)]
-/var/www/html/systemprompt-core/crates/shared/identifiers/src/path.rs:52:    #[allow(clippy::expect_used)]
-/var/www/html/systemprompt-core/crates/shared/identifiers/src/profile.rs:39:    #[allow(clippy::expect_used)]
-/var/www/html/systemprompt-core/crates/shared/identifiers/src/macros.rs:51:            #[allow(clippy::expect_used)]
-/var/www/html/systemprompt-core/crates/shared/identifiers/src/macros.rs:80:            #[allow(clippy::expect_used)]
-/var/www/html/systemprompt-core/crates/shared/identifiers/src/agent.rs:26:    #[allow(clippy::expect_used)]
-/var/www/html/systemprompt-core/crates/shared/identifiers/src/email.rs:90:    #[allow(clippy::expect_used)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/url.rs:103:    #[allow(clippy::expect_used)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/path.rs:52:    #[allow(clippy::expect_used)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/profile.rs:39:    #[allow(clippy::expect_used)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/agent.rs:26:    #[allow(clippy::expect_used)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/macros.rs:51:            #[allow(clippy::expect_used)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/macros.rs:80:            #[allow(clippy::expect_used)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/identifiers/src/email.rs:90:    #[allow(clippy::expect_used)]
 ```
 
 ---

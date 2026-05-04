@@ -59,12 +59,12 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 |--------|-------|
 | Total .rs files | 8 |
 | Files over 300 lines | 1 |
-| Largest file | `  426 /var/www/html/systemprompt-core/crates/infra/loader/src/config_loader.rs` |
+| Largest file | `  426 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/loader/src/config_loader.rs` |
 
 ### Files over 300 lines
 
 ```
-  426 /var/www/html/systemprompt-core/crates/infra/loader/src/config_loader.rs
+  426 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/loader/src/config_loader.rs
 ```
 
 ---
@@ -74,14 +74,14 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 ### let _ = (fire-and-forget)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/loader/src/config_loader.rs:119:        let _ = Self::load_from_path(path)?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/loader/src/config_loader.rs:119:        let _ = Self::load_from_path(path)?;
 ```
 
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/loader/src/extension_loader.rs:138:                    .ok();
-/var/www/html/systemprompt-core/crates/infra/loader/src/extension_loader.rs:139:                let debug_mtime = fs::metadata(&debug_binary).and_then(|m| m.modified()).ok();
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/loader/src/extension_loader.rs:138:                    .ok();
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/loader/src/extension_loader.rs:139:                let debug_mtime = fs::metadata(&debug_binary).and_then(|m| m.modified()).ok();
 ```
 
 ---

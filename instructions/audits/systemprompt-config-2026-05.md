@@ -59,12 +59,12 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 |--------|-------|
 | Total .rs files | 15 |
 | Files over 300 lines | 1 |
-| Largest file | `  403 /var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs` |
+| Largest file | `  403 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs` |
 
 ### Files over 300 lines
 
 ```
-  403 /var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs
+  403 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs
 ```
 
 ---
@@ -74,30 +74,30 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:168:            .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:173:            .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:178:            .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:185:                            .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:195:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:199:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:202:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:205:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:207:            sync_token: std::env::var("SYNC_TOKEN").ok().filter(|s| !s.is_empty()),
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:209:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:212:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:215:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:217:            github: std::env::var("GITHUB_TOKEN").ok().filter(|s| !s.is_empty()),
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:219:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:220:                .or_else(|| std::env::var("KIMI_API_KEY").ok())
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:223:                .ok()
-/var/www/html/systemprompt-core/crates/infra/config/src/bootstrap/secrets.rs:224:                .or_else(|| std::env::var("DASHSCOPE_API_KEY").ok())
-/var/www/html/systemprompt-core/crates/infra/config/src/services/manager.rs:236:                .or_else(|| std::env::var(var_name).ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:168:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:173:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:178:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:185:                            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:195:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:199:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:202:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:205:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:207:            sync_token: std::env::var("SYNC_TOKEN").ok().filter(|s| !s.is_empty()),
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:209:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:212:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:215:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:217:            github: std::env::var("GITHUB_TOKEN").ok().filter(|s| !s.is_empty()),
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:219:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:220:                .or_else(|| std::env::var("KIMI_API_KEY").ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:223:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/bootstrap/secrets.rs:224:                .or_else(|| std::env::var("DASHSCOPE_API_KEY").ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/services/manager.rs:236:                .or_else(|| std::env::var(var_name).ok())
 ```
 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/infra/config/src/services/schema_validation.rs:37:#[allow(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/config/src/services/schema_validation.rs:37:#[allow(
 ```
 
 ---

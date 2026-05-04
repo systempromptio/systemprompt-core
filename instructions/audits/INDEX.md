@@ -9,7 +9,8 @@ inline `//`, `///`, files >300 lines, raw String IDs, raw `sqlx::query`,
 `*Manager`, `#[allow(...)]`, `panic!`).
 
 Per Wave 1 instructions, no crate is marked **CLEAN** in this baseline —
-re-validation happens after the wave merges.
+re-validation happens after the wave merges. The `systemprompt-agent`
+entry below pre-dates Wave 1 and was already audited CLEAN.
 
 ---
 
