@@ -3,9 +3,8 @@
 //!
 //! The crate hosts:
 //!
-//! - A [`SchedulerService`] that uses
-//!   [`tokio_cron_scheduler`] to dispatch jobs registered via
-//!   [`systemprompt_provider_contracts::submit_job!`].
+//! - A [`SchedulerService`] that uses [`tokio_cron_scheduler`] to dispatch jobs
+//!   registered via [`systemprompt_provider_contracts::submit_job!`].
 //! - A small set of built-in jobs ([`BehavioralAnalysisJob`],
 //!   [`CleanupInactiveSessionsJob`], …) that drive analytics and security
 //!   maintenance.
