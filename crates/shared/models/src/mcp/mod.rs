@@ -1,3 +1,5 @@
+//! `mcp` module — see crate-level docs for context.
+
 mod call_tool_result_ext;
 pub mod capabilities;
 pub mod deployment;

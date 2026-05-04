@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpServerId};
 use systemprompt_traits::parse_database_datetime;
 
+use crate::errors::RowParseError;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
     pub ai_tool_call_id: AiToolCallId,
@@ -30,35 +32,43 @@ pub struct ToolExecution {
 }
 
 impl ToolExecution {
-    pub fn from_json_row(row: &HashMap<String, JsonValue>) -> anyhow::Result<Self> {
+    /// Build a [`ToolExecution`] from a JSON-shaped row map produced by
+    /// the runtime SQL adapter.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RowParseError::Missing`] when a required column is
+    /// absent or has the wrong type, or [`RowParseError::OutOfRange`]
+    /// when a numeric column does not fit the target representation.
+    pub fn from_json_row(row: &HashMap<String, JsonValue>) -> Result<Self, RowParseError> {
         let id = row
             .get("id")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing id"))
+            .ok_or(RowParseError::Missing("id"))
             .map(McpExecutionId::new)?;
 
         let request_id = row
             .get("request_id")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing request_id"))
+            .ok_or(RowParseError::Missing("request_id"))
             .map(AiRequestId::new)?;
 
         let sequence = row
             .get("sequence")
             .and_then(serde_json::Value::as_i64)
-            .ok_or_else(|| anyhow::anyhow!("Missing sequence"))
-            .and_then(|i| i32::try_from(i).map_err(|_| anyhow::anyhow!("Sequence out of range")))?;
+            .ok_or(RowParseError::Missing("sequence"))
+            .and_then(|i| i32::try_from(i).map_err(|_| RowParseError::OutOfRange("sequence")))?;
 
         let tool_name = row
             .get("tool_name")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing tool_name"))?
+            .ok_or(RowParseError::Missing("tool_name"))?
             .to_string();
 
         let service_id = row
             .get("service_id")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing service_id"))
+            .ok_or(RowParseError::Missing("service_id"))
             .map(McpServerId::new)?;
 
         let input = row
@@ -86,7 +96,7 @@ impl ToolExecution {
         let status = row
             .get("status")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing status"))?
+            .ok_or(RowParseError::Missing("status"))?
             .to_string();
 
         let execution_time_ms = row
@@ -102,7 +112,7 @@ impl ToolExecution {
         let created_at = row
             .get("created_at")
             .and_then(parse_database_datetime)
-            .ok_or_else(|| anyhow::anyhow!("Missing or invalid created_at"))?;
+            .ok_or(RowParseError::Missing("created_at"))?;
 
         Ok(Self {
             id,

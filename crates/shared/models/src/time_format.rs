@@ -1,3 +1,5 @@
+//! `time_format` module — see crate-level docs for context.
+
 use chrono::{DateTime, Utc};
 
 pub fn format_timestamp(dt: DateTime<Utc>) -> String {

@@ -1,3 +1,5 @@
+//! `routing` module — see crate-level docs for context.
+
 use crate::ContentRouting;
 use crate::modules::ApiPaths;
 use std::path::Path;

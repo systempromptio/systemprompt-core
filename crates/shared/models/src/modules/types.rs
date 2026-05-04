@@ -1,7 +1,8 @@
-use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
 pub use systemprompt_extension::{SchemaSource, SeedSource};
+
+use crate::errors::ModuleError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Module {
@@ -28,7 +29,12 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn parse(content: &str, module_path: PathBuf) -> Result<Self> {
+    /// Parse a YAML module manifest, attaching its source path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModuleError::Yaml`] when the document fails to deserialize.
+    pub fn parse(content: &str, module_path: PathBuf) -> Result<Self, ModuleError> {
         let mut module: Self = serde_yaml::from_str(content)?;
         module.path = module_path;
         Ok(module)

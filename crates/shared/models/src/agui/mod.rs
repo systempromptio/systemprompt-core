@@ -1,3 +1,5 @@
+//! `agui` module — see crate-level docs for context.
+
 mod event_type;
 mod events;
 mod json_patch;

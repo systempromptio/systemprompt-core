@@ -1,7 +1,8 @@
-use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use systemprompt_identifiers::McpExecutionId;
+
+use crate::errors::MetadataError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct McpToolResultMetadata {
@@ -33,45 +34,61 @@ impl McpToolResultMetadata {
         self
     }
 
-    pub fn validate(&self) -> Result<()> {
+    /// Reject empty execution ids.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MetadataError::MissingExecutionId`] when
+    /// `mcp_execution_id` is empty.
+    pub fn validate(&self) -> Result<(), MetadataError> {
         if self.mcp_execution_id.as_str().is_empty() {
-            return Err(anyhow!(
-                "McpToolResultMetadata: mcp_execution_id cannot be empty"
-            ));
+            return Err(MetadataError::MissingExecutionId);
         }
         Ok(())
     }
 
-    pub fn to_meta(&self) -> Result<rmcp::model::Meta> {
+    /// Serialize this metadata as an MCP `_meta` block.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MetadataError`] if validation fails or JSON
+    /// serialization produces a non-object value.
+    pub fn to_meta(&self) -> Result<rmcp::model::Meta, MetadataError> {
         self.validate()?;
 
         let json_value = serde_json::to_value(self)?;
         let json_object = json_value
             .as_object()
-            .ok_or_else(|| anyhow!("Failed to serialize McpToolResultMetadata as JSON object"))?
+            .ok_or(MetadataError::NotJsonObject)?
             .clone();
 
         Ok(rmcp::model::Meta(json_object))
     }
 
-    pub fn from_meta(meta: &rmcp::model::Meta) -> Result<Self> {
+    /// Deserialize an MCP `_meta` block into a [`McpToolResultMetadata`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MetadataError::Serde`] for JSON shape mismatches and
+    /// [`MetadataError::MissingExecutionId`] when validation fails.
+    pub fn from_meta(meta: &rmcp::model::Meta) -> Result<Self, MetadataError> {
         let json_value = Value::Object(meta.0.clone());
-        let metadata: Self = serde_json::from_value(json_value).map_err(|e| {
-            anyhow!(
-                "Failed to parse McpToolResultMetadata from _meta: {e}. Expected fields: \
-                 mcp_execution_id (required), execution_time_ms (optional), server_version \
-                 (optional)"
-            )
-        })?;
+        let metadata: Self = serde_json::from_value(json_value)?;
 
         metadata.validate()?;
         Ok(metadata)
     }
 
-    pub fn from_call_tool_result(result: &rmcp::model::CallToolResult) -> Result<Self> {
-        let meta = result.meta.as_ref().ok_or_else(|| {
-            anyhow!("CallToolResult._meta is missing (required for MCP execution tracking)")
-        })?;
+    /// Extract metadata from a complete MCP `CallToolResult`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MetadataError::MetaMissing`] when the result has no
+    /// `_meta` block.
+    pub fn from_call_tool_result(
+        result: &rmcp::model::CallToolResult,
+    ) -> Result<Self, MetadataError> {
+        let meta = result.meta.as_ref().ok_or(MetadataError::MetaMissing)?;
 
         Self::from_meta(meta)
     }

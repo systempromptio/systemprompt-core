@@ -1,3 +1,5 @@
+//! `text` module — see crate-level docs for context.
+
 pub fn truncate_with_ellipsis(text: &str, max_len: usize) -> String {
     if text.len() <= max_len {
         return text.to_string();
