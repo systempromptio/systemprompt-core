@@ -51,10 +51,10 @@ mod extension_config_tests {
     use super::*;
 
     #[test]
-    fn migration_weight_is_10() {
+    fn migration_weight_is_100() {
         let ext = UsersExtension;
 
-        assert_eq!(ext.migration_weight(), 10);
+        assert_eq!(ext.migration_weight(), 100);
     }
 
     #[test]

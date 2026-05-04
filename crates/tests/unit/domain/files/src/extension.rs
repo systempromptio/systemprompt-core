@@ -48,7 +48,7 @@ fn test_files_extension_metadata_version() {
 fn test_files_extension_migration_weight() {
     let ext = FilesExtension;
     let weight = ext.migration_weight();
-    assert_eq!(weight, 50);
+    assert_eq!(weight, 500);
 }
 
 #[test]

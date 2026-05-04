@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use systemprompt_bridge::config::paths::{
-    Scope, org_plugins_effective, org_plugins_system, org_plugins_user,
-};
+use systemprompt_bridge::config::paths::{org_plugins_system, org_plugins_user};
+#[cfg(target_os = "macos")]
+use systemprompt_bridge::config::paths::{Scope, org_plugins_effective};
 
 #[test]
 fn both_scopes_resolvable() {

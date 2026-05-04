@@ -63,7 +63,7 @@ fn test_broadcaster_debug_output() {
 async fn test_broadcaster_register_single_connection() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user_id = test_user_id();
-    let (sender, _receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user_id, "conn-1", sender).await;
 
@@ -75,9 +75,9 @@ async fn test_broadcaster_register_single_connection() {
 async fn test_broadcaster_register_multiple_connections_same_user() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user_id = test_user_id();
-    let (sender1, _rx1) = tokio::sync::mpsc::unbounded_channel();
-    let (sender2, _rx2) = tokio::sync::mpsc::unbounded_channel();
-    let (sender3, _rx3) = tokio::sync::mpsc::unbounded_channel();
+    let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender3, _rx3) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user_id, "conn-1", sender1).await;
     broadcaster.register(&user_id, "conn-2", sender2).await;
@@ -92,8 +92,8 @@ async fn test_broadcaster_register_multiple_users() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user1 = UserId::new("user-1");
     let user2 = UserId::new("user-2");
-    let (sender1, _rx1) = tokio::sync::mpsc::unbounded_channel();
-    let (sender2, _rx2) = tokio::sync::mpsc::unbounded_channel();
+    let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user1, "conn-1", sender1).await;
     broadcaster.register(&user2, "conn-2", sender2).await;
@@ -107,8 +107,8 @@ async fn test_broadcaster_register_multiple_users() {
 async fn test_broadcaster_register_replaces_same_connection_id() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user_id = test_user_id();
-    let (sender1, _rx1) = tokio::sync::mpsc::unbounded_channel();
-    let (sender2, _rx2) = tokio::sync::mpsc::unbounded_channel();
+    let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user_id, "conn-1", sender1).await;
     broadcaster.register(&user_id, "conn-1", sender2).await;
@@ -120,7 +120,7 @@ async fn test_broadcaster_register_replaces_same_connection_id() {
 async fn test_broadcaster_unregister_connection() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user_id = test_user_id();
-    let (sender, _receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user_id, "conn-1", sender).await;
     assert_eq!(broadcaster.connection_count(&user_id).await, 1);
@@ -133,7 +133,7 @@ async fn test_broadcaster_unregister_connection() {
 async fn test_broadcaster_unregister_removes_user_when_empty() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user_id = test_user_id();
-    let (sender, _receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user_id, "conn-1", sender).await;
     broadcaster.unregister(&user_id, "conn-1").await;
@@ -155,8 +155,8 @@ async fn test_broadcaster_unregister_nonexistent_connection() {
 async fn test_broadcaster_unregister_keeps_other_connections() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user_id = test_user_id();
-    let (sender1, _rx1) = tokio::sync::mpsc::unbounded_channel();
-    let (sender2, _rx2) = tokio::sync::mpsc::unbounded_channel();
+    let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user_id, "conn-1", sender1).await;
     broadcaster.register(&user_id, "conn-2", sender2).await;

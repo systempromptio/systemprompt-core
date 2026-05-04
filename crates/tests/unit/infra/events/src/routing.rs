@@ -73,7 +73,7 @@ async fn test_route_agui_returns_tuple() {
 #[tokio::test]
 async fn test_route_agui_with_registered_connection() {
     let user_id = UserId::new("agui-test-user");
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     AGUI_BROADCASTER
         .register(&user_id, "agui-conn", sender)
@@ -105,7 +105,7 @@ async fn test_route_a2a_returns_tuple() {
 #[tokio::test]
 async fn test_route_a2a_with_registered_connection() {
     let user_id = UserId::new("a2a-test-user");
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     A2A_BROADCASTER.register(&user_id, "a2a-conn", sender).await;
 
@@ -134,7 +134,7 @@ async fn test_route_system_returns_count() {
 #[tokio::test]
 async fn test_route_system_with_registered_connection() {
     let user_id = UserId::new("system-test-user");
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
         .register(&user_id, "context-conn", sender)
@@ -157,7 +157,7 @@ async fn test_route_system_with_registered_connection() {
 #[tokio::test]
 async fn test_route_agui_broadcasts_to_context() {
     let user_id = UserId::new("cross-route-user");
-    let (context_sender, mut context_receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (context_sender, mut context_receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
         .register(&user_id, "context-only-conn", context_sender)
@@ -180,7 +180,7 @@ async fn test_route_agui_broadcasts_to_context() {
 #[tokio::test]
 async fn test_route_a2a_broadcasts_to_context() {
     let user_id = UserId::new("a2a-cross-route-user");
-    let (context_sender, mut context_receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (context_sender, mut context_receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
         .register(&user_id, "a2a-context-conn", context_sender)
@@ -253,7 +253,7 @@ async fn test_route_analytics_returns_count() {
 #[tokio::test]
 async fn test_route_analytics_with_registered_connection() {
     let user_id = UserId::new("analytics-test-user");
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
         .register(&user_id, "analytics-conn", sender)
@@ -276,8 +276,8 @@ async fn test_route_analytics_with_registered_connection() {
 #[tokio::test]
 async fn test_route_analytics_multiple_connections() {
     let user_id = UserId::new("analytics-multi-user");
-    let (sender1, mut rx1) = tokio::sync::mpsc::unbounded_channel();
-    let (sender2, mut rx2) = tokio::sync::mpsc::unbounded_channel();
+    let (sender1, mut rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender2, mut rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
         .register(&user_id, "analytics-conn-1", sender1)
@@ -310,7 +310,7 @@ async fn test_route_analytics_multiple_connections() {
 #[tokio::test]
 async fn test_analytics_broadcaster_connection_count() {
     let user_id = UserId::new("analytics-count-user");
-    let (sender, _receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     assert_eq!(ANALYTICS_BROADCASTER.connection_count(&user_id).await, 0);
 
@@ -335,7 +335,7 @@ async fn test_analytics_event_timestamp_exists() {
 #[tokio::test]
 async fn test_route_analytics_heartbeat_event() {
     let user_id = UserId::new("heartbeat-test-user");
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
         .register(&user_id, "heartbeat-conn", sender)
@@ -357,7 +357,7 @@ async fn test_route_analytics_heartbeat_event() {
 #[tokio::test]
 async fn test_route_analytics_session_ended_event() {
     let user_id = UserId::new("session-end-user");
-    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
         .register(&user_id, "session-end-conn", sender)

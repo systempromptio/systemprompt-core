@@ -35,7 +35,7 @@ fn test_database_extension_metadata_version() {
 #[test]
 fn test_database_extension_migration_weight() {
     let ext = DatabaseExtension;
-    assert_eq!(ext.migration_weight(), 1);
+    assert_eq!(ext.migration_weight(), 10);
 }
 
 #[test]

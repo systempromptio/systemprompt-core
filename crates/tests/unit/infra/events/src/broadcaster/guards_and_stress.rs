@@ -44,7 +44,7 @@ async fn test_connection_guard_drop_unregisters() {
 
     let user_id = UserId::new("drop-test-user");
     let conn_id = "drop-test-conn".to_string();
-    let (sender, _receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     DROP_TEST_BROADCASTER
         .register(&user_id, &conn_id, sender)
@@ -67,8 +67,8 @@ async fn test_connection_guard_multiple_guards_same_user() {
         LazyLock::new(GenericBroadcaster::new);
 
     let user_id = UserId::new("multi-guard-user");
-    let (sender1, _rx1) = tokio::sync::mpsc::unbounded_channel();
-    let (sender2, _rx2) = tokio::sync::mpsc::unbounded_channel();
+    let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     MULTI_GUARD_BROADCASTER
         .register(&user_id, "conn-1", sender1)
@@ -108,9 +108,9 @@ async fn test_connection_guard_multiple_guards_same_user() {
 async fn test_broadcaster_broadcast_all_failed_senders() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let user_id = test_user_id();
-    let (sender1, rx1) = tokio::sync::mpsc::unbounded_channel();
-    let (sender2, rx2) = tokio::sync::mpsc::unbounded_channel();
-    let (sender3, rx3) = tokio::sync::mpsc::unbounded_channel();
+    let (sender1, rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender2, rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (sender3, rx3) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     broadcaster.register(&user_id, "conn-1", sender1).await;
     broadcaster.register(&user_id, "conn-2", sender2).await;
@@ -134,7 +134,7 @@ async fn test_broadcaster_many_connections_stress() {
     let mut receivers = Vec::new();
 
     for i in 0..10 {
-        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+        let (sender, receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster
             .register(&user_id, &format!("conn-{}", i), sender)
             .await;
@@ -162,7 +162,7 @@ async fn test_broadcaster_many_users() {
 
     for i in 0..5 {
         let user_id = UserId::new(&format!("user-{}", i));
-        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+        let (sender, receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster
             .register(&user_id, &format!("conn-{}", i), sender)
             .await;

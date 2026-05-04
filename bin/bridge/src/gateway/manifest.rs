@@ -276,7 +276,7 @@ struct CanonicalView<'a> {
     revocations: &'a [String],
 }
 
-fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
+pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
     let view = CanonicalView {
         manifest_version: &m.manifest_version,
         issued_at: &m.issued_at,
