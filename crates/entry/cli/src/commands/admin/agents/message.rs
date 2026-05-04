@@ -201,11 +201,15 @@ async fn execute_streaming(
                             if let Some(ref msg) = event.status.message {
                                 let text = extract_text_from_parts(&msg.parts);
                                 if !text.is_empty() {
-                                    let _ = std::io::Write::write_all(
+                                    if let Err(e) = std::io::Write::write_all(
                                         &mut std::io::stdout(),
                                         text.as_bytes(),
-                                    );
-                                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                                    ) {
+                                        tracing::warn!(error = %e, "stdout write failed");
+                                    }
+                                    if let Err(e) = std::io::Write::flush(&mut std::io::stdout()) {
+                                        tracing::warn!(error = %e, "stdout flush failed");
+                                    }
                                     accumulated_text.push_str(&text);
                                 }
                             }

@@ -299,7 +299,9 @@ fn clone_admin_mcp_server(services_dir: &Path) -> Result<()> {
 
     let git_dir = mcp_dir.join(".git");
     if git_dir.exists() {
-        std::fs::remove_dir_all(&git_dir).ok();
+        if let Err(e) = std::fs::remove_dir_all(&git_dir) {
+            tracing::warn!(path = %git_dir.display(), error = %e, "failed to remove .git dir");
+        }
     }
 
     CliService::success("Cloned systemprompt-admin MCP server");

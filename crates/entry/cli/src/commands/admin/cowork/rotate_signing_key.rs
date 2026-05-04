@@ -3,6 +3,7 @@ use base64::Engine;
 use clap::Args;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use systemprompt_config::SecretsBootstrap;
+use systemprompt_logging::CliService;
 
 use super::types::SigningKeyRotatedOutput;
 use crate::CliConfig;
@@ -11,7 +12,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs;
 
-#[allow(clippy::print_stdout, clippy::unused_async)]
+#[allow(clippy::unused_async)]
 pub async fn execute(
     _args: RotateSigningKeyArgs,
     _config: &CliConfig,
@@ -23,11 +24,11 @@ pub async fn execute(
     let verifying: VerifyingKey = key.verifying_key();
     let pubkey_b64 = base64::engine::general_purpose::STANDARD.encode(verifying.to_bytes());
 
-    println!(
+    CliService::success(&format!(
         "Manifest signing key rotated. New pubkey (base64, raw 32-byte ed25519):\n{pubkey_b64}"
-    );
-    println!(
-        "Operators must repin this pubkey via `cowork install --pubkey <value>` before upgrading."
+    ));
+    CliService::info(
+        "Operators must repin this pubkey via `cowork install --pubkey <value>` before upgrading.",
     );
 
     let output = SigningKeyRotatedOutput {

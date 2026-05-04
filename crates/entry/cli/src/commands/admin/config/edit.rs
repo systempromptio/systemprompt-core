@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use std::process::Command;
+use systemprompt_logging::CliService;
 
 use super::types::ConfigSection;
 use crate::CliConfig;
@@ -27,7 +28,11 @@ pub fn execute(args: EditArgs, _config: &CliConfig) -> Result<()> {
         .or_else(|_| std::env::var("VISUAL"))
         .unwrap_or_else(|_| "vi".to_string());
 
-    println!("Opening {} in {}...", file_path.display(), editor);
+    CliService::info(&format!(
+        "Opening {} in {}...",
+        file_path.display(),
+        editor
+    ));
 
     let status = Command::new(&editor)
         .arg(&file_path)
@@ -38,7 +43,7 @@ pub fn execute(args: EditArgs, _config: &CliConfig) -> Result<()> {
         anyhow::bail!("Editor exited with non-zero status");
     }
 
-    println!("Config file saved: {}", file_path.display());
+    CliService::success(&format!("Config file saved: {}", file_path.display()));
 
     Ok(())
 }
