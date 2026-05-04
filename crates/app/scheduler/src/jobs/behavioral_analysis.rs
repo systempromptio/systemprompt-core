@@ -47,7 +47,9 @@ impl Job for BehavioralAnalysisJob {
         );
 
         let fingerprint_repo = FingerprintRepository::new(&db_pool)?;
-        let banned_ip_repo = BannedIpRepository::new(&db_pool)?;
+        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(|e| {
+            systemprompt_provider_contracts::ProviderError::Configuration(e.to_string())
+        })?;
 
         info!("Starting behavioral analysis job");
 
@@ -210,7 +212,7 @@ fn log_ban_result(
     ip: &str,
     fingerprint: &str,
     abuse_incidents: i32,
-    result: &Result<(), anyhow::Error>,
+    result: &Result<(), systemprompt_users::UserError>,
 ) -> bool {
     match result {
         Ok(()) => {

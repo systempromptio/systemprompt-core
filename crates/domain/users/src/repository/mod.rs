@@ -10,7 +10,7 @@ pub use banned_ip::{
 pub use device_cert::EnrollDeviceCertParams;
 pub use user::{MergeResult, UpdateUserParams};
 
-use anyhow::Result;
+use crate::error::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
