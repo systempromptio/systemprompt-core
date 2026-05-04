@@ -12,4 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
-ureq = "2"
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }

@@ -26,9 +26,9 @@ mod ai_extension_tests {
     }
 
     #[test]
-    fn migration_weight_is_35() {
+    fn migration_weight_is_350() {
         let ext = AiExtension;
-        assert_eq!(Extension::migration_weight(&ext), 35);
+        assert_eq!(Extension::migration_weight(&ext), 350);
     }
 
     #[test]

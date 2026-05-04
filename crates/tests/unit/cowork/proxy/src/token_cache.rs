@@ -15,9 +15,12 @@ fn fake_token(ttl: u64) -> HelperOutput {
 
 fn counting_refresh(counter: Arc<AtomicUsize>, ttl: u64) -> RefreshFn {
     Arc::new(move |_threshold| {
-        counter.fetch_add(1, Ordering::SeqCst);
-        std::thread::sleep(std::time::Duration::from_millis(80));
-        Some(fake_token(ttl))
+        let counter = Arc::clone(&counter);
+        Box::pin(async move {
+            counter.fetch_add(1, Ordering::SeqCst);
+            tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+            Some(fake_token(ttl))
+        })
     })
 }
 
@@ -77,10 +80,13 @@ async fn near_expiry_concurrent_refresh_collapses_to_one() {
     let counter = Arc::new(AtomicUsize::new(0));
     let counter_for_refresh = Arc::clone(&counter);
     let refresh: RefreshFn = Arc::new(move |_threshold| {
-        let n = counter_for_refresh.fetch_add(1, Ordering::SeqCst) + 1;
-        std::thread::sleep(std::time::Duration::from_millis(80));
-        let ttl = if n == 1 { 10 } else { 3600 };
-        Some(fake_token(ttl))
+        let counter_for_refresh = Arc::clone(&counter_for_refresh);
+        Box::pin(async move {
+            let n = counter_for_refresh.fetch_add(1, Ordering::SeqCst) + 1;
+            tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+            let ttl = if n == 1 { 10 } else { 3600 };
+            Some(fake_token(ttl))
+        })
     });
     let cache = Arc::new(TokenCache::new(refresh));
 
@@ -108,7 +114,7 @@ async fn near_expiry_concurrent_refresh_collapses_to_one() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn refresh_failure_propagates() {
-    let cache = TokenCache::new(Arc::new(|_| None));
+    let cache = TokenCache::new(Arc::new(|_| Box::pin(async { None })));
     let err = cache.current(300).await.expect_err("no token must fail");
     let msg = format!("{err}");
     assert!(msg.contains("authentication"), "got: {msg}");

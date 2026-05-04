@@ -1,5 +1,6 @@
-use std::cell::Cell;
+use std::sync::Mutex;
 
+use async_trait::async_trait;
 use systemprompt_bridge::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::auth::{ChainError, evaluate_chain};
@@ -8,32 +9,37 @@ use systemprompt_bridge::ids::BearerToken;
 
 struct StubProvider {
     name: &'static str,
-    response: Cell<Option<Result<HelperOutput, AuthError>>>,
-    calls: Cell<usize>,
+    response: Mutex<Option<Result<HelperOutput, AuthError>>>,
+    calls: Mutex<usize>,
 }
 
 impl StubProvider {
     fn new(name: &'static str, response: Result<HelperOutput, AuthError>) -> Self {
         Self {
             name,
-            response: Cell::new(Some(response)),
-            calls: Cell::new(0),
+            response: Mutex::new(Some(response)),
+            calls: Mutex::new(0),
         }
     }
 
     fn call_count(&self) -> usize {
-        self.calls.get()
+        *self.calls.lock().expect("calls lock")
     }
 }
 
+#[async_trait]
 impl AuthProvider for StubProvider {
     fn name(&self) -> &'static str {
         self.name
     }
 
-    fn authenticate(&self) -> Result<HelperOutput, AuthError> {
-        self.calls.set(self.calls.get() + 1);
+    async fn authenticate(&self) -> Result<HelperOutput, AuthError> {
+        let mut calls = self.calls.lock().expect("calls lock");
+        *calls += 1;
+        drop(calls);
         self.response
+            .lock()
+            .expect("response lock")
             .take()
             .expect("StubProvider authenticate called more than once")
     }
@@ -47,22 +53,30 @@ fn ok_token() -> HelperOutput {
     }
 }
 
-fn transient_mtls_failure() -> AuthError {
+async fn make_reqwest_error() -> reqwest::Error {
+    reqwest::get("http://127.0.0.1:1/__definitely_not_listening__")
+        .await
+        .expect_err("connection refused yields a reqwest error")
+}
+
+async fn transient_mtls_failure() -> AuthError {
     AuthError::Failed {
         provider: "mtls",
         source: AuthFailedSource::Gateway(GatewayError::HealthCheck(Box::new(
-            ureq::Error::Status(503, ureq::Response::new(503, "x", "x").unwrap()),
+            make_reqwest_error().await,
         ))),
     }
 }
 
-#[test]
-fn transient_failure_on_preferred_mtls_does_not_fall_through_to_pat() {
-    let mtls = StubProvider::new("mtls", Err(transient_mtls_failure()));
+#[tokio::test]
+async fn transient_failure_on_preferred_mtls_does_not_fall_through_to_pat() {
+    let mtls = StubProvider::new("mtls", Err(transient_mtls_failure().await));
     let pat = StubProvider::new("pat", Ok(ok_token()));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let err = evaluate_chain(&chain, Some("mtls")).expect_err("must short-circuit");
+    let err = evaluate_chain(&chain, Some("mtls"))
+        .await
+        .expect_err("must short-circuit");
 
     assert!(
         matches!(
@@ -82,8 +96,8 @@ fn transient_failure_on_preferred_mtls_does_not_fall_through_to_pat() {
     );
 }
 
-#[test]
-fn terminal_failure_on_preferred_falls_through() {
+#[tokio::test]
+async fn terminal_failure_on_preferred_falls_through() {
     let mtls = StubProvider::new(
         "mtls",
         Err(AuthError::Failed {
@@ -94,38 +108,44 @@ fn terminal_failure_on_preferred_falls_through() {
     let pat = StubProvider::new("pat", Ok(ok_token()));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let token = evaluate_chain(&chain, Some("mtls")).expect("must fall through to PAT");
+    let token = evaluate_chain(&chain, Some("mtls"))
+        .await
+        .expect("must fall through to PAT");
     assert_eq!(token.token.expose(), "stub");
     assert_eq!(pat.call_count(), 1);
 }
 
-#[test]
-fn transient_failure_on_non_preferred_falls_through() {
-    let mtls = StubProvider::new("mtls", Err(transient_mtls_failure()));
+#[tokio::test]
+async fn transient_failure_on_non_preferred_falls_through() {
+    let mtls = StubProvider::new("mtls", Err(transient_mtls_failure().await));
     let pat = StubProvider::new("pat", Ok(ok_token()));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let token = evaluate_chain(&chain, None).expect("transient on non-preferred must fall through");
+    let token = evaluate_chain(&chain, None)
+        .await
+        .expect("transient on non-preferred must fall through");
     assert_eq!(token.token.expose(), "stub");
     assert_eq!(pat.call_count(), 1);
 }
 
-#[test]
-fn no_provider_succeeds_yields_none_succeeded() {
+#[tokio::test]
+async fn no_provider_succeeds_yields_none_succeeded() {
     let mtls = StubProvider::new("mtls", Err(AuthError::NotConfigured));
     let pat = StubProvider::new("pat", Err(AuthError::NotConfigured));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let err = evaluate_chain(&chain, None).expect_err("nothing configured");
+    let err = evaluate_chain(&chain, None)
+        .await
+        .expect_err("nothing configured");
     assert!(matches!(err, ChainError::NoneSucceeded));
 }
 
-#[test]
-fn is_terminal_classifies_gateway_variants() {
+#[tokio::test]
+async fn is_terminal_classifies_gateway_variants() {
     assert!(AuthFailedSource::Gateway(GatewayError::PubkeyMissing).is_terminal());
     assert!(AuthFailedSource::Gateway(GatewayError::UnsafePath("..".into())).is_terminal());
     let transient = AuthFailedSource::Gateway(GatewayError::HealthCheck(Box::new(
-        ureq::Error::Status(503, ureq::Response::new(503, "x", "x").unwrap()),
+        make_reqwest_error().await,
     )));
     assert!(!transient.is_terminal());
 }

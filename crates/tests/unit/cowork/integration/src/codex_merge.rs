@@ -2,7 +2,7 @@ use std::fs;
 use std::sync::{Mutex, MutexGuard};
 
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
-use systemprompt_bridge::integration::{HostApp, find_host_by_id};
+use systemprompt_bridge::integration::find_host_by_id;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 

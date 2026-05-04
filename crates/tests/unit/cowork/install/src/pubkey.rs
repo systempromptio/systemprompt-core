@@ -96,15 +96,15 @@ fn policy_pubkey_env_overrides_operator_set_value() {
     fs::write(&cfg_path, "[sync]\npinned_pubkey = \"OPERATOR-KEY-AAAA\"\n").unwrap();
 
     unsafe {
-        std::env::set_var("SP_COWORK_CONFIG", &cfg_path);
-        std::env::set_var("SP_COWORK_POLICY_PUBKEY", "POLICY-KEY-BBBB");
+        std::env::set_var("SP_BRIDGE_CONFIG", &cfg_path);
+        std::env::set_var("SP_BRIDGE_POLICY_PUBKEY", "POLICY-KEY-BBBB");
     }
 
     let pinned = config::pinned_pubkey();
 
     unsafe {
-        std::env::remove_var("SP_COWORK_CONFIG");
-        std::env::remove_var("SP_COWORK_POLICY_PUBKEY");
+        std::env::remove_var("SP_BRIDGE_CONFIG");
+        std::env::remove_var("SP_BRIDGE_POLICY_PUBKEY");
     }
 
     assert_eq!(pinned.as_ref().map(|p| p.as_str()), Some("POLICY-KEY-BBBB"));
@@ -118,15 +118,15 @@ fn policy_pubkey_env_seeds_when_no_operator_value() {
     fs::write(&cfg_path, "").unwrap();
 
     unsafe {
-        std::env::set_var("SP_COWORK_CONFIG", &cfg_path);
-        std::env::set_var("SP_COWORK_POLICY_PUBKEY", "POLICY-KEY-CCCC");
+        std::env::set_var("SP_BRIDGE_CONFIG", &cfg_path);
+        std::env::set_var("SP_BRIDGE_POLICY_PUBKEY", "POLICY-KEY-CCCC");
     }
 
     let pinned = config::pinned_pubkey();
 
     unsafe {
-        std::env::remove_var("SP_COWORK_CONFIG");
-        std::env::remove_var("SP_COWORK_POLICY_PUBKEY");
+        std::env::remove_var("SP_BRIDGE_CONFIG");
+        std::env::remove_var("SP_BRIDGE_POLICY_PUBKEY");
     }
 
     assert_eq!(pinned.as_ref().map(|p| p.as_str()), Some("POLICY-KEY-CCCC"));
@@ -140,14 +140,14 @@ fn no_pinned_pubkey_when_neither_operator_nor_policy_set() {
     fs::write(&cfg_path, "").unwrap();
 
     unsafe {
-        std::env::set_var("SP_COWORK_CONFIG", &cfg_path);
-        std::env::remove_var("SP_COWORK_POLICY_PUBKEY");
+        std::env::set_var("SP_BRIDGE_CONFIG", &cfg_path);
+        std::env::remove_var("SP_BRIDGE_POLICY_PUBKEY");
     }
 
     let pinned = config::pinned_pubkey();
 
     unsafe {
-        std::env::remove_var("SP_COWORK_CONFIG");
+        std::env::remove_var("SP_BRIDGE_CONFIG");
     }
 
     assert!(pinned.is_none());
@@ -157,11 +157,11 @@ fn no_pinned_pubkey_when_neither_operator_nor_policy_set() {
 fn policy_pubkey_helper_returns_env_value() {
     let _guard = env_lock();
     unsafe {
-        std::env::set_var("SP_COWORK_POLICY_PUBKEY", "FROM-POLICY-DDDD");
+        std::env::set_var("SP_BRIDGE_POLICY_PUBKEY", "FROM-POLICY-DDDD");
     }
     let v = config::policy_pubkey();
     unsafe {
-        std::env::remove_var("SP_COWORK_POLICY_PUBKEY");
+        std::env::remove_var("SP_BRIDGE_POLICY_PUBKEY");
     }
     assert_eq!(v.as_ref().map(|p| p.as_str()), Some("FROM-POLICY-DDDD"));
 }

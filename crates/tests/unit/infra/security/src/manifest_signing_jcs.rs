@@ -4,6 +4,7 @@ use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest,
     SkillEntry, TenantId, UserId, UserInfo, ValidatedUrl, canonical_payload,
 };
+use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
     ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName,
 };
@@ -39,7 +40,8 @@ fn ensure_bootstrap() {
 
 fn sample_manifest() -> SignedManifest {
     SignedManifest {
-        manifest_version: "2026-04-27T00:00:00Z-deadbeef".into(),
+        manifest_version: ManifestVersion::try_new("2026-04-27T00:00:00Z-deadbeef")
+            .expect("valid manifest version"),
         issued_at: "2026-04-27T00:00:00Z".into(),
         not_before: "2026-04-27T00:00:00Z".into(),
         user_id: UserId::new("user_abc"),

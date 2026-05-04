@@ -35,7 +35,7 @@ async fn concurrent_register_unregister_no_panic() {
         let u = user.clone();
         join_set.spawn(async move {
             let conn_id = format!("conn-{i}");
-            let (tx, _rx) = mpsc::unbounded_channel();
+            let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
             b.register(&u, &conn_id, tx).await;
             b.unregister(&u, &conn_id).await;
         });
@@ -68,7 +68,7 @@ async fn concurrent_broadcast_during_registration_storm() {
         let u = user.clone();
         join_set.spawn(async move {
             let conn_id = format!("storm-{i}");
-            let (tx, _rx) = mpsc::unbounded_channel();
+            let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
             b.register(&u, &conn_id, tx).await;
             tokio::task::yield_now().await;
             b.unregister(&u, &conn_id).await;
@@ -87,7 +87,7 @@ async fn concurrent_cleanup_under_contention() {
     let mut receivers = Vec::new();
 
     for i in 0..100 {
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (tx, rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster.register(&user, &format!("conn-{i}"), tx).await;
         receivers.push(rx);
     }
@@ -118,7 +118,7 @@ async fn broadcast_to_active_connections_succeeds() {
     let mut receivers = Vec::new();
 
     for i in 0..10 {
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (tx, rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster.register(&user, &format!("conn-{i}"), tx).await;
         receivers.push(rx);
     }
@@ -133,7 +133,7 @@ async fn broadcast_to_dropped_receivers_cleans_up() {
     let user = test_user_id(1);
 
     for i in 0..10 {
-        let (tx, _rx) = mpsc::unbounded_channel();
+        let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster.register(&user, &format!("conn-{i}"), tx).await;
     }
 
@@ -152,7 +152,7 @@ async fn multiple_users_concurrent_operations() {
         join_set.spawn(async move {
             let user = test_user_id(u);
             for c in 0..5 {
-                let (tx, _rx) = mpsc::unbounded_channel();
+                let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
                 b.register(&user, &format!("conn-{c}"), tx).await;
             }
             b.broadcast(&user, test_event()).await;
