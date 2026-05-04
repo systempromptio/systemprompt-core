@@ -1,13 +1,18 @@
+//! Domain validator that enforces the `files` subsystem is initialised.
+
 use systemprompt_files::FilesConfig;
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{ConfigProvider, ValidationReport};
 
+/// Domain validator that asserts [`FilesConfig`] is installed before
+/// any code path needs file storage.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct FilesConfigValidator {
     initialized: bool,
 }
 
 impl FilesConfigValidator {
+    /// Construct a fresh validator with `initialized` cleared.
     pub fn new() -> Self {
         Self::default()
     }

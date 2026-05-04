@@ -1,6 +1,30 @@
+//! `systemprompt-runtime` — application runtime services.
+//!
+//! This crate hosts [`AppContext`], the lifecycle [`AppContextBuilder`],
+//! the inventory-driven module API and well-known route registries,
+//! per-module installation helpers, startup validation, and the typed
+//! [`RuntimeError`] / [`RuntimeResult`] error boundary used by all of
+//! the above.
+//!
+//! Public APIs return [`RuntimeResult<T>`]. [`RuntimeError`] composes
+//! upstream typed errors (`ConfigError`, `RepositoryError`,
+//! `FilesError`, `UserError`, `LoaderError`, `AnalyticsError`,
+//! `ProfileBootstrapError`, `PathError`) via `#[from]` and absorbs
+//! still-anyhow upstream calls in [`RuntimeError::Other`].
+//!
+//! # Feature flags
+//!
+//! | Feature       | Effect                                                          |
+//! |---------------|------------------------------------------------------------------|
+//! | (default)     | Core context, builder, registries, validation                   |
+//! | `geolocation` | Enables MaxMind GeoIP2 loading via `maxminddb` and pulls in `systemprompt-analytics/geolocation` |
+
 mod builder;
 mod context;
+mod context_loaders;
+mod context_traits;
 mod database_context;
+mod error;
 mod installation;
 mod registry;
 mod span;
@@ -9,8 +33,9 @@ mod validation;
 mod wellknown;
 
 pub use builder::AppContextBuilder;
-pub use context::AppContext;
+pub use context::{AppContext, AppContextParts};
 pub use database_context::DatabaseContext;
+pub use error::{RuntimeError, RuntimeResult};
 pub use installation::{install_module, install_module_with_db};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleRuntime, WellKnownRoute};
 pub use span::create_request_span;
@@ -25,6 +50,10 @@ pub use systemprompt_models::modules::{
     Modules, ServiceCategory,
 };
 
+/// Register an HTTP module-API router with the runtime registry.
+///
+/// Submits a [`ModuleApiRegistration`] to the `inventory` collector
+/// consumed by [`ModuleApiRegistry::new`].
 #[macro_export]
 macro_rules! register_module_api {
     ($module_name:literal, $category:expr, $router_fn:expr, $auth_required:expr, $module_type:expr) => {
@@ -51,6 +80,10 @@ macro_rules! register_module_api {
     };
 }
 
+/// Register a `/.well-known/` route with the runtime registry.
+///
+/// Submits a [`WellKnownRoute`] (and optional [`WellKnownMetadata`]) to
+/// the `inventory` collectors consumed by the API entry crate.
 #[macro_export]
 macro_rules! register_wellknown_route {
     ($path:literal, $handler:expr, $methods:expr, name: $name:literal, description: $desc:literal) => {

@@ -6,7 +6,7 @@ use systemprompt_models::Config;
 use systemprompt_models::validators::{ValidationConfigProvider, WebConfigRaw, WebMetadataRaw};
 use systemprompt_traits::ConfigProvider;
 
-pub fn load_content_config(
+pub(super) fn load_content_config(
     mut provider: ValidationConfigProvider,
     verbose: bool,
 ) -> ValidationConfigProvider {
@@ -18,7 +18,7 @@ pub fn load_content_config(
     provider
 }
 
-pub fn load_web_config(
+pub(super) fn load_web_config(
     config: &Config,
     mut provider: ValidationConfigProvider,
     verbose: bool,
@@ -52,7 +52,7 @@ pub fn load_web_config(
     provider
 }
 
-pub fn load_web_metadata(
+pub(super) fn load_web_metadata(
     config: &Config,
     mut provider: ValidationConfigProvider,
     verbose: bool,
@@ -86,7 +86,7 @@ pub fn load_web_metadata(
     provider
 }
 
-pub fn create_spinner(message: &str) -> ProgressBar {
+pub(super) fn create_spinner(message: &str) -> ProgressBar {
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
         ProgressStyle::default_spinner()
@@ -99,13 +99,13 @@ pub fn create_spinner(message: &str) -> ProgressBar {
     spinner
 }
 
-pub fn load_yaml_config<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
+pub(super) fn load_yaml_config<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
     serde_yaml::from_str(&content).map_err(|e| format!("Cannot parse {}: {}", path.display(), e))
 }
 
-pub fn load_extension_config(path: &Path) -> Result<serde_json::Value, String> {
+pub(super) fn load_extension_config(path: &Path) -> Result<serde_json::Value, String> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
     let yaml: serde_yaml::Value = serde_yaml::from_str(&content)

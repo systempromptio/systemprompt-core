@@ -1,34 +1,40 @@
-use crate::builder::AppContextBuilder;
-use crate::registry::ModuleApiRegistry;
-use anyhow::Result;
+//! [`AppContext`] — the application-wide runtime container.
+//!
+//! Holds shared handles (config, database pool, extension registry,
+//! analytics, route classifier, etc.) cloned cheaply via [`Arc`].
+//! Constructed via [`crate::AppContextBuilder`] or [`AppContext::new`].
+
 use std::sync::Arc;
+
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_database::DbPool;
-use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionRegistry, HasAnalytics, HasFingerprint,
-    HasRouteClassifier, HasUserService,
-};
-use systemprompt_logging::CliService;
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
-use systemprompt_traits::{
-    AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
-    FingerprintProvider, UserProvider,
-};
 use systemprompt_users::UserService;
 
+use crate::builder::AppContextBuilder;
+use crate::context_loaders;
+use crate::error::RuntimeResult;
+use crate::registry::ModuleApiRegistry;
+
+/// Application-wide runtime context.
+///
+/// Cloning is cheap (every field is an [`Arc`] or [`Option<Arc<_>>`]),
+/// so handlers and background tasks should clone the whole context
+/// rather than threading individual handles.
 #[derive(Clone)]
 pub struct AppContext {
-    config: Arc<Config>,
-    database: DbPool,
-    api_registry: Arc<ModuleApiRegistry>,
-    extension_registry: Arc<ExtensionRegistry>,
-    geoip_reader: Option<GeoIpReader>,
-    content_config: Option<Arc<ContentConfigRaw>>,
-    route_classifier: Arc<RouteClassifier>,
-    analytics_service: Arc<AnalyticsService>,
-    fingerprint_repo: Option<Arc<FingerprintRepository>>,
-    user_service: Option<Arc<UserService>>,
-    app_paths: Arc<AppPaths>,
+    pub(crate) config: Arc<Config>,
+    pub(crate) database: DbPool,
+    pub(crate) api_registry: Arc<ModuleApiRegistry>,
+    pub(crate) extension_registry: Arc<ExtensionRegistry>,
+    pub(crate) geoip_reader: Option<GeoIpReader>,
+    pub(crate) content_config: Option<Arc<ContentConfigRaw>>,
+    pub(crate) route_classifier: Arc<RouteClassifier>,
+    pub(crate) analytics_service: Arc<AnalyticsService>,
+    pub(crate) fingerprint_repo: Option<Arc<FingerprintRepository>>,
+    pub(crate) user_service: Option<Arc<UserService>>,
+    pub(crate) app_paths: Arc<AppPaths>,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -49,31 +55,49 @@ impl std::fmt::Debug for AppContext {
     }
 }
 
+/// Decomposed form of [`AppContext`] used by [`AppContext::from_parts`].
+///
+/// Useful for tests and embedders that pre-build individual handles.
 #[derive(Debug)]
 pub struct AppContextParts {
+    /// Application configuration singleton.
     pub config: Arc<Config>,
+    /// Database pool (read replica or single primary).
     pub database: DbPool,
+    /// Module API route registry built from `inventory` registrations.
     pub api_registry: Arc<ModuleApiRegistry>,
+    /// Extension registry resolved from `inventory` and validated.
     pub extension_registry: Arc<ExtensionRegistry>,
+    /// Optional `MaxMind` `GeoIP2` reader.
     pub geoip_reader: Option<GeoIpReader>,
+    /// Parsed `content.yaml`, when available.
     pub content_config: Option<Arc<ContentConfigRaw>>,
+    /// Route classifier driven by the content config.
     pub route_classifier: Arc<RouteClassifier>,
+    /// Analytics service handle.
     pub analytics_service: Arc<AnalyticsService>,
+    /// Optional fingerprint repository.
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
+    /// Optional user service.
     pub user_service: Option<Arc<UserService>>,
+    /// Resolved application paths.
     pub app_paths: Arc<AppPaths>,
 }
 
 impl AppContext {
-    pub async fn new() -> Result<Self> {
+    /// Build a fully-populated [`AppContext`] using default builder
+    /// settings. Equivalent to `Self::builder().build().await`.
+    pub async fn new() -> RuntimeResult<Self> {
         Self::builder().build().await
     }
 
+    /// Construct a fresh [`AppContextBuilder`].
     #[must_use]
     pub fn builder() -> AppContextBuilder {
         AppContextBuilder::new()
     }
 
+    /// Assemble an [`AppContext`] from pre-built [`AppContextParts`].
     pub fn from_parts(parts: AppContextParts) -> Self {
         Self {
             config: parts.config,
@@ -90,237 +114,100 @@ impl AppContext {
         }
     }
 
-    #[cfg(feature = "geolocation")]
+    /// Load the optional `GeoIP2` database referenced by `config`.
     pub fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
-        let Some(geoip_path) = &config.geoip_database_path else {
-            if show_warnings {
-                CliService::warning(
-                    "GeoIP database not configured - geographic data will not be available",
-                );
-                CliService::info("  To enable geographic data:");
-                CliService::info("  1. Download MaxMind GeoLite2-City database from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data");
-                CliService::info(
-                    "  2. Add paths.geoip_database to your profile pointing to the .mmdb file",
-                );
-            }
-            return None;
-        };
-
-        match maxminddb::Reader::open_readfile(geoip_path) {
-            Ok(reader) => Some(Arc::new(reader)),
-            Err(e) => {
-                if show_warnings {
-                    CliService::warning(&format!(
-                        "Could not load GeoIP database from {geoip_path}: {e}"
-                    ));
-                    CliService::info(
-                        "  Geographic data (country/region/city) will not be available.",
-                    );
-                    CliService::info(
-                        "  To fix: Ensure the path is correct and the file is a valid MaxMind \
-                         .mmdb database",
-                    );
-                }
-                None
-            },
-        }
+        context_loaders::load_geoip_database(config, show_warnings)
     }
 
-    #[cfg(not(feature = "geolocation"))]
-    pub fn load_geoip_database(_config: &Config, _show_warnings: bool) -> Option<GeoIpReader> {
-        None
-    }
-
+    /// Load the optional `content.yaml` referenced by `app_paths`.
     pub fn load_content_config(
         config: &Config,
         app_paths: &AppPaths,
     ) -> Option<Arc<ContentConfigRaw>> {
-        let content_config_path = app_paths.system().content_config().to_path_buf();
-
-        if !content_config_path.exists() {
-            CliService::warning(&format!(
-                "Content config not found at: {}",
-                content_config_path.display()
-            ));
-            CliService::info("  Landing page detection will not be available.");
-            return None;
-        }
-
-        let yaml_content = match std::fs::read_to_string(&content_config_path) {
-            Ok(c) => c,
-            Err(e) => {
-                CliService::warning(&format!(
-                    "Could not read content config from {}: {}",
-                    content_config_path.display(),
-                    e
-                ));
-                CliService::info("  Landing page detection will not be available.");
-                return None;
-            },
-        };
-
-        match serde_yaml::from_str::<ContentConfigRaw>(&yaml_content) {
-            Ok(mut content_cfg) => {
-                let base_url = config.api_external_url.trim_end_matches('/');
-
-                content_cfg.metadata.structured_data.organization.url = base_url.to_string();
-
-                let logo = &content_cfg.metadata.structured_data.organization.logo;
-                if logo.starts_with('/') {
-                    content_cfg.metadata.structured_data.organization.logo =
-                        format!("{base_url}{logo}");
-                }
-
-                Some(Arc::new(content_cfg))
-            },
-            Err(e) => {
-                CliService::warning(&format!(
-                    "Could not parse content config from {}: {}",
-                    content_config_path.display(),
-                    e
-                ));
-                CliService::info("  Landing page detection will not be available.");
-                None
-            },
-        }
+        context_loaders::load_content_config(config, app_paths)
     }
 
+    /// Borrow the [`Config`] singleton.
     pub fn config(&self) -> &Config {
         &self.config
     }
 
+    /// Borrow the parsed `content.yaml`, when present.
     pub fn content_config(&self) -> Option<&ContentConfigRaw> {
         self.content_config.as_ref().map(AsRef::as_ref)
     }
 
-    #[allow(trivial_casts)]
+    /// Erased view of the content config as a [`ContentRouting`].
     pub fn content_routing(&self) -> Option<Arc<dyn ContentRouting>> {
-        self.content_config
-            .clone()
-            .map(|c| c as Arc<dyn ContentRouting>)
+        let concrete = Arc::clone(self.content_config.as_ref()?);
+        let routing: Arc<dyn ContentRouting> = concrete;
+        Some(routing)
     }
 
+    /// Borrow the database pool.
     pub const fn db_pool(&self) -> &DbPool {
         &self.database
     }
 
+    /// Borrow the database pool (alias of [`Self::db_pool`]).
     pub const fn database(&self) -> &DbPool {
         &self.database
     }
 
+    /// Borrow the module API registry.
     pub fn api_registry(&self) -> &ModuleApiRegistry {
         &self.api_registry
     }
 
+    /// Borrow the extension registry.
     pub fn extension_registry(&self) -> &ExtensionRegistry {
         &self.extension_registry
     }
 
+    /// Format the configured `host:port` listen address.
     pub fn server_address(&self) -> String {
         format!("{}:{}", self.config.host, self.config.port)
     }
 
+    /// JWT audiences provided by this server.
     pub fn get_provided_audiences() -> Vec<String> {
         vec!["a2a".to_string(), "api".to_string(), "mcp".to_string()]
     }
 
+    /// JWT audiences accepted for `_module_name`. Currently identical
+    /// to [`Self::get_provided_audiences`].
     pub fn get_valid_audiences(_module_name: &str) -> Vec<String> {
         Self::get_provided_audiences()
     }
 
+    /// JWT audiences accepted for the named MCP server. Currently
+    /// identical to [`Self::get_provided_audiences`].
     pub fn get_server_audiences(_server_name: &str, _port: u16) -> Vec<String> {
         Self::get_provided_audiences()
     }
 
+    /// Borrow the optional `GeoIP2` reader.
     pub const fn geoip_reader(&self) -> Option<&GeoIpReader> {
         self.geoip_reader.as_ref()
     }
 
+    /// Borrow the analytics service.
     pub const fn analytics_service(&self) -> &Arc<AnalyticsService> {
         &self.analytics_service
     }
 
+    /// Borrow the route classifier.
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {
         &self.route_classifier
     }
 
+    /// Borrow the resolved [`AppPaths`].
     pub fn app_paths(&self) -> &AppPaths {
         &self.app_paths
     }
 
+    /// Borrow the resolved [`AppPaths`] as an [`Arc`].
     pub const fn app_paths_arc(&self) -> &Arc<AppPaths> {
         &self.app_paths
-    }
-}
-
-#[allow(trivial_casts)]
-impl AppContextTrait for AppContext {
-    fn config(&self) -> Arc<dyn ConfigProvider> {
-        Arc::clone(&self.config) as _
-    }
-
-    fn database_handle(&self) -> Arc<dyn DatabaseHandle> {
-        Arc::clone(&self.database) as _
-    }
-
-    fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {
-        Some(Arc::clone(&self.analytics_service) as _)
-    }
-
-    fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
-        let repo = self.fingerprint_repo.as_ref()?;
-        Some(Arc::clone(repo) as _)
-    }
-
-    fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
-        let service = self.user_service.as_ref()?;
-        Some(Arc::clone(service) as _)
-    }
-}
-
-#[allow(trivial_casts)]
-impl ExtensionContext for AppContext {
-    fn config(&self) -> Arc<dyn ConfigProvider> {
-        Arc::clone(&self.config) as _
-    }
-
-    fn database(&self) -> Arc<dyn DatabaseHandle> {
-        Arc::clone(&self.database) as _
-    }
-
-    fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
-        self.extension_registry.get(id).cloned()
-    }
-}
-
-impl HasAnalytics for AppContext {
-    type Analytics = Arc<AnalyticsService>;
-
-    fn analytics(&self) -> &Self::Analytics {
-        &self.analytics_service
-    }
-}
-
-impl HasFingerprint for AppContext {
-    type Fingerprint = Arc<FingerprintRepository>;
-
-    fn fingerprint(&self) -> Option<&Self::Fingerprint> {
-        self.fingerprint_repo.as_ref()
-    }
-}
-
-impl HasUserService for AppContext {
-    type UserService = Arc<UserService>;
-
-    fn user_service(&self) -> Option<&Self::UserService> {
-        self.user_service.as_ref()
-    }
-}
-
-impl HasRouteClassifier for AppContext {
-    type RouteClassifier = Arc<RouteClassifier>;
-
-    fn route_classifier(&self) -> &Self::RouteClassifier {
-        &self.route_classifier
     }
 }
