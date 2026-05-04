@@ -1,9 +1,13 @@
+#[path = "audit_internal/payload.rs"]
+mod payload;
+
+use payload::{slice_payload, truncate_for_tool_input};
+
 use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::Result;
 use bytes::Bytes;
-use serde_json::Value;
 use systemprompt_ai::models::ai_request_record::AiRequestRecord;
 use systemprompt_ai::repository::ai_requests::UpdateCompletionParams;
 use systemprompt_ai::repository::{
@@ -16,9 +20,6 @@ use super::captures::{CapturedToolUse, CapturedUsage};
 use super::models::AnthropicGatewayRequest;
 use super::pricing;
 use std::sync::Mutex;
-
-const PAYLOAD_CAP_BYTES: usize = 256 * 1024;
-const EXCERPT_BYTES: usize = 8 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct GatewayRequestContext {
@@ -75,6 +76,8 @@ impl GatewayAudit {
     }
 
     fn effective_model(&self) -> String {
+        // Why: poisoned-mutex recovery — fall back to the configured request
+        // model rather than panicking on a poisoned `served_model` slot.
         self.served_model
             .lock()
             .map_err(|e| {
@@ -270,39 +273,5 @@ impl GatewayAudit {
             "Gateway audit: request failed"
         );
         Ok(())
-    }
-}
-
-fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bool, i32) {
-    let len = bytes.len();
-    let len_i32 = len.min(i32::MAX as usize) as i32;
-    if len <= PAYLOAD_CAP_BYTES {
-        serde_json::from_slice::<Value>(bytes).map_or_else(
-            |_| {
-                let excerpt = String::from_utf8_lossy(bytes).to_string();
-                (None, Some(excerpt), false, len_i32)
-            },
-            |v| (Some(v), None, false, len_i32),
-        )
-    } else {
-        let head_len = EXCERPT_BYTES.min(len);
-        let head = String::from_utf8_lossy(&bytes[..head_len]).to_string();
-        let tail_start = len.saturating_sub(EXCERPT_BYTES);
-        let tail = String::from_utf8_lossy(&bytes[tail_start..]).to_string();
-        let excerpt = format!("{head}\n...<truncated {} bytes>...\n{tail}", len - head_len);
-        (None, Some(excerpt), true, len_i32)
-    }
-}
-
-fn truncate_for_tool_input(input: &str) -> String {
-    const TOOL_INPUT_CAP: usize = 64 * 1024;
-    if input.len() <= TOOL_INPUT_CAP {
-        input.to_string()
-    } else {
-        let head = &input[..TOOL_INPUT_CAP];
-        format!(
-            "{head}...<truncated {} bytes>",
-            input.len() - TOOL_INPUT_CAP
-        )
     }
 }
