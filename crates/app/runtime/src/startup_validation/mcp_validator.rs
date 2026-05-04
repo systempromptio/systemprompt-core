@@ -4,7 +4,7 @@ use systemprompt_models::{Config, ServicesConfig};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
-pub fn validate_mcp_manifests(
+pub(super) fn validate_mcp_manifests(
     config: &Config,
     services_config: &ServicesConfig,
     report: &mut StartupValidationReport,

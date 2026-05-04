@@ -5005,6 +5005,7 @@ dependencies = [
  "systemprompt-traits",
  "systemprompt-users",
  "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
