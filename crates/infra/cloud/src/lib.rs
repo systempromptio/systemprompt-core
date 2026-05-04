@@ -1,3 +1,39 @@
+//! # systemprompt-cloud
+//!
+//! Cloud API client, credentials management, OAuth login flow, and
+//! tenant orchestration for systemprompt.io Cloud deployments. This
+//! crate is the bridge between the local CLI/runtime and the
+//! systemprompt.io control plane.
+//!
+//! ## Public surface
+//!
+//! - [`CloudApiClient`] — bearer-token-authenticated REST client.
+//! - [`CloudCredentials`] / [`CredentialsBootstrap`] — on-disk and process-wide
+//!   cloud credentials.
+//! - [`StoredTenant`] / [`TenantStore`] — persistent tenants index.
+//! - [`CliSession`] / [`SessionStore`] — multi-tenant CLI sessions.
+//! - [`run_oauth_flow`] / [`run_checkout_callback_flow`] — browser-driven OAuth
+//!   and Paddle checkout flows.
+//! - [`wait_for_provisioning`] — SSE + polling watcher for tenant provisioning
+//!   state.
+//! - [`CloudPaths`] — XDG-aware discovery of credentials, sessions, tenants,
+//!   and project files.
+//!
+//! ## Errors
+//!
+//! All public APIs return [`CloudResult<T>`] (i.e.
+//! `Result<T, CloudError>`). [`CloudError`] composes `reqwest`,
+//! `std::io`, `serde_json`, and the more specific
+//! [`CredentialsBootstrapError`] via `#[from]` so callers can use `?`
+//! transparently.
+//!
+//! ## Feature flags
+//!
+//! This crate has no Cargo features — every dependency is required at
+//! compile time. The `[package.metadata.docs.rs]` section in
+//! `Cargo.toml` enables `all-features = true` for parity with the
+//! rest of the workspace.
+
 pub mod api_client;
 pub mod auth;
 pub mod checkout;
@@ -34,14 +70,18 @@ pub use tenants::{StoredTenant, TenantStore, TenantType};
 
 use clap::ValueEnum;
 
+/// Cloud environment a [`CloudApiClient`] is targeting.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
 pub enum Environment {
+    /// `https://api.systemprompt.io` — the public production cloud.
     #[default]
     Production,
+    /// Sandbox environment used by integration tests.
     Sandbox,
 }
 
 impl Environment {
+    /// Base URL for the environment.
     #[must_use]
     pub const fn api_url(&self) -> &'static str {
         match self {
@@ -51,13 +91,17 @@ impl Environment {
     }
 }
 
+/// OAuth identity providers supported by `systemprompt cloud login`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum OAuthProvider {
+    /// GitHub OAuth.
     Github,
+    /// Google OAuth.
     Google,
 }
 
 impl OAuthProvider {
+    /// Lowercase string used in API URLs (`github` / `google`).
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
@@ -66,6 +110,7 @@ impl OAuthProvider {
         }
     }
 
+    /// Human-readable provider name surfaced in CLI prompts.
     #[must_use]
     pub const fn display_name(&self) -> &'static str {
         match self {

@@ -1,0 +1,290 @@
+//! Process-wide secrets bootstrap.
+//!
+//! Loads the secrets document referenced by the active profile (or
+//! the equivalent environment variables in subprocess/Fly.io modes),
+//! validates required fields, and exposes typed accessors for the
+//! manifest signing seed and database URLs.
+
+mod io;
+mod loader;
+mod logging;
+
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+use base64::Engine;
+use systemprompt_models::profile::resolve_with_home;
+use systemprompt_models::secrets::Secrets;
+
+use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
+use super::profile::ProfileBootstrap;
+use crate::error::{ConfigError, ConfigResult};
+
+pub use io::{handle_load_error, load_secrets_from_path};
+pub use logging::{
+    build_loaded_secrets_message, log_secrets_issue, log_secrets_skip, log_secrets_warn,
+};
+
+static SECRETS: OnceLock<Secrets> = OnceLock::new();
+
+/// Minimum acceptable byte length for the JWT signing secret.
+pub const JWT_SECRET_MIN_LENGTH: usize = 32;
+
+/// Marker type owning the secrets bootstrap singleton.
+#[derive(Debug, Clone, Copy)]
+pub struct SecretsBootstrap;
+
+/// Errors emitted by [`SecretsBootstrap`] state transitions.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum SecretsBootstrapError {
+    /// `get`/accessor was called before [`SecretsBootstrap::init`].
+    #[error(
+        "Secrets not initialized. Call SecretsBootstrap::init() after ProfileBootstrap::init()"
+    )]
+    NotInitialized,
+
+    /// `init` was called twice.
+    #[error("Secrets already initialized")]
+    AlreadyInitialized,
+
+    /// `init` was called before [`super::ProfileBootstrap::init`].
+    #[error("Profile not initialized. Call ProfileBootstrap::init() first")]
+    ProfileNotInitialized,
+
+    /// The configured secrets file does not exist.
+    #[error("Secrets file not found: {path}")]
+    FileNotFound {
+        /// Resolved on-disk path of the missing file.
+        path: String,
+    },
+
+    /// The secrets file failed structural validation.
+    #[error("Invalid secrets file: {message}")]
+    InvalidSecretsFile {
+        /// Underlying parse/validation message.
+        message: String,
+    },
+
+    /// The active profile has no `secrets` block.
+    #[error("No secrets configured. Create a secrets.json file.")]
+    NoSecretsConfigured,
+
+    /// `JWT_SECRET` is missing from both file and environment.
+    #[error(
+        "JWT secret is required. Add 'jwt_secret' to your secrets file or set JWT_SECRET \
+         environment variable."
+    )]
+    JwtSecretRequired,
+
+    /// `DATABASE_URL` is missing from both file and environment.
+    #[error(
+        "Database URL is required. Add 'database_url' to your secrets.json or set DATABASE_URL \
+         environment variable."
+    )]
+    DatabaseUrlRequired,
+
+    /// The manifest signing seed is missing and could not be
+    /// auto-generated (no writable secrets file).
+    #[error(
+        "manifest_signing_secret_seed is missing from the secrets file and the bootstrap path is \
+         not writable. Run `systemprompt admin cowork rotate-signing-key` against a writable \
+         secrets file, or add a base64-encoded 32-byte value under `manifest_signing_secret_seed`."
+    )]
+    ManifestSeedUnavailable,
+
+    /// The manifest signing seed exists but has the wrong length or
+    /// encoding.
+    #[error("manifest_signing_secret_seed is invalid: {message}")]
+    ManifestSeedInvalid {
+        /// Underlying decode/length error.
+        message: String,
+    },
+
+    /// A subprocess inherited an environment without
+    /// `MANIFEST_SIGNING_SECRET_SEED`.
+    #[error(
+        "manifest_signing_secret_seed missing in subprocess env — parent must propagate \
+         MANIFEST_SIGNING_SECRET_SEED so subprocesses don't regenerate and clobber the secrets \
+         file"
+    )]
+    SubprocessSeedMissing,
+}
+
+impl SecretsBootstrap {
+    /// Initialise the secrets singleton from the active profile.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::Secrets`] for any state-transition or
+    /// validation failure encountered during loading.
+    pub fn init() -> ConfigResult<&'static Secrets> {
+        if SECRETS.get().is_some() {
+            return Err(SecretsBootstrapError::AlreadyInitialized.into());
+        }
+
+        let mut secrets = loader::load_from_profile_config()?;
+        Self::ensure_manifest_signing_seed(&mut secrets)?;
+
+        Self::log_loaded_secrets(&secrets);
+
+        SECRETS
+            .set(secrets)
+            .map_err(|_| SecretsBootstrapError::AlreadyInitialized)?;
+
+        SECRETS
+            .get()
+            .ok_or_else(|| SecretsBootstrapError::NotInitialized.into())
+    }
+
+    /// Borrow the JWT signing secret.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
+    /// has not been called.
+    pub fn jwt_secret() -> Result<&'static str, SecretsBootstrapError> {
+        Ok(&Self::get()?.jwt_secret)
+    }
+
+    /// Decode the manifest signing seed from the loaded secrets.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretsBootstrapError::ManifestSeedUnavailable`] if
+    /// the field is absent, or
+    /// [`SecretsBootstrapError::ManifestSeedInvalid`] if it does not
+    /// decode to a 32-byte buffer.
+    pub fn manifest_signing_secret_seed()
+    -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
+        let encoded = Self::get()?
+            .manifest_signing_secret_seed
+            .as_deref()
+            .ok_or(SecretsBootstrapError::ManifestSeedUnavailable)?;
+        decode_seed(encoded)
+    }
+
+    /// Generate and persist a fresh manifest signing seed in the
+    /// active secrets file.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError`] if the secrets file cannot be located,
+    /// read, parsed, or written.
+    pub fn rotate_manifest_signing_seed() -> ConfigResult<[u8; MANIFEST_SIGNING_SEED_BYTES]> {
+        let path = Self::resolved_secrets_file_path()?;
+        let seed = generate_seed();
+        persist_seed(&path, &seed)?;
+        Ok(seed)
+    }
+
+    fn ensure_manifest_signing_seed(secrets: &mut Secrets) -> ConfigResult<()> {
+        if let Some(encoded) = secrets.manifest_signing_secret_seed.as_deref() {
+            decode_seed(encoded)?;
+            return Ok(());
+        }
+        if std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok() {
+            return Err(SecretsBootstrapError::SubprocessSeedMissing.into());
+        }
+        let Ok(path) = Self::resolved_secrets_file_path() else {
+            tracing::warn!(
+                "manifest_signing_secret_seed missing and no writable secrets file is configured"
+            );
+            return Ok(());
+        };
+        if !path.exists() {
+            tracing::warn!(
+                path = %path.display(),
+                "manifest_signing_secret_seed missing and secrets file does not exist on disk"
+            );
+            return Ok(());
+        }
+        let seed = generate_seed();
+        persist_seed(&path, &seed)?;
+        secrets.manifest_signing_secret_seed =
+            Some(base64::engine::general_purpose::STANDARD.encode(seed));
+        tracing::info!(
+            path = %path.display(),
+            "Generated and persisted fresh manifest_signing_secret_seed"
+        );
+        Ok(())
+    }
+
+    fn resolved_secrets_file_path() -> ConfigResult<PathBuf> {
+        let profile =
+            ProfileBootstrap::get().map_err(|_| SecretsBootstrapError::ProfileNotInitialized)?;
+        let secrets_config = profile
+            .secrets
+            .as_ref()
+            .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
+        let profile_path = ProfileBootstrap::get_path()
+            .map_err(|_| SecretsBootstrapError::ProfileNotInitialized)?;
+        let profile_dir = Path::new(profile_path)
+            .parent()
+            .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;
+        Ok(resolve_with_home(profile_dir, &secrets_config.secrets_path))
+    }
+
+    /// Borrow the database URL from the loaded secrets.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
+    /// has not been called.
+    pub fn database_url() -> Result<&'static str, SecretsBootstrapError> {
+        Ok(&Self::get()?.database_url)
+    }
+
+    /// Borrow the optional dedicated database write URL.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
+    /// has not been called.
+    pub fn database_write_url() -> Result<Option<&'static str>, SecretsBootstrapError> {
+        Ok(Self::get()?.database_write_url.as_deref())
+    }
+
+    /// Borrow the loaded secrets.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
+    /// has not been called.
+    pub fn get() -> Result<&'static Secrets, SecretsBootstrapError> {
+        SECRETS.get().ok_or(SecretsBootstrapError::NotInitialized)
+    }
+
+    /// Alias for [`SecretsBootstrap::get`] retained for clarity in
+    /// call sites that require secrets to be present.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`SecretsBootstrap::get`].
+    pub fn require() -> Result<&'static Secrets, SecretsBootstrapError> {
+        Self::get()
+    }
+
+    /// `true` if a secrets document has been loaded.
+    #[must_use]
+    pub fn is_initialized() -> bool {
+        SECRETS.get().is_some()
+    }
+
+    /// Idempotent variant of [`SecretsBootstrap::init`].
+    ///
+    /// # Errors
+    ///
+    /// Same as [`SecretsBootstrap::init`].
+    pub fn try_init() -> ConfigResult<&'static Secrets> {
+        if SECRETS.get().is_some() {
+            return Self::get().map_err(Into::into);
+        }
+        Self::init()
+    }
+
+    fn log_loaded_secrets(secrets: &Secrets) {
+        let message = build_loaded_secrets_message(secrets);
+        tracing::debug!("{}", message);
+    }
+}

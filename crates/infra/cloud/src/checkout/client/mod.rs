@@ -1,0 +1,138 @@
+//! Browser-driven Paddle checkout flow used by `systemprompt cloud
+//! checkout`.
+
+mod handler;
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use axum::Router;
+use axum::routing::get;
+use serde::{Deserialize, Serialize};
+use systemprompt_logging::CliService;
+use tokio::sync::{Mutex, oneshot};
+
+use handler::{callback_handler, status_handler};
+
+use crate::CloudApiClient;
+use crate::constants::checkout::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};
+use crate::error::{CloudError, CloudResult};
+
+#[derive(Debug, Deserialize)]
+pub(super) struct CallbackParams {
+    pub(super) transaction_id: Option<String>,
+    pub(super) tenant_id: Option<String>,
+    pub(super) status: Option<String>,
+    pub(super) error: Option<String>,
+    pub(super) checkout_session_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct StatusResponse {
+    pub(super) status: String,
+    pub(super) message: Option<String>,
+    pub(super) app_url: Option<String>,
+}
+
+/// Result of a successful checkout callback.
+#[derive(Debug, Clone)]
+pub struct CheckoutCallbackResult {
+    /// Paddle transaction id.
+    pub transaction_id: String,
+    /// Tenant id provisioned by the checkout.
+    pub tenant_id: String,
+    /// Optional Fly.io app name once infrastructure is up.
+    pub fly_app_name: Option<String>,
+    /// `true` when the caller still needs to push a deploy image.
+    pub needs_deploy: bool,
+}
+
+/// HTML templates rendered by the embedded callback server.
+#[derive(Debug, Clone, Copy)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "All three fields are static HTML payloads; the `_html` suffix disambiguates them at \
+              the call site."
+)]
+pub struct CheckoutTemplates {
+    /// Page shown when checkout completes successfully.
+    pub success_html: &'static str,
+    /// Page shown on any error.
+    pub error_html: &'static str,
+    /// Page shown while waiting for provisioning to finish.
+    pub waiting_html: &'static str,
+}
+
+pub(super) struct AppState {
+    pub(super) tx: Arc<Mutex<Option<oneshot::Sender<CloudResult<CheckoutCallbackResult>>>>>,
+    pub(super) api_client: Arc<CloudApiClient>,
+    pub(super) success_template: String,
+    pub(super) error_template: String,
+    pub(super) waiting_template: String,
+}
+
+/// Spin up the embedded callback server, open the browser to
+/// `checkout_url`, and resolve once Paddle redirects back.
+///
+/// # Errors
+///
+/// Returns [`CloudError::CheckoutFlow`] if the flow is cancelled,
+/// times out, or the embedded server stops, plus any propagated
+/// [`reqwest::Error`] from the inner API client.
+pub async fn run_checkout_callback_flow(
+    api_client: &CloudApiClient,
+    checkout_url: &str,
+    templates: CheckoutTemplates,
+) -> CloudResult<CheckoutCallbackResult> {
+    let (tx, rx) = oneshot::channel::<CloudResult<CheckoutCallbackResult>>();
+    let tx = Arc::new(Mutex::new(Some(tx)));
+
+    let state = AppState {
+        tx: Arc::clone(&tx),
+        api_client: Arc::new(CloudApiClient::new(
+            api_client.api_url(),
+            api_client.token(),
+        )?),
+        success_template: templates.success_html.to_string(),
+        error_template: templates.error_html.to_string(),
+        waiting_template: templates.waiting_html.to_string(),
+    };
+
+    let app = Router::new()
+        .route("/callback", get(callback_handler))
+        .route("/status/{tenant_id}", get(status_handler))
+        .with_state(Arc::new(state));
+
+    let addr = format!("127.0.0.1:{CALLBACK_PORT}");
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+
+    CliService::info(&format!(
+        "Starting checkout callback server on http://{addr}"
+    ));
+
+    CliService::info("Opening Paddle checkout in your browser...");
+    CliService::info(&format!("URL: {checkout_url}"));
+
+    if let Err(e) = open::that(checkout_url) {
+        CliService::warning(&format!("Could not open browser automatically: {e}"));
+        CliService::info("Please open this URL manually:");
+        CliService::key_value("URL", checkout_url);
+    }
+
+    CliService::info("Waiting for checkout completion...");
+    CliService::info(&format!("(timeout in {CALLBACK_TIMEOUT_SECS} seconds)"));
+
+    let server = axum::serve(listener, app);
+
+    tokio::select! {
+        result = rx => {
+            result.map_err(|_| CloudError::CheckoutFlow { message: "Checkout cancelled".to_string() })?
+        }
+        _ = server => {
+            Err(CloudError::CheckoutFlow { message: "Server stopped unexpectedly".to_string() })
+        }
+        () = tokio::time::sleep(Duration::from_secs(CALLBACK_TIMEOUT_SECS)) => {
+            Err(CloudError::CheckoutFlow { message: format!("Checkout timed out after {CALLBACK_TIMEOUT_SECS} seconds") })
+        }
+    }
+}

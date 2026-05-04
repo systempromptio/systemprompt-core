@@ -138,5 +138,8 @@ pub async fn sync_cloud_credentials(
 
     secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_string(), "true".to_string());
 
-    api_client.set_secrets(tenant_id.as_str(), secrets).await
+    api_client
+        .set_secrets(tenant_id.as_str(), secrets)
+        .await
+        .map_err(Into::into)
 }
