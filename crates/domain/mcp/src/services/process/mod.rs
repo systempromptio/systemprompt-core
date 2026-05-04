@@ -5,7 +5,7 @@ pub mod spawner;
 pub mod utils;
 
 use crate::McpServerConfig;
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -16,35 +16,35 @@ impl ProcessManager {
         Self
     }
 
-    pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> Result<u32> {
-        spawner::spawn_server(paths, config)
+    pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
+        spawner::spawn_server(paths, config).map_err(Into::into)
     }
 
     pub fn is_running(pid: u32) -> bool {
         monitor::is_process_running(pid)
     }
 
-    pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
-        pid_manager::find_pid_by_port(port)
+    pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
+        pid_manager::find_pid_by_port(port).map_err(Into::into)
     }
 
-    pub fn find_process_on_port_with_name(port: u16, name: &str) -> Result<Option<u32>> {
-        pid_manager::find_process_on_port_with_name(port, name)
+    pub fn find_process_on_port_with_name(port: u16, name: &str) -> McpDomainResult<Option<u32>> {
+        pid_manager::find_process_on_port_with_name(port, name).map_err(Into::into)
     }
 
-    pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> Result<()> {
-        spawner::verify_binary(paths, config)
+    pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {
+        spawner::verify_binary(paths, config).map_err(Into::into)
     }
 
-    pub fn build_server(config: &McpServerConfig) -> Result<()> {
-        spawner::build_server(config)
+    pub fn build_server(config: &McpServerConfig) -> McpDomainResult<()> {
+        spawner::build_server(config).map_err(Into::into)
     }
 
-    pub fn terminate_gracefully(pid: u32) -> Result<()> {
-        cleanup::terminate_gracefully(pid)
+    pub fn terminate_gracefully(pid: u32) -> McpDomainResult<()> {
+        cleanup::terminate_gracefully(pid).map_err(Into::into)
     }
 
-    pub fn force_kill(pid: u32) -> Result<()> {
-        cleanup::force_kill(pid)
+    pub fn force_kill(pid: u32) -> McpDomainResult<()> {
+        cleanup::force_kill(pid).map_err(Into::into)
     }
 }

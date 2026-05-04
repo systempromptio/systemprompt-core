@@ -16,7 +16,7 @@ pub(crate) mod tool;
 
 pub use extension::McpExtension;
 
-pub use error::McpError as McpDomainError;
+pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
 
 pub const MCP_PROTOCOL_VERSION: &str = "2024-11-05";

@@ -57,7 +57,7 @@ pub async fn reconcile_agents(
                     );
                 }
             }
-            return Err(e);
+            return Err(e.into());
         },
     };
 
@@ -77,7 +77,7 @@ pub async fn reconcile_agents(
                     );
                 }
             }
-            return Err(e);
+            return Err(e.into());
         },
     };
 

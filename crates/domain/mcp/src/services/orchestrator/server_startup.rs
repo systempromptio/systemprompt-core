@@ -92,7 +92,7 @@ async fn start_single_server(
         Err(e) => {
             let duration_ms = start_time.elapsed().as_millis() as u64;
             publish_start_failure(server, event_bus, duration_ms, &e.to_string()).await?;
-            Err(e)
+            Err(e.into())
         },
     }
 }

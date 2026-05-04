@@ -16,7 +16,9 @@ pub use models::a2a::{
     TransportProtocol,
 };
 
-pub use error::{AgentError, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError};
+pub use error::{
+    AgentError, AgentResult, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError,
+};
 
 pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 

@@ -67,8 +67,13 @@ impl AgentOrchestrator {
         let event_bus = Arc::new(AgentEventBus::new(100));
 
         let db_service = AgentDatabaseService::new(agent_repo)?;
-        let lifecycle =
-            AgentLifecycle::new(db_pool, app_paths)?.with_event_bus(Arc::clone(&event_bus));
+        let lifecycle = AgentLifecycle::new(db_pool, app_paths)
+            .map_err(|e| {
+                crate::services::agent_orchestration::OrchestrationError::Generic(anyhow::anyhow!(
+                    e.to_string()
+                ))
+            })?
+            .with_event_bus(Arc::clone(&event_bus));
         let reconciler = AgentReconciler::new(db_pool)?;
         let monitor = AgentMonitor::new(db_pool)?;
 

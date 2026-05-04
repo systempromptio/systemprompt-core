@@ -1,12 +1,13 @@
 pub mod security;
 pub mod skills;
 
-use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::{AgentConfig, ServicesConfig};
 use tokio::sync::RwLock;
+
+use crate::error::{AgentError, AgentResult};
 
 use crate::models::a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, TransportProtocol,
@@ -21,28 +22,28 @@ pub struct AgentRegistry {
 }
 
 impl AgentRegistry {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> AgentResult<Self> {
         let config = ConfigLoader::load()?;
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
         })
     }
 
-    pub async fn get_agent(&self, name: &str) -> Result<AgentConfig> {
+    pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
         let config = self.config.read().await;
         config
             .agents
             .get(name)
             .cloned()
-            .ok_or_else(|| anyhow!("Agent not found: {}", name))
+            .ok_or_else(|| AgentError::NotFound(name.to_string()))
     }
 
-    pub async fn list_agents(&self) -> Result<Vec<AgentConfig>> {
+    pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         let config = self.config.read().await;
         Ok(config.agents.values().cloned().collect())
     }
 
-    pub async fn list_enabled_agents(&self) -> Result<Vec<AgentConfig>> {
+    pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         let config = self.config.read().await;
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         Ok(config
@@ -53,7 +54,7 @@ impl AgentRegistry {
             .collect())
     }
 
-    pub async fn get_default_agent(&self) -> Result<AgentConfig> {
+    pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
         let config = self.config.read().await;
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         config
@@ -61,7 +62,7 @@ impl AgentRegistry {
             .values()
             .find(|a| a.default && a.enabled && !(a.dev_only && is_cloud))
             .cloned()
-            .ok_or_else(|| anyhow!("No default agent configured"))
+            .ok_or_else(|| AgentError::NotFound("default agent not configured".to_string()))
     }
 
     pub async fn to_agent_card(
@@ -70,7 +71,7 @@ impl AgentRegistry {
         api_external_url: &str,
         mcp_extensions: Vec<AgentExtension>,
         runtime_status: Option<(String, Option<u16>, Option<u32>)>,
-    ) -> Result<AgentCard> {
+    ) -> AgentResult<AgentCard> {
         let agent = self.get_agent(name).await?;
         let url = agent.construct_url(api_external_url);
 
@@ -131,7 +132,7 @@ impl AgentRegistry {
         })
     }
 
-    pub async fn reload(&self) -> Result<()> {
+    pub async fn reload(&self) -> AgentResult<()> {
         let new_config = ConfigLoader::load()?;
         let mut config = self.config.write().await;
         *config = new_config;
@@ -139,12 +140,12 @@ impl AgentRegistry {
         Ok(())
     }
 
-    pub async fn get_mcp_servers(&self, agent_name: &str) -> Result<Vec<String>> {
+    pub async fn get_mcp_servers(&self, agent_name: &str) -> AgentResult<Vec<String>> {
         let agent = self.get_agent(agent_name).await?;
         Ok(agent.metadata.mcp_servers)
     }
 
-    pub async fn find_next_available_port(&self) -> Result<u16> {
+    pub async fn find_next_available_port(&self) -> AgentResult<u16> {
         const BASE_PORT: u16 = 9000;
         const MAX_PORT: u16 = 9999;
 
@@ -157,11 +158,9 @@ impl AgentRegistry {
             }
         }
 
-        Err(anyhow!(
-            "No available ports in range {}-{}",
-            BASE_PORT,
-            MAX_PORT
-        ))
+        Err(AgentError::Validation(format!(
+            "No available ports in range {BASE_PORT}-{MAX_PORT}"
+        )))
     }
 }
 

@@ -2,13 +2,19 @@ use anyhow::Result;
 use std::collections::HashSet;
 use systemprompt_models::mcp::{McpServerType, RegistryConfig};
 
-pub fn validate_registry(config: &RegistryConfig) -> Result<()> {
+use crate::error::McpDomainResult;
+
+pub fn validate_registry(config: &RegistryConfig) -> McpDomainResult<()> {
     tracing::info!("Validating registry configuration");
 
-    validate_port_conflicts(config)?;
-    validate_server_configs(config)?;
-    validate_oauth_configs(config)?;
-    validate_server_types(config)?;
+    validate_port_conflicts(config)
+        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
+    validate_server_configs(config)
+        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
+    validate_oauth_configs(config)
+        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
+    validate_server_types(config)
+        .map_err(|e| crate::error::McpDomainError::RegistryValidation(e.to_string()))?;
 
     tracing::info!("Registry validation passed");
     Ok(())

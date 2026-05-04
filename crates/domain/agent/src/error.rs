@@ -161,4 +161,27 @@ pub enum AgentError {
 
     #[error("Database error: {0}")]
     Database(String),
+
+    #[error("agent not found: {0}")]
+    NotFound(String),
+
+    #[error("spawn failed: {0}")]
+    Spawn(String),
+
+    #[error("lifecycle: {0}")]
+    Lifecycle(String),
+
+    #[error("validation: {0}")]
+    Validation(String),
+
+    #[error("sqlx error: {0}")]
+    Sqlx(#[from] sqlx::Error),
+
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
+
+pub type AgentResult<T> = Result<T, AgentError>;
