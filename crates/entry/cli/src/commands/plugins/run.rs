@@ -2,8 +2,8 @@ use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use clap::Args;
 use std::process::Stdio;
-use systemprompt_loader::ExtensionLoader;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_loader::ExtensionLoader;
 use tokio::process::Command;
 
 

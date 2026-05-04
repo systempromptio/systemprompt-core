@@ -237,10 +237,7 @@ pub async fn save_push_notification_config(
     }
 }
 
-pub async fn setup_stream(
-    input: StreamInput,
-    tx: &Sender<Event>,
-) -> Result<StreamSetupResult, ()> {
+pub async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> Result<StreamSetupResult, ()> {
     let StreamInput {
         message,
         agent_name,

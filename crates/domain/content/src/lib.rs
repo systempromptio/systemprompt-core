@@ -26,9 +26,8 @@ pub use error::ContentError;
 pub use services::validate_content_metadata;
 
 pub use models::{
-    CategoryIdUpdate, Content, ContentMetadata, IngestionOptions, IngestionReport,
-    IngestionSource, SearchFilters, SearchRequest, SearchResponse, SearchResult,
-    UpdateContentParams,
+    CategoryIdUpdate, Content, ContentMetadata, IngestionOptions, IngestionReport, IngestionSource,
+    SearchFilters, SearchRequest, SearchResponse, SearchResult, UpdateContentParams,
 };
 
 pub use repository::{ContentRepository, LinkAnalyticsRepository, SearchRepository};

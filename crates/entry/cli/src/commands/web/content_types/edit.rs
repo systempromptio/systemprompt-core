@@ -7,9 +7,9 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
-use systemprompt_config::ProfileBootstrap;
 
 use super::super::types::ContentTypeEditOutput;
 
@@ -47,7 +47,10 @@ pub struct EditArgs {
     pub description: Option<String>,
 }
 
-pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<ContentTypeEditOutput>> {
+pub fn execute(
+    args: &EditArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<ContentTypeEditOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 

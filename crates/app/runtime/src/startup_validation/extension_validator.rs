@@ -1,8 +1,8 @@
 use std::path::Path;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::{AppPaths, Config};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};

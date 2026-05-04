@@ -7,9 +7,9 @@ use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_cloud::CredentialsBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};
@@ -195,8 +195,8 @@ pub async fn execute_individual_mcp(
 ) -> Result<()> {
     CliService::section(&format!("Starting MCP Server: {}", server_name));
 
-    let manager =
-        McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc())).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
+        .context("Failed to initialize MCP manager")?;
 
     manager
         .start_services(Some(server_name.to_string()))

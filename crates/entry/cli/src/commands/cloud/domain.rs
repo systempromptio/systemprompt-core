@@ -3,9 +3,9 @@ use clap::Subcommand;
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::CloudApiClient;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
-use systemprompt_config::ProfileBootstrap;
 
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;

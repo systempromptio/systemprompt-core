@@ -2,11 +2,11 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError, SessionStore};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
 use systemprompt_models::{AppPaths, Config, Profile};
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };

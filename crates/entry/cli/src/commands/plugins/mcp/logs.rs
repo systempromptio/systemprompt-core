@@ -11,9 +11,9 @@ use super::types::McpLogsOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::LoggingRepository;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 

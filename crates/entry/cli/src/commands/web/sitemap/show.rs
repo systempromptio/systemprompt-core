@@ -4,9 +4,9 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::shared::CommandResult;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
-use systemprompt_config::ProfileBootstrap;
 
 use super::super::types::{SitemapRoute, SitemapShowOutput};
 

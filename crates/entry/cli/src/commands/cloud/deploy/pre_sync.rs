@@ -2,9 +2,9 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CloudApiClient, CloudPath, ProfilePath, TenantStore, get_cloud_paths};
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_sync::{
     FileDiffStatus, FileSyncService, SyncApiClient, SyncConfigBuilder, SyncDiffResult,
     SyncDirection, SyncOperationResult,

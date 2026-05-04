@@ -1,7 +1,7 @@
 use anyhow::Result;
 use systemprompt_cloud::{CloudApiClient, CloudPath, CredentialsBootstrap, get_cloud_paths};
-use systemprompt_logging::CliService;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, ProfileInfo, TenantStatusInfo};
@@ -163,10 +163,7 @@ fn render_profile(profile_info: Option<&ProfileInfo>) {
     }
 }
 
-fn render_credentials(
-    credentials_info: &CredentialsInfo,
-    tenant_statuses: &[TenantStatusInfo],
-) {
+fn render_credentials(credentials_info: &CredentialsInfo, tenant_statuses: &[TenantStatusInfo]) {
     if !credentials_info.authenticated {
         CliService::key_value("Authenticated", "No (not initialized)");
         CliService::info("Run 'systemprompt cloud login' to authenticate");
@@ -178,7 +175,11 @@ fn render_credentials(
     }
     CliService::key_value(
         "Token expired",
-        if credentials_info.token_expired { "Yes" } else { "No" },
+        if credentials_info.token_expired {
+            "Yes"
+        } else {
+            "No"
+        },
     );
     if tenant_statuses.is_empty() {
         CliService::info("No tenants found for this account");

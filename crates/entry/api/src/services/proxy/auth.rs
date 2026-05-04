@@ -100,25 +100,29 @@ impl AccessValidator {
         ctx: &AppContext,
         req_context: Option<&RequestContext>,
     ) -> Result<Option<AuthenticatedUser>, ProxyError> {
-        let (oauth_required, required_scopes) = lookup_oauth_requirement(service, service_name).await?;
+        let (oauth_required, required_scopes) =
+            lookup_oauth_requirement(service, service_name).await?;
         if !oauth_required {
             return Ok(None);
         }
         let resource_path = resource_path_for(service, service_name);
-        let authenticated_user = match AuthValidator::validate_service_access(
-            headers,
-            service_name,
-            ctx,
-            req_context,
-        ) {
-            Ok(user) => user,
-            Err(status_code) => {
-                if let Some(outcome) = mcp_session_fallback(service, service_name, headers, status_code) {
-                    return outcome;
-                }
-                return Err(challenge_or_error(service_name, &resource_path, ctx, status_code));
-            },
-        };
+        let authenticated_user =
+            match AuthValidator::validate_service_access(headers, service_name, ctx, req_context) {
+                Ok(user) => user,
+                Err(status_code) => {
+                    if let Some(outcome) =
+                        mcp_session_fallback(service, service_name, headers, status_code)
+                    {
+                        return outcome;
+                    }
+                    return Err(challenge_or_error(
+                        service_name,
+                        &resource_path,
+                        ctx,
+                        status_code,
+                    ));
+                },
+            };
         ensure_required_scopes(service_name, &required_scopes, &authenticated_user)?;
         Ok(Some(authenticated_user))
     }
@@ -129,17 +133,18 @@ async fn lookup_oauth_requirement(
     service_name: &str,
 ) -> Result<(bool, Vec<String>), ProxyError> {
     if service.module_name == "agent" {
-        let registry = AgentRegistryProviderService::new().map_err(|e| {
-            ProxyError::ServiceNotRunning {
+        let registry =
+            AgentRegistryProviderService::new().map_err(|e| ProxyError::ServiceNotRunning {
                 service: service_name.to_string(),
                 status: format!("Failed to load agent registry: {e}"),
-            }
-        })?;
-        let info = registry.get_agent(service_name).await.map_err(|e| {
-            ProxyError::ServiceNotFound {
-                service: format!("Agent '{}' not found in registry: {}", service_name, e),
-            }
-        })?;
+            })?;
+        let info =
+            registry
+                .get_agent(service_name)
+                .await
+                .map_err(|e| ProxyError::ServiceNotFound {
+                    service: format!("Agent '{}' not found in registry: {}", service_name, e),
+                })?;
         Ok((info.oauth.required, info.oauth.scopes))
     } else if service.module_name == "mcp" {
         McpServerRegistry::validate().map_err(|e| ProxyError::ServiceNotRunning {
@@ -147,11 +152,11 @@ async fn lookup_oauth_requirement(
             status: format!("Failed to load MCP registry: {e}"),
         })?;
         let registry = systemprompt_mcp::services::registry::RegistryManager;
-        let info = McpRegistryProvider::get_server(&registry, service_name).await.map_err(|e| {
-            ProxyError::ServiceNotFound {
+        let info = McpRegistryProvider::get_server(&registry, service_name)
+            .await
+            .map_err(|e| ProxyError::ServiceNotFound {
                 service: format!("MCP server '{}' not found in registry: {}", service_name, e),
-            }
-        })?;
+            })?;
         Ok((info.oauth.required, info.oauth.scopes))
     } else {
         Ok((true, vec![]))

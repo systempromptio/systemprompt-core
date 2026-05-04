@@ -72,7 +72,10 @@ fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
             "final": is_final
         }
     });
-    if tx.try_send(Event::default().data(event.to_string())).is_err() {
+    if tx
+        .try_send(Event::default().data(event.to_string()))
+        .is_err()
+    {
         tracing::trace!("Failed to send status event, channel closed");
     }
 }

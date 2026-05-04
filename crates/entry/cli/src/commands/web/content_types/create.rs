@@ -7,12 +7,12 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig, SitemapConfig,
 };
-use systemprompt_config::ProfileBootstrap;
 
 use super::super::types::ContentTypeCreateOutput;
 

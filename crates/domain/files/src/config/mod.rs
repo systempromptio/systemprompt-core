@@ -8,8 +8,8 @@ use anyhow::{Context, Result, anyhow};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use systemprompt_cloud::constants::storage;
-use systemprompt_models::AppPaths;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_models::AppPaths;
 
 use types::FilesConfigWrapper;
 

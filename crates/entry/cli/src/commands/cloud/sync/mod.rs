@@ -5,9 +5,8 @@ pub mod skills;
 use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_logging::CliService;
-use systemprompt_config::SecretsBootstrap;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOpState, SyncOperationResult, SyncService};
 
 use crate::cli_settings::CliConfig;

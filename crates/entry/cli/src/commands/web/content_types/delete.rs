@@ -7,9 +7,9 @@ use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
-use systemprompt_config::ProfileBootstrap;
 
 use super::super::types::ContentTypeDeleteOutput;
 

@@ -7,8 +7,7 @@ use systemprompt_logging::CliService;
 
 use super::common::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
-use super::common;
-use super::{SetupArgs, postgres, profile, secrets};
+use super::{SetupArgs, common, postgres, profile, secrets};
 use crate::CliConfig;
 
 pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResult<SetupOutput>> {

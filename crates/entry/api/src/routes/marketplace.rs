@@ -33,7 +33,9 @@ fn resolve_mime_type(path: &std::path::Path) -> &'static str {
 }
 
 async fn serve_marketplace(State(ctx): State<AppContext>) -> Result<impl IntoResponse, ApiError> {
-    let marketplace_path = system_path(&ctx).join(".claude-plugin").join("marketplace.json");
+    let marketplace_path = system_path(&ctx)
+        .join(".claude-plugin")
+        .join("marketplace.json");
 
     let content = tokio::fs::read(&marketplace_path).await.map_err(|_| {
         ApiError::not_found(

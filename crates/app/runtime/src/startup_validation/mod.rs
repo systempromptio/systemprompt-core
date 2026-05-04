@@ -4,16 +4,16 @@ mod extension_validator;
 mod files_validator;
 mod mcp_validator;
 
+use systemprompt_config::{ProfileBootstrap, SkillConfigValidator};
 use systemprompt_logging::services::cli::{
     BrandColors, render_phase_success, render_phase_warning,
 };
 use systemprompt_logging::{CliService, is_startup_mode};
+use systemprompt_models::Config;
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     RateLimitsConfigValidator, ValidationConfigProvider, WebConfigValidator,
 };
-use systemprompt_models::Config;
-use systemprompt_config::{ProfileBootstrap, SkillConfigValidator};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{DomainConfigRegistry, StartupValidationReport, ValidationReport};
 

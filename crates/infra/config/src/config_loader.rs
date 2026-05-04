@@ -1,8 +1,10 @@
 use anyhow::Result;
 
-use systemprompt_models::config::{format_path_errors, validate_postgres_url, validate_profile_paths};
-use systemprompt_models::profile::Profile;
 use systemprompt_models::Config;
+use systemprompt_models::config::{
+    format_path_errors, validate_postgres_url, validate_profile_paths,
+};
+use systemprompt_models::profile::Profile;
 
 use crate::bootstrap::{ProfileBootstrap, SecretsBootstrap};
 
@@ -17,8 +19,8 @@ struct BuildConfigPaths {
 }
 
 pub fn init_config() -> Result<()> {
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| anyhow::anyhow!("Profile not initialized: {}", e))?;
+    let profile =
+        ProfileBootstrap::get().map_err(|e| anyhow::anyhow!("Profile not initialized: {}", e))?;
 
     let config = build_from_profile(profile)?;
     Config::install(config).map_err(|_| anyhow::anyhow!("Config already initialized"))?;
@@ -33,8 +35,8 @@ pub fn try_init_config() -> Result<()> {
 }
 
 pub fn build_from_profile(profile: &Profile) -> Result<Config> {
-    let profile_path = ProfileBootstrap::get_path()
-        .map_or_else(|_| "<not set>".to_string(), ToString::to_string);
+    let profile_path =
+        ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_string(), ToString::to_string);
 
     let path_report = validate_profile_paths(profile, &profile_path);
     if path_report.has_errors() {
@@ -47,8 +49,7 @@ pub fn build_from_profile(profile: &Profile) -> Result<Config> {
     let system_path = canonicalize_path(&profile.paths.system, "system")?;
 
     let skills_path = profile.paths.skills();
-    let settings_path =
-        require_yaml_path("config", Some(&profile.paths.config()), &profile_path)?;
+    let settings_path = require_yaml_path("config", Some(&profile.paths.config()), &profile_path)?;
     let content_config_path = require_yaml_path(
         "content_config",
         Some(&profile.paths.content_config()),
@@ -109,8 +110,8 @@ fn require_yaml_path(field: &str, value: Option<&str>, profile_path: &str) -> Re
 
     serde_yaml::from_str::<serde_yaml::Value>(&content).map_err(|e| {
         anyhow::anyhow!(
-            "Profile Error: Invalid YAML syntax\n\n  Field: paths.{}\n  Path: {}\n  Error: \
-             {}\n  Profile: {}",
+            "Profile Error: Invalid YAML syntax\n\n  Field: paths.{}\n  Path: {}\n  Error: {}\n  \
+             Profile: {}",
             field,
             path,
             e,
@@ -124,8 +125,7 @@ fn require_yaml_path(field: &str, value: Option<&str>, profile_path: &str) -> Re
 fn build_config(profile: &Profile, paths: BuildConfigPaths) -> Result<Config> {
     let secrets = SecretsBootstrap::get().map_err(|_| {
         anyhow::anyhow!(
-            "Secrets not initialized. Call SecretsBootstrap::init() before \
-             Config::from_profile()"
+            "Secrets not initialized. Call SecretsBootstrap::init() before Config::from_profile()"
         )
     })?;
 

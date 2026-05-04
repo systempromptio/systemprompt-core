@@ -9,8 +9,8 @@ use super::types::SkillDeleteOutput;
 use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
-use systemprompt_logging::CliService;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {

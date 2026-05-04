@@ -135,7 +135,11 @@ struct ContentEditState {
     kind_value: Option<String>,
 }
 
-fn apply_visibility_flags(args: &EditArgs, state: &mut ContentEditState, changes: &mut Vec<String>) {
+fn apply_visibility_flags(
+    args: &EditArgs,
+    state: &mut ContentEditState,
+    changes: &mut Vec<String>,
+) {
     if args.public {
         state.public_value = Some(true);
         changes.push("public: true".to_string());
@@ -253,7 +257,11 @@ async fn apply_category_field(
     Ok(())
 }
 
-fn apply_kind_field(value: &str, state: &mut ContentEditState, changes: &mut Vec<String>) -> Result<()> {
+fn apply_kind_field(
+    value: &str,
+    state: &mut ContentEditState,
+    changes: &mut Vec<String>,
+) -> Result<()> {
     if !VALID_KINDS.contains(&value) {
         return Err(anyhow!(
             "Invalid kind '{}'. Must be one of: {}",
@@ -266,7 +274,11 @@ fn apply_kind_field(value: &str, state: &mut ContentEditState, changes: &mut Vec
     Ok(())
 }
 
-fn apply_public_field(value: &str, state: &mut ContentEditState, changes: &mut Vec<String>) -> Result<()> {
+fn apply_public_field(
+    value: &str,
+    state: &mut ContentEditState,
+    changes: &mut Vec<String>,
+) -> Result<()> {
     let p = value.parse::<bool>().map_err(|_| {
         anyhow!(
             "Invalid boolean value for public: '{}'. Use true or false",
