@@ -17,7 +17,7 @@ pub struct UserService {
 }
 
 impl UserService {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+    pub fn new(db: &DbPool) -> Result<Self> {
         Ok(Self {
             repository: UserRepository::new(db)?,
         })

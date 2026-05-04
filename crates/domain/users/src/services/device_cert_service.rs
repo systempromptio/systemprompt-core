@@ -20,7 +20,7 @@ pub struct DeviceCertService {
 }
 
 impl DeviceCertService {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+    pub fn new(db: &DbPool) -> Result<Self> {
         Ok(Self {
             repository: UserRepository::new(db)?,
         })
