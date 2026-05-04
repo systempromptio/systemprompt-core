@@ -36,27 +36,42 @@ impl std::fmt::Debug for Server {
 }
 
 impl Server {
+    /// Build the embedded A2A HTTP server for a named agent.
+    ///
+    /// # Errors
+    /// Returns [`crate::error::AgentError`] if the agent cannot be loaded from
+    /// the registry, secrets cannot be read, or the global configuration is
+    /// unavailable.
     pub async fn new(
         db_pool: DbPool,
         agent_state: Arc<AgentState>,
         ai_service: Arc<dyn AiProvider>,
         agent_name: Option<String>,
         port: u16,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
         let mut config = if let Some(name) = agent_name {
-            let registry = AgentRegistry::new()?;
-            registry.get_agent(&name).await?
+            let registry = AgentRegistry::new()
+                .map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
+            registry
+                .get_agent(&name)
+                .await
+                .map_err(|e| crate::error::AgentError::Server(e.to_string()))?
         } else {
-            return Err(anyhow::anyhow!("Agent name is required"));
+            return Err(crate::error::AgentError::Validation(
+                "Agent name is required".to_string(),
+            ));
         };
 
         config.extract_oauth_scopes_from_card();
 
         let oauth_config = AgentOAuthConfig::default();
-        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?.to_string();
-        let global_config = systemprompt_models::Config::get()?;
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
+            .map_err(|e| crate::error::AgentError::Config(e.to_string()))?
+            .to_string();
+        let global_config = systemprompt_models::Config::get()
+            .map_err(|e| crate::error::AgentError::Config(e.to_string()))?;
         let mut oauth_state = AgentOAuthState::new(
             Arc::clone(&db_pool),
             oauth_config,
@@ -80,7 +95,12 @@ impl Server {
         })
     }
 
-    pub async fn reload_config(&self) -> anyhow::Result<()> {
+    /// Reload the agent's configuration from the on-disk registry.
+    ///
+    /// # Errors
+    /// Returns [`crate::error::AgentError::Server`] if the registry cannot be
+    /// loaded or the agent name no longer resolves.
+    pub async fn reload_config(&self) -> Result<(), crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
         let agent_name = {
@@ -88,8 +108,12 @@ impl Server {
             config.name.clone()
         };
 
-        let registry = AgentRegistry::new()?;
-        let mut new_config = registry.get_agent(&agent_name).await?;
+        let registry =
+            AgentRegistry::new().map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
+        let mut new_config = registry
+            .get_agent(&agent_name)
+            .await
+            .map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
         new_config.extract_oauth_scopes_from_card();
         *self.config.write().await = new_config;
 
@@ -131,15 +155,25 @@ impl Server {
         router.layer(CorsLayer::permissive())
     }
 
-    pub async fn run(self) -> anyhow::Result<()> {
+    /// Start the server and run it until the underlying axum service stops.
+    ///
+    /// # Errors
+    /// Returns [`crate::error::AgentError::Io`] if the listener cannot bind, or
+    /// [`crate::error::AgentError::Server`] if axum reports a serving failure.
+    pub async fn run(self) -> Result<(), crate::error::AgentError> {
         Self::log_server_configuration();
         self.start_server(None).await
     }
 
+    /// Start the server and shut down gracefully when `shutdown_signal`
+    /// resolves.
+    ///
+    /// # Errors
+    /// See [`Self::run`].
     pub async fn run_with_shutdown(
         self,
         shutdown_signal: impl Future<Output = ()> + Send + 'static,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), crate::error::AgentError> {
         Self::log_server_configuration();
         self.start_server(Some(Box::pin(shutdown_signal))).await
     }
@@ -149,7 +183,7 @@ impl Server {
     async fn start_server(
         self,
         shutdown_signal: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), crate::error::AgentError> {
         let app = self.create_router();
         let addr = format!("0.0.0.0:{}", self.port);
         let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -158,10 +192,10 @@ impl Server {
             Some(signal) => axum::serve(listener, app)
                 .with_graceful_shutdown(signal)
                 .await
-                .map_err(|e| anyhow::anyhow!("Server error: {}", e)),
+                .map_err(|e| crate::error::AgentError::Server(e.to_string())),
             None => axum::serve(listener, app)
                 .await
-                .map_err(|e| anyhow::anyhow!("Server error: {}", e)),
+                .map_err(|e| crate::error::AgentError::Server(e.to_string())),
         }
     }
 }
