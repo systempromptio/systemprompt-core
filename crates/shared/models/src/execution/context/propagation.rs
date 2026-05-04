@@ -1,11 +1,12 @@
 use super::{CallSource, RequestContext};
-use anyhow::anyhow;
 use http::{HeaderMap, HeaderValue};
 use std::str::FromStr;
 use systemprompt_identifiers::{
     AgentName, AiToolCallId, ClientId, ContextId, SessionId, TaskId, TraceId, UserId, headers,
 };
-use systemprompt_traits::{ContextPropagation, InjectContextHeaders};
+use systemprompt_traits::{
+    ContextPropagation, ContextPropagationError, ContextPropagationResult, InjectContextHeaders,
+};
 
 fn insert_header(headers: &mut HeaderMap, name: &'static str, value: &str) {
     match HeaderValue::from_str(value) {
@@ -85,21 +86,21 @@ impl InjectContextHeaders for RequestContext {
 }
 
 impl ContextPropagation for RequestContext {
-    fn from_headers(hdrs: &HeaderMap) -> anyhow::Result<Self> {
+    fn from_headers(hdrs: &HeaderMap) -> ContextPropagationResult<Self> {
         let session_id = hdrs
             .get(headers::SESSION_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| anyhow!("Missing {} header", headers::SESSION_ID))?;
+            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::SESSION_ID.to_string()))?;
 
         let trace_id = hdrs
             .get(headers::TRACE_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| anyhow!("Missing {} header", headers::TRACE_ID))?;
+            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::TRACE_ID.to_string()))?;
 
         let user_id = hdrs
             .get(headers::USER_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| anyhow!("Missing {} header", headers::USER_ID))?;
+            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::USER_ID.to_string()))?;
 
         let context_id = hdrs
             .get(headers::CONTEXT_ID)
@@ -112,12 +113,7 @@ impl ContextPropagation for RequestContext {
         let agent_name = hdrs
             .get(headers::AGENT_NAME)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| {
-                anyhow!(
-                    "Missing {} header - all requests must have agent context",
-                    headers::AGENT_NAME
-                )
-            })?;
+            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::AGENT_NAME.to_string()))?;
 
         let task_id = hdrs
             .get(headers::TASK_ID)
@@ -184,9 +180,13 @@ impl ContextPropagation for RequestContext {
                 .and_then(|v| v.to_str().ok())
                 .and_then(|s| crate::auth::parse_permissions(s).ok())
             {
-                let user_id_uuid = user_id
-                    .parse::<uuid::Uuid>()
-                    .map_err(|e| anyhow!("Invalid UUID in {} header: {}", headers::USER_ID, e))?;
+                let user_id_uuid =
+                    user_id
+                        .parse::<uuid::Uuid>()
+                        .map_err(|e| ContextPropagationError::InvalidHeader {
+                            name: headers::USER_ID.to_string(),
+                            message: format!("invalid UUID: {e}"),
+                        })?;
                 let user = crate::auth::AuthenticatedUser::new(
                     user_id_uuid,
                     String::new(),
