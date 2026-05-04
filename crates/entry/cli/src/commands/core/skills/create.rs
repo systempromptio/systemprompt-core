@@ -11,11 +11,11 @@ use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_agent::services::skills::SkillIngestionService;
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {

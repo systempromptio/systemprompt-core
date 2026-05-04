@@ -4,11 +4,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::Profile;
-use systemprompt_config::SecretsBootstrap;
 
 use super::context::CliSessionContext;
 use crate::CliConfig;

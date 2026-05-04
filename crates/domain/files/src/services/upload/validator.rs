@@ -243,11 +243,20 @@ const MIME_EXTENSION_TABLE: &[(&[&str], &str)] = &[
     (&["application/xml", "text/xml"], "xml"),
     (&["application/rtf"], "rtf"),
     (&["application/msword"], "doc"),
-    (&["application/vnd.openxmlformats-officedocument.wordprocessingml.document"], "docx"),
+    (
+        &["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+        "docx",
+    ),
     (&["application/vnd.ms-excel"], "xls"),
-    (&["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], "xlsx"),
+    (
+        &["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+        "xlsx",
+    ),
     (&["application/vnd.ms-powerpoint"], "ppt"),
-    (&["application/vnd.openxmlformats-officedocument.presentationml.presentation"], "pptx"),
+    (
+        &["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+        "pptx",
+    ),
     (&["audio/mpeg", "audio/mp3"], "mp3"),
     (&["audio/wav", "audio/wave", "audio/x-wav"], "wav"),
     (&["audio/ogg"], "ogg"),

@@ -3,8 +3,8 @@ use crate::interactive::require_confirmation;
 use crate::shared::CommandResult;
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_logging::CliService;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
 

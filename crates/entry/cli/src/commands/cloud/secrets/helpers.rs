@@ -2,8 +2,8 @@ use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
-use systemprompt_identifiers::TenantId;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::TenantId;
 
 pub fn get_tenant_id() -> Result<TenantId> {
     let profile =

@@ -269,4 +269,3 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
     CliService::success("Database and user setup complete");
     Ok(())
 }
-

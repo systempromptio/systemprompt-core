@@ -20,25 +20,26 @@ pub async fn reconcile_agents(
         jwt_provider,
     ));
 
-    let orchestrator = match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
-        Ok(orch) => orch,
-        Err(e) => {
-            if let Some(tx) = events {
-                if tx
-                    .unbounded_send(StartupEvent::Error {
-                        message: format!("Failed to initialize agent orchestrator: {e}"),
-                        fatal: true,
-                    })
-                    .is_err()
-                {
-                    tracing::debug!(
-                        "Startup event receiver dropped - startup may have been cancelled"
-                    );
+    let orchestrator =
+        match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
+            Ok(orch) => orch,
+            Err(e) => {
+                if let Some(tx) = events {
+                    if tx
+                        .unbounded_send(StartupEvent::Error {
+                            message: format!("Failed to initialize agent orchestrator: {e}"),
+                            fatal: true,
+                        })
+                        .is_err()
+                    {
+                        tracing::debug!(
+                            "Startup event receiver dropped - startup may have been cancelled"
+                        );
+                    }
                 }
-            }
-            return Err(e.into());
-        },
-    };
+                return Err(e.into());
+            },
+        };
 
     let agent_registry = match AgentRegistry::new() {
         Ok(registry) => registry,

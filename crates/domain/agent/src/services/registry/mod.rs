@@ -3,8 +3,8 @@ pub mod skills;
 
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_models::{AgentConfig, ServicesConfig};
 use tokio::sync::RwLock;
 

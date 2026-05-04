@@ -4,13 +4,13 @@ use rand::RngCore;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     ClientId, PolicyVersion, SessionId, SessionSource, TenantId, TraceId, UserId, headers,
 };
-use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::Config;
-use systemprompt_config::SecretsBootstrap;
+use systemprompt_models::auth::JwtAudience;
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
 use crate::services::generation::{

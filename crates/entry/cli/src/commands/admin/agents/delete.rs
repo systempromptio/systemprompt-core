@@ -11,9 +11,9 @@ use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ProcessCleanup;
@@ -86,7 +86,9 @@ pub async fn execute(
                 Arc::new(ctx.config().clone()),
                 jwt_provider,
             ));
-            AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None).await.ok()
+            AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
+                .await
+                .ok()
         },
         Err(e) => {
             tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");

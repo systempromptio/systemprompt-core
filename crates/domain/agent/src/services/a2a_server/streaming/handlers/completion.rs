@@ -42,7 +42,10 @@ fn send_a2a_status_event(
 ) {
     let event = TaskStatusUpdateEvent::new(task_id.as_str(), context_id.as_str(), status, is_final);
     let jsonrpc = event.to_jsonrpc_response();
-    if tx.try_send(Event::default().data(jsonrpc.to_string())).is_err() {
+    if tx
+        .try_send(Event::default().data(jsonrpc.to_string()))
+        .is_err()
+    {
         tracing::trace!("Failed to send status event, channel closed");
     }
 }

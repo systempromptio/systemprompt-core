@@ -9,9 +9,9 @@ use super::types::SkillEditOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::SkillId;
 use systemprompt_logging::CliService;
-use systemprompt_config::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {

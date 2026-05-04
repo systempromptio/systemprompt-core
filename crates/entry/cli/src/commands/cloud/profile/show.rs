@@ -1,8 +1,8 @@
 use anyhow::Result;
 use std::collections::HashMap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig};
 
 use super::ShowFilter;
@@ -33,7 +33,8 @@ pub fn execute(
     let services_config = ConfigLoader::load().ok();
 
     let paths = current_app_paths();
-    let full_config = build_config_for_filter(filter, config, services_config.as_ref(), paths.as_ref());
+    let full_config =
+        build_config_for_filter(filter, config, services_config.as_ref(), paths.as_ref());
 
     output_config(&full_config, json_output, yaml_output);
     Ok(())

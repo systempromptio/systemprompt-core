@@ -16,8 +16,8 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use systemprompt_logging::set_startup_mode;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_logging::set_startup_mode;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::descriptor::{CommandDescriptor, DescribeCommand};

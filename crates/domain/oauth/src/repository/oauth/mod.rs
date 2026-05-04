@@ -116,7 +116,10 @@ impl OAuthRepository {
         client_repo.count().await.map_err(Into::into)
     }
 
-    pub async fn find_client_by_id(&self, client_id: &ClientId) -> OauthResult<Option<OAuthClient>> {
+    pub async fn find_client_by_id(
+        &self,
+        client_id: &ClientId,
+    ) -> OauthResult<Option<OAuthClient>> {
         let client_repo = &self.client_repo;
         client_repo
             .get_by_client_id(client_id)
@@ -158,13 +161,18 @@ impl OAuthRepository {
         let updated_name = match name {
             Some(n) if !n.is_empty() => n.to_string(),
             _ => {
-                return Err(OauthError::Validation("Client name is required for update".to_string()));
+                return Err(OauthError::Validation(
+                    "Client name is required for update".to_string(),
+                ));
             },
         };
 
-        let updated_redirect_uris = redirect_uris
-            .filter(|uris| !uris.is_empty())
-            .ok_or_else(|| OauthError::Validation("At least one redirect URI required".to_string()))?;
+        let updated_redirect_uris =
+            redirect_uris
+                .filter(|uris| !uris.is_empty())
+                .ok_or_else(|| {
+                    OauthError::Validation("At least one redirect URI required".to_string())
+                })?;
 
         let updated_scopes = scopes
             .filter(|s| !s.is_empty())

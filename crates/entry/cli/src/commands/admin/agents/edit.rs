@@ -10,9 +10,9 @@ use super::types::AgentEditOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
-use systemprompt_config::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {

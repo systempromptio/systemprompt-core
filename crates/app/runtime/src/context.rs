@@ -131,7 +131,10 @@ impl AppContext {
         None
     }
 
-    pub fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {
+    pub fn load_content_config(
+        config: &Config,
+        app_paths: &AppPaths,
+    ) -> Option<Arc<ContentConfigRaw>> {
         let content_config_path = app_paths.system().content_config().to_path_buf();
 
         if !content_config_path.exists() {

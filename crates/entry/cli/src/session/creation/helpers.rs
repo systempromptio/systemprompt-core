@@ -4,11 +4,11 @@ use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, SessionKey};
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
-use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::Profile;
-use systemprompt_config::SecretsBootstrap;
+use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::UserService;
 

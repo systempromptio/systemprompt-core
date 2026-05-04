@@ -78,8 +78,8 @@ pub async fn execute(
         .await
         .context("Failed to initialize application context")?;
 
-    let manager =
-        McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc())).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
+        .context("Failed to initialize MCP manager")?;
     let running_servers = manager
         .get_running_servers()
         .await

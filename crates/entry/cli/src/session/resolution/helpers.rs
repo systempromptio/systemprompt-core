@@ -4,13 +4,12 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_logging::CliService;
-use systemprompt_models::auth::UserType;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::Profile;
-use systemprompt_config::SecretsBootstrap;
+use systemprompt_models::auth::UserType;
 
 use super::ProfileContext;
 use crate::paths::ResolvedPaths;

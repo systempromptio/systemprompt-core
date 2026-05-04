@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
-use systemprompt_logging::CliService;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_logging::CliService;
 use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 
 use super::helpers::{

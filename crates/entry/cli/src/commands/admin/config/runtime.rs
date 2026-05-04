@@ -1,10 +1,10 @@
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use std::fs;
-use systemprompt_logging::CliService;
-use systemprompt_models::profile::{Environment, LogLevel, OutputFormat as ProfileOutputFormat};
-use systemprompt_models::Profile;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_logging::CliService;
+use systemprompt_models::Profile;
+use systemprompt_models::profile::{Environment, LogLevel, OutputFormat as ProfileOutputFormat};
 
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
 use crate::CliConfig;

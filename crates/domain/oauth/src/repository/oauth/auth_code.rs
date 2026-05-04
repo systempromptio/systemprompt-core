@@ -156,12 +156,16 @@ impl OAuthRepository {
 
         if row.used_at.is_some() {
             tracing::warn!("Authorization code already used");
-            return Err(OauthError::Validation("Invalid authorization code".to_string()));
+            return Err(OauthError::Validation(
+                "Invalid authorization code".to_string(),
+            ));
         }
 
         if row.expires_at < now {
             tracing::warn!("Authorization code expired");
-            return Err(OauthError::Validation("Invalid authorization code".to_string()));
+            return Err(OauthError::Validation(
+                "Invalid authorization code".to_string(),
+            ));
         }
 
         if let Some(expected_uri) = redirect_uri {
@@ -171,7 +175,9 @@ impl OAuthRepository {
                     actual = %row.redirect_uri,
                     "Redirect URI mismatch"
                 );
-                return Err(OauthError::Validation("Invalid authorization code".to_string()));
+                return Err(OauthError::Validation(
+                    "Invalid authorization code".to_string(),
+                ));
             }
         }
 
@@ -202,17 +208,23 @@ impl OAuthRepository {
                 },
                 Some(PkceMethod::Plain) => {
                     tracing::warn!("PKCE method 'plain' attempted");
-                    return Err(OauthError::Validation("Invalid authorization code".to_string()));
+                    return Err(OauthError::Validation(
+                        "Invalid authorization code".to_string(),
+                    ));
                 },
                 None => {
                     tracing::warn!(method = %method, "Unsupported code_challenge_method");
-                    return Err(OauthError::Validation("Invalid authorization code".to_string()));
+                    return Err(OauthError::Validation(
+                        "Invalid authorization code".to_string(),
+                    ));
                 },
             };
 
             if computed_challenge != *challenge {
                 tracing::warn!("PKCE validation failed");
-                return Err(OauthError::Validation("Invalid authorization code".to_string()));
+                return Err(OauthError::Validation(
+                    "Invalid authorization code".to_string(),
+                ));
             }
         }
 

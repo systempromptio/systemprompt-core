@@ -6,8 +6,8 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_logging::CliService;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 

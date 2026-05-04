@@ -27,24 +27,96 @@ struct BrowserRule {
 }
 
 const BROWSER_RULES: &[BrowserRule] = &[
-    BrowserRule { name: "Edge", needles: &["edg/", "edge"], negative: &[] },
-    BrowserRule { name: "Samsung Internet", needles: &["samsungbrowser"], negative: &[] },
-    BrowserRule { name: "UC Browser", needles: &["ucbrowser", "ucweb"], negative: &[] },
-    BrowserRule { name: "Yandex", needles: &["yabrowser"], negative: &[] },
-    BrowserRule { name: "QQ Browser", needles: &["qqbrowser"], negative: &[] },
-    BrowserRule { name: "WeChat", needles: &["micromessenger"], negative: &[] },
-    BrowserRule { name: "Silk", needles: &["silk/"], negative: &[] },
-    BrowserRule { name: "Electron", needles: &["electron"], negative: &[] },
-    BrowserRule { name: "WebView", needles: &["cordova", "wv)"], negative: &[] },
-    BrowserRule { name: "Chrome", needles: &["chrome"], negative: &["edg"] },
-    BrowserRule { name: "Firefox", needles: &["firefox"], negative: &[] },
-    BrowserRule { name: "Safari", needles: &["safari"], negative: &["chrome"] },
-    BrowserRule { name: "Opera", needles: &["opera", "opr/"], negative: &[] },
-    BrowserRule { name: "IE", needles: &["msie", "trident"], negative: &[] },
-    BrowserRule { name: "Brave", needles: &["brave"], negative: &[] },
-    BrowserRule { name: "Vivaldi", needles: &["vivaldi"], negative: &[] },
-    BrowserRule { name: "DuckDuckGo", needles: &["duckduckgo"], negative: &[] },
-    BrowserRule { name: "Arc", needles: &["arc/"], negative: &[] },
+    BrowserRule {
+        name: "Edge",
+        needles: &["edg/", "edge"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Samsung Internet",
+        needles: &["samsungbrowser"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "UC Browser",
+        needles: &["ucbrowser", "ucweb"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Yandex",
+        needles: &["yabrowser"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "QQ Browser",
+        needles: &["qqbrowser"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "WeChat",
+        needles: &["micromessenger"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Silk",
+        needles: &["silk/"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Electron",
+        needles: &["electron"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "WebView",
+        needles: &["cordova", "wv)"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Chrome",
+        needles: &["chrome"],
+        negative: &["edg"],
+    },
+    BrowserRule {
+        name: "Firefox",
+        needles: &["firefox"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Safari",
+        needles: &["safari"],
+        negative: &["chrome"],
+    },
+    BrowserRule {
+        name: "Opera",
+        needles: &["opera", "opr/"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "IE",
+        needles: &["msie", "trident"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Brave",
+        needles: &["brave"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Vivaldi",
+        needles: &["vivaldi"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "DuckDuckGo",
+        needles: &["duckduckgo"],
+        negative: &[],
+    },
+    BrowserRule {
+        name: "Arc",
+        needles: &["arc/"],
+        negative: &[],
+    },
 ];
 
 fn parse_browser(ua_lower: &str) -> String {

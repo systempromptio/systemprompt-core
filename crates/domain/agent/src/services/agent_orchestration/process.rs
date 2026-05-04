@@ -136,11 +136,7 @@ fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     command
 }
 
-pub fn spawn_detached(
-    paths: &AppPaths,
-    agent_name: &str,
-    port: u16,
-) -> OrchestrationResult<u32> {
+pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> OrchestrationResult<u32> {
     let binary_path = paths.build().resolve_binary("systemprompt").map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to find systemprompt binary: {e}"))
     })?;

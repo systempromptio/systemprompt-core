@@ -173,11 +173,11 @@ pub mod cloud {
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod profile {
+    #[cfg(feature = "config")]
+    pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};
     pub use systemprompt_models::profile::{
         CloudConfig, CloudValidationMode, Profile, ProfileStyle,
     };
-    #[cfg(feature = "config")]
-    pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};
 }
 
 #[cfg(feature = "cloud")]

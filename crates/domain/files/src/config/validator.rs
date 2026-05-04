@@ -33,8 +33,8 @@ impl DomainConfig for FilesConfigValidator {
     }
 
     fn load(&mut self, _config: &dyn ConfigProvider) -> Result<(), DomainConfigError> {
-        let profile = ProfileBootstrap::get()
-            .map_err(|e| DomainConfigError::LoadError(e.to_string()))?;
+        let profile =
+            ProfileBootstrap::get().map_err(|e| DomainConfigError::LoadError(e.to_string()))?;
         let paths = AppPaths::from_profile(&profile.paths)
             .map_err(|e| DomainConfigError::LoadError(e.to_string()))?;
         let yaml_config = FilesConfig::load_yaml_config(&paths)

@@ -25,7 +25,10 @@ pub struct PagePrerenderResult {
     pub output_path: PathBuf,
 }
 
-pub async fn prerender_pages(db_pool: DbPool, paths: &AppPaths) -> Result<Vec<PagePrerenderResult>> {
+pub async fn prerender_pages(
+    db_pool: DbPool,
+    paths: &AppPaths,
+) -> Result<Vec<PagePrerenderResult>> {
     let ctx = load_prerender_context(db_pool, paths).await?;
     prerender_pages_with_context(&ctx).await
 }
