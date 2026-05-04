@@ -1,3 +1,6 @@
+//! Gemini provider driver — chat completions, streaming, code-execution
+//! tool, Google Search grounding, and tool use.
+
 mod code_execution;
 mod constants;
 pub mod converters;

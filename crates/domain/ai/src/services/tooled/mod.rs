@@ -1,3 +1,7 @@
+//! Tool-aware generation pipeline — executes tool calls, formats results
+//! for the model, and synthesises the final response. See
+//! [`crate::ToolResultFormatter`].
+
 pub mod executor;
 pub mod formatter;
 pub mod synthesizer;

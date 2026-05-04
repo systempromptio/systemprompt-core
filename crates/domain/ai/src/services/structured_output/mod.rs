@@ -1,8 +1,12 @@
+//! Structured-output validation: extract JSON from a model's free-text
+//! response, validate it against a schema, and retry on failure.
+
 pub mod parser;
 pub mod validator;
 
+use crate::error::Result;
 use crate::models::ai::{ResponseFormat, StructuredOutputOptions};
-use anyhow::{Result, anyhow};
+use anyhow::anyhow;
 use serde_json::Value as JsonValue;
 
 #[derive(Debug, Copy, Clone)]
@@ -96,6 +100,8 @@ impl StructuredOutputProcessor {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| anyhow!("Failed after {max_retries} retries")))
+        Err(last_error.unwrap_or_else(|| {
+            crate::error::AiError::Internal(anyhow!("Failed after {max_retries} retries"))
+        }))
     }
 }

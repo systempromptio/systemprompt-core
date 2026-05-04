@@ -1,3 +1,6 @@
+//! Schema utilities — provider capability matrices, transformer to coerce
+//! tool input schemas to provider-specific shapes, and a sanitiser pass.
+
 pub mod analyzer;
 pub mod capabilities;
 pub mod mapper;

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -130,10 +130,9 @@ impl AiService {
     }
 
     pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn AiProvider>> {
-        self.providers
-            .get(name)
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Provider {name} not found"))
+        self.providers.get(name).cloned().ok_or_else(|| {
+            crate::error::AiError::Internal(anyhow::anyhow!("Provider {name} not found"))
+        })
     }
 
     pub(super) fn store_error(
@@ -141,7 +140,7 @@ impl AiService {
         request: &AiRequest,
         request_id: uuid::Uuid,
         latency_ms: u64,
-        error: &anyhow::Error,
+        error: &dyn std::fmt::Display,
     ) {
         use crate::models::ai::AiResponse;
 

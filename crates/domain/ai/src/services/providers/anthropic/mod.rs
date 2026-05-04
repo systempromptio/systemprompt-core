@@ -1,3 +1,6 @@
+//! Anthropic provider driver — chat completions, streaming, search-grounded
+//! responses, and tool use.
+
 pub mod converters;
 mod generation;
 mod provider;

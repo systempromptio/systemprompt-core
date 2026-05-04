@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::Result;
 use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -23,7 +23,8 @@ impl AiService {
             return Err(anyhow::anyhow!(
                 "Provider {} does not support streaming",
                 request.provider()
-            ));
+            )
+            .into());
         }
 
         let mut params = GenerationParams::new(
@@ -64,7 +65,8 @@ impl AiService {
             return Err(anyhow::anyhow!(
                 "Provider {} does not support streaming",
                 request.provider()
-            ));
+            )
+            .into());
         }
 
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
@@ -103,7 +105,11 @@ impl AiService {
             .providers
             .values()
             .find(|p| p.supports_google_search())
-            .ok_or_else(|| anyhow::anyhow!("No provider with Google Search support available"))?;
+            .ok_or_else(|| {
+                crate::error::AiError::Internal(anyhow::anyhow!(
+                    "No provider with Google Search support available"
+                ))
+            })?;
         let model = params
             .model
             .or_else(|| {

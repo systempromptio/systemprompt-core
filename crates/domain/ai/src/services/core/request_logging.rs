@@ -28,7 +28,7 @@ pub fn log_request_error(
     request_id: Uuid,
     provider_name: &str,
     latency_ms: u64,
-    error: &anyhow::Error,
+    error: &dyn std::fmt::Display,
 ) {
     error!(
         request_id = %request_id,

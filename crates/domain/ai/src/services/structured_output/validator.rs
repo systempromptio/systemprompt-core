@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use serde_json::Value as JsonValue;
 
 #[derive(Debug, Copy, Clone)]
@@ -32,7 +33,7 @@ impl SchemaValidator {
         if let Some(enum_values) = schema.get("enum").and_then(|e| e.as_array())
             && !enum_values.contains(value)
         {
-            return Err(anyhow!("Value at {path} must be one of: {enum_values:?}"));
+            return Err(anyhow!("Value at {path} must be one of: {enum_values:?}").into());
         }
 
         Ok(())
@@ -54,7 +55,8 @@ impl SchemaValidator {
                 path,
                 type_schema,
                 Self::get_json_type(value)
-            ));
+            )
+            .into());
         }
 
         Ok(())
@@ -81,14 +83,14 @@ impl SchemaValidator {
     ) -> Result<()> {
         let obj = value
             .as_object()
-            .ok_or_else(|| anyhow!("{path} must be an object"))?;
+            .ok_or_else(|| crate::error::AiError::Internal(anyhow!("{path} must be an object")))?;
 
         if let Some(required) = schema.get("required").and_then(|r| r.as_array()) {
             for req_prop in required {
                 if let Some(prop_name) = req_prop.as_str()
                     && !obj.contains_key(prop_name)
                 {
-                    return Err(anyhow!("Missing required property '{prop_name}' at {path}"));
+                    return Err(anyhow!("Missing required property '{prop_name}' at {path}").into());
                 }
             }
         }
@@ -106,7 +108,7 @@ impl SchemaValidator {
                         .unwrap_or(true);
 
                     if !allow_additional {
-                        return Err(anyhow!("Unexpected property '{key}' at {path}"));
+                        return Err(anyhow!("Unexpected property '{key}' at {path}").into());
                     }
                 }
             }
@@ -123,18 +125,18 @@ impl SchemaValidator {
     ) -> Result<()> {
         let arr = value
             .as_array()
-            .ok_or_else(|| anyhow!("{path} must be an array"))?;
+            .ok_or_else(|| crate::error::AiError::Internal(anyhow!("{path} must be an array")))?;
 
         if let Some(min_items) = schema.get("minItems").and_then(serde_json::Value::as_u64)
             && arr.len() < min_items as usize
         {
-            return Err(anyhow!("{path} must have at least {min_items} items"));
+            return Err(anyhow!("{path} must have at least {min_items} items").into());
         }
 
         if let Some(max_items) = schema.get("maxItems").and_then(serde_json::Value::as_u64)
             && arr.len() > max_items as usize
         {
-            return Err(anyhow!("{path} must have at most {max_items} items"));
+            return Err(anyhow!("{path} must have at most {max_items} items").into());
         }
 
         if let Some(items_schema) = schema.get("items") {
@@ -150,24 +152,24 @@ impl SchemaValidator {
     fn validate_string(value: &JsonValue, schema: &JsonValue, path: &str) -> Result<()> {
         let str_val = value
             .as_str()
-            .ok_or_else(|| anyhow!("{path} must be a string"))?;
+            .ok_or_else(|| crate::error::AiError::Internal(anyhow!("{path} must be a string")))?;
 
         if let Some(min_length) = schema.get("minLength").and_then(serde_json::Value::as_u64)
             && str_val.len() < min_length as usize
         {
-            return Err(anyhow!("{path} must have at least {min_length} characters"));
+            return Err(anyhow!("{path} must have at least {min_length} characters").into());
         }
 
         if let Some(max_length) = schema.get("maxLength").and_then(serde_json::Value::as_u64)
             && str_val.len() > max_length as usize
         {
-            return Err(anyhow!("{path} must have at most {max_length} characters"));
+            return Err(anyhow!("{path} must have at most {max_length} characters").into());
         }
 
         if let Some(pattern) = schema.get("pattern").and_then(|p| p.as_str())
             && !regex::Regex::new(pattern)?.is_match(str_val)
         {
-            return Err(anyhow!("{path} does not match pattern: {pattern}"));
+            return Err(anyhow!("{path} does not match pattern: {pattern}").into());
         }
 
         Ok(())
@@ -176,18 +178,18 @@ impl SchemaValidator {
     fn validate_number(value: &JsonValue, schema: &JsonValue, path: &str) -> Result<()> {
         let num_val = value
             .as_f64()
-            .ok_or_else(|| anyhow!("{path} must be a number"))?;
+            .ok_or_else(|| crate::error::AiError::Internal(anyhow!("{path} must be a number")))?;
 
         if let Some(minimum) = schema.get("minimum").and_then(serde_json::Value::as_f64)
             && num_val < minimum
         {
-            return Err(anyhow!("{path} must be >= {minimum}"));
+            return Err(anyhow!("{path} must be >= {minimum}").into());
         }
 
         if let Some(maximum) = schema.get("maximum").and_then(serde_json::Value::as_f64)
             && num_val > maximum
         {
-            return Err(anyhow!("{path} must be <= {maximum}"));
+            return Err(anyhow!("{path} must be <= {maximum}").into());
         }
 
         Ok(())
@@ -195,14 +197,14 @@ impl SchemaValidator {
 
     fn validate_boolean(value: &JsonValue, path: &str) -> Result<()> {
         if !value.is_boolean() {
-            return Err(anyhow!("{path} must be a boolean"));
+            return Err(anyhow!("{path} must be a boolean").into());
         }
         Ok(())
     }
 
     fn validate_null(value: &JsonValue, path: &str) -> Result<()> {
         if !value.is_null() {
-            return Err(anyhow!("{path} must be null"));
+            return Err(anyhow!("{path} must be null").into());
         }
         Ok(())
     }

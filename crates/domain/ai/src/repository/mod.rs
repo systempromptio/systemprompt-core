@@ -1,3 +1,13 @@
+//! Repository layer for AI domain persistence.
+//!
+//! Every type here owns `SQLx` queries against the AI domain tables
+//! (`ai_requests`, `ai_request_messages`, `ai_tool_calls`,
+//! `ai_request_payloads`, `ai_quota_buckets`, `ai_safety_findings`,
+//! `ai_gateway_policies`).
+//!
+//! All repositories return [`crate::error::RepositoryError`]. Services are
+//! the only callers — repositories never execute application logic.
+
 pub mod ai_gateway_policies;
 pub mod ai_quota_buckets;
 pub mod ai_request_payloads;

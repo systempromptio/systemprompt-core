@@ -10,7 +10,7 @@ use crate::services::providers::ModelPricing;
 use systemprompt_models::ai::StreamChunk;
 
 pub struct StreamStorageParams {
-    pub inner: Pin<Box<dyn Stream<Item = anyhow::Result<StreamChunk>> + Send>>,
+    pub inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
     pub storage: RequestStorage,
     pub request: AiRequest,
     pub request_id: Uuid,
@@ -21,7 +21,7 @@ pub struct StreamStorageParams {
 }
 
 pub struct StreamStorageWrapper {
-    inner: Pin<Box<dyn Stream<Item = anyhow::Result<StreamChunk>> + Send>>,
+    inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
     storage: RequestStorage,
     request: AiRequest,
     request_id: Uuid,
@@ -135,7 +135,7 @@ impl StreamStorageWrapper {
         });
     }
 
-    fn store_error(&self, error: &anyhow::Error) {
+    fn store_error(&self, error: &dyn std::fmt::Display) {
         let response = self.build_response();
 
         self.storage.store(&StoreParams {
@@ -150,7 +150,7 @@ impl StreamStorageWrapper {
 }
 
 impl Stream for StreamStorageWrapper {
-    type Item = anyhow::Result<StreamChunk>;
+    type Item = crate::error::Result<StreamChunk>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.inner.as_mut().poll_next(cx) {
