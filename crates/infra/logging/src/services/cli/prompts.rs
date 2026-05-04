@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use anyhow::Result;
+use crate::models::LoggingError;
+type Result<T> = std::result::Result<T, LoggingError>;
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
 
@@ -82,7 +83,10 @@ impl Prompts {
             }
             {
                 let mut stdout = std::io::stdout();
-                let _ = writeln!(stdout);
+                // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no
+                // recoverable path; recursing into tracing IS the failure mode we are trying to
+                // avoid.
+                writeln!(stdout).ok();
             }
         }
 
@@ -151,7 +155,9 @@ impl PromptBuilder {
         if !self.show_context.is_empty() {
             {
                 let mut stdout = std::io::stdout();
-                let _ = writeln!(stdout);
+                // Why: CLI display sink — see prompt_with_context above for the broken-pipe
+                // rationale.
+                writeln!(stdout).ok();
             }
         }
 

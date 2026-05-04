@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use super::policies::RetentionConfig;
+use crate::models::LoggingError;
 use crate::repository::LoggingRepository;
 use chrono::Utc;
 use systemprompt_database::DbPool;
@@ -18,7 +19,13 @@ impl RetentionScheduler {
         Self { config, db_pool }
     }
 
-    pub async fn start(self) -> anyhow::Result<()> {
+    /// Start the retention scheduler if enabled in the configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LoggingError`] when the cron scheduler cannot be created or
+    /// started.
+    pub async fn start(self) -> Result<(), LoggingError> {
         if !self.config.enabled {
             log_scheduler_disabled();
             return Ok(());
@@ -46,7 +53,7 @@ fn log_scheduler_started() {
     tracing::info!("Log retention scheduler started successfully");
 }
 
-fn create_retention_job(config: RetentionConfig, db_pool: DbPool) -> anyhow::Result<Job> {
+fn create_retention_job(config: RetentionConfig, db_pool: DbPool) -> Result<Job, LoggingError> {
     let schedule = config.schedule.clone();
 
     Job::new_async(schedule.as_str(), move |_uuid, _lock| {
@@ -62,7 +69,10 @@ fn create_retention_job(config: RetentionConfig, db_pool: DbPool) -> anyhow::Res
     .map_err(Into::into)
 }
 
-async fn execute_retention_cleanup(config: RetentionConfig, db_pool: DbPool) -> anyhow::Result<()> {
+async fn execute_retention_cleanup(
+    config: RetentionConfig,
+    db_pool: DbPool,
+) -> Result<(), LoggingError> {
     log_cleanup_starting();
     let repo = create_logging_repository(&db_pool)?;
     let total_deleted = apply_all_policies(&repo, &config.policies).await;
@@ -70,7 +80,7 @@ async fn execute_retention_cleanup(config: RetentionConfig, db_pool: DbPool) -> 
     Ok(())
 }
 
-fn create_logging_repository(db_pool: &DbPool) -> anyhow::Result<LoggingRepository> {
+fn create_logging_repository(db_pool: &DbPool) -> Result<LoggingRepository, LoggingError> {
     Ok(LoggingRepository::new(db_pool)?
         .with_database(true)
         .with_terminal(false))
@@ -116,13 +126,13 @@ fn log_policy_applied(name: &str, deleted: u64, retention_days: u32) {
     tracing::info!(policy = %name, deleted = deleted, retention_days = retention_days, "Policy applied");
 }
 
-fn log_policy_failed(name: &str, error: &anyhow::Error) {
+fn log_policy_failed(name: &str, error: &LoggingError) {
     tracing::error!(policy = %name, error = %error, "Failed to apply policy");
 }
 
 async fn cleanup_logs_before_cutoff(
     repo: &LoggingRepository,
     cutoff: chrono::DateTime<Utc>,
-) -> anyhow::Result<u64> {
-    repo.cleanup_old_logs(cutoff).await.map_err(Into::into)
+) -> Result<u64, LoggingError> {
+    repo.cleanup_old_logs(cutoff).await
 }

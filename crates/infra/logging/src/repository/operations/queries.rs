@@ -1,4 +1,3 @@
-use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
@@ -59,8 +58,7 @@ pub async fn get_log(pool: &PgPool, id: &LogId) -> Result<Option<LogEntry>, Logg
         id_str
     )
     .fetch_optional(pool)
-    .await
-    .context("Failed to get log by id")?;
+    .await?;
 
     Ok(row.map(row_to_entry))
 }
@@ -78,8 +76,7 @@ pub async fn list_logs(pool: &PgPool, limit: i64) -> Result<Vec<LogEntry>, Loggi
         limit
     )
     .fetch_all(pool)
-    .await
-    .context("Failed to list logs")?;
+    .await?;
 
     Ok(rows.into_iter().map(row_to_entry).collect())
 }
@@ -116,8 +113,7 @@ pub async fn list_logs_paginated(
         offset
     )
     .fetch_all(pool)
-    .await
-    .context("Failed to get paginated logs")?;
+    .await?;
 
     let count = fetch_filtered_count(
         pool,
@@ -165,7 +161,6 @@ async fn fetch_filtered_count(
     )
     .fetch_one(pool)
     .await
-    .context("Failed to count logs")
     .map_err(Into::into)
 }
 
@@ -189,8 +184,7 @@ pub async fn list_logs_by_module_patterns(
         limit
     )
     .fetch_all(pool)
-    .await
-    .context("Failed to list logs by module patterns")?;
+    .await?;
 
     Ok(rows.into_iter().map(row_to_entry).collect())
 }

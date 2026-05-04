@@ -22,7 +22,7 @@ pub struct LoggingRepository {
 }
 
 impl LoggingRepository {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+    pub fn new(db: &DbPool) -> Result<Self, LoggingError> {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
         Ok(Self {
@@ -50,7 +50,10 @@ impl LoggingRepository {
 
         if self.terminal_output {
             let mut stdout = std::io::stdout();
-            let _ = writeln!(stdout, "{entry}");
+            // Why: terminal log mirror — if writing to stdout fails (closed pipe), there is
+            // no recoverable path; recursing into tracing IS the failure mode
+            // we are trying to avoid.
+            writeln!(stdout, "{entry}").ok();
         }
 
         if self.db_output {
