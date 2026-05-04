@@ -1,14 +1,10 @@
+use crate::CliConfig;
+use crate::shared::CommandResult;
 use std::path::Path;
-
-use anyhow::Result;
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
-use super::{SetupArgs, postgres, profile, secrets};
-use crate::CliConfig;
-use crate::shared::CommandResult;
+use super::{SetupArgs, common, profile, secrets};
 
 pub fn execute_dry_run(
     args: &SetupArgs,
@@ -25,14 +21,20 @@ pub fn execute_dry_run(
 
     let connection_status = if args.docker {
         "docker_pending"
-    } else if postgres::detect_postgresql(&args.db_host, args.db_port) {
+    } else if common::detect_postgresql(&args.db_host, args.db_port) {
         "reachable"
     } else {
         "unreachable"
     };
 
     if !config.is_json_output() {
-        render_dry_run_preview(args, env_name, &profile_path, &secrets_path, connection_status);
+        render_preview(
+            args,
+            env_name,
+            &profile_path,
+            &secrets_path,
+            connection_status,
+        );
     }
 
     let output = SetupOutput {
@@ -64,7 +66,7 @@ pub fn execute_dry_run(
     }
 }
 
-fn render_dry_run_preview(
+fn render_preview(
     args: &SetupArgs,
     env_name: &str,
     profile_path: &Path,
@@ -85,38 +87,10 @@ fn render_dry_run_preview(
     CliService::key_value("Connection", connection_status);
 
     CliService::subsection("API Keys");
-    CliService::key_value(
-        "Anthropic",
-        if args.anthropic_key.is_some() {
-            "configured"
-        } else {
-            "not set"
-        },
-    );
-    CliService::key_value(
-        "OpenAI",
-        if args.openai_key.is_some() {
-            "configured"
-        } else {
-            "not set"
-        },
-    );
-    CliService::key_value(
-        "Gemini",
-        if args.gemini_key.is_some() {
-            "configured"
-        } else {
-            "not set"
-        },
-    );
-    CliService::key_value(
-        "GitHub",
-        if args.github_token.is_some() {
-            "configured"
-        } else {
-            "not set"
-        },
-    );
+    CliService::key_value("Anthropic", configured_label(args.anthropic_key.is_some()));
+    CliService::key_value("OpenAI", configured_label(args.openai_key.is_some()));
+    CliService::key_value("Gemini", configured_label(args.gemini_key.is_some()));
+    CliService::key_value("GitHub", configured_label(args.github_token.is_some()));
 
     CliService::subsection("Migrations");
     let migration_status = if args.migrate {
@@ -132,69 +106,6 @@ fn render_dry_run_preview(
     CliService::info("Run without --dry-run to execute setup");
 }
 
-pub fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {
-    if let Some(ref env) = args.environment {
-        return Ok(env.clone());
-    }
-
-    if !config.is_interactive() {
-        return Ok("dev".to_string());
-    }
-
-    CliService::info("Enter environment name (e.g., 'dev', 'staging', 'prod')");
-    CliService::info("Press Enter for default: dev");
-
-    let input: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Environment name")
-        .default("dev".to_string())
-        .interact_text()?;
-
-    Ok(input.trim().to_lowercase())
-}
-
-pub fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {
-    if args.migrate {
-        return Ok(true);
-    }
-    if args.no_migrate {
-        return Ok(false);
-    }
-    if !config.is_interactive() {
-        return Ok(false);
-    }
-
-    let run = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Run database migrations now?")
-        .default(true)
-        .interact()?;
-
-    Ok(run)
-}
-
-pub fn print_summary(env_name: &str, profile_path: &Path) {
-    CliService::section("Setup Complete!");
-
-    CliService::info(&format!(
-        "Created profile: {} -> {}",
-        env_name,
-        profile_path.display()
-    ));
-
-    CliService::section("Next Steps");
-
-    CliService::info(&format!(
-        "1. Set your profile environment variable for '{}':",
-        env_name
-    ));
-    CliService::info(&format!(
-        "   export SYSTEMPROMPT_PROFILE={}",
-        profile_path.display()
-    ));
-    CliService::info("");
-    CliService::info("2. Start services:");
-    CliService::info("   just start");
-    CliService::info("");
-    CliService::info("3. (Optional) Configure cloud deployment:");
-    CliService::info("   systemprompt cloud login");
-    CliService::info("   systemprompt cloud config");
+const fn configured_label(present: bool) -> &'static str {
+    if present { "configured" } else { "not set" }
 }

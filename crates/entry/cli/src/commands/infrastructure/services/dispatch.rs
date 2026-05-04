@@ -2,10 +2,7 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 
-use super::restart;
-use super::start;
-use super::stop;
-use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget};
+use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget, restart, start, stop};
 use crate::cli_settings::CliConfig;
 use crate::shared::render_result;
 
@@ -20,7 +17,17 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             foreground: _,
             skip_migrate,
             kill_port_process,
-        } => execute_start(target, all, api, agents, mcp, skip_migrate, kill_port_process, config).await,
+        } => {
+            let flags = start::ServiceFlags {
+                all,
+                targets: start::ServiceTargetFlags { api, agents, mcp },
+            };
+            let options = start::StartupOptions {
+                skip_migrate,
+                kill_port_process,
+            };
+            execute_start(target, flags, options, config).await
+        },
 
         ServicesCommands::Stop {
             target,
@@ -29,7 +36,13 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             agents,
             mcp,
             force,
-        } => execute_stop(target, all, api, agents, mcp, force, config).await,
+        } => {
+            let flags = start::ServiceFlags {
+                all,
+                targets: start::ServiceTargetFlags { api, agents, mcp },
+            };
+            execute_stop(target, flags, force, config).await
+        },
 
         ServicesCommands::Restart {
             target,
@@ -63,12 +76,8 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
 
 async fn execute_start(
     target: Option<StartTarget>,
-    all: bool,
-    api: bool,
-    agents: bool,
-    mcp: bool,
-    skip_migrate: bool,
-    kill_port_process: bool,
+    flags: start::ServiceFlags,
+    options: start::StartupOptions,
     config: &CliConfig,
 ) -> Result<()> {
     if let Some(individual) = target {
@@ -87,24 +96,13 @@ async fn execute_start(
         };
     }
 
-    let flags = start::ServiceFlags {
-        all,
-        targets: start::ServiceTargetFlags { api, agents, mcp },
-    };
     let service_target = start::ServiceTarget::from_flags(flags);
-    let options = start::StartupOptions {
-        skip_migrate,
-        kill_port_process,
-    };
     start::execute(service_target, options, config).await
 }
 
 async fn execute_stop(
     target: Option<StopTarget>,
-    all: bool,
-    api: bool,
-    agents: bool,
-    mcp: bool,
+    flags: start::ServiceFlags,
     force: bool,
     config: &CliConfig,
 ) -> Result<()> {
@@ -116,8 +114,7 @@ async fn execute_stop(
         );
         return match individual {
             StopTarget::Agent { agent, force } => {
-                let result =
-                    stop::execute_individual_agent(&ctx, &agent, force, config).await?;
+                let result = stop::execute_individual_agent(&ctx, &agent, force, config).await?;
                 render_result(&result);
                 Ok(())
             },
@@ -130,10 +127,6 @@ async fn execute_stop(
         };
     }
 
-    let flags = start::ServiceFlags {
-        all,
-        targets: start::ServiceTargetFlags { api, agents, mcp },
-    };
     let service_target = start::ServiceTarget::from_flags(flags);
     let result = stop::execute(service_target, force, config).await?;
     render_result(&result);

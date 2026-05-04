@@ -1,10 +1,14 @@
 mod common;
 mod docker;
+mod docker_compose;
+mod docker_database;
 mod postgres;
 mod profile;
 mod secrets;
 mod types;
 mod wizard;
+mod wizard_dry_run;
+mod wizard_prompts;
 
 use crate::shared::CommandResult;
 use anyhow::Result;
