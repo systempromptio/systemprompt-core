@@ -1,10 +1,16 @@
+mod cache;
+mod responses;
+
+pub use cache::{CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, compute_etag};
+
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode, Uri, header};
+use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::response::IntoResponse;
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use super::config::StaticContentMatcher;
+use cache::{resolve_mime_type, serve_cached_file};
+use responses::{not_found_response, not_prerendered_response};
 use systemprompt_content::ContentRepository;
 use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::SourceId;
@@ -16,86 +22,6 @@ pub struct StaticContentState {
     pub ctx: Arc<AppContext>,
     pub matcher: Arc<StaticContentMatcher>,
     pub route_classifier: Arc<RouteClassifier>,
-}
-
-pub const CACHE_STATIC_ASSET: &str = "public, max-age=31536000, immutable";
-pub const CACHE_HTML: &str = "no-cache";
-pub const CACHE_METADATA: &str = "public, max-age=3600";
-
-pub fn compute_etag(content: &[u8]) -> String {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    content.hash(&mut hasher);
-    format!("\"{}\"", hasher.finish())
-}
-
-fn etag_matches(headers: &HeaderMap, etag: &str) -> bool {
-    headers
-        .get(header::IF_NONE_MATCH)
-        .and_then(|v| v.to_str().ok())
-        == Some(etag)
-}
-
-fn not_modified_response(etag: &str, cache_control: &'static str) -> axum::response::Response {
-    (
-        StatusCode::NOT_MODIFIED,
-        [
-            (header::ETAG, etag.to_string()),
-            (header::CACHE_CONTROL, cache_control.to_string()),
-        ],
-    )
-        .into_response()
-}
-
-fn serve_file_response(
-    content: Vec<u8>,
-    content_type: String,
-    cache_control: &'static str,
-    etag: String,
-) -> axum::response::Response {
-    (
-        StatusCode::OK,
-        [
-            (header::CONTENT_TYPE, content_type),
-            (header::CACHE_CONTROL, cache_control.to_string()),
-            (header::ETAG, etag),
-        ],
-        content,
-    )
-        .into_response()
-}
-
-async fn serve_cached_file(
-    file_path: &std::path::Path,
-    headers: &HeaderMap,
-    content_type: &str,
-    cache_control: &'static str,
-) -> axum::response::Response {
-    match tokio::fs::read(file_path).await {
-        Ok(content) => {
-            let etag = compute_etag(&content);
-            if etag_matches(headers, &etag) {
-                return not_modified_response(&etag, cache_control);
-            }
-            serve_file_response(content, content_type.to_string(), cache_control, etag)
-        },
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Error reading file").into_response(),
-    }
-}
-
-fn resolve_mime_type(path: &std::path::Path) -> &'static str {
-    match path.extension().and_then(|ext| ext.to_str()) {
-        Some("js") => "application/javascript",
-        Some("css") => "text/css",
-        Some("woff" | "woff2") => "font/woff2",
-        Some("ttf") => "font/ttf",
-        Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
-        Some("svg") => "image/svg+xml",
-        Some("ico") => "image/x-icon",
-        Some("json") => "application/json",
-        Some("pdf") => "application/pdf",
-        _ => "application/octet-stream",
-    }
 }
 
 pub async fn serve_static_content(
@@ -246,61 +172,4 @@ async fn serve_content_page(
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
         },
     }
-}
-
-fn not_prerendered_response(path: &str, slug: &str) -> axum::response::Response {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        axum::response::Html(format!(
-            concat!(
-                "<!DOCTYPE html><html><head><title>Content Not Prerendered</title>",
-                "<meta charset=\"utf-8\"><meta name=\"viewport\" ",
-                "content=\"width=device-width, initial-scale=1\">",
-                "</head><body><h1>Content Not Prerendered</h1>",
-                "<p>Content exists but has not been prerendered to HTML.</p>",
-                "<p>Route: <code>{}</code></p><p>Slug: <code>{}</code></p>",
-                "</body></html>",
-            ),
-            path, slug
-        )),
-    )
-        .into_response()
-}
-
-async fn not_found_response(
-    dist_dir: &std::path::Path,
-    headers: &HeaderMap,
-) -> axum::response::Response {
-    let custom_404 = dist_dir.join("404.html");
-    if custom_404.exists() {
-        if let Ok(content) = tokio::fs::read(&custom_404).await {
-            let etag = compute_etag(&content);
-            if etag_matches(headers, &etag) {
-                return not_modified_response(&etag, CACHE_HTML);
-            }
-            return (
-                StatusCode::NOT_FOUND,
-                [
-                    (header::CONTENT_TYPE, "text/html".to_string()),
-                    (header::CACHE_CONTROL, CACHE_HTML.to_string()),
-                    (header::ETAG, etag),
-                ],
-                content,
-            )
-                .into_response();
-        }
-    }
-
-    (
-        StatusCode::NOT_FOUND,
-        axum::response::Html(concat!(
-            "<!DOCTYPE html><html><head><title>404 Not Found</title>",
-            "<meta charset=\"utf-8\"><meta name=\"viewport\" ",
-            "content=\"width=device-width, initial-scale=1\">",
-            "</head><body><h1>404 - Page Not Found</h1>",
-            "<p>The page you're looking for doesn't exist.</p>",
-            "<p><a href=\"/\">Back to home</a></p></body></html>",
-        )),
-    )
-        .into_response()
 }
