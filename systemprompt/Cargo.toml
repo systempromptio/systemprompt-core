@@ -138,9 +138,32 @@ sqlx = { workspace = true, optional = true }
 rmcp = { workspace = true, optional = true }
 
 # Error handling and utilities
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[example]]
+name = "extension"
+required-features = ["core"]
+
+[[example]]
+name = "database"
+required-features = ["database"]
+
+[[example]]
+name = "api"
+required-features = ["api"]
+
+[[example]]
+name = "cli"
+required-features = ["cli"]
