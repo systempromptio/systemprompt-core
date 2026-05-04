@@ -46,8 +46,7 @@ impl Job for BehavioralAnalysisJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        let fingerprint_repo =
-            FingerprintRepository::new(&db_pool).map_err(anyhow::Error::new)?;
+        let fingerprint_repo = FingerprintRepository::new(&db_pool).map_err(anyhow::Error::new)?;
         let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(|e| {
             systemprompt_provider_contracts::ProviderError::Configuration(e.to_string())
         })?;
