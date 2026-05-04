@@ -1,3 +1,6 @@
+//! `scheduled_jobs` table access — read replica + write pool wrapper.
+
+use crate::error::SchedulerResult;
 use crate::models::{JobStatus, ScheduledJob};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
@@ -5,6 +8,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ScheduledJobId;
 
+/// Repository for the `scheduled_jobs` table.
 #[derive(Debug, Clone)]
 pub struct JobRepository {
     pool: Arc<PgPool>,
@@ -12,18 +16,22 @@ pub struct JobRepository {
 }
 
 impl JobRepository {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+    /// Construct a new repository, capturing both the read and write pool
+    /// handles from the shared [`DbPool`].
+    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
         Ok(Self { pool, write_pool })
     }
 
+    /// Insert a new `scheduled_jobs` row, or update `schedule`/`enabled` on
+    /// conflict with the existing row keyed by `job_name`.
     pub async fn upsert_job(
         &self,
         job_name: &str,
         schedule: &str,
         enabled: bool,
-    ) -> anyhow::Result<()> {
+    ) -> SchedulerResult<()> {
         let id = ScheduledJobId::generate();
         let now = Utc::now();
 
@@ -49,7 +57,8 @@ impl JobRepository {
         Ok(())
     }
 
-    pub async fn find_job(&self, job_name: &str) -> anyhow::Result<Option<ScheduledJob>> {
+    /// Fetch the row keyed by `job_name`, returning `None` if absent.
+    pub async fn find_job(&self, job_name: &str) -> SchedulerResult<Option<ScheduledJob>> {
         sqlx::query_as!(
             ScheduledJob,
             r#"
@@ -65,7 +74,9 @@ impl JobRepository {
         .map_err(Into::into)
     }
 
-    pub async fn list_enabled_jobs(&self) -> anyhow::Result<Vec<ScheduledJob>> {
+    /// List every job row whose `enabled` flag is currently `true`,
+    /// alphabetised by `job_name`.
+    pub async fn list_enabled_jobs(&self) -> SchedulerResult<Vec<ScheduledJob>> {
         sqlx::query_as!(
             ScheduledJob,
             r#"
@@ -81,13 +92,15 @@ impl JobRepository {
         .map_err(Into::into)
     }
 
+    /// Persist the post-execution status, optional error message, and next
+    /// scheduled run for a job.
     pub async fn update_job_execution(
         &self,
         job_name: &str,
         status: JobStatus,
         error: Option<&str>,
         next_run: Option<DateTime<Utc>>,
-    ) -> anyhow::Result<()> {
+    ) -> SchedulerResult<()> {
         let now = Utc::now();
         let status_str = status.as_str();
 
@@ -114,7 +127,8 @@ impl JobRepository {
         Ok(())
     }
 
-    pub async fn increment_run_count(&self, job_name: &str) -> anyhow::Result<()> {
+    /// Increment the `run_count` for a job by 1.
+    pub async fn increment_run_count(&self, job_name: &str) -> SchedulerResult<()> {
         sqlx::query!(
             "UPDATE scheduled_jobs SET run_count = run_count + 1 WHERE job_name = $1",
             job_name

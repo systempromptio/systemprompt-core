@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! Behavioural-analysis job: scans fingerprint reputation rows, flags
+//! suspicious patterns, and bans IPs that crossed the abuse threshold.
+
 use async_trait::async_trait;
 use systemprompt_analytics::{
     ABUSE_THRESHOLD_FOR_BAN, FingerprintRepository, FingerprintReputation, FlagReason,
@@ -9,8 +11,12 @@ use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tracing::{info, warn};
 
+use crate::error::SchedulerError;
+
 const SESSION_ABUSE_THRESHOLD: i32 = 10;
 
+/// Scheduled job that scans fingerprint reputation rows and flags or bans
+/// abusive sources.
 #[derive(Debug, Clone, Copy)]
 pub struct BehavioralAnalysisJob;
 
@@ -43,20 +49,18 @@ impl Job for BehavioralAnalysisJob {
 
         let db_pool = std::sync::Arc::clone(
             ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
+                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
 
-        let fingerprint_repo = FingerprintRepository::new(&db_pool).map_err(anyhow::Error::new)?;
-        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(|e| {
-            systemprompt_provider_contracts::ProviderError::Configuration(e.to_string())
-        })?;
+        let fingerprint_repo = FingerprintRepository::new(&db_pool).map_err(SchedulerError::from)?;
+        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(SchedulerError::from)?;
 
         info!("Starting behavioral analysis job");
 
         let fingerprints = fingerprint_repo
             .get_fingerprints_for_analysis()
             .await
-            .map_err(anyhow::Error::new)?;
+            .map_err(SchedulerError::from)?;
         let stats = process_fingerprints(&fingerprints, &fingerprint_repo, &banned_ip_repo).await;
         let expired_cleaned = match banned_ip_repo.cleanup_expired().await {
             Ok(count) => count,

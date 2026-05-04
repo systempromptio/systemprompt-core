@@ -1,29 +1,39 @@
+//! Reconciler — given a list of [`ServiceConfig`] and a `start_service`
+//! callback, drives runtime state to match desired state.
+
 use std::future::Future;
 use std::sync::Arc;
 
-use anyhow::Result;
 use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 
 use super::process_cleanup::ProcessCleanup;
 use super::state_manager::{ServiceConfig, ServiceStateManager};
 use super::state_types::ServiceAction;
 use super::verified_state::VerifiedServiceState;
+use crate::error::{SchedulerError, SchedulerResult};
 
 const DELETE_SERVICE_BY_NAME: DatabaseQuery =
     DatabaseQuery::new("DELETE FROM services WHERE name = $1");
 const UPDATE_SERVICE_TO_STOPPED: DatabaseQuery =
     DatabaseQuery::new("UPDATE services SET status = 'stopped', pid = NULL WHERE name = $1");
 
+/// Aggregate outcome of a reconciliation pass.
 #[derive(Debug, Default)]
 pub struct ReconciliationResult {
+    /// Services successfully started this pass.
     pub started: Vec<String>,
+    /// Services successfully stopped this pass.
     pub stopped: Vec<String>,
+    /// Services successfully restarted this pass.
     pub restarted: Vec<String>,
+    /// Services whose stale DB or process state was reaped.
     pub cleaned_up: Vec<String>,
+    /// Services that failed an action, paired with the error message.
     pub failed: Vec<(String, String)>,
 }
 
 impl ReconciliationResult {
+    /// Construct an empty result.
     pub const fn new() -> Self {
         Self {
             started: Vec::new(),
@@ -34,15 +44,18 @@ impl ReconciliationResult {
         }
     }
 
+    /// Return whether every action in this pass succeeded.
     pub fn is_success(&self) -> bool {
         self.failed.is_empty()
     }
 
+    /// Return the total count of successful actions across all categories.
     pub fn total_actions(&self) -> usize {
         self.started.len() + self.stopped.len() + self.restarted.len() + self.cleaned_up.len()
     }
 }
 
+/// Service reconciler that converges runtime state to desired state.
 #[derive(Debug)]
 pub struct ServiceReconciler {
     state_manager: ServiceStateManager,
@@ -50,6 +63,7 @@ pub struct ServiceReconciler {
 }
 
 impl ServiceReconciler {
+    /// Construct a new reconciler.
     pub fn new(db_pool: DbPool) -> Self {
         Self {
             state_manager: ServiceStateManager::new(Arc::clone(&db_pool)),
@@ -57,14 +71,15 @@ impl ServiceReconciler {
         }
     }
 
+    /// Execute one reconciliation pass over the supplied configs.
     pub async fn reconcile<F, Fut>(
         &self,
         configs: &[ServiceConfig],
         start_service: F,
-    ) -> Result<ReconciliationResult>
+    ) -> SchedulerResult<ReconciliationResult>
     where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<()>> + Send,
+        Fut: Future<Output = anyhow::Result<()>> + Send,
     {
         let states = self.state_manager.get_verified_states(configs).await?;
         let mut result = ReconciliationResult::new();
@@ -84,7 +99,7 @@ impl ServiceReconciler {
         result: &mut ReconciliationResult,
     ) where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<()>> + Send,
+        Fut: Future<Output = anyhow::Result<()>> + Send,
     {
         match state.needs_action {
             ServiceAction::None => {},
@@ -113,7 +128,7 @@ impl ServiceReconciler {
         result: &mut ReconciliationResult,
     ) where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<()>> + Send,
+        Fut: Future<Output = anyhow::Result<()>> + Send,
     {
         match start_service(state.name.clone(), state.port).await {
             Ok(()) => result.started.push(state.name),
@@ -135,7 +150,7 @@ impl ServiceReconciler {
         result: &mut ReconciliationResult,
     ) where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<()>> + Send,
+        Fut: Future<Output = anyhow::Result<()>> + Send,
     {
         if let Err(e) = self.stop_service(&state).await {
             result.failed.push((state.name, e.to_string()));
@@ -170,7 +185,7 @@ impl ServiceReconciler {
         }
     }
 
-    async fn stop_service(&self, state: &VerifiedServiceState) -> Result<()> {
+    async fn stop_service(&self, state: &VerifiedServiceState) -> SchedulerResult<()> {
         if let Some(pid) = state.pid {
             ProcessCleanup::terminate_gracefully(pid, 100).await;
         }
@@ -186,19 +201,21 @@ impl ServiceReconciler {
         ProcessCleanup::kill_port(state.port);
     }
 
-    async fn cleanup_db_entry(&self, name: &str) -> Result<()> {
+    async fn cleanup_db_entry(&self, name: &str) -> SchedulerResult<()> {
         self.db_pool
             .as_ref()
             .execute(&DELETE_SERVICE_BY_NAME, &[&name])
-            .await?;
+            .await
+            .map_err(SchedulerError::Other)?;
         Ok(())
     }
 
-    async fn update_service_stopped(&self, name: &str) -> Result<()> {
+    async fn update_service_stopped(&self, name: &str) -> SchedulerResult<()> {
         self.db_pool
             .as_ref()
             .execute(&UPDATE_SERVICE_TO_STOPPED, &[&name])
-            .await?;
+            .await
+            .map_err(SchedulerError::Other)?;
         Ok(())
     }
 }
