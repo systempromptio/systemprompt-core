@@ -1,11 +1,20 @@
+//! Generic transaction wrappers that work directly with [`PgPool`] /
+//! [`PgDbPool`] without going through the dyn-safe trait.
+
 use crate::error::RepositoryError;
 use crate::repository::PgDbPool;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::future::Future;
 use std::pin::Pin;
 
+/// Pinned, boxed future returned by transaction-callback closures. Used in
+/// place of `dyn Future` because the callback closure cannot itself be
+/// generic over `'c`.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
+/// Run `f` inside a transaction, committing on `Ok` and bubbling errors. The
+/// error type `E` must be constructible from `sqlx::Error` so begin/commit
+/// failures bubble up cleanly.
 pub async fn with_transaction<F, T, E>(pool: &PgDbPool, f: F) -> Result<T, E>
 where
     F: for<'c> FnOnce(&'c mut Transaction<'_, Postgres>) -> BoxFuture<'c, Result<T, E>>,
@@ -17,6 +26,8 @@ where
     Ok(result)
 }
 
+/// Same as [`with_transaction`] but takes a bare [`PgPool`] for callers that
+/// have not gone through [`PgDbPool`].
 pub async fn with_transaction_raw<F, T, E>(pool: &PgPool, f: F) -> Result<T, E>
 where
     F: for<'c> FnOnce(&'c mut Transaction<'_, Postgres>) -> BoxFuture<'c, Result<T, E>>,
@@ -28,6 +39,9 @@ where
     Ok(result)
 }
 
+/// Retrying variant: for serialization (`40001`) and deadlock (`40P01`)
+/// errors, rolls back, sleeps with exponential backoff, and re-runs the
+/// callback up to `max_retries` times.
 pub async fn with_transaction_retry<F, T>(
     pool: &PgDbPool,
     max_retries: u32,

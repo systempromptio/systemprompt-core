@@ -1,3 +1,11 @@
+//! `PostgreSQL` implementation of [`crate::services::DatabaseProvider`].
+//!
+//! This module is part of the documented sqlx allowlist: every `sqlx::query(_)`
+//! call here either binds a [`crate::models::QuerySelector`] string supplied
+//! at runtime (extension-defined SQL, dynamic admin queries) or executes
+//! `SELECT 1` for connection probing. Static SQL goes through the verified
+//! macros elsewhere.
+
 pub mod conversion;
 mod ext;
 mod introspection;
@@ -17,12 +25,19 @@ use crate::models::{
 use conversion::{bind_params, row_to_json, rows_to_result};
 use transaction::PostgresTransaction;
 
+/// Concrete [`DatabaseProvider`] backed by a single `SQLx` [`PgPool`].
+///
+/// The provider is `Send + Sync` and cheaply cloneable — wrap in [`Arc`] to
+/// hand it to extension code through `dyn DatabaseProvider`.
 #[derive(Debug)]
 pub struct PostgresProvider {
     pool: Arc<PgPool>,
 }
 
 impl PostgresProvider {
+    /// Open a new pool against `database_url`. Recognises `sslmode=require`
+    /// and `sslmode=disable` and respects `PGCA_CERT_PATH` for a custom CA
+    /// certificate.
     pub async fn new(database_url: &str) -> Result<Self> {
         let mut connect_options = PgConnectOptions::from_str(database_url)
             .map_err(|e| anyhow!("Failed to parse database URL: {e}"))?;
@@ -53,7 +68,7 @@ impl PostgresProvider {
             .idle_timeout(std::time::Duration::from_secs(300))
             .connect_with(connect_options)
             .await
-            .map_err(|e| anyhow!("Failed to connect to PostgreSQL: {e}"))?;
+            .map_err(|e| anyhow!("Failed to connect to `PostgreSQL`: {e}"))?;
 
         Ok(Self {
             pool: Arc::new(pool),
@@ -66,6 +81,7 @@ impl PostgresProvider {
             .map(std::path::PathBuf::from)
     }
 
+    /// Borrow the underlying [`PgPool`].
     #[must_use]
     pub fn pool(&self) -> &PgPool {
         &self.pool
