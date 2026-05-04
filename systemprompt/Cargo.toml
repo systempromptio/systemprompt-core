@@ -48,6 +48,14 @@ sync = ["dep:systemprompt-sync"]
 # Cloud infrastructure (API client, credentials, OAuth)
 cloud = ["dep:systemprompt-cloud"]
 
+# Granular infrastructure features (also bundled in `full`)
+logging = ["dep:systemprompt-logging"]
+config = ["dep:systemprompt-config"]
+loader = ["dep:systemprompt-loader"]
+events = ["dep:systemprompt-events"]
+client = ["dep:systemprompt-client"]
+security = ["dep:systemprompt-security"]
+
 # Test utilities (credential fixtures, etc.)
 test-utils = ["cloud"]
 
@@ -73,15 +81,15 @@ full = [
     "dep:systemprompt-analytics",
     "dep:systemprompt-scheduler",
     "dep:systemprompt-generator",
-    "dep:systemprompt-logging",
+    "logging",
     "systemprompt-logging/cli",
-    "dep:systemprompt-config",
+    "config",
     "dep:systemprompt-files",
     # Infrastructure crates for extension authors
-    "dep:systemprompt-loader",
-    "dep:systemprompt-events",
-    "dep:systemprompt-client",
-    "dep:systemprompt-security",
+    "loader",
+    "events",
+    "client",
+    "security",
 ]
 
 [dependencies]
