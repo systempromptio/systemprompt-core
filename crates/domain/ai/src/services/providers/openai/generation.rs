@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use serde_json::json;
 use std::time::Instant;
 use tracing::warn;
@@ -63,7 +64,7 @@ pub async fn generate(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("OpenAI API error: {error_text}"));
+        return Err(anyhow!("OpenAI API error: {error_text}").into());
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
@@ -117,7 +118,7 @@ pub async fn generate_with_tools(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("OpenAI API error: {error_text}"));
+        return Err(anyhow!("OpenAI API error: {error_text}").into());
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
@@ -125,7 +126,7 @@ pub async fn generate_with_tools(
     let choice = openai_response
         .choices
         .first()
-        .ok_or_else(|| anyhow!("No response from OpenAI"))?;
+        .ok_or_else(|| crate::error::AiError::Internal(anyhow!("No response from OpenAI")))?;
 
     let tool_calls = choice
         .message
@@ -208,7 +209,7 @@ pub async fn generate_structured(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("OpenAI API error: {error_text}"));
+        return Err(anyhow!("OpenAI API error: {error_text}").into());
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
@@ -267,7 +268,7 @@ pub async fn generate_with_schema(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("OpenAI API error: {error_text}"));
+        return Err(anyhow!("OpenAI API error: {error_text}").into());
     }
 
     let openai_response: OpenAiResponse = response.json().await?;

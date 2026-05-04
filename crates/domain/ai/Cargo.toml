@@ -13,6 +13,9 @@ description = "Provider-agnostic LLM integration for systemprompt.io AI governan
 readme = "README.md"
 include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
 
@@ -53,5 +56,6 @@ systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
 

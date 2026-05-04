@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use systemprompt_models::services::AiConfig;
 use tracing::warn;
 
@@ -47,7 +48,7 @@ impl ConfigValidator {
                 config.providers.keys().collect::<Vec<_>>()
             ));
 
-            return Err(anyhow!(error_msg));
+            return Err(anyhow!(error_msg).into());
         }
 
         for (name, provider_config) in &enabled_providers {
@@ -57,11 +58,12 @@ impl ConfigValidator {
                      your secrets.json file",
                     name,
                     name
-                ));
+                )
+                .into());
             }
 
             if provider_config.default_model.is_empty() {
-                return Err(anyhow!("Provider {name} has no default model specified"));
+                return Err(anyhow!("Provider {name} has no default model specified").into());
             }
         }
 
@@ -71,7 +73,8 @@ impl ConfigValidator {
                  Update 'default_provider' in your config file",
                 config.default_provider,
                 config.providers.keys().collect::<Vec<_>>()
-            ));
+            )
+            .into());
         }
 
         if !config.providers[&config.default_provider].enabled {
@@ -89,7 +92,8 @@ impl ConfigValidator {
                 config.default_provider,
                 available,
                 config.default_provider
-            ));
+            )
+            .into());
         }
 
         Ok(())
@@ -103,11 +107,11 @@ impl ConfigValidator {
 
     fn validate_mcp(config: &AiConfig) -> Result<()> {
         if config.mcp.connect_timeout_ms == 0 {
-            return Err(anyhow!("MCP connect timeout must be greater than 0"));
+            return Err(anyhow!("MCP connect timeout must be greater than 0").into());
         }
 
         if config.mcp.execution_timeout_ms == 0 {
-            return Err(anyhow!("MCP execution timeout must be greater than 0"));
+            return Err(anyhow!("MCP execution timeout must be greater than 0").into());
         }
 
         if config.mcp.retry_attempts == 0 {

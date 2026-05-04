@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use std::time::Instant;
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -242,10 +243,9 @@ fn build_tool_result_request(
 }
 
 fn extract_synthesis_content(gemini_response: &GeminiResponse) -> Result<String> {
-    let candidate = gemini_response
-        .candidates
-        .first()
-        .ok_or_else(|| anyhow!("No response from Gemini for tool synthesis"))?;
+    let candidate = gemini_response.candidates.first().ok_or_else(|| {
+        crate::error::AiError::Internal(anyhow!("No response from Gemini for tool synthesis"))
+    })?;
 
     let finish_reason = candidate.finish_reason.as_deref().unwrap_or("UNKNOWN");
 

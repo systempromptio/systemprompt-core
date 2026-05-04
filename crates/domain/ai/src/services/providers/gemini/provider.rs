@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::Result;
 use reqwest::Client;
 use std::sync::Arc;
 use systemprompt_database::DbPool;

@@ -1,3 +1,6 @@
+//! `OpenAI` provider driver — chat completions, streaming, structured
+//! outputs, and tool use.
+
 pub mod converters;
 mod generation;
 mod provider;
