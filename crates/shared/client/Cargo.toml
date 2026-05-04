@@ -29,7 +29,6 @@ serde_json = { workspace = true }
 chrono = { workspace = true }
 
 # Error handling
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 
 # Logging
@@ -38,3 +37,7 @@ tracing = { workspace = true }
 # Shared types (no business logic dependencies)
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

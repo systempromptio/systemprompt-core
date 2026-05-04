@@ -12,17 +12,38 @@ use std::path::{Component, PathBuf};
 #[cfg(feature = "tokio")]
 use tokio::fs;
 
+/// Loads template source bytes from a [`TemplateSource`].
+///
+/// Implementations decide how to resolve embedded, file, and directory
+/// sources. The trait uses `#[async_trait]` because it is consumed
+/// dynamically via [`DynTemplateLoader`](crate::DynTemplateLoader); a native
+/// `async fn` would not be `dyn`-compatible.
 #[async_trait]
 pub trait TemplateLoader: Send + Sync {
+    /// Read a single template's content. Returns
+    /// [`TemplateLoaderError::NotFound`] when the source cannot be located,
+    /// or a security error when the path escapes the configured sandbox.
     async fn load(&self, source: &TemplateSource) -> Result<String>;
 
+    /// Cheap predicate used by composite loaders to dispatch a source to the
+    /// right concrete loader without invoking I/O.
     fn can_load(&self, source: &TemplateSource) -> bool;
 
+    /// Enumerate every template inside a directory, returning
+    /// `(template_name, content)` pairs. The default implementation rejects
+    /// the call with [`TemplateLoaderError::DirectoryLoadingUnsupported`].
     async fn load_directory(&self, _path: &Path) -> Result<Vec<(String, String)>> {
         Err(TemplateLoaderError::DirectoryLoadingUnsupported)
     }
 }
 
+/// Filesystem-backed [`TemplateLoader`] using `tokio::fs`.
+///
+/// The loader is sandboxed: every resolved path is canonicalised and required
+/// to live under one of the configured base paths. `..` components are rejected
+/// up-front, and absolute paths must still canonicalise into a base directory.
+///
+/// Available only when the `tokio` feature is enabled.
 #[cfg(feature = "tokio")]
 #[derive(Debug, Default)]
 pub struct FileSystemLoader {
@@ -31,11 +52,13 @@ pub struct FileSystemLoader {
 
 #[cfg(feature = "tokio")]
 impl FileSystemLoader {
+    /// Construct a loader with an explicit list of base paths.
     #[must_use]
     pub const fn new(base_paths: Vec<PathBuf>) -> Self {
         Self { base_paths }
     }
 
+    /// Construct a loader with a single base path.
     #[must_use]
     pub fn with_path(path: impl Into<PathBuf>) -> Self {
         Self {
@@ -43,6 +66,7 @@ impl FileSystemLoader {
         }
     }
 
+    /// Append another base path, returning the loader by value for chaining.
     #[must_use]
     pub fn add_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.base_paths.push(path.into());
@@ -215,6 +239,10 @@ impl TemplateLoader for FileSystemLoader {
     }
 }
 
+/// [`TemplateLoader`] that only resolves [`TemplateSource::Embedded`].
+///
+/// Useful as the default loader in builds where templates are baked into the
+/// binary via `include_str!()` and no filesystem fallback is desired.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct EmbeddedLoader;
 

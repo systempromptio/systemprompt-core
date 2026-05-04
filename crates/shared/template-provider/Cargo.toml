@@ -28,3 +28,7 @@ tokio = { workspace = true, features = ["fs", "sync"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
