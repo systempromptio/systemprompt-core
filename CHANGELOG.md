@@ -1,6 +1,34 @@
 # Changelog
 
-## [Unreleased]
+## [0.5.0] - 2026-05-04
+
+### Added
+
+- **`AppPaths` accessor on `AppContext`** (`crates/app/runtime/src/context.rs`). `ctx.app_paths()` returns `&AppPaths` and `ctx.app_paths_arc()` returns `Arc<AppPaths>`. Replaces the deleted `AppPaths::get()` global singleton.
+- **`OauthResult<T>` and `FilesResult<T>`** type aliases now exposed by `systemprompt-oauth` and `systemprompt-files` crates. Public-API surface (repositories, services, validators) returns these typed results.
+- **`crates/infra/config/src/bootstrap/`** module — new home for `SecretsBootstrap`, `ProfileBootstrap`, `manifest_seed`, and the `BootstrapSequence<S>` machinery. The `BootstrapSequence` is now `Uninitialized → ProfileInitialized → SecretsInitialized → BootstrapComplete` (paths state removed).
+- **`CategoryIdUpdate` re-export** from `systemprompt-content` for explicit `Unchanged | Clear | Set(CategoryId)` semantics; replaces `Option<Option<CategoryId>>` in the CLI content-edit state.
+
+### Changed
+
+- **Breaking — `AppPaths` is no longer a global singleton.** `AppPaths::init` and `AppPaths::get` are deleted. `AppPaths::from_profile(&profile.paths)` is the sole constructor. Components that previously called `AppPaths::get()` now receive `&AppPaths` (or `Arc<AppPaths>`) explicitly: 42 call sites across `infra/`, `domain/`, `app/`, `entry/`, and `crates/tests/` were rewritten. `JobContext` carries `app_paths` as a type-erased `Arc<dyn Any + Send + Sync>` (parallel to `db_pool` and `app_context`) so generator/sync jobs can downcast without depending on `systemprompt-runtime`.
+- **Breaking — bootstrap I/O moved out of `systemprompt-models`.** `SecretsBootstrap`, `ProfileBootstrap`, `manifest_seed`, and the `BootstrapSequence<S>` machinery now live in `systemprompt-config`. `Secrets::load_from_path` is replaced by free function `systemprompt_config::load_secrets_from_path`. `Config::try_init` / `Config::init` / `Config::from_profile` are replaced by `systemprompt_config::{try_init_config, init_config, init_config_from_profile, build_from_profile}`. `Config::is_initialized` / `Config::get` / `Config::install` remain on the type. `validators::skills::SkillConfigValidator` moves to `systemprompt_config::SkillConfigValidator`. ~110 import sites updated; 14 crates picked up a `systemprompt-config` dependency. Restores the `crates/shared/models/` "no I/O" invariant from `boundaries.md`.
+- **Breaking — public APIs in `systemprompt-oauth` and `systemprompt-files` return typed `Result`.** `OAuthRepository::*`, `validate_jwt_token`, `SessionCreationService::create_anonymous_session` return `OauthResult<T>`. `FileRepository::*`, `FileService::*`, `AiService::*`, `ContentService::*` (in files crate), and `FilesAiPersistenceProvider::new` return `FilesResult<T>`. `#[from] sqlx::Error`, `#[from] anyhow::Error`, and `#[from] std::io::Error` adapters provide compatibility for internal helpers that still return `anyhow::Result`.
+- **`ProxyError::AuthChallenge(Box<Response<Body>>)`** — variant now boxes the `axum::Response` to satisfy `clippy::result_large_err`. Internal-only change; constructor now wraps with `Box::new`.
+
+### Removed
+
+- **Breaking — `AppPaths::get()` and `AppPaths::init`** from `crates/shared/models/src/paths/mod.rs`. Use `AppPaths::from_profile` and pass the value through `AppContext` or function arguments.
+- **`PathError::NotInitialized` and `PathError::AlreadyInitialized`** variants — the singleton states they described no longer exist.
+- **`BootstrapSequence::with_paths`, `with_paths_config`, `skip_paths`, `presets::full`, `PathsInitialized`** — paths are now built from the profile in the `AppContext` builder; no separate bootstrap step.
+- **Re-exports of `SecretsBootstrap`, `ProfileBootstrap`, and `manifest_seed`** from `systemprompt-models`. Import from `systemprompt-config` instead.
+
+### Quality
+
+- `cargo clippy --workspace -- -D warnings`: clean (eliminated 12 pre-existing pedantic lints in CLI and proxy code: `result_large_err`, `option_if_let_else`, `needless_pass_by_value`, `option_option`, `assigning_clones`, `bool_to_int_with_if`, `manual_let_else`, `needless_borrow`).
+- `cargo test --manifest-path crates/tests/Cargo.toml --workspace`: **8984 passed, 0 failed, 0 ignored.** Repaired bridge-* test crates (async migration, `Cell` → `Mutex` for `Send + Sync`, `ureq` → `reqwest` mock construction, removed-module deletions, env-var renames). Updated migration-weight assertions to match the v0.4.4 weight re-spacing. `events-tests` and `concurrency-tests` migrated to bounded `mpsc::channel(SSE_BUFFER)`.
+
+## [0.4.4] - 2026-05-03
 
 ### Added
 
