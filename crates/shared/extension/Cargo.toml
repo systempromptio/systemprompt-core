@@ -16,8 +16,6 @@ readme = "README.md"
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }
 serde = { workspace = true }
@@ -30,3 +28,7 @@ systemprompt-traits = { workspace = true, features = ["web"] }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

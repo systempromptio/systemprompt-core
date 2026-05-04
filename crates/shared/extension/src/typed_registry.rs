@@ -1,3 +1,5 @@
+//! Typed registry that tracks registrations by both ID and concrete type.
+
 use std::any::TypeId;
 use std::collections::HashMap;
 
@@ -7,6 +9,11 @@ pub use crate::registry::RESERVED_PATHS;
 use crate::typed::{ApiExtensionTypedDyn, SchemaExtensionTyped};
 use crate::types::ExtensionType;
 
+/// Registry of typed extensions.
+///
+/// Maintains three indexes — by ID, by concrete `TypeId`, and a list of
+/// every API base path — so that downstream code can look up registrations
+/// either by their stable string ID or by their static type.
 pub struct TypedExtensionRegistry {
     extensions: Vec<Box<dyn AnyExtension>>,
     by_id: HashMap<String, usize>,
@@ -21,6 +28,7 @@ impl Default for TypedExtensionRegistry {
 }
 
 impl TypedExtensionRegistry {
+    /// Constructs an empty registry.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -42,6 +50,9 @@ impl TypedExtensionRegistry {
         self.extensions.push(ext);
     }
 
+    /// Verifies that `path` is a valid API base path for `extension_id`:
+    /// it must start with `/api/` (or `/.`), avoid every reserved prefix,
+    /// and not collide with any already-registered API path.
     pub fn validate_api_path(&self, extension_id: &str, path: &str) -> Result<(), LoaderError> {
         if !path.starts_with("/api/") && !path.starts_with("/.") {
             return Err(LoaderError::InvalidBasePath {
@@ -71,21 +82,26 @@ impl TypedExtensionRegistry {
         Ok(())
     }
 
+    /// Returns true if an extension of type `E` is registered.
     #[must_use]
     pub fn has_type<E: ExtensionType>(&self) -> bool {
         self.by_type.contains_key(&TypeId::of::<E>())
     }
 
+    /// Returns true if an extension with the given ID is registered.
     #[must_use]
     pub fn has(&self, id: &str) -> bool {
         self.by_id.contains_key(id)
     }
 
+    /// Returns the extension registered under `id`, if any.
     #[must_use]
     pub fn get(&self, id: &str) -> Option<&dyn AnyExtension> {
         self.by_id.get(id).map(|&idx| self.extensions[idx].as_ref())
     }
 
+    /// Returns the registered instance of `E`, downcast to its concrete
+    /// type, if registered.
     #[must_use]
     pub fn get_typed<E: ExtensionType + 'static>(&self) -> Option<&E> {
         self.by_type
@@ -93,6 +109,7 @@ impl TypedExtensionRegistry {
             .and_then(|&idx| self.extensions[idx].as_any().downcast_ref())
     }
 
+    /// Iterates schema-bearing extensions in migration-weight order.
     pub fn schema_extensions(&self) -> impl Iterator<Item = &dyn SchemaExtensionTyped> {
         let mut schemas: Vec<_> = self
             .extensions
@@ -103,24 +120,29 @@ impl TypedExtensionRegistry {
         schemas.into_iter()
     }
 
+    /// Iterates API-bearing extensions in registration order.
     pub fn api_extensions(&self) -> impl Iterator<Item = &dyn ApiExtensionTypedDyn> {
         self.extensions.iter().filter_map(|e| e.as_api())
     }
 
+    /// Iterates every registered extension.
     pub fn all_extensions(&self) -> impl Iterator<Item = &dyn AnyExtension> {
         self.extensions.iter().map(AsRef::as_ref)
     }
 
+    /// Returns the list of API base paths registered so far.
     #[must_use]
     pub fn api_paths(&self) -> &[String] {
         &self.api_paths
     }
 
+    /// Returns the number of registered extensions.
     #[must_use]
     pub fn len(&self) -> usize {
         self.extensions.len()
     }
 
+    /// Returns true if no extensions are registered.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.extensions.is_empty()

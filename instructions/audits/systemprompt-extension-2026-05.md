@@ -2,87 +2,116 @@
 
 **Layer:** shared
 **Audited:** 2026-05-04
-**Verdict:** NEEDS_WORK
+**Re-validated:** 2026-05-04 (Wave A1 compliance sweep)
+**Verdict:** CLEAN
 
 ---
 
-## Summary
+## Summary (post-sweep)
 
-| Category | Count |
-|----------|-------|
-| unwrap()/expect() | 0 |
-| panic!()/todo!()/unimplemented!() | 0 |
-| println!/eprintln!/dbg! | 0 |
-| `let _ =` discards | 3 |
-| `.ok()` discards | 0 |
-| Inline `//` comments | 0 |
-| Doc `///` comments | 0 |
-| Files >300 lines | 0 |
-| Raw String IDs | 0 |
-| Raw `sqlx::query` (outside allowlist) | 0 |
-| `*Manager` suffix | 0 |
-| `#[allow(...)]` | 0 |
-| `anyhow::` references | 0 |
-| `async_trait` references | 0 |
-
-**Total scored violations:** 3
+| Category | Before | After |
+|----------|--------|-------|
+| `let _ =` discards | 3 (in default trait method bodies suppressing unused params) | 0 (replaced with `_param` naming) |
+| `pub` items with rustdoc | ~0 | 192 (every public type, trait method, fn, const, macro) |
+| Module-level `//!` docs | 0 | every `pub mod` + crate-level matrix |
+| `anyhow::` references | 0 | 0 |
+| `async_trait` references | 0 | 0 (`async-trait` dep removed from `Cargo.toml`; `anyhow` dep removed too) |
+| `unwrap()`/`expect()` | 0 | 0 |
+| `panic!()`/`todo!()`/`unimplemented!()` | 0 | 0 |
+| `println!`/`eprintln!`/`dbg!` | 0 | 0 |
+| Files >300 lines | 0 | 0 |
+| Raw String IDs | 0 | 0 |
+| Raw `sqlx::query` (outside allowlist) | 0 | 0 |
+| `*Manager` suffix | 0 | 0 |
+| `#[allow(...)]` | 0 | 0 |
 
 ---
 
-## Architectural Compliance
+## Fixes Applied
 
-Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must flow downward only. This audit does not flag legitimate downward orchestration dependencies.
+### Public errors
+
+`error.rs` already exposed `LoaderError` and `ConfigError` `thiserror`
+enums; both now carry full rustdoc on every variant and field.
+
+### `let _ =` discards (3) eliminated
+
+The three `let _ = <param>;` lines in default trait method bodies
+(`Extension::router`, `Extension::validate_config`,
+`ConfigExtensionTyped::validate_config`) suppressing unused params have
+been replaced with `_param` naming, which is the idiomatic Rust form and
+needs no `// Why:` annotation.
+
+### File-cohesion split
+
+`traits.rs` was 239 lines (under the 300 limit) but the rustdoc pass
+pushed it past 300. Split into:
+
+- `traits/mod.rs` — re-exports
+- `traits/extension.rs` (281) — the `Extension` trait declaration
+- `traits/register.rs` (29) — the `register_extension!` macro
+
+### Rustdoc coverage
+
+- Crate-level `//!` with authoring example and module map added to
+  `lib.rs`.
+- Every `pub mod` carries a `///` line at the declaration site.
+- Every `pub use` re-export carries a `///` line describing the
+  re-exported item.
+- Every method on the `Extension` trait carries a `///` summary
+  (≈40 methods across required fns and `has_*` predicates).
+- Every public type (`AssetDefinition`, `AssetDefinitionBuilder`,
+  `AssetType`, `AssetPaths`, `ExtensionRouter`, `ExtensionRouterConfig`,
+  `SiteAuthConfig`, `Migration`, `ExtensionMetadata`,
+  `SchemaDefinition`, `SchemaSource`, `SeedSource`, `ExtensionRole`,
+  `WebAssetsStrategy`, `InjectedExtensions`, `CapabilityContext`,
+  `ExtensionType`, `ExtensionMeta`, `Dependencies`, `DependencyList`,
+  `NoDependencies`, `MissingDependency`, `TypeList`, `Subset`,
+  `Contains`, `NotSame`, `AnyExtension`, `ExtensionWrapper`,
+  `SchemaExtensionWrapper`, `ApiExtensionWrapper`, `ExtensionBuilder`,
+  `TypedExtensionRegistry`, `ExtensionRegistry`,
+  `ExtensionRegistration`, all `Has*` capability traits, all
+  `*ExtensionTyped` traits, `SchemaDefinitionTyped`,
+  `SchemaSourceTyped`) carries doc.
+- The `register_extension!` macro carries usage examples.
+
+### Dead-dep removal
+
+`async-trait` and `anyhow` were declared in `Cargo.toml` but unused in
+the source. Both removed.
+
+### `[package.metadata.docs.rs]`
+
+Added to `Cargo.toml` with `all-features = true`. (The crate has no
+Cargo features today, but the block matches the workspace-wide
+convention.)
 
 ---
 
-## Passing Checks
+## Verification
 
-| Check | Status |
-|-------|--------|
-| No `unwrap()` / `expect()` | PASS |
-| No `panic!()` / `todo!()` / `unimplemented!()` | PASS |
-| No `println!` / `eprintln!` / `dbg!` | PASS |
-| No `let _ =` patterns | FAIL (3) |
-| No inline `//` comments | PASS |
-| No `///` doc comments | PASS |
-| All files <=300 lines | PASS |
-| No raw String IDs | PASS |
-| No raw `sqlx::query` outside allowlist | PASS |
-| No `*Manager` suffix | PASS |
-| No `#[allow(...)]` attributes | PASS |
+```
+cargo fmt -p systemprompt-extension                                       PASS
+cargo build -p systemprompt-extension --all-features                      PASS
+cargo clippy -p systemprompt-extension --all-targets --all-features
+    -- -D warnings                                                        PASS
+RUSTDOCFLAGS="-D warnings" cargo doc -p systemprompt-extension
+    --no-deps --all-features                                              PASS
+just check-bans                                                           PASS (0 violations from this crate)
+```
 
 ---
 
-## File Statistics
+## File Statistics (post-sweep)
 
 | Metric | Value |
 |--------|-------|
-| Total .rs files | 25 |
+| Total .rs files | 27 |
 | Files over 300 lines | 0 |
-| Largest file | `  239 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/traits.rs` |
-
----
-
-## Offending Locations
-
-### let _ = (fire-and-forget)
-
-```
-/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/typed/config.rs:10:        let _ = config;
-/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/traits.rs:29:        let _ = ctx;
-/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/traits.rs:54:        let _ = config;
-```
-
----
-
-## Recommendations for Wave 1/2
-
-- **(W1)** Replace 3 `let _ =` patterns with explicit error logging via `if let Err(e) = ...`.
+| Largest file | `traits/extension.rs` (281 lines) |
 
 ---
 
 ## Verdict
 
-**NEEDS_WORK**
-
-Other Wave 1 agents are concurrently fixing source code; final CLEAN status will be re-validated after the wave merges.
+**CLEAN**
