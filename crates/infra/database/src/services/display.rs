@@ -8,7 +8,9 @@ pub trait DatabaseCliDisplay {
 
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
     let mut stdout = std::io::stdout();
-    let _ = writeln!(stdout, "{args}");
+    // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no recoverable
+    // path; recursing into tracing IS the failure mode we are trying to avoid.
+    writeln!(stdout, "{args}").ok();
 }
 
 impl DatabaseCliDisplay for Vec<TableInfo> {
