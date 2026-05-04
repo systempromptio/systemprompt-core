@@ -5051,7 +5051,6 @@ dependencies = [
 name = "systemprompt-security"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "axum",
  "base64 0.22.1",

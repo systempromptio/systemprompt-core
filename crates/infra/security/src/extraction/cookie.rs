@@ -1,5 +1,9 @@
 use axum::http::HeaderMap;
 
+/// Extracts the access token from the browser session cookie.
+///
+/// Defaults to the `access_token` cookie name; callers can override via
+/// [`Self::new`] when the deployment uses a custom cookie.
 #[derive(Debug, Clone)]
 pub struct CookieExtractor {
     cookie_name: String,
@@ -12,18 +16,34 @@ impl Default for CookieExtractor {
 }
 
 impl CookieExtractor {
+    /// Default cookie name used when the deployment has not overridden it.
     pub const DEFAULT_COOKIE_NAME: &'static str = "access_token";
 
+    /// Constructs a new extractor that reads the cookie named
+    /// `cookie_name`.
     pub fn new(cookie_name: impl Into<String>) -> Self {
         Self {
             cookie_name: cookie_name.into(),
         }
     }
 
+    /// Extracts the token value from the configured cookie.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`CookieExtractionError`] variant describing whether the
+    /// `Cookie` header was missing, malformed, or did not contain the
+    /// expected name.
     pub fn extract(&self, headers: &HeaderMap) -> Result<String, CookieExtractionError> {
         self.extract_internal(headers)
     }
 
+    /// Convenience constructor + extract using the default `access_token`
+    /// cookie name.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`Self::extract`].
     pub fn extract_access_token(headers: &HeaderMap) -> Result<String, CookieExtractionError> {
         Self::default().extract(headers)
     }
@@ -49,10 +69,14 @@ impl CookieExtractor {
     }
 }
 
+/// Failures produced while extracting a bearer token from a cookie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CookieExtractionError {
+    /// The request did not carry a `Cookie` header.
     MissingCookie,
+    /// The `Cookie` header value was not a valid ASCII string.
     InvalidCookieFormat,
+    /// The configured cookie name was not present in the header.
     TokenNotFoundInCookie,
 }
 
