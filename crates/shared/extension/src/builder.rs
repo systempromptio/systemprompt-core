@@ -1,3 +1,9 @@
+//! Fluent typed builder that enforces dependency ordering at compile time.
+//!
+//! Each `extension`/`schema_extension`/`api_extension` call advances the
+//! `Registered` typestate, and the `where E::Deps: Subset<R>` bound forces
+//! callers to register dependencies before their dependents.
+
 use std::marker::PhantomData;
 
 use crate::any::{AnyExtension, ApiExtensionWrapper, ExtensionWrapper, SchemaExtensionWrapper};
@@ -7,6 +13,8 @@ use crate::typed::{ApiExtensionTypedDyn, SchemaExtensionTyped};
 use crate::typed_registry::TypedExtensionRegistry;
 use crate::types::{Dependencies, ExtensionType};
 
+/// Typed builder. The `Registered` parameter accumulates a heterogeneous
+/// list of every extension type registered so far.
 pub struct ExtensionBuilder<Registered: TypeList = ()> {
     extensions: Vec<Box<dyn AnyExtension>>,
     _marker: PhantomData<Registered>,
@@ -21,6 +29,7 @@ impl<R: TypeList> std::fmt::Debug for ExtensionBuilder<R> {
 }
 
 impl ExtensionBuilder<()> {
+    /// Constructs an empty builder.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -37,6 +46,8 @@ impl Default for ExtensionBuilder<()> {
 }
 
 impl<R: TypeList> ExtensionBuilder<R> {
+    /// Registers a plain extension. Compile-time-checks that all of `E`'s
+    /// declared dependencies are already in the registered set.
     pub fn extension<E>(mut self, ext: E) -> ExtensionBuilder<(E, R)>
     where
         E: ExtensionType + Dependencies + std::fmt::Debug + 'static,
@@ -49,6 +60,8 @@ impl<R: TypeList> ExtensionBuilder<R> {
         }
     }
 
+    /// Registers a schema-bearing extension. Compile-time-checks the
+    /// dependency set.
     pub fn schema_extension<E>(mut self, ext: E) -> ExtensionBuilder<(E, R)>
     where
         E: ExtensionType + Dependencies + SchemaExtensionTyped + std::fmt::Debug + 'static,
@@ -62,6 +75,8 @@ impl<R: TypeList> ExtensionBuilder<R> {
         }
     }
 
+    /// Registers an API-bearing extension. Compile-time-checks the
+    /// dependency set.
     pub fn api_extension<E>(mut self, ext: E) -> ExtensionBuilder<(E, R)>
     where
         E: ExtensionType + Dependencies + ApiExtensionTypedDyn + std::fmt::Debug + 'static,
@@ -75,6 +90,8 @@ impl<R: TypeList> ExtensionBuilder<R> {
         }
     }
 
+    /// Finalises the builder into a [`TypedExtensionRegistry`], failing on
+    /// duplicate IDs or invalid base paths.
     pub fn build(self) -> Result<TypedExtensionRegistry, LoaderError> {
         let mut registry = TypedExtensionRegistry::new();
         let mut sorted = self.extensions;

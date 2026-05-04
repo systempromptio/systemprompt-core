@@ -1,31 +1,44 @@
+//! Session identifier (`sess_<uuid>`) and its originating-source enum.
+
 crate::define_id!(SessionId, schema);
 
 impl SessionId {
+    /// Mints a fresh session identifier of the form `sess_<uuid>`.
     pub fn generate() -> Self {
         Self(format!("sess_{}", uuid::Uuid::new_v4()))
     }
 
+    /// Returns the canonical `"system"` session identifier.
     pub fn system() -> Self {
         Self("system".to_string())
     }
 }
 
+/// Channel through which a session was initiated.
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum SessionSource {
+    /// Web SPA login.
     Web,
+    /// Direct API client.
     Api,
+    /// CLI invocation.
     Cli,
+    /// OAuth authorization-code flow.
     Oauth,
+    /// MCP transport session.
     Mcp,
+    /// Co-working assistant session.
     Cowork,
+    /// Source could not be determined.
     #[default]
     Unknown,
 }
 
 impl SessionSource {
+    /// Returns the canonical lowercase string representation.
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Web => "web",
@@ -38,6 +51,8 @@ impl SessionSource {
         }
     }
 
+    /// Infers the [`SessionSource`] from a canonical first-party
+    /// [`crate::ClientId`] prefix.
     pub fn from_client_id(client_id: &str) -> Self {
         match client_id {
             "sp_web" => Self::Web,
