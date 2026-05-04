@@ -1,3 +1,6 @@
+//! Session-scoped JWT minting and the validated-claims wrapper produced
+//! by [`crate::auth::AuthValidationService`].
+
 mod claims;
 mod generator;
 

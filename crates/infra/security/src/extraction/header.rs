@@ -4,6 +4,8 @@ use std::fmt;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId, headers};
 use systemprompt_models::execution::context::RequestContext;
 
+/// Failure produced when an outbound header value contains characters that
+/// `axum` rejects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HeaderInjectionError;
 
@@ -15,25 +17,38 @@ impl fmt::Display for HeaderInjectionError {
 
 impl Error for HeaderInjectionError {}
 
+/// Extracts typed identifiers (trace, context, task, agent) from inbound
+/// request headers.
+///
+/// Methods that return a typed id rather than `Option<...>` apply the
+/// canonical fallback (`generate`, `empty`, `system`) so callers always
+/// receive a usable value.
 #[derive(Debug, Clone, Copy)]
 pub struct HeaderExtractor;
 
 impl HeaderExtractor {
+    /// Extracts the trace id, generating a fresh one if the header is
+    /// absent.
     pub fn extract_trace_id(headers: &HeaderMap) -> TraceId {
         Self::extract_header(headers, headers::TRACE_ID)
             .map_or_else(TraceId::generate, TraceId::new)
     }
 
+    /// Extracts the context id, falling back to the empty context when the
+    /// header is absent or empty.
     pub fn extract_context_id(headers: &HeaderMap) -> ContextId {
         Self::extract_header(headers, headers::CONTEXT_ID)
             .filter(|s| !s.is_empty())
             .map_or_else(ContextId::empty, ContextId::new)
     }
 
+    /// Extracts the task id if present.
     pub fn extract_task_id(headers: &HeaderMap) -> Option<TaskId> {
         Self::extract_header(headers, headers::TASK_ID).map(TaskId::new)
     }
 
+    /// Extracts the agent name, falling back to the system agent when the
+    /// header is absent.
     pub fn extract_agent_name(headers: &HeaderMap) -> AgentName {
         Self::extract_header(headers, headers::AGENT_NAME)
             .map_or_else(AgentName::system, AgentName::new)
@@ -54,10 +69,17 @@ impl HeaderExtractor {
     }
 }
 
+/// Stamps typed identifiers onto outbound request headers.
 #[derive(Debug, Clone, Copy)]
 pub struct HeaderInjector;
 
 impl HeaderInjector {
+    /// Injects the session id header.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HeaderInjectionError`] if the value cannot be encoded as
+    /// a valid HTTP header.
     pub fn inject_session_id(
         headers: &mut HeaderMap,
         session_id: &SessionId,
@@ -65,6 +87,11 @@ impl HeaderInjector {
         Self::inject_header(headers, headers::SESSION_ID, session_id.as_str())
     }
 
+    /// Injects the user id header.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`Self::inject_session_id`].
     pub fn inject_user_id(
         headers: &mut HeaderMap,
         user_id: &UserId,
@@ -72,6 +99,11 @@ impl HeaderInjector {
         Self::inject_header(headers, headers::USER_ID, user_id.as_str())
     }
 
+    /// Injects the trace id header.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`Self::inject_session_id`].
     pub fn inject_trace_id(
         headers: &mut HeaderMap,
         trace_id: &TraceId,
@@ -79,6 +111,12 @@ impl HeaderInjector {
         Self::inject_header(headers, headers::TRACE_ID, trace_id.as_str())
     }
 
+    /// Injects the context id header, skipping the operation when the
+    /// context is empty.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`Self::inject_session_id`].
     pub fn inject_context_id(
         headers: &mut HeaderMap,
         context_id: &ContextId,
@@ -89,6 +127,11 @@ impl HeaderInjector {
         Self::inject_header(headers, headers::CONTEXT_ID, context_id.as_str())
     }
 
+    /// Injects the task id header.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`Self::inject_session_id`].
     pub fn inject_task_id(
         headers: &mut HeaderMap,
         task_id: &TaskId,
@@ -96,6 +139,11 @@ impl HeaderInjector {
         Self::inject_header(headers, headers::TASK_ID, task_id.as_str())
     }
 
+    /// Injects the agent name header.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`Self::inject_session_id`].
     pub fn inject_agent_name(
         headers: &mut HeaderMap,
         agent_name: &str,
@@ -103,6 +151,12 @@ impl HeaderInjector {
         Self::inject_header(headers, headers::AGENT_NAME, agent_name)
     }
 
+    /// Injects every identifier from `ctx` into `headers` in one call.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HeaderInjectionError`] on the first identifier whose
+    /// value cannot be encoded as a valid HTTP header.
     pub fn inject_from_request_context(
         headers: &mut HeaderMap,
         ctx: &RequestContext,

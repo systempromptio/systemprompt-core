@@ -1,9 +1,9 @@
-use anyhow::{Result, anyhow};
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
+use crate::error::{AuthError, AuthResult};
 use crate::extraction::HeaderExtractor;
 use crate::session::ValidatedSessionClaims;
 
@@ -15,13 +15,27 @@ const TEST_AGENT_NAME: &str = "test-agent";
 const TEST_USER_ID: &str = "test-user";
 const BEARER_PREFIX: &str = "Bearer ";
 
+/// Authentication mode applied to a single inbound request.
+///
+/// Selected per route by the HTTP layer; controls whether a missing or
+/// invalid token is fatal, falls back to an anonymous identity, or is
+/// bypassed entirely for development/test profiles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthMode {
+    /// Reject the request unless a valid bearer token is present.
     Required,
+    /// Use the bearer token if valid, otherwise produce an anonymous
+    /// `RequestContext`.
     Optional,
+    /// Skip validation and produce a deterministic test `RequestContext`.
     Disabled,
 }
 
+/// Validates inbound request authentication material and produces a
+/// [`RequestContext`].
+///
+/// The service is cheap to clone (`String` + `Vec`) and is typically held
+/// behind an `Arc` inside the API entry-point state.
 #[derive(Debug)]
 pub struct AuthValidationService {
     secret: String,
@@ -30,6 +44,12 @@ pub struct AuthValidationService {
 }
 
 impl AuthValidationService {
+    /// Constructs a new validation service.
+    ///
+    /// `secret` is the HMAC-SHA256 signing secret, `issuer` is the
+    /// expected `iss` claim, and `audiences` is the allowlist of
+    /// acceptable `aud` claims.
+    #[must_use]
     pub const fn new(secret: String, issuer: String, audiences: Vec<JwtAudience>) -> Self {
         Self {
             secret,
@@ -38,7 +58,18 @@ impl AuthValidationService {
         }
     }
 
-    pub fn validate_request(&self, headers: &HeaderMap, mode: AuthMode) -> Result<RequestContext> {
+    /// Validates `headers` according to `mode` and produces a
+    /// [`RequestContext`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AuthError`] when `mode` is [`AuthMode::Required`] and the
+    /// bearer token is missing, malformed, or fails JWT validation.
+    pub fn validate_request(
+        &self,
+        headers: &HeaderMap,
+        mode: AuthMode,
+    ) -> AuthResult<RequestContext> {
         match mode {
             AuthMode::Required => self.validate_and_fail_fast(headers),
             AuthMode::Optional => Ok(self.try_validate_or_anonymous(headers)),
@@ -46,9 +77,8 @@ impl AuthValidationService {
         }
     }
 
-    fn validate_and_fail_fast(&self, headers: &HeaderMap) -> Result<RequestContext> {
-        let token =
-            Self::extract_token(headers).ok_or_else(|| anyhow!("Missing authorization header"))?;
+    fn validate_and_fail_fast(&self, headers: &HeaderMap) -> AuthResult<RequestContext> {
+        let token = Self::extract_token(headers).ok_or(AuthError::MissingAuthorization)?;
 
         let claims = self.validate_token(token)?;
         Ok(Self::create_context_from_claims(&claims, token, headers))
@@ -85,7 +115,7 @@ impl AuthValidationService {
             .and_then(|s| s.strip_prefix(BEARER_PREFIX))
     }
 
-    fn validate_token(&self, token: &str) -> Result<ValidatedSessionClaims> {
+    fn validate_token(&self, token: &str) -> AuthResult<ValidatedSessionClaims> {
         use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 
         let mut validation = Validation::new(Algorithm::HS256);
@@ -100,7 +130,7 @@ impl AuthValidationService {
             &DecodingKey::from_secret(self.secret.as_bytes()),
             &validation,
         )
-        .map_err(|e| anyhow!("Invalid JWT token: {e}"))?;
+        .map_err(AuthError::InvalidToken)?;
 
         let claims = token_data.claims;
 
@@ -115,7 +145,7 @@ impl AuthValidationService {
             session_id: claims
                 .session_id
                 .map(SessionId::new)
-                .ok_or_else(|| anyhow!("Missing session_id in token"))?,
+                .ok_or(AuthError::MissingSessionId)?,
             user_type,
         })
     }
