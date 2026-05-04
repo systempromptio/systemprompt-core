@@ -109,6 +109,10 @@ impl SessionMiddleware {
                             .analytics_service
                             .find_session_by_id(&jwt_context.session_id)
                             .await
+                            .map_err(|e| {
+                                tracing::warn!(error = %e, "find_session_by_id failed");
+                                e
+                            })
                             .ok()
                             .flatten()
                             .is_some();

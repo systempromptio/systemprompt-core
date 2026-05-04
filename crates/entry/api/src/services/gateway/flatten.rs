@@ -84,6 +84,10 @@ pub fn rewrite_request_model(raw_body: Bytes, upstream_model: &str) -> anyhow::R
 
 pub fn parse_served_model(response_bytes: &Bytes) -> Option<String> {
     serde_json::from_slice::<Value>(response_bytes)
+        .map_err(|e| {
+            tracing::warn!(error = %e, "parse_served_model: response not valid JSON");
+            e
+        })
         .ok()
         .and_then(|v| {
             v.get("model")
