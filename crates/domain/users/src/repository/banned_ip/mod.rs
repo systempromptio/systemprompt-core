@@ -4,7 +4,7 @@ mod types;
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::error::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 

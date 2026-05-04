@@ -1,11 +1,10 @@
-use anyhow::Result;
 use std::path::{Path, PathBuf};
 use systemprompt_database::DbPool;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_models::{AppPaths, ContentSourceConfigRaw};
 use systemprompt_traits::JobResult;
 
-
+use crate::error::{ContentError, ContentResult};
 use crate::services::IngestionService;
 use crate::{IngestionOptions, IngestionReport, IngestionSource};
 
@@ -14,11 +13,13 @@ struct IngestionStats {
     errors: u64,
 }
 
+/// Runs a single pass of the content ingestion job, returning a [`JobResult`]
+/// summary. Errors propagate as [`ContentError`].
 pub async fn execute_content_ingestion(
     db_pool: &DbPool,
     services_config: &ServicesConfig,
     paths: &AppPaths,
-) -> Result<JobResult> {
+) -> ContentResult<JobResult> {
     let start_time = std::time::Instant::now();
     log_job_started();
 
@@ -39,9 +40,9 @@ fn log_job_started() {
     tracing::info!("Content ingestion job started");
 }
 
-fn create_ingestion_service(db_pool: &DbPool) -> Result<IngestionService> {
+fn create_ingestion_service(db_pool: &DbPool) -> ContentResult<IngestionService> {
     IngestionService::new(db_pool)
-        .map_err(|e| anyhow::anyhow!("Failed to create ingestion service: {}", e))
+        .map_err(|e| ContentError::Service(format!("Failed to create ingestion service: {e}")))
 }
 
 fn get_enabled_sources(
@@ -71,7 +72,7 @@ async fn process_all_sources(
     service: &IngestionService,
     sources: &[(&String, &ContentSourceConfigRaw)],
     paths: &AppPaths,
-) -> Result<IngestionStats> {
+) -> ContentResult<IngestionStats> {
     let mut stats = IngestionStats {
         processed: 0,
         errors: 0,
@@ -90,7 +91,7 @@ async fn process_single_source(
     config: &ContentSourceConfigRaw,
     paths: &AppPaths,
     stats: &mut IngestionStats,
-) -> Result<()> {
+) -> ContentResult<()> {
     tracing::debug!(source = %name, "Ingesting source");
 
     let content_path = resolve_content_path(&config.path, paths);
@@ -139,7 +140,7 @@ async fn ingest_source(
     source_name: &str,
     path: &Path,
     config: &ContentSourceConfigRaw,
-) -> Result<IngestionReport, crate::ContentError> {
+) -> Result<IngestionReport, ContentError> {
     let override_existing = config.indexing.is_some_and(|i| i.override_existing);
     let recursive = config.indexing.is_some_and(|i| i.recursive);
     let source = IngestionSource::new(&config.source_id, source_name, &config.category_id);
@@ -157,7 +158,7 @@ async fn ingest_source(
 
 fn update_stats_from_report(
     name: &str,
-    report: Result<IngestionReport, crate::ContentError>,
+    report: Result<IngestionReport, ContentError>,
     stats: &mut IngestionStats,
 ) {
     match report {

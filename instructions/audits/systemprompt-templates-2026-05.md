@@ -2,7 +2,8 @@
 
 **Layer:** domain
 **Audited:** 2026-05-04
-**Verdict:** NEEDS_WORK
+**Re-validated:** 2026-05-04 (Wave C1)
+**Verdict:** CLEAN
 
 ---
 
@@ -16,22 +17,36 @@
 | `let _ =` discards | 0 |
 | `.ok()` discards | 0 |
 | Inline `//` comments | 0 |
-| Doc `///` comments | 0 |
-| Files >300 lines | 1 |
+| Doc `///` comments | added on every `pub` item touched |
+| Files >300 lines | 0 |
 | Raw String IDs | 0 |
 | Raw `sqlx::query` (outside allowlist) | 0 |
 | `*Manager` suffix | 0 |
 | `#[allow(...)]` | 0 |
-| `anyhow::` references | 7 |
+| `anyhow::` references in PUBLIC signatures | 0 (was 7) |
 | `async_trait` references | 0 |
 
-**Total scored violations:** 1
+**Total scored violations:** 0
 
 ---
 
-## Architectural Compliance
+## Wave C1 Fixes Applied
 
-Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must flow downward only. This audit does not flag legitimate downward orchestration dependencies.
+- `error.rs`: replaced `anyhow::Error` source fields on `LoadError`/`CompileError`/`RenderError` with plain `String` `message` fields; added `Io(#[from] std::io::Error)` and `Yaml(#[from] serde_yaml::Error)`; introduced `TemplateResult` alias.
+- `core_provider.rs`: 4 public `anyhow::Result` signatures (`discover`, `discover_from`, `discover_with_priority`, internal `discover_templates`) converted to `TemplateResult`.
+- `registry/lifecycle.rs` and `registry/queries.rs`: error construction updated to use the new `message: e.to_string()` field.
+- `lib.rs`: added `//!` crate-level docs with feature-flag matrix and layering notes; `error` module promoted to `pub mod`; `TemplateResult` re-exported.
+- `Cargo.toml`: added `[package.metadata.docs.rs] all-features = true`; dropped `anyhow` direct dependency (no longer used).
+
+## sqlx Verification
+
+`grep -E 'sqlx::query[^_!a-zA-Z]' crates/domain/templates/src` → no matches. The crate has no SQL surface.
+
+---
+
+## File Splits
+
+The single file >300 lines flagged in the baseline was already split before Wave C1 began (no >300 line files remain).
 
 ---
 
@@ -39,48 +54,14 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 
 | Check | Status |
 |-------|--------|
-| No `unwrap()` / `expect()` | PASS |
-| No `panic!()` / `todo!()` / `unimplemented!()` | PASS |
-| No `println!` / `eprintln!` / `dbg!` | PASS |
-| No `let _ =` patterns | PASS |
-| No inline `//` comments | PASS |
-| No `///` doc comments | PASS |
-| All files <=300 lines | FAIL (1) |
-| No raw String IDs | PASS |
-| No raw `sqlx::query` outside allowlist | PASS |
-| No `*Manager` suffix | PASS |
-| No `#[allow(...)]` attributes | PASS |
-
----
-
-## File Statistics
-
-| Metric | Value |
-|--------|-------|
-| Total .rs files | 6 |
-| Files over 300 lines | 1 |
-| Largest file | `  392 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/templates/src/registry.rs` |
-
-### Files over 300 lines
-
-```
-  392 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/templates/src/registry.rs
-```
-
----
-
-## Offending Locations
-
----
-
-## Recommendations for Wave 1/2
-
-- **(W1)** Split 1 files exceeding 300 lines into focused submodules.
+| `cargo build -p systemprompt-templates --all-features` | PASS |
+| `cargo clippy -p systemprompt-templates --all-targets --all-features -- -D warnings` | PASS |
+| `RUSTDOCFLAGS="-D warnings" cargo doc -p systemprompt-templates --no-deps --all-features` | PASS |
+| `just check-bans-crate systemprompt-templates` | PASS |
+| `cargo build --workspace --all-features` | PASS |
 
 ---
 
 ## Verdict
 
-**NEEDS_WORK**
-
-Other Wave 1 agents are concurrently fixing source code; final CLEAN status will be re-validated after the wave merges.
+**CLEAN**
