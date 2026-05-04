@@ -32,9 +32,8 @@ impl AgentName {
     }
 
     /// Constructs an `AgentName`, panicking on validation failure.
-    // Why: panicking convenience constructor for static call sites where the
-    // input is known-valid; clippy's expect lint is suppressed because
-    // failure here is a programmer-bug invariant.
+    // Why: panicking convenience constructor for static call sites where the input is known-valid;
+    // clippy's expect lint is suppressed because failure here is a programmer-bug invariant.
     #[allow(clippy::expect_used)]
     pub fn new(name: impl Into<String>) -> Self {
         Self::try_new(name).expect("AgentName validation failed")

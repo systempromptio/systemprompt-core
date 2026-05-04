@@ -193,8 +193,8 @@ impl SessionMiddleware {
                 tracing::warn!(error = %e, "find_session_by_id failed");
                 e
             })
-            // Why: failure to look up the session is treated as "session missing" so
-            // the middleware mints a fresh one rather than 500ing a normal request.
+            // Why: failure to look up the session is treated as "session missing" so the middleware
+            // mints a fresh one rather than 500ing a normal request.
             .ok()
             .flatten()
             .is_some();

@@ -114,9 +114,7 @@ impl CliService {
         );
 
         let mut stdout = std::io::stdout();
-        // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no
-        // recoverable path; recursing into tracing IS the failure mode we are trying to
-        // avoid.
+        // Why: CLI display sink; broken pipe is not recoverable.
         writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
     }
 
@@ -130,8 +128,7 @@ impl CliService {
             profile_name, target_label, tenant_info
         );
         let mut stdout = std::io::stdout();
-        // Why: CLI display sink — see `session_context_with_url` for the broken-pipe
-        // rationale.
+        // Why: CLI display sink; broken pipe is not recoverable.
         writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
     }
 }

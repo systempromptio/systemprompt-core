@@ -136,9 +136,7 @@ impl Display for ValidationSummary {
         let total_active = self.total_active();
         if total_active > 0 {
             let mut stdout = std::io::stdout();
-            // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no
-            // recoverable path; recursing into tracing IS the failure mode we are trying to
-            // avoid.
+            // Why: CLI display sink; broken pipe is not recoverable.
             writeln!(
                 stdout,
                 "\n{} {} active modules ready",

@@ -75,9 +75,7 @@ macro_rules! define_id {
             /// Constructs the identifier, panicking on validation failure.
             ///
             /// Prefer `try_new` for any value not known at compile time.
-            // Why: panicking convenience constructor for static call sites where
-            // the input is known-valid; clippy's expect lint is suppressed
-            // because validation failure here is a programmer-bug invariant.
+            // Why: panicking convenience constructor for static call sites where the input is known-valid; clippy's expect lint is suppressed because validation failure here is a programmer-bug invariant.
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
@@ -110,8 +108,7 @@ macro_rules! define_id {
             }
 
             /// Constructs the identifier, panicking on validation failure.
-            // Why: panicking convenience constructor for static call sites
-            // where the input is known-valid.
+            // Why: panicking convenience constructor for static call sites where the input is known-valid.
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))

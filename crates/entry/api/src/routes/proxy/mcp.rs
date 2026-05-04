@@ -59,8 +59,8 @@ pub async fn handle_get_execution(
                 server_name: execution.server_name.clone(),
                 server_endpoint,
                 input,
-                // Why: malformed output JSON is logged and surfaced as a null
-                // output rather than failing the entire execution-history fetch.
+                // Why: malformed output JSON is logged and surfaced as a null output rather than
+                // failing the entire execution-history fetch.
                 output: execution.output.as_deref().and_then(|s| {
                     serde_json::from_str(s)
                         .map_err(|e| {

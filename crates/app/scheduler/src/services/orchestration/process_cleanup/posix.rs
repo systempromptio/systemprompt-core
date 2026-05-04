@@ -23,8 +23,8 @@ pub(super) fn check_port(port: u16) -> Option<u32> {
     if output.stdout.is_empty() {
         None
     } else {
-        // Why: stdout from `lsof -ti` is one PID per line; trim+parse failures
-        // mean the OS returned non-numeric output, which we treat as "no PID".
+        // Why: stdout from `lsof -ti` is one PID per line; trim+parse failures mean the
+        // OS returned non-numeric output, which we treat as "no PID".
         String::from_utf8_lossy(&output.stdout)
             .lines()
             .next()

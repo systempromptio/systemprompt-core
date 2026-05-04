@@ -202,8 +202,8 @@ async fn load_authenticated_user(
         .roles
         .iter()
         .filter_map(|s| {
-            // Why: invalid role strings in DB are logged and skipped — `.ok()`
-            // here is the filter, not an error discard.
+            // Why: invalid role strings in DB are logged and skipped — `.ok()` here is the
+            // filter, not an error discard.
             Permission::from_str(s)
                 .map_err(|e| {
                     tracing::warn!(

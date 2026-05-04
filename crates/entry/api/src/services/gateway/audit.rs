@@ -76,8 +76,8 @@ impl GatewayAudit {
     }
 
     fn effective_model(&self) -> String {
-        // Why: poisoned-mutex recovery — fall back to the configured request
-        // model rather than panicking on a poisoned `served_model` slot.
+        // Why: poisoned-mutex recovery — fall back to the configured request model
+        // rather than panicking on a poisoned `served_model` slot.
         self.served_model
             .lock()
             .map_err(|e| {

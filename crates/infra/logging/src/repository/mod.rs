@@ -50,9 +50,7 @@ impl LoggingRepository {
 
         if self.terminal_output {
             let mut stdout = std::io::stdout();
-            // Why: terminal log mirror — if writing to stdout fails (closed pipe), there is
-            // no recoverable path; recursing into tracing IS the failure mode
-            // we are trying to avoid.
+            // Why: terminal log mirror; broken pipe is not recoverable.
             writeln!(stdout, "{entry}").ok();
         }
 
