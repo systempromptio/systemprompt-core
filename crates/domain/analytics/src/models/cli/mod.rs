@@ -1,3 +1,7 @@
+//! Row DTOs consumed by `systemprompt-cli` analytics reports. Each submodule
+//! groups rows for a single CLI command family (agents, content, overview,
+//! requests, sessions, tools).
+
 mod agent;
 mod content;
 mod overview;

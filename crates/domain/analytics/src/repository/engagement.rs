@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId, UserId};

@@ -1,3 +1,7 @@
+//! Extension registration — wires analytics schemas (sessions, funnels,
+//! engagement events, fingerprint reputation, anomaly thresholds) and
+//! schema-evolution migrations into the extension framework.
+
 use systemprompt_extension::prelude::*;
 
 const MIGRATION_001_EVENT_TYPE: &str = r"
@@ -9,6 +13,8 @@ const MIGRATION_002_EVENT_DATA: &str = r"
 ALTER TABLE engagement_events ADD COLUMN IF NOT EXISTS event_data JSONB;
 ";
 
+/// Extension descriptor for the analytics domain. Registered globally via
+/// `register_extension!` for the inventory-based extension framework.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
 
