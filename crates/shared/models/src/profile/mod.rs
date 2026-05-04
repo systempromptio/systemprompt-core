@@ -134,7 +134,7 @@ impl Profile {
         self.cloud.as_ref().is_none_or(CloudConfig::is_local_trial)
     }
 
-    pub fn parse(content: &str, profile_path: &Path) -> ProfileResult<Self> {
+    pub fn from_yaml(content: &str, profile_path: &Path) -> ProfileResult<Self> {
         let content = substitute_env_vars(content);
 
         let mut profile: Self =
@@ -151,10 +151,6 @@ impl Profile {
                 })?;
 
         profile.paths.resolve_relative_to(profile_dir);
-
-        if let Some(gateway) = profile.gateway.as_mut() {
-            gateway.resolve_catalog(profile_dir)?;
-        }
 
         Ok(profile)
     }

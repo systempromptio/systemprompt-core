@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CredentialsBootstrap, ProfilePath, SessionKey, SessionStore};
+use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
@@ -80,6 +81,5 @@ pub async fn execute(
 }
 
 fn load_profile(path: &std::path::Path) -> Result<Profile> {
-    let content = std::fs::read_to_string(path).context("Failed to read profile")?;
-    Profile::parse(&content, path).context("Failed to parse profile")
+    ProfileLoader::load_from_path(path).context("Failed to load profile")
 }

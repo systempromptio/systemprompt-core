@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::Path;
+use systemprompt_config::load_profile_with_catalog;
 use systemprompt_models::Profile;
 
 #[derive(Debug, Clone, Copy)]
@@ -7,10 +8,8 @@ pub struct ProfileLoader;
 
 impl ProfileLoader {
     pub fn load_from_path(profile_path: &Path) -> Result<Profile> {
-        let content = std::fs::read_to_string(profile_path)
-            .with_context(|| format!("Failed to read profile: {}", profile_path.display()))?;
-
-        Profile::parse(&content, profile_path).map_err(Into::into)
+        load_profile_with_catalog(profile_path)
+            .with_context(|| format!("Failed to read profile: {}", profile_path.display()))
     }
 
     pub fn load(services_path: &Path, profile_name: &str) -> Result<Profile> {

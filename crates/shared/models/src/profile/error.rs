@@ -7,6 +7,13 @@ pub type ProfileResult<T> = Result<T, ProfileError>;
 
 #[derive(Debug, Error)]
 pub enum ProfileError {
+    #[error("Failed to read profile {path}: {source}")]
+    ReadFile {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
     #[error("Failed to parse profile {path}: {source}")]
     ParseYaml {
         path: PathBuf,

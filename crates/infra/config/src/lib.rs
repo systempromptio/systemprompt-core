@@ -1,5 +1,7 @@
 pub mod bootstrap;
 pub(crate) mod config_loader;
+pub mod profile_gateway;
+pub(crate) mod profile_loader;
 pub(crate) mod services;
 pub(crate) mod skill_validator;
 
@@ -14,6 +16,7 @@ pub use config_loader::{
     build_from_profile, init_config, init_config_from_profile, try_init_config,
     validate_database_config,
 };
+pub use profile_loader::load_profile_with_catalog;
 pub use services::{
     ConfigManager, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
     EnvironmentConfig, ValidationReport, build_validate_configs, generate_schema, validate_config,

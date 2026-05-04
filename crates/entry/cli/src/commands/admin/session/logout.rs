@@ -3,7 +3,7 @@ use clap::Args;
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
-use systemprompt_models::Profile;
+use systemprompt_loader::ProfileLoader;
 
 use super::types::LogoutOutput;
 use crate::CliConfig;
@@ -134,10 +134,8 @@ fn resolve_target_key(
             );
         }
 
-        let content = std::fs::read_to_string(&profile_config_path)
-            .with_context(|| format!("Failed to read profile '{}'", profile_name))?;
-        let profile = Profile::parse(&content, &profile_config_path)
-            .with_context(|| format!("Failed to parse profile '{}'", profile_name))?;
+        let profile = ProfileLoader::load_from_path(&profile_config_path)
+            .with_context(|| format!("Failed to load profile '{}'", profile_name))?;
 
         let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
         return Ok(SessionKey::from_tenant_id(tenant_id));

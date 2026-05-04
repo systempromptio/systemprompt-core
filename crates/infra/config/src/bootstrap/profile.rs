@@ -98,10 +98,7 @@ impl ProfileBootstrap {
     }
 
     fn load_from_path_and_validate(path: &Path) -> Result<Profile> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read profile: {}", path.display()))?;
-
-        let profile = Profile::parse(&content, path)?;
+        let profile = crate::profile_loader::load_profile_with_catalog(path)?;
         profile.validate()?;
         Ok(profile)
     }
