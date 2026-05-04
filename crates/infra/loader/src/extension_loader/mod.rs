@@ -1,16 +1,37 @@
-use anyhow::{Context, Result};
+//! Discovers `extensions/<name>/manifest.yaml` files and resolves the
+//! binaries those manifests reference.
+//!
+//! All operations are infallible at the public API level — failures are
+//! either represented as "not found" (`Option`, empty `Vec`) or surfaced
+//! through the [`ExtensionValidationResult`] returned by
+//! [`ExtensionLoader::validate`].
+
+mod manifest;
+mod result;
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use systemprompt_models::{DiscoveredExtension, ExtensionManifest};
+use systemprompt_models::DiscoveredExtension;
+
+use manifest::{load_manifest, mtime_of};
+
+pub use result::ExtensionValidationResult;
 
 const CARGO_TARGET: &str = "target";
 
+/// Stateless loader that walks the `extensions/` tree.
 #[derive(Debug, Clone, Copy)]
 pub struct ExtensionLoader;
 
 impl ExtensionLoader {
+    /// Discovers every extension manifest under `project_root/extensions/`.
+    ///
+    /// Manifests that fail to parse are logged at `warn` level and
+    /// skipped — callers that need a strict result should compose this
+    /// with [`Self::validate`].
+    #[must_use]
     pub fn discover(project_root: &Path) -> Vec<DiscoveredExtension> {
         let extensions_dir = project_root.join("extensions");
 
@@ -47,7 +68,7 @@ impl ExtensionLoader {
 
             let manifest_path = ext_dir.join("manifest.yaml");
             if manifest_path.exists() {
-                match Self::load_manifest(&manifest_path) {
+                match load_manifest(&manifest_path) {
                     Ok(manifest) => {
                         discovered.push(DiscoveredExtension::new(manifest, ext_dir, manifest_path));
                     },
@@ -63,14 +84,8 @@ impl ExtensionLoader {
         }
     }
 
-    fn load_manifest(path: &Path) -> Result<ExtensionManifest> {
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read manifest: {}", path.display()))?;
-
-        serde_yaml::from_str(&content)
-            .with_context(|| format!("Failed to parse manifest: {}", path.display()))
-    }
-
+    /// Returns every enabled MCP-kind extension under `project_root`.
+    #[must_use]
     pub fn get_enabled_mcp_extensions(project_root: &Path) -> Vec<DiscoveredExtension> {
         Self::discover(project_root)
             .into_iter()
@@ -78,6 +93,8 @@ impl ExtensionLoader {
             .collect()
     }
 
+    /// Returns every enabled CLI-kind extension under `project_root`.
+    #[must_use]
     pub fn get_enabled_cli_extensions(project_root: &Path) -> Vec<DiscoveredExtension> {
         Self::discover(project_root)
             .into_iter()
@@ -85,6 +102,8 @@ impl ExtensionLoader {
             .collect()
     }
 
+    /// Locates a CLI extension by either binary name or manifest name.
+    #[must_use]
     pub fn find_cli_extension(project_root: &Path, name: &str) -> Option<DiscoveredExtension> {
         Self::get_enabled_cli_extensions(project_root)
             .into_iter()
@@ -94,6 +113,9 @@ impl ExtensionLoader {
             })
     }
 
+    /// Resolves the on-disk path of a CLI binary, preferring the release
+    /// build over the debug build when both exist.
+    #[must_use]
     pub fn get_cli_binary_path(
         project_root: &Path,
         binary_name: &str,
@@ -117,6 +139,13 @@ impl ExtensionLoader {
         None
     }
 
+    /// Resolves the directory the runtime should run binaries from.
+    ///
+    /// `override_path` short-circuits the heuristic when the operator has
+    /// pinned a directory; otherwise the function picks the more
+    /// recently rebuilt of `target/release/systemprompt` vs
+    /// `target/debug/systemprompt`, falling back to whichever exists.
+    #[must_use]
     pub fn resolve_bin_directory(
         project_root: &Path,
         override_path: Option<&Path>,
@@ -133,10 +162,8 @@ impl ExtensionLoader {
 
         match (release_binary.exists(), debug_binary.exists()) {
             (true, true) => {
-                let release_mtime = fs::metadata(&release_binary)
-                    .and_then(|m| m.modified())
-                    .ok();
-                let debug_mtime = fs::metadata(&debug_binary).and_then(|m| m.modified()).ok();
+                let release_mtime = mtime_of(&release_binary);
+                let debug_mtime = mtime_of(&debug_binary);
 
                 match (release_mtime, debug_mtime) {
                     (Some(r), Some(d)) if d > r => debug_dir,
@@ -148,6 +175,10 @@ impl ExtensionLoader {
         }
     }
 
+    /// Returns the `(binary_name, manifest_dir)` pairs for every enabled
+    /// MCP extension whose binary is missing from the resolved bin
+    /// directory.
+    #[must_use]
     pub fn validate_mcp_binaries(project_root: &Path) -> Vec<(String, std::path::PathBuf)> {
         let extensions = Self::get_enabled_mcp_extensions(project_root);
         let target_dir = Self::resolve_bin_directory(project_root, None);
@@ -167,6 +198,9 @@ impl ExtensionLoader {
             .collect()
     }
 
+    /// Returns the names of every enabled MCP-extension binary, regardless
+    /// of whether the binary currently exists on disk.
+    #[must_use]
     pub fn get_mcp_binary_names(project_root: &Path) -> Vec<String> {
         Self::get_enabled_mcp_extensions(project_root)
             .iter()
@@ -174,6 +208,10 @@ impl ExtensionLoader {
             .collect()
     }
 
+    /// Returns MCP-extension binary names filtered to the production
+    /// subset (i.e. excludes deployments flagged `dev_only` in the
+    /// services config).
+    #[must_use]
     pub fn get_production_mcp_binary_names(
         project_root: &Path,
         services_config: &systemprompt_models::ServicesConfig,
@@ -192,6 +230,9 @@ impl ExtensionLoader {
             .collect()
     }
 
+    /// Builds a binary-name → discovered-extension map for every manifest
+    /// that exposes a binary.
+    #[must_use]
     pub fn build_binary_map(project_root: &Path) -> HashMap<String, DiscoveredExtension> {
         Self::discover(project_root)
             .into_iter()
@@ -202,32 +243,14 @@ impl ExtensionLoader {
             .collect()
     }
 
+    /// Composite validation that returns every discovered extension and
+    /// every missing binary in a single result struct.
+    #[must_use]
     pub fn validate(project_root: &Path) -> ExtensionValidationResult {
         ExtensionValidationResult {
             discovered: Self::discover(project_root),
             missing_binaries: Self::validate_mcp_binaries(project_root),
             missing_manifests: vec![],
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct ExtensionValidationResult {
-    pub discovered: Vec<DiscoveredExtension>,
-    pub missing_binaries: Vec<(String, std::path::PathBuf)>,
-    pub missing_manifests: Vec<std::path::PathBuf>,
-}
-
-impl ExtensionValidationResult {
-    pub fn is_valid(&self) -> bool {
-        self.missing_binaries.is_empty()
-    }
-
-    pub fn format_missing_binaries(&self) -> String {
-        self.missing_binaries
-            .iter()
-            .map(|(binary, path)| format!("  ✗ {} ({})", binary, path.display()))
-            .collect::<Vec<_>>()
-            .join("\n")
     }
 }

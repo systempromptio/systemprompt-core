@@ -4809,7 +4809,6 @@ dependencies = [
 name = "systemprompt-loader"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "serde",
  "serde_json",
  "serde_yaml",

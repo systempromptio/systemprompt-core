@@ -1,10 +1,19 @@
-use anyhow::{Context, Result, anyhow};
+//! Writes individual agent files and patches the top-level config to
+//! drop their `includes:` entries.
+//!
+//! All operations are atomic at the per-file level; concurrent writers
+//! racing on the same agent file may overwrite each other and the loader
+//! does not attempt to lock the on-disk config.
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_models::services::AgentConfig;
 
+use crate::error::{ConfigWriteError, ConfigWriteResult};
+
+/// Writer for individual agent files inside a `services/` tree.
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigWriter;
 
@@ -14,22 +23,24 @@ struct AgentFileContent {
 }
 
 impl ConfigWriter {
-    pub fn create_agent(agent: &AgentConfig, services_dir: &Path) -> Result<PathBuf> {
+    /// Creates a brand-new agent file at `services_dir/agents/<name>.yaml`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigWriteError::AgentFileExists`] if the file already
+    /// exists, or [`ConfigWriteError::Io`] / [`ConfigWriteError::YamlEncode`]
+    /// if the directory cannot be created or the file cannot be written.
+    pub fn create_agent(agent: &AgentConfig, services_dir: &Path) -> ConfigWriteResult<PathBuf> {
         let agents_dir = services_dir.join("agents");
-        fs::create_dir_all(&agents_dir).with_context(|| {
-            format!(
-                "Failed to create agents directory: {}",
-                agents_dir.display()
-            )
+        fs::create_dir_all(&agents_dir).map_err(|e| ConfigWriteError::Io {
+            path: agents_dir.clone(),
+            source: e,
         })?;
 
         let agent_file = agents_dir.join(format!("{}.yaml", agent.name));
 
         if agent_file.exists() {
-            return Err(anyhow!(
-                "Agent file already exists: {}. Use 'agents edit' to modify.",
-                agent_file.display()
-            ));
+            return Err(ConfigWriteError::AgentFileExists(agent_file));
         }
 
         Self::write_agent_file(&agent_file, agent)?;
@@ -37,41 +48,77 @@ impl ConfigWriter {
         Ok(agent_file)
     }
 
-    pub fn update_agent(name: &str, agent: &AgentConfig, services_dir: &Path) -> Result<()> {
+    /// Updates the agent file that currently defines `name`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigWriteError::AgentNotFound`] if no agent file
+    /// declares `name`, or [`ConfigWriteError::Io`] /
+    /// [`ConfigWriteError::YamlEncode`] on failure to read or rewrite the
+    /// file.
+    pub fn update_agent(
+        name: &str,
+        agent: &AgentConfig,
+        services_dir: &Path,
+    ) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
-            .ok_or_else(|| anyhow!("Agent '{}' not found in any configuration file", name))?;
+            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_string()))?;
 
         Self::write_agent_file(&agent_file, agent)
     }
 
-    pub fn delete_agent(name: &str, services_dir: &Path) -> Result<()> {
+    /// Deletes the agent file that defines `name` and removes the
+    /// matching `includes:` entry from the top-level `config/config.yaml`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigWriteError::AgentNotFound`] if no agent file
+    /// declares `name`, or [`ConfigWriteError::Io`] on failure to read,
+    /// delete, or rewrite the affected files.
+    pub fn delete_agent(name: &str, services_dir: &Path) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
-            .ok_or_else(|| anyhow!("Agent '{}' not found in any configuration file", name))?;
+            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_string()))?;
 
-        fs::remove_file(&agent_file)
-            .with_context(|| format!("Failed to delete agent file: {}", agent_file.display()))?;
+        fs::remove_file(&agent_file).map_err(|e| ConfigWriteError::Io {
+            path: agent_file.clone(),
+            source: e,
+        })?;
 
         let config_path = services_dir.join("config/config.yaml");
-        let include_path = format!("../agents/{}.yaml", name);
+        let include_path = format!("../agents/{name}.yaml");
         Self::remove_include(&include_path, &config_path)
     }
 
-    pub fn find_agent_file(name: &str, services_dir: &Path) -> Result<Option<PathBuf>> {
+    /// Locates the YAML file that currently declares the agent named
+    /// `name`, preferring the canonical `<name>.yaml` if present.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigWriteError::Io`] if the agents directory cannot
+    /// be read or [`ConfigWriteError::YamlEncode`] (via
+    /// `serde_yaml::Error`) on a malformed file.
+    pub fn find_agent_file(name: &str, services_dir: &Path) -> ConfigWriteResult<Option<PathBuf>> {
         let agents_dir = services_dir.join("agents");
 
         if !agents_dir.exists() {
             return Ok(None);
         }
 
-        let expected_file = agents_dir.join(format!("{}.yaml", name));
+        let expected_file = agents_dir.join(format!("{name}.yaml"));
         if expected_file.exists() && Self::file_contains_agent(&expected_file, name)? {
             return Ok(Some(expected_file));
         }
 
-        for entry in fs::read_dir(&agents_dir)
-            .with_context(|| format!("Failed to read agents directory: {}", agents_dir.display()))?
-        {
-            let path = entry?.path();
+        for entry in fs::read_dir(&agents_dir).map_err(|e| ConfigWriteError::Io {
+            path: agents_dir.clone(),
+            source: e,
+        })? {
+            let path = entry
+                .map_err(|e| ConfigWriteError::Io {
+                    path: agents_dir.clone(),
+                    source: e,
+                })?
+                .path();
 
             if path
                 .extension()
@@ -85,46 +132,53 @@ impl ConfigWriter {
         Ok(None)
     }
 
-    fn file_contains_agent(path: &Path, agent_name: &str) -> Result<bool> {
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read file: {}", path.display()))?;
+    fn file_contains_agent(path: &Path, agent_name: &str) -> ConfigWriteResult<bool> {
+        let content = fs::read_to_string(path).map_err(|e| ConfigWriteError::Io {
+            path: path.to_path_buf(),
+            source: e,
+        })?;
 
-        let parsed: AgentFileContent = serde_yaml::from_str(&content)
-            .with_context(|| format!("Failed to parse YAML file: {}", path.display()))?;
+        let parsed: AgentFileContent = serde_yaml::from_str(&content)?;
 
         Ok(parsed.agents.contains_key(agent_name))
     }
 
-    fn write_agent_file(path: &Path, agent: &AgentConfig) -> Result<()> {
+    fn write_agent_file(path: &Path, agent: &AgentConfig) -> ConfigWriteResult<()> {
         let mut agents = HashMap::new();
         agents.insert(agent.name.clone(), agent.clone());
 
         let content = AgentFileContent { agents };
 
-        let yaml = serde_yaml::to_string(&content).context("Failed to serialize agent to YAML")?;
+        let yaml = serde_yaml::to_string(&content)?;
 
         let header = format!(
             "# {} Configuration\n# {}\n\n",
             agent.card.display_name, agent.card.description
         );
 
-        fs::write(path, format!("{}{}", header, yaml))
-            .with_context(|| format!("Failed to write agent file: {}", path.display()))
+        fs::write(path, format!("{header}{yaml}")).map_err(|e| ConfigWriteError::Io {
+            path: path.to_path_buf(),
+            source: e,
+        })
     }
 
-    fn remove_include(include_path: &str, config_path: &Path) -> Result<()> {
-        let content = fs::read_to_string(config_path)
-            .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
+    fn remove_include(include_path: &str, config_path: &Path) -> ConfigWriteResult<()> {
+        let content = fs::read_to_string(config_path).map_err(|e| ConfigWriteError::Io {
+            path: config_path.to_path_buf(),
+            source: e,
+        })?;
 
-        let search_pattern = format!("  - {}", include_path);
-        let quoted_pattern = format!("  - \"{}\"", include_path);
+        let search_pattern = format!("  - {include_path}");
+        let quoted_pattern = format!("  - \"{include_path}\"");
 
         let new_lines: Vec<&str> = content
             .lines()
             .filter(|line| *line != search_pattern && *line != quoted_pattern)
             .collect();
 
-        fs::write(config_path, new_lines.join("\n"))
-            .with_context(|| format!("Failed to write config file: {}", config_path.display()))
+        fs::write(config_path, new_lines.join("\n")).map_err(|e| ConfigWriteError::Io {
+            path: config_path.to_path_buf(),
+            source: e,
+        })
     }
 }
