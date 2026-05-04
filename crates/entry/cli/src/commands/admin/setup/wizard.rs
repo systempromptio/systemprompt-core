@@ -1,13 +1,16 @@
 use crate::shared::CommandResult;
-use anyhow::{Context, Result};
+use anyhow::Result;
+use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
-use std::path::{Path, PathBuf};
 use systemprompt_logging::CliService;
 
-use super::common::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
-use super::{SetupArgs, common, postgres, profile, secrets};
+use super::wizard_dry_run::execute_dry_run;
+use super::wizard_prompts::{
+    collect_secrets, detect_project_root, get_environment_name, print_summary, setup_postgres,
+    should_run_migrations,
+};
+use super::{SetupArgs, common, profile, secrets};
 use crate::CliConfig;
 
 pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResult<SetupOutput>> {
@@ -47,36 +50,7 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
             .interact()?;
 
         if !confirmed {
-            let output = SetupOutput {
-                environment: env_name.clone(),
-                profile_path: String::new(),
-                database: DatabaseSetupInfo {
-                    host: args.db_host.clone(),
-                    port: args.db_port,
-                    name: args.effective_db_name(&env_name),
-                    user: args.effective_db_user(&env_name),
-                    connection_status: "cancelled".to_string(),
-                    docker: args.docker,
-                },
-                secrets_configured: SecretsConfiguredInfo {
-                    anthropic: args.anthropic_key.is_some(),
-                    openai: args.openai_key.is_some(),
-                    gemini: args.gemini_key.is_some(),
-                    github: args.github_token.is_some(),
-                },
-                migrations_run: false,
-                message: "Setup cancelled by user".to_string(),
-            };
-
-            if !config.is_json_output() {
-                CliService::info("Setup cancelled");
-            }
-
-            let result = CommandResult::text(output).with_title("Setup Cancelled");
-            if config.is_json_output() {
-                return Ok(result);
-            }
-            return Ok(result.with_skip_render());
+            return Ok(build_cancelled(&args, &env_name, config));
         }
     }
 
@@ -158,98 +132,20 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
     }
 }
 
-fn execute_dry_run(
+fn build_cancelled(
     args: &SetupArgs,
     env_name: &str,
-    systemprompt_dir: &Path,
     config: &CliConfig,
 ) -> CommandResult<SetupOutput> {
-    if !config.is_json_output() {
-        CliService::section("Dry Run - No changes will be made");
-    }
-
-    let profile_path = profile::default_path(systemprompt_dir, env_name);
-    let secrets_path = secrets::default_path(systemprompt_dir, env_name);
-
-    let connection_status = if args.docker {
-        "docker_pending"
-    } else if common::detect_postgresql(&args.db_host, args.db_port) {
-        "reachable"
-    } else {
-        "unreachable"
-    };
-
-    if !config.is_json_output() {
-        CliService::subsection("Configuration Preview");
-        CliService::key_value("Environment", env_name);
-        CliService::key_value("Profile path", &profile_path.to_string_lossy());
-        CliService::key_value("Secrets path", &secrets_path.to_string_lossy());
-
-        CliService::subsection("Database");
-        CliService::key_value("Host", &args.db_host);
-        CliService::key_value("Port", &args.db_port.to_string());
-        CliService::key_value("User", &args.effective_db_user(env_name));
-        CliService::key_value("Database", &args.effective_db_name(env_name));
-        CliService::key_value("Docker", if args.docker { "yes" } else { "no" });
-        CliService::key_value("Connection", connection_status);
-
-        CliService::subsection("API Keys");
-        CliService::key_value(
-            "Anthropic",
-            if args.anthropic_key.is_some() {
-                "configured"
-            } else {
-                "not set"
-            },
-        );
-        CliService::key_value(
-            "OpenAI",
-            if args.openai_key.is_some() {
-                "configured"
-            } else {
-                "not set"
-            },
-        );
-        CliService::key_value(
-            "Gemini",
-            if args.gemini_key.is_some() {
-                "configured"
-            } else {
-                "not set"
-            },
-        );
-        CliService::key_value(
-            "GitHub",
-            if args.github_token.is_some() {
-                "configured"
-            } else {
-                "not set"
-            },
-        );
-
-        CliService::subsection("Migrations");
-        let migration_status = if args.migrate {
-            "will run"
-        } else if args.no_migrate {
-            "skipped"
-        } else {
-            "will prompt (interactive)"
-        };
-        CliService::key_value("Status", migration_status);
-
-        CliService::info("");
-        CliService::info("Run without --dry-run to execute setup");
-    }
-
     let output = SetupOutput {
         environment: env_name.to_string(),
-        profile_path: profile_path.to_string_lossy().to_string(),
+        profile_path: String::new(),
         database: DatabaseSetupInfo {
             host: args.db_host.clone(),
             port: args.db_port,
             name: args.effective_db_name(env_name),
             user: args.effective_db_user(env_name),
-            connection_status: connection_status.to_string(),
+            connection_status: "cancelled".to_string(),
             docker: args.docker,
         },
         secrets_configured: SecretsConfiguredInfo {
@@ -259,130 +155,17 @@ fn execute_dry_run(
             github: args.github_token.is_some(),
         },
         migrations_run: false,
-        message: "Dry run completed - no changes made".to_string(),
+        message: "Setup cancelled by user".to_string(),
     };
 
-    let result = CommandResult::text(output).with_title("Setup Dry Run");
+    if !config.is_json_output() {
+        CliService::info("Setup cancelled");
+    }
+
+    let result = CommandResult::text(output).with_title("Setup Cancelled");
     if config.is_json_output() {
         result
     } else {
         result.with_skip_render()
     }
-}
-
-fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {
-    if let Some(ref env) = args.environment {
-        return Ok(env.clone());
-    }
-
-    if !config.is_interactive() {
-        return Ok("dev".to_string());
-    }
-
-    CliService::info("Enter environment name (e.g., 'dev', 'staging', 'prod')");
-    CliService::info("Press Enter for default: dev");
-
-    let input: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Environment name")
-        .default("dev".to_string())
-        .interact_text()?;
-
-    Ok(input.trim().to_lowercase())
-}
-
-async fn setup_postgres(
-    args: &SetupArgs,
-    config: &CliConfig,
-    env_name: &str,
-) -> Result<PostgresConfig> {
-    if !config.is_interactive() {
-        return postgres::setup_non_interactive(args, env_name, config).await;
-    }
-    postgres::setup_interactive(args, env_name, config).await
-}
-
-fn collect_secrets(
-    args: &SetupArgs,
-    config: &CliConfig,
-    env_name: &str,
-) -> Result<secrets::SecretsData> {
-    if !config.is_interactive() {
-        return secrets::collect_non_interactive(args, config);
-    }
-    secrets::collect_interactive(args, env_name, config)
-}
-
-fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {
-    if args.migrate {
-        return Ok(true);
-    }
-    if args.no_migrate {
-        return Ok(false);
-    }
-    if !config.is_interactive() {
-        return Ok(false);
-    }
-
-    let run = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Run database migrations now?")
-        .default(true)
-        .interact()?;
-
-    Ok(run)
-}
-
-fn detect_project_root() -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to get current directory")?;
-
-    let indicators = ["Cargo.toml", "services", ".systemprompt", "core"];
-
-    for indicator in indicators {
-        if cwd.join(indicator).exists() {
-            return Ok(cwd);
-        }
-    }
-
-    let mut current = cwd.clone();
-    for _ in 0..5 {
-        if let Some(parent) = current.parent() {
-            for indicator in indicators {
-                if parent.join(indicator).exists() {
-                    return Ok(parent.to_path_buf());
-                }
-            }
-            current = parent.to_path_buf();
-        } else {
-            break;
-        }
-    }
-
-    Ok(cwd)
-}
-
-fn print_summary(env_name: &str, profile_path: &Path) {
-    CliService::section("Setup Complete!");
-
-    CliService::info(&format!(
-        "Created profile: {} -> {}",
-        env_name,
-        profile_path.display()
-    ));
-
-    CliService::section("Next Steps");
-
-    CliService::info(&format!(
-        "1. Set your profile environment variable for '{}':",
-        env_name
-    ));
-    CliService::info(&format!(
-        "   export SYSTEMPROMPT_PROFILE={}",
-        profile_path.display()
-    ));
-    CliService::info("");
-    CliService::info("2. Start services:");
-    CliService::info("   just start");
-    CliService::info("");
-    CliService::info("3. (Optional) Configure cloud deployment:");
-    CliService::info("   systemprompt cloud login");
-    CliService::info("   systemprompt cloud config");
 }

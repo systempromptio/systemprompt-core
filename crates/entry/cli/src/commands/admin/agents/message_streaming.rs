@@ -63,9 +63,7 @@ pub async fn execute_streaming(
                                     ) {
                                         tracing::warn!(error = %e, "stdout write failed");
                                     }
-                                    if let Err(e) =
-                                        std::io::Write::flush(&mut std::io::stdout())
-                                    {
+                                    if let Err(e) = std::io::Write::flush(&mut std::io::stdout()) {
                                         tracing::warn!(error = %e, "stdout flush failed");
                                     }
                                     accumulated_text.push_str(&text);
@@ -75,8 +73,8 @@ pub async fn execute_streaming(
                             if event.is_final {
                                 CliService::output("");
                                 final_task = Some(Task {
-                                    id: event.task_id.into(),
-                                    context_id: event.context_id.into(),
+                                    id: event.task_id,
+                                    context_id: event.context_id,
                                     status: event.status,
                                     history: None,
                                     artifacts: None,

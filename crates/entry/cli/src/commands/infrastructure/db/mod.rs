@@ -1,4 +1,6 @@
 mod admin;
+mod admin_migrate;
+mod admin_migrations;
 mod helpers;
 mod introspect;
 mod query;

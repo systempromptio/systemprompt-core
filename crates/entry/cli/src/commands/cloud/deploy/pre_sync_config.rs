@@ -2,86 +2,67 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CloudApiClient, CloudPath, ProfilePath, TenantStore, get_cloud_paths};
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
-use systemprompt_sync::{FileDiffStatus, SyncDiffResult, SyncOperationResult};
+use systemprompt_sync::{SyncApiClient, SyncConfigBuilder, SyncDirection};
 
 use crate::cli_settings::CliConfig;
 use crate::commands::cloud::tenant::get_credentials;
 use crate::interactive::confirm_optional;
+use crate::shared::project::ProjectRoot;
 
-pub fn display_diff(diff: &SyncDiffResult) {
-    CliService::section("Cloud Sync Diff");
+pub async fn build_sync_config(
+    tenant_id: &TenantId,
+    dry_run: bool,
+    yes: bool,
+    cli_config: &CliConfig,
+    profile_path: &Path,
+) -> Result<(systemprompt_sync::SyncConfig, SyncApiClient)> {
+    let secrets = SecretsBootstrap::get().context("Failed to load secrets")?;
+    let creds = get_credentials()?;
 
-    if diff.added > 0 {
-        CliService::info(&format!("  Added ({}):", diff.added));
-        for entry in &diff.entries {
-            if entry.status == FileDiffStatus::Added {
-                CliService::info(&format!("    + {}", entry.path));
-            }
-        }
+    let cloud_paths = get_cloud_paths();
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let mut tenant_store = TenantStore::load_from_path(&tenants_path)
+        .context("Tenants not synced. Run 'systemprompt cloud login'")?;
+
+    let tenant = tenant_store.find_tenant(tenant_id.as_str());
+    let hostname = tenant.and_then(|t| t.hostname.clone());
+
+    if hostname.is_none() {
+        anyhow::bail!("Hostname not configured for tenant.\nRun: systemprompt cloud login");
     }
 
-    if diff.modified > 0 {
-        CliService::info(&format!("  Modified ({}):", diff.modified));
-        for entry in &diff.entries {
-            if entry.status == FileDiffStatus::Modified {
-                CliService::info(&format!("    ~ {}", entry.path));
-            }
-        }
+    let mut sync_token = secrets.sync_token.clone();
+
+    if sync_token.is_none() {
+        sync_token =
+            setup_sync_token(tenant_id, yes, cli_config, profile_path, &mut tenant_store).await?;
     }
 
-    if diff.deleted > 0 {
-        CliService::info(&format!("  Deleted from cloud ({}):", diff.deleted));
-        for entry in &diff.entries {
-            if entry.status == FileDiffStatus::Deleted {
-                CliService::info(&format!("    - {}", entry.path));
-            }
-        }
-    }
+    let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let local_services_path = project.as_path().join("services");
 
-    if diff.unchanged > 0 {
-        CliService::info(&format!("  Unchanged ({} files identical)", diff.unchanged));
-    }
+    let sync_config = SyncConfigBuilder::new(
+        tenant_id.clone(),
+        &creds.api_url,
+        &creds.api_token,
+        local_services_path.to_string_lossy(),
+    )
+    .with_direction(SyncDirection::Pull)
+    .with_dry_run(dry_run)
+    .with_hostname(hostname)
+    .with_sync_token(sync_token)
+    .build();
+
+    let api_client = SyncApiClient::new(&creds.api_url, &creds.api_token)?
+        .with_direct_sync(sync_config.hostname.clone(), sync_config.sync_token.clone());
+
+    Ok((sync_config, api_client))
 }
 
-pub fn display_destructive_warning() {
-    CliService::warning("DESTRUCTIVE OPERATION");
-    CliService::info("  Deploying replaces the running container.");
-    CliService::info("  Runtime files (uploads, AI-generated images) not in your local build");
-    CliService::info("  will be PERMANENTLY LOST unless synced first.");
-    CliService::info("");
-    CliService::info("  Database records are preserved.");
-    CliService::info("");
-}
-
-pub fn display_dry_run_result(result: &SyncOperationResult) {
-    CliService::section("Dry Run - Files to Sync");
-    match &result.details {
-        Some(details) => display_file_list(details),
-        None => CliService::info(&format!("Would sync {} items", result.items_skipped)),
-    }
-}
-
-fn display_file_list(details: &serde_json::Value) {
-    let Some(files) = details.get("files").and_then(|f| f.as_array()) else {
-        return;
-    };
-
-    CliService::info(&format!("Would sync {} files:", files.len()));
-
-    for file in files.iter().take(20) {
-        if let Some(path) = file.get("path").and_then(|p| p.as_str()) {
-            CliService::info(&format!("  - {}", path));
-        }
-    }
-
-    if files.len() > 20 {
-        CliService::info(&format!("  ... and {} more", files.len() - 20));
-    }
-}
-
-pub async fn setup_sync_token(
+async fn setup_sync_token(
     tenant_id: &TenantId,
     yes: bool,
     cli_config: &CliConfig,
@@ -127,7 +108,11 @@ pub async fn setup_sync_token(
         let token = response.sync_token;
         CliService::success("Sync token generated");
 
-        if let Some(tenant) = tenant_store.tenants.iter_mut().find(|t| t.id == tenant_id.as_str()) {
+        if let Some(tenant) = tenant_store
+            .tenants
+            .iter_mut()
+            .find(|t| t.id == tenant_id.as_str())
+        {
             tenant.sync_token = Some(token.clone());
         }
         tenant_store.save_to_path(&tenants_path)?;

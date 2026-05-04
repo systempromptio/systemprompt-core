@@ -5,14 +5,14 @@ use anyhow::{Context, Result, anyhow};
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 
-use super::logs::LogLevel;
+use super::logs::{LogLevel, LogsArgs};
 use super::types::McpLogsOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 
-pub(super) fn execute_disk_mode(
-    args: &super::logs::LogsArgs,
+pub fn execute_disk_mode(
+    args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
 ) -> Result<CommandResult<McpLogsOutput>> {
@@ -54,8 +54,8 @@ pub(super) fn execute_disk_mode(
     .with_title(format!("MCP Logs (Disk): {}{}", service, level_label)))
 }
 
-pub(super) fn execute_follow_mode(
-    args: &super::logs::LogsArgs,
+pub fn execute_follow_mode(
+    args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
 ) -> Result<CommandResult<McpLogsOutput>> {
@@ -91,7 +91,7 @@ pub(super) fn execute_follow_mode(
     .with_title("MCP Logs"))
 }
 
-pub(super) fn list_mcp_log_files(logs_dir: &Path) -> Result<Vec<String>> {
+fn list_mcp_log_files(logs_dir: &Path) -> Result<Vec<String>> {
     let mut files = std::fs::read_dir(logs_dir)
         .context("Failed to read logs directory")?
         .filter_map(Result::ok)
