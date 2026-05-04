@@ -214,7 +214,7 @@ fn challenge_or_error(
         ctx,
         status_code,
     ) {
-        Ok(challenge_response) => ProxyError::AuthChallenge(challenge_response),
+        Ok(challenge_response) => ProxyError::AuthChallenge(Box::new(challenge_response)),
         Err(status) if status == StatusCode::UNAUTHORIZED => ProxyError::AuthenticationRequired {
             service: service_name.to_string(),
         },
@@ -233,15 +233,18 @@ fn ensure_required_scopes(
         return Ok(());
     }
     let has_required_scope = required_scopes.iter().any(|required_scope_str| {
-        if let Ok(required_permission) = Permission::from_str(required_scope_str) {
-            user.permissions
-                .iter()
-                .any(|p| *p == required_permission || p.implies(&required_permission))
-        } else {
-            user.permissions
-                .iter()
-                .any(|p| p.as_str() == required_scope_str)
-        }
+        Permission::from_str(required_scope_str).map_or_else(
+            |_| {
+                user.permissions
+                    .iter()
+                    .any(|p| p.as_str() == required_scope_str)
+            },
+            |required_permission| {
+                user.permissions
+                    .iter()
+                    .any(|p| *p == required_permission || p.implies(&required_permission))
+            },
+        )
     });
     if !has_required_scope {
         return Err(ProxyError::Forbidden {

@@ -19,7 +19,7 @@ pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutp
     };
 
     if !config.is_json_output() {
-        render_status(&profile_info, &credentials_info, &tenant_statuses);
+        render_status(profile_info.as_ref(), &credentials_info, &tenant_statuses);
     }
 
     Ok(CommandResult::card(output).with_title("Cloud Status"))
@@ -127,7 +127,7 @@ async fn load_credentials_and_tenants(
 }
 
 fn render_status(
-    profile_info: &Option<ProfileInfo>,
+    profile_info: Option<&ProfileInfo>,
     credentials_info: &CredentialsInfo,
     tenant_statuses: &[TenantStatusInfo],
 ) {
@@ -136,7 +136,7 @@ fn render_status(
     render_credentials(credentials_info, tenant_statuses);
 }
 
-fn render_profile(profile_info: &Option<ProfileInfo>) {
+fn render_profile(profile_info: Option<&ProfileInfo>) {
     let Some(profile) = profile_info else {
         CliService::key_value("Profile", "Not initialized");
         return;

@@ -47,7 +47,7 @@ pub struct EditArgs {
     pub description: Option<String>,
 }
 
-pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<ContentTypeEditOutput>> {
+pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<ContentTypeEditOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -67,8 +67,8 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Conte
         .ok_or_else(|| anyhow!("Content type '{}' not found", name))?;
 
     let mut changes = Vec::new();
-    apply_basic_flags(source, &args, &mut changes);
-    apply_sitemap_flags(source, &args, &mut changes, &name)?;
+    apply_basic_flags(source, args, &mut changes);
+    apply_sitemap_flags(source, args, &mut changes, &name)?;
     apply_set_value_changes(source, &args.set_values, &mut changes)?;
 
     if changes.is_empty() {

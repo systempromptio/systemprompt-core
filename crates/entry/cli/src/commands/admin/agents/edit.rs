@@ -42,7 +42,7 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
+pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {
@@ -56,14 +56,14 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         .clone();
 
     let mut changes = Vec::new();
-    apply_enabled_flags(&mut agent, &args, &mut changes);
-    apply_runtime_fields(&mut agent, &args, &mut changes)?;
-    apply_card_fields(&mut agent, &args, &mut changes);
-    apply_capability_fields(&mut agent, &args, &mut changes);
-    apply_metadata_fields(&mut agent, &args, &mut changes)?;
-    apply_mcp_server_changes(&mut agent, &args, &services_config, &mut changes)?;
-    apply_skill_changes(&mut agent, &args, &mut changes);
-    apply_set_value_changes(&mut agent, &args, &mut changes)?;
+    apply_enabled_flags(&mut agent, args, &mut changes);
+    apply_runtime_fields(&mut agent, args, &mut changes)?;
+    apply_card_fields(&mut agent, args, &mut changes);
+    apply_capability_fields(&mut agent, args, &mut changes);
+    apply_metadata_fields(&mut agent, args, &mut changes)?;
+    apply_mcp_server_changes(&mut agent, args, &services_config, &mut changes)?;
+    apply_skill_changes(&mut agent, args, &mut changes);
+    apply_set_value_changes(&mut agent, args, &mut changes)?;
 
     if changes.is_empty() {
         return Err(anyhow!(

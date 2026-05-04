@@ -8,7 +8,7 @@ use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 use std::fs;
 use std::path::Path;
-use systemprompt_content::ContentRepository;
+use systemprompt_content::{CategoryIdUpdate, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 use systemprompt_logging::CliService;
@@ -81,7 +81,7 @@ pub async fn execute_with_pool(
         body: content.body.clone(),
         keywords: content.keywords.clone(),
         image: content.image.clone(),
-        category_id: None,
+        category_id: CategoryIdUpdate::Unchanged,
         public_value: None,
         kind_value: None,
     };
@@ -130,7 +130,7 @@ struct ContentEditState {
     body: String,
     keywords: String,
     image: Option<String>,
-    category_id: Option<Option<CategoryId>>,
+    category_id: CategoryIdUpdate,
     public_value: Option<bool>,
     kind_value: Option<String>,
 }
@@ -152,7 +152,7 @@ fn apply_body_flags(
     changes: &mut Vec<String>,
 ) -> Result<()> {
     if let Some(b) = &args.body {
-        state.body = b.clone();
+        state.body.clone_from(b);
         changes.push("body: updated".to_string());
     }
     if let Some(file) = &args.body_file {
@@ -237,7 +237,7 @@ async fn apply_category_field(
     repo: &ContentRepository,
 ) -> Result<()> {
     if value.eq_ignore_ascii_case("none") || value.is_empty() {
-        state.category_id = Some(None);
+        state.category_id = CategoryIdUpdate::Clear;
         changes.push("category_id: cleared".to_string());
         return Ok(());
     }
@@ -248,7 +248,7 @@ async fn apply_category_field(
             value
         ));
     }
-    state.category_id = Some(Some(cat_id));
+    state.category_id = CategoryIdUpdate::Set(cat_id);
     changes.push(format!("category_id: {}", value));
     Ok(())
 }
