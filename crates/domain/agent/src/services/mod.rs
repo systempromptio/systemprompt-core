@@ -1,3 +1,9 @@
+//! Service layer for the agent crate.
+//!
+//! Submodules group runtime services by responsibility: the embedded A2A HTTP
+//! server, orchestration of agent processes, MCP tool bridging, registry,
+//! skills ingestion, message and context services, and shared helpers.
+
 pub mod a2a_server;
 pub mod agent_orchestration;
 pub mod agents;

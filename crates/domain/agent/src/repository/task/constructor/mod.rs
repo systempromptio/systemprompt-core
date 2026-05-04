@@ -20,8 +20,15 @@ pub struct TaskConstructor {
 }
 
 impl TaskConstructor {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
-        let pool = db.pool_arc()?;
+    /// Construct a new `TaskConstructor` from a shared [`DbPool`].
+    ///
+    /// # Errors
+    /// Returns [`crate::error::AgentError::Init`] if the read pool cannot be
+    /// acquired or the inner [`ArtifactRepository`] cannot be initialised.
+    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
+        let pool = db
+            .pool_arc()
+            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
         let artifact_repo = ArtifactRepository::new(db)?;
         Ok(Self {
             pool,

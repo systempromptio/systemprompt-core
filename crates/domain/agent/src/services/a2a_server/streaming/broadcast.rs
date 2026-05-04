@@ -142,15 +142,23 @@ fn build_event_task(
     }
 }
 
+/// Notify the platform's webhook fan-out service that a new artifact was
+/// created.
+///
+/// # Errors
+/// Returns [`crate::error::AgentError::Config`] if the global configuration is
+/// unavailable, [`crate::error::AgentError::Http`] if the HTTP request fails to
+/// transmit, or [`crate::error::AgentError::Webhook`] if the receiver returns a
+/// non-success status.
 pub async fn broadcast_artifact_created(
     artifact: &crate::models::a2a::Artifact,
     task_id: &TaskId,
     context_id: &ContextId,
     user_id: &UserId,
     token: &str,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), crate::error::AgentError> {
     let api_url = Config::get()
-        .map_err(|e| anyhow::anyhow!("Config unavailable for artifact broadcast: {}", e))?
+        .map_err(|e| crate::error::AgentError::Config(e.to_string()))?
         .api_internal_url
         .clone();
     let webhook_url = format!("{}/api/v1/webhook/broadcast", api_url);
@@ -169,8 +177,7 @@ pub async fn broadcast_artifact_created(
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
-        .await
-        .map_err(|e| anyhow::anyhow!("Webhook request failed: {}", e))?;
+        .await?;
 
     if response.status().is_success() {
         tracing::info!(
@@ -181,10 +188,10 @@ pub async fn broadcast_artifact_created(
 
         Ok(())
     } else {
-        Err(anyhow::anyhow!(
-            "Webhook broadcast failed: status={}, artifact_id={}",
+        Err(crate::error::AgentError::Webhook(format!(
+            "broadcast failed: status={}, artifact_id={}",
             response.status(),
             artifact.id
-        ))
+        )))
     }
 }

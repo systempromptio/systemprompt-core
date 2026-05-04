@@ -10,7 +10,8 @@ use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::ProcessMessageStreamParams;
 
-use super::event_loop::{ProcessEventsParams, handle_stream_creation_error, process_events};
+use super::event_loop::{ProcessEventsParams, process_events};
+use super::event_loop_lifecycle::handle_stream_creation_error;
 use super::initialization::setup_stream;
 use super::types::StreamInput;
 use super::webhook_client::WebhookContext;
