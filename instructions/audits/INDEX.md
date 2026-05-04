@@ -63,6 +63,15 @@ entry below pre-dates Wave 1 and was already audited CLEAN.
 
 ## Entry Layer
 
+Entry binaries (`api`, `cli`) are **exempt** from §3a Public-API Hygiene rules
+that target published library crates: they may keep `anyhow::Error` at the
+HTTP / process boundary, and they are not required to carry `///` rustdoc on
+internal items. They are still subject to: file-size (`just file-size`),
+banned-pattern (`just check-bans`), `let _` / `.ok()` carve-out comments,
+sqlx allowlist, lint floor (`-D warnings`), and `cargo deny` / `cargo audit`.
+Internal command modules SHOULD still adopt typed errors where it doesn't
+require pushing `anyhow` back into a library crate's public API.
+
 | Crate | Verdict | Total | Doc |
 |-------|---------|-------|-----|
 | systemprompt-api | CRITICAL | 109 | [systemprompt-api-2026-05.md](systemprompt-api-2026-05.md) |
