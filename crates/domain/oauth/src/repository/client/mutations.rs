@@ -1,7 +1,9 @@
+//! Write-side OAuth client mutations.
+
 use super::inserts::InsertRelatedData;
 use super::{ClientRepository, CreateClientParams, UpdateClientParams};
+use crate::error::OauthResult as Result;
 use crate::models::{ClientRelations, OAuthClient, OAuthClientRow, TokenAuthMethod};
-use anyhow::Result;
 use chrono::Utc;
 use systemprompt_identifiers::ClientId;
 

@@ -1,5 +1,7 @@
+//! `WebAuthn` passkey registration flow.
+
 use super::WebAuthnService;
-use anyhow::Result;
+use crate::error::OauthResult as Result;
 use base64::engine::{Engine, general_purpose};
 use std::time::Instant;
 use tracing::instrument;
@@ -185,13 +187,17 @@ impl WebAuthnService {
     ) -> Result<PasskeyRegistration> {
         let (state, timestamp) = {
             let mut states = self.reg_states.lock().await;
-            states
-                .remove(challenge_id)
-                .ok_or_else(|| anyhow::anyhow!("Registration state not found or expired"))?
+            states.remove(challenge_id).ok_or_else(|| {
+                crate::error::OauthError::from(anyhow::anyhow!(
+                    "Registration state not found or expired"
+                ))
+            })?
         };
 
         if timestamp.elapsed() > std::time::Duration::from_secs(120) {
-            return Err(anyhow::anyhow!("Registration challenge expired"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "Registration challenge expired"
+            )));
         }
 
         Ok(state)

@@ -1,6 +1,8 @@
+//! Read-side OAuth client queries.
+
 use super::ClientRepository;
+use crate::error::OauthResult as Result;
 use crate::models::{OAuthClient, OAuthClientRow};
-use anyhow::Result;
 use systemprompt_identifiers::ClientId;
 
 impl ClientRepository {

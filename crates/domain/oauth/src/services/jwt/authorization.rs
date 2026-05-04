@@ -1,3 +1,5 @@
+//! JWT-based authorisation policy checks.
+
 use crate::models::JwtClaims;
 use crate::services::validation::{audience, jwt as jwt_validation};
 use http::{HeaderMap, StatusCode};

@@ -1,3 +1,6 @@
+//! Persistence repositories backing the OAuth domain (clients, codes, tokens,
+//! `WebAuthn` credentials).
+
 pub mod client;
 pub mod exchange_code;
 pub mod oauth;

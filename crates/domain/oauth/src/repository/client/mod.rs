@@ -1,3 +1,5 @@
+//! OAuth client repository: queries, mutations, relations, cleanup.
+
 mod cleanup;
 mod inserts;
 mod mutations;
@@ -17,7 +19,7 @@ pub struct ClientRepository {
 }
 
 impl ClientRepository {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+    pub fn new(db: &DbPool) -> crate::error::OauthResult<Self> {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
         Ok(Self { pool, write_pool })

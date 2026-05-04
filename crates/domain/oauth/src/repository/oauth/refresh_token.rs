@@ -1,3 +1,5 @@
+//! Refresh token persistence and rotation.
+
 use super::OAuthRepository;
 use crate::error::{OauthError, OauthResult};
 use chrono::Utc;

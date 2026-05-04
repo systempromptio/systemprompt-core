@@ -1,3 +1,5 @@
+//! OAuth extension registration metadata.
+
 use systemprompt_extension::prelude::*;
 
 const MIGRATION_001_RFC8707_RESOURCE: &str = r"

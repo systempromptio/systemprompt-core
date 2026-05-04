@@ -1,7 +1,9 @@
+//! CIMD metadata semantic validator.
+
 use super::fetcher::CimdFetcher;
+use crate::error::OauthResult as Result;
 use crate::models::cimd::ClientValidation;
 use crate::repository::oauth::OAuthRepository;
-use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::Database;
 use systemprompt_identifiers::ClientId;
@@ -36,11 +38,13 @@ impl ClientValidator {
             systemprompt_identifiers::ClientType::System => Ok(ClientValidation::System {
                 client_id: client_id.clone(),
             }),
-            systemprompt_identifiers::ClientType::Unknown => Err(anyhow!(
-                "Invalid client_id format: '{client_id}'. Expected patterns:\n- https://* (CIMD \
-                 decentralized client)\n- sp_* (first-party systemprompt.io client)\n- client_* \
-                 (third-party registered client)\n- sys_* (internal system service)"
-            )),
+            systemprompt_identifiers::ClientType::Unknown => {
+                Err(crate::error::OauthError::from(anyhow::anyhow!(
+                    "Invalid client_id format: '{client_id}'. Expected patterns:\n- https://* \
+                     (CIMD decentralized client)\n- sp_* (first-party systemprompt.io client)\n- \
+                     client_* (third-party registered client)\n- sys_* (internal system service)"
+                )))
+            },
         }
     }
 
@@ -53,9 +57,9 @@ impl ClientValidator {
 
         if let Some(uri) = redirect_uri {
             if !metadata.has_redirect_uri(uri) {
-                return Err(anyhow!(
+                return Err(crate::error::OauthError::from(anyhow::anyhow!(
                     "redirect_uri '{uri}' not registered in CIMD metadata for {client_id}"
-                ));
+                )));
             }
         }
 
@@ -69,9 +73,9 @@ impl ClientValidator {
         let client = self.dcr_repo.find_client_by_id(client_id).await?;
 
         if client.is_none() {
-            return Err(anyhow!(
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
                 "DCR client_id '{client_id}' not found in oauth_clients table"
-            ));
+            )));
         }
 
         Ok(ClientValidation::Dcr {

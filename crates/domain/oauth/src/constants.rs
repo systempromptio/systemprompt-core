@@ -1,3 +1,5 @@
+//! OAuth domain compile-time constants.
+
 pub mod pkce {
     pub const CODE_CHALLENGE_MIN_LENGTH: usize = 43;
     pub const CODE_CHALLENGE_MAX_LENGTH: usize = 128;

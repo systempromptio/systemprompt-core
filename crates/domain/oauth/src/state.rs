@@ -1,3 +1,5 @@
+//! Shared OAuth runtime state.
+
 use crate::services::webauthn::{LinkStates, create_link_states};
 use std::sync::Arc;
 use systemprompt_database::DbPool;

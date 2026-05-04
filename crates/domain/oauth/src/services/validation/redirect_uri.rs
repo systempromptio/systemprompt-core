@@ -1,3 +1,5 @@
+//! Redirect URI validation against registered clients.
+
 use systemprompt_models::AuthError;
 
 pub fn validate_redirect_uri(

@@ -1,3 +1,5 @@
+//! Authorisation code persistence with PKCE.
+
 use super::OAuthRepository;
 use crate::error::{OauthError, OauthResult};
 use crate::models::PkceMethod;

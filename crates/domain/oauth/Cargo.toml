@@ -13,6 +13,9 @@ description = "OAuth 2.0 / OIDC with PKCE, token introspection, and audience/iss
 readme = "README.md"
 include = ["src/**/*", "schema/**/*", "templates/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
 
