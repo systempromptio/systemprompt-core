@@ -13,7 +13,7 @@ pub struct AnalyticsAiSessionProvider {
 }
 
 impl AnalyticsAiSessionProvider {
-    pub fn new(pool: &DbPool) -> anyhow::Result<Self> {
+    pub fn new(pool: &DbPool) -> crate::Result<Self> {
         Ok(Self {
             session_repo: SessionRepository::new(pool)?,
         })

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use chrono::Utc;
 use systemprompt_identifiers::{FunnelId, FunnelProgressId, SessionId};
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::Result;
 use chrono::{DateTime, Utc};
 use http::{HeaderMap, Uri};
 

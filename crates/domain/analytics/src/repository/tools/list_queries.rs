@@ -1,46 +1,51 @@
-use anyhow::Result;
+//! Tool execution leaderboard queries (filtered + unfiltered) for the
+//! analytics CLI surface.
+
+use crate::Result;
 use chrono::{DateTime, Utc};
 
 use super::ToolAnalyticsRepository;
 use crate::models::cli::ToolListRow;
 
+/// Input parameters for [`ToolAnalyticsRepository::list_tools`].
 #[derive(Debug)]
 pub struct ToolListParams<'a> {
+    /// Inclusive lower bound on `created_at`.
     pub start: DateTime<Utc>,
+    /// Exclusive upper bound on `created_at`.
     pub end: DateTime<Utc>,
+    /// Maximum rows to return.
     pub limit: i64,
+    /// Optional substring filter on `server_name` (matched as `%server%`).
     pub server_filter: Option<&'a str>,
+    /// One of `"success_rate"`, `"avg_time"`, or any other value (defaults to
+    /// `"executions"` ordering).
     pub sort_order: &'a str,
 }
 
 impl ToolAnalyticsRepository {
+    /// Return the leaderboard rows for tool executions matching `params`.
     pub async fn list_tools(&self, params: ToolListParams<'_>) -> Result<Vec<ToolListRow>> {
+        if let Some(server) = params.server_filter {
+            let pattern = format!("%{}%", server);
+            self.list_tools_with_filter(&params, &pattern).await
+        } else {
+            self.list_tools_unfiltered(&params).await
+        }
+    }
+
+    async fn list_tools_with_filter(
+        &self,
+        params: &ToolListParams<'_>,
+        pattern: &str,
+    ) -> Result<Vec<ToolListRow>> {
         let ToolListParams {
             start,
             end,
             limit,
-            server_filter,
             sort_order,
-        } = params;
-        if let Some(server) = server_filter {
-            let pattern = format!("%{}%", server);
-            self.list_tools_with_filter(start, end, limit, &pattern, sort_order)
-                .await
-        } else {
-            self.list_tools_unfiltered(start, end, limit, sort_order)
-                .await
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn list_tools_with_filter(
-        &self,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        limit: i64,
-        pattern: &str,
-        sort_order: &str,
-    ) -> Result<Vec<ToolListRow>> {
+            ..
+        } = *params;
         match sort_order {
             "success_rate" => sqlx::query_as!(
                 ToolListRow,
@@ -119,13 +124,14 @@ impl ToolAnalyticsRepository {
         }
     }
 
-    async fn list_tools_unfiltered(
-        &self,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        limit: i64,
-        sort_order: &str,
-    ) -> Result<Vec<ToolListRow>> {
+    async fn list_tools_unfiltered(&self, params: &ToolListParams<'_>) -> Result<Vec<ToolListRow>> {
+        let ToolListParams {
+            start,
+            end,
+            limit,
+            sort_order,
+            ..
+        } = *params;
         match sort_order {
             "success_rate" => sqlx::query_as!(
                 ToolListRow,

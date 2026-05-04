@@ -6431,7 +6431,6 @@ dependencies = [
 name = "systemprompt-cloud"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "async-stream",
  "async-trait",
  "axum",
@@ -6490,7 +6489,6 @@ dependencies = [
 name = "systemprompt-config"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "base64 0.22.1",
  "rand 0.9.4",
  "regex",
@@ -6624,7 +6622,6 @@ dependencies = [
 name = "systemprompt-events"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "axum",
  "once_cell",
@@ -6632,6 +6629,7 @@ dependencies = [
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
@@ -6815,7 +6813,6 @@ dependencies = [
 name = "systemprompt-loader"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -7195,7 +7192,6 @@ dependencies = [
 name = "systemprompt-security"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "axum",
  "base64 0.22.1",

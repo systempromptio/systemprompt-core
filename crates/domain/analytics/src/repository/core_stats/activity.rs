@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use chrono::{Duration, Utc};
 
 use super::CoreStatsRepository;

@@ -1,12 +1,27 @@
-pub(crate) mod error;
-pub(crate) mod extension;
+//! Analytics domain crate for systemprompt.io.
+//!
+//! Provides session, fingerprint, funnel, engagement, conversation, content,
+//! tool, agent, and cost analytics on top of the `systemprompt-database`
+//! abstraction. Public surface is a typed [`AnalyticsError`] boundary plus a
+//! family of repositories and services consumed by `systemprompt-api`,
+//! `systemprompt-cli`, and `systemprompt-scheduler`.
+//!
+//! # Feature flags
+//!
+//! | Feature       | Description                                                                  |
+//! |---------------|------------------------------------------------------------------------------|
+//! | _(default)_   | Core analytics — repositories, services, events, no geolocation enrichment.  |
+//! | `geolocation` | Enables MaxMind GeoIP enrichment via [`maxminddb`] for [`GeoIpReader`].      |
+
+pub mod error;
+pub mod extension;
 pub mod models;
-pub(crate) mod repository;
-pub(crate) mod services;
+pub mod repository;
+pub mod services;
 
 pub use extension::AnalyticsExtension;
 
-pub use error::{AnalyticsError, Result as AnalyticsResult};
+pub use error::{AnalyticsError, Result, Result as AnalyticsResult};
 
 pub use models::{
     ActivityTrend, AnalyticsEvent, AnalyticsEventBatchResponse, AnalyticsEventCreated,
@@ -40,7 +55,14 @@ pub use services::{
     SignalType, ThrottleLevel, ThrottleService, detection,
 };
 
+/// Optional shared `MaxMind` `GeoIP` reader.
+///
+/// Exposed when the `geolocation` feature is enabled. Falls back to an inert
+/// [`std::sync::Arc<()>`] when the feature is disabled, preserving the type
+/// signature for downstream crates that build without geo support.
 #[cfg(feature = "geolocation")]
 pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;
+
+/// Stub [`GeoIpReader`] used when the `geolocation` feature is disabled.
 #[cfg(not(feature = "geolocation"))]
 pub type GeoIpReader = std::sync::Arc<()>;

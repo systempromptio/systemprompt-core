@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use systemprompt_database::DbPool;
 
 use crate::repository::SessionRepository;

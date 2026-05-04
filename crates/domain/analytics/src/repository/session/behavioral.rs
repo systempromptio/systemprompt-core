@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use sqlx::PgPool;
 use systemprompt_identifiers::SessionId;
 
