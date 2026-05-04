@@ -41,10 +41,14 @@ impl ProxyDatabaseLayer {
 
     pub fn attach(&self, db_pool: DbPool) {
         if self.inner.set(DatabaseLayer::new(db_pool)).is_err() {
-            let _ = writeln!(
+            // Why: stderr sink during subscriber bootstrap — if the write fails the process
+            // is already terminating; recursing into tracing IS the failure
+            // mode we are avoiding.
+            writeln!(
                 std::io::stderr(),
                 "ProxyDatabaseLayer: database layer already attached, ignoring duplicate"
-            );
+            )
+            .ok();
         }
     }
 }

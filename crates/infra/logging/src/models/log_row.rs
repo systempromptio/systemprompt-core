@@ -1,9 +1,10 @@
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 use systemprompt_identifiers::LogId;
 
-use super::{LogEntry, LogLevel};
+use super::{LogEntry, LogLevel, LoggingError};
+
+type Result<T> = std::result::Result<T, LoggingError>;
 
 #[derive(Debug, FromRow)]
 pub struct LogRow {
@@ -22,36 +23,45 @@ pub struct LogRow {
 }
 
 impl LogRow {
+    /// Decode a [`LogRow`] from a generic JSON row returned by the database
+    /// service.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LoggingError::MissingColumn`] when a required column is absent
+    /// or has the wrong type.
     pub fn from_json_row(row: &systemprompt_database::JsonRow) -> Result<Self> {
-        use anyhow::anyhow;
+        let missing = |col: &str| LoggingError::MissingColumn {
+            column: col.to_string(),
+        };
 
         let id = row
             .get("id")
             .and_then(|v| v.as_str())
             .map(LogId::new)
-            .ok_or_else(|| anyhow!("Missing id"))?;
+            .ok_or_else(|| missing("id"))?;
 
         let timestamp = row
             .get("timestamp")
             .and_then(systemprompt_database::parse_database_datetime)
-            .ok_or_else(|| anyhow!("Invalid timestamp"))?;
+            .ok_or_else(|| missing("timestamp"))?;
 
         let level = row
             .get("level")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing level"))?
+            .ok_or_else(|| missing("level"))?
             .to_string();
 
         let module = row
             .get("module")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing module"))?
+            .ok_or_else(|| missing("module"))?
             .to_string();
 
         let message = row
             .get("message")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing message"))?
+            .ok_or_else(|| missing("message"))?
             .to_string();
 
         let metadata = row

@@ -5,12 +5,17 @@ use crate::services::cli::theme::{BrandColors, ServiceStatus};
 
 fn stdout_write(args: std::fmt::Arguments<'_>) {
     let mut out = std::io::stdout();
-    let _ = write!(out, "{args}");
+    // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no
+    // recoverable path; recursing into tracing IS the failure mode we are trying to
+    // avoid.
+    write!(out, "{args}").ok();
 }
 
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
     let mut out = std::io::stdout();
-    let _ = writeln!(out, "{args}");
+    // Why: CLI display sink — see `stdout_write` above for the broken-pipe
+    // rationale.
+    writeln!(out, "{args}").ok();
 }
 
 #[derive(Debug, Clone)]

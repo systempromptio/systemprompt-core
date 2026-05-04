@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::models::LoggingError;
+type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -35,8 +36,7 @@ pub async fn count_logs_by_level(
         since
     )
     .fetch_all(&**pool)
-    .await
-    .context("Failed to count logs by level")?;
+    .await?;
 
     Ok(rows
         .into_iter()
@@ -66,8 +66,7 @@ pub async fn top_modules(
         limit
     )
     .fetch_all(&**pool)
-    .await
-    .context("Failed to get top modules")?;
+    .await?;
 
     Ok(rows
         .into_iter()
@@ -92,8 +91,7 @@ pub async fn log_time_range(
         since
     )
     .fetch_one(&**pool)
-    .await
-    .context("Failed to get log time range")?;
+    .await?;
 
     Ok(LogTimeRange {
         earliest: row.earliest,
@@ -105,5 +103,5 @@ pub async fn total_log_count(pool: &Arc<PgPool>) -> Result<i64> {
     sqlx::query_scalar!(r#"SELECT COUNT(*) as "count!" FROM logs"#)
         .fetch_one(&**pool)
         .await
-        .context("Failed to count total logs")
+        .map_err(LoggingError::from)
 }

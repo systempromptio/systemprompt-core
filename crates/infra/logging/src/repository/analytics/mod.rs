@@ -1,34 +1,50 @@
-use anyhow::Context;
 use chrono::Utc;
 use serde_json::Value;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, UserId};
+
+use crate::models::LoggingError;
+
+/// Repository for inserting structured analytics events into the
+/// `analytics_events` table.
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepository {
     write_pool: Arc<PgPool>,
 }
 
 impl AnalyticsRepository {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+    /// Construct an analytics repository bound to the writable Postgres pool.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LoggingError`] when the database write pool is unavailable.
+    pub fn new(db: &DbPool) -> Result<Self, LoggingError> {
         let write_pool = db.write_pool_arc()?;
         Ok(Self { write_pool })
     }
 
-    pub async fn log_event(&self, event: &AnalyticsEvent) -> anyhow::Result<i64> {
+    /// Persist an analytics event and return the number of affected rows as
+    /// `i64`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LoggingError::DatabaseError`] when the underlying insert
+    /// fails.
+    pub async fn log_event(&self, event: &AnalyticsEvent) -> Result<i64, LoggingError> {
         let result = execute_insert(&self.write_pool, event).await?;
         Ok(i64::try_from(result).unwrap_or(i64::MAX))
     }
 }
 
-async fn execute_insert(pool: &PgPool, event: &AnalyticsEvent) -> anyhow::Result<u64> {
+async fn execute_insert(pool: &PgPool, event: &AnalyticsEvent) -> Result<u64, LoggingError> {
     let params = EventParams::from(event);
     run_insert_query(pool, params).await
 }
 
-async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> anyhow::Result<u64> {
-    sqlx::query!(
+async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> Result<u64, LoggingError> {
+    let result = sqlx::query!(
         r"
         INSERT INTO analytics_events
         (user_id, session_id, context_id, event_type, event_category, severity,
@@ -52,9 +68,8 @@ async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> anyhow::Result<u
         p.timestamp
     )
     .execute(pool)
-    .await
-    .map(|r| r.rows_affected())
-    .context("Failed to log analytics event")
+    .await?;
+    Ok(result.rows_affected())
 }
 
 struct EventParams<'a> {

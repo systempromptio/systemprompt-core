@@ -1,3 +1,4 @@
+mod banners;
 pub mod display;
 mod macros;
 pub mod module;

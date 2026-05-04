@@ -10,7 +10,13 @@ pub struct LoggingMaintenanceService {
 }
 
 impl LoggingMaintenanceService {
-    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
+    /// Construct a maintenance service bound to the given database pool.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LoggingError`] when the underlying database pool is
+    /// unavailable.
+    pub fn new(db_pool: &DbPool) -> Result<Self, LoggingError> {
         Ok(Self {
             repo: LoggingRepository::new(db_pool)?,
         })
