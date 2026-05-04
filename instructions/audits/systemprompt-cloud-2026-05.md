@@ -59,13 +59,13 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 |--------|-------|
 | Total .rs files | 27 |
 | Files over 300 lines | 2 |
-| Largest file | `   327 /var/www/html/systemprompt-core/crates/infra/cloud/src/tenants.rs` |
+| Largest file | `   327 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/tenants.rs` |
 
 ### Files over 300 lines
 
 ```
-   304 /var/www/html/systemprompt-core/crates/infra/cloud/src/api_client/client.rs
-   327 /var/www/html/systemprompt-core/crates/infra/cloud/src/tenants.rs
+   304 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/api_client/client.rs
+   327 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/tenants.rs
 ```
 
 ---
@@ -75,23 +75,23 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 ### let _ = (fire-and-forget)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/cloud/src/credentials_bootstrap.rs:146:        let _ = CREDENTIALS.set(None);
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/credentials_bootstrap.rs:146:        let _ = CREDENTIALS.set(None);
 ```
 
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/cloud/src/credentials_bootstrap.rs:110:            .ok()
-/var/www/html/systemprompt-core/crates/infra/cloud/src/credentials_bootstrap.rs:114:            .ok()
-/var/www/html/systemprompt-core/crates/infra/cloud/src/credentials_bootstrap.rs:122:                .ok()
-/var/www/html/systemprompt-core/crates/infra/cloud/src/cli_session/store.rs:165:            .ok()?;
-/var/www/html/systemprompt-core/crates/infra/cloud/src/cli_session/store.rs:168:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/credentials_bootstrap.rs:110:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/credentials_bootstrap.rs:114:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/credentials_bootstrap.rs:122:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/cli_session/store.rs:165:            .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/cli_session/store.rs:168:            .ok()
 ```
 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/infra/cloud/src/checkout/client.rs:42:#[allow(clippy::struct_field_names)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/cloud/src/checkout/client.rs:42:#[allow(clippy::struct_field_names)]
 ```
 
 ---

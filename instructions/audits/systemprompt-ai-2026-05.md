@@ -59,12 +59,12 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 102 |
 | Files over 300 lines | 1 |
-| Largest file | `   325 /var/www/html/systemprompt-core/crates/domain/ai/src/models/providers/anthropic.rs` |
+| Largest file | `   325 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/models/providers/anthropic.rs` |
 
 ### Files over 300 lines
 
 ```
-   325 /var/www/html/systemprompt-core/crates/domain/ai/src/models/providers/anthropic.rs
+   325 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/models/providers/anthropic.rs
 ```
 
 ---
@@ -74,27 +74,27 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/ai/src/services/tools/adapter.rs:27:                .ok()
-/var/www/html/systemprompt-core/crates/domain/ai/src/services/tools/adapter.rs:50:                .ok()
-/var/www/html/systemprompt-core/crates/domain/ai/src/services/tools/adapter.rs:101:                .ok()
-/var/www/html/systemprompt-core/crates/domain/ai/src/services/tools/adapter.rs:160:            .ok()
-/var/www/html/systemprompt-core/crates/domain/ai/src/services/core/request_storage/async_operations.rs:19:        .ok()
-/var/www/html/systemprompt-core/crates/domain/ai/src/services/providers/gemini/streaming.rs:85:        .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/services/tools/adapter.rs:27:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/services/tools/adapter.rs:50:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/services/tools/adapter.rs:101:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/services/tools/adapter.rs:160:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/services/providers/gemini/streaming.rs:85:        .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/services/core/request_storage/async_operations.rs:19:        .ok()
 ```
 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_gateway_policies.rs:39:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_gateway_policies.rs:72:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_request_payloads.rs:40:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_request_payloads.rs:70:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_quota_buckets.rs:57:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_safety_findings.rs:36:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_requests/message_operations.rs:136:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_requests/message_operations.rs:159:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_requests/mutations.rs:92:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/ai/src/repository/ai_requests/mutations.rs:124:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_safety_findings.rs:36:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_quota_buckets.rs:57:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_request_payloads.rs:40:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_request_payloads.rs:70:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_gateway_policies.rs:39:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_gateway_policies.rs:72:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_requests/mutations.rs:92:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_requests/mutations.rs:124:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_requests/message_operations.rs:136:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/ai/src/repository/ai_requests/message_operations.rs:159:        let result = sqlx::query!(
 ```
 
 ---

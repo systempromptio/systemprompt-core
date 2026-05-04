@@ -59,7 +59,7 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 25 |
 | Files over 300 lines | 0 |
-| Largest file | `  239 /var/www/html/systemprompt-core/crates/shared/extension/src/traits.rs` |
+| Largest file | `  239 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/traits.rs` |
 
 ---
 
@@ -68,9 +68,9 @@ Layer: `shared`. Per `instructions/information/boundaries.md` dependencies must 
 ### let _ = (fire-and-forget)
 
 ```
-/var/www/html/systemprompt-core/crates/shared/extension/src/typed/config.rs:10:        let _ = config;
-/var/www/html/systemprompt-core/crates/shared/extension/src/traits.rs:29:        let _ = ctx;
-/var/www/html/systemprompt-core/crates/shared/extension/src/traits.rs:54:        let _ = config;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/typed/config.rs:10:        let _ = config;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/traits.rs:29:        let _ = ctx;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/shared/extension/src/traits.rs:54:        let _ = config;
 ```
 
 ---

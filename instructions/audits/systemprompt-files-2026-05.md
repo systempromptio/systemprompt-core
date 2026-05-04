@@ -59,7 +59,7 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 30 |
 | Files over 300 lines | 0 |
-| Largest file | `  273 /var/www/html/systemprompt-core/crates/domain/files/src/services/upload/validator.rs` |
+| Largest file | `  273 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/services/upload/validator.rs` |
 
 ---
 
@@ -68,25 +68,25 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/files/src/jobs/file_ingestion.rs:226:            .ok(),
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/jobs/file_ingestion.rs:226:            .ok(),
 ```
 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/files/src/repository/file/stats.rs:23:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/files/src/repository/file/mod.rs:196:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/files/src/repository/file/mod.rs:216:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/files/src/repository/content/mod.rs:51:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/files/src/repository/content/mod.rs:70:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/files/src/repository/content/mod.rs:153:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/files/src/repository/content/mod.rs:166:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/repository/file/mod.rs:196:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/repository/file/mod.rs:216:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/repository/file/stats.rs:23:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/repository/content/mod.rs:51:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/repository/content/mod.rs:70:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/repository/content/mod.rs:153:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/repository/content/mod.rs:166:        let result = sqlx::query!(
 ```
 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/domain/files/src/config/types.rs:16:#[allow(clippy::struct_excessive_bools)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/files/src/config/types.rs:16:#[allow(clippy::struct_excessive_bools)]
 ```
 
 ---

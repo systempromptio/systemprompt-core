@@ -59,14 +59,14 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 66 |
 | Files over 300 lines | 3 |
-| Largest file | `   401 /var/www/html/systemprompt-core/crates/domain/analytics/src/services/behavioral_detector/checks.rs` |
+| Largest file | `   401 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/behavioral_detector/checks.rs` |
 
 ### Files over 300 lines
 
 ```
-   345 /var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/queries.rs
-   308 /var/www/html/systemprompt-core/crates/domain/analytics/src/services/extractor.rs
-   401 /var/www/html/systemprompt-core/crates/domain/analytics/src/services/behavioral_detector/checks.rs
+   345 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/queries.rs
+   308 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/extractor.rs
+   401 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/behavioral_detector/checks.rs
 ```
 
 ---
@@ -76,59 +76,59 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/analytics/src/services/extractor.rs:54:            .and_then(|v| v.to_str().ok())
-/var/www/html/systemprompt-core/crates/domain/analytics/src/services/extractor.rs:59:            .and_then(|v| v.to_str().ok())
-/var/www/html/systemprompt-core/crates/domain/analytics/src/services/extractor.rs:65:                    .and_then(|v| v.to_str().ok())
-/var/www/html/systemprompt-core/crates/domain/analytics/src/services/extractor.rs:72:            .and_then(|v| v.to_str().ok())
-/var/www/html/systemprompt-core/crates/domain/analytics/src/services/extractor.rs:77:            .and_then(|v| v.to_str().ok())
-/var/www/html/systemprompt-core/crates/domain/analytics/src/services/extractor.rs:92:            .and_then(|v| v.to_str().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/extractor.rs:54:            .and_then(|v| v.to_str().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/extractor.rs:59:            .and_then(|v| v.to_str().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/extractor.rs:65:                    .and_then(|v| v.to_str().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/extractor.rs:72:            .and_then(|v| v.to_str().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/extractor.rs:77:            .and_then(|v| v.to_str().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/services/extractor.rs:92:            .and_then(|v| v.to_str().ok())
 ```
 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/events.rs:35:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/events.rs:92:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/queries.rs:331:    let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:10:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:26:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:43:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:55:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:67:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:79:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:95:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:106:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:118:    let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:138:    let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:152:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:202:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/mutations.rs:227:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/behavioral.rs:11:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/behavioral.rs:32:    let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/session/behavioral.rs:61:    sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/fingerprint/mutations.rs:74:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/fingerprint/mutations.rs:103:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/fingerprint/mutations.rs:129:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/fingerprint/mutations.rs:146:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/fingerprint/mutations.rs:162:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/mutations.rs:13:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/mutations.rs:51:            sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/mutations.rs:79:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/mutations.rs:93:        let result = sqlx::query!(r#"DELETE FROM funnels WHERE id = $1"#, id.as_str())
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/mutations.rs:121:                sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/mutations.rs:146:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/mutations.rs:182:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/funnel/stats.rs:75:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/conversations.rs:100:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/engagement.rs:32:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/events.rs:35:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/events.rs:92:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/mutations.rs:13:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/mutations.rs:51:            sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/mutations.rs:79:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/mutations.rs:93:        let result = sqlx::query!(r#"DELETE FROM funnels WHERE id = $1"#, id.as_str())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/mutations.rs:121:                sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/mutations.rs:146:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/mutations.rs:182:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/funnel/stats.rs:75:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/behavioral.rs:11:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/behavioral.rs:32:    let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/behavioral.rs:61:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:10:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:26:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:43:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:55:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:67:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:79:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:95:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:106:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:118:    let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:138:    let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:152:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:202:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/mutations.rs:227:    sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/session/queries.rs:331:    let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/conversations.rs:100:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/fingerprint/mutations.rs:74:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/fingerprint/mutations.rs:103:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/fingerprint/mutations.rs:129:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/fingerprint/mutations.rs:146:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/fingerprint/mutations.rs:162:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/engagement.rs:32:        sqlx::query!(
 ```
 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/domain/analytics/src/repository/tools/list_queries.rs:35:    #[allow(clippy::too_many_arguments)]
-/var/www/html/systemprompt-core/crates/domain/analytics/src/models/mod.rs:7:#[allow(unused_imports)]
-/var/www/html/systemprompt-core/crates/domain/analytics/src/models/cli/request.rs:52:#[allow(clippy::struct_field_names)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/models/mod.rs:7:#[allow(unused_imports)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/models/cli/request.rs:52:#[allow(clippy::struct_field_names)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/analytics/src/repository/tools/list_queries.rs:35:    #[allow(clippy::too_many_arguments)]
 ```
 
 ---

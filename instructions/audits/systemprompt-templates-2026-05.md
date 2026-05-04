@@ -59,12 +59,12 @@ Layer: `domain`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 6 |
 | Files over 300 lines | 1 |
-| Largest file | `  392 /var/www/html/systemprompt-core/crates/domain/templates/src/registry.rs` |
+| Largest file | `  392 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/templates/src/registry.rs` |
 
 ### Files over 300 lines
 
 ```
-  392 /var/www/html/systemprompt-core/crates/domain/templates/src/registry.rs
+  392 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/domain/templates/src/registry.rs
 ```
 
 ---

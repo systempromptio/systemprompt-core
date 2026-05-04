@@ -59,7 +59,7 @@ Layer: `facade`. Per `instructions/information/boundaries.md` dependencies must 
 |--------|-------|
 | Total .rs files | 3 |
 | Files over 300 lines | 0 |
-| Largest file | ` 195 /var/www/html/systemprompt-core/systemprompt/src/lib.rs` |
+| Largest file | ` 195 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/systemprompt/src/lib.rs` |
 
 ---
 

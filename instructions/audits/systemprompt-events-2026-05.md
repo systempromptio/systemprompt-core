@@ -59,7 +59,7 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 |--------|-------|
 | Total .rs files | 5 |
 | Files over 300 lines | 0 |
-| Largest file | `  190 /var/www/html/systemprompt-core/crates/infra/events/src/services/broadcaster.rs` |
+| Largest file | `  190 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/events/src/services/broadcaster.rs` |
 
 ---
 

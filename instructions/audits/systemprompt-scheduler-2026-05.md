@@ -59,13 +59,13 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 |--------|-------|
 | Total .rs files | 25 |
 | Files over 300 lines | 2 |
-| Largest file | `  332 /var/www/html/systemprompt-core/crates/app/scheduler/src/services/orchestration/process_cleanup.rs` |
+| Largest file | `  332 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/services/orchestration/process_cleanup.rs` |
 
 ### Files over 300 lines
 
 ```
-  327 /var/www/html/systemprompt-core/crates/app/scheduler/src/services/scheduling/mod.rs
-  332 /var/www/html/systemprompt-core/crates/app/scheduler/src/services/orchestration/process_cleanup.rs
+  327 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/services/scheduling/mod.rs
+  332 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/services/orchestration/process_cleanup.rs
 ```
 
 ---
@@ -75,21 +75,21 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/app/scheduler/src/services/orchestration/process_cleanup.rs:38:                .and_then(|pid| pid.trim().parse::<u32>().ok())
-/var/www/html/systemprompt-core/crates/app/scheduler/src/services/orchestration/process_cleanup.rs:271:            .ok()?;
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/services/orchestration/process_cleanup.rs:38:                .and_then(|pid| pid.trim().parse::<u32>().ok())
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/services/orchestration/process_cleanup.rs:271:            .ok()?;
 ```
 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/jobs/mod.rs:30:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/jobs/mod.rs:94:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/jobs/mod.rs:118:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/analytics/mod.rs:17:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/security/mod.rs:25:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/security/mod.rs:53:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/security/mod.rs:81:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/scheduler/src/repository/security/mod.rs:106:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/jobs/mod.rs:30:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/jobs/mod.rs:94:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/jobs/mod.rs:118:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/security/mod.rs:25:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/security/mod.rs:53:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/security/mod.rs:81:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/security/mod.rs:106:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/scheduler/src/repository/analytics/mod.rs:17:        let result = sqlx::query!(
 ```
 
 ---

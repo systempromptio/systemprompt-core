@@ -59,12 +59,12 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 |--------|-------|
 | Total .rs files | 15 |
 | Files over 300 lines | 1 |
-| Largest file | `  326 /var/www/html/systemprompt-core/crates/app/runtime/src/context.rs` |
+| Largest file | `  326 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/runtime/src/context.rs` |
 
 ### Files over 300 lines
 
 ```
-  326 /var/www/html/systemprompt-core/crates/app/runtime/src/context.rs
+  326 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/runtime/src/context.rs
 ```
 
 ---
@@ -74,11 +74,11 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/app/runtime/src/registry.rs:86:    #[allow(private_interfaces)]
-/var/www/html/systemprompt-core/crates/app/runtime/src/context.rs:196:    #[allow(trivial_casts)]
-/var/www/html/systemprompt-core/crates/app/runtime/src/context.rs:256:#[allow(trivial_casts)]
-/var/www/html/systemprompt-core/crates/app/runtime/src/context.rs:281:#[allow(trivial_casts)]
-/var/www/html/systemprompt-core/crates/app/runtime/src/builder.rs:113:#[allow(trivial_casts)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/runtime/src/registry.rs:86:    #[allow(private_interfaces)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/runtime/src/context.rs:196:    #[allow(trivial_casts)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/runtime/src/context.rs:256:#[allow(trivial_casts)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/runtime/src/context.rs:281:#[allow(trivial_casts)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/runtime/src/builder.rs:113:#[allow(trivial_casts)]
 ```
 
 ---

@@ -59,12 +59,12 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 |--------|-------|
 | Total .rs files | 24 |
 | Files over 300 lines | 1 |
-| Largest file | `  302 /var/www/html/systemprompt-core/crates/app/sync/src/api_client.rs` |
+| Largest file | `  302 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/sync/src/api_client.rs` |
 
 ### Files over 300 lines
 
 ```
-  302 /var/www/html/systemprompt-core/crates/app/sync/src/api_client.rs
+  302 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/sync/src/api_client.rs
 ```
 
 ---
@@ -74,15 +74,15 @@ Layer: `app`. Per `instructions/information/boundaries.md` dependencies must flo
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/app/sync/src/diff/content.rs:112:                .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/sync/src/diff/content.rs:112:                .ok()
 ```
 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/app/sync/src/database/upsert.rs:26:    let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/sync/src/database/upsert.rs:69:    let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/app/sync/src/database/upsert.rs:150:    let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/sync/src/database/upsert.rs:26:    let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/sync/src/database/upsert.rs:69:    let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/app/sync/src/database/upsert.rs:150:    let result = sqlx::query!(
 ```
 
 ---

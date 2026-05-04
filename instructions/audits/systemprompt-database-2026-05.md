@@ -59,12 +59,12 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 |--------|-------|
 | Total .rs files | 32 |
 | Files over 300 lines | 1 |
-| Largest file | `  320 /var/www/html/systemprompt-core/crates/infra/database/src/lifecycle/installation.rs` |
+| Largest file | `  320 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/lifecycle/installation.rs` |
 
 ### Files over 300 lines
 
 ```
-  320 /var/www/html/systemprompt-core/crates/infra/database/src/lifecycle/installation.rs
+  320 /var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/lifecycle/installation.rs
 ```
 
 ---
@@ -74,53 +74,53 @@ Layer: `infra`. Per `instructions/information/boundaries.md` dependencies must f
 ### let _ = (fire-and-forget)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/database/src/services/display.rs:11:    let _ = writeln!(stdout, "{args}");
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/display.rs:11:    let _ = writeln!(stdout, "{args}");
 ```
 
 ### .ok() (silent error discard — verify each has logging)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:65:            .ok()
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:65:            .ok()
 ```
 
 ### Raw sqlx::query (outside allowlist)
 
 ```
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/cleanup.rs:19:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/cleanup.rs:32:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/cleanup.rs:46:        let result = sqlx::query!("DELETE FROM logs WHERE timestamp < $1", cutoff)
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/cleanup.rs:53:        let result = sqlx::query!("DELETE FROM oauth_refresh_tokens WHERE expires_at < NOW()")
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/cleanup.rs:60:        let result = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/conversion.rs:98:    mut query: sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments>,
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/conversion.rs:100:) -> sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments> {
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:83:        let query_obj = sqlx::query(sql);
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:114:        let query_obj = sqlx::query(sql);
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:131:        let query_obj = sqlx::query(sql);
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:148:        let query_obj = sqlx::query(sql);
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:203:        sqlx::query("SELECT 1")
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:213:            sqlx::query(&statement)
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:225:        let rows = sqlx::query(sql)
-/var/www/html/systemprompt-core/crates/infra/database/src/services/postgres/mod.rs:242:        let mut query_obj = sqlx::query(sql);
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:44:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:69:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:81:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:110:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:133:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:146:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:158:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:171:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:183:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:211:        let row = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:224:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:236:        sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:254:        let rows = sqlx::query!(
-/var/www/html/systemprompt-core/crates/infra/database/src/repository/service.rs:283:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/cleanup.rs:19:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/cleanup.rs:32:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/cleanup.rs:46:        let result = sqlx::query!("DELETE FROM logs WHERE timestamp < $1", cutoff)
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/cleanup.rs:53:        let result = sqlx::query!("DELETE FROM oauth_refresh_tokens WHERE expires_at < NOW()")
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/cleanup.rs:60:        let result = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/conversion.rs:98:    mut query: sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments>,
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/conversion.rs:100:) -> sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments> {
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:83:        let query_obj = sqlx::query(sql);
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:114:        let query_obj = sqlx::query(sql);
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:131:        let query_obj = sqlx::query(sql);
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:148:        let query_obj = sqlx::query(sql);
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:203:        sqlx::query("SELECT 1")
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:213:            sqlx::query(&statement)
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:225:        let rows = sqlx::query(sql)
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/postgres/mod.rs:242:        let mut query_obj = sqlx::query(sql);
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:44:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:69:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:81:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:110:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:133:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:146:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:158:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:171:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:183:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:211:        let row = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:224:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:236:        sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:254:        let rows = sqlx::query!(
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/repository/service.rs:283:        let result = sqlx::query!(
 ```
 
 ### #[allow(...)] attributes
 
 ```
-/var/www/html/systemprompt-core/crates/infra/database/src/services/provider.rs:65:#[allow(async_fn_in_trait)]
+/var/www/html/systemprompt-core/.claude/worktrees/agent-ac138808aa9458061/crates/infra/database/src/services/provider.rs:65:#[allow(async_fn_in_trait)]
 ```
 
 ---
