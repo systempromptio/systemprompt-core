@@ -1,7 +1,8 @@
 //! Session management commands.
 
 mod list;
-mod login;
+pub mod login;
+mod login_helpers;
 mod logout;
 mod show;
 mod switch;
