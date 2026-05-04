@@ -103,7 +103,9 @@ where
                 let audit = Arc::clone(&self.audit);
                 tokio::spawn(async move {
                     if let Some(err) = error {
-                        let _ = audit.fail(&err).await;
+                        if let Err(e) = audit.fail(&err).await {
+                            tracing::warn!(error = %e, "stream audit fail failed");
+                        }
                     } else {
                         if let Some(model) = served_model.as_deref() {
                             audit.set_served_model(model).await;
@@ -158,7 +160,9 @@ impl<S> Drop for TappedStream<S> {
             } else {
                 let msg =
                     prior_error.unwrap_or_else(|| "stream abandoned by downstream".to_string());
-                let _ = audit.fail(&msg).await;
+                if let Err(e) = audit.fail(&msg).await {
+                    tracing::warn!(error = %e, "drop-path audit fail failed");
+                }
             }
         });
     }
