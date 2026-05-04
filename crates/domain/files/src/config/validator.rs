@@ -1,4 +1,3 @@
-use anyhow::Result;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::validation_report::{

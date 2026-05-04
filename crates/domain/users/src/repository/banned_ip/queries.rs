@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::Result;
 
 use super::BannedIpRepository;
 use super::types::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp};

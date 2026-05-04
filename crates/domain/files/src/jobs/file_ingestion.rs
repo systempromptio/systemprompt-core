@@ -3,6 +3,7 @@ use chrono::Utc;
 use std::path::Path;
 use systemprompt_cloud::constants::storage;
 use systemprompt_database::DbPool;
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use walkdir::WalkDir;
 
@@ -56,11 +57,12 @@ impl Job for FileIngestionJob {
         let start_time = std::time::Instant::now();
         tracing::info!("File ingestion job started");
 
-        let db_pool = ctx
-            .db_pool::<DbPool>()
-            .ok_or_else(|| anyhow::anyhow!("Database pool not available in job context"))?;
+        let db_pool = ctx.db_pool::<DbPool>().ok_or_else(|| {
+            ProviderError::Configuration("Database pool not available in job context".into())
+        })?;
 
-        let files_config = FilesConfig::get().map_err(|e| anyhow::anyhow!(e))?;
+        let files_config =
+            FilesConfig::get().map_err(|e| ProviderError::Configuration(e.to_string()))?;
         let images_dir = files_config.storage();
 
         if !images_dir.exists() {
@@ -70,7 +72,8 @@ impl Job for FileIngestionJob {
                 .with_duration(start_time.elapsed().as_millis() as u64));
         }
 
-        let file_repo = FileRepository::new(db_pool).map_err(|e| anyhow::anyhow!(e))?;
+        let file_repo = FileRepository::new(db_pool)
+            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
         let stats = process_image_files(&file_repo, files_config, images_dir).await;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
