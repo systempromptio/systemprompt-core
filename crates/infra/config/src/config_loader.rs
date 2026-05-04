@@ -1,4 +1,9 @@
-use anyhow::Result;
+//! Build a [`Config`] from a validated profile and install it into
+//! the global cell.
+//!
+//! These functions are the bridge from the bootstrap layer (profile +
+//! secrets) into the runtime [`Config`] singleton consumed by the rest
+//! of the application.
 
 use systemprompt_models::Config;
 use systemprompt_models::config::{
@@ -7,6 +12,7 @@ use systemprompt_models::config::{
 use systemprompt_models::profile::Profile;
 
 use crate::bootstrap::{ProfileBootstrap, SecretsBootstrap};
+use crate::error::{ConfigError, ConfigResult};
 
 struct BuildConfigPaths {
     system: String,
@@ -18,54 +24,62 @@ struct BuildConfigPaths {
     web_metadata: String,
 }
 
-pub fn init_config() -> Result<()> {
-    let profile =
-        ProfileBootstrap::get().map_err(|e| anyhow::anyhow!("Profile not initialized: {}", e))?;
-
+/// Build a [`Config`] from the currently-initialized profile and
+/// install it into the global cell.
+///
+/// # Errors
+///
+/// Returns [`ConfigError::Profile`] if the profile has not been
+/// bootstrapped, [`ConfigError::AlreadyInitialized`] if a config has
+/// already been installed, and other variants for path/database
+/// validation failures.
+pub fn init_config() -> ConfigResult<()> {
+    let profile = ProfileBootstrap::get()?;
     let config = build_from_profile(profile)?;
-    Config::install(config).map_err(|_| anyhow::anyhow!("Config already initialized"))?;
+    Config::install(config).map_err(|_| ConfigError::AlreadyInitialized)?;
     Ok(())
 }
 
-pub fn try_init_config() -> Result<()> {
+/// Like [`init_config`] but a no-op if the config cell is already
+/// populated.
+///
+/// # Errors
+///
+/// Same as [`init_config`], except [`ConfigError::AlreadyInitialized`]
+/// is suppressed.
+pub fn try_init_config() -> ConfigResult<()> {
     if Config::is_initialized() {
         return Ok(());
     }
     init_config()
 }
 
-pub fn build_from_profile(profile: &Profile) -> Result<Config> {
+/// Build a [`Config`] from the supplied [`Profile`].
+///
+/// # Errors
+///
+/// Returns one of the path-validation, database-validation, or
+/// secrets-not-initialized variants of [`ConfigError`].
+pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
     let profile_path =
         ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_string(), ToString::to_string);
 
     let path_report = validate_profile_paths(profile, &profile_path);
     if path_report.has_errors() {
-        return Err(anyhow::anyhow!(
-            "{}",
-            format_path_errors(&path_report, &profile_path)
-        ));
+        return Err(ConfigError::ProfilePathReport {
+            message: format_path_errors(&path_report, &profile_path),
+        });
     }
 
     let system_path = canonicalize_path(&profile.paths.system, "system")?;
 
     let skills_path = profile.paths.skills();
-    let settings_path = require_yaml_path("config", Some(&profile.paths.config()), &profile_path)?;
-    let content_config_path = require_yaml_path(
-        "content_config",
-        Some(&profile.paths.content_config()),
-        &profile_path,
-    )?;
+    let settings_path = require_yaml_path("config", Some(&profile.paths.config()))?;
+    let content_config_path =
+        require_yaml_path("content_config", Some(&profile.paths.content_config()))?;
     let web_path = profile.paths.web_path_resolved();
-    let web_config_path = require_yaml_path(
-        "web_config",
-        Some(&profile.paths.web_config()),
-        &profile_path,
-    )?;
-    let web_metadata_path = require_yaml_path(
-        "web_metadata",
-        Some(&profile.paths.web_metadata()),
-        &profile_path,
-    )?;
+    let web_config_path = require_yaml_path("web_config", Some(&profile.paths.web_config()))?;
+    let web_metadata_path = require_yaml_path("web_metadata", Some(&profile.paths.web_metadata()))?;
 
     let paths = BuildConfigPaths {
         system: system_path,
@@ -82,52 +96,52 @@ pub fn build_from_profile(profile: &Profile) -> Result<Config> {
     Ok(config)
 }
 
-pub fn init_config_from_profile(profile: &Profile) -> Result<()> {
+/// Build a [`Config`] from a profile and install it into the global
+/// cell.
+///
+/// # Errors
+///
+/// Returns [`ConfigError::AlreadyInitialized`] if a config is already
+/// installed, plus the same variants as [`build_from_profile`].
+pub fn init_config_from_profile(profile: &Profile) -> ConfigResult<()> {
     let config = build_from_profile(profile)?;
-    Config::install(config).map_err(|_| anyhow::anyhow!("Config already initialized"))?;
+    Config::install(config).map_err(|_| ConfigError::AlreadyInitialized)?;
     Ok(())
 }
 
-fn canonicalize_path(path: &str, name: &str) -> Result<String> {
+fn canonicalize_path(path: &str, name: &str) -> ConfigResult<String> {
     std::fs::canonicalize(path)
         .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| anyhow::anyhow!("Failed to canonicalize {} path: {}", name, e))
+        .map_err(|source| ConfigError::CanonicalizePath {
+            name: name.to_string(),
+            source,
+        })
 }
 
-fn require_yaml_path(field: &str, value: Option<&str>, profile_path: &str) -> Result<String> {
-    let path = value.ok_or_else(|| anyhow::anyhow!("Missing required path: paths.{}", field))?;
-
-    let content = std::fs::read_to_string(path).map_err(|e| {
-        anyhow::anyhow!(
-            "Profile Error: Cannot read file\n\n  Field: paths.{}\n  Path: {}\n  Error: {}\n  \
-             Profile: {}",
-            field,
-            path,
-            e,
-            profile_path
-        )
+fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
+    let path = value.ok_or_else(|| ConfigError::MissingProfilePath {
+        field: field.to_string(),
     })?;
 
-    serde_yaml::from_str::<serde_yaml::Value>(&content).map_err(|e| {
-        anyhow::anyhow!(
-            "Profile Error: Invalid YAML syntax\n\n  Field: paths.{}\n  Path: {}\n  Error: {}\n  \
-             Profile: {}",
-            field,
-            path,
-            e,
-            profile_path
-        )
+    let content = std::fs::read_to_string(path).map_err(|source| ConfigError::ReadProfilePath {
+        field: field.to_string(),
+        path: std::path::PathBuf::from(path),
+        source,
+    })?;
+
+    serde_yaml::from_str::<serde_yaml::Value>(&content).map_err(|source| {
+        ConfigError::InvalidProfileYaml {
+            field: field.to_string(),
+            path: std::path::PathBuf::from(path),
+            source,
+        }
     })?;
 
     Ok(path.to_string())
 }
 
-fn build_config(profile: &Profile, paths: BuildConfigPaths) -> Result<Config> {
-    let secrets = SecretsBootstrap::get().map_err(|_| {
-        anyhow::anyhow!(
-            "Secrets not initialized. Call SecretsBootstrap::init() before Config::from_profile()"
-        )
-    })?;
+fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Config> {
+    let secrets = SecretsBootstrap::get()?;
 
     Ok(Config {
         sitename: profile.site.name.clone(),
@@ -169,19 +183,29 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> Result<Config> {
     })
 }
 
-pub fn validate_database_config(config: &Config) -> Result<()> {
+/// Validate the database section of an installed [`Config`].
+///
+/// # Errors
+///
+/// Returns [`ConfigError::UnsupportedDatabaseType`] when the engine is
+/// not `PostgreSQL`, and [`ConfigError::InvalidDatabaseUrl`] when the
+/// URL string fails [`validate_postgres_url`].
+pub fn validate_database_config(config: &Config) -> ConfigResult<()> {
     let db_type = config.database_type.to_lowercase();
 
     if db_type != "postgres" && db_type != "postgresql" {
-        return Err(anyhow::anyhow!(
-            "Unsupported database type '{}'. Only 'postgres' is supported.",
-            config.database_type
-        ));
+        return Err(ConfigError::UnsupportedDatabaseType {
+            db_type: config.database_type.clone(),
+        });
     }
 
-    validate_postgres_url(&config.database_url)?;
+    validate_postgres_url(&config.database_url).map_err(|e| ConfigError::InvalidDatabaseUrl {
+        message: e.to_string(),
+    })?;
     if let Some(write_url) = &config.database_write_url {
-        validate_postgres_url(write_url)?;
+        validate_postgres_url(write_url).map_err(|e| ConfigError::InvalidDatabaseUrl {
+            message: e.to_string(),
+        })?;
     }
     Ok(())
 }

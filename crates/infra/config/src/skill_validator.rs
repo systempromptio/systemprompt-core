@@ -1,15 +1,23 @@
+//! `DomainConfig` implementation that validates the on-disk skill
+//! catalog referenced by `skills_path`.
+
 use std::path::Path;
 
 use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
 use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
+/// `DomainConfig` for the `skills/` catalog. Reports missing
+/// directories, missing `config.yaml`, malformed manifests, and
+/// missing content files.
 #[derive(Debug, Default)]
 pub struct SkillConfigValidator {
     skills_path: Option<String>,
 }
 
 impl SkillConfigValidator {
+    /// Construct an unloaded validator.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
