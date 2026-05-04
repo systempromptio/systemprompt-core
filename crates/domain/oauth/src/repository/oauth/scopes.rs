@@ -1,5 +1,5 @@
 use super::OAuthRepository;
-use anyhow::Result;
+use crate::error::{OauthError, OauthResult};
 
 const VALID_SCOPES: &[(&str, &str, bool)] = &[
     ("user", "Standard user access", true),
@@ -8,7 +8,7 @@ const VALID_SCOPES: &[(&str, &str, bool)] = &[
 ];
 
 impl OAuthRepository {
-    pub fn validate_scopes(requested_scopes: &[String]) -> Result<Vec<String>> {
+    pub fn validate_scopes(requested_scopes: &[String]) -> OauthResult<Vec<String>> {
         if requested_scopes.is_empty() {
             return Ok(vec![]);
         }
@@ -25,10 +25,10 @@ impl OAuthRepository {
         }
 
         if !invalid_scopes.is_empty() {
-            return Err(anyhow::anyhow!(
+            return Err(OauthError::Validation(format!(
                 "Invalid scopes (roles): {}",
                 invalid_scopes.join(", ")
-            ));
+            )));
         }
 
         Ok(valid_scopes)

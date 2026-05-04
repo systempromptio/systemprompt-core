@@ -1,6 +1,5 @@
-use anyhow::{Context, Result};
-
 use super::FileRepository;
+use crate::error::FilesResult;
 
 #[derive(Debug, Clone, Copy)]
 pub struct FileStats {
@@ -20,7 +19,7 @@ pub struct FileStats {
 }
 
 impl FileRepository {
-    pub async fn get_stats(&self) -> Result<FileStats> {
+    pub async fn get_stats(&self) -> FilesResult<FileStats> {
         let row = sqlx::query!(
             r#"
             SELECT
@@ -40,8 +39,7 @@ impl FileRepository {
             "#
         )
         .fetch_one(self.pool.as_ref())
-        .await
-        .context("Failed to get file stats")?;
+        .await?;
 
         let image_count = row.image_count;
         let document_count = row.document_count;

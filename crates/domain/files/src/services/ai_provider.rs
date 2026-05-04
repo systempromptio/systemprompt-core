@@ -7,6 +7,7 @@ use systemprompt_traits::{
 };
 
 use crate::config::FilesConfig;
+use crate::error::FilesResult;
 use crate::repository::{FileRepository, InsertFileRequest};
 
 #[derive(Debug)]
@@ -15,7 +16,7 @@ pub struct FilesAiPersistenceProvider {
 }
 
 impl FilesAiPersistenceProvider {
-    pub fn new(db: &DbPool) -> Result<Self, anyhow::Error> {
+    pub fn new(db: &DbPool) -> FilesResult<Self> {
         Ok(Self {
             repository: FileRepository::new(db)?,
         })

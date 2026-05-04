@@ -1,5 +1,5 @@
 use super::OAuthRepository;
-use anyhow::Result;
+use crate::error::{OauthError, OauthResult};
 use std::str::FromStr;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
@@ -14,7 +14,7 @@ pub struct OAuthUser {
 }
 
 impl OAuthRepository {
-    pub async fn find_user_by_email(&self, email: &str) -> Result<Option<OAuthUser>> {
+    pub async fn find_user_by_email(&self, email: &str) -> OauthResult<Option<OAuthUser>> {
         let row = sqlx::query!(
             "SELECT id, name, email, roles FROM users WHERE email = $1",
             email
@@ -33,7 +33,7 @@ impl OAuthRepository {
     pub async fn get_authenticated_user(
         &self,
         user_id: &UserId,
-    ) -> Result<systemprompt_models::auth::AuthenticatedUser> {
+    ) -> OauthResult<systemprompt_models::auth::AuthenticatedUser> {
         let user_id_str = user_id.as_str();
         let row = sqlx::query!(
             "SELECT id, name, email, roles FROM users WHERE id = $1",
@@ -41,7 +41,7 @@ impl OAuthRepository {
         )
         .fetch_optional(self.pool_ref())
         .await?
-        .ok_or_else(|| anyhow::anyhow!("User not found: {user_id}"))?;
+        .ok_or_else(|| OauthError::Validation(format!("User not found: {user_id}")))?;
 
         let permissions: Vec<Permission> = row
             .roles
@@ -62,13 +62,13 @@ impl OAuthRepository {
             .collect();
 
         if permissions.is_empty() {
-            return Err(anyhow::anyhow!(
-                "User has no valid permissions after parsing"
+            return Err(OauthError::Validation(
+                "User has no valid permissions after parsing".to_string(),
             ));
         }
 
         let user_uuid = Uuid::parse_str(&row.id)
-            .map_err(|_| anyhow::anyhow!("Invalid user UUID: {}", row.id))?;
+            .map_err(|_| OauthError::Validation(format!("Invalid user UUID: {}", row.id)))?;
 
         Ok(
             systemprompt_models::auth::AuthenticatedUser::new_with_roles(

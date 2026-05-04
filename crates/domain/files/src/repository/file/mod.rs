@@ -6,12 +6,12 @@ pub use stats::FileStats;
 
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
 use chrono::Utc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
+use crate::error::{FilesError, FilesResult};
 use crate::models::{File, FileMetadata};
 
 #[derive(Debug, Clone)]
@@ -21,15 +21,19 @@ pub struct FileRepository {
 }
 
 impl FileRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
+    pub fn new(db: &DbPool) -> FilesResult<Self> {
+        let pool = db.pool_arc().map_err(FilesError::Other)?;
+        let write_pool = db.write_pool_arc().map_err(FilesError::Other)?;
         Ok(Self { pool, write_pool })
     }
 
-    pub async fn insert(&self, request: InsertFileRequest) -> Result<FileId> {
-        let id_uuid = uuid::Uuid::parse_str(request.id.as_str())
-            .with_context(|| format!("Invalid UUID for file id: {}", request.id.as_str()))?;
+    pub async fn insert(&self, request: InsertFileRequest) -> FilesResult<FileId> {
+        let id_uuid = uuid::Uuid::parse_str(request.id.as_str()).map_err(|e| {
+            FilesError::Validation(format!(
+                "Invalid UUID for file id {}: {e}",
+                request.id.as_str()
+            ))
+        })?;
         let now = Utc::now();
 
         let user_id_str = request.user_id.as_ref().map(UserId::as_str);
@@ -65,20 +69,12 @@ impl FileRepository {
             now
         )
         .fetch_one(&*self.write_pool)
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to insert file (id: {}, path: {}, url: {})",
-                request.id.as_str(),
-                request.path,
-                request.public_url
-            )
-        })?;
+        .await?;
 
         Ok(request.id)
     }
 
-    pub async fn insert_file(&self, file: &File) -> Result<FileId> {
+    pub async fn insert_file(&self, file: &File) -> FilesResult<FileId> {
         let file_id = FileId::new(file.id.to_string());
 
         let mut request = InsertFileRequest::new(
@@ -113,10 +109,11 @@ impl FileRepository {
         self.insert(request).await
     }
 
-    pub async fn find_by_id(&self, id: &FileId) -> Result<Option<File>> {
-        let id_uuid = uuid::Uuid::parse_str(id.as_str()).context("Invalid UUID for file id")?;
+    pub async fn find_by_id(&self, id: &FileId) -> FilesResult<Option<File>> {
+        let id_uuid = uuid::Uuid::parse_str(id.as_str())
+            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
 
-        sqlx::query_as!(
+        let result = sqlx::query_as!(
             File,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
@@ -126,12 +123,13 @@ impl FileRepository {
             id_uuid
         )
         .fetch_optional(&*self.pool)
-        .await
-        .context(format!("Failed to find file by id: {id}"))
+        .await?;
+
+        Ok(result)
     }
 
-    pub async fn find_by_path(&self, path: &str) -> Result<Option<File>> {
-        sqlx::query_as!(
+    pub async fn find_by_path(&self, path: &str) -> FilesResult<Option<File>> {
+        let result = sqlx::query_as!(
             File,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
@@ -141,8 +139,9 @@ impl FileRepository {
             path
         )
         .fetch_optional(&*self.pool)
-        .await
-        .context(format!("Failed to find file by path: {path}"))
+        .await?;
+
+        Ok(result)
     }
 
     pub async fn list_by_user(
@@ -150,9 +149,9 @@ impl FileRepository {
         user_id: &UserId,
         limit: i64,
         offset: i64,
-    ) -> Result<Vec<File>> {
+    ) -> FilesResult<Vec<File>> {
         let user_id_str = user_id.as_str();
-        sqlx::query_as!(
+        let result = sqlx::query_as!(
             File,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
@@ -166,12 +165,13 @@ impl FileRepository {
             offset
         )
         .fetch_all(&*self.pool)
-        .await
-        .context(format!("Failed to list files for user: {user_id}"))
+        .await?;
+
+        Ok(result)
     }
 
-    pub async fn list_all(&self, limit: i64, offset: i64) -> Result<Vec<File>> {
-        sqlx::query_as!(
+    pub async fn list_all(&self, limit: i64, offset: i64) -> FilesResult<Vec<File>> {
+        let result = sqlx::query_as!(
             File,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
@@ -184,12 +184,14 @@ impl FileRepository {
             offset
         )
         .fetch_all(&*self.pool)
-        .await
-        .context("Failed to list all files")
+        .await?;
+
+        Ok(result)
     }
 
-    pub async fn delete(&self, id: &FileId) -> Result<()> {
-        let id_uuid = uuid::Uuid::parse_str(id.as_str()).context("Invalid UUID for file id")?;
+    pub async fn delete(&self, id: &FileId) -> FilesResult<()> {
+        let id_uuid = uuid::Uuid::parse_str(id.as_str())
+            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
 
         sqlx::query!(
             r#"
@@ -199,15 +201,16 @@ impl FileRepository {
             id_uuid
         )
         .execute(&*self.write_pool)
-        .await
-        .context(format!("Failed to delete file: {id}"))?;
+        .await?;
 
         Ok(())
     }
 
-    pub async fn update_metadata(&self, id: &FileId, metadata: &FileMetadata) -> Result<()> {
-        let id_uuid = uuid::Uuid::parse_str(id.as_str()).context("Invalid UUID for file id")?;
-        let metadata_json = serde_json::to_value(metadata)?;
+    pub async fn update_metadata(&self, id: &FileId, metadata: &FileMetadata) -> FilesResult<()> {
+        let id_uuid = uuid::Uuid::parse_str(id.as_str())
+            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
+        let metadata_json = serde_json::to_value(metadata)
+            .map_err(|e| FilesError::Validation(format!("Failed to serialize metadata: {e}")))?;
         let now = Utc::now();
 
         sqlx::query!(
@@ -221,15 +224,14 @@ impl FileRepository {
             id_uuid
         )
         .execute(&*self.write_pool)
-        .await
-        .context(format!("Failed to update metadata for file: {id}"))?;
+        .await?;
 
         Ok(())
     }
 
-    pub async fn search_by_path(&self, query: &str, limit: i64) -> Result<Vec<File>> {
+    pub async fn search_by_path(&self, query: &str, limit: i64) -> FilesResult<Vec<File>> {
         let pattern = format!("%{query}%");
-        sqlx::query_as!(
+        let result = sqlx::query_as!(
             File,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata,
@@ -245,7 +247,8 @@ impl FileRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await
-        .context(format!("Failed to search files by path: {query}"))
+        .await?;
+
+        Ok(result)
     }
 }

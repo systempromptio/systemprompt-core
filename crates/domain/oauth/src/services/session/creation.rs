@@ -1,6 +1,6 @@
 use super::{AnonymousSessionInfo, SessionCreationParams, SessionCreationService};
+use crate::error::{OauthError, OauthResult};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
-use anyhow::Result;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{CreateSessionInput, UserEvent};
 use uuid::Uuid;
@@ -9,18 +9,19 @@ impl SessionCreationService {
     pub(super) async fn create_new_session(
         &self,
         params: SessionCreationParams<'_>,
-    ) -> Result<AnonymousSessionInfo> {
+    ) -> OauthResult<AnonymousSessionInfo> {
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
 
         let anonymous_user = self
             .user_provider
             .create_anonymous(&params.fingerprint)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(|e| OauthError::Session(e.to_string()))?;
         let user_id = UserId::new(anonymous_user.id);
 
-        let jwt_expiration_seconds =
-            systemprompt_models::Config::get()?.jwt_access_token_expiration;
+        let jwt_expiration_seconds = systemprompt_models::Config::get()
+            .map_err(|e| OauthError::Config(e.to_string()))?
+            .jwt_access_token_expiration;
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
 
         self.analytics_provider
@@ -34,14 +35,16 @@ impl SessionCreationService {
                 expires_at,
             })
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(|e| OauthError::Session(e.to_string()))?;
 
-        let config = systemprompt_models::Config::get()?;
+        let config =
+            systemprompt_models::Config::get().map_err(|e| OauthError::Config(e.to_string()))?;
         let signing = JwtSigningParams {
             secret: params.jwt_secret,
             issuer: &config.jwt_issuer,
         };
-        let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)?;
+        let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)
+            .map_err(|e| OauthError::Token(e.to_string()))?;
 
         self.publish_event(UserEvent::UserCreated {
             user_id: user_id.to_string(),
