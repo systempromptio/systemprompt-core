@@ -22,7 +22,7 @@ impl Extension for AnalyticsExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        20
+        200
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {

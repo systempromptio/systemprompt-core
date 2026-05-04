@@ -13,7 +13,7 @@ impl Extension for AiExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        35
+        350
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {

@@ -13,7 +13,7 @@ impl Extension for DatabaseExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        1
+        10
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {

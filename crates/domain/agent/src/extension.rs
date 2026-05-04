@@ -13,7 +13,7 @@ impl Extension for AgentExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        40
+        400
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
