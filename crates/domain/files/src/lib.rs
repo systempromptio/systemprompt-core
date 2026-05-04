@@ -1,11 +1,12 @@
 pub(crate) mod config;
-pub(crate) mod error;
+pub mod error;
 pub(crate) mod extension;
 pub(crate) mod jobs;
 pub(crate) mod models;
 pub(crate) mod repository;
 pub(crate) mod services;
 
+pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
 
 pub use config::{
