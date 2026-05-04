@@ -6402,7 +6402,6 @@ dependencies = [
 name = "systemprompt-client"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "chrono",
  "futures",
  "reqwest 0.12.28",
@@ -6652,8 +6651,6 @@ dependencies = [
 name = "systemprompt-extension"
 version = "0.5.0"
 dependencies = [
- "anyhow",
- "async-trait",
  "axum",
  "inventory",
  "reqwest 0.12.28",
@@ -6795,12 +6792,12 @@ dependencies = [
 name = "systemprompt-identifiers"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "chrono",
  "schemars",
  "serde",
  "serde_json",
  "sqlx",
+ "thiserror 2.0.18",
  "uuid",
 ]
 

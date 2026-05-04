@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_models::services::ServicesConfig;
-use systemprompt_provider_contracts::{PageContext, PageDataProvider, ProviderError, ProviderResult};
+use systemprompt_provider_contracts::{
+    PageContext, PageDataProvider, ProviderError, ProviderResult,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefaultListBrandingProvider;

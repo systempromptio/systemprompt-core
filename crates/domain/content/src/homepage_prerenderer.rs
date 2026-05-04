@@ -9,7 +9,9 @@ use systemprompt_provider_contracts::{
     PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderError, ProviderResult, WebConfig,
 };
 
-fn resolve_content_raw<'a>(ctx: &'a PagePrepareContext<'_>) -> ProviderResult<&'a ContentConfigRaw> {
+fn resolve_content_raw<'a>(
+    ctx: &'a PagePrepareContext<'_>,
+) -> ProviderResult<&'a ContentConfigRaw> {
     if let Some(services) = ctx.content_config::<ServicesConfig>() {
         return Ok(&services.content.raw);
     }
@@ -75,7 +77,10 @@ impl PagePrerenderer for DefaultHomepagePrerenderer {
         100
     }
 
-    async fn prepare(&self, ctx: &PagePrepareContext<'_>) -> ProviderResult<Option<PageRenderSpec>> {
+    async fn prepare(
+        &self,
+        ctx: &PagePrepareContext<'_>,
+    ) -> ProviderResult<Option<PageRenderSpec>> {
         let content_config = resolve_content_raw(ctx)?;
 
         let branding = Self::extract_branding(ctx.web_config, content_config);

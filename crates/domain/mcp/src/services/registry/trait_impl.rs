@@ -17,12 +17,14 @@ use crate::services::deployment::DeploymentService;
 impl McpRegistry for RegistryManager {
     async fn list_servers(&self) -> ProviderResult<Vec<String>> {
         use systemprompt_loader::ConfigLoader;
-        let config = ConfigLoader::load().map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
+        let config = ConfigLoader::load()
+            .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
         Ok(config.mcp_servers.keys().cloned().collect())
     }
 
     async fn find_server(&self, name: &str) -> ProviderResult<Option<McpServerState>> {
-        let server_config = Self::find_server(name).map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
+        let server_config = Self::find_server(name)
+            .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
         Ok(server_config.map(|config| McpServerState {
             name: config.name,
             host: config.host,
@@ -33,7 +35,8 @@ impl McpRegistry for RegistryManager {
 
     async fn server_exists(&self, name: &str) -> ProviderResult<bool> {
         use systemprompt_loader::ConfigLoader;
-        let config = ConfigLoader::load().map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
+        let config = ConfigLoader::load()
+            .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
         Ok(config.mcp_servers.contains_key(name))
     }
 }

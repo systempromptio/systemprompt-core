@@ -90,7 +90,9 @@ impl ContextPropagation for RequestContext {
         let session_id = hdrs
             .get(headers::SESSION_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::SESSION_ID.to_string()))?;
+            .ok_or_else(|| {
+                ContextPropagationError::MissingHeader(headers::SESSION_ID.to_string())
+            })?;
 
         let trace_id = hdrs
             .get(headers::TRACE_ID)
@@ -113,7 +115,9 @@ impl ContextPropagation for RequestContext {
         let agent_name = hdrs
             .get(headers::AGENT_NAME)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::AGENT_NAME.to_string()))?;
+            .ok_or_else(|| {
+                ContextPropagationError::MissingHeader(headers::AGENT_NAME.to_string())
+            })?;
 
         let task_id = hdrs
             .get(headers::TASK_ID)
@@ -180,13 +184,12 @@ impl ContextPropagation for RequestContext {
                 .and_then(|v| v.to_str().ok())
                 .and_then(|s| crate::auth::parse_permissions(s).ok())
             {
-                let user_id_uuid =
-                    user_id
-                        .parse::<uuid::Uuid>()
-                        .map_err(|e| ContextPropagationError::InvalidHeader {
-                            name: headers::USER_ID.to_string(),
-                            message: format!("invalid UUID: {e}"),
-                        })?;
+                let user_id_uuid = user_id.parse::<uuid::Uuid>().map_err(|e| {
+                    ContextPropagationError::InvalidHeader {
+                        name: headers::USER_ID.to_string(),
+                        message: format!("invalid UUID: {e}"),
+                    }
+                })?;
                 let user = crate::auth::AuthenticatedUser::new(
                     user_id_uuid,
                     String::new(),
