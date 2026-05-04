@@ -11,7 +11,7 @@ use systemprompt_bridge::ids::{
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_security::manifest_signing;
 
 static INIT_SECRETS: Once = Once::new();

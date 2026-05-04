@@ -6,7 +6,8 @@ use std::sync::Arc;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::{AppPaths, SecretsBootstrap};
+use systemprompt_models::AppPaths;
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_sync::{LocalSyncDirection, LocalSyncResult, SkillsDiffResult, SkillsLocalSync};
 
 fn get_skills_path() -> Result<std::path::PathBuf> {

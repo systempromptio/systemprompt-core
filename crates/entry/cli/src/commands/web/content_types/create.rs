@@ -12,7 +12,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig, SitemapConfig,
 };
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::super::types::ContentTypeCreateOutput;
 

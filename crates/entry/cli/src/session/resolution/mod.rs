@@ -6,8 +6,9 @@ use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
-use systemprompt_models::{Profile, SecretsBootstrap};
+use systemprompt_config::ProfileBootstrap;
+use systemprompt_models::Profile;
+use systemprompt_config::SecretsBootstrap;
 
 use super::context::CliSessionContext;
 use crate::CliConfig;

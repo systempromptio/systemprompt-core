@@ -5,7 +5,7 @@ use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::CloudApiClient;
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;

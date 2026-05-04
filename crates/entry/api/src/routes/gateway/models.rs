@@ -2,7 +2,7 @@ use axum::Json;
 use axum::http::StatusCode;
 use serde::Serialize;
 use std::collections::BTreeMap;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {

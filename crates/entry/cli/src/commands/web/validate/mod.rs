@@ -8,7 +8,7 @@ use clap::{Args, ValueEnum};
 
 use crate::CliConfig;
 use crate::shared::CommandResult;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::paths::WebPaths;
 use super::types::ValidationOutput;

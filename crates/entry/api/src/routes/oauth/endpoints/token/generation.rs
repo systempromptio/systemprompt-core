@@ -96,7 +96,7 @@ pub async fn generate_client_tokens(
     let permissions = resolve_client_permissions(requested_permissions, &client.scopes)?;
     let (user_id, client_user) = build_client_user(client_id, &permissions);
 
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
     let config = JwtConfig {
         permissions: permissions.clone(),
@@ -166,7 +166,7 @@ async fn create_jwt_and_refresh_token(
 
     let scope_string = systemprompt_models::auth::permissions_to_string(&permissions);
     let access_token_jti = generate_access_token_jti();
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
     let config = JwtConfig {
         permissions,

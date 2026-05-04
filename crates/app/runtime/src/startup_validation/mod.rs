@@ -10,9 +10,10 @@ use systemprompt_logging::services::cli::{
 use systemprompt_logging::{CliService, is_startup_mode};
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, SkillConfigValidator, ValidationConfigProvider, WebConfigValidator,
+    RateLimitsConfigValidator, ValidationConfigProvider, WebConfigValidator,
 };
-use systemprompt_models::{Config, ProfileBootstrap};
+use systemprompt_models::Config;
+use systemprompt_config::{ProfileBootstrap, SkillConfigValidator};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{DomainConfigRegistry, StartupValidationReport, ValidationReport};
 

@@ -10,9 +10,20 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::profile_bootstrap::ProfileBootstrap;
-use crate::secrets_bootstrap::SecretsBootstrap;
-use crate::{AppPaths, Config, PathsConfig};
+use systemprompt_models::{AppPaths, PathsConfig};
+
+mod manifest;
+mod profile;
+mod secrets;
+
+pub use manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
+pub use profile::{ProfileBootstrap, ProfileBootstrapError};
+pub use secrets::{
+    JWT_SECRET_MIN_LENGTH, SecretsBootstrap, SecretsBootstrapError, build_loaded_secrets_message,
+    load_secrets_from_path, log_secrets_issue, log_secrets_skip, log_secrets_warn,
+};
+
+use crate::config_loader::try_init_config;
 
 pub trait BootstrapState {}
 
@@ -88,7 +99,7 @@ impl BootstrapSequence<SecretsInitialized> {
         let Self { _state: _ } = self;
         let profile = ProfileBootstrap::get()?;
         AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
-        Config::try_init().context("Failed to initialize configuration")?;
+        try_init_config().context("Failed to initialize configuration")?;
 
         Ok(BootstrapSequence {
             _state: PhantomData,
@@ -101,7 +112,7 @@ impl BootstrapSequence<SecretsInitialized> {
     ) -> Result<BootstrapSequence<PathsInitialized>> {
         let Self { _state: _ } = self;
         AppPaths::init(paths_config).context("Failed to initialize paths")?;
-        Config::try_init().context("Failed to initialize configuration")?;
+        try_init_config().context("Failed to initialize configuration")?;
 
         Ok(BootstrapSequence {
             _state: PhantomData,

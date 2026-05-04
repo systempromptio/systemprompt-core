@@ -13,7 +13,7 @@ use crate::services::tools::ToolDiscovery;
 use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_database::DbPool;
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_models::services::AiConfig;
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 

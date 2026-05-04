@@ -233,7 +233,7 @@ fn load_cloud_database_url(profile_name: &str) -> Result<String> {
     }
 
     let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
-    let secrets = systemprompt_models::Secrets::load_from_path(&secrets_path)
+    let secrets = systemprompt_config::load_secrets_from_path(&secrets_path)
         .with_context(|| format!("Failed to load secrets for profile '{}'", profile_name))?;
 
     Ok(secrets.effective_database_url(true).to_string())

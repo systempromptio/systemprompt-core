@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::process::Stdio;
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use tokio::process::Command;
 
 

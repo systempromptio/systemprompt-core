@@ -66,6 +66,7 @@ dotenvy = { workspace = true }
 
 # systemprompt.io crates
 systemprompt-models = { workspace = true, features = ["web"] }
+systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }

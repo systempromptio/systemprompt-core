@@ -2,7 +2,8 @@ use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use std::fs;
 use systemprompt_logging::CliService;
-use systemprompt_models::{Profile, ProfileBootstrap};
+use systemprompt_models::Profile;
+use systemprompt_config::ProfileBootstrap;
 
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
 use crate::CliConfig;

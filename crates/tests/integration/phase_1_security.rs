@@ -1,4 +1,4 @@
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_runtime::models::context::AppContext;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_models::auth::{JwtClaims, Permission, UserType};

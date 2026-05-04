@@ -1,6 +1,6 @@
 use anyhow::Result;
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::TierArgs;
 use super::helpers::{apply_multiplier, get_tier_multiplier};

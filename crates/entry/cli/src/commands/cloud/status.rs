@@ -1,7 +1,7 @@
 use anyhow::Result;
 use systemprompt_cloud::{CloudApiClient, CloudPath, CredentialsBootstrap, get_cloud_paths};
 use systemprompt_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, ProfileInfo, TenantStatusInfo};

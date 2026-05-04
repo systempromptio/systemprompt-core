@@ -39,6 +39,7 @@ serde_jcs = "0.1"
 
 # systemprompt.io dependencies
 systemprompt-models = { workspace = true }
+systemprompt-config = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]

@@ -102,7 +102,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     }));
 
     let jwt_extractor = JwtContextExtractor::new(
-        systemprompt_models::SecretsBootstrap::jwt_secret()?,
+        systemprompt_config::SecretsBootstrap::jwt_secret()?,
         ctx.db_pool(),
     );
     let global_context_middleware = ContextMiddleware::public(jwt_extractor);

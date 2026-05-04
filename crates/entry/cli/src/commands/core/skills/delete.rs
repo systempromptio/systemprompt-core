@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {

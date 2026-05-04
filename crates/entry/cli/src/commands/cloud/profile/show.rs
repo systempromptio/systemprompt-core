@@ -38,13 +38,13 @@ pub fn execute(
 }
 
 fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> {
-    use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
+    use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 
     ProfileBootstrap::init_from_path(profile_path)?;
     SecretsBootstrap::init()?;
     let profile = ProfileBootstrap::get()?;
     AppPaths::init(&profile.paths)?;
-    Config::try_init()?;
+    systemprompt_config::try_init_config()?;
     Ok(())
 }
 

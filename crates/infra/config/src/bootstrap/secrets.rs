@@ -2,12 +2,18 @@ use anyhow::{Context, Result};
 use base64::Engine;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
-use crate::manifest_seed::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
-use crate::paths::constants::env_vars;
-use crate::profile::{SecretsSource, SecretsValidationMode, resolve_with_home};
-use crate::profile_bootstrap::ProfileBootstrap;
-use crate::secrets::{JWT_SECRET_MIN_LENGTH, SECRETS, Secrets};
+use systemprompt_models::paths::constants::env_vars;
+use systemprompt_models::profile::{SecretsSource, SecretsValidationMode, resolve_with_home};
+use systemprompt_models::secrets::Secrets;
+
+use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
+use super::profile::ProfileBootstrap;
+
+static SECRETS: OnceLock<Secrets> = OnceLock::new();
+
+pub const JWT_SECRET_MIN_LENGTH: usize = 32;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SecretsBootstrap;
@@ -385,4 +391,13 @@ pub fn build_loaded_secrets_message(secrets: &Secrets) -> String {
             secrets.custom.len()
         )
     }
+}
+
+pub fn load_secrets_from_path(secrets_path: &Path) -> Result<Secrets> {
+    if !secrets_path.exists() {
+        anyhow::bail!("Secrets file not found: {}", secrets_path.display());
+    }
+    let content = std::fs::read_to_string(secrets_path)
+        .with_context(|| format!("Failed to read secrets: {}", secrets_path.display()))?;
+    Secrets::parse(&content)
 }

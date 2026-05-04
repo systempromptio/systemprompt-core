@@ -46,6 +46,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-sync = { workspace = true }
 systemprompt-generator = { workspace = true, features = ["image-processing"] }
 systemprompt-models = { workspace = true }
+systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }

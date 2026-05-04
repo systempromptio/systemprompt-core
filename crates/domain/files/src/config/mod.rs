@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use systemprompt_cloud::constants::storage;
 use systemprompt_models::AppPaths;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use types::FilesConfigWrapper;
 

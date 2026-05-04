@@ -5,7 +5,7 @@ use std::sync::Arc;
 use systemprompt_database::install_extension_schemas;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_runtime::{AppContext, ServiceCategory, validate_system};
 use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};

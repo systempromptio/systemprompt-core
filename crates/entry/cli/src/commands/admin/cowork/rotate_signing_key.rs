@@ -2,7 +2,7 @@ use anyhow::Result;
 use base64::Engine;
 use clap::Args;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 
 use super::types::SigningKeyRotatedOutput;
 use crate::CliConfig;

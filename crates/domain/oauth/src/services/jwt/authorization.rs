@@ -23,7 +23,7 @@ impl AuthorizationService {
             );
             return Err(StatusCode::UNAUTHORIZED);
         };
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -60,7 +60,7 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -90,7 +90,7 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

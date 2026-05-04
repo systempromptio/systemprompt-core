@@ -33,7 +33,7 @@ pub fn configure_routes(
 
     let jwt_extractor = {
         let extractor = JwtContextExtractor::new(
-            systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
+            systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
                 LoaderError::InitializationFailed {
                     extension: "jwt".to_string(),
                     message: e.to_string(),
@@ -283,7 +283,7 @@ pub fn configure_routes(
         .find_map(|ext| ext.site_auth());
 
     let static_router = if let Some(auth_config) = site_auth_config {
-        let secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        let secret = systemprompt_config::SecretsBootstrap::jwt_secret()
             .unwrap_or_else(|e| {
                 tracing::warn!(error = %e, "JWT secret not available for site auth gate");
                 ""
@@ -337,7 +337,7 @@ fn mount_extension_routes(
         return Ok(router);
     }
 
-    let profile = systemprompt_models::ProfileBootstrap::get().map_err(|e| {
+    let profile = systemprompt_config::ProfileBootstrap::get().map_err(|e| {
         LoaderError::InitializationFailed {
             extension: "profile".to_string(),
             message: e.to_string(),

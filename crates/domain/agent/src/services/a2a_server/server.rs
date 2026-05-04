@@ -55,7 +55,7 @@ impl Server {
         config.extract_oauth_scopes_from_card();
 
         let oauth_config = AgentOAuthConfig::default();
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?.to_string();
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?.to_string();
         let global_config = systemprompt_models::Config::get()?;
         let mut oauth_state = AgentOAuthState::new(
             Arc::clone(&db_pool),

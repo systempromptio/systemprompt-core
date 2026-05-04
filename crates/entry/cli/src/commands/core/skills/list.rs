@@ -59,7 +59,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<List
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
-    let profile = systemprompt_models::ProfileBootstrap::get().context("Failed to get profile")?;
+    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     Ok(std::path::PathBuf::from(profile.paths.skills()))
 }
 

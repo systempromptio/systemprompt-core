@@ -13,7 +13,7 @@ use crate::shared::CommandResult;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };

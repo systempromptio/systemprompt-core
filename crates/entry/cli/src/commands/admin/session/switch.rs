@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CredentialsBootstrap, ProfilePath, SessionKey, SessionStore};
 use systemprompt_logging::CliService;
-use systemprompt_models::{Profile, Secrets};
+use systemprompt_models::Profile;
 
 use super::login::{self, LoginArgs};
 use super::types::SwitchOutput;
@@ -51,7 +51,7 @@ pub async fn execute(
             .clone();
 
         let secrets_path = ProfilePath::Secrets.resolve(&target_dir);
-        let secrets = Secrets::load_from_path(&secrets_path)?;
+        let secrets = systemprompt_config::load_secrets_from_path(&secrets_path)?;
         let profile_path_str = profile_config_path
             .to_str()
             .context("Invalid profile path")?;

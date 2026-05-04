@@ -7,7 +7,7 @@ use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};

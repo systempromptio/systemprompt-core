@@ -12,7 +12,7 @@ use super::types::{HookEntry, HookListOutput};
 pub struct ListArgs;
 
 pub fn execute(_args: ListArgs, _config: &CliConfig) -> Result<CommandResult<HookListOutput>> {
-    let profile = systemprompt_models::ProfileBootstrap::get().context("Failed to get profile")?;
+    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let plugins_path = std::path::PathBuf::from(profile.paths.plugins());
 
     let hooks = scan_hooks(&plugins_path)?;

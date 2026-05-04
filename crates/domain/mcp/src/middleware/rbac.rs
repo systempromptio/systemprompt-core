@@ -217,7 +217,7 @@ fn try_proxy_verified_auth(
 }
 
 fn validate_and_extract_claims(server_name: &str, token: &str) -> Result<JwtClaims, McpError> {
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
         tracing::error!(server = %server_name, error = %e, "Failed to get JWT secret");
         McpError::invalid_request(format!("Failed to get JWT secret: {e}"), None)
     })?;

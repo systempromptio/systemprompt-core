@@ -29,7 +29,7 @@ pub struct SessionMiddleware {
 
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> anyhow::Result<Self> {
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
         let jwt_extractor = Arc::new(JwtExtractor::new(jwt_secret));
         let user_service = UserService::new(ctx.db_pool())?;
         let concrete = Arc::clone(ctx.analytics_service());
@@ -207,7 +207,7 @@ impl SessionMiddleware {
     ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
         let client_id = ClientId::new("sp_web".to_string());
 
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
             tracing::error!(error = %e, "Failed to get JWT secret during session creation");
             ApiError::internal_error("Failed to initialize session")
         })?;
@@ -257,7 +257,7 @@ impl SessionMiddleware {
                 }
             })?;
 
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
+        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
             tracing::error!(error = %e, "Failed to get JWT secret during session refresh");
             ApiError::internal_error("Failed to refresh session")
         })?;

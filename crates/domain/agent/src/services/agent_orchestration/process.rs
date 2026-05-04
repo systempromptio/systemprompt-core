@@ -2,9 +2,8 @@ use anyhow::{Context, Result};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use systemprompt_models::{
-    AppPaths, CliPaths, Config, ProfileBootstrap, Secrets, SecretsBootstrap,
-};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{AppPaths, CliPaths, Config, Secrets};
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 

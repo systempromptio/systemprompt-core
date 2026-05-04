@@ -3,7 +3,7 @@ pub mod remote;
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
 use systemprompt_identifiers::{ContextId, TenantId};
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use crate::paths::ResolvedPaths;
 

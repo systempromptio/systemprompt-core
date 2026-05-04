@@ -25,7 +25,7 @@ impl JwtValidationProviderImpl {
     }
 
     pub fn from_config() -> JwtResult<Self> {
-        let secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        let secret = systemprompt_config::SecretsBootstrap::jwt_secret()
             .map_err(|e| JwtProviderError::ConfigurationError(e.to_string()))?;
         let config = systemprompt_models::Config::get()
             .map_err(|e| JwtProviderError::ConfigurationError(e.to_string()))?;

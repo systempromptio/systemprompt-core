@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::types::{
     ConfigOverviewOutput, PathsOverview, RateLimitsSummary, RuntimeOverview, SecurityOverview,

@@ -1,5 +1,5 @@
 use systemprompt_models::Profile;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use crate::api_client::CloudApiClient;
 use crate::credentials::CloudCredentials;

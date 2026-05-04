@@ -5,7 +5,7 @@ use systemprompt_cloud::{
     CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType, get_cloud_paths,
 };
 use systemprompt_identifiers::TenantId;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 pub fn get_credentials() -> Result<CloudCredentials> {
     if CredentialsBootstrap::is_initialized() {

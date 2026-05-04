@@ -9,7 +9,7 @@ use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};

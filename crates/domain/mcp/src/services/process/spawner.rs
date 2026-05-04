@@ -3,7 +3,8 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use systemprompt_models::{AppPaths, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::AppPaths;
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 

@@ -5,7 +5,7 @@ use super::types::{ValidationIssue, ValidationOutput};
 use crate::CliConfig;
 use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::SecretsBootstrap;
+use systemprompt_config::SecretsBootstrap;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
