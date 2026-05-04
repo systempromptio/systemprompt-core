@@ -214,7 +214,7 @@ impl PublishError {
         }
     }
 
-    /// Build a [`PublishError::Other`] from any [`Display`] value. Used for
+    /// Build a [`PublishError::Other`] from any `Display` value. Used for
     /// upstream errors without a typed `#[from]` impl.
     pub fn other(cause: impl std::fmt::Display) -> Self {
         Self::Other(cause.to_string())

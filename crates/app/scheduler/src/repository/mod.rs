@@ -6,7 +6,7 @@
 //! lifecycle bootstrap path.
 //!
 //! [`SecurityRepository`] / [`IpSessionRecord`] are exposed for direct use by
-//! the [`crate::jobs::malicious_ip_blacklist`] job.
+//! the `crate::jobs::malicious_ip_blacklist` job.
 
 mod analytics;
 mod jobs;

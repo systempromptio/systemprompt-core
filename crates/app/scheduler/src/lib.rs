@@ -3,7 +3,7 @@
 //!
 //! The crate hosts:
 //!
-//! - A [`SchedulerService`](crate::services::SchedulerService) that uses
+//! - A [`SchedulerService`] that uses
 //!   [`tokio_cron_scheduler`] to dispatch jobs registered via
 //!   [`systemprompt_provider_contracts::submit_job!`].
 //! - A small set of built-in jobs ([`BehavioralAnalysisJob`],
@@ -14,8 +14,9 @@
 //!
 //! # Public error surface
 //!
-//! Every non-trait public API returns [`SchedulerResult<T>`](crate::SchedulerResult)
-//! (alias for `Result<T, SchedulerError>`). [`SchedulerError`] composes the
+//! Every non-trait public API returns
+//! [`SchedulerResult<T>`](crate::SchedulerResult) (alias for `Result<T,
+//! SchedulerError>`). [`SchedulerError`] composes the
 //! `sqlx`, `tokio-cron-scheduler`, `systemprompt-database`,
 //! `systemprompt-analytics`, and `systemprompt-users` error types via
 //! `#[from]`, plus an `Other(#[from] anyhow::Error)` catch-all for upstream

@@ -3,8 +3,9 @@
 **Generated:** 2026-05-04
 **Wave:** Wave A complete (shared layer flipped CLEAN), Wave B complete
 (infra + oauth flipped CLEAN), Wave C complete (8 domain crates flipped
-CLEAN: files, templates, users, content, analytics, ai, mcp, agent
-re-audited). Wave D/E target the remaining app and entry crates.
+CLEAN), Wave D complete (4 app-layer crates flipped CLEAN: runtime,
+scheduler, generator, sync). Wave E targets the remaining entry crates
+and the facade.
 
 This index lists every published crate in dependency-layer order. Counts are
 from the automated baseline scan (`unwrap`, `println`, `let _`, `.ok()`,
@@ -18,7 +19,9 @@ CLEAN: `events`, `security`, `loader`, `database`, `logging`, `config`,
 Wave C merged at tag `compliance-wave-C` flipped 8 domain crates CLEAN:
 `files`, `templates`, `users`, `content`, `analytics`, `ai`, `mcp`, and
 `agent` (re-audited under `systemprompt-agent-2026-05.md`; the original
-`agent-2026-04.md` is now SUPERSEDED).
+`agent-2026-04.md` is now SUPERSEDED). Wave D merged at tag
+`compliance-wave-D` flipped the 4 app-layer crates CLEAN: `runtime`,
+`scheduler`, `generator`, and `sync`.
 
 ---
 
@@ -69,10 +72,10 @@ wave that touches all consumers in lockstep.
 
 | Crate | Verdict | Total | Doc |
 |-------|---------|-------|-----|
-| systemprompt-runtime | NEEDS_WORK | 6 | [systemprompt-runtime-2026-05.md](systemprompt-runtime-2026-05.md) |
-| systemprompt-scheduler | CRITICAL | 12 | [systemprompt-scheduler-2026-05.md](systemprompt-scheduler-2026-05.md) |
-| systemprompt-generator | NEEDS_WORK | 2 | [systemprompt-generator-2026-05.md](systemprompt-generator-2026-05.md) |
-| systemprompt-sync | NEEDS_WORK | 5 | [systemprompt-sync-2026-05.md](systemprompt-sync-2026-05.md) |
+| systemprompt-runtime | CLEAN | 0 | [systemprompt-runtime-2026-05.md](systemprompt-runtime-2026-05.md) |
+| systemprompt-scheduler | CLEAN | 0 | [systemprompt-scheduler-2026-05.md](systemprompt-scheduler-2026-05.md) |
+| systemprompt-generator | CLEAN | 0 | [systemprompt-generator-2026-05.md](systemprompt-generator-2026-05.md) |
+| systemprompt-sync | CLEAN | 0 | [systemprompt-sync-2026-05.md](systemprompt-sync-2026-05.md) |
 
 ## Entry Layer
 
@@ -102,20 +105,17 @@ require pushing `anyhow` back into a library crate's public API.
 
 | Verdict | Count |
 |---------|-------|
-| CLEAN | 21 (7 Wave A shared + 5 Wave B infra + oauth pulled forward + 8 Wave C domain) |
-| NEEDS_WORK | 4 |
-| CRITICAL | 5 |
+| CLEAN | 25 (7 Wave A shared + 5 Wave B infra + oauth pulled forward + 8 Wave C domain + 4 Wave D app) |
+| NEEDS_WORK | 1 |
+| CRITICAL | 2 |
 
-## Top Remaining Offenders (by baseline scored violations; pre-Wave-C)
+## Top Remaining Offenders (by baseline scored violations; pre-Wave-D)
 
-Post-Wave-C the only non-CLEAN crates left are `runtime`, `scheduler`,
-`generator`, `sync`, `api`, `cli`, and the `systemprompt` facade.
+Post-Wave-D the only non-CLEAN crates left are `api`, `cli`, and the
+`systemprompt` facade.
 
 1. **systemprompt-api** — 109 (62 inline `//`, 27 `#[allow]`, 10 raw String IDs, 5 `let _ =`, 5 `.ok()` discards)
 2. **systemprompt-cli** — 99 (73 inline `//`, 17 raw String IDs, 5 `let _ =`, 3 `*Manager`)
-3. **systemprompt-scheduler** — 12
-4. **systemprompt-runtime** — 6
-5. **systemprompt-sync** — 5
 
 ## Notes
 
@@ -124,8 +124,8 @@ Post-Wave-C the only non-CLEAN crates left are `runtime`, `scheduler`,
   doc but excluded from the score.
 - `instructions/` is gitignored — the audit docs are committed via
   `git add -f`.
-- Waves A, B, and C have flipped 21 of 30 crates to CLEAN. Wave D/E remain
-  to flip the app (runtime, scheduler, generator, sync) and entry
-  (api, cli) crates plus the `systemprompt` facade.
+- Waves A, B, C, and D have flipped 25 of 30 crates to CLEAN. Wave E
+  remains to flip the entry (`api`, `cli`) crates plus the `systemprompt`
+  facade.
 - The original `agent-2026-04.md` is SUPERSEDED — see the banner at its
   top. The current agent audit is `systemprompt-agent-2026-05.md`.

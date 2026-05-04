@@ -184,10 +184,7 @@ fn records_to_candidates(
         .collect()
 }
 
-async fn process_candidates(
-    candidates: &[MaliciousIpCandidate],
-    repo: &BannedIpRepository,
-) -> u64 {
+async fn process_candidates(candidates: &[MaliciousIpCandidate], repo: &BannedIpRepository) -> u64 {
     let mut banned = 0u64;
 
     for candidate in candidates {

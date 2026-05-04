@@ -75,9 +75,9 @@ async fn find_and_execute_job(
     let ctx = make_job_context(db_pool, app_context);
 
     match AssertUnwindSafe(job.execute(&ctx)).catch_unwind().await {
-        Ok(result) => result.map_err(|e| {
-            SchedulerError::job_execution_failed(job_name, e.to_string())
-        }),
+        Ok(result) => {
+            result.map_err(|e| SchedulerError::job_execution_failed(job_name, e.to_string()))
+        },
         Err(payload) => {
             let msg = payload
                 .downcast_ref::<&'static str>()
@@ -111,11 +111,7 @@ async fn handle_job_result(
     }
 }
 
-async fn record_success(
-    job_name: &str,
-    job_result: &JobResult,
-    repository: &SchedulerRepository,
-) {
+async fn record_success(job_name: &str, job_result: &JobResult, repository: &SchedulerRepository) {
     if let Err(e) = repository
         .update_job_execution(job_name, JobStatus::Success, None, None)
         .await
@@ -130,11 +126,7 @@ async fn record_success(
     );
 }
 
-async fn record_failure(
-    job_name: &str,
-    message: Option<&str>,
-    repository: &SchedulerRepository,
-) {
+async fn record_failure(job_name: &str, message: Option<&str>, repository: &SchedulerRepository) {
     if let Err(e) = repository
         .update_job_execution(job_name, JobStatus::Failed, message, None)
         .await

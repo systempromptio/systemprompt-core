@@ -115,8 +115,7 @@ impl SkillsLocalSync {
         skills_config: &SkillsConfig,
         delete_orphans: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let ingestion_service =
-            SkillIngestionService::new(&self.db).map_err(SyncError::other)?;
+        let ingestion_service = SkillIngestionService::new(&self.db).map_err(SyncError::other)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDatabase,
             ..Default::default()

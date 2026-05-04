@@ -76,8 +76,9 @@ pub enum SchedulerError {
     #[error("Scheduler not initialized")]
     NotInitialized,
 
-    /// A required runtime context value (e.g. [`systemprompt_database::DbPool`])
-    /// was missing from the [`systemprompt_traits::JobContext`].
+    /// A required runtime context value (e.g.
+    /// [`systemprompt_database::DbPool`]) was missing from the
+    /// [`systemprompt_traits::JobContext`].
     #[error("Job context missing dependency: {0}")]
     MissingContext(String),
 
@@ -118,7 +119,8 @@ impl SchedulerError {
         }
     }
 
-    /// Construct a [`SchedulerError::ConfigError`] from any string-like message.
+    /// Construct a [`SchedulerError::ConfigError`] from any string-like
+    /// message.
     pub fn config_error(message: impl Into<String>) -> Self {
         Self::ConfigError {
             message: message.into(),

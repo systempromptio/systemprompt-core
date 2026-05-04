@@ -76,13 +76,15 @@ async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> R
         })?;
     }
 
-    tokio::fs::copy(asset.source(), &dest_path).await.map_err(|e| {
-        PublishError::other(format!(
-            "Failed to copy asset from {} to {}: {e}",
-            asset.source().display(),
-            dest_path.display()
-        ))
-    })?;
+    tokio::fs::copy(asset.source(), &dest_path)
+        .await
+        .map_err(|e| {
+            PublishError::other(format!(
+                "Failed to copy asset from {} to {}: {e}",
+                asset.source().display(),
+                dest_path.display()
+            ))
+        })?;
 
     tracing::debug!(
         extension = %ext_id,

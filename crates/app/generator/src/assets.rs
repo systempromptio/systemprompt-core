@@ -17,9 +17,9 @@ pub async fn organize_dist_assets(dist_dir: &Path) -> GeneratorResult<(u32, u32)
 
 async fn organize_assets_by_extension(dist_dir: &Path, ext: &str) -> GeneratorResult<u32> {
     let target_dir = dist_dir.join(ext);
-    fs::create_dir_all(&target_dir).await.map_err(|e| {
-        PublishError::other(format!("Failed to create {ext} directory: {e}"))
-    })?;
+    fs::create_dir_all(&target_dir)
+        .await
+        .map_err(|e| PublishError::other(format!("Failed to create {ext} directory: {e}")))?;
     copy_files_by_extension(dist_dir, &target_dir, ext).await
 }
 

@@ -28,9 +28,7 @@ pub(super) struct RenderSingleItemParams<'a> {
     pub config_value: &'a serde_yaml::Value,
 }
 
-pub(super) async fn render_single_item(
-    params: &RenderSingleItemParams<'_>,
-) -> GeneratorResult<()> {
+pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> GeneratorResult<()> {
     let RenderSingleItemParams {
         ctx,
         source_name,
