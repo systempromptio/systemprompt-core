@@ -9,8 +9,6 @@ use systemprompt_identifiers::SessionId;
 
 use super::types::SessionBehavioralData;
 
-/// Count sessions for `fingerprint_hash` started within the last
-/// `window_hours`.
 pub async fn count_sessions_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
@@ -32,7 +30,6 @@ pub async fn count_sessions_by_fingerprint(
     Ok(count)
 }
 
-/// Return the ordered sequence of `page_view` endpoints for a session.
 pub async fn get_endpoint_sequence(pool: &PgPool, session_id: &SessionId) -> Result<Vec<String>> {
     let id = session_id.as_str();
 
@@ -52,7 +49,6 @@ pub async fn get_endpoint_sequence(pool: &PgPool, session_id: &SessionId) -> Res
     Ok(endpoints.into_iter().flatten().collect())
 }
 
-/// Return the ordered request timestamps for a session.
 pub async fn get_request_timestamps(
     pool: &PgPool,
     session_id: &SessionId,
@@ -74,7 +70,6 @@ pub async fn get_request_timestamps(
     Ok(timestamps)
 }
 
-/// Fetch the [`SessionBehavioralData`] projection for a single session.
 pub async fn get_session_for_behavioral_analysis(
     pool: &PgPool,
     session_id: &SessionId,
@@ -103,7 +98,6 @@ pub async fn get_session_for_behavioral_analysis(
     .map_err(Into::into)
 }
 
-/// Returns `true` when at least one analytics event exists for the session.
 pub async fn has_analytics_events(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
     let id = session_id.as_str();
 
@@ -121,8 +115,6 @@ pub async fn has_analytics_events(pool: &PgPool, session_id: &SessionId) -> Resu
     Ok(result)
 }
 
-/// Count distinct IP addresses observed for `fingerprint_hash` within the
-/// last `window_days`.
 pub async fn count_unique_ips_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
@@ -145,8 +137,6 @@ pub async fn count_unique_ips_by_fingerprint(
     Ok(count)
 }
 
-/// Count engagement events recorded against sessions for `fingerprint_hash`
-/// within the last `window_days`.
 pub async fn count_engagement_events_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
@@ -169,8 +159,6 @@ pub async fn count_engagement_events_by_fingerprint(
     Ok(count)
 }
 
-/// Return the ordered session-start timestamps for `fingerprint_hash` within
-/// the last `window_days`.
 pub async fn get_session_starts_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
@@ -193,8 +181,6 @@ pub async fn get_session_starts_by_fingerprint(
     Ok(timestamps)
 }
 
-/// Return `(request_count, duration_seconds)` for a session, used to compute
-/// requests-per-minute velocity.
 pub async fn get_session_velocity(
     pool: &PgPool,
     session_id: &SessionId,

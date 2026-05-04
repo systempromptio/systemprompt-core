@@ -13,10 +13,8 @@ use rand::RngCore;
 use super::secrets::SecretsBootstrapError;
 use crate::error::{ConfigError, ConfigResult};
 
-/// Number of bytes in a manifest signing seed.
 pub const MANIFEST_SIGNING_SEED_BYTES: usize = 32;
 
-/// Generate a fresh, cryptographically random 32-byte seed.
 #[must_use]
 pub fn generate_seed() -> [u8; MANIFEST_SIGNING_SEED_BYTES] {
     let mut seed = [0u8; MANIFEST_SIGNING_SEED_BYTES];
@@ -24,13 +22,6 @@ pub fn generate_seed() -> [u8; MANIFEST_SIGNING_SEED_BYTES] {
     seed
 }
 
-/// Decode a base64-encoded manifest signing seed.
-///
-/// # Errors
-///
-/// Returns [`SecretsBootstrapError::ManifestSeedInvalid`] if `encoded`
-/// is not valid base64 or does not decode to exactly
-/// [`MANIFEST_SIGNING_SEED_BYTES`] bytes.
 pub fn decode_seed(
     encoded: &str,
 ) -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
@@ -52,13 +43,6 @@ pub fn decode_seed(
     Ok(out)
 }
 
-/// Persist `seed` into the secrets JSON file at `path`, preserving
-/// other fields and writing atomically.
-///
-/// # Errors
-///
-/// Returns the relevant [`ConfigError`] variant when the file cannot
-/// be read, parsed, serialized, or written.
 pub fn persist_seed(path: &Path, seed: &[u8; MANIFEST_SIGNING_SEED_BYTES]) -> ConfigResult<()> {
     let encoded = base64::engine::general_purpose::STANDARD.encode(seed);
     let content = std::fs::read_to_string(path)?;

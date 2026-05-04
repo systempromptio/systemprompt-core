@@ -2,21 +2,15 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Stable identifier for an execution step (UUID-backed string).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct StepId(
-    /// Inner UUID string.
-    pub String,
-);
+pub struct StepId(pub String);
 
 impl StepId {
-    /// Mint a fresh step id backed by a v4 UUID.
     #[must_use]
     pub fn new() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
     }
 
-    /// Borrow the underlying string.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -41,18 +35,13 @@ impl std::fmt::Display for StepId {
     }
 }
 
-/// Lifecycle state of an [`super::ExecutionStep`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum StepStatus {
-    /// Queued but not yet started.
     #[default]
     Pending,
-    /// Currently executing.
     InProgress,
-    /// Finished successfully.
     Completed,
-    /// Finished with an error.
     Failed,
 }
 
@@ -81,20 +70,14 @@ impl std::str::FromStr for StepStatus {
     }
 }
 
-/// High-level kind of an [`super::ExecutionStep`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum StepType {
-    /// Reasoning about the user's request.
     #[default]
     Understanding,
-    /// Drafting a plan of action.
     Planning,
-    /// Invoking a declared skill.
     SkillUsage,
-    /// Executing a concrete tool.
     ToolExecution,
-    /// Final completion step.
     Completion,
 }
 

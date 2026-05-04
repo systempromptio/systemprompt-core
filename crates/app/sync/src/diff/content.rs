@@ -13,23 +13,18 @@ use systemprompt_identifiers::SourceId;
 use tracing::warn;
 use walkdir::WalkDir;
 
-/// Computes a structured diff between disk and database content for a single
-/// content source.
 #[derive(Debug)]
 pub struct ContentDiffCalculator {
     content_repo: ContentRepository,
 }
 
 impl ContentDiffCalculator {
-    /// Construct a calculator backed by the given database pool.
     pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
             content_repo: ContentRepository::new(db).map_err(SyncError::other)?,
         })
     }
 
-    /// Compute the [`ContentDiffResult`] for the supplied source. Files whose
-    /// frontmatter `kind` is not in `allowed_types` are ignored.
     pub async fn calculate_diff(
         &self,
         source_id: &SourceId,

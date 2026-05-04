@@ -4,19 +4,12 @@ use anyhow::{Context, Result};
 use std::process::Command;
 use systemprompt_models::CliPaths;
 
-/// Description of a running process used for port-collision diagnostics.
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {
-    /// Process id.
     pub pid: u32,
-    /// Full command line of the process.
     pub command: String,
 }
 
-/// Resolve the PID of the process bound to `port`, if any.
-///
-/// # Errors
-/// Returns the underlying `lsof`/`netstat` failure.
 #[cfg(unix)]
 pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
     let output = Command::new("lsof")
@@ -43,10 +36,6 @@ pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
     Ok(Some(pid))
 }
 
-/// Resolve the PID of the process bound to `port`, if any.
-///
-/// # Errors
-/// Returns the underlying `lsof`/`netstat` failure.
 #[cfg(windows)]
 pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
     let output = Command::new("netstat")
@@ -71,10 +60,6 @@ pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
     Ok(None)
 }
 
-/// Look up [`ProcessInfo`] for `pid`.
-///
-/// # Errors
-/// Returns the underlying `ps`/`tasklist` failure.
 #[cfg(unix)]
 pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
     let output = Command::new("ps")
@@ -114,10 +99,6 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
     }))
 }
 
-/// Look up [`ProcessInfo`] for `pid`.
-///
-/// # Errors
-/// Returns the underlying `ps`/`tasklist` failure.
 #[cfg(windows)]
 pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
     let output = Command::new("tasklist")
@@ -142,10 +123,6 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
     Ok(Some(ProcessInfo { pid, command }))
 }
 
-/// Determine whether `pid` is one of the platform's agent worker processes.
-///
-/// # Errors
-/// Returns a textual message if the process info cannot be obtained.
 pub fn is_agent_process(pid: u32) -> Result<bool, String> {
     match get_process_info(pid) {
         Ok(Some(info)) => {

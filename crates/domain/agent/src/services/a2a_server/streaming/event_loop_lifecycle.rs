@@ -55,25 +55,16 @@ pub(super) fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
     }
 }
 
-/// Parameters for [`emit_run_started`].
 #[allow(missing_debug_implementations)]
 pub struct EmitRunStartedParams<'a> {
-    /// SSE sender.
     pub tx: &'a Sender<Event>,
-    /// Webhook broadcast context.
     pub webhook_context: &'a WebhookContext,
-    /// Owning context id.
     pub context_id: &'a ContextId,
-    /// Owning task id.
     pub task_id: &'a TaskId,
-    /// Task repository for state transitions.
     pub task_repo: &'a TaskRepository,
-    /// JSON-RPC request id propagated to the SSE stream.
     pub request_id: &'a NumberOrString,
 }
 
-/// Mark the task `Working`, emit the A2A status frame, and broadcast
-/// `RUN_STARTED`.
 pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
     let EmitRunStartedParams {
         tx,
@@ -117,8 +108,6 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
     }
 }
 
-/// Record a stream-creation failure: mark the task failed, log, and broadcast
-/// `RUN_ERROR`.
 pub async fn handle_stream_creation_error(
     webhook_context: &WebhookContext,
     error: anyhow::Error,

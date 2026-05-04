@@ -15,11 +15,6 @@ use systemprompt_models::{AppPaths, Config, ContentConfigRaw};
 #[cfg(feature = "geolocation")]
 use systemprompt_analytics::GeoIpReader;
 
-/// Load the optional `MaxMind` `GeoIP2` database referenced by `config`.
-///
-/// Returns `None` when the path is unset or the file cannot be opened.
-/// When `show_warnings` is `true`, a CLI warning is printed in those
-/// cases so operators can fix the configuration.
 #[cfg(feature = "geolocation")]
 pub fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
     let Some(geoip_path) = &config.geoip_database_path else {
@@ -54,7 +49,6 @@ pub fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIp
     }
 }
 
-/// Stub used when the `geolocation` feature is disabled.
 #[cfg(not(feature = "geolocation"))]
 pub fn load_geoip_database(
     _config: &Config,
@@ -63,12 +57,6 @@ pub fn load_geoip_database(
     None
 }
 
-/// Load the optional `content.yaml` referenced by `app_paths`.
-///
-/// Rewrites `metadata.structured_data.organization.url` and `logo` so
-/// they are absolute against `config.api_external_url`. Returns `None`
-/// when the file is missing or unparseable; landing-page detection is
-/// then disabled.
 pub fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {
     let content_config_path = app_paths.system().content_config().to_path_buf();
 

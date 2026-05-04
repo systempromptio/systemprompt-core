@@ -12,8 +12,6 @@ use super::types::{CheckoutEvent, ProvisioningEvent};
 use crate::error::{CloudError, CloudResult};
 
 impl CloudApiClient {
-    /// Subscribe to `/cloud/tenants/{id}/events` and yield decoded
-    /// [`ProvisioningEvent`]s.
     pub fn subscribe_provisioning_events(
         &self,
         tenant_id: &str,
@@ -69,8 +67,6 @@ impl CloudApiClient {
         Box::pin(stream)
     }
 
-    /// Subscribe to `/cloud/checkout/{id}/events` and yield decoded
-    /// [`CheckoutEvent`]s.
     pub fn subscribe_checkout_events(
         &self,
         checkout_session_id: &str,

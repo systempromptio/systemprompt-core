@@ -13,7 +13,6 @@ use systemprompt_models::services::AgentConfig;
 
 use crate::error::{ConfigWriteError, ConfigWriteResult};
 
-/// Writer for individual agent files inside a `services/` tree.
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigWriter;
 
@@ -23,13 +22,6 @@ struct AgentFileContent {
 }
 
 impl ConfigWriter {
-    /// Creates a brand-new agent file at `services_dir/agents/<name>.yaml`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigWriteError::AgentFileExists`] if the file already
-    /// exists, or [`ConfigWriteError::Io`] / [`ConfigWriteError::YamlEncode`]
-    /// if the directory cannot be created or the file cannot be written.
     pub fn create_agent(agent: &AgentConfig, services_dir: &Path) -> ConfigWriteResult<PathBuf> {
         let agents_dir = services_dir.join("agents");
         fs::create_dir_all(&agents_dir).map_err(|e| ConfigWriteError::Io {
@@ -48,14 +40,6 @@ impl ConfigWriter {
         Ok(agent_file)
     }
 
-    /// Updates the agent file that currently defines `name`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigWriteError::AgentNotFound`] if no agent file
-    /// declares `name`, or [`ConfigWriteError::Io`] /
-    /// [`ConfigWriteError::YamlEncode`] on failure to read or rewrite the
-    /// file.
     pub fn update_agent(
         name: &str,
         agent: &AgentConfig,
@@ -67,14 +51,6 @@ impl ConfigWriter {
         Self::write_agent_file(&agent_file, agent)
     }
 
-    /// Deletes the agent file that defines `name` and removes the
-    /// matching `includes:` entry from the top-level `config/config.yaml`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigWriteError::AgentNotFound`] if no agent file
-    /// declares `name`, or [`ConfigWriteError::Io`] on failure to read,
-    /// delete, or rewrite the affected files.
     pub fn delete_agent(name: &str, services_dir: &Path) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
             .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_string()))?;
@@ -89,14 +65,6 @@ impl ConfigWriter {
         Self::remove_include(&include_path, &config_path)
     }
 
-    /// Locates the YAML file that currently declares the agent named
-    /// `name`, preferring the canonical `<name>.yaml` if present.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigWriteError::Io`] if the agents directory cannot
-    /// be read or [`ConfigWriteError::YamlEncode`] (via
-    /// `serde_yaml::Error`) on a malformed file.
     pub fn find_agent_file(name: &str, services_dir: &Path) -> ConfigWriteResult<Option<PathBuf>> {
         let agents_dir = services_dir.join("agents");
 

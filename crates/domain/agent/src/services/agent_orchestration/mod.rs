@@ -97,7 +97,6 @@ pub enum OrchestrationError {
     #[error("Generic error: {0}")]
     Generic(#[from] anyhow::Error),
 
-    /// Wrapped error from the agent crate's typed error hierarchy.
     #[error("agent: {0}")]
     Agent(#[from] crate::error::AgentError),
 }

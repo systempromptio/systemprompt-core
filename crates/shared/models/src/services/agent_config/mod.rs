@@ -16,51 +16,30 @@ use crate::auth::Permission;
 use crate::errors::ConfigValidationError;
 use serde::{Deserialize, Serialize};
 
-/// Canonical filename for an agent's on-disk configuration.
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
-/// Canonical filename for an agent's system-prompt source.
 pub const DEFAULT_AGENT_SYSTEM_PROMPT_FILE: &str = "system_prompt.md";
 
-/// Runtime shape of a single agent's configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
-    /// Stable agent name.
     pub name: String,
-    /// Listening port.
     pub port: u16,
-    /// Resolved public endpoint URL.
     pub endpoint: String,
-    /// Whether the agent is enabled at startup.
     pub enabled: bool,
-    /// Whether the agent is restricted to the `dev` profile.
     #[serde(default)]
     pub dev_only: bool,
-    /// Whether this is the primary agent for the deployment.
     #[serde(default)]
     pub is_primary: bool,
-    /// Whether the agent should be the default fallback.
     #[serde(default)]
     pub default: bool,
-    /// Tags for client-side filtering.
     #[serde(default)]
     pub tags: Vec<String>,
-    /// The agent card descriptor.
     pub card: AgentCardConfig,
-    /// Runtime metadata.
     pub metadata: AgentMetadataConfig,
-    /// OAuth scope and audience requirements.
     #[serde(default)]
     pub oauth: OAuthConfig,
 }
 
 impl AgentConfig {
-    /// Validate the runtime configuration of a single agent.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigValidationError::InvalidField`] when the agent name does
-    /// not match its map key, contains illegal characters, falls outside
-    /// the supported length range, or specifies an invalid port.
     pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
         if self.name != name {
             return Err(ConfigValidationError::invalid_field(format!(
@@ -97,8 +76,6 @@ impl AgentConfig {
         Ok(())
     }
 
-    /// Promote any OAuth scopes encoded inside `card.security` into
-    /// the dedicated [`OAuthConfig`] block.
     pub fn extract_oauth_scopes_from_card(&mut self) {
         if let Some(security_vec) = &self.card.security {
             for security_obj in security_vec {
@@ -126,8 +103,6 @@ impl AgentConfig {
         }
     }
 
-    /// Build the canonical `<base_url>/api/v1/agents/<name>` URL for this
-    /// agent.
     #[must_use]
     pub fn construct_url(&self, base_url: &str) -> String {
         format!(

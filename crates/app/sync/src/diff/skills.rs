@@ -12,22 +12,18 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 use tracing::warn;
 
-/// Computes a structured diff between disk and database skill state.
 #[derive(Debug)]
 pub struct SkillsDiffCalculator {
     skill_repo: SkillRepository,
 }
 
 impl SkillsDiffCalculator {
-    /// Construct a calculator backed by the given database pool.
     pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
             skill_repo: SkillRepository::new(db).map_err(SyncError::other)?,
         })
     }
 
-    /// Compute the [`SkillsDiffResult`] between `skills_path` on disk and the
-    /// skills currently stored in the database.
     pub async fn calculate_diff(&self, skills_path: &Path) -> SyncResult<SkillsDiffResult> {
         let db_skills = self.skill_repo.list_all().await.map_err(SyncError::other)?;
         let db_map: HashMap<SkillId, Skill> =

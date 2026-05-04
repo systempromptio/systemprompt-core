@@ -10,12 +10,10 @@ use super::McpOrchestrator;
 use super::events::McpEvent;
 
 impl McpOrchestrator {
-    /// Start one or all enabled internal MCP services.
     pub async fn start_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         self.start_services_with_events(service_name, None).await
     }
 
-    /// Start services and forward progress to the supplied event channel.
     pub async fn start_services_with_events(
         &self,
         service_name: Option<String>,
@@ -84,7 +82,6 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    /// Stop one or all running internal MCP services.
     pub async fn stop_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, false)
@@ -114,7 +111,6 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    /// Asynchronously request restart of one or all services via the event bus.
     pub async fn restart_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, false)
@@ -137,7 +133,6 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    /// Synchronously restart services (block until each restart completes).
     pub async fn restart_services_sync(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, false)
@@ -154,7 +149,6 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    /// Build (cargo) and restart each targeted service.
     pub async fn build_and_restart_services(
         &self,
         service_name: Option<String>,
@@ -177,7 +171,6 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    /// Build (cargo) each targeted service without restarting.
     pub async fn build_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, true)

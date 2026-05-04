@@ -162,8 +162,6 @@ pub use session_analytics::{
     SessionAnalyticsResult,
 };
 
-/// Type-erased result alias for callers that only need a boxed
-/// `std::error::Error`.
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 mod startup_events;

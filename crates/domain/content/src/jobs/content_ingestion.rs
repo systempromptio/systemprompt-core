@@ -13,8 +13,6 @@ struct IngestionStats {
     errors: u64,
 }
 
-/// Runs a single pass of the content ingestion job, returning a [`JobResult`]
-/// summary. Errors propagate as [`ContentError`].
 pub async fn execute_content_ingestion(
     db_pool: &DbPool,
     services_config: &ServicesConfig,

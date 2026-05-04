@@ -31,15 +31,12 @@ use mcp_validator::validate_mcp_manifests;
 pub use display::{display_validation_report, display_validation_warnings};
 pub use files_validator::FilesConfigValidator;
 
-/// Aggregator that runs every registered domain validator against the
-/// current `Config` and returns a [`StartupValidationReport`].
 #[derive(Debug)]
 pub struct StartupValidator {
     registry: DomainConfigRegistry,
 }
 
 impl StartupValidator {
-    /// Construct a validator with the default set of domain validators.
     pub fn new() -> Self {
         let mut registry = DomainConfigRegistry::new();
 
@@ -55,8 +52,6 @@ impl StartupValidator {
         Self { registry }
     }
 
-    /// Run every registered validator against `config` and return the
-    /// aggregated [`StartupValidationReport`].
     pub fn validate(&mut self, config: &Config) -> StartupValidationReport {
         let mut report = StartupValidationReport::new();
         let verbose = is_startup_mode();

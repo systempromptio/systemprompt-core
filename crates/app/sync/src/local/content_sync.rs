@@ -13,37 +13,26 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 use tracing::info;
 
-/// One source's worth of inputs into a content sync run.
 #[derive(Debug)]
 pub struct ContentDiffEntry {
-    /// Source-name (e.g. `blog`).
     pub name: String,
-    /// Source identifier in the database.
     pub source_id: SourceId,
-    /// Content category identifier.
     pub category_id: CategoryId,
-    /// Filesystem path holding this source's content.
     pub path: PathBuf,
-    /// Allowed `content_type` values; rows with other types are ignored.
     pub allowed_content_types: Vec<String>,
-    /// Pre-computed diff for this source.
     pub diff: ContentDiffResult,
 }
 
-/// Drives sync between an on-disk content directory and the database.
 #[derive(Debug)]
 pub struct ContentLocalSync {
     db: DbPool,
 }
 
 impl ContentLocalSync {
-    /// Construct a new content sync handle.
     pub const fn new(db: DbPool) -> Self {
         Self { db }
     }
 
-    /// Compute the [`ContentDiffResult`] between disk and database for one
-    /// source without applying any changes.
     pub async fn calculate_diff(
         &self,
         source_id: &SourceId,
@@ -57,8 +46,6 @@ impl ContentLocalSync {
             .map_err(SyncError::other)
     }
 
-    /// Apply the supplied per-source diffs from the database back to disk.
-    /// When `delete_orphans` is `true`, on-disk-only files are removed.
     pub async fn sync_to_disk(
         &self,
         diffs: &[ContentDiffEntry],
@@ -137,7 +124,6 @@ impl ContentLocalSync {
         Ok(result)
     }
 
-    /// Apply the supplied per-source diffs from disk into the database.
     pub async fn sync_to_db(
         &self,
         diffs: &[ContentDiffEntry],

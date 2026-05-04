@@ -3,16 +3,7 @@ use chrono::{DateTime, Utc};
 use super::{DbValue, parse_database_datetime};
 use crate::error::DbValueError;
 
-/// Conversion from a [`DbValue`] container into a concrete Rust value.
-///
-/// Implementations exist for the canonical scalar types (`String`, `i64`,
-/// `i32`, `u32`, `u64`, `f64`, `bool`, `Vec<u8>`, `DateTime<Utc>`) plus
-/// `Option<T>` for any inner `T: FromDbValue`.
-///
-/// Conversions that lose information (e.g. `Float` -> `i64`) check bounds
-/// and return [`DbValueError`] instead of silently truncating.
 pub trait FromDbValue: Sized {
-    /// Attempts to convert the database value into `Self`.
     fn from_db_value(value: &DbValue) -> Result<Self, DbValueError>;
 }
 

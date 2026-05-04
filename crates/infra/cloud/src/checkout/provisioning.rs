@@ -9,14 +9,6 @@ use crate::CloudApiClient;
 use crate::api_client::{ProvisioningEvent, ProvisioningEventType};
 use crate::error::{CloudError, CloudResult};
 
-/// Subscribe to `subscribe_provisioning_events` and resolve once the
-/// tenant reaches `TenantReady`. Falls back to polling
-/// `get_tenant_status` when the SSE stream errors.
-///
-/// # Errors
-///
-/// Returns [`CloudError::ProvisioningFailed`] when the cloud
-/// reports failure, or any underlying transport error.
 pub async fn wait_for_provisioning<F>(
     client: &CloudApiClient,
     tenant_id: &str,

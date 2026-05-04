@@ -12,8 +12,6 @@ use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_
 use crate::prerender::list::{RenderListParams, render_list_route};
 use crate::prerender::render::{RenderSingleItemParams, render_single_item};
 
-/// Iterate every enabled source in the configured content sources, prerender
-/// each entry, and return the total page count.
 pub async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
     const SOURCE_CONCURRENCY: usize = 2;
 

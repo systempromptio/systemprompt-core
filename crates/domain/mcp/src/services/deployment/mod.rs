@@ -9,17 +9,14 @@ fn missing_deployment(name: &str) -> McpDomainError {
     ))
 }
 
-/// Resolves MCP service deployment configuration from the loader.
 #[derive(Debug, Clone, Copy)]
 pub struct DeploymentService;
 
 impl DeploymentService {
-    /// Load the full services configuration.
     pub fn load_config() -> McpDomainResult<ServicesConfig> {
         ConfigLoader::load().map_err(Into::into)
     }
 
-    /// Look up a single deployment by name.
     pub fn get_deployment(name: &str) -> McpDomainResult<Deployment> {
         let config = Self::load_config()?;
         config
@@ -29,7 +26,6 @@ impl DeploymentService {
             .ok_or_else(|| missing_deployment(name))
     }
 
-    /// List names of all enabled servers.
     pub fn list_enabled_servers() -> McpDomainResult<Vec<String>> {
         let config = Self::load_config()?;
         Ok(config
@@ -40,7 +36,6 @@ impl DeploymentService {
             .collect())
     }
 
-    /// Look up the port for a deployment.
     pub fn get_server_port(name: &str) -> McpDomainResult<u16> {
         let config = Self::load_config()?;
         config
@@ -50,7 +45,6 @@ impl DeploymentService {
             .ok_or_else(|| missing_deployment(name))
     }
 
-    /// Check whether the named server is enabled.
     pub fn is_server_enabled(name: &str) -> McpDomainResult<bool> {
         let config = Self::load_config()?;
         config
@@ -60,14 +54,12 @@ impl DeploymentService {
             .ok_or_else(|| missing_deployment(name))
     }
 
-    /// Validate the loaded services configuration.
     pub fn validate_config() -> McpDomainResult<()> {
         let config = ConfigLoader::load()?;
         config.validate()?;
         Ok(())
     }
 
-    /// Look up the binary path for a deployment.
     pub fn get_server_binary(name: &str) -> McpDomainResult<String> {
         let config = Self::load_config()?;
         config
@@ -77,8 +69,6 @@ impl DeploymentService {
             .ok_or_else(|| missing_deployment(name))
     }
 
-    /// Look up the package name for a deployment, falling back to the server
-    /// name.
     pub fn get_server_package(name: &str) -> McpDomainResult<String> {
         let config = Self::load_config()?;
         config

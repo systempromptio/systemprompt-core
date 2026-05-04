@@ -8,7 +8,6 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 
 pub use probe::{ProcessInfo, find_process_using_port, get_process_info, is_agent_process};
 
-/// Helper for managing the TCP ports allocated to agent worker processes.
 #[derive(Debug, Copy, Clone)]
 pub struct PortManager;
 
@@ -19,18 +18,11 @@ impl Default for PortManager {
 }
 
 impl PortManager {
-    /// Construct a new `PortManager`.
     #[must_use]
     pub const fn new() -> Self {
         Self
     }
 
-    /// Kill the agent process bound to `port`, if any. Refuses to kill
-    /// non-agent processes.
-    ///
-    /// # Errors
-    /// Returns [`OrchestrationError::ProcessSpawnFailed`] if the port lookup or
-    /// kill fails, or if the bound process is not an agent.
     pub async fn kill_process_on_port(&self, port: u16) -> OrchestrationResult<bool> {
         let pid = match find_process_using_port(port) {
             Ok(Some(p)) => p,
@@ -77,11 +69,6 @@ impl PortManager {
         Ok(true)
     }
 
-    /// Poll until `port` becomes free, up to `timeout_secs` seconds.
-    ///
-    /// # Errors
-    /// Returns [`OrchestrationError::ProcessSpawnFailed`] if the timeout
-    /// elapses.
     pub async fn wait_for_port_available(
         &self,
         port: u16,
@@ -103,12 +90,6 @@ impl PortManager {
         )))
     }
 
-    /// Free `port` by killing any orphaned agent process bound to it.
-    ///
-    /// # Errors
-    /// Returns [`OrchestrationError::ProcessSpawnFailed`] when the bound
-    /// process is not an agent, or any underlying probe/kill operation
-    /// fails.
     pub async fn cleanup_port_if_needed(&self, port: u16) -> OrchestrationResult<()> {
         if !process::is_port_in_use(port) {
             return Ok(());
@@ -160,11 +141,6 @@ impl PortManager {
         Ok(())
     }
 
-    /// Free every port in `ports` that is currently held by an orphaned agent.
-    ///
-    /// # Errors
-    /// Returns [`OrchestrationError::ProcessSpawnFailed`] from
-    /// [`Self::cleanup_port_if_needed`] for the first failing port.
     pub async fn cleanup_agent_ports(&self, ports: &[u16]) -> OrchestrationResult<u32> {
         let mut cleaned = 0;
 
@@ -187,11 +163,6 @@ impl PortManager {
         Ok(cleaned)
     }
 
-    /// Verify that every port in `ports` is currently free.
-    ///
-    /// # Errors
-    /// Returns [`OrchestrationError::ProcessSpawnFailed`] listing each blocked
-    /// port with the offending PID and command line.
     pub fn verify_all_ports_available(ports: &[u16]) -> OrchestrationResult<()> {
         let mut blocked_ports = Vec::new();
 

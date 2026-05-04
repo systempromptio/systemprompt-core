@@ -142,14 +142,6 @@ fn build_event_task(
     }
 }
 
-/// Notify the platform's webhook fan-out service that a new artifact was
-/// created.
-///
-/// # Errors
-/// Returns [`crate::error::AgentError::Config`] if the global configuration is
-/// unavailable, [`crate::error::AgentError::Http`] if the HTTP request fails to
-/// transmit, or [`crate::error::AgentError::Webhook`] if the receiver returns a
-/// non-success status.
 pub async fn broadcast_artifact_created(
     artifact: &crate::models::a2a::Artifact,
     task_id: &TaskId,

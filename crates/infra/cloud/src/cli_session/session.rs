@@ -194,14 +194,6 @@ impl CliSession {
         }
     }
 
-    /// Load and decode a session JSON file.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CloudError::NotAuthenticated`] when the file is
-    /// missing, [`CloudError::SessionVersionMismatch`] for
-    /// out-of-range schema versions, and
-    /// [`CloudError::CredentialsCorrupted`] for parse failures.
     pub fn load_from_path(path: &Path) -> CloudResult<Self> {
         if !path.exists() {
             return Err(CloudError::NotAuthenticated);
@@ -225,13 +217,6 @@ impl CliSession {
         Ok(session)
     }
 
-    /// Persist this session to `path` with `0o600` permissions on
-    /// Unix.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CloudError::Io`] / [`CloudError::Json`] on write
-    /// failures.
     pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
         if let Some(dir) = path.parent() {
             fs::create_dir_all(dir)?;
@@ -256,11 +241,6 @@ impl CliSession {
         Ok(())
     }
 
-    /// Remove the session file at `path` (no-op if absent).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CloudError::Io`] on filesystem failures.
     pub fn delete_from_path(path: &Path) -> CloudResult<()> {
         if path.exists() {
             fs::remove_file(path)?;

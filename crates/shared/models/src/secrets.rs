@@ -51,14 +51,6 @@ pub struct Secrets {
 }
 
 impl Secrets {
-    /// Parse a JSON secrets document, drop null fields, and run
-    /// [`Self::validate`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SecretsError::Parse`] when the document is not valid
-    /// JSON or fails to deserialize, or [`SecretsError::Invalid`] when a
-    /// field violates a length / format constraint.
     pub fn parse(content: &str) -> Result<Self, SecretsError> {
         let mut value: serde_json::Value =
             serde_json::from_str(content).map_err(|source| SecretsError::Parse {
@@ -77,13 +69,6 @@ impl Secrets {
         Ok(secrets)
     }
 
-    /// Verify that all required secret fields meet their structural
-    /// constraints (currently the minimum JWT secret length).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SecretsError::Invalid`] when `jwt_secret` is shorter than
-    /// [`JWT_SECRET_MIN_LENGTH`].
     pub fn validate(&self) -> Result<(), SecretsError> {
         if self.jwt_secret.len() < JWT_SECRET_MIN_LENGTH {
             return Err(SecretsError::Invalid(format!(

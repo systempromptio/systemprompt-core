@@ -23,7 +23,6 @@ use super::initialization_steps::{
 };
 use super::types::{PersistTaskInput, StreamInput, StreamSetupResult};
 
-/// Build a JSON-RPC error frame as an SSE [`Event`].
 pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberOrString) -> Event {
     let error_event = json!({
         "jsonrpc": "2.0",
@@ -33,8 +32,6 @@ pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberO
     Event::default().data(error_event.to_string())
 }
 
-/// Detect whether the requested agent name corresponds to an MCP server and
-/// rewrite `context.execution.agent_name` if needed.
 pub fn detect_mcp_server_and_update_context(
     agent_name: &str,
     context: &mut RequestContext,
@@ -77,7 +74,6 @@ pub fn detect_mcp_server_and_update_context(
     }
 }
 
-/// Resolve the task id for an incoming message, allocating a new one if absent.
 pub fn resolve_task_id(message: &Message) -> TaskId {
     message
         .task_id
@@ -85,7 +81,6 @@ pub fn resolve_task_id(message: &Message) -> TaskId {
         .unwrap_or_else(|| TaskId::new(Uuid::new_v4().to_string()))
 }
 
-/// Top-level setup function called by the streaming entry point.
 pub async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> Result<StreamSetupResult, ()> {
     let StreamInput {
         message,

@@ -17,7 +17,6 @@ const SCANNER_BAN_THRESHOLD: i64 = 3;
 const HIGH_RISK_COUNTRY_THRESHOLD: i64 = 5;
 const BAN_DURATION_DAYS: i64 = 14;
 
-/// Scheduled job that bans malicious IPs based on session patterns.
 #[derive(Debug, Clone, Copy)]
 pub struct MaliciousIpBlacklistJob;
 

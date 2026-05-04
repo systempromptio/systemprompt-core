@@ -1,10 +1,9 @@
-use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use systemprompt_database::{
-    DatabaseInfo, DatabaseProvider, DatabaseTransaction, DbValue, JsonRow, QueryResult,
-    QuerySelector, ToDbValue,
+    DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue, JsonRow,
+    QueryResult, QuerySelector, RepositoryError, ToDbValue,
 };
 
 #[derive(Debug, Clone)]
@@ -131,8 +130,8 @@ impl MockDatabaseProviderBuilder {
     }
 }
 
-fn convert_result<T>(result: Result<T, String>) -> Result<T> {
-    result.map_err(|e| anyhow!(e))
+fn convert_result<T>(result: std::result::Result<T, String>) -> DatabaseResult<T> {
+    result.map_err(RepositoryError::internal)
 }
 
 #[async_trait]
@@ -145,7 +144,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         true
     }
 
-    async fn execute(&self, _query: &dyn QuerySelector, _params: &[&dyn ToDbValue]) -> Result<u64> {
+    async fn execute(&self, _query: &dyn QuerySelector, _params: &[&dyn ToDbValue]) -> DatabaseResult<u64> {
         self.record_call("execute");
         match self.next_response() {
             Some(MockDbResponse::Execute(result)) => convert_result(result),
@@ -154,7 +153,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         }
     }
 
-    async fn execute_raw(&self, _sql: &str) -> Result<()> {
+    async fn execute_raw(&self, _sql: &str) -> DatabaseResult<()> {
         self.record_call("execute_raw");
         match self.next_response() {
             Some(MockDbResponse::ExecuteRaw(result)) => convert_result(result),
@@ -167,7 +166,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         &self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<Vec<JsonRow>> {
+    ) -> DatabaseResult<Vec<JsonRow>> {
         self.record_call("fetch_all");
         match self.next_response() {
             Some(MockDbResponse::FetchAll(result)) => convert_result(result),
@@ -180,7 +179,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         &self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<JsonRow> {
+    ) -> DatabaseResult<JsonRow> {
         self.record_call("fetch_one");
         match self.next_response() {
             Some(MockDbResponse::FetchOne(result)) => convert_result(result),
@@ -193,7 +192,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         &self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<Option<JsonRow>> {
+    ) -> DatabaseResult<Option<JsonRow>> {
         self.record_call("fetch_optional");
         match self.next_response() {
             Some(MockDbResponse::FetchOptional(result)) => convert_result(result),
@@ -206,7 +205,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         &self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<DbValue> {
+    ) -> DatabaseResult<DbValue> {
         self.record_call("fetch_scalar_value");
         match self.next_response() {
             Some(MockDbResponse::FetchScalar(result)) => convert_result(result),
@@ -215,12 +214,12 @@ impl DatabaseProvider for MockDatabaseProvider {
         }
     }
 
-    async fn begin_transaction(&self) -> Result<Box<dyn DatabaseTransaction>> {
+    async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
         self.record_call("begin_transaction");
         Ok(Box::new(MockDatabaseTransaction::default()))
     }
 
-    async fn get_database_info(&self) -> Result<DatabaseInfo> {
+    async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
         self.record_call("get_database_info");
         match self.next_response() {
             Some(MockDbResponse::DatabaseInfo(result)) => convert_result(result),
@@ -239,7 +238,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         }
     }
 
-    async fn test_connection(&self) -> Result<()> {
+    async fn test_connection(&self) -> DatabaseResult<()> {
         self.record_call("test_connection");
         match self.next_response() {
             Some(MockDbResponse::TestConnection(result)) => convert_result(result),
@@ -248,7 +247,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         }
     }
 
-    async fn execute_batch(&self, _sql: &str) -> Result<()> {
+    async fn execute_batch(&self, _sql: &str) -> DatabaseResult<()> {
         self.record_call("execute_batch");
         match self.next_response() {
             Some(MockDbResponse::ExecuteBatch(result)) => convert_result(result),
@@ -257,7 +256,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         }
     }
 
-    async fn query_raw(&self, _query: &dyn QuerySelector) -> Result<QueryResult> {
+    async fn query_raw(&self, _query: &dyn QuerySelector) -> DatabaseResult<QueryResult> {
         self.record_call("query_raw");
         match self.next_response() {
             Some(MockDbResponse::QueryRaw(result)) => convert_result(result),
@@ -270,7 +269,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         &self,
         _query: &dyn QuerySelector,
         _params: Vec<serde_json::Value>,
-    ) -> Result<QueryResult> {
+    ) -> DatabaseResult<QueryResult> {
         self.record_call("query_raw_with");
         match self.next_response() {
             Some(MockDbResponse::QueryRaw(result)) => convert_result(result),
@@ -292,7 +291,7 @@ impl DatabaseTransaction for MockDatabaseTransaction {
         &mut self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<u64> {
+    ) -> DatabaseResult<u64> {
         self.calls.push("execute".to_string());
         match self.responses.pop_front() {
             Some(MockDbResponse::Execute(result)) => convert_result(result),
@@ -305,7 +304,7 @@ impl DatabaseTransaction for MockDatabaseTransaction {
         &mut self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<Vec<JsonRow>> {
+    ) -> DatabaseResult<Vec<JsonRow>> {
         self.calls.push("fetch_all".to_string());
         match self.responses.pop_front() {
             Some(MockDbResponse::FetchAll(result)) => convert_result(result),
@@ -318,7 +317,7 @@ impl DatabaseTransaction for MockDatabaseTransaction {
         &mut self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<JsonRow> {
+    ) -> DatabaseResult<JsonRow> {
         self.calls.push("fetch_one".to_string());
         match self.responses.pop_front() {
             Some(MockDbResponse::FetchOne(result)) => convert_result(result),
@@ -331,7 +330,7 @@ impl DatabaseTransaction for MockDatabaseTransaction {
         &mut self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
-    ) -> Result<Option<JsonRow>> {
+    ) -> DatabaseResult<Option<JsonRow>> {
         self.calls.push("fetch_optional".to_string());
         match self.responses.pop_front() {
             Some(MockDbResponse::FetchOptional(result)) => convert_result(result),
@@ -340,11 +339,11 @@ impl DatabaseTransaction for MockDatabaseTransaction {
         }
     }
 
-    async fn commit(self: Box<Self>) -> Result<()> {
+    async fn commit(self: Box<Self>) -> DatabaseResult<()> {
         Ok(())
     }
 
-    async fn rollback(self: Box<Self>) -> Result<()> {
+    async fn rollback(self: Box<Self>) -> DatabaseResult<()> {
         Ok(())
     }
 }

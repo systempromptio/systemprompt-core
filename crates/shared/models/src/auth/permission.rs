@@ -125,8 +125,6 @@ impl FromStr for Permission {
     }
 }
 
-/// Render a list of permissions as a space-separated string suitable for
-/// OAuth `scope` values.
 pub fn permissions_to_string(permissions: &[Permission]) -> String {
     permissions
         .iter()
@@ -135,13 +133,6 @@ pub fn permissions_to_string(permissions: &[Permission]) -> String {
         .join(" ")
 }
 
-/// Parse an OAuth-style space-separated scope string into a vector of
-/// [`Permission`] values.
-///
-/// # Errors
-///
-/// Returns the first [`ParseEnumError`] encountered if any token does not
-/// match a known permission.
 pub fn parse_permissions(s: &str) -> Result<Vec<Permission>, ParseEnumError> {
     s.split_whitespace().map(Permission::from_str).collect()
 }

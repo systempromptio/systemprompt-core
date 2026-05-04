@@ -1,14 +1,3 @@
-/// Declares an opaque secret-token newtype that redacts its value when
-/// formatted via `Display`.
-///
-/// The generated type implements `Debug`, `Clone`, `Eq`, `Hash`, `serde`
-/// (transparent), optional `sqlx::Type`, `AsRef<str>`, `ToDbValue`, and
-/// `From<String>`/`From<&str>`. `Display` shows a redacted form
-/// (`"abcdefgh...wxyz"` for tokens longer than 16 chars, otherwise asterisks).
-///
-/// Tokens carry the same wire encoding as plain `String` identifiers but make
-/// accidental logging safe by default — `tracing::info!("{}", token)` never
-/// leaks the secret.
 #[macro_export]
 macro_rules! define_token {
     ($name:ident) => {
@@ -19,19 +8,14 @@ macro_rules! define_token {
         pub struct $name(String);
 
         impl $name {
-            /// Wraps a raw token string in the typed wrapper.
             pub fn new(token: impl Into<String>) -> Self {
                 Self(token.into())
             }
 
-            /// Returns the raw token value. Avoid logging the result directly —
-            /// prefer `Display` (`"{}"`), which redacts.
             pub fn as_str(&self) -> &str {
                 &self.0
             }
 
-            /// Returns a redacted form safe for logging
-            /// (`"abcdefgh...wxyz"` for tokens longer than 16 characters).
             #[must_use]
             pub fn redacted(&self) -> String {
                 let len = self.0.len();

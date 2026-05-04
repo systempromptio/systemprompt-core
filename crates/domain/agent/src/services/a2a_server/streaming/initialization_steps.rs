@@ -21,8 +21,6 @@ use crate::services::a2a_server::handlers::AgentHandlerState;
 use super::initialization::create_jsonrpc_error_event;
 use super::types::PersistTaskInput;
 
-/// Confirm the (`context_id`, `user_id`) pair maps to a valid context, sending
-/// a JSON-RPC error frame on `tx` when validation fails.
 pub async fn validate_context(
     context_id: &ContextId,
     user_id: &UserId,
@@ -75,7 +73,6 @@ pub async fn validate_context(
     Ok(())
 }
 
-/// Persist the initial Submitted task and track the agent in its context.
 pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRepository, ()> {
     let PersistTaskInput {
         task_id,
@@ -153,8 +150,6 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
     Ok(task_repo)
 }
 
-/// Persist a push-notification callback config for `task_id`, if one was
-/// supplied.
 pub async fn save_push_notification_config(
     task_id: &TaskId,
     callback_config: Option<&PushNotificationConfig>,

@@ -19,11 +19,6 @@ fn strip_first_h1(content: &str) -> String {
     result.join("\n")
 }
 
-/// Render `content` (a Markdown body without frontmatter) to HTML.
-///
-/// Uses comrak with strikethrough, tables, autolinks, tasklists, and
-/// superscript enabled. The first top-level `# Heading` is stripped to avoid
-/// duplicating the page title supplied separately by the template layer.
 pub fn render_markdown(content: &str) -> String {
     let mut options = Options::default();
 
@@ -39,11 +34,6 @@ pub fn render_markdown(content: &str) -> String {
     markdown_to_html(&content_without_h1, &options)
 }
 
-/// Split a Markdown document into `(frontmatter, body)`.
-///
-/// Returns `Some` if the document starts with a `---`-delimited YAML
-/// frontmatter block. Returns `None` when the document has no frontmatter or
-/// the YAML fails to parse (logged at WARN).
 pub fn extract_frontmatter(content: &str) -> Option<(serde_yaml::Value, String)> {
     if !content.starts_with("---") {
         return None;

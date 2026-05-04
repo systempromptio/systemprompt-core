@@ -10,13 +10,7 @@ use serde::Serialize;
 use systemprompt_models::api::CliOutputEvent;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
-/// Conversion from a typed event payload into an `axum` SSE [`Event`].
-///
-/// Implementors are expected to be fallible only on serialization errors —
-/// every other framing decision (event name, retry hint) is fixed by the
-/// implementation.
 pub trait ToSse {
-    /// Serializes `self` into a JSON-encoded SSE [`Event`].
     fn to_sse(&self) -> Result<Event, serde_json::Error>;
 }
 

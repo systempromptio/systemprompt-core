@@ -1,6 +1,3 @@
-/// Internal helper used by `define_id!` to install the common trait
-/// surface (`Display`, `AsRef<str>`, `ToDbValue`, `From<Self> for String`,
-/// `PartialEq<&str>`, `Borrow<str>`) on a generated identifier type.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __define_id_common {
@@ -73,9 +70,6 @@ macro_rules! __define_id_common {
     };
 }
 
-/// Internal helper used by validating `define_id!` variants to install
-/// `TryFrom<String>`, `TryFrom<&str>`, `FromStr`, and a validating
-/// `Deserialize` impl on a generated identifier type.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __define_id_validated_conversions {

@@ -5,11 +5,6 @@ use crate::error::{RuntimeError, RuntimeResult};
 use std::path::Path;
 use systemprompt_database::validate_database_connection;
 
-/// Validate end-to-end system readiness against `ctx`.
-///
-/// Currently this checks the database URL shape and confirms the pool
-/// can round-trip a `SELECT 1`. Additional preflight checks may be
-/// added here over time.
 pub async fn validate_system(ctx: &AppContext) -> RuntimeResult<()> {
     validate_database(ctx).await
 }
@@ -20,10 +15,6 @@ async fn validate_database(ctx: &AppContext) -> RuntimeResult<()> {
     Ok(())
 }
 
-/// Validate that `db_path` is a usable database URL.
-///
-/// `Postgres` URLs are accepted as-is. `SQLite` paths must point at an
-/// existing regular file.
 pub fn validate_database_path(db_path: &str) -> RuntimeResult<()> {
     if db_path.is_empty() {
         return Err(RuntimeError::EmptyDatabaseUrl);

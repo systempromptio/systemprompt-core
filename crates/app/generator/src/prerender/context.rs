@@ -14,22 +14,12 @@ use tokio::fs;
 use crate::error::{GeneratorResult, PublishError};
 use crate::templates::{get_templates_path, load_web_config};
 
-/// Aggregated context required by the prerender pipeline: a database handle,
-/// content/web configs, the template registry, the output directory, and any
-/// content-data providers contributed by extensions.
 pub struct PrerenderContext {
-    /// Database pool used by content-data and page-data providers.
     pub db_pool: DbPool,
-    /// Parsed `content.yaml` describing every content source.
     pub config: ContentConfigRaw,
-    /// Parsed `web.yaml` describing site-wide config (paths, branding, …).
     pub web_config: WebConfig,
-    /// Template registry pre-populated with extension and embedded defaults.
     pub template_registry: TemplateRegistry,
-    /// Absolute path of the build output directory.
     pub dist_dir: PathBuf,
-    /// Content-data providers contributed by registered extensions, sorted by
-    /// `priority()`.
     pub content_data_providers: Vec<Arc<dyn ContentDataProvider>>,
 }
 
@@ -48,9 +38,6 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
-/// Load and assemble a [`PrerenderContext`] for the given paths and database
-/// pool: reads `content.yaml`/`web.yaml`, discovers templates contributed by
-/// extensions, and builds the template registry.
 pub async fn load_prerender_context(
     db_pool: DbPool,
     paths: &AppPaths,

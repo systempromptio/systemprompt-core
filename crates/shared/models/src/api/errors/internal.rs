@@ -4,101 +4,46 @@
 
 use super::{ApiError, ErrorCode};
 
-/// Application-tier error type. Internal callers `?` this and the
-/// boundary handler converts it into [`ApiError`] for the wire
-/// response.
 #[derive(Debug, thiserror::Error)]
 pub enum InternalApiError {
-    /// Resource lookup failed.
     #[error("Resource not found: {resource_type} with ID '{id}'")]
-    NotFound {
-        /// Logical name of the resource type.
-        resource_type: String,
-        /// Identifier that was not found.
-        id: String,
-    },
+    NotFound { resource_type: String, id: String },
 
-    /// Request payload was rejected.
     #[error("Bad request: {message}")]
-    BadRequest {
-        /// Human-readable reason.
-        message: String,
-    },
+    BadRequest { message: String },
 
-    /// Authentication failed or was absent.
     #[error("Unauthorized access: {reason}")]
-    Unauthorized {
-        /// Human-readable reason.
-        reason: String,
-    },
+    Unauthorized { reason: String },
 
-    /// Authenticated principal lacks permission.
     #[error("Access forbidden: {resource} - {reason}")]
-    Forbidden {
-        /// Resource being accessed.
-        resource: String,
-        /// Human-readable reason.
-        reason: String,
-    },
+    Forbidden { resource: String, reason: String },
 
-    /// Field-level validation failed.
     #[error("Validation failed for field '{field}': {reason}")]
-    ValidationError {
-        /// Offending field path.
-        field: String,
-        /// Human-readable reason.
-        reason: String,
-    },
+    ValidationError { field: String, reason: String },
 
-    /// Operation conflicted with existing state.
     #[error("Conflict: {resource} already exists")]
-    ConflictError {
-        /// Resource that already exists.
-        resource: String,
-    },
+    ConflictError { resource: String },
 
-    /// Caller exceeded a rate limit.
     #[error("Rate limit exceeded for {resource}")]
-    RateLimited {
-        /// Resource being rate-limited.
-        resource: String,
-    },
+    RateLimited { resource: String },
 
-    /// Downstream service was unavailable.
     #[error("Service temporarily unavailable: {service}")]
-    ServiceUnavailable {
-        /// Name of the unavailable service.
-        service: String,
-    },
+    ServiceUnavailable { service: String },
 
-    /// Database call failed.
     #[error("Database operation failed: {message}")]
-    DatabaseError {
-        /// Human-readable reason.
-        message: String,
-    },
+    DatabaseError { message: String },
 
-    /// JSON serialization failed.
     #[error("JSON serialization failed")]
     JsonError(#[from] serde_json::Error),
 
-    /// Authentication subsystem failed.
     #[error("Authentication token error: {message}")]
-    AuthenticationError {
-        /// Human-readable reason.
-        message: String,
-    },
+    AuthenticationError { message: String },
 
-    /// Catch-all internal failure.
     #[error("Internal server error: {message}")]
-    InternalError {
-        /// Human-readable reason.
-        message: String,
-    },
+    InternalError { message: String },
 }
 
 impl InternalApiError {
-    /// Build a `NotFound` variant.
     pub fn not_found(resource_type: impl Into<String>, id: impl Into<String>) -> Self {
         Self::NotFound {
             resource_type: resource_type.into(),
@@ -106,21 +51,18 @@ impl InternalApiError {
         }
     }
 
-    /// Build a `BadRequest` variant.
     pub fn bad_request(message: impl Into<String>) -> Self {
         Self::BadRequest {
             message: message.into(),
         }
     }
 
-    /// Build an `Unauthorized` variant.
     pub fn unauthorized(reason: impl Into<String>) -> Self {
         Self::Unauthorized {
             reason: reason.into(),
         }
     }
 
-    /// Build a `Forbidden` variant.
     pub fn forbidden(resource: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::Forbidden {
             resource: resource.into(),
@@ -128,7 +70,6 @@ impl InternalApiError {
         }
     }
 
-    /// Build a `ValidationError` variant.
     pub fn validation_error(field: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::ValidationError {
             field: field.into(),
@@ -136,49 +77,42 @@ impl InternalApiError {
         }
     }
 
-    /// Build a `ConflictError` variant.
     pub fn conflict(resource: impl Into<String>) -> Self {
         Self::ConflictError {
             resource: resource.into(),
         }
     }
 
-    /// Build a `RateLimited` variant.
     pub fn rate_limited(resource: impl Into<String>) -> Self {
         Self::RateLimited {
             resource: resource.into(),
         }
     }
 
-    /// Build a `ServiceUnavailable` variant.
     pub fn service_unavailable(service: impl Into<String>) -> Self {
         Self::ServiceUnavailable {
             service: service.into(),
         }
     }
 
-    /// Build an `InternalError` variant.
     pub fn internal_error(message: impl Into<String>) -> Self {
         Self::InternalError {
             message: message.into(),
         }
     }
 
-    /// Build a `DatabaseError` variant.
     pub fn database_error(message: impl Into<String>) -> Self {
         Self::DatabaseError {
             message: message.into(),
         }
     }
 
-    /// Build an `AuthenticationError` variant.
     pub fn authentication_error(message: impl Into<String>) -> Self {
         Self::AuthenticationError {
             message: message.into(),
         }
     }
 
-    /// Map this variant to its [`ErrorCode`].
     #[must_use]
     pub const fn error_code(&self) -> ErrorCode {
         match self {

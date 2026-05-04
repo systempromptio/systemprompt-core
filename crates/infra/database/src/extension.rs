@@ -7,9 +7,6 @@
 
 use systemprompt_extension::prelude::*;
 
-/// Extension that installs the database crate's own schema (migrations table
-/// and shared helper functions). Migration weight `10` ensures it runs before
-/// any domain extension.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DatabaseExtension;
 

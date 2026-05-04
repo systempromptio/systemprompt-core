@@ -7,14 +7,6 @@ use systemprompt_models::profile::{
     GatewayCatalog, GatewayConfig, GatewayProfileError, GatewayResult,
 };
 
-/// If `gateway.catalog_path` is set, read and validate the referenced
-/// catalog file relative to `profile_dir` and attach it as
-/// `gateway.catalog`.
-///
-/// # Errors
-///
-/// Returns the relevant [`GatewayProfileError`] variant when the file
-/// cannot be read, parsed, or validated.
 pub fn resolve_catalog(gateway: &mut GatewayConfig, profile_dir: &Path) -> GatewayResult<()> {
     let Some(rel) = gateway.catalog_path.as_ref() else {
         return Ok(());

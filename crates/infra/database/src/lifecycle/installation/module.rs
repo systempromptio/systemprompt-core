@@ -10,12 +10,10 @@ use systemprompt_models::modules::{Module, ModuleSchema};
 use super::util::table_exists;
 use crate::services::{DatabaseProvider, SqlExecutor};
 
-/// Aggregator that runs every per-module installation step in the right order.
 #[derive(Debug, Clone, Copy)]
 pub struct ModuleInstaller;
 
 impl ModuleInstaller {
-    /// Install schemas (DDL) followed by seeds (DML) for `module`.
     pub async fn install(module: &Module, db: &dyn DatabaseProvider) -> Result<()> {
         install_module_schemas_from_source(module, db).await?;
         install_module_seeds_from_path(module, db).await?;
@@ -23,9 +21,6 @@ impl ModuleInstaller {
     }
 }
 
-/// Install every schema declared by `module`. Schemas with an empty `table`
-/// name are always run; schemas with a `table` are skipped if that table
-/// already exists.
 pub async fn install_module_schemas_from_source(
     module: &Module,
     db: &dyn DatabaseProvider,
@@ -66,7 +61,6 @@ fn read_module_schema_sql(module: &Module, schema: &ModuleSchema) -> Result<Stri
     }
 }
 
-/// Install every seed declared by `module`. Seeds always run unconditionally.
 pub async fn install_module_seeds_from_path(
     module: &Module,
     db: &dyn DatabaseProvider,
@@ -96,13 +90,11 @@ pub async fn install_module_seeds_from_path(
     Ok(())
 }
 
-/// Read a SQL file and run it as a parsed statement batch.
 pub async fn install_schema(db: &dyn DatabaseProvider, schema_path: &Path) -> Result<()> {
     let schema_content = std::fs::read_to_string(schema_path)?;
     SqlExecutor::execute_statements_parsed(db, &schema_content).await
 }
 
-/// Read a seed SQL file and run it as a parsed statement batch.
 pub async fn install_seed(db: &dyn DatabaseProvider, seed_path: &Path) -> Result<()> {
     let seed_content = std::fs::read_to_string(seed_path)?;
     SqlExecutor::execute_statements_parsed(db, &seed_content).await

@@ -5,16 +5,11 @@ use std::str::FromStr;
 
 use crate::errors::ParseEnumError;
 
-/// Classification of where a request originated, used for routing,
-/// rate-limiting, and audit log filtering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CallSource {
-    /// Issued by an autonomous agent loop.
     Agentic,
-    /// Issued directly by a human user (UI, CLI).
     Direct,
-    /// One-off ephemeral / test invocation.
     Ephemeral,
 }
 

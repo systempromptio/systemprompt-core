@@ -16,8 +16,6 @@ use crate::prerender::context::PrerenderContext;
 const MAX_RETRIES: u32 = 5;
 const RETRY_DELAY_MS: u64 = 500;
 
-/// Fetch every published `Content` row for the given source, retrying briefly
-/// to absorb the eventual-consistency window after a sync.
 pub async fn fetch_content_for_source(
     ctx: &PrerenderContext,
     source_name: &str,
@@ -63,8 +61,6 @@ async fn fetch_with_retries(
     )
 }
 
-/// Convert a slice of `Content` rows to the JSON shape expected by templates,
-/// running `ContentDataProvider` enrichment in parallel.
 pub async fn contents_to_json(
     contents: &[Content],
     source_name: &str,
@@ -126,9 +122,6 @@ pub async fn contents_to_json(
         .await
 }
 
-/// Fetch the IDs of the most popular content items for a source over the
-/// configured analytics window. Returns the IDs as strings, ready to be
-/// embedded directly into template data.
 pub async fn fetch_popular_ids(
     ctx: &PrerenderContext,
     source_name: &str,

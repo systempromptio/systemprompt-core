@@ -8,88 +8,66 @@
 
 use thiserror::Error;
 
-/// Errors produced by the OAuth domain.
-///
-/// These variants intentionally distinguish authentication, authorisation
-/// and token-lifecycle failures so call sites (and downstream HTTP error
-/// translators) can surface appropriate OAuth 2.0 / `WebAuthn` error codes
-/// without relying on string parsing.
 #[derive(Debug, Error)]
 pub enum OauthError {
-    /// Underlying OAuth provider (Google, GitHub, `IdP`) returned an error.
     #[error("provider error: {0}")]
     Provider(String),
 
-    /// Generic token-handling failure (signing, parsing, structure).
     #[error("token error: {0}")]
     Token(String),
 
-    /// Bearer token, refresh token or setup token could not be located.
     #[error("token not found: {0}")]
     TokenNotFound(String),
 
-    /// Authorisation code lookup failed or the code has been consumed.
     #[error("authorization code not found: {0}")]
     CodeNotFound(String),
 
-    /// Authorisation code or token has expired.
     #[error("expired: {0}")]
     Expired(String),
 
-    /// PKCE code verifier did not match the stored challenge.
     #[error("PKCE challenge mismatch: {0}")]
     PkceMismatch(String),
 
-    /// OAuth `invalid_grant` — refresh/auth code is invalid or revoked.
     #[error("invalid grant: {0}")]
     InvalidGrant(String),
 
-    /// OAuth `invalid_client` — client authentication failed.
     #[error("invalid client: {0}")]
     InvalidClient(String),
 
-    /// Requested client does not exist in the registry.
     #[error("client not found: {0}")]
     ClientNotFound(String),
 
-    /// Session lookup or lifecycle failure.
     #[error("session error: {0}")]
     Session(String),
 
-    /// `WebAuthn` registration / authentication failure.
     #[error("webauthn error: {0}")]
     WebAuthn(String),
 
-    /// User-related lookup or registration conflict.
     #[error("user error: {0}")]
     User(String),
 
-    /// Underlying repository / SQL failure.
     #[error("repository error: {0}")]
     Repository(#[from] sqlx::Error),
 
-    /// Input failed validation (empty fields, malformed URI, bad scope, etc.).
+    #[error("database repository error: {0}")]
+    DatabaseRepository(#[from] systemprompt_database::RepositoryError),
+
     #[error("validation error: {0}")]
     Validation(String),
 
-    /// Caller is not permitted to perform the requested action.
     #[error("unauthorized: {0}")]
     Unauthorized(String),
 
-    /// Configuration could not be loaded or is malformed.
     #[error("config error: {0}")]
     Config(String),
 
-    /// Cryptographic operation (hashing, signing, key derivation) failed.
     #[error("crypto error: {0}")]
     Crypto(String),
 
-    /// Adapter for upstream `anyhow` errors raised by transitive crates.
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
 
-/// Convenience `Result` alias bound to [`OauthError`].
 pub type OauthResult<T> = Result<T, OauthError>;
 
 impl From<webauthn_rs::prelude::WebauthnError> for OauthError {

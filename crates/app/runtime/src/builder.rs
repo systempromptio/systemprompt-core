@@ -17,7 +17,6 @@ use crate::context::{AppContext, AppContextParts};
 use crate::error::RuntimeResult;
 use crate::registry::ModuleApiRegistry;
 
-/// Fluent builder for [`AppContext`].
 #[derive(Debug, Default)]
 pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
@@ -25,27 +24,23 @@ pub struct AppContextBuilder {
 }
 
 impl AppContextBuilder {
-    /// Construct a builder with default settings.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Override extension discovery with an explicit [`ExtensionRegistry`].
     #[must_use]
     pub fn with_extensions(mut self, registry: ExtensionRegistry) -> Self {
         self.extension_registry = Some(registry);
         self
     }
 
-    /// Toggle stderr warnings emitted during context construction.
     #[must_use]
     pub const fn with_startup_warnings(mut self, show: bool) -> Self {
         self.show_startup_warnings = show;
         self
     }
 
-    /// Drive the bootstrap sequence and produce an [`AppContext`].
     pub async fn build(self) -> RuntimeResult<AppContext> {
         let profile = ProfileBootstrap::get()?;
         let app_paths = Arc::new(AppPaths::from_profile(&profile.paths)?);

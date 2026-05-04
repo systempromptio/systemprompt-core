@@ -48,14 +48,10 @@ pub struct RequestListRow {
     pub user_id: String,
 }
 
-/// Aggregate cost / volume row for a time window over `ai_requests`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct CostSummaryRow {
-    /// Number of AI requests in the window.
     pub requests: i64,
-    /// Sum of `cost_microdollars` over the window.
     pub cost: Option<i64>,
-    /// Sum of `tokens_used` over the window.
     pub tokens: Option<i64>,
 }
 

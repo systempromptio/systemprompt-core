@@ -8,7 +8,6 @@ use tracing::debug;
 
 use crate::error::SchedulerError;
 
-/// Scheduled job that prunes orphaned/expired rows from operational tables.
 #[derive(Debug, Clone, Copy)]
 pub struct DatabaseCleanupJob;
 
@@ -40,32 +39,17 @@ impl Job for DatabaseCleanupJob {
         let cleanup_repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
         let mut total_deleted = 0u64;
 
-        let orphaned_logs = cleanup_repo
-            .delete_orphaned_logs()
-            .await
-            .map_err(SchedulerError::Other)?;
+        let orphaned_logs = cleanup_repo.delete_orphaned_logs().await?;
         total_deleted += orphaned_logs;
 
-        let orphaned_mcp = cleanup_repo
-            .delete_orphaned_mcp_executions()
-            .await
-            .map_err(SchedulerError::Other)?;
+        let orphaned_mcp = cleanup_repo.delete_orphaned_mcp_executions().await?;
         total_deleted += orphaned_mcp;
 
-        let old_logs = cleanup_repo
-            .delete_old_logs(30)
-            .await
-            .map_err(SchedulerError::Other)?;
+        let old_logs = cleanup_repo.delete_old_logs(30).await?;
         total_deleted += old_logs;
 
-        let oauth_codes = cleanup_repo
-            .delete_expired_oauth_codes()
-            .await
-            .map_err(SchedulerError::Other)?;
-        let oauth_tokens = cleanup_repo
-            .delete_expired_oauth_tokens()
-            .await
-            .map_err(SchedulerError::Other)?;
+        let oauth_codes = cleanup_repo.delete_expired_oauth_codes().await?;
+        let oauth_tokens = cleanup_repo.delete_expired_oauth_tokens().await?;
         total_deleted += oauth_codes + oauth_tokens;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;

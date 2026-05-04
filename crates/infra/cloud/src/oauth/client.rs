@@ -28,23 +28,12 @@ struct AuthorizeResponse {
     authorize_url: String,
 }
 
-/// HTML templates rendered by the embedded callback server.
 #[derive(Debug, Clone, Copy)]
 pub struct OAuthTemplates {
-    /// Page shown when login completes successfully.
     pub success_html: &'static str,
-    /// Page shown on any error.
     pub error_html: &'static str,
 }
 
-/// Spin up the embedded callback server, open the browser, and
-/// resolve to the access token returned by the OAuth provider.
-///
-/// # Errors
-///
-/// Returns [`CloudError::OAuthFlow`] if the flow is cancelled, times
-/// out, or the embedded server stops, plus any propagated network /
-/// I/O errors.
 pub async fn run_oauth_flow(
     api_url: &str,
     provider: OAuthProvider,

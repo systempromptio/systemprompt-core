@@ -20,9 +20,6 @@ use crate::GeoIpReader;
 
 mod geoip;
 
-/// Flat view of analytics-relevant request attributes (network identity,
-/// user-agent fingerprint, geolocation, traffic source / UTM tags) extracted
-/// from request headers.
 #[derive(Debug, Clone, Default)]
 pub struct SessionAnalytics {
     pub ip_address: Option<String>,
@@ -47,13 +44,10 @@ pub struct SessionAnalytics {
 }
 
 impl SessionAnalytics {
-    /// Extract analytics from `headers` without `GeoIP` enrichment.
     pub fn from_headers(headers: &HeaderMap) -> Self {
         Self::from_headers_with_geoip(headers, None)
     }
 
-    /// Extract analytics with optional `GeoIP` enrichment from a `MaxMind`
-    /// reader.
     pub fn from_headers_with_geoip(
         headers: &HeaderMap,
         geoip_reader: Option<&GeoIpReader>,
@@ -61,8 +55,6 @@ impl SessionAnalytics {
         Self::from_headers_with_geoip_and_socket(headers, geoip_reader, None)
     }
 
-    /// Extract analytics, also falling back to the connection socket address
-    /// when no `X-Forwarded-For` / `X-Real-IP` header is present.
     pub fn from_headers_with_geoip_and_socket(
         headers: &HeaderMap,
         geoip_reader: Option<&GeoIpReader>,
@@ -138,8 +130,6 @@ impl SessionAnalytics {
         }
     }
 
-    /// Extract analytics, additionally pulling UTM tags and (when the URI
-    /// resolves to an HTML page) entry-URL/landing-page from `uri`.
     pub fn from_headers_and_uri(
         headers: &HeaderMap,
         uri: Option<&Uri>,
@@ -169,8 +159,6 @@ impl SessionAnalytics {
         analytics
     }
 
-    /// Convenience wrapper around [`Self::from_headers_and_uri`] that takes a
-    /// full Axum [`Request`].
     pub fn from_request(
         request: &Request,
         geoip_reader: Option<&GeoIpReader>,
@@ -206,8 +194,6 @@ impl SessionAnalytics {
         geoip::parse_referrer_source(url)
     }
 
-    /// Returns `true` when the user-agent looks like a bot. AI crawlers are
-    /// classified separately and explicitly excluded from this predicate.
     pub fn is_bot(&self) -> bool {
         if self.is_ai_crawler() {
             return false;
@@ -217,28 +203,24 @@ impl SessionAnalytics {
             .is_none_or(|ua| ua.is_empty() || matches_bot_pattern(ua))
     }
 
-    /// Returns `true` when the user-agent matches a known AI crawler keyword.
     pub fn is_ai_crawler(&self) -> bool {
         self.user_agent
             .as_ref()
             .is_some_and(|ua| matches_ai_crawler(ua))
     }
 
-    /// Returns `true` when the IP belongs to a well-known bot IP range.
     pub fn is_bot_ip(&self) -> bool {
         self.ip_address
             .as_ref()
             .is_some_and(|ip| matches_bot_ip_range(ip))
     }
 
-    /// Returns `true` when the referrer URL matches a spam-farm pattern.
     pub fn is_spam_referrer(&self) -> bool {
         self.referrer_url
             .as_ref()
             .is_some_and(|url| detection::is_spam_referrer(url))
     }
 
-    /// Returns `true` when the IP belongs to a known datacenter / VPN range.
     pub fn is_datacenter_ip(&self) -> bool {
         self.ip_address
             .as_ref()

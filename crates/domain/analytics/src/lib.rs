@@ -55,14 +55,8 @@ pub use services::{
     SignalType, ThrottleLevel, ThrottleService, detection,
 };
 
-/// Optional shared `MaxMind` `GeoIP` reader.
-///
-/// Exposed when the `geolocation` feature is enabled. Falls back to an inert
-/// [`std::sync::Arc<()>`] when the feature is disabled, preserving the type
-/// signature for downstream crates that build without geo support.
 #[cfg(feature = "geolocation")]
 pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;
 
-/// Stub [`GeoIpReader`] used when the `geolocation` feature is disabled.
 #[cfg(not(feature = "geolocation"))]
 pub type GeoIpReader = std::sync::Arc<()>;

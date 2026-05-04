@@ -97,12 +97,6 @@ pub(super) fn verify_process_started(pid: u32) -> bool {
     process_exists(pid)
 }
 
-/// Send `SIGTERM` (or platform equivalent) and wait up to `timeout_secs`
-/// seconds for the process to exit; if it does not, send `SIGKILL`.
-///
-/// # Errors
-/// Returns the underlying termination error or a "could not kill" error if the
-/// process is still alive after `SIGKILL`.
 pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
     if !process_exists(pid) {
         return Ok(());
@@ -135,8 +129,6 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
     ))
 }
 
-/// Best-effort termination; returns `true` if the SIGTERM (or equivalent) call
-/// succeeded.
 pub fn kill_process(pid: u32) -> bool {
     terminate_process(pid).is_ok()
 }

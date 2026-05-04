@@ -8,9 +8,6 @@ use std::fs;
 use std::path::Path;
 use systemprompt_agent::models::Agent;
 
-/// Render `agent.system_prompt` as a markdown document with a YAML
-/// frontmatter description block, or `None` when the agent has no system
-/// prompt.
 pub fn generate_agent_system_prompt(agent: &Agent) -> Option<String> {
     agent.system_prompt.as_ref().map(|sp| {
         format!(
@@ -21,8 +18,6 @@ pub fn generate_agent_system_prompt(agent: &Agent) -> Option<String> {
     })
 }
 
-/// Render an [`Agent`] as the YAML config text written to
-/// `<agent>/config.yaml`.
 pub fn generate_agent_config(agent: &Agent) -> String {
     let tags_yaml = if agent.tags.is_empty() {
         "[]".to_string()
@@ -84,8 +79,6 @@ skills:
     )
 }
 
-/// Write `agent` to `base_path/<agent.name>/` as a directory containing
-/// `config.yaml` and an optional `system_prompt.md`.
 pub fn export_agent_to_disk(agent: &Agent, base_path: &Path) -> SyncResult<()> {
     let agent_dir = base_path.join(&agent.name);
     fs::create_dir_all(&agent_dir)?;

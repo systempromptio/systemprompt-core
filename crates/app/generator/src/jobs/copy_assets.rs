@@ -9,8 +9,6 @@ use systemprompt_traits::JobResult;
 
 use crate::error::{GeneratorResult as Result, PublishError};
 
-/// Copy every asset advertised by registered extensions into the build
-/// `dist/` directory and return a [`JobResult`] summarising the outcome.
 pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult> {
     let start_time = std::time::Instant::now();
 

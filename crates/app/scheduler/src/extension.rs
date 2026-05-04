@@ -6,7 +6,6 @@
 
 use systemprompt_extension::prelude::*;
 
-/// Extension descriptor for `systemprompt-scheduler`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SchedulerExtension;
 

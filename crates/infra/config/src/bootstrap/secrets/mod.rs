@@ -27,65 +27,46 @@ pub use logging::{
 
 static SECRETS: OnceLock<Secrets> = OnceLock::new();
 
-/// Minimum acceptable byte length for the JWT signing secret.
 pub const JWT_SECRET_MIN_LENGTH: usize = 32;
 
-/// Marker type owning the secrets bootstrap singleton.
 #[derive(Debug, Clone, Copy)]
 pub struct SecretsBootstrap;
 
-/// Errors emitted by [`SecretsBootstrap`] state transitions.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum SecretsBootstrapError {
-    /// `get`/accessor was called before [`SecretsBootstrap::init`].
     #[error(
         "Secrets not initialized. Call SecretsBootstrap::init() after ProfileBootstrap::init()"
     )]
     NotInitialized,
 
-    /// `init` was called twice.
     #[error("Secrets already initialized")]
     AlreadyInitialized,
 
-    /// `init` was called before [`super::ProfileBootstrap::init`].
     #[error("Profile not initialized. Call ProfileBootstrap::init() first")]
     ProfileNotInitialized,
 
-    /// The configured secrets file does not exist.
     #[error("Secrets file not found: {path}")]
-    FileNotFound {
-        /// Resolved on-disk path of the missing file.
-        path: String,
-    },
+    FileNotFound { path: String },
 
-    /// The secrets file failed structural validation.
     #[error("Invalid secrets file: {message}")]
-    InvalidSecretsFile {
-        /// Underlying parse/validation message.
-        message: String,
-    },
+    InvalidSecretsFile { message: String },
 
-    /// The active profile has no `secrets` block.
     #[error("No secrets configured. Create a secrets.json file.")]
     NoSecretsConfigured,
 
-    /// `JWT_SECRET` is missing from both file and environment.
     #[error(
         "JWT secret is required. Add 'jwt_secret' to your secrets file or set JWT_SECRET \
          environment variable."
     )]
     JwtSecretRequired,
 
-    /// `DATABASE_URL` is missing from both file and environment.
     #[error(
         "Database URL is required. Add 'database_url' to your secrets.json or set DATABASE_URL \
          environment variable."
     )]
     DatabaseUrlRequired,
 
-    /// The manifest signing seed is missing and could not be
-    /// auto-generated (no writable secrets file).
     #[error(
         "manifest_signing_secret_seed is missing from the secrets file and the bootstrap path is \
          not writable. Run `systemprompt admin cowork rotate-signing-key` against a writable \
@@ -93,16 +74,9 @@ pub enum SecretsBootstrapError {
     )]
     ManifestSeedUnavailable,
 
-    /// The manifest signing seed exists but has the wrong length or
-    /// encoding.
     #[error("manifest_signing_secret_seed is invalid: {message}")]
-    ManifestSeedInvalid {
-        /// Underlying decode/length error.
-        message: String,
-    },
+    ManifestSeedInvalid { message: String },
 
-    /// A subprocess inherited an environment without
-    /// `MANIFEST_SIGNING_SECRET_SEED`.
     #[error(
         "manifest_signing_secret_seed missing in subprocess env — parent must propagate \
          MANIFEST_SIGNING_SECRET_SEED so subprocesses don't regenerate and clobber the secrets \
@@ -112,12 +86,6 @@ pub enum SecretsBootstrapError {
 }
 
 impl SecretsBootstrap {
-    /// Initialise the secrets singleton from the active profile.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigError::Secrets`] for any state-transition or
-    /// validation failure encountered during loading.
     pub fn init() -> ConfigResult<&'static Secrets> {
         if SECRETS.get().is_some() {
             return Err(SecretsBootstrapError::AlreadyInitialized.into());
@@ -137,24 +105,10 @@ impl SecretsBootstrap {
             .ok_or_else(|| SecretsBootstrapError::NotInitialized.into())
     }
 
-    /// Borrow the JWT signing secret.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
-    /// has not been called.
     pub fn jwt_secret() -> Result<&'static str, SecretsBootstrapError> {
         Ok(&Self::get()?.jwt_secret)
     }
 
-    /// Decode the manifest signing seed from the loaded secrets.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SecretsBootstrapError::ManifestSeedUnavailable`] if
-    /// the field is absent, or
-    /// [`SecretsBootstrapError::ManifestSeedInvalid`] if it does not
-    /// decode to a 32-byte buffer.
     pub fn manifest_signing_secret_seed()
     -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
         let encoded = Self::get()?
@@ -164,13 +118,6 @@ impl SecretsBootstrap {
         decode_seed(encoded)
     }
 
-    /// Generate and persist a fresh manifest signing seed in the
-    /// active secrets file.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigError`] if the secrets file cannot be located,
-    /// read, parsed, or written.
     pub fn rotate_manifest_signing_seed() -> ConfigResult<[u8; MANIFEST_SIGNING_SEED_BYTES]> {
         let path = Self::resolved_secrets_file_path()?;
         let seed = generate_seed();
@@ -225,57 +172,27 @@ impl SecretsBootstrap {
         Ok(resolve_with_home(profile_dir, &secrets_config.secrets_path))
     }
 
-    /// Borrow the database URL from the loaded secrets.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
-    /// has not been called.
     pub fn database_url() -> Result<&'static str, SecretsBootstrapError> {
         Ok(&Self::get()?.database_url)
     }
 
-    /// Borrow the optional dedicated database write URL.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
-    /// has not been called.
     pub fn database_write_url() -> Result<Option<&'static str>, SecretsBootstrapError> {
         Ok(Self::get()?.database_write_url.as_deref())
     }
 
-    /// Borrow the loaded secrets.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SecretsBootstrapError::NotInitialized`] if `init`
-    /// has not been called.
     pub fn get() -> Result<&'static Secrets, SecretsBootstrapError> {
         SECRETS.get().ok_or(SecretsBootstrapError::NotInitialized)
     }
 
-    /// Alias for [`SecretsBootstrap::get`] retained for clarity in
-    /// call sites that require secrets to be present.
-    ///
-    /// # Errors
-    ///
-    /// Same as [`SecretsBootstrap::get`].
     pub fn require() -> Result<&'static Secrets, SecretsBootstrapError> {
         Self::get()
     }
 
-    /// `true` if a secrets document has been loaded.
     #[must_use]
     pub fn is_initialized() -> bool {
         SECRETS.get().is_some()
     }
 
-    /// Idempotent variant of [`SecretsBootstrap::init`].
-    ///
-    /// # Errors
-    ///
-    /// Same as [`SecretsBootstrap::init`].
     pub fn try_init() -> ConfigResult<&'static Secrets> {
         if SECRETS.get().is_some() {
             return Self::get().map_err(Into::into);

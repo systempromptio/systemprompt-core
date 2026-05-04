@@ -13,21 +13,16 @@ use crate::admin::identifier::SafeIdentifier;
 use crate::error::{DatabaseResult, RepositoryError};
 use crate::models::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 
-/// Read-only admin service over a `PostgreSQL` pool: lists tables, describes
-/// columns and indexes, and reports database-level metadata.
 #[derive(Debug)]
 pub struct DatabaseAdminService {
     pool: Arc<PgPool>,
 }
 
 impl DatabaseAdminService {
-    /// Wrap a shared pool.
     pub const fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
 
-    /// List every public-schema table with its row estimate and total
-    /// relation size.
     pub async fn list_tables(&self) -> DatabaseResult<Vec<TableInfo>> {
         let rows = sqlx::query(
             r"
@@ -62,7 +57,6 @@ impl DatabaseAdminService {
         Ok(tables)
     }
 
-    /// Describe `table_name`: column metadata plus row count.
     pub async fn describe_table(
         &self,
         table_name: &SafeIdentifier,
@@ -123,7 +117,6 @@ impl DatabaseAdminService {
         Ok((columns, row_count))
     }
 
-    /// Describe every index defined on `table_name`.
     pub async fn get_table_indexes(
         &self,
         table_name: &SafeIdentifier,
@@ -164,8 +157,6 @@ impl DatabaseAdminService {
         Ok(indexes)
     }
 
-    /// Return `SELECT COUNT(*)` from `table_name` (uses dynamic SQL because
-    /// the table name is part of the query).
     pub async fn count_rows(&self, table_name: &SafeIdentifier) -> DatabaseResult<i64> {
         let quoted_table = quote_identifier(table_name.as_str());
         let count_query = format!("SELECT COUNT(*) as count FROM {quoted_table}");
@@ -176,7 +167,6 @@ impl DatabaseAdminService {
         Ok(row_count)
     }
 
-    /// Return server version, table list, and database size.
     pub async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
         let version: String = sqlx::query_scalar("SELECT version()")
             .fetch_one(&*self.pool)
@@ -200,8 +190,6 @@ impl DatabaseAdminService {
         })
     }
 
-    /// Return the canonical list of platform tables expected to exist after a
-    /// successful boot (used by health checks).
     pub fn get_expected_tables() -> Vec<&'static str> {
         vec![
             "users",

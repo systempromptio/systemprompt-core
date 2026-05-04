@@ -4,20 +4,14 @@
 
 use chrono::Utc;
 
-/// A single `<url>` entry inside a sitemap document.
 #[derive(Debug, Clone)]
 pub struct SitemapUrl {
-    /// Absolute URL of the page (`<loc>`).
     pub loc: String,
-    /// `YYYY-MM-DD` last-modified date (`<lastmod>`).
     pub lastmod: String,
-    /// Change-frequency hint (`<changefreq>`): e.g. `daily`, `weekly`.
     pub changefreq: String,
-    /// Priority (`<priority>`) in the range `0.0..=1.0`.
     pub priority: f32,
 }
 
-/// Serialise `urls` into a single `urlset` sitemap XML document.
 pub fn build_sitemap_xml(urls: &[SitemapUrl]) -> String {
     let mut xml = String::from(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -45,8 +39,6 @@ pub fn build_sitemap_xml(urls: &[SitemapUrl]) -> String {
     xml
 }
 
-/// Serialise a sitemap index pointing at `sitemap-1.xml`, `sitemap-2.xml`, …
-/// for each chunk, hosted under `base_url`.
 pub fn build_sitemap_index(chunks: &[Vec<SitemapUrl>], base_url: &str) -> String {
     let mut xml = String::from(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -73,7 +65,6 @@ pub fn build_sitemap_index(chunks: &[Vec<SitemapUrl>], base_url: &str) -> String
     xml
 }
 
-/// XML-escape the five reserved characters (`&`, `<`, `>`, `"`, `'`).
 pub fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")

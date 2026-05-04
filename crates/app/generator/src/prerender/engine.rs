@@ -16,8 +16,6 @@ use crate::prerender::content::process_all_sources;
 use crate::prerender::context::{PrerenderContext, load_prerender_context};
 use crate::prerender::utils::{merge_json_data, render_components};
 
-/// Prerender every enabled content source into the configured `dist/`
-/// directory.
 pub async fn prerender_content(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
     let ctx = load_prerender_context(db_pool, paths).await?;
     let total_rendered = process_all_sources(&ctx).await?;
@@ -25,17 +23,12 @@ pub async fn prerender_content(db_pool: DbPool, paths: &AppPaths) -> Result<()> 
     Ok(())
 }
 
-/// Result of rendering a single registered page-prerenderer.
 #[derive(Debug)]
 pub struct PagePrerenderResult {
-    /// Page-type identifier reported by the prerenderer (e.g. `homepage`).
     pub page_type: String,
-    /// Filesystem path of the generated HTML file.
     pub output_path: PathBuf,
 }
 
-/// Run every registered page-prerenderer and return one [`PagePrerenderResult`]
-/// per generated page.
 pub async fn prerender_pages(
     db_pool: DbPool,
     paths: &AppPaths,
@@ -44,8 +37,6 @@ pub async fn prerender_pages(
     prerender_pages_with_context(&ctx).await
 }
 
-/// Variant of [`prerender_pages`] that reuses an already-loaded
-/// [`PrerenderContext`].
 pub async fn prerender_pages_with_context(
     ctx: &PrerenderContext,
 ) -> Result<Vec<PagePrerenderResult>> {

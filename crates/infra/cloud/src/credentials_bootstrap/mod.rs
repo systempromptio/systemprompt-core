@@ -14,19 +14,10 @@ use crate::{CloudApiClient, CloudCredentials};
 
 static CREDENTIALS: OnceLock<Option<CloudCredentials>> = OnceLock::new();
 
-/// Marker type owning the credentials bootstrap singleton.
 #[derive(Debug, Clone, Copy)]
 pub struct CredentialsBootstrap;
 
 impl CredentialsBootstrap {
-    /// Load credentials from the active cloud paths (or environment
-    /// variables in Fly.io containers) and install them in the
-    /// global cell.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CloudError`] for any state-transition, file-system,
-    /// or API-validation failure encountered during loading.
     pub async fn init() -> CloudResult<Option<&'static CloudCredentials>> {
         if CREDENTIALS.get().is_some() {
             return Err(CredentialsBootstrapError::AlreadyInitialized.into());
@@ -109,12 +100,6 @@ impl CredentialsBootstrap {
         })
     }
 
-    /// Borrow the credentials installed by [`CredentialsBootstrap::init`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CredentialsBootstrapError::NotInitialized`] if
-    /// `init` has not been called.
     pub fn get() -> Result<Option<&'static CloudCredentials>, CredentialsBootstrapError> {
         CREDENTIALS
             .get()
@@ -122,38 +107,21 @@ impl CredentialsBootstrap {
             .ok_or(CredentialsBootstrapError::NotInitialized)
     }
 
-    /// Like [`CredentialsBootstrap::get`] but returns an error when
-    /// the singleton was installed with `None`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CredentialsBootstrapError::NotInitialized`] or
-    /// [`CredentialsBootstrapError::NotAvailable`].
     pub fn require() -> Result<&'static CloudCredentials, CredentialsBootstrapError> {
         Self::get()?.ok_or(CredentialsBootstrapError::NotAvailable)
     }
 
-    /// `true` if the singleton has been initialised (with or without
-    /// credentials).
     #[must_use]
     pub fn is_initialized() -> bool {
         CREDENTIALS.get().is_some()
     }
 
-    /// Install the singleton with `None` (i.e. "unauthenticated"
-    /// state) for code paths that need to opt out of bootstrap.
     pub fn init_empty() {
         if CREDENTIALS.set(None).is_err() {
             tracing::debug!("Credentials cell already initialised; init_empty is a no-op");
         }
     }
 
-    /// Idempotent variant of [`CredentialsBootstrap::init`] that
-    /// returns the already-installed credentials if present.
-    ///
-    /// # Errors
-    ///
-    /// Same as [`CredentialsBootstrap::init`].
     pub async fn try_init() -> CloudResult<Option<&'static CloudCredentials>> {
         if CREDENTIALS.get().is_some() {
             return Self::get().map_err(Into::into);
@@ -161,8 +129,6 @@ impl CredentialsBootstrap {
         Self::init().await
     }
 
-    /// `true` if a token is present and will expire within
-    /// `duration`.
     #[must_use]
     pub fn expires_within(duration: chrono::Duration) -> bool {
         match Self::get() {
@@ -175,12 +141,6 @@ impl CredentialsBootstrap {
         }
     }
 
-    /// Re-read credentials from disk and re-validate against the
-    /// cloud API without touching the global cell.
-    ///
-    /// # Errors
-    ///
-    /// Returns the relevant [`CredentialsBootstrapError`] variant.
     pub async fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {
         let cloud_paths = crate::paths::get_cloud_paths();
         let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);

@@ -10,19 +10,10 @@ use super::report::ValidationReport;
 use super::types::{DeployEnvironment, EnvironmentConfig};
 use crate::error::{ConfigError, ConfigResult};
 
-/// Stateless validator for [`EnvironmentConfig`].
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigValidator;
 
 impl ConfigValidator {
-    /// Run every validation check against `config` and return the
-    /// accumulated [`ValidationReport`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigError::ValidationErrors`] when one or more
-    /// errors were recorded during the run. Warnings do not produce
-    /// an `Err`.
     pub fn validate(config: &EnvironmentConfig) -> ConfigResult<ValidationReport> {
         let mut report = ValidationReport::new();
 
@@ -227,13 +218,6 @@ impl ConfigValidator {
         }
     }
 
-    /// Check that the generated `.env` file at `path` has restrictive
-    /// Unix permissions (`644` or `600`). On non-Unix platforms this
-    /// is a no-op.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigError::Io`] when metadata cannot be read.
     pub fn check_file_permissions(path: &Path, report: &mut ValidationReport) -> ConfigResult<()> {
         if !path.exists() {
             return Ok(());

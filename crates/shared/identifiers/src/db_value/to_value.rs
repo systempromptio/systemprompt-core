@@ -2,20 +2,9 @@ use chrono::{DateTime, Utc};
 
 use super::DbValue;
 
-/// Conversion from a Rust value into a [`DbValue`] container so it can be
-/// bound to a SQL statement parameter.
-///
-/// Implemented for the canonical scalar types plus their borrowed forms,
-/// `Option<T>`, `Vec<u8>`/`&[u8]`, `Vec<String>`/`&[String]`, and
-/// `DateTime<Utc>`.
-///
-/// Custom identifier newtypes implement this via the
-/// `__define_id_common!` helper macro.
 pub trait ToDbValue: Send + Sync {
-    /// Converts `self` into the appropriate [`DbValue`] variant.
     fn to_db_value(&self) -> DbValue;
 
-    /// Returns the typed-NULL marker for this value type.
     #[must_use]
     fn null_db_value() -> DbValue
     where

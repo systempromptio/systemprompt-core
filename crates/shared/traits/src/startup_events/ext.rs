@@ -10,51 +10,29 @@ fn emit(sender: &StartupEventSender, event: StartupEvent) {
     }
 }
 
-/// Convenience methods for sending well-known [`StartupEvent`] variants.
-///
-/// Implemented for [`StartupEventSender`]; consumers call e.g.
-/// `sender.phase_started(Phase::Database)` instead of constructing the
-/// enum variant manually.
 pub trait StartupEventExt {
-    /// Emit [`StartupEvent::PhaseStarted`].
     fn phase_started(&self, phase: Phase);
-    /// Emit [`StartupEvent::PhaseCompleted`].
     fn phase_completed(&self, phase: Phase);
-    /// Emit [`StartupEvent::PhaseFailed`].
     fn phase_failed(&self, phase: Phase, error: impl Into<String>);
 
-    /// Emit [`StartupEvent::PortAvailable`].
     fn port_available(&self, port: u16);
-    /// Emit [`StartupEvent::PortConflict`].
     fn port_conflict(&self, port: u16, pid: u32);
-    /// Emit [`StartupEvent::ModulesLoaded`].
     fn modules_loaded(&self, count: usize, modules: Vec<ModuleInfo>);
 
-    /// Emit [`StartupEvent::McpServerStarting`].
     fn mcp_starting(&self, name: impl Into<String>, port: u16);
-    /// Emit [`StartupEvent::McpServerHealthCheck`].
     fn mcp_health_check(&self, name: impl Into<String>, attempt: u8, max: u8);
-    /// Emit [`StartupEvent::McpServerReady`].
     fn mcp_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration, tools: usize);
-    /// Emit [`StartupEvent::McpServerFailed`].
     fn mcp_failed(&self, name: impl Into<String>, error: impl Into<String>);
 
-    /// Emit [`StartupEvent::AgentStarting`].
     fn agent_starting(&self, name: impl Into<String>, port: u16);
-    /// Emit [`StartupEvent::AgentReady`].
     fn agent_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration);
-    /// Emit [`StartupEvent::AgentFailed`].
     fn agent_failed(&self, name: impl Into<String>, error: impl Into<String>);
 
-    /// Emit [`StartupEvent::ServerListening`].
     fn server_listening(&self, address: impl Into<String>, pid: u32);
 
-    /// Emit [`StartupEvent::Warning`].
     fn warning(&self, message: impl Into<String>);
-    /// Emit [`StartupEvent::Info`].
     fn info(&self, message: impl Into<String>);
 
-    /// Emit [`StartupEvent::StartupComplete`].
     fn startup_complete(
         &self,
         duration: Duration,
@@ -214,14 +192,8 @@ impl StartupEventExt for StartupEventSender {
     }
 }
 
-/// Variant of [`StartupEventExt`] for `Option<&StartupEventSender>`.
-///
-/// Lets call sites that hold an optional sender forward events without
-/// `if let Some(s) = sender { s.method(...) }` boilerplate.
 pub trait OptionalStartupEventExt {
-    /// Forward [`StartupEvent::PhaseStarted`] if a sender is present.
     fn phase_started(&self, phase: Phase);
-    /// Forward [`StartupEvent::McpServerStarting`] if a sender is present.
     fn mcp_starting(&self, name: impl Into<String>, port: u16);
 }
 

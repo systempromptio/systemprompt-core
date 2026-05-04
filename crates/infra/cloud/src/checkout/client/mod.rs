@@ -34,20 +34,14 @@ pub(super) struct StatusResponse {
     pub(super) app_url: Option<String>,
 }
 
-/// Result of a successful checkout callback.
 #[derive(Debug, Clone)]
 pub struct CheckoutCallbackResult {
-    /// Paddle transaction id.
     pub transaction_id: String,
-    /// Tenant id provisioned by the checkout.
     pub tenant_id: String,
-    /// Optional Fly.io app name once infrastructure is up.
     pub fly_app_name: Option<String>,
-    /// `true` when the caller still needs to push a deploy image.
     pub needs_deploy: bool,
 }
 
-/// HTML templates rendered by the embedded callback server.
 #[derive(Debug, Clone, Copy)]
 #[expect(
     clippy::struct_field_names,
@@ -55,11 +49,8 @@ pub struct CheckoutCallbackResult {
               the call site."
 )]
 pub struct CheckoutTemplates {
-    /// Page shown when checkout completes successfully.
     pub success_html: &'static str,
-    /// Page shown on any error.
     pub error_html: &'static str,
-    /// Page shown while waiting for provisioning to finish.
     pub waiting_html: &'static str,
 }
 
@@ -71,14 +62,6 @@ pub(super) struct AppState {
     pub(super) waiting_template: String,
 }
 
-/// Spin up the embedded callback server, open the browser to
-/// `checkout_url`, and resolve once Paddle redirects back.
-///
-/// # Errors
-///
-/// Returns [`CloudError::CheckoutFlow`] if the flow is cancelled,
-/// times out, or the embedded server stops, plus any propagated
-/// [`reqwest::Error`] from the inner API client.
 pub async fn run_checkout_callback_flow(
     api_client: &CloudApiClient,
     checkout_url: &str,

@@ -19,12 +19,6 @@ impl RetentionScheduler {
         Self { config, db_pool }
     }
 
-    /// Start the retention scheduler if enabled in the configuration.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`LoggingError`] when the cron scheduler cannot be created or
-    /// started.
     pub async fn start(self) -> Result<(), LoggingError> {
         if !self.config.enabled {
             log_scheduler_disabled();

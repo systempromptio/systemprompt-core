@@ -4,28 +4,18 @@
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceAction, ServiceType};
 use serde::{Deserialize, Serialize};
 
-/// Snapshot of one service's desired vs runtime state plus required action.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerifiedServiceState {
-    /// Service identifier as recorded in config and the `services` table.
     pub name: String,
-    /// Service-type discriminator (mcp, agent, …).
     pub service_type: ServiceType,
-    /// Whether the service should be running per its configuration.
     pub desired_status: DesiredStatus,
-    /// Currently observed runtime status.
     pub runtime_status: RuntimeStatus,
-    /// PID of the running process, when known.
     pub pid: Option<u32>,
-    /// TCP port the service is bound to.
     pub port: u16,
-    /// Action the reconciler must take to converge state.
     pub needs_action: ServiceAction,
-    /// Optional error message captured during verification.
     pub error: Option<String>,
 }
 
-/// Builder for [`VerifiedServiceState`] used by the state manager.
 #[derive(Debug)]
 pub struct VerifiedServiceStateBuilder {
     name: String,
@@ -38,7 +28,6 @@ pub struct VerifiedServiceStateBuilder {
 }
 
 impl VerifiedServiceStateBuilder {
-    /// Construct a new builder with the mandatory fields.
     pub const fn new(
         name: String,
         service_type: ServiceType,
@@ -57,19 +46,16 @@ impl VerifiedServiceStateBuilder {
         }
     }
 
-    /// Attach a PID to the snapshot.
     pub const fn with_pid(mut self, pid: u32) -> Self {
         self.pid = Some(pid);
         self
     }
 
-    /// Attach an error message captured during verification.
     pub fn with_error(mut self, error: String) -> Self {
         self.error = Some(error);
         self
     }
 
-    /// Finalise the builder, computing the required [`ServiceAction`].
     pub fn build(self) -> VerifiedServiceState {
         let action = VerifiedServiceState::determine_action(&self.desired, &self.runtime);
         VerifiedServiceState {
@@ -86,7 +72,6 @@ impl VerifiedServiceStateBuilder {
 }
 
 impl VerifiedServiceState {
-    /// Construct a new [`VerifiedServiceStateBuilder`] for fluent assembly.
     pub const fn builder(
         name: String,
         service_type: ServiceType,
@@ -116,7 +101,6 @@ impl VerifiedServiceState {
         }
     }
 
-    /// Return whether this service is in a healthy steady state.
     pub const fn is_healthy(&self) -> bool {
         matches!(
             (&self.desired_status, &self.runtime_status),
@@ -127,12 +111,10 @@ impl VerifiedServiceState {
         )
     }
 
-    /// Return whether the reconciler must act on this snapshot.
     pub const fn needs_attention(&self) -> bool {
         !matches!(self.needs_action, ServiceAction::None)
     }
 
-    /// Stable display string for the runtime status.
     pub const fn status_display(&self) -> &'static str {
         match self.runtime_status {
             RuntimeStatus::Running => "running",
@@ -143,7 +125,6 @@ impl VerifiedServiceState {
         }
     }
 
-    /// Stable display string for the required action.
     pub const fn action_display(&self) -> &'static str {
         match self.needs_action {
             ServiceAction::None => "-",

@@ -8,7 +8,6 @@ use tracing::info;
 use crate::error::SchedulerError;
 use crate::repository::SchedulerRepository;
 
-/// Scheduled job that deletes empty conversation contexts.
 #[derive(Debug, Clone, Copy)]
 pub struct CleanupEmptyContextsJob;
 

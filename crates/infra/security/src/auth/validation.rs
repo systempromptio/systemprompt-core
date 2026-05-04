@@ -15,27 +15,13 @@ const TEST_AGENT_NAME: &str = "test-agent";
 const TEST_USER_ID: &str = "test-user";
 const BEARER_PREFIX: &str = "Bearer ";
 
-/// Authentication mode applied to a single inbound request.
-///
-/// Selected per route by the HTTP layer; controls whether a missing or
-/// invalid token is fatal, falls back to an anonymous identity, or is
-/// bypassed entirely for development/test profiles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthMode {
-    /// Reject the request unless a valid bearer token is present.
     Required,
-    /// Use the bearer token if valid, otherwise produce an anonymous
-    /// `RequestContext`.
     Optional,
-    /// Skip validation and produce a deterministic test `RequestContext`.
     Disabled,
 }
 
-/// Validates inbound request authentication material and produces a
-/// [`RequestContext`].
-///
-/// The service is cheap to clone (`String` + `Vec`) and is typically held
-/// behind an `Arc` inside the API entry-point state.
 #[derive(Debug)]
 pub struct AuthValidationService {
     secret: String,
@@ -44,11 +30,6 @@ pub struct AuthValidationService {
 }
 
 impl AuthValidationService {
-    /// Constructs a new validation service.
-    ///
-    /// `secret` is the HMAC-SHA256 signing secret, `issuer` is the
-    /// expected `iss` claim, and `audiences` is the allowlist of
-    /// acceptable `aud` claims.
     #[must_use]
     pub const fn new(secret: String, issuer: String, audiences: Vec<JwtAudience>) -> Self {
         Self {
@@ -58,13 +39,6 @@ impl AuthValidationService {
         }
     }
 
-    /// Validates `headers` according to `mode` and produces a
-    /// [`RequestContext`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AuthError`] when `mode` is [`AuthMode::Required`] and the
-    /// bearer token is missing, malformed, or fails JWT validation.
     pub fn validate_request(
         &self,
         headers: &HeaderMap,

@@ -20,18 +20,13 @@ mod proxy;
 use jwt::{validate_and_extract_claims, validate_audience, validate_scopes_for_permissions};
 use proxy::try_proxy_verified_auth;
 
-/// A request context that carries a verified authentication token.
 #[derive(Debug, Clone)]
 pub struct AuthenticatedRequestContext {
-    /// The underlying request context (user, session, headers).
     pub context: RequestContext,
-    /// Raw bearer token used for authentication.
     pub auth_token: String,
 }
 
 impl AuthenticatedRequestContext {
-    /// Construct a new authenticated context from a request context and bearer
-    /// token.
     pub const fn new(context: RequestContext, auth_token: String) -> Self {
         Self {
             context,
@@ -39,7 +34,6 @@ impl AuthenticatedRequestContext {
         }
     }
 
-    /// Borrow the bearer token.
     pub fn token(&self) -> &str {
         &self.auth_token
     }
@@ -53,17 +47,13 @@ impl std::ops::Deref for AuthenticatedRequestContext {
     }
 }
 
-/// Outcome of [`enforce_rbac_from_registry`].
 #[derive(Debug)]
 pub enum AuthResult {
-    /// The request did not require authentication.
     Anonymous(RequestContext),
-    /// The request was successfully authenticated.
     Authenticated(AuthenticatedRequestContext),
 }
 
 impl AuthResult {
-    /// Borrow the request context regardless of auth state.
     pub const fn context(&self) -> &RequestContext {
         match self {
             Self::Anonymous(ctx) => ctx,
@@ -71,7 +61,6 @@ impl AuthResult {
         }
     }
 
-    /// Mutably borrow the request context regardless of auth state.
     pub fn context_mut(&mut self) -> &mut RequestContext {
         match self {
             Self::Anonymous(ctx) => ctx,
@@ -79,8 +68,6 @@ impl AuthResult {
         }
     }
 
-    /// Require authentication, returning a typed `McpError` on anonymous
-    /// access.
     pub fn expect_authenticated(self, msg: &str) -> Result<AuthenticatedRequestContext, McpError> {
         match self {
             Self::Authenticated(auth_ctx) => Ok(auth_ctx),
@@ -89,8 +76,6 @@ impl AuthResult {
     }
 }
 
-/// Enforce RBAC for an MCP request against the registry-declared OAuth
-/// requirement.
 #[tracing::instrument(name = "mcp_rbac", skip_all)]
 pub fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,

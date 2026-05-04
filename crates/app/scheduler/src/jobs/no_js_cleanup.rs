@@ -8,7 +8,6 @@ use tracing::info;
 
 use crate::error::SchedulerError;
 
-/// Scheduled job that marks no-JavaScript sessions as behavioural bots.
 #[derive(Debug, Clone, Copy)]
 pub struct NoJsCleanupJob;
 

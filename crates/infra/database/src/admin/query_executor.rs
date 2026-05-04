@@ -13,40 +13,31 @@ use thiserror::Error;
 use crate::admin::admin_sql::{AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT};
 use crate::models::QueryResult;
 
-/// Errors returned by [`QueryExecutor`].
 #[derive(Error, Debug)]
 pub enum QueryExecutorError {
-    /// Caller asked for a write in read-only mode.
     #[error(
         "Write query not allowed in read-only mode: only SELECT, WITH, EXPLAIN, SHOW, TABLE, and \
          VALUES queries are permitted"
     )]
     WriteQueryNotAllowed,
 
-    /// Admin SQL parsing rejected the query.
     #[error("Invalid admin SQL: {0}")]
     InvalidSql(#[from] AdminSqlError),
 
-    /// `SQLx` error during execution.
     #[error("Query execution failed: {0}")]
     ExecutionFailed(#[from] sqlx::Error),
 }
 
-/// Executes parsed admin SQL against a shared pool with row-limit
-/// enforcement.
 #[derive(Debug)]
 pub struct QueryExecutor {
     pool: Arc<PgPool>,
 }
 
 impl QueryExecutor {
-    /// Wrap a shared pool.
     pub const fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
 
-    /// Parse `raw_sql` as a read-only statement and execute it. `row_limit`
-    /// defaults to [`DEFAULT_READONLY_ROW_LIMIT`].
     pub async fn execute_readonly(
         &self,
         raw_sql: &str,
@@ -57,8 +48,6 @@ impl QueryExecutor {
             .await
     }
 
-    /// Parse `raw_sql` as an unrestricted single-statement SQL query and
-    /// execute it without row limiting.
     pub async fn execute_write(&self, raw_sql: &str) -> Result<QueryResult, QueryExecutorError> {
         let sql = AdminSql::parse_unrestricted(raw_sql)?;
         self.execute(sql, usize::MAX).await

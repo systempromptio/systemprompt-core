@@ -14,14 +14,6 @@ pub struct ServiceRecord {
 }
 
 impl ServiceRecord {
-    /// Build a [`ServiceRecord`] from a JSON-shaped row map produced by
-    /// the runtime SQL adapter.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RowParseError::Missing`] when a required column is
-    /// absent or has the wrong type, or [`RowParseError::OutOfRange`]
-    /// when the `port` column exceeds the `i32` range.
     pub fn from_json_row(
         row: &std::collections::HashMap<String, serde_json::Value>,
     ) -> Result<Self, RowParseError> {
@@ -64,17 +56,9 @@ impl ServiceRecord {
     }
 }
 
-/// Repository operations for managing the lifecycle of installed services.
-///
-/// This trait is `dyn`-compatible because the running service relies on
-/// trait objects for storage backend selection — `#[async_trait]` is
-/// required.
 #[async_trait]
 pub trait ServiceLifecycle: Send + Sync {
-    /// List every service the database currently considers running.
     async fn get_running_services(&self) -> Result<Vec<ServiceRecord>, RepositoryError>;
-    /// Mark a service as crashed by name.
     async fn mark_crashed(&self, service_name: &str) -> Result<(), RepositoryError>;
-    /// Set the status field of a named service.
     async fn update_status(&self, service_name: &str, status: &str) -> Result<(), RepositoryError>;
 }

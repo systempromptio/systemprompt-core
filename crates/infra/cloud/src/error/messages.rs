@@ -3,7 +3,6 @@
 use super::CloudError;
 
 impl CloudError {
-    /// Short user-facing description of the error category.
     pub const fn user_message(&self) -> &'static str {
         match self {
             Self::NotAuthenticated => "Not logged in to systemprompt.io Cloud",
@@ -38,7 +37,6 @@ impl CloudError {
         }
     }
 
-    /// Recovery hint surfaced by the CLI.
     pub const fn recovery_hint(&self) -> &'static str {
         match self {
             Self::NotAuthenticated | Self::TokenExpired | Self::Unauthorized => {
@@ -81,7 +79,6 @@ impl CloudError {
         }
     }
 
-    /// `true` when the user must run `systemprompt cloud login`.
     pub const fn requires_login(&self) -> bool {
         matches!(
             self,
@@ -92,7 +89,6 @@ impl CloudError {
         )
     }
 
-    /// `true` when the user must run `systemprompt cloud setup`.
     pub const fn requires_setup(&self) -> bool {
         matches!(self, Self::TenantNotConfigured | Self::AppNotConfigured)
     }

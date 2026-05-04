@@ -13,52 +13,35 @@ use std::collections::HashMap;
 use super::security::{OAuth2Flow, OAuth2Flows, SecurityScheme};
 use super::transport::ProtocolBinding;
 
-/// A2A agent card document.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentCard {
-    /// Agent name as published.
     pub name: String,
-    /// Free-form description.
     pub description: String,
-    /// Transports the agent supports.
     pub supported_interfaces: Vec<AgentInterface>,
-    /// Semver tag of the agent revision.
     pub version: String,
-    /// Optional icon / logo URL.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_url: Option<String>,
-    /// Optional provider attribution.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<AgentProvider>,
-    /// Optional documentation URL.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub documentation_url: Option<String>,
-    /// Capability flags advertised by the agent.
     pub capabilities: AgentCapabilities,
-    /// OpenAPI-style security scheme catalogue.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security_schemes: Option<HashMap<String, SecurityScheme>>,
-    /// OpenAPI-style security requirement set.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security: Option<Vec<HashMap<String, Vec<String>>>>,
-    /// Default acceptable input MIME types.
     pub default_input_modes: Vec<String>,
-    /// Default produced MIME types.
     pub default_output_modes: Vec<String>,
-    /// Skills declared on the card.
     #[serde(default)]
     pub skills: Vec<AgentSkill>,
-    /// Whether the agent supports the authenticated extended-card variant.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub supports_authenticated_extended_card: Option<bool>,
-    /// Optional JWS signature blocks.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signatures: Option<Vec<AgentCardSignature>>,
 }
 
 impl AgentCard {
-    /// Open a new [`AgentCardBuilder`].
     #[must_use]
     pub fn builder(
         name: String,
@@ -69,13 +52,11 @@ impl AgentCard {
         AgentCardBuilder::new(name, description, url, version)
     }
 
-    /// First supported interface URL, if any.
     #[must_use]
     pub fn url(&self) -> Option<&str> {
         self.supported_interfaces.first().map(|i| i.url.as_str())
     }
 
-    /// True when the card declares the `systemprompt:mcp-tools` extension.
     #[must_use]
     pub fn has_mcp_extension(&self) -> bool {
         self.capabilities
@@ -84,7 +65,6 @@ impl AgentCard {
             .is_some_and(|exts| exts.iter().any(|ext| ext.uri == "systemprompt:mcp-tools"))
     }
 
-    /// Append the `systemprompt:mcp-tools` extension if absent.
     pub fn ensure_mcp_extension(&mut self) {
         if self.has_mcp_extension() {
             return;
@@ -97,14 +77,12 @@ impl AgentCard {
     }
 }
 
-/// Builder for [`AgentCard`].
 #[derive(Debug)]
 pub struct AgentCardBuilder {
     agent_card: AgentCard,
 }
 
 impl AgentCardBuilder {
-    /// Open a builder seeded with the four mandatory fields.
     #[must_use]
     pub fn new(name: String, description: String, url: String, version: String) -> Self {
         Self {
@@ -132,8 +110,6 @@ impl AgentCardBuilder {
         }
     }
 
-    /// Append one [`AgentSkill`] per `(server_name, display, description,
-    /// tags)` tuple and seed the standard set of MCP-related extensions.
     #[must_use]
     pub fn with_mcp_skills(
         mut self,
@@ -154,28 +130,24 @@ impl AgentCardBuilder {
         self
     }
 
-    /// Mark the card as streaming-capable.
     #[must_use]
     pub const fn with_streaming(mut self) -> Self {
         self.agent_card.capabilities.streaming = Some(true);
         self
     }
 
-    /// Mark the card as push-notification-capable.
     #[must_use]
     pub const fn with_push_notifications(mut self) -> Self {
         self.agent_card.capabilities.push_notifications = Some(true);
         self
     }
 
-    /// Attach provider attribution.
     #[must_use]
     pub fn with_provider(mut self, organization: String, url: String) -> Self {
         self.agent_card.provider = Some(AgentProvider { organization, url });
         self
     }
 
-    /// Register an `OAuth2` authorization-code security scheme on the card.
     #[must_use]
     pub fn with_oauth2_security(
         mut self,
@@ -219,7 +191,6 @@ impl AgentCardBuilder {
         self
     }
 
-    /// Finalize the builder.
     #[must_use]
     pub fn build(self) -> AgentCard {
         self.agent_card

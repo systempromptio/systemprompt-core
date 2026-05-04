@@ -13,8 +13,6 @@ const MIGRATION_002_EVENT_DATA: &str = r"
 ALTER TABLE engagement_events ADD COLUMN IF NOT EXISTS event_data JSONB;
 ";
 
-/// Extension descriptor for the analytics domain. Registered globally via
-/// `register_extension!` for the inventory-based extension framework.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
 

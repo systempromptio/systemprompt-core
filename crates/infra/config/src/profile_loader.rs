@@ -6,13 +6,6 @@ use systemprompt_models::profile::{Profile, ProfileError, ProfileResult};
 
 use crate::profile_gateway;
 
-/// Load the profile YAML at `path`, resolve embedded gateway catalog
-/// references, and return the parsed [`Profile`].
-///
-/// # Errors
-///
-/// Returns [`ProfileError::ReadFile`] on I/O failure, plus any
-/// downstream parse / catalog-resolution errors.
 pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
     let content = std::fs::read_to_string(path).map_err(|source| ProfileError::ReadFile {
         path: path.to_path_buf(),

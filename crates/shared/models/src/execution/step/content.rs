@@ -5,60 +5,41 @@ use systemprompt_identifiers::SkillId;
 
 use super::enums::StepType;
 
-/// Tool-call descriptor produced during the planning step.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PlannedTool {
-    /// Name of the tool the planner intends to invoke.
     pub tool_name: String,
-    /// Tool arguments as a JSON value.
     pub arguments: serde_json::Value,
 }
 
-/// Per-kind payload attached to an [`super::ExecutionStep`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StepContent {
-    /// Reasoning step with no payload.
     Understanding,
-    /// Planning step.
     Planning {
-        /// Optional planner reasoning trace.
         #[serde(skip_serializing_if = "Option::is_none")]
         reasoning: Option<String>,
-        /// Optional set of tool calls the planner intends to issue.
         #[serde(skip_serializing_if = "Option::is_none")]
         planned_tools: Option<Vec<PlannedTool>>,
     },
-    /// Invocation of a declared skill.
     SkillUsage {
-        /// Stable skill identifier.
         skill_id: SkillId,
-        /// Human-readable skill name.
         skill_name: String,
     },
-    /// Concrete tool execution.
     ToolExecution {
-        /// Name of the tool being invoked.
         tool_name: String,
-        /// Tool arguments as a JSON value.
         tool_arguments: serde_json::Value,
-        /// Tool result payload, populated once the call returns.
         #[serde(skip_serializing_if = "Option::is_none")]
         tool_result: Option<serde_json::Value>,
     },
-    /// Terminal completion step.
     Completion,
 }
 
 impl StepContent {
-    /// Build an [`Self::Understanding`] payload.
     #[must_use]
     pub const fn understanding() -> Self {
         Self::Understanding
     }
 
-    /// Build a [`Self::Planning`] payload from optional reasoning and tool
-    /// plans.
     #[must_use]
     pub const fn planning(
         reasoning: Option<String>,
@@ -70,7 +51,6 @@ impl StepContent {
         }
     }
 
-    /// Build a [`Self::SkillUsage`] payload.
     pub fn skill_usage(skill_id: SkillId, skill_name: impl Into<String>) -> Self {
         Self::SkillUsage {
             skill_id,
@@ -78,7 +58,6 @@ impl StepContent {
         }
     }
 
-    /// Build a [`Self::ToolExecution`] payload with no result yet.
     pub fn tool_execution(tool_name: impl Into<String>, tool_arguments: serde_json::Value) -> Self {
         Self::ToolExecution {
             tool_name: tool_name.into(),
@@ -87,13 +66,11 @@ impl StepContent {
         }
     }
 
-    /// Build a [`Self::Completion`] payload.
     #[must_use]
     pub const fn completion() -> Self {
         Self::Completion
     }
 
-    /// High-level kind matching this payload variant.
     #[must_use]
     pub const fn step_type(&self) -> StepType {
         match self {
@@ -105,7 +82,6 @@ impl StepContent {
         }
     }
 
-    /// Render a UI-friendly title for this step.
     #[must_use]
     pub fn title(&self) -> String {
         match self {
@@ -117,14 +93,11 @@ impl StepContent {
         }
     }
 
-    /// True for steps that complete instantly (everything except tool
-    /// execution).
     #[must_use]
     pub const fn is_instant(&self) -> bool {
         !matches!(self, Self::ToolExecution { .. })
     }
 
-    /// Borrow the tool / skill name carried by this step, if any.
     #[must_use]
     pub fn tool_name(&self) -> Option<&str> {
         match self {
@@ -134,7 +107,6 @@ impl StepContent {
         }
     }
 
-    /// Borrow the tool arguments carried by this step, if any.
     #[must_use]
     pub const fn tool_arguments(&self) -> Option<&serde_json::Value> {
         match self {
@@ -146,7 +118,6 @@ impl StepContent {
         }
     }
 
-    /// Borrow the tool result carried by this step, if any.
     #[must_use]
     pub const fn tool_result(&self) -> Option<&serde_json::Value> {
         match self {
@@ -158,7 +129,6 @@ impl StepContent {
         }
     }
 
-    /// Borrow planner reasoning carried by this step, if any.
     #[must_use]
     pub fn reasoning(&self) -> Option<&str> {
         match self {
@@ -170,7 +140,6 @@ impl StepContent {
         }
     }
 
-    /// Borrow planned tool calls carried by this step, if any.
     #[must_use]
     pub fn planned_tools(&self) -> Option<&[PlannedTool]> {
         match self {
@@ -182,8 +151,6 @@ impl StepContent {
         }
     }
 
-    /// Attach a result to a [`Self::ToolExecution`] payload (no-op for
-    /// other variants).
     #[must_use]
     pub fn with_tool_result(self, result: serde_json::Value) -> Self {
         match self {

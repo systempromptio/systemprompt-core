@@ -5,7 +5,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, TraceId};
 
-/// Filter parameters for listing AI requests.
 #[derive(Debug, Clone)]
 pub struct AiRequestFilter {
     pub limit: i64,
@@ -15,7 +14,6 @@ pub struct AiRequestFilter {
 }
 
 impl AiRequestFilter {
-    /// Construct a new AI request filter with the given row limit.
     pub const fn new(limit: i64) -> Self {
         Self {
             limit,
@@ -25,7 +23,6 @@ impl AiRequestFilter {
         }
     }
 
-    /// Restrict results to requests issued at or after the given timestamp.
     pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
@@ -37,7 +34,6 @@ impl AiRequestFilter {
     }
 }
 
-/// A row in the AI request list view.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestListItem {
     pub id: AiRequestId,
@@ -52,7 +48,6 @@ pub struct AiRequestListItem {
     pub status: String,
 }
 
-/// Detailed view of a single AI request, including any error message.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestDetail {
     pub id: AiRequestId,
@@ -66,7 +61,6 @@ pub struct AiRequestDetail {
     pub error_message: Option<String>,
 }
 
-/// Aggregate AI request stats grouped by provider and model.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AiRequestStats {
     pub total_requests: i64,
@@ -78,7 +72,6 @@ pub struct AiRequestStats {
     pub by_model: Vec<ModelStatsRow>,
 }
 
-/// Per-provider rollup of AI request usage and cost.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderStatsRow {
     pub provider: String,
@@ -88,7 +81,6 @@ pub struct ProviderStatsRow {
     pub avg_latency_ms: i64,
 }
 
-/// Per-model rollup of AI request usage and cost.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelStatsRow {
     pub model: String,
@@ -99,7 +91,6 @@ pub struct ModelStatsRow {
     pub avg_latency_ms: i64,
 }
 
-/// Per-task AI request summary with token and latency totals.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestInfo {
     pub id: AiRequestId,
@@ -112,7 +103,6 @@ pub struct AiRequestInfo {
     pub latency_ms: Option<i32>,
 }
 
-/// A single message in an AI request conversation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConversationMessage {
     pub role: String,

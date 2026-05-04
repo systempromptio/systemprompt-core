@@ -7,24 +7,16 @@ use chrono::{DateTime, Utc};
 use super::ToolAnalyticsRepository;
 use crate::models::cli::ToolListRow;
 
-/// Input parameters for [`ToolAnalyticsRepository::list_tools`].
 #[derive(Debug)]
 pub struct ToolListParams<'a> {
-    /// Inclusive lower bound on `created_at`.
     pub start: DateTime<Utc>,
-    /// Exclusive upper bound on `created_at`.
     pub end: DateTime<Utc>,
-    /// Maximum rows to return.
     pub limit: i64,
-    /// Optional substring filter on `server_name` (matched as `%server%`).
     pub server_filter: Option<&'a str>,
-    /// One of `"success_rate"`, `"avg_time"`, or any other value (defaults to
-    /// `"executions"` ordering).
     pub sort_order: &'a str,
 }
 
 impl ToolAnalyticsRepository {
-    /// Return the leaderboard rows for tool executions matching `params`.
     pub async fn list_tools(&self, params: ToolListParams<'_>) -> Result<Vec<ToolListRow>> {
         if let Some(server) = params.server_filter {
             let pattern = format!("%{}%", server);

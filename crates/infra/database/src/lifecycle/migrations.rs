@@ -6,30 +6,20 @@ use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 use tracing::{debug, info, warn};
 
-/// Row in the `extension_migrations` table — a migration that has already
-/// been recorded as applied.
 #[derive(Debug, Clone)]
 pub struct AppliedMigration {
-    /// Owning extension id.
     pub extension_id: String,
-    /// Migration version number (extension-local, monotonically increasing).
     pub version: u32,
-    /// Human-readable migration name.
     pub name: String,
-    /// SHA checksum captured at apply time, used for drift detection.
     pub checksum: String,
 }
 
-/// Outcome of [`MigrationService::run_pending_migrations`].
 #[derive(Debug, Default, Clone, Copy)]
 pub struct MigrationResult {
-    /// Number of migrations that were just applied.
     pub migrations_run: usize,
-    /// Number of migrations that were already applied and skipped.
     pub migrations_skipped: usize,
 }
 
-/// Stateless service that orchestrates extension migrations against `db`.
 pub struct MigrationService<'a> {
     db: &'a dyn DatabaseProvider,
 }
@@ -41,7 +31,6 @@ impl std::fmt::Debug for MigrationService<'_> {
 }
 
 impl<'a> MigrationService<'a> {
-    /// Construct a service bound to `db`.
     pub fn new(db: &'a dyn DatabaseProvider) -> Self {
         Self { db }
     }
@@ -56,7 +45,6 @@ impl<'a> MigrationService<'a> {
             })
     }
 
-    /// Return every migration row for `extension_id`, ordered by version.
     pub async fn get_applied_migrations(
         &self,
         extension_id: &str,
@@ -90,9 +78,6 @@ impl<'a> MigrationService<'a> {
         Ok(migrations)
     }
 
-    /// Apply every migration for `extension` whose version has not yet been
-    /// recorded in `extension_migrations`. Logs (but does not fail) on
-    /// checksum drift between the recorded migration and the on-disk SQL.
     pub async fn run_pending_migrations(
         &self,
         extension: &dyn Extension,
@@ -212,8 +197,6 @@ impl<'a> MigrationService<'a> {
         Ok(())
     }
 
-    /// Return defined / applied / pending counts for `extension` without
-    /// running anything.
     pub async fn get_migration_status(
         &self,
         extension: &dyn Extension,
@@ -243,19 +226,12 @@ impl<'a> MigrationService<'a> {
     }
 }
 
-/// Snapshot returned by [`MigrationService::get_migration_status`].
 #[derive(Debug)]
 pub struct MigrationStatus {
-    /// Owning extension id.
     pub extension_id: String,
-    /// Number of migrations defined in code.
     pub total_defined: usize,
-    /// Number of migrations recorded as applied in the database.
     pub total_applied: usize,
-    /// Number of defined migrations that have not yet been applied.
     pub pending_count: usize,
-    /// Pending migrations in version order.
     pub pending: Vec<Migration>,
-    /// Already-applied migrations in version order.
     pub applied: Vec<AppliedMigration>,
 }

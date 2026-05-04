@@ -9,7 +9,6 @@ use super::orchestrator::{BuildError, Result};
 
 const CSS_FILES: &[&str] = &["content.css", "syntax-highlight.css"];
 
-/// Move the well-known CSS files from `dist/` into `dist/css/`.
 pub async fn organize_css(web_dir: &Path) -> Result<()> {
     tracing::debug!("Organizing CSS files");
 

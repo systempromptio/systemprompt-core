@@ -13,23 +13,17 @@ use tokio::fs;
 
 use crate::error::{GeneratorResult, PublishError};
 
-/// Default `SitemapProvider` implementation that emits one source spec per
-/// enabled content source defined in `content.yaml` plus the configured
-/// parent / index URL for each source.
 #[derive(Debug)]
 pub struct DefaultSitemapProvider {
     content_config: ContentConfigRaw,
 }
 
 impl DefaultSitemapProvider {
-    /// Load `content.yaml` from `paths` and build a provider from it.
     pub async fn new(paths: &AppPaths) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
         Ok(Self { content_config })
     }
 
-    /// Construct a provider from an already-parsed [`ContentConfigRaw`]
-    /// without touching the filesystem.
     #[must_use]
     pub const fn from_config(content_config: ContentConfigRaw) -> Self {
         Self { content_config }

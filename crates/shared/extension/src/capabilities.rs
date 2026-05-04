@@ -13,92 +13,60 @@ use systemprompt_traits::{ConfigProvider, DatabaseHandle};
 
 use crate::types::ExtensionType;
 
-/// Marker capability: the implementor exposes a configuration provider.
 pub trait HasConfig: Send + Sync {
-    /// Concrete configuration provider type.
     type Config: ConfigProvider;
 
-    /// Returns the configuration provider.
     fn config(&self) -> &Self::Config;
 }
 
-/// Marker capability: the implementor exposes a database handle.
 pub trait HasDatabase: Send + Sync {
-    /// Concrete database-handle type.
     type Database: DatabaseHandle;
 
-    /// Returns the database handle.
     fn database(&self) -> &Self::Database;
 }
 
-/// Marker capability: the implementor exposes a sibling extension `E`.
 pub trait HasExtension<E: ExtensionType>: Send + Sync {
-    /// Returns the sibling extension instance.
     fn extension(&self) -> &E;
 }
 
-/// Marker capability: the implementor exposes a shared HTTP client.
 pub trait HasHttpClient: Send + Sync {
-    /// Returns the shared `reqwest::Client`.
     fn http_client(&self) -> &reqwest::Client;
 }
 
-/// Marker capability: the implementor exposes an event-bus publisher.
 pub trait HasEventBus: Send + Sync {
-    /// Concrete publisher type.
     type Publisher: systemprompt_traits::UserEventPublisher + Send + Sync;
 
-    /// Returns the publisher.
     fn event_bus(&self) -> &Self::Publisher;
 }
 
-/// Marker capability: the implementor exposes an analytics sink.
 pub trait HasAnalytics: Send + Sync {
-    /// Concrete analytics sink type.
     type Analytics: Send + Sync;
 
-    /// Returns the analytics sink.
     fn analytics(&self) -> &Self::Analytics;
 }
 
-/// Marker capability: the implementor exposes a request-fingerprint
-/// resolver.
 pub trait HasFingerprint: Send + Sync {
-    /// Concrete fingerprint type.
     type Fingerprint: Send + Sync;
 
-    /// Returns the fingerprint, if one is available for the current
-    /// request.
     fn fingerprint(&self) -> Option<&Self::Fingerprint>;
 }
 
-/// Marker capability: the implementor exposes a user-service handle.
 pub trait HasUserService: Send + Sync {
-    /// Concrete user-service type.
     type UserService: Send + Sync;
 
-    /// Returns the user service, if one is wired in.
     fn user_service(&self) -> Option<&Self::UserService>;
 }
 
-/// Marker capability: the implementor exposes a route classifier.
 pub trait HasRouteClassifier: Send + Sync {
-    /// Concrete classifier type.
     type RouteClassifier: Send + Sync;
 
-    /// Returns the classifier.
     fn route_classifier(&self) -> &Self::RouteClassifier;
 }
 
-/// Convenience trait satisfied by any context that provides config,
-/// database, and event-bus access.
 pub trait FullContext: HasConfig + HasDatabase + HasEventBus {}
 
 impl<T: HasConfig + HasDatabase + HasEventBus> FullContext for T {}
 
-/// Generic context holding config, database, and event-bus capabilities
-/// behind `Arc`s. Useful for assembling a [`FullContext`] without writing
-/// a bespoke struct per binary.
 #[derive(Debug)]
 pub struct CapabilityContext<C, D, E> {
     config: Arc<C>,
@@ -112,8 +80,6 @@ where
     D: DatabaseHandle,
     E: systemprompt_traits::UserEventPublisher + Send + Sync,
 {
-    /// Constructs a [`CapabilityContext`] from the three Arc-wrapped
-    /// capabilities.
     #[must_use]
     pub const fn new(config: Arc<C>, database: Arc<D>, event_bus: Arc<E>) -> Self {
         Self {

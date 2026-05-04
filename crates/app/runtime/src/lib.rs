@@ -50,10 +50,6 @@ pub use systemprompt_models::modules::{
     Modules, ServiceCategory,
 };
 
-/// Register an HTTP module-API router with the runtime registry.
-///
-/// Submits a [`ModuleApiRegistration`] to the `inventory` collector
-/// consumed by [`ModuleApiRegistry::new`].
 #[macro_export]
 macro_rules! register_module_api {
     ($module_name:literal, $category:expr, $router_fn:expr, $auth_required:expr, $module_type:expr) => {
@@ -80,10 +76,6 @@ macro_rules! register_module_api {
     };
 }
 
-/// Register a `/.well-known/` route with the runtime registry.
-///
-/// Submits a [`WellKnownRoute`] (and optional [`WellKnownMetadata`]) to
-/// the `inventory` collectors consumed by the API entry crate.
 #[macro_export]
 macro_rules! register_wellknown_route {
     ($path:literal, $handler:expr, $methods:expr, name: $name:literal, description: $desc:literal) => {

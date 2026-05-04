@@ -6,8 +6,6 @@ use std::fs;
 use std::path::Path;
 use systemprompt_agent::models::Skill;
 
-/// Render `skill.instructions` as a markdown document with a YAML
-/// frontmatter description block.
 pub fn generate_skill_markdown(skill: &Skill) -> String {
     format!(
         "---\ndescription: \"{}\"\n---\n\n{}",
@@ -16,8 +14,6 @@ pub fn generate_skill_markdown(skill: &Skill) -> String {
     )
 }
 
-/// Render a [`Skill`] as the YAML config text written to
-/// `<skill>/config.yaml`.
 pub fn generate_skill_config(skill: &Skill) -> String {
     let tags_yaml = if skill.tags.is_empty() {
         "[]".to_string()
@@ -49,8 +45,6 @@ tags:
     )
 }
 
-/// Write `skill` to `base_path/<skill_id>/` as a directory containing
-/// `SKILL.md` and `config.yaml`.
 pub fn export_skill_to_disk(skill: &Skill, base_path: &Path) -> SyncResult<()> {
     let skill_dir_name = skill.id.as_str().replace('_', "-");
     let skill_dir = base_path.join(&skill_dir_name);

@@ -22,11 +22,6 @@ struct SitemapContext {
     web_dir: std::path::PathBuf,
 }
 
-/// Generate `sitemap.xml` for every enabled content source.
-///
-/// When the URL count exceeds the 50 000-URL per-file limit, falls back to
-/// chunked `sitemap-N.xml` files plus a top-level sitemap index. Output is
-/// written under `paths.web().dist()`.
 pub async fn generate_sitemap(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
     let ctx = load_sitemap_context(db_pool, paths).await?;
     let urls = collect_sitemap_urls(&ctx).await?;

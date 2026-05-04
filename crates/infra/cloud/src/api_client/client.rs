@@ -8,8 +8,6 @@ use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use super::types::ApiError;
 use crate::error::{CloudError, CloudResult};
 
-/// Bearer-token authenticated client for the systemprompt.io Cloud
-/// API.
 #[derive(Debug)]
 pub struct CloudApiClient {
     pub(super) client: Client,
@@ -18,13 +16,6 @@ pub struct CloudApiClient {
 }
 
 impl CloudApiClient {
-    /// Build a new client pointing at `api_url` with the given bearer
-    /// `token`.
-    ///
-    /// # Errors
-    ///
-    /// Returns the underlying [`reqwest::Error`] if the HTTP client
-    /// cannot be constructed (e.g. invalid TLS configuration).
     pub fn new(api_url: &str, token: &str) -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: Client::builder()
@@ -36,13 +27,11 @@ impl CloudApiClient {
         })
     }
 
-    /// Borrow the API base URL.
     #[must_use]
     pub fn api_url(&self) -> &str {
         &self.api_url
     }
 
-    /// Borrow the configured bearer token.
     #[must_use]
     pub fn token(&self) -> &str {
         &self.token

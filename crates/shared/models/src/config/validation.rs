@@ -5,13 +5,6 @@ use systemprompt_traits::validation_report::{
 use crate::errors::ConfigError;
 use crate::profile::Profile;
 
-/// Walk every required and optional path declared in a profile and
-/// build a [`ValidationReport`] capturing missing-path errors and
-/// unreachable-path warnings.
-///
-/// `profile_path` is the path of the profile file being checked and is
-/// retained as a parameter so the report can be rendered in context via
-/// [`format_path_errors`].
 pub fn validate_profile_paths(profile: &Profile, _profile_path: &str) -> ValidationReport {
     let mut report = ValidationReport::new("paths");
 
@@ -147,12 +140,6 @@ pub fn format_path_errors(report: &ValidationReport, profile_path: &str) -> Stri
     output
 }
 
-/// Validate that a database URL is a `PostgreSQL` connection string.
-///
-/// # Errors
-///
-/// Returns [`ConfigError::InvalidPostgresUrl`] when the URL does not begin
-/// with `postgres://` or `postgresql://`.
 pub fn validate_postgres_url(url: &str) -> Result<(), ConfigError> {
     if !url.starts_with("postgres://") && !url.starts_with("postgresql://") {
         return Err(ConfigError::InvalidPostgresUrl);

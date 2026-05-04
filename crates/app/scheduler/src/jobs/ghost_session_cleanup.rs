@@ -8,7 +8,6 @@ use tracing::info;
 
 use crate::error::SchedulerError;
 
-/// Scheduled job that flags ghost (0-request) sessions as behavioural bots.
 #[derive(Debug, Clone, Copy)]
 pub struct GhostSessionCleanupJob;
 

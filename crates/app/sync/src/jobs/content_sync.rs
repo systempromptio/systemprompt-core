@@ -10,8 +10,6 @@ use systemprompt_database::DbPool;
 use systemprompt_models::{AppPaths, ContentConfigRaw};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
-/// Scheduled job that runs `ContentLocalSync` end-to-end based on the runtime
-/// `direction`/`delete_orphans`/`override_existing` parameters.
 #[derive(Debug, Clone, Copy)]
 pub struct ContentSyncJob;
 

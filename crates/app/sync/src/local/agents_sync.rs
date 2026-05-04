@@ -12,7 +12,6 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use tracing::info;
 
-/// Drives sync between an on-disk agents directory and the database.
 #[derive(Debug)]
 pub struct AgentsLocalSync {
     db: DbPool,
@@ -20,14 +19,10 @@ pub struct AgentsLocalSync {
 }
 
 impl AgentsLocalSync {
-    /// Construct a new sync handle for the given database pool and agents
-    /// directory.
     pub const fn new(db: DbPool, agents_path: PathBuf) -> Self {
         Self { db, agents_path }
     }
 
-    /// Compute the [`AgentsDiffResult`] between the configured directory and
-    /// the database without applying any changes.
     pub async fn calculate_diff(&self) -> SyncResult<AgentsDiffResult> {
         let calculator = AgentsDiffCalculator::new(&self.db).map_err(SyncError::other)?;
         calculator
@@ -36,8 +31,6 @@ impl AgentsLocalSync {
             .map_err(SyncError::other)
     }
 
-    /// Apply `diff` from the database back to disk. When `delete_orphans` is
-    /// `true`, on-disk-only agents are deleted.
     pub async fn sync_to_disk(
         &self,
         diff: &AgentsDiffResult,
@@ -104,9 +97,6 @@ impl AgentsLocalSync {
         Ok(result)
     }
 
-    /// Apply `diff` from disk into the database via the agent ingestion
-    /// service. `delete_orphans` is currently a no-op (agent deletion through
-    /// this path is not supported); callers receive a logged WARN.
     pub async fn sync_to_db(
         &self,
         diff: &AgentsDiffResult,
