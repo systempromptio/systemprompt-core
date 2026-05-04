@@ -1,8 +1,14 @@
+//! Periodic job that flags ghost sessions (0 requests, no landing page) as
+//! behavioural bots.
+
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
+use crate::error::SchedulerError;
+
+/// Scheduled job that flags ghost (0-request) sessions as behavioural bots.
 #[derive(Debug, Clone, Copy)]
 pub struct GhostSessionCleanupJob;
 
@@ -25,13 +31,13 @@ impl Job for GhostSessionCleanupJob {
 
         let db_pool = std::sync::Arc::clone(
             ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
+                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
 
-        let pool = db_pool.write_pool_arc().map_err(|e| anyhow::anyhow!(e))?;
+        let pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
 
-        let result = sqlx::query_scalar::<_, i64>(
-            r"
+        let result = sqlx::query_scalar!(
+            r#"
             WITH cleaned AS (
                 UPDATE user_sessions
                 SET is_behavioral_bot = true,
@@ -46,12 +52,12 @@ impl Job for GhostSessionCleanupJob {
                   AND started_at < NOW() - INTERVAL '5 minutes'
                 RETURNING 1
             )
-            SELECT COUNT(*)::BIGINT FROM cleaned
-            ",
+            SELECT COUNT(*)::BIGINT as "count!" FROM cleaned
+            "#
         )
         .fetch_one(pool.as_ref())
         .await
-        .map_err(|e| anyhow::anyhow!(e))?;
+        .map_err(SchedulerError::from)?;
 
         let marked = result as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;

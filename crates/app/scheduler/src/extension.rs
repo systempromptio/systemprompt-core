@@ -1,5 +1,12 @@
+//! Extension-framework registration for the scheduler crate.
+//!
+//! [`SchedulerExtension`] declares the schema for the `scheduled_jobs` table
+//! and registers itself with the platform extension registry via
+//! [`register_extension!`].
+
 use systemprompt_extension::prelude::*;
 
+/// Extension descriptor for `systemprompt-scheduler`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SchedulerExtension;
 

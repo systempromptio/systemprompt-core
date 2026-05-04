@@ -1,19 +1,28 @@
+//! Analytics maintenance queries used by scheduled cleanup jobs.
+
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
+use crate::error::SchedulerResult;
+
+/// Repository for analytics-table maintenance operations.
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepository {
     write_pool: Arc<PgPool>,
 }
 
 impl AnalyticsRepository {
-    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+    /// Construct a new repository from the shared [`DbPool`].
+    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
         let write_pool = db.write_pool_arc()?;
         Ok(Self { write_pool })
     }
 
-    pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> anyhow::Result<u64> {
+    /// Delete rows from `user_contexts` that have no associated
+    /// `task_messages` and were created more than `hours_old` hours ago.
+    /// Returns the number of rows deleted.
+    pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
         let result = sqlx::query!(
             r#"
             DELETE FROM user_contexts
