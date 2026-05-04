@@ -1,3 +1,5 @@
+mod sse_parser;
+
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
@@ -5,30 +7,30 @@ use std::task::{Context, Poll};
 use axum::body::Body;
 use bytes::{Bytes, BytesMut};
 use futures_util::stream::Stream;
-use serde_json::Value;
 
 use super::audit::GatewayAudit;
 use super::captures::{CapturedToolUse, CapturedUsage};
+use sse_parser::{drain_sse, finalize_partials};
 
 #[derive(Default)]
-struct TapState {
-    sse_buffer: Vec<u8>,
-    response_buffer: BytesMut,
-    input_tokens: u32,
-    output_tokens: u32,
-    tool_uses_in_progress: Vec<PartialToolUse>,
-    tool_uses_done: Vec<CapturedToolUse>,
-    served_model: Option<String>,
-    error: Option<String>,
-    finalized: bool,
+pub(super) struct TapState {
+    pub sse_buffer: Vec<u8>,
+    pub response_buffer: BytesMut,
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub tool_uses_in_progress: Vec<PartialToolUse>,
+    pub tool_uses_done: Vec<CapturedToolUse>,
+    pub served_model: Option<String>,
+    pub error: Option<String>,
+    pub finalized: bool,
 }
 
 #[derive(Default, Debug)]
-struct PartialToolUse {
-    index: i64,
-    id: String,
-    name: String,
-    input_json: String,
+pub(super) struct PartialToolUse {
+    pub index: i64,
+    pub id: String,
+    pub name: String,
+    pub input_json: String,
 }
 
 pub fn tap<S>(upstream: S, audit: Arc<GatewayAudit>) -> Body
@@ -60,6 +62,8 @@ where
         match self.inner.as_mut().poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(Ok(bytes))) => {
+                // Why: lock failure means the mutex is poisoned; we drop telemetry
+                // for this chunk rather than killing the live response stream.
                 if let Ok(mut s) = self.state.lock() {
                     s.response_buffer.extend_from_slice(&bytes);
                     s.sse_buffer.extend_from_slice(&bytes);
@@ -68,61 +72,69 @@ where
                 Poll::Ready(Some(Ok(bytes)))
             },
             Poll::Ready(Some(Err(e))) => {
+                // Why: same poisoned-lock recovery — record the error if we can,
+                // otherwise the Drop path will mark the stream as failed anyway.
                 if let Ok(mut s) = self.state.lock() {
                     s.error = Some(e.to_string());
                 }
                 Poll::Ready(Some(Err(e)))
             },
-            Poll::Ready(None) => {
-                let (usage, tools, body, served_model, error, already_finalized) = {
-                    let mut s = self
-                        .state
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    if s.finalized {
-                        return Poll::Ready(None);
-                    }
-                    finalize_partials(&mut s);
-                    s.finalized = true;
-                    (
-                        CapturedUsage {
-                            input_tokens: s.input_tokens,
-                            output_tokens: s.output_tokens,
-                        },
-                        std::mem::take(&mut s.tool_uses_done),
-                        std::mem::take(&mut s.response_buffer).freeze(),
-                        s.served_model.take(),
-                        s.error.take(),
-                        false,
-                    )
-                };
-                if already_finalized {
-                    return Poll::Ready(None);
-                }
-
-                let audit = Arc::clone(&self.audit);
-                tokio::spawn(async move {
-                    if let Some(err) = error {
-                        if let Err(e) = audit.fail(&err).await {
-                            tracing::warn!(error = %e, "stream audit fail failed");
-                        }
-                    } else {
-                        if let Some(model) = served_model.as_deref() {
-                            audit.set_served_model(model).await;
-                        }
-                        if let Err(e) = audit.complete(usage, tools, &body).await {
-                            tracing::warn!(error = %e, "stream audit complete failed");
-                        }
-                    }
-                });
-                Poll::Ready(None)
-            },
+            Poll::Ready(None) => self.finalize_on_eof(),
         }
+    }
+}
+
+impl<S> TappedStream<S> {
+    fn finalize_on_eof(&self) -> Poll<Option<Result<Bytes, std::io::Error>>> {
+        let (usage, tools, body, served_model, error, already_finalized) = {
+            let mut s = self
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if s.finalized {
+                return Poll::Ready(None);
+            }
+            finalize_partials(&mut s);
+            s.finalized = true;
+            (
+                CapturedUsage {
+                    input_tokens: s.input_tokens,
+                    output_tokens: s.output_tokens,
+                },
+                std::mem::take(&mut s.tool_uses_done),
+                std::mem::take(&mut s.response_buffer).freeze(),
+                s.served_model.take(),
+                s.error.take(),
+                false,
+            )
+        };
+        if already_finalized {
+            return Poll::Ready(None);
+        }
+
+        let audit = Arc::clone(&self.audit);
+        tokio::spawn(async move {
+            if let Some(err) = error {
+                if let Err(e) = audit.fail(&err).await {
+                    tracing::warn!(error = %e, "stream audit fail failed");
+                }
+            } else {
+                if let Some(model) = served_model.as_deref() {
+                    audit.set_served_model(model).await;
+                }
+                if let Err(e) = audit.complete(usage, tools, &body).await {
+                    tracing::warn!(error = %e, "stream audit complete failed");
+                }
+            }
+        });
+        Poll::Ready(None)
     }
 }
 
 impl<S> Drop for TappedStream<S> {
     fn drop(&mut self) {
+        // Why: poisoned-lock recovery — if `.lock()` errors we silently skip the
+        // drop-path audit because the stream was already torn down.
         let snapshot = self.state.lock().ok().and_then(|mut s| {
             if s.finalized {
                 return None;
@@ -164,140 +176,6 @@ impl<S> Drop for TappedStream<S> {
                     tracing::warn!(error = %e, "drop-path audit fail failed");
                 }
             }
-        });
-    }
-}
-
-fn drain_sse(state: &mut TapState) {
-    loop {
-        let Some(pos) = find_double_newline(&state.sse_buffer) else {
-            return;
-        };
-        let frame_bytes: Vec<u8> = state.sse_buffer.drain(..pos + 2).collect();
-        let frame = String::from_utf8_lossy(&frame_bytes);
-        for line in frame.lines() {
-            if let Some(data) = line.strip_prefix("data: ") {
-                if data.trim() == "[DONE]" {
-                    continue;
-                }
-                let Ok(json) = serde_json::from_str::<Value>(data) else {
-                    continue;
-                };
-                handle_sse_event(state, &json);
-            }
-        }
-    }
-}
-
-fn find_double_newline(buf: &[u8]) -> Option<usize> {
-    buf.windows(2).position(|w| w == b"\n\n")
-}
-
-fn handle_sse_event(state: &mut TapState, event: &Value) {
-    let Some(kind) = event.get("type").and_then(Value::as_str) else {
-        return;
-    };
-    match kind {
-        "message_start" => {
-            if let Some(message) = event.get("message") {
-                if let Some(model) = message.get("model").and_then(Value::as_str) {
-                    if !model.is_empty() {
-                        state.served_model = Some(model.to_string());
-                    }
-                }
-                if let Some(usage) = message.get("usage") {
-                    if let Some(v) = usage.get("input_tokens").and_then(Value::as_u64) {
-                        state.input_tokens = v as u32;
-                    }
-                    if let Some(v) = usage.get("output_tokens").and_then(Value::as_u64) {
-                        state.output_tokens = v as u32;
-                    }
-                }
-            }
-        },
-        "message_delta" => {
-            if let Some(usage) = event.get("usage") {
-                if let Some(v) = usage.get("output_tokens").and_then(Value::as_u64) {
-                    state.output_tokens = v as u32;
-                }
-                if let Some(v) = usage.get("input_tokens").and_then(Value::as_u64) {
-                    state.input_tokens = v as u32;
-                }
-            }
-        },
-        "content_block_start" => {
-            let index = event.get("index").and_then(Value::as_i64).unwrap_or(-1);
-            if let Some(block) = event.get("content_block") {
-                if block.get("type").and_then(Value::as_str) == Some("tool_use") {
-                    let id = block
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_string();
-                    let name = block
-                        .get("name")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_string();
-                    state.tool_uses_in_progress.push(PartialToolUse {
-                        index,
-                        id,
-                        name,
-                        input_json: String::new(),
-                    });
-                }
-            }
-        },
-        "content_block_delta" => {
-            let index = event.get("index").and_then(Value::as_i64).unwrap_or(-1);
-            if let Some(delta) = event.get("delta") {
-                if delta.get("type").and_then(Value::as_str) == Some("input_json_delta") {
-                    if let Some(partial) = delta.get("partial_json").and_then(Value::as_str) {
-                        if let Some(pt) = state
-                            .tool_uses_in_progress
-                            .iter_mut()
-                            .find(|p| p.index == index)
-                        {
-                            pt.input_json.push_str(partial);
-                        }
-                    }
-                }
-            }
-        },
-        "content_block_stop" => {
-            let index = event.get("index").and_then(Value::as_i64).unwrap_or(-1);
-            if let Some(pos) = state
-                .tool_uses_in_progress
-                .iter()
-                .position(|p| p.index == index)
-            {
-                let done = state.tool_uses_in_progress.remove(pos);
-                state.tool_uses_done.push(CapturedToolUse {
-                    ai_tool_call_id: done.id,
-                    tool_name: done.name,
-                    tool_input: if done.input_json.is_empty() {
-                        "{}".to_string()
-                    } else {
-                        done.input_json
-                    },
-                });
-            }
-        },
-        _ => {},
-    }
-}
-
-fn finalize_partials(state: &mut TapState) {
-    let leftover: Vec<PartialToolUse> = std::mem::take(&mut state.tool_uses_in_progress);
-    for p in leftover {
-        state.tool_uses_done.push(CapturedToolUse {
-            ai_tool_call_id: p.id,
-            tool_name: p.name,
-            tool_input: if p.input_json.is_empty() {
-                "{}".to_string()
-            } else {
-                p.input_json
-            },
         });
     }
 }
