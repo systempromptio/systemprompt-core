@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -81,37 +81,6 @@ fn default_inference_path_prefix() -> String {
 impl GatewayConfig {
     pub fn find_route(&self, model: &str) -> Option<&GatewayRoute> {
         self.routes.iter().find(|route| route.matches(model))
-    }
-
-    pub fn resolve_catalog(&mut self, profile_dir: &Path) -> GatewayResult<()> {
-        let Some(rel) = self.catalog_path.as_ref() else {
-            return Ok(());
-        };
-        let absolute = if rel.is_absolute() {
-            rel.clone()
-        } else {
-            profile_dir.join(rel)
-        };
-        let content = std::fs::read_to_string(&absolute).map_err(|source| {
-            GatewayProfileError::CatalogRead {
-                path: absolute.clone(),
-                source,
-            }
-        })?;
-        let catalog: GatewayCatalog =
-            serde_yaml::from_str(&content).map_err(|source| GatewayProfileError::CatalogParse {
-                path: absolute.clone(),
-                source,
-            })?;
-        catalog
-            .validate()
-            .map_err(|source| GatewayProfileError::CatalogInvalid {
-                path: absolute.clone(),
-                source: Box::new(source),
-            })?;
-        self.catalog_path = Some(absolute);
-        self.catalog = Some(catalog);
-        Ok(())
     }
 }
 

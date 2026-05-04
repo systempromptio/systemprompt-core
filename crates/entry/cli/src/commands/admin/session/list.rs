@@ -1,6 +1,7 @@
 //! List available profiles with session status.
 
 use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
+use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 
 use super::types::{ProfileInfo, ProfileListOutput};
@@ -90,8 +91,7 @@ fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
 }
 
 fn load_profile_config(config_path: &std::path::Path) -> Option<Profile> {
-    let content = std::fs::read_to_string(config_path).ok()?;
-    Profile::parse(&content, config_path).ok()
+    ProfileLoader::load_from_path(config_path).ok()
 }
 
 fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) -> ProfileInfo {
