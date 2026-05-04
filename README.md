@@ -34,7 +34,7 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 
 ---
 
-- **Embed it** — `systemprompt = { version = "0.4.3", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
+- **Embed it** — `systemprompt = { version = "0.5.0", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
 - **Evaluate it running** — clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) for a turnkey demo. `just build && just setup-local <key> && just start` runs 40+ scripted demos against the live binary.
 
 ---
@@ -42,8 +42,8 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 <details>
 <summary><strong>What's new</strong></summary>
 
-- **0.4.3** — independent ed25519 manifest signing key, RFC 8785 (JCS) canonical JSON for signatures, distinct `JwtAudience::Cowork`, subprocess seed propagation fix. See [`CHANGELOG.md`](CHANGELOG.md).
-- **0.4.x** — tenant-scoped plugin file route, structured `SyncSummary` / `ValidationReport` returns.
+- **0.5.0** — `AppPaths` singleton removed (now threaded via `AppContext`); shared/models stripped of all I/O (bootstrap and profile-catalog loading moved to `systemprompt-config`); typed `OauthError`, `FilesError`, `McpDomainError`, `AgentError` enums at every domain boundary. See [`CHANGELOG.md`](CHANGELOG.md).
+- **0.4.x** — independent ed25519 manifest signing key, RFC 8785 (JCS) canonical JSON for signatures, distinct `JwtAudience::Cowork`, tenant-scoped plugin file route, structured `SyncSummary` / `ValidationReport` returns.
 - **0.3.x** — typed error enums via `thiserror` across the workspace, `tracing` in library code.
 - **0.2.x** — workspace published to crates.io as 30 `systemprompt-*` crates.
 
@@ -134,7 +134,7 @@ Open **http://localhost:8080**, point Claude Code / Claude Desktop at it, and wa
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.4.3", features = ["full"] }
+systemprompt = { version = "0.5.0", features = ["full"] }
 ```
 
 See [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
@@ -245,7 +245,7 @@ Registration is a single macro — `register_extension!` lives in [`crates/share
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.4.3", features = ["full"] }
+systemprompt = { version = "0.5.0", features = ["full"] }
 ```
 
 ```rust
@@ -333,10 +333,10 @@ Pull in only what you need through the `systemprompt` facade.
 
 ```toml
 # Embedded library usage
-systemprompt = { version = "0.4.2", features = ["core", "database"] }
+systemprompt = { version = "0.5.0", features = ["core", "database"] }
 
 # Building a product binary
-systemprompt = { version = "0.4.3", features = ["full"] }
+systemprompt = { version = "0.5.0", features = ["full"] }
 ```
 
 ```rust
