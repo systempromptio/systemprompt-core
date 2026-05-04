@@ -1,6 +1,7 @@
 mod chart;
 mod dashboard;
 mod form;
+mod form_field;
 pub mod html;
 mod image;
 mod list;

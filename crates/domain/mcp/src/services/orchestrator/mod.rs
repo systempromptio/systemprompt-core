@@ -1,4 +1,9 @@
-use crate::error::{McpDomainError, McpDomainResult};
+//! `McpOrchestrator` — the top-level MCP service supervisor.
+//!
+//! Coordinates the lifecycle, database, monitoring, network, and process layers
+//! and dispatches lifecycle events through an [`EventBus`].
+
+use crate::error::McpDomainResult;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::AppPaths;
@@ -8,6 +13,7 @@ mod daemon;
 pub mod event_bus;
 pub mod events;
 pub mod handlers;
+mod lifecycle_ops;
 mod process_cleanup;
 mod reconciliation;
 mod schema_sync;
@@ -28,6 +34,7 @@ use super::process::ProcessManager;
 use super::registry::RegistryManager;
 use crate::McpServerConfig;
 
+/// Top-level supervisor that wires the MCP service subsystems together.
 #[derive(Debug)]
 pub struct McpOrchestrator {
     event_bus: Arc<EventBus>,
@@ -38,6 +45,8 @@ pub struct McpOrchestrator {
 }
 
 impl McpOrchestrator {
+    /// Construct a new orchestrator wired against the given database pool and
+    /// paths.
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(db_pool: DbPool, app_paths: Arc<AppPaths>) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
@@ -73,6 +82,19 @@ impl McpOrchestrator {
         })
     }
 
+    pub(super) fn event_bus(&self) -> &EventBus {
+        &self.event_bus
+    }
+
+    pub(super) const fn lifecycle(&self) -> &LifecycleManager {
+        &self.lifecycle
+    }
+
+    pub(super) const fn database(&self) -> &DatabaseManager {
+        &self.database
+    }
+
+    /// List all enabled services with their current runtime status.
     pub async fn list_services(&self) -> McpDomainResult<()> {
         let servers = RegistryManager::get_enabled_servers()?;
         let status_data = self.monitoring.get_status_for_all(&servers).await?;
@@ -80,198 +102,25 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn start_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        self.start_services_with_events(service_name, None).await
-    }
-
-    pub async fn start_services_with_events(
-        &self,
-        service_name: Option<String>,
-        events: Option<&StartupEventSender>,
-    ) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, true)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
-        let mut failed = Vec::new();
-
-        for server in servers {
-            tracing::info!(service = %server.name, "Starting MCP service");
-
-            self.event_bus
-                .publish(McpEvent::ServiceStartRequested {
-                    service_name: server.name.clone(),
-                })
-                .await?;
-
-            match self
-                .lifecycle
-                .start_server_with_events(&server, events)
-                .await
-            {
-                Ok(()) => {
-                    if let Ok(Some(service_info)) =
-                        self.database.get_service_by_name(&server.name).await
-                    {
-                        self.event_bus
-                            .publish(McpEvent::ServiceStarted {
-                                service_name: server.name.clone(),
-                                process_id: service_info.pid.unwrap_or(0) as u32,
-                                port: server.port,
-                            })
-                            .await?;
-                    }
-                },
-                Err(e) => {
-                    let error_msg = e.to_string();
-                    failed.push((server.name.clone(), error_msg.clone()));
-                    self.event_bus
-                        .publish(McpEvent::ServiceFailed {
-                            service_name: server.name,
-                            error: error_msg,
-                        })
-                        .await?;
-                },
-            }
-        }
-
-        if !failed.is_empty() {
-            return Err(McpDomainError::Internal(format!(
-                "Failed to start {} services: {}",
-                failed.len(),
-                failed
-                    .iter()
-                    .map(|(n, e)| format!("{n} ({e})"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )));
-        }
-
-        Ok(())
-    }
-
-    pub async fn stop_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, false)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
-
-        for server in servers {
-            tracing::info!(service = %server.name, "Stopping MCP service");
-
-            match self.lifecycle.stop_server(&server).await {
-                Ok(()) => {
-                    self.event_bus
-                        .publish(McpEvent::ServiceStopped {
-                            service_name: server.name,
-                            exit_code: None,
-                        })
-                        .await?;
-                },
-                Err(e) => {
-                    return Err(e);
-                },
-            }
-        }
-
-        Ok(())
-    }
-
-    pub async fn restart_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, false)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
-
-        for server in servers {
-            tracing::info!(service = %server.name, "Restarting MCP service");
-
-            self.event_bus
-                .publish(McpEvent::ServiceRestartRequested {
-                    service_name: server.name,
-                    reason: "Manual restart".to_string(),
-                })
-                .await?;
-        }
-
-        Ok(())
-    }
-
-    pub async fn restart_services_sync(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, false)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
-
-        for server in servers {
-            tracing::info!(service = %server.name, "Restarting MCP service");
-            self.lifecycle.restart_server(&server).await?;
-        }
-
-        Ok(())
-    }
-
-    pub async fn build_and_restart_services(
-        &self,
-        service_name: Option<String>,
-    ) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, true)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
-
-        for server in servers {
-            tracing::info!(service = %server.name, "Building service");
-            ProcessManager::build_server(&server)?;
-
-            tracing::info!(service = %server.name, "Restarting service");
-            self.lifecycle.restart_server(&server).await?;
-        }
-
-        Ok(())
-    }
-
-    pub async fn build_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, true)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
-
-        for server in servers {
-            tracing::info!(service = %server.name, "Building service");
-            ProcessManager::build_server(&server)?;
-        }
-
-        tracing::info!("Build completed");
-        Ok(())
-    }
-
+    /// Alias for [`Self::list_services`].
     pub async fn show_status(&self) -> McpDomainResult<()> {
         self.list_services().await
     }
 
+    /// Reconcile the database state with currently-running services.
     pub async fn sync_database_state(&self) -> McpDomainResult<()> {
         tracing::info!("Synchronizing service database state");
         let servers = RegistryManager::get_enabled_servers()?;
         self.database.sync_state(&servers).await
     }
 
+    /// Reconcile target deployment state with running processes; returns the
+    /// number reconciled.
     pub async fn reconcile(&self) -> McpDomainResult<usize> {
         self.reconcile_with_events(None).await
     }
 
+    /// Reconcile with progress events on the supplied channel.
     pub async fn reconcile_with_events(
         &self,
         events: Option<&StartupEventSender>,
@@ -284,19 +133,19 @@ impl McpOrchestrator {
             events,
         })
         .await
-        .map_err(Into::into)
     }
 
+    /// Run the post-start validation handshake for a single service.
     pub async fn validate_service(&self, service_name: &str) -> McpDomainResult<()> {
-        service_validation::validate_service(service_name, &self.database)
-            .await
-            .map_err(Into::into)
+        service_validation::validate_service(service_name, &self.database).await
     }
 
+    /// Returns servers that are currently running (per the database).
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
         self.database.get_running_servers().await
     }
 
+    /// Look up service info (status, port, pid) by name.
     pub async fn get_service_info(
         &self,
         service_name: &str,
@@ -304,12 +153,12 @@ impl McpOrchestrator {
         self.database.get_service_by_name(service_name).await
     }
 
+    /// Run the long-lived orchestrator daemon loop.
     pub async fn run_daemon(&self) -> McpDomainResult<()> {
-        daemon::run_daemon(&self.event_bus, &self.lifecycle, &self.database)
-            .await
-            .map_err(Into::into)
+        daemon::run_daemon(&self.event_bus, &self.lifecycle, &self.database).await
     }
 
+    /// Subscribe to lifecycle events emitted by this orchestrator.
     pub fn subscribe_events(&self) -> tokio::sync::broadcast::Receiver<McpEvent> {
         self.event_bus.subscribe()
     }

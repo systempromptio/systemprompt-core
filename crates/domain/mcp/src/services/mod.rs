@@ -1,3 +1,5 @@
+//! Publicly re-exported submodule. See submodule rustdoc for details.
+
 pub mod auth;
 pub mod client;
 pub mod database;
@@ -28,20 +30,20 @@ pub use tool_provider::McpToolProvider;
 
 pub use McpOrchestrator as McpManager;
 
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
 #[async_trait]
 pub trait ServiceManager {
-    async fn start(&self) -> Result<()>;
-    async fn stop(&self) -> Result<()>;
-    async fn restart(&self) -> Result<()>;
-    async fn status(&self) -> Result<String>;
+    async fn start(&self) -> McpDomainResult<()>;
+    async fn stop(&self) -> McpDomainResult<()>;
+    async fn restart(&self) -> McpDomainResult<()>;
+    async fn status(&self) -> McpDomainResult<String>;
 }
 
 #[async_trait]
 pub trait ServiceLifecycle {
-    async fn initialize(&mut self) -> Result<()>;
-    async fn shutdown(&mut self) -> Result<()>;
-    async fn health_check(&self) -> Result<bool>;
+    async fn initialize(&mut self) -> McpDomainResult<()>;
+    async fn shutdown(&mut self) -> McpDomainResult<()>;
+    async fn health_check(&self) -> McpDomainResult<bool>;
 }

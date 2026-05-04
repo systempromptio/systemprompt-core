@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use tracing::Instrument;
 
 use crate::McpServerConfig;
@@ -9,7 +9,7 @@ use crate::services::process::ProcessManager;
 pub async fn detect_and_handle_orphaned_processes(
     servers: &[McpServerConfig],
     database: &DatabaseManager,
-) -> Result<usize> {
+) -> McpDomainResult<usize> {
     let span = systemprompt_logging::SystemSpan::new("mcp_orchestrator");
     async move {
         let mut killed = 0;
@@ -27,7 +27,7 @@ pub async fn detect_and_handle_orphaned_processes(
 async fn kill_orphaned_process(
     server: &McpServerConfig,
     database: &DatabaseManager,
-) -> Result<bool> {
+) -> McpDomainResult<bool> {
     let Some(orphaned_pid) =
         ProcessManager::find_process_on_port_with_name(server.port, &server.name)?
     else {
@@ -60,7 +60,7 @@ async fn kill_orphaned_process(
 pub async fn detect_and_handle_stale_binaries(
     servers: &[McpServerConfig],
     database: &DatabaseManager,
-) -> Result<usize> {
+) -> McpDomainResult<usize> {
     let span = systemprompt_logging::SystemSpan::new("mcp_orchestrator");
     async move {
         let mut restarted = 0;
@@ -78,7 +78,7 @@ pub async fn detect_and_handle_stale_binaries(
 async fn restart_stale_binary(
     server: &McpServerConfig,
     database: &DatabaseManager,
-) -> Result<bool> {
+) -> McpDomainResult<bool> {
     let service_info = match database.get_service_by_name(&server.name).await? {
         Some(info) if info.status == "running" => info,
         _ => return Ok(false),
@@ -125,12 +125,9 @@ async fn kill_and_unregister(
     server: &McpServerConfig,
     database: &DatabaseManager,
     service_info: &ServiceInfo,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     if let Some(pid) = service_info.pid {
         ProcessManager::force_kill(pid as u32)?;
     }
-    database
-        .unregister_service(&server.name)
-        .await
-        .map_err(Into::into)
+    database.unregister_service(&server.name).await
 }

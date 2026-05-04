@@ -1,15 +1,18 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 
 use crate::services::client::validate_connection_with_auth;
 use crate::services::database::DatabaseManager;
 use crate::services::registry::RegistryManager;
 
-pub async fn validate_service(service_name: &str, database: &DatabaseManager) -> Result<()> {
+pub async fn validate_service(
+    service_name: &str,
+    database: &DatabaseManager,
+) -> McpDomainResult<()> {
     let servers = RegistryManager::get_enabled_servers()?;
     let server = servers
         .iter()
         .find(|s| s.name == service_name)
-        .ok_or_else(|| anyhow::anyhow!("Service '{service_name}' not found in registry"))?;
+        .ok_or_else(|| crate::error::McpDomainError::ServerNotFound(service_name.to_string()))?;
 
     tracing::info!(
         service = %service_name,

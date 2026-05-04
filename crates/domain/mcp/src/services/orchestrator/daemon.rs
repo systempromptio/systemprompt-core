@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use std::sync::Arc;
 use tracing::Instrument;
 
@@ -12,7 +12,7 @@ pub async fn run_daemon(
     event_bus: &Arc<EventBus>,
     lifecycle: &LifecycleManager,
     database: &DatabaseManager,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let span: tracing::Span = systemprompt_logging::SystemSpan::new("mcp_orchestrator").into();
     async move {
         tracing::info!("Starting MCP daemon mode");

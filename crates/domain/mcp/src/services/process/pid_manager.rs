@@ -1,107 +1,34 @@
-use anyhow::{Context, Result};
+//! Cross-platform PID and port lookup utilities for MCP service supervision.
+//!
+//! On Linux, prefers `/proc` parsing (no subprocess); falls back to `lsof`.
+//! On other Unix targets, uses `lsof`. On Windows, parses `netstat`/`tasklist`.
+
+use crate::error::McpDomainResult;
+use anyhow::Context;
 use std::process::Command;
 
 #[cfg(target_os = "linux")]
-use std::os::unix::fs::MetadataExt;
+#[path = "pid/linux_proc.rs"]
+mod linux_proc;
 
+/// Find the PID listening on `port`, if any.
 #[cfg(target_os = "linux")]
-fn find_pid_by_port_proc(port: u16) -> Option<u32> {
-    let Ok(tcp_content) = std::fs::read_to_string("/proc/net/tcp") else {
-        return None;
-    };
-
-    let port_hex = format!("{port:X}");
-
-    for line in tcp_content.lines().skip(1) {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 10 {
-            continue;
-        }
-
-        let local_addr = parts.get(1).copied().unwrap_or("");
-        if !local_addr.contains(&port_hex) {
-            continue;
-        }
-
-        let inode_str = parts.get(9).copied().unwrap_or("");
-        let inode: u64 = match inode_str.parse() {
-            Ok(i) => i,
-            Err(e) => {
-                tracing::trace!(error = %e, inode_str = %inode_str, "Skipping non-numeric inode entry");
-                continue;
-            },
-        };
-
-        return find_pid_by_inode(inode);
-    }
-
-    None
-}
-
-#[cfg(target_os = "linux")]
-fn find_pid_by_inode(target_inode: u64) -> Option<u32> {
-    let Ok(proc_dir) = std::fs::read_dir("/proc") else {
-        return None;
-    };
-
-    for entry in proc_dir.flatten() {
-        let Ok(metadata) = entry.metadata() else {
-            continue;
-        };
-        if !metadata.is_dir() {
-            continue;
-        }
-
-        let Ok(name) = entry.file_name().into_string() else {
-            continue;
-        };
-        let Ok(pid) = name.parse::<u32>() else {
-            continue;
-        };
-
-        if let Some(found_pid) = check_process_fd_for_inode(pid, target_inode) {
-            return Some(found_pid);
-        }
-    }
-
-    None
-}
-
-#[cfg(target_os = "linux")]
-fn check_process_fd_for_inode(pid: u32, target_inode: u64) -> Option<u32> {
-    let fd_path = format!("/proc/{pid}/fd");
-    let Ok(fd_dir) = std::fs::read_dir(&fd_path) else {
-        return None;
-    };
-
-    for entry in fd_dir.flatten() {
-        let Ok(metadata) = entry.metadata() else {
-            continue;
-        };
-        if metadata.ino() == target_inode {
-            return Some(pid);
-        }
-    }
-
-    None
-}
-
-#[cfg(target_os = "linux")]
-pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
-    if let Some(pid) = find_pid_by_port_proc(port) {
+pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
+    if let Some(pid) = linux_proc::find_pid_by_port_proc(port) {
         return Ok(Some(pid));
     }
 
     find_pid_by_port_lsof(port)
 }
 
+/// Find the PID listening on `port`, if any.
 #[cfg(all(unix, not(target_os = "linux")))]
-pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
+pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
     find_pid_by_port_lsof(port)
 }
 
 #[cfg(unix)]
-fn find_pid_by_port_lsof(port: u16) -> Result<Option<u32>> {
+fn find_pid_by_port_lsof(port: u16) -> McpDomainResult<Option<u32>> {
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
         .output()
@@ -117,8 +44,9 @@ fn find_pid_by_port_lsof(port: u16) -> Result<Option<u32>> {
         .and_then(|line| line.trim().parse::<u32>().ok()))
 }
 
+/// Find the PID listening on `port`, if any.
 #[cfg(windows)]
-pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
+pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
@@ -141,8 +69,9 @@ pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
     Ok(None)
 }
 
+/// Find PIDs whose process command-line contains `process_name`.
 #[cfg(unix)]
-pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
+pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
     let output = Command::new("pgrep")
         .args(["-f", process_name])
         .output()
@@ -160,8 +89,9 @@ pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
     Ok(pids)
 }
 
+/// Find PIDs whose process name contains `process_name`.
 #[cfg(windows)]
-pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
+pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
     let output = Command::new("tasklist")
         .args(["/FO", "CSV", "/NH"])
         .output()
@@ -184,68 +114,24 @@ pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
     Ok(pids)
 }
 
+/// Look up the listening port for a given PID, if any.
 #[cfg(target_os = "linux")]
-fn get_port_by_pid_proc(pid: u32) -> Option<u16> {
-    let Ok(tcp_content) = std::fs::read_to_string("/proc/net/tcp") else {
-        return None;
-    };
-
-    let fd_path = format!("/proc/{pid}/fd");
-    let Ok(fd_dir) = std::fs::read_dir(&fd_path) else {
-        return None;
-    };
-
-    let fd_inodes: Vec<u64> = fd_dir
-        .flatten()
-        .filter_map(|entry| entry.metadata().ok().map(|m| m.ino()))
-        .collect();
-
-    for line in tcp_content.lines().skip(1) {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 10 {
-            continue;
-        }
-
-        let inode_str = parts.get(9).copied().unwrap_or("");
-        let inode: u64 = match inode_str.parse() {
-            Ok(i) => i,
-            Err(e) => {
-                tracing::trace!(error = %e, inode_str = %inode_str, "Skipping non-numeric inode entry");
-                continue;
-            },
-        };
-
-        if !fd_inodes.contains(&inode) {
-            continue;
-        }
-
-        let local_addr = parts.get(1).copied().unwrap_or("");
-        if let Some(port_str) = local_addr.split(':').next_back() {
-            if let Ok(port) = u16::from_str_radix(port_str, 16) {
-                return Some(port);
-            }
-        }
-    }
-
-    None
-}
-
-#[cfg(target_os = "linux")]
-pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
-    if let Some(port) = get_port_by_pid_proc(pid) {
+pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
+    if let Some(port) = linux_proc::get_port_by_pid_proc(pid) {
         return Ok(Some(port));
     }
 
     get_port_by_pid_lsof(pid)
 }
 
+/// Look up the listening port for a given PID, if any.
 #[cfg(all(unix, not(target_os = "linux")))]
-pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
+pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
     get_port_by_pid_lsof(pid)
 }
 
 #[cfg(unix)]
-fn get_port_by_pid_lsof(pid: u32) -> Result<Option<u16>> {
+fn get_port_by_pid_lsof(pid: u32) -> McpDomainResult<Option<u16>> {
     let output = Command::new("lsof")
         .args(["-p", &pid.to_string(), "-P", "-n"])
         .output()
@@ -268,8 +154,9 @@ fn get_port_by_pid_lsof(pid: u32) -> Result<Option<u16>> {
     Ok(port)
 }
 
+/// Look up the listening port for a given PID, if any.
 #[cfg(windows)]
-pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
+pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
@@ -294,6 +181,7 @@ pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
     Ok(None)
 }
 
+/// Resolve the executable name backing a PID.
 #[cfg(unix)]
 pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     let output = Command::new("ps")
@@ -309,6 +197,7 @@ pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     if name.is_empty() { None } else { Some(name) }
 }
 
+/// Resolve the executable name backing a PID.
 #[cfg(windows)]
 pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     let output = Command::new("tasklist")
@@ -331,7 +220,11 @@ pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     Some(parts[0].trim_matches('"').to_string())
 }
 
-pub fn find_process_on_port_with_name(port: u16, expected_name: &str) -> Result<Option<u32>> {
+/// Find a process listening on `port` only if its name matches `expected_name`.
+pub fn find_process_on_port_with_name(
+    port: u16,
+    expected_name: &str,
+) -> McpDomainResult<Option<u32>> {
     let Some(pid) = find_pid_by_port(port)? else {
         return Ok(None);
     };

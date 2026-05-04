@@ -1,6 +1,6 @@
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
+use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
@@ -81,7 +81,7 @@ impl UiRenderer for ImageRenderer {
         ArtifactType::Image
     }
 
-    async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
+    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let image_data = Self::extract_image_data(artifact);
         let title = artifact.title.as_deref().unwrap_or("Image");
 

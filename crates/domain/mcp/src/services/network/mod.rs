@@ -2,7 +2,7 @@ pub mod port_manager;
 pub mod proxy;
 pub mod routing;
 
-use anyhow::Result;
+use crate::error::McpDomainResult;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NetworkManager;
@@ -18,7 +18,7 @@ impl NetworkManager {
         Self
     }
 
-    pub async fn prepare_port(&self, port: u16) -> Result<()> {
+    pub async fn prepare_port(&self, port: u16) -> McpDomainResult<()> {
         port_manager::prepare_port(port).await
     }
 
@@ -26,7 +26,7 @@ impl NetworkManager {
         port_manager::is_port_responsive(port)
     }
 
-    pub async fn wait_for_port_release(&self, port: u16) -> Result<()> {
+    pub async fn wait_for_port_release(&self, port: u16) -> McpDomainResult<()> {
         port_manager::wait_for_port_release(port).await
     }
 
@@ -34,7 +34,7 @@ impl NetworkManager {
         &self,
         port: u16,
         max_attempts: u32,
-    ) -> Result<()> {
+    ) -> McpDomainResult<()> {
         port_manager::wait_for_port_release_with_retry(port, max_attempts).await
     }
 
@@ -46,7 +46,7 @@ impl NetworkManager {
         routing::create_base_router()
     }
 
-    pub fn apply_cors(router: axum::Router) -> Result<axum::Router> {
+    pub fn apply_cors(router: axum::Router) -> McpDomainResult<axum::Router> {
         routing::apply_cors_layer(router)
     }
 

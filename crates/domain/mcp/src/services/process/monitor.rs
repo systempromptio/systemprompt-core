@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::error::McpDomainResult;
+use anyhow::Context;
 use std::process::Command;
 use std::time::Duration;
 
@@ -6,11 +7,11 @@ use super::utils;
 
 const HEALTH_CHECK_TIMEOUT_SECS: u64 = 5;
 
-pub async fn is_service_healthy(port: u16) -> Result<bool> {
+pub async fn is_service_healthy(port: u16) -> McpDomainResult<bool> {
     is_port_responsive(port).await
 }
 
-async fn is_port_responsive(port: u16) -> Result<bool> {
+async fn is_port_responsive(port: u16) -> McpDomainResult<bool> {
     use tokio::net::TcpStream;
     use tokio::time::timeout;
 
@@ -29,7 +30,7 @@ pub fn is_process_running(pid: u32) -> bool {
     utils::process_exists(pid)
 }
 
-pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
+pub fn get_process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
     let output = Command::new("ps")
         .args(["-p", &pid.to_string(), "-o", "pid,ppid,cmd"])
         .output()
@@ -51,15 +52,17 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
         return Ok(None);
     }
 
-    let pid: u32 = parts[0]
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Invalid PID: {}", parts[0]))?;
-    let parent_pid: u32 = parts[1]
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Invalid PPID: {}", parts[1]))?;
+    let pid: u32 = parts[0].parse().map_err(|_| {
+        crate::error::McpDomainError::Internal(format!("Invalid PID: {}", parts[0]))
+    })?;
+    let parent_pid: u32 = parts[1].parse().map_err(|_| {
+        crate::error::McpDomainError::Internal(format!("Invalid PPID: {}", parts[1]))
+    })?;
 
     if pid == 0 {
-        return Err(anyhow::anyhow!("PID cannot be 0"));
+        return Err(crate::error::McpDomainError::Internal(
+            "PID cannot be 0".to_string(),
+        ));
     }
 
     Ok(Some(ProcessInfo {

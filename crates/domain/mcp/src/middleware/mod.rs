@@ -1,3 +1,5 @@
+//! Publicly re-exported submodule. See submodule rustdoc for details.
+
 pub mod rbac;
 pub mod session_manager;
 

@@ -1,11 +1,12 @@
-use anyhow::{Context, Result};
+use crate::error::McpDomainResult;
+use anyhow::Context;
 use std::process::Command;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
 pub const PORT_BACKOFF_BASE_MS: u64 = 200;
 pub const POST_KILL_DELAY_MS: u64 = 500;
 
-pub async fn prepare_port(port: u16) -> Result<()> {
+pub async fn prepare_port(port: u16) -> McpDomainResult<()> {
     tracing::debug!(port = port, "Preparing port");
 
     if is_port_in_use(port) {
@@ -26,7 +27,7 @@ pub fn is_port_responsive(port: u16) -> bool {
 }
 
 #[cfg(unix)]
-pub async fn cleanup_port_processes(port: u16) -> Result<()> {
+pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
@@ -60,7 +61,7 @@ pub async fn cleanup_port_processes(port: u16) -> Result<()> {
 }
 
 #[cfg(windows)]
-pub async fn cleanup_port_processes(port: u16) -> Result<()> {
+pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
@@ -97,7 +98,7 @@ pub async fn cleanup_port_processes(port: u16) -> Result<()> {
     Ok(())
 }
 
-pub async fn wait_for_port_release(port: u16) -> Result<()> {
+pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
     let max_attempts = 10;
     let delay = std::time::Duration::from_millis(100);
 
@@ -111,12 +112,15 @@ pub async fn wait_for_port_release(port: u16) -> Result<()> {
         }
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "Port {port} did not become available after {max_attempts} attempts"
-    ))
+    )))
 }
 
-pub async fn wait_for_port_release_with_retry(port: u16, max_cleanup_attempts: u32) -> Result<()> {
+pub async fn wait_for_port_release_with_retry(
+    port: u16,
+    max_cleanup_attempts: u32,
+) -> McpDomainResult<()> {
     for cleanup_attempt in 1..=max_cleanup_attempts {
         if !is_port_in_use(port) {
             return Ok(());
@@ -143,21 +147,21 @@ pub async fn wait_for_port_release_with_retry(port: u16, max_cleanup_attempts: u
         }
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "Port {port} could not be acquired after {max_cleanup_attempts} cleanup attempts"
-    ))
+    )))
 }
 
 pub const fn cleanup_port_resources(_port: u16) {}
 
-pub fn find_available_port(start_port: u16, end_port: u16) -> Result<u16> {
+pub fn find_available_port(start_port: u16, end_port: u16) -> McpDomainResult<u16> {
     for port in start_port..=end_port {
         if !is_port_in_use(port) {
             return Ok(port);
         }
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "No available ports in range {start_port}-{end_port}"
-    ))
+    )))
 }

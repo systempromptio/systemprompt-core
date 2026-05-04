@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::McpDomainResult;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -24,7 +24,7 @@ impl EventBus {
         self.handlers.push(handler);
     }
 
-    pub async fn publish(&self, event: McpEvent) -> Result<()> {
+    pub async fn publish(&self, event: McpEvent) -> McpDomainResult<()> {
         if let Err(e) = self.sender.send(event.clone()) {
             tracing::debug!(error = %e, "No broadcast subscribers for event");
         }

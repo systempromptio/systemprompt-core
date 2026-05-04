@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::collections::HashSet;
 use systemprompt_models::mcp::{McpServerType, RegistryConfig};
 
@@ -20,7 +19,7 @@ pub fn validate_registry(config: &RegistryConfig) -> McpDomainResult<()> {
     Ok(())
 }
 
-fn validate_port_conflicts(config: &RegistryConfig) -> Result<()> {
+fn validate_port_conflicts(config: &RegistryConfig) -> McpDomainResult<()> {
     let mut seen_ports = HashSet::new();
 
     let conflicts: Vec<_> = config
@@ -39,13 +38,13 @@ fn validate_port_conflicts(config: &RegistryConfig) -> Result<()> {
         return Ok(());
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "Port conflicts detected: {}",
         conflicts.join(", ")
-    ))
+    )))
 }
 
-fn validate_server_configs(config: &RegistryConfig) -> Result<()> {
+fn validate_server_configs(config: &RegistryConfig) -> McpDomainResult<()> {
     let invalid_servers: Vec<String> = config
         .servers
         .iter()
@@ -58,10 +57,10 @@ fn validate_server_configs(config: &RegistryConfig) -> Result<()> {
         return Ok(());
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "Invalid server configurations:\n{}",
         invalid_servers.join("\n")
-    ))
+    )))
 }
 
 fn validate_single_server(
@@ -99,7 +98,7 @@ fn validate_single_server(
     errors
 }
 
-fn validate_oauth_configs(config: &RegistryConfig) -> Result<()> {
+fn validate_oauth_configs(config: &RegistryConfig) -> McpDomainResult<()> {
     let oauth_issues: Vec<_> = config
         .servers
         .iter()
@@ -112,13 +111,13 @@ fn validate_oauth_configs(config: &RegistryConfig) -> Result<()> {
         return Ok(());
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "OAuth configuration issues:\n{}",
         oauth_issues.join("\n")
-    ))
+    )))
 }
 
-fn validate_server_types(config: &RegistryConfig) -> Result<()> {
+fn validate_server_types(config: &RegistryConfig) -> McpDomainResult<()> {
     let issues: Vec<String> = config
         .servers
         .iter()
@@ -130,10 +129,10 @@ fn validate_server_types(config: &RegistryConfig) -> Result<()> {
         return Ok(());
     }
 
-    Err(anyhow::anyhow!(
+    Err(crate::error::McpDomainError::Internal(format!(
         "Server type validation issues:\n{}",
         issues.join("\n")
-    ))
+    )))
 }
 
 fn validate_server_type_constraints(

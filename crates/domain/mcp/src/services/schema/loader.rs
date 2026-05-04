@@ -1,84 +1,102 @@
-use anyhow::{Context, Result};
+use crate::error::{McpDomainError, McpDomainResult};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Loads and validates schema SQL files for MCP services.
 #[derive(Debug, Clone, Copy)]
 pub struct SchemaLoader;
 
 impl SchemaLoader {
-    pub fn load_schema_file(service_path: &Path, schema_file: &str) -> Result<String> {
+    /// Read a schema file from `service_path/schema_file`.
+    pub fn load_schema_file(service_path: &Path, schema_file: &str) -> McpDomainResult<String> {
         let schema_path = service_path.join(schema_file);
 
         if !schema_path.exists() {
-            anyhow::bail!(
+            return Err(McpDomainError::SchemaValidation(format!(
                 "Schema file not found: {} (full path: {})",
                 schema_file,
                 schema_path.display()
-            );
+            )));
         }
 
-        let content = fs::read_to_string(&schema_path)
-            .with_context(|| format!("Failed to read schema file: {}", schema_path.display()))?;
+        let content = fs::read_to_string(&schema_path).map_err(|e| {
+            McpDomainError::SchemaValidation(format!(
+                "Failed to read schema file {}: {e}",
+                schema_path.display()
+            ))
+        })?;
 
         if content.trim().is_empty() {
-            anyhow::bail!("Schema file is empty: {schema_file}");
+            return Err(McpDomainError::SchemaValidation(format!(
+                "Schema file is empty: {schema_file}"
+            )));
         }
 
         Ok(content)
     }
 
-    pub fn list_schema_files(service_path: &Path) -> Result<Vec<PathBuf>> {
+    /// List all `.sql` files under `service_path/schema/`.
+    pub fn list_schema_files(service_path: &Path) -> McpDomainResult<Vec<PathBuf>> {
         let schema_dir = service_path.join("schema");
 
         if !schema_dir.exists() {
             return Ok(Vec::new());
         }
 
-        let entries = fs::read_dir(&schema_dir).with_context(|| {
-            format!("Failed to read schema directory: {}", schema_dir.display())
+        let entries = fs::read_dir(&schema_dir).map_err(|e| {
+            McpDomainError::SchemaValidation(format!(
+                "Failed to read schema directory {}: {e}",
+                schema_dir.display()
+            ))
         })?;
 
-        entries
+        Ok(entries
             .filter_map(Result::ok)
             .map(|e| e.path())
             .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("sql"))
-            .map(Ok)
-            .collect()
+            .collect())
     }
 
-    pub fn validate_schema_syntax(sql: &str) -> Result<()> {
+    /// Validate that the SQL is a CREATE TABLE schema.
+    pub fn validate_schema_syntax(sql: &str) -> McpDomainResult<()> {
         let sql_upper = sql.trim().to_uppercase();
 
         if !sql_upper.starts_with("CREATE TABLE") && !sql_upper.starts_with("--") {
-            anyhow::bail!("Schema must start with CREATE TABLE statement");
+            return Err(McpDomainError::SchemaValidation(
+                "Schema must start with CREATE TABLE statement".to_string(),
+            ));
         }
 
         if !sql_upper.contains("CREATE TABLE") {
-            anyhow::bail!("Schema must contain at least one CREATE TABLE statement");
+            return Err(McpDomainError::SchemaValidation(
+                "Schema must contain at least one CREATE TABLE statement".to_string(),
+            ));
         }
 
         Ok(())
     }
 
-    pub fn validate_table_naming(sql: &str, module_name: &str) -> Result<()> {
+    /// Validate that all tables in the schema use the module prefix.
+    pub fn validate_table_naming(sql: &str, module_name: &str) -> McpDomainResult<()> {
         let module_prefix = module_name.replace('-', "_");
         let table_names = Self::extract_table_names(sql);
 
         if table_names.is_empty() {
-            anyhow::bail!("No CREATE TABLE statements found in schema");
+            return Err(McpDomainError::SchemaValidation(
+                "No CREATE TABLE statements found in schema".to_string(),
+            ));
         }
 
         let invalid = table_names
             .iter()
             .find(|name| !name.starts_with(&module_prefix));
 
-        match invalid {
-            Some(table_name) => anyhow::bail!(
+        invalid.map_or(Ok(()), |table_name| {
+            Err(McpDomainError::SchemaValidation(format!(
                 "Table name '{table_name}' must start with module prefix '{module_prefix}' (from \
                  module '{module_name}')"
-            ),
-            None => Ok(()),
-        }
+            )))
+        })
     }
 
     fn extract_table_names(sql: &str) -> Vec<String> {

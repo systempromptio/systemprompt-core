@@ -1,7 +1,7 @@
 use crate::McpServerConfig;
+use crate::error::McpDomainResult;
 use crate::models::ValidationResultType;
 use crate::services::client::McpConnectionResult;
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use std::time::Duration;
 use systemprompt_database::DbPool;
@@ -107,12 +107,12 @@ impl HealthCheckResult {
     }
 }
 
-pub async fn check_service_health(config: &McpServerConfig) -> Result<HealthStatus> {
+pub async fn check_service_health(config: &McpServerConfig) -> McpDomainResult<HealthStatus> {
     let result = perform_health_check(config).await?;
     Ok(result.status)
 }
 
-pub async fn perform_health_check(config: &McpServerConfig) -> Result<HealthCheckResult> {
+pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<HealthCheckResult> {
     use crate::services::client::{validate_connection_by_url, validate_connection_with_auth};
     use systemprompt_models::mcp::McpServerType;
 
@@ -173,7 +173,7 @@ pub async fn monitor_health_continuously(
     config: &McpServerConfig,
     report_interval: Duration,
     _db_pool: DbPool,
-) -> Result<()> {
+) -> McpDomainResult<()> {
     let span: tracing::Span = systemprompt_logging::SystemSpan::new("mcp_health_monitor").into();
     async move {
         let mut ticker = interval(report_interval);
@@ -268,7 +268,7 @@ fn handle_degraded(
     }
 }
 
-fn log_health_check_error(config: &McpServerConfig, error: &anyhow::Error) {
+fn log_health_check_error(config: &McpServerConfig, error: &crate::error::McpDomainError) {
     tracing::info!(
         service_name = %config.name,
         error = %error,
