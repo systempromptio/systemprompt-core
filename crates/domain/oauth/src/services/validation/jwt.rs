@@ -1,3 +1,5 @@
+//! JWT signature and claims validation.
+
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use systemprompt_models::auth::JwtAudience;

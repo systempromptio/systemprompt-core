@@ -1,6 +1,8 @@
+//! OAuth client domain model and API DTOs.
+
 pub mod api;
 
-use anyhow::Result;
+use crate::error::OauthResult as Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -74,22 +76,34 @@ impl OAuthClient {
 
     pub fn validate(&self) -> Result<()> {
         if self.client_id.as_str().is_empty() {
-            return Err(anyhow::anyhow!("client_id cannot be empty"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "client_id cannot be empty"
+            )));
         }
         if self.client_name.is_empty() {
-            return Err(anyhow::anyhow!("client_name cannot be empty"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "client_name cannot be empty"
+            )));
         }
         if self.redirect_uris.is_empty() {
-            return Err(anyhow::anyhow!("redirect_uris cannot be empty"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "redirect_uris cannot be empty"
+            )));
         }
         if self.grant_types.is_empty() {
-            return Err(anyhow::anyhow!("grant_types cannot be empty"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "grant_types cannot be empty"
+            )));
         }
         if self.response_types.is_empty() {
-            return Err(anyhow::anyhow!("response_types cannot be empty"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "response_types cannot be empty"
+            )));
         }
         if self.scopes.is_empty() {
-            return Err(anyhow::anyhow!("scopes cannot be empty"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "scopes cannot be empty"
+            )));
         }
         Ok(())
     }

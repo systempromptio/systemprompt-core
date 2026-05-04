@@ -1,3 +1,5 @@
+//! OAuth user record helpers.
+
 use super::OAuthRepository;
 use crate::error::{OauthError, OauthResult};
 use std::str::FromStr;

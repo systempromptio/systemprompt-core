@@ -1,5 +1,6 @@
+//! JWT-based authentication service entry point.
+
 use crate::services::validation::jwt as jwt_validation;
-use anyhow::Result;
 use http::{HeaderMap, StatusCode};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_security::TokenExtractor;

@@ -1,3 +1,5 @@
+//! OAuth client wire-format request/response types.
+
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
 

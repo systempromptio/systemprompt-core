@@ -1,3 +1,6 @@
+//! OAuth domain services: token generation, JWT, session, `WebAuthn`, CIMD,
+//! validation, templating.
+
 pub mod cimd;
 pub mod cowork;
 pub mod generation;

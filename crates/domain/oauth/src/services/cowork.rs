@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! Cowork session exchange code generation and consumption.
+
+use crate::error::OauthResult as Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use rand::RngCore;
 use serde::Serialize;
@@ -140,8 +142,7 @@ pub fn hash_exchange_code(code: &str) -> String {
     let digest = Sha256::digest(code.as_bytes());
     let mut out = String::with_capacity(64);
     for byte in digest {
-        use std::fmt::Write;
-        let _ = write!(out, "{byte:02x}");
+        out.push_str(&format!("{byte:02x}"));
     }
     out
 }
@@ -151,8 +152,7 @@ fn generate_exchange_code() -> String {
     rand::rng().fill_bytes(&mut raw);
     let mut out = String::with_capacity(EXCHANGE_CODE_BYTES * 2);
     for byte in raw {
-        use std::fmt::Write;
-        let _ = write!(out, "{byte:02x}");
+        out.push_str(&format!("{byte:02x}"));
     }
     out
 }

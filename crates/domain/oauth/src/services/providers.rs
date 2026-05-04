@@ -1,3 +1,5 @@
+//! JWT validation provider implementations.
+
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,

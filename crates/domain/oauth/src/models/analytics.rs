@@ -1,3 +1,5 @@
+//! OAuth analytics event shapes.
+
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ClientId, ClientType};
 

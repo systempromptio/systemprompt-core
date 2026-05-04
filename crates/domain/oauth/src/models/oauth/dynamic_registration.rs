@@ -1,3 +1,5 @@
+//! RFC 7591 dynamic client registration types.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;

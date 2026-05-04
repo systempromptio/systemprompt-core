@@ -1,3 +1,5 @@
+//! JWT extraction and validation helpers.
+
 pub mod authentication;
 pub mod authorization;
 
@@ -23,7 +25,7 @@ pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, AuthErr
 pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthError> {
     headers
         .get("cookie")
-        .ok_or(AuthError::AuthenticationFailed {
+        .ok_or_else(|| AuthError::AuthenticationFailed {
             message: "Cookie header missing".to_string(),
         })?
         .to_str()
@@ -39,7 +41,7 @@ pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthErr
                 None
             }
         })
-        .ok_or(AuthError::AuthenticationFailed {
+        .ok_or_else(|| AuthError::AuthenticationFailed {
             message: "Access token not found in cookies".to_string(),
         })
 }

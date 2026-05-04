@@ -1,5 +1,7 @@
+//! `WebAuthn` passkey authentication flow.
+
 use super::{AuthenticationStateData, WebAuthnService};
-use anyhow::Result;
+use crate::error::OauthResult as Result;
 use base64::engine::{Engine, general_purpose};
 use std::time::Instant;
 use systemprompt_identifiers::UserId;
@@ -18,12 +20,14 @@ impl WebAuthnService {
             .oauth_repo
             .find_user_by_email(email)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+            .ok_or_else(|| crate::error::OauthError::from(anyhow::anyhow!("User not found")))?;
 
         let user_credentials = self.get_user_credentials(&user.id).await?;
 
         if user_credentials.is_empty() {
-            return Err(anyhow::anyhow!("No credentials found for user"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "No credentials found for user"
+            )));
         }
 
         let (rcr, auth_state) = self
@@ -106,13 +110,17 @@ impl WebAuthnService {
     ) -> Result<(PasskeyAuthentication, UserId, Option<String>)> {
         let data = {
             let mut states = self.auth_states.lock().await;
-            states
-                .remove(challenge_id)
-                .ok_or_else(|| anyhow::anyhow!("Authentication state not found or expired"))?
+            states.remove(challenge_id).ok_or_else(|| {
+                crate::error::OauthError::from(anyhow::anyhow!(
+                    "Authentication state not found or expired"
+                ))
+            })?
         };
 
         if data.timestamp.elapsed() > std::time::Duration::from_secs(120) {
-            return Err(anyhow::anyhow!("Authentication challenge expired"));
+            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                "Authentication challenge expired"
+            )));
         }
 
         Ok((data.state, data.user_id, data.oauth_state))

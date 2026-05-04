@@ -1,30 +1,129 @@
+//! Typed error taxonomy for the systemprompt-oauth domain.
+//!
+//! Variants enumerate the security-meaningful failure modes encountered
+//! throughout the OAuth 2.0 / OIDC, `WebAuthn` and CIMD subsystems. Concrete
+//! `#[from]` adapters route `sqlx`, `std::io`, `url`, `serde_json`, and
+//! upstream `anyhow` errors into the appropriate variant so callers can
+//! match on a single `OauthError` enum.
+
 use thiserror::Error;
 
+/// Errors produced by the OAuth domain.
+///
+/// These variants intentionally distinguish authentication, authorisation
+/// and token-lifecycle failures so call sites (and downstream HTTP error
+/// translators) can surface appropriate OAuth 2.0 / `WebAuthn` error codes
+/// without relying on string parsing.
 #[derive(Debug, Error)]
 pub enum OauthError {
+    /// Underlying OAuth provider (Google, GitHub, `IdP`) returned an error.
     #[error("provider error: {0}")]
     Provider(String),
 
+    /// Generic token-handling failure (signing, parsing, structure).
     #[error("token error: {0}")]
     Token(String),
 
+    /// Bearer token, refresh token or setup token could not be located.
+    #[error("token not found: {0}")]
+    TokenNotFound(String),
+
+    /// Authorisation code lookup failed or the code has been consumed.
+    #[error("authorization code not found: {0}")]
+    CodeNotFound(String),
+
+    /// Authorisation code or token has expired.
+    #[error("expired: {0}")]
+    Expired(String),
+
+    /// PKCE code verifier did not match the stored challenge.
+    #[error("PKCE challenge mismatch: {0}")]
+    PkceMismatch(String),
+
+    /// OAuth `invalid_grant` — refresh/auth code is invalid or revoked.
+    #[error("invalid grant: {0}")]
+    InvalidGrant(String),
+
+    /// OAuth `invalid_client` — client authentication failed.
+    #[error("invalid client: {0}")]
+    InvalidClient(String),
+
+    /// Requested client does not exist in the registry.
+    #[error("client not found: {0}")]
+    ClientNotFound(String),
+
+    /// Session lookup or lifecycle failure.
     #[error("session error: {0}")]
     Session(String),
 
+    /// `WebAuthn` registration / authentication failure.
+    #[error("webauthn error: {0}")]
+    WebAuthn(String),
+
+    /// User-related lookup or registration conflict.
+    #[error("user error: {0}")]
+    User(String),
+
+    /// Underlying repository / SQL failure.
     #[error("repository error: {0}")]
     Repository(#[from] sqlx::Error),
 
+    /// Input failed validation (empty fields, malformed URI, bad scope, etc.).
     #[error("validation error: {0}")]
     Validation(String),
 
+    /// Caller is not permitted to perform the requested action.
     #[error("unauthorized: {0}")]
     Unauthorized(String),
 
+    /// Configuration could not be loaded or is malformed.
     #[error("config error: {0}")]
     Config(String),
 
+    /// Cryptographic operation (hashing, signing, key derivation) failed.
+    #[error("crypto error: {0}")]
+    Crypto(String),
+
+    /// Adapter for upstream `anyhow` errors raised by transitive crates.
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
 
+/// Convenience `Result` alias bound to [`OauthError`].
 pub type OauthResult<T> = Result<T, OauthError>;
+
+impl From<webauthn_rs::prelude::WebauthnError> for OauthError {
+    fn from(err: webauthn_rs::prelude::WebauthnError) -> Self {
+        Self::WebAuthn(err.to_string())
+    }
+}
+
+impl From<bcrypt::BcryptError> for OauthError {
+    fn from(err: bcrypt::BcryptError) -> Self {
+        Self::Crypto(err.to_string())
+    }
+}
+
+impl From<jsonwebtoken::errors::Error> for OauthError {
+    fn from(err: jsonwebtoken::errors::Error) -> Self {
+        Self::Token(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for OauthError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::Validation(format!("json parse: {err}"))
+    }
+}
+
+impl From<systemprompt_models::errors::ConfigError> for OauthError {
+    fn from(err: systemprompt_models::errors::ConfigError) -> Self {
+        Self::Config(err.to_string())
+    }
+}
+
+impl From<systemprompt_config::SecretsBootstrapError> for OauthError {
+    fn from(err: systemprompt_config::SecretsBootstrapError) -> Self {
+        Self::Config(err.to_string())
+    }
+}

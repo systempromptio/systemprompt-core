@@ -1,3 +1,5 @@
+//! Strongly-typed OAuth request parameter validation.
+
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{AuthError, GrantType, ResponseType};
 
