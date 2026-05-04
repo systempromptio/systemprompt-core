@@ -1,4 +1,5 @@
-use anyhow::Result;
+use crate::models::LoggingError;
+type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;

@@ -76,16 +76,23 @@ impl DatabaseLayer {
 
     async fn flush(db_pool: &DbPool, buffer: &mut Vec<LogEntry>) {
         if let Err(e) = Self::batch_insert(db_pool, buffer).await {
-            let _ = writeln!(
+            // Why: stderr sink for the database log flush — if writing to stderr ALSO fails
+            // we have nowhere left to report; recursing into tracing IS the
+            // failure mode we are avoiding.
+            writeln!(
                 std::io::stderr(),
                 "DATABASE LOG FLUSH FAILED ({} entries lost): {e}",
                 buffer.len()
-            );
+            )
+            .ok();
         }
         buffer.clear();
     }
 
-    async fn batch_insert(db_pool: &DbPool, entries: &[LogEntry]) -> anyhow::Result<()> {
+    async fn batch_insert(
+        db_pool: &DbPool,
+        entries: &[LogEntry],
+    ) -> Result<(), crate::models::LoggingError> {
         let pool = db_pool.write_pool_arc()?;
         for entry in entries {
             let metadata_json: Option<String> = entry
@@ -131,9 +138,13 @@ impl DatabaseLayer {
 impl DatabaseLayer {
     fn send_entry(&self, entry: LogEntry) {
         let is_error = entry.level == LogLevel::Error;
-        let _ = self.sender.send(LogCommand::Entry(Box::new(entry)));
+        // Why: a closed mpsc channel means the batch_writer task has exited (process
+        // shutdown). The tracing layer must never panic or recurse; dropping
+        // the entry is the contract.
+        self.sender.send(LogCommand::Entry(Box::new(entry))).ok();
         if is_error {
-            let _ = self.sender.send(LogCommand::FlushNow);
+            // Why: flush-now signal is best-effort during shutdown — see comment above.
+            self.sender.send(LogCommand::FlushNow).ok();
         }
     }
 }

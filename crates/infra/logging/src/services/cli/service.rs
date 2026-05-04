@@ -1,7 +1,8 @@
 use std::io::Write;
 use std::time::Duration;
 
-use anyhow::Result;
+use crate::models::LoggingError;
+type Result<T> = std::result::Result<T, LoggingError>;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 use systemprompt_traits::LogEventLevel;
@@ -10,12 +11,7 @@ use super::display::{CollectionDisplay, Display, DisplayUtils};
 use super::module::{BatchModuleOperations, ModuleDisplay, ModuleInstall, ModuleUpdate};
 use super::output::publish_log;
 use super::prompts::{PromptBuilder, Prompts};
-use super::startup::{
-    render_phase_header, render_phase_info, render_phase_success, render_phase_warning,
-    render_startup_banner,
-};
 use super::summary::{OperationResult, ProgressSummary, ValidationSummary};
-use super::table::{ServiceTableEntry, render_service_table, render_startup_complete};
 use super::theme::{EmphasisType, ItemStatus, MessageLevel, ModuleType, Theme};
 
 #[derive(Copy, Clone, Debug)]
@@ -67,65 +63,96 @@ impl CliService {
         DisplayUtils::subsection_header(title);
     }
 
+    /// Clear the terminal using ANSI escape sequences.
+    ///
+    /// Why: CLI display sink — if writing to stdout fails (closed pipe), there
+    /// is no recoverable path; recursing into tracing IS the failure mode
+    /// we are trying to avoid.
     pub fn clear_screen() {
         let mut stdout = std::io::stdout();
-        let _ = write!(stdout, "\x1B[2J\x1B[1;1H");
+        write!(stdout, "\x1B[2J\x1B[1;1H").ok();
     }
 
+    /// Print a single line of raw output to stdout.
+    ///
+    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
+    /// rationale.
     pub fn output(content: &str) {
         let mut stdout = std::io::stdout();
-        let _ = writeln!(stdout, "{content}");
+        writeln!(stdout, "{content}").ok();
     }
 
+    /// Pretty-print a serializable value as JSON to stdout.
+    ///
+    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
+    /// rationale.
     pub fn json<T: Serialize>(value: &T) {
         match serde_json::to_string_pretty(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
-                let _ = writeln!(stdout, "{json}");
+                writeln!(stdout, "{json}").ok();
             },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
     }
 
+    /// Print a compact (single-line) JSON serialization to stdout.
+    ///
+    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
+    /// rationale.
     pub fn json_compact<T: Serialize>(value: &T) {
         match serde_json::to_string(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
-                let _ = writeln!(stdout, "{json}");
+                writeln!(stdout, "{json}").ok();
             },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
     }
 
+    /// Print a value serialized as YAML to stdout.
+    ///
+    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
+    /// rationale.
     pub fn yaml<T: Serialize>(value: &T) {
         match serde_yaml::to_string(value) {
             Ok(yaml) => {
                 let mut stdout = std::io::stdout();
-                let _ = write!(stdout, "{yaml}");
+                write!(stdout, "{yaml}").ok();
             },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
     }
 
+    /// Print a `label: value` pair with theme styling.
+    ///
+    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
+    /// rationale.
     pub fn key_value(label: &str, value: &str) {
         let mut stdout = std::io::stdout();
-        let _ = writeln!(
+        writeln!(
             stdout,
             "{}: {}",
             Theme::color(label, EmphasisType::Bold),
             Theme::color(value, EmphasisType::Highlight)
-        );
+        )
+        .ok();
     }
 
+    /// Print a status line with icon, label, and value.
+    ///
+    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
+    /// rationale.
     pub fn status_line(label: &str, value: &str, status: ItemStatus) {
         let mut stdout = std::io::stdout();
-        let _ = writeln!(
+        writeln!(
             stdout,
             "{} {}: {}",
             Theme::icon(status),
             Theme::color(label, EmphasisType::Bold),
             Theme::color(value, status)
-        );
+        )
+        .ok();
     }
 
     pub fn spinner(message: &str) -> ProgressBar {
@@ -232,102 +259,5 @@ impl CliService {
 
     pub fn table(headers: &[&str], rows: &[Vec<String>]) {
         super::table::render_table(headers, rows);
-    }
-
-    pub fn startup_banner(subtitle: Option<&str>) {
-        render_startup_banner(subtitle);
-    }
-
-    pub fn phase(name: &str) {
-        publish_log(LogEventLevel::Info, "cli", &format!("Phase: {}", name));
-        render_phase_header(name);
-    }
-
-    pub fn phase_success(message: &str, detail: Option<&str>) {
-        publish_log(LogEventLevel::Info, "cli", message);
-        render_phase_success(message, detail);
-    }
-
-    pub fn phase_info(message: &str, detail: Option<&str>) {
-        publish_log(LogEventLevel::Info, "cli", message);
-        render_phase_info(message, detail);
-    }
-
-    pub fn phase_warning(message: &str, detail: Option<&str>) {
-        publish_log(LogEventLevel::Warn, "cli", message);
-        render_phase_warning(message, detail);
-    }
-
-    pub fn service_spinner(service_name: &str, port: Option<u16>) -> ProgressBar {
-        let msg = port.map_or_else(
-            || format!("Starting {}", service_name),
-            |p| format!("Starting {} on :{}", service_name, p),
-        );
-        let pb = ProgressBar::new_spinner();
-        let spinner_template = concat!("{spinner:.208}", " {msg}");
-        pb.set_style(
-            ProgressStyle::default_spinner()
-                .template(spinner_template)
-                .unwrap_or_else(|_| ProgressStyle::default_spinner()),
-        );
-        pb.set_message(msg);
-        pb.enable_steady_tick(Duration::from_millis(80));
-        pb
-    }
-
-    pub fn service_table(title: &str, services: &[ServiceTableEntry]) {
-        render_service_table(title, services);
-    }
-
-    pub fn startup_complete(duration: Duration, api_url: &str) {
-        publish_log(
-            LogEventLevel::Info,
-            "cli",
-            &format!("Startup complete in {:.1}s", duration.as_secs_f64()),
-        );
-        render_startup_complete(duration, api_url);
-    }
-
-    pub fn session_context(
-        profile: &str,
-        session_id: &systemprompt_identifiers::SessionId,
-        tenant: Option<&str>,
-    ) {
-        Self::session_context_with_url(profile, session_id, tenant, None);
-    }
-
-    pub fn session_context_with_url(
-        profile: &str,
-        session_id: &systemprompt_identifiers::SessionId,
-        tenant: Option<&str>,
-        api_url: Option<&str>,
-    ) {
-        let session_str = session_id.as_str();
-        let truncated_session = session_str
-            .get(..12)
-            .map_or_else(|| session_str.to_string(), |s| format!("{}...", s));
-
-        let tenant_info = tenant.map_or_else(String::new, |t| format!(" | tenant: {}", t));
-
-        let url_info = api_url.map_or_else(String::new, |u| format!(" | {}", u));
-
-        let banner = format!(
-            "[profile: {} | session: {}{}{}]",
-            profile, truncated_session, tenant_info, url_info
-        );
-
-        let mut stdout = std::io::stdout();
-        let _ = writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim));
-    }
-
-    pub fn profile_banner(profile_name: &str, is_cloud: bool, tenant: Option<&str>) {
-        let target_label = if is_cloud { "cloud" } else { "local" };
-        let tenant_info = tenant.map_or_else(String::new, |t| format!(" | tenant: {}", t));
-        let banner = format!(
-            "[profile: {} ({}){}]",
-            profile_name, target_label, tenant_info
-        );
-        let mut stdout = std::io::stdout();
-        let _ = writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim));
     }
 }

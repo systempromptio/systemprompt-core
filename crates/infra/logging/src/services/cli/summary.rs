@@ -136,12 +136,16 @@ impl Display for ValidationSummary {
         let total_active = self.total_active();
         if total_active > 0 {
             let mut stdout = std::io::stdout();
-            let _ = writeln!(
+            // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no
+            // recoverable path; recursing into tracing IS the failure mode we are trying to
+            // avoid.
+            writeln!(
                 stdout,
                 "\n{} {} active modules ready",
                 Theme::icon(MessageLevel::Success),
                 Theme::color(&total_active.to_string(), EmphasisType::Bold)
-            );
+            )
+            .ok();
         }
     }
 }
@@ -216,7 +220,9 @@ impl Display for OperationResult {
         for detail in &self.details {
             let colored = Theme::color(detail, EmphasisType::Dim);
             let mut stdout = std::io::stdout();
-            let _ = writeln!(stdout, "  \u{2022} {colored}");
+            // Why: CLI display sink — see active modules write above for the broken-pipe
+            // rationale.
+            writeln!(stdout, "  \u{2022} {colored}").ok();
         }
     }
 }

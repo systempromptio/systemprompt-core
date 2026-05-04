@@ -1,8 +1,41 @@
+//! # systemprompt-logging
+//!
+//! Tracing and audit infrastructure for systemprompt.io. Owns the
+//! structured-event pipeline, the database-backed `tracing` layer,
+//! log/analytics repositories, retention scheduling, and a typed query surface
+//! over the audit trail (traces, AI requests, MCP tool executions).
+//!
+//! ## Feature flags
+//!
+//! | Feature   | Description                                                               |
+//! |-----------|---------------------------------------------------------------------------|
+//! | (default) | Database layer, repositories, trace queries, retention scheduler          |
+//! | `cli`     | CLI display helpers (`CliService`, prompts, tables, banners) — pulls in `colored`, `console`, `dialoguer`, `indicatif` |
+//!
+//! ## Top-level entry points
+//!
+//! - [`init_logging`] / [`init_console_logging`] /
+//!   [`init_console_logging_with_level`] — install the global `tracing`
+//!   subscriber (with optional database sink).
+//! - [`LoggingExtension`] — schema/extension registration via the `inventory`
+//!   framework.
+//! - [`LoggingRepository`], [`AnalyticsRepository`] — direct repository access.
+//! - [`TraceQueryService`], [`AiTraceService`] — typed audit/trace queries.
+
+/// Extension registration for the logging crate (schemas + dependencies).
 pub mod extension;
+/// Tracing subscriber layers (proxy + database batching writer + field
+/// visitor).
 pub mod layer;
+/// Core domain models: log entries, filters, levels, and the
+/// [`models::LoggingError`] enum.
 pub mod models;
+/// Repository facades over the `logs` and `analytics_events` tables.
 pub mod repository;
+/// Service layer: database log service, retention scheduling, CLI display
+/// (feature-gated), span helpers, and the structured-event publisher.
 pub mod services;
+/// Trace, audit, and AI-request query services.
 pub mod trace;
 
 pub use extension::LoggingExtension;

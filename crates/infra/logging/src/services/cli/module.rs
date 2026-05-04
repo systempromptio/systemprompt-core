@@ -1,13 +1,17 @@
 use std::io::Write;
 
+use crate::models::LoggingError;
 use crate::services::cli::display::{CollectionDisplay, Display, DisplayUtils, ModuleItemDisplay};
 use crate::services::cli::prompts::Prompts;
 use crate::services::cli::theme::{ItemStatus, MessageLevel, ModuleType, Theme};
-use anyhow::Result;
+type Result<T> = std::result::Result<T, LoggingError>;
 
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
     let mut out = std::io::stdout();
-    let _ = writeln!(out, "{args}");
+    // Why: CLI display sink — if writing to stdout fails (closed pipe), there is no
+    // recoverable path; recursing into tracing IS the failure mode we are trying to
+    // avoid.
+    writeln!(out, "{args}").ok();
 }
 
 #[derive(Debug, Copy, Clone)]
