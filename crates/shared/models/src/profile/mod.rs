@@ -1,3 +1,5 @@
+//! `profile` module — see crate-level docs for context.
+
 mod cloud;
 mod database;
 mod error;

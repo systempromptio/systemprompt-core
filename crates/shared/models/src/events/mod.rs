@@ -1,3 +1,5 @@
+//! `events` module — see crate-level docs for context.
+
 mod a2a_event;
 mod a2a_event_type;
 mod analytics_event;

@@ -1,3 +1,5 @@
+//! `paths` module — see crate-level docs for context.
+
 mod build;
 pub mod constants;
 mod error;

@@ -1,3 +1,5 @@
+//! `execution` module — see crate-level docs for context.
+
 pub mod context;
 pub mod shared_context;
 pub mod step;

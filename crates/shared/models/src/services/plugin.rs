@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::PluginId;
 
 use super::hooks::HookEventsConfig;
+use crate::errors::ConfigValidationError;
 
 const fn default_true() -> bool {
     true
@@ -132,24 +133,34 @@ impl From<&PluginConfig> for PluginSummary {
 }
 
 impl PluginConfig {
-    pub fn validate(&self, key: &str) -> anyhow::Result<()> {
+    /// Validate this plugin manifest entry against its declared key.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigValidationError`] when the id, version, or component
+    /// references violate structural constraints. Hook configuration
+    /// validation is delegated to [`HookEventsConfig::validate`].
+    pub fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
         let id_str = self.id.as_str();
         if id_str.len() < 3 || id_str.len() > 50 {
-            anyhow::bail!("Plugin '{}': id must be between 3 and 50 characters", key);
+            return Err(ConfigValidationError::invalid_field(format!(
+                "Plugin '{key}': id must be between 3 and 50 characters"
+            )));
         }
 
         if !id_str
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         {
-            anyhow::bail!(
-                "Plugin '{}': id must be lowercase alphanumeric with hyphens only (kebab-case)",
-                key
-            );
+            return Err(ConfigValidationError::invalid_field(format!(
+                "Plugin '{key}': id must be lowercase alphanumeric with hyphens only (kebab-case)"
+            )));
         }
 
         if self.version.is_empty() {
-            anyhow::bail!("Plugin '{}': version must not be empty", key);
+            return Err(ConfigValidationError::required(format!(
+                "Plugin '{key}': version must not be empty"
+            )));
         }
 
         Self::validate_component_ref(&self.skills, key, "skills")?;
@@ -163,14 +174,11 @@ impl PluginConfig {
         component: &PluginComponentRef,
         key: &str,
         field: &str,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), ConfigValidationError> {
         if component.source == ComponentSource::Explicit && component.include.is_empty() {
-            anyhow::bail!(
-                "Plugin '{}': {}.source is 'explicit' but {}.include is empty",
-                key,
-                field,
-                field
-            );
+            return Err(ConfigValidationError::invalid_field(format!(
+                "Plugin '{key}': {field}.source is 'explicit' but {field}.include is empty"
+            )));
         }
 
         Ok(())

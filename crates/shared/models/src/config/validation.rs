@@ -1,11 +1,18 @@
-use anyhow::Result;
 use systemprompt_traits::validation_report::{
     ValidationError, ValidationReport, ValidationWarning,
 };
 
+use crate::errors::ConfigError;
 use crate::profile::Profile;
 
-pub fn validate_profile_paths(profile: &Profile, profile_path: &str) -> ValidationReport {
+/// Walk every required and optional path declared in a profile and
+/// build a [`ValidationReport`] capturing missing-path errors and
+/// unreachable-path warnings.
+///
+/// `profile_path` is the path of the profile file being checked and is
+/// retained as a parameter so the report can be rendered in context via
+/// [`format_path_errors`].
+pub fn validate_profile_paths(profile: &Profile, _profile_path: &str) -> ValidationReport {
     let mut report = ValidationReport::new("paths");
 
     validate_required_path(&mut report, "system", &profile.paths.system);
@@ -30,7 +37,6 @@ pub fn validate_profile_paths(profile: &Profile, profile_path: &str) -> Validati
     );
     validate_optional_path(&mut report, "storage", profile.paths.storage.as_ref());
 
-    let _ = profile_path;
     report
 }
 
@@ -141,11 +147,15 @@ pub fn format_path_errors(report: &ValidationReport, profile_path: &str) -> Stri
     output
 }
 
-pub fn validate_postgres_url(url: &str) -> Result<()> {
+/// Validate that a database URL is a `PostgreSQL` connection string.
+///
+/// # Errors
+///
+/// Returns [`ConfigError::InvalidPostgresUrl`] when the URL does not begin
+/// with `postgres://` or `postgresql://`.
+pub fn validate_postgres_url(url: &str) -> Result<(), ConfigError> {
     if !url.starts_with("postgres://") && !url.starts_with("postgresql://") {
-        return Err(anyhow::anyhow!(
-            "DATABASE_URL must be a PostgreSQL connection string (postgres:// or postgresql://)"
-        ));
+        return Err(ConfigError::InvalidPostgresUrl);
     }
     Ok(())
 }

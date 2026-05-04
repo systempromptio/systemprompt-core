@@ -1,5 +1,12 @@
 //! Cloud Management API types shared between CLI and API server.
 
+mod provisioning;
+
+pub use provisioning::{
+    ActivityData, ActivityRequest, CheckoutEvent, CheckoutRequest, CheckoutResponse,
+    DeployResponse, ProvisioningEvent, ProvisioningEventType,
+};
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -204,13 +211,6 @@ pub struct RegistryToken {
     pub tag: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeployResponse {
-    pub status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub app_url: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudStatusResponse {
     pub status: String,
@@ -219,67 +219,6 @@ pub struct CloudStatusResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetSecretsRequest {
     pub secrets: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CheckoutRequest {
-    pub price_id: String,
-    pub region: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub redirect_uri: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CheckoutResponse {
-    pub checkout_url: String,
-    pub transaction_id: String,
-    pub checkout_session_id: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ProvisioningEventType {
-    SubscriptionCreated,
-    TenantCreated,
-    DatabaseCreated,
-    SecretsStored,
-    VmProvisioningStarted,
-    VmProvisioningProgress,
-    VmProvisioned,
-    SecretsConfigured,
-    InfrastructureReady,
-    TenantReady,
-    ProvisioningFailed,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProvisioningEvent {
-    // JSON: external vendor identifier
-    pub tenant_id: String,
-    pub event_type: ProvisioningEventType,
-    pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fly_app_name: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CheckoutEvent {
-    pub checkout_session_id: String,
-    // JSON: external vendor identifier
-    pub tenant_id: String,
-    pub tenant_name: String,
-    pub event_type: ProvisioningEventType,
-    pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fly_app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -324,19 +263,6 @@ pub struct CustomDomainResponse {
     pub created_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verified_at: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ActivityRequest {
-    pub event: String,
-    pub timestamp: String,
-    pub data: ActivityData,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ActivityData {
-    // JSON: external vendor identifier
-    pub user_id: String,
 }
 
 pub type ApiResponse<T> = CloudApiResponse<T>;

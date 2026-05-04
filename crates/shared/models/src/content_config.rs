@@ -1,3 +1,5 @@
+//! `content_config` module — see crate-level docs for context.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

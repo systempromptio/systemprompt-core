@@ -1,3 +1,5 @@
+//! `macros` module — see crate-level docs for context.
+
 #[macro_export]
 macro_rules! builder_methods {
     ($( $method:ident ( $field:ident ) -> $ty:ty ),* $(,)?) => {

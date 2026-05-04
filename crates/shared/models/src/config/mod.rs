@@ -1,3 +1,5 @@
+//! `config` module — see crate-level docs for context.
+
 use std::sync::OnceLock;
 use systemprompt_traits::ConfigProvider;
 
@@ -62,10 +64,16 @@ impl Config {
         CONFIG.get().is_some()
     }
 
-    pub fn get() -> anyhow::Result<&'static Self> {
+    /// Borrow the globally installed `Config`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::errors::ConfigError::NotInitialized`] when the
+    /// singleton has not yet been installed via [`Self::install`].
+    pub fn get() -> Result<&'static Self, crate::errors::ConfigError> {
         CONFIG
             .get()
-            .ok_or_else(|| anyhow::anyhow!("Config not initialized. Call Config::init() first."))
+            .ok_or(crate::errors::ConfigError::NotInitialized)
     }
 
     pub fn install(config: Self) -> Result<(), Box<Self>> {

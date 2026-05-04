@@ -78,9 +78,7 @@ impl RateLimitConfig {
         let base_capped = u32::try_from(base_rate).unwrap_or(u32::MAX);
         let scaled = f64::from(base_capped) * multiplier;
         let clamped = scaled.clamp(1.0, f64::from(u32::MAX));
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let result = clamped as u64;
-        result
+        clamped as u64
     }
 
     pub const fn tier_multiplier(&self, tier: RateLimitTier) -> f64 {

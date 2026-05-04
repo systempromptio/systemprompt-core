@@ -70,5 +70,9 @@ rmcp = { workspace = true }
 default = []
 web = ["dep:axum"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dev-dependencies]
 tempfile = { workspace = true }

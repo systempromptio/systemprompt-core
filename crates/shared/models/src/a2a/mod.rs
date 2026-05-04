@@ -1,3 +1,5 @@
+//! `a2a` module — see crate-level docs for context.
+
 pub mod agent_card;
 pub mod artifact;
 pub mod artifact_metadata;

@@ -1,3 +1,5 @@
+//! `content` module — see crate-level docs for context.
+
 mod ingestion;
 mod link;
 

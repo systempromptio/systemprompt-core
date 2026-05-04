@@ -1,3 +1,5 @@
+//! `modules` module — see crate-level docs for context.
+
 mod api_paths;
 mod cli_paths;
 mod service_category;
@@ -11,7 +13,7 @@ pub use types::{
     SchemaSource, SeedSource,
 };
 
-use anyhow::{Result, bail};
+use crate::errors::ModuleError;
 
 #[derive(Clone, Debug)]
 pub struct Modules {
@@ -19,7 +21,15 @@ pub struct Modules {
 }
 
 impl Modules {
-    pub fn from_vec(modules: Vec<Module>) -> Result<Self> {
+    /// Build a `Modules` collection from a flat module list, ordering
+    /// entries so each module's dependencies precede it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModuleError::MissingDependencies`] or
+    /// [`ModuleError::Cycle`] when the dependency graph cannot be
+    /// linearised.
+    pub fn from_vec(modules: Vec<Module>) -> Result<Self, ModuleError> {
         let modules = Self::resolve_dependencies(modules)?;
         Ok(Self { modules })
     }
@@ -32,7 +42,15 @@ impl Modules {
         self.modules.iter().find(|m| m.name == name)
     }
 
-    pub fn resolve_dependencies(mut modules: Vec<Module>) -> Result<Vec<Module>> {
+    /// Topologically sort `modules` so each module appears after its
+    /// declared dependencies.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModuleError::MissingDependencies`] when a declared
+    /// dependency is not present in `modules`, or [`ModuleError::Cycle`]
+    /// when the graph contains a cycle.
+    pub fn resolve_dependencies(mut modules: Vec<Module>) -> Result<Vec<Module>, ModuleError> {
         use std::collections::HashSet;
 
         let mut ordered = Vec::new();
@@ -69,11 +87,11 @@ impl Modules {
                         .iter()
                         .map(|(m, d)| format!("{m} -> {d}"))
                         .collect();
-                    bail!("Missing module dependencies: {}", missing_list.join(", "));
+                    return Err(ModuleError::MissingDependencies(missing_list.join(", ")));
                 }
 
                 let remaining: Vec<_> = modules.iter().map(|m| m.name.clone()).collect();
-                bail!("Circular dependency detected in modules: {remaining:?}");
+                return Err(ModuleError::Cycle(format!("{remaining:?}")));
             }
 
             for module in &to_process {

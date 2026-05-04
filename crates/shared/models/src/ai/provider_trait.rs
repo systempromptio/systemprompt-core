@@ -1,9 +1,10 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
+
+use crate::errors::ProviderResult as Result;
 
 use super::execution_plan::PlanningResult;
 use super::request::{AiMessage, AiRequest};
