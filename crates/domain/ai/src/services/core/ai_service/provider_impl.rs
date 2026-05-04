@@ -39,7 +39,9 @@ impl AiProvider for AiService {
         &self,
         request: &AiRequest,
     ) -> ProviderResult<Pin<Box<dyn Stream<Item = ProviderResult<StreamChunk>> + Send>>> {
-        let stream = Self::generate_stream(self, request).await.map_err(boxed_err)?;
+        let stream = Self::generate_stream(self, request)
+            .await
+            .map_err(boxed_err)?;
         use futures::StreamExt;
         let mapped = stream.map(|item| item.map_err(boxed_err));
         Ok(Box::pin(mapped))

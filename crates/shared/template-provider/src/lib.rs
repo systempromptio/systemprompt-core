@@ -39,7 +39,9 @@ pub use traits::{
     TemplateLoaderResult, TemplateProvider, TemplateSource,
 };
 
-pub use systemprompt_provider_contracts::{PagePrepareContext, PagePrerenderer, PageRenderSpec};
+pub use systemprompt_provider_contracts::{
+    PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderError, ProviderResult,
+};
 
 #[cfg(feature = "tokio")]
 pub use traits::FileSystemLoader;

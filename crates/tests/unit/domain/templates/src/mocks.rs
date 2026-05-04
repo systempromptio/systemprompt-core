@@ -195,7 +195,7 @@ impl TemplateDataExtender for MockExtender {
         &self,
         _ctx: &ExtenderContext<'_>,
         data: &mut serde_json::Value,
-    ) -> anyhow::Result<()> {
+    ) -> systemprompt_template_provider::ProviderResult<()> {
         if let Some(obj) = data.as_object_mut() {
             obj.insert(
                 format!("extended_by_{}", self.id),
@@ -252,7 +252,10 @@ impl ComponentRenderer for MockComponent {
         self.applies_to.clone()
     }
 
-    async fn render(&self, _ctx: &ComponentContext<'_>) -> anyhow::Result<RenderedComponent> {
+    async fn render(
+        &self,
+        _ctx: &ComponentContext<'_>,
+    ) -> systemprompt_template_provider::ProviderResult<RenderedComponent> {
         Ok(RenderedComponent::new(
             self.variable_name,
             format!("<div>Mock component {}</div>", self.id),
@@ -302,7 +305,10 @@ impl PageDataProvider for MockPageProvider {
         self.applies_to_pages.clone()
     }
 
-    async fn provide_page_data(&self, _ctx: &PageContext<'_>) -> anyhow::Result<serde_json::Value> {
+    async fn provide_page_data(
+        &self,
+        _ctx: &PageContext<'_>,
+    ) -> systemprompt_template_provider::ProviderResult<serde_json::Value> {
         Ok(serde_json::json!({
             "provider_id": self.id,
         }))

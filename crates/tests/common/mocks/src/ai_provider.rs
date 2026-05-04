@@ -1,4 +1,3 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream;
 use std::collections::{HashMap, VecDeque};
@@ -11,6 +10,7 @@ use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, GoogleSearchParams, McpTool, PlanningResult,
     SearchGroundedResponse, StreamChunk, ToolModelOverrides,
 };
+use systemprompt_models::errors::ProviderResult as Result;
 use systemprompt_models::execution::context::RequestContext;
 use uuid::Uuid;
 
@@ -301,7 +301,7 @@ impl MockAiProviderBuilder {
     }
 
     pub fn with_generate_error(mut self, error: anyhow::Error) -> Self {
-        self.generate_responses.push_back(Err(error));
+        self.generate_responses.push_back(Err(error.into()));
         self
     }
 
