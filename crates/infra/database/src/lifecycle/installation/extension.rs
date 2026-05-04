@@ -8,7 +8,6 @@ use super::util::table_exists;
 use crate::lifecycle::migrations::MigrationService;
 use crate::services::{DatabaseProvider, SqlExecutor};
 
-/// Install every enabled extension's schemas (no opt-out list).
 pub async fn install_extension_schemas(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
@@ -16,9 +15,6 @@ pub async fn install_extension_schemas(
     install_extension_schemas_with_config(registry, db, &[]).await
 }
 
-/// Install every enabled extension's schemas, skipping ids in
-/// `disabled_extensions`. Migrations are run in extension order after schema
-/// installation completes.
 pub async fn install_extension_schemas_with_config(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,

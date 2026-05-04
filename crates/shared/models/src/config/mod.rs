@@ -64,12 +64,6 @@ impl Config {
         CONFIG.get().is_some()
     }
 
-    /// Borrow the globally installed `Config`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::errors::ConfigError::NotInitialized`] when the
-    /// singleton has not yet been installed via [`Self::install`].
     pub fn get() -> Result<&'static Self, crate::errors::ConfigError> {
         CONFIG
             .get()

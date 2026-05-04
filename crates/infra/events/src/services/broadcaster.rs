@@ -16,27 +16,16 @@ use tokio::sync::RwLock;
 
 use crate::{Broadcaster, EventSender, ToSse};
 
-/// JSON payload of the periodic SSE heartbeat record.
 pub const HEARTBEAT_JSON: &str = r#"{"type":"heartbeat"}"#;
 
-/// Interval between SSE heartbeat records.
-///
-/// Sized to keep intermediate proxies (nginx, Cloudflare) from idling the
-/// connection while still being well below the 60s default timeout most
-/// reverse proxies ship with.
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 
-/// Returns the `axum` [`KeepAlive`] used by every SSE response in the system.
 pub fn standard_keep_alive() -> KeepAlive {
     KeepAlive::new()
         .interval(HEARTBEAT_INTERVAL)
         .event(Event::default().event("heartbeat").data(HEARTBEAT_JSON))
 }
 
-/// SSE broadcaster shared between the runtime and the API layer.
-///
-/// `E` is the typed event payload (`A2AEvent`, `ContextEvent`, …); the
-/// broadcaster itself is event-agnostic and serializes through [`ToSse`].
 pub struct GenericBroadcaster<E: ToSse + Clone + Send + Sync> {
     connections: Arc<RwLock<HashMap<String, HashMap<String, EventSender>>>>,
     _phantom: PhantomData<E>,
@@ -51,7 +40,6 @@ impl<E: ToSse + Clone + Send + Sync> std::fmt::Debug for GenericBroadcaster<E> {
 }
 
 impl<E: ToSse + Clone + Send + Sync> GenericBroadcaster<E> {
-    /// Constructs an empty broadcaster.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -60,14 +48,11 @@ impl<E: ToSse + Clone + Send + Sync> GenericBroadcaster<E> {
         }
     }
 
-    /// Returns the list of user ids that currently have at least one
-    /// registered SSE connection.
     pub async fn connected_users(&self) -> Vec<String> {
         let connections = self.connections.read().await;
         connections.keys().cloned().collect()
     }
 
-    /// Returns `(user_count, total_connection_count)` for diagnostics.
     pub async fn connection_info(&self) -> (usize, usize) {
         let (user_count, conn_count) = {
             let connections = self.connections.read().await;
@@ -166,20 +151,11 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
 
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent};
 
-/// Broadcaster carrying [`AgUiEvent`] payloads.
 pub type AgUiBroadcaster = GenericBroadcaster<AgUiEvent>;
-/// Broadcaster carrying [`A2AEvent`] payloads.
 pub type A2ABroadcaster = GenericBroadcaster<A2AEvent>;
-/// Broadcaster carrying [`ContextEvent`] payloads (the unified context stream).
 pub type ContextBroadcaster = GenericBroadcaster<ContextEvent>;
-/// Broadcaster carrying [`AnalyticsEvent`] payloads.
 pub type AnalyticsBroadcaster = GenericBroadcaster<AnalyticsEvent>;
 
-/// RAII guard that unregisters an SSE connection on drop.
-///
-/// Returned when an HTTP handler attaches a connection to a global
-/// broadcaster; dropping the guard schedules the unregister call on the
-/// tokio runtime so cleanup runs even if the handler panics.
 pub struct ConnectionGuard<E: ToSse + Clone + Send + Sync + 'static> {
     broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,
     user_id: UserId,
@@ -197,8 +173,6 @@ impl<E: ToSse + Clone + Send + Sync + 'static> std::fmt::Debug for ConnectionGua
 }
 
 impl<E: ToSse + Clone + Send + Sync + 'static> ConnectionGuard<E> {
-    /// Constructs a guard tied to a specific broadcaster, user, and
-    /// connection id.
     #[must_use]
     pub fn new(
         broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,

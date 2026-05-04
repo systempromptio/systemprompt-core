@@ -34,7 +34,6 @@ use super::process::ProcessManager;
 use super::registry::RegistryManager;
 use crate::McpServerConfig;
 
-/// Top-level supervisor that wires the MCP service subsystems together.
 #[derive(Debug)]
 pub struct McpOrchestrator {
     event_bus: Arc<EventBus>,
@@ -45,8 +44,6 @@ pub struct McpOrchestrator {
 }
 
 impl McpOrchestrator {
-    /// Construct a new orchestrator wired against the given database pool and
-    /// paths.
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(db_pool: DbPool, app_paths: Arc<AppPaths>) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
@@ -94,7 +91,6 @@ impl McpOrchestrator {
         &self.database
     }
 
-    /// List all enabled services with their current runtime status.
     pub async fn list_services(&self) -> McpDomainResult<()> {
         let servers = RegistryManager::get_enabled_servers()?;
         let status_data = self.monitoring.get_status_for_all(&servers).await?;
@@ -102,25 +98,20 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    /// Alias for [`Self::list_services`].
     pub async fn show_status(&self) -> McpDomainResult<()> {
         self.list_services().await
     }
 
-    /// Reconcile the database state with currently-running services.
     pub async fn sync_database_state(&self) -> McpDomainResult<()> {
         tracing::info!("Synchronizing service database state");
         let servers = RegistryManager::get_enabled_servers()?;
         self.database.sync_state(&servers).await
     }
 
-    /// Reconcile target deployment state with running processes; returns the
-    /// number reconciled.
     pub async fn reconcile(&self) -> McpDomainResult<usize> {
         self.reconcile_with_events(None).await
     }
 
-    /// Reconcile with progress events on the supplied channel.
     pub async fn reconcile_with_events(
         &self,
         events: Option<&StartupEventSender>,
@@ -135,17 +126,14 @@ impl McpOrchestrator {
         .await
     }
 
-    /// Run the post-start validation handshake for a single service.
     pub async fn validate_service(&self, service_name: &str) -> McpDomainResult<()> {
         service_validation::validate_service(service_name, &self.database).await
     }
 
-    /// Returns servers that are currently running (per the database).
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
         self.database.get_running_servers().await
     }
 
-    /// Look up service info (status, port, pid) by name.
     pub async fn get_service_info(
         &self,
         service_name: &str,
@@ -153,12 +141,10 @@ impl McpOrchestrator {
         self.database.get_service_by_name(service_name).await
     }
 
-    /// Run the long-lived orchestrator daemon loop.
     pub async fn run_daemon(&self) -> McpDomainResult<()> {
         daemon::run_daemon(&self.event_bus, &self.lifecycle, &self.database).await
     }
 
-    /// Subscribe to lifecycle events emitted by this orchestrator.
     pub fn subscribe_events(&self) -> tokio::sync::broadcast::Receiver<McpEvent> {
         self.event_bus.subscribe()
     }

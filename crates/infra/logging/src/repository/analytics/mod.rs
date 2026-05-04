@@ -7,31 +7,17 @@ use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, UserId};
 
 use crate::models::LoggingError;
 
-/// Repository for inserting structured analytics events into the
-/// `analytics_events` table.
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepository {
     write_pool: Arc<PgPool>,
 }
 
 impl AnalyticsRepository {
-    /// Construct an analytics repository bound to the writable Postgres pool.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`LoggingError`] when the database write pool is unavailable.
     pub fn new(db: &DbPool) -> Result<Self, LoggingError> {
         let write_pool = db.write_pool_arc()?;
         Ok(Self { write_pool })
     }
 
-    /// Persist an analytics event and return the number of affected rows as
-    /// `i64`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`LoggingError::DatabaseError`] when the underlying insert
-    /// fails.
     pub async fn log_event(&self, event: &AnalyticsEvent) -> Result<i64, LoggingError> {
         let result = execute_insert(&self.write_pool, event).await?;
         Ok(i64::try_from(result).unwrap_or(i64::MAX))

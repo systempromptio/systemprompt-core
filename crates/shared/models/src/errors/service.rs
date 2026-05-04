@@ -5,39 +5,29 @@ use systemprompt_traits::RepositoryError;
 
 use crate::api::ApiError;
 
-/// Application-layer umbrella error returned by the service tier when
-/// orchestrating repositories and external systems.
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
-    /// An underlying repository call failed.
     #[error("repository error: {0}")]
     Repository(#[from] RepositoryError),
 
-    /// Input failed business validation.
     #[error("validation error: {0}")]
     Validation(String),
 
-    /// A higher-level invariant of the domain was violated.
     #[error("business logic error: {0}")]
     BusinessLogic(String),
 
-    /// An external dependency failed.
     #[error("external service error: {0}")]
     External(String),
 
-    /// A requested entity was not found.
     #[error("not found: {0}")]
     NotFound(String),
 
-    /// The operation conflicted with existing state.
     #[error("conflict: {0}")]
     Conflict(String),
 
-    /// The principal is unauthenticated.
     #[error("unauthorized: {0}")]
     Unauthorized(String),
 
-    /// The principal lacks permission.
     #[error("forbidden: {0}")]
     Forbidden(String),
 }

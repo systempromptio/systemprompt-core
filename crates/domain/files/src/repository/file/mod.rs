@@ -22,8 +22,8 @@ pub struct FileRepository {
 
 impl FileRepository {
     pub fn new(db: &DbPool) -> FilesResult<Self> {
-        let pool = db.pool_arc().map_err(FilesError::Other)?;
-        let write_pool = db.write_pool_arc().map_err(FilesError::Other)?;
+        let pool = db.pool_arc()?;
+        let write_pool = db.write_pool_arc()?;
         Ok(Self { pool, write_pool })
     }
 

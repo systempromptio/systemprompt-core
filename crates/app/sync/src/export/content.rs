@@ -7,7 +7,6 @@ use std::fs;
 use std::path::Path;
 use systemprompt_content::models::Content;
 
-/// Render a [`Content`] row as a Markdown document with YAML frontmatter.
 pub fn generate_content_markdown(content: &Content) -> String {
     let image_str = content.image.as_deref().unwrap_or("");
 
@@ -41,9 +40,6 @@ updated_at: "{}"
     )
 }
 
-/// Write `content` to disk under `base_path`. For the `blog` source type the
-/// markdown lands in `<slug>/index.md`; for every other source type it lands
-/// in `<slug>.md` directly under `base_path`.
 pub fn export_content_to_file(
     content: &Content,
     base_path: &Path,

@@ -22,20 +22,11 @@
 //! - [`LoggingRepository`], [`AnalyticsRepository`] — direct repository access.
 //! - [`TraceQueryService`], [`AiTraceService`] — typed audit/trace queries.
 
-/// Extension registration for the logging crate (schemas + dependencies).
 pub mod extension;
-/// Tracing subscriber layers (proxy + database batching writer + field
-/// visitor).
 pub mod layer;
-/// Core domain models: log entries, filters, levels, and the
-/// [`models::LoggingError`] enum.
 pub mod models;
-/// Repository facades over the `logs` and `analytics_events` tables.
 pub mod repository;
-/// Service layer: database log service, retention scheduling, CLI display
-/// (feature-gated), span helpers, and the structured-event publisher.
 pub mod services;
-/// Trace, audit, and AI-request query services.
 pub mod trace;
 
 pub use extension::LoggingExtension;

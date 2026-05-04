@@ -8,7 +8,6 @@ use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderError,
 
 use crate::prerender::prerender_content;
 
-/// Scheduled job that prerenders every configured content source.
 #[derive(Debug, Clone, Copy)]
 pub struct ContentPrerenderJob;
 

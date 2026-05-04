@@ -241,14 +241,6 @@ impl HookEventsConfig {
         }
     }
 
-    /// Validate that every hook action references the correct payload field
-    /// for its declared `hook_type`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigValidationError::Required`] if a `command`-type matcher
-    /// omits its `command` field, or a `prompt`-type matcher omits its
-    /// `prompt` field.
     pub fn validate(&self) -> Result<(), ConfigValidationError> {
         for event in HookEvent::ALL_VARIANTS {
             for matcher in self.matchers_for_event(*event) {

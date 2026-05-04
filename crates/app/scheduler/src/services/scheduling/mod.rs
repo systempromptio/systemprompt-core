@@ -19,7 +19,6 @@ use tracing::{Instrument, debug, info, warn};
 
 pub(crate) type RunningJobs = Arc<Mutex<HashSet<String>>>;
 
-/// Lifecycle owner for the cron scheduler and its registered job set.
 #[derive(Debug)]
 pub struct SchedulerService {
     config: SchedulerConfig,
@@ -29,8 +28,6 @@ pub struct SchedulerService {
 }
 
 impl SchedulerService {
-    /// Construct a new scheduler service from configuration, a shared
-    /// [`DbPool`], and the runtime [`AppContext`].
     pub fn new(
         config: SchedulerConfig,
         db_pool: DbPool,
@@ -45,8 +42,6 @@ impl SchedulerService {
         })
     }
 
-    /// Start the cron scheduler, registering every enabled job and spawning
-    /// any `run_on_startup` jobs in the background.
     pub async fn start(self) -> SchedulerResult<()> {
         if !self.config.enabled {
             info!("Scheduler is disabled");

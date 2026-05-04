@@ -6,9 +6,6 @@ use std::collections::HashSet;
 use systemprompt_template_provider::{ComponentContext, RenderedComponent};
 use systemprompt_templates::TemplateRegistry;
 
-/// Recursively merge `extension` into `base`. Both inputs must be JSON
-/// objects at every depth being merged; mismatched types replace the value at
-/// `base` outright.
 pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
     match (base, extension) {
         (serde_json::Value::Object(base_obj), serde_json::Value::Object(ext_obj)) => {
@@ -27,9 +24,6 @@ pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Val
     }
 }
 
-/// Render every component registered for `target_type`, merging the result
-/// HTML into `data` under the component's `variable_name`. Component failures
-/// are logged at WARN and skipped — rendering is best-effort.
 pub async fn render_components(
     template_registry: &TemplateRegistry,
     target_type: &str,

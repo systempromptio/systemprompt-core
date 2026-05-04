@@ -13,7 +13,6 @@ use super::types::{DeployEnvironment, EnvironmentConfig};
 use super::writer::ConfigWriter;
 use crate::error::{ConfigError, ConfigResult};
 
-/// Builds environment-specific `.env` files from layered YAML configs.
 #[derive(Debug)]
 pub struct ConfigManager {
     project_root: PathBuf,
@@ -22,8 +21,6 @@ pub struct ConfigManager {
 }
 
 impl ConfigManager {
-    /// Create a manager rooted at `project_root`. Environment configs
-    /// are expected under `infrastructure/environments/<env>/`.
     #[must_use]
     pub fn new(project_root: PathBuf) -> Self {
         let environments_dir = project_root.join("infrastructure/environments");
@@ -35,15 +32,6 @@ impl ConfigManager {
         }
     }
 
-    /// Generate the resolved [`EnvironmentConfig`] for `environment`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigError::EnvironmentConfigMissing`] when a
-    /// required YAML file is absent, [`ConfigError::Yaml`] /
-    /// [`ConfigError::Io`] for malformed inputs, and
-    /// [`ConfigError::UnresolvedVariables`] when `${...}` substitution
-    /// does not converge.
     pub fn generate_config(
         &self,
         environment: DeployEnvironment,
@@ -264,21 +252,10 @@ impl ConfigManager {
         Ok(result)
     }
 
-    /// Write a free-standing environment to `output_path`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigError::Io`] on any underlying write failure.
     pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
         ConfigWriter::write_env_file(config, output_path)
     }
 
-    /// Write the web frontend `.env.<env>` (and dev symlink) using
-    /// the configured project root.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigError::Io`] on any underlying write failure.
     pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> ConfigResult<()> {
         self.writer.write_web_env_file(config)
     }

@@ -46,20 +46,14 @@ pub use systemprompt_provider_contracts::{
 #[cfg(feature = "tokio")]
 pub use traits::FileSystemLoader;
 
-/// Type-erased [`TemplateProvider`] handle shared across async tasks.
 pub type DynTemplateProvider = std::sync::Arc<dyn TemplateProvider>;
 
-/// Type-erased [`TemplateLoader`] handle shared across async tasks.
 pub type DynTemplateLoader = std::sync::Arc<dyn TemplateLoader>;
 
-/// Type-erased [`TemplateDataExtender`] handle shared across async tasks.
 pub type DynTemplateDataExtender = std::sync::Arc<dyn TemplateDataExtender>;
 
-/// Type-erased [`ComponentRenderer`] handle shared across async tasks.
 pub type DynComponentRenderer = std::sync::Arc<dyn ComponentRenderer>;
 
-/// Type-erased [`PageDataProvider`] handle shared across async tasks.
 pub type DynPageDataProvider = std::sync::Arc<dyn PageDataProvider>;
 
-/// Type-erased [`PagePrerenderer`] handle shared across async tasks.
 pub type DynPagePrerenderer = std::sync::Arc<dyn PagePrerenderer>;

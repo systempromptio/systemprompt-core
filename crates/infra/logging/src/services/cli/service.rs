@@ -63,29 +63,16 @@ impl CliService {
         DisplayUtils::subsection_header(title);
     }
 
-    /// Clear the terminal using ANSI escape sequences.
-    ///
-    /// Why: CLI display sink — if writing to stdout fails (closed pipe), there
-    /// is no recoverable path; recursing into tracing IS the failure mode
-    /// we are trying to avoid.
     pub fn clear_screen() {
         let mut stdout = std::io::stdout();
         write!(stdout, "\x1B[2J\x1B[1;1H").ok();
     }
 
-    /// Print a single line of raw output to stdout.
-    ///
-    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
-    /// rationale.
     pub fn output(content: &str) {
         let mut stdout = std::io::stdout();
         writeln!(stdout, "{content}").ok();
     }
 
-    /// Pretty-print a serializable value as JSON to stdout.
-    ///
-    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
-    /// rationale.
     pub fn json<T: Serialize>(value: &T) {
         match serde_json::to_string_pretty(value) {
             Ok(json) => {
@@ -96,10 +83,6 @@ impl CliService {
         }
     }
 
-    /// Print a compact (single-line) JSON serialization to stdout.
-    ///
-    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
-    /// rationale.
     pub fn json_compact<T: Serialize>(value: &T) {
         match serde_json::to_string(value) {
             Ok(json) => {
@@ -110,10 +93,6 @@ impl CliService {
         }
     }
 
-    /// Print a value serialized as YAML to stdout.
-    ///
-    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
-    /// rationale.
     pub fn yaml<T: Serialize>(value: &T) {
         match serde_yaml::to_string(value) {
             Ok(yaml) => {
@@ -124,10 +103,6 @@ impl CliService {
         }
     }
 
-    /// Print a `label: value` pair with theme styling.
-    ///
-    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
-    /// rationale.
     pub fn key_value(label: &str, value: &str) {
         let mut stdout = std::io::stdout();
         writeln!(
@@ -139,10 +114,6 @@ impl CliService {
         .ok();
     }
 
-    /// Print a status line with icon, label, and value.
-    ///
-    /// Why: CLI display sink — see `clear_screen` for the broken-pipe
-    /// rationale.
     pub fn status_line(label: &str, value: &str, status: ItemStatus) {
         let mut stdout = std::io::stdout();
         writeln!(

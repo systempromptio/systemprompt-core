@@ -5,9 +5,7 @@ use std::io::Write;
 
 use crate::models::{ColumnInfo, DatabaseInfo, QueryResult, TableInfo};
 
-/// Render a value to stdout in the format used by the systemprompt CLI.
 pub trait DatabaseCliDisplay {
-    /// Print this value using the CLI's standard format.
     fn display_with_cli(&self);
 }
 

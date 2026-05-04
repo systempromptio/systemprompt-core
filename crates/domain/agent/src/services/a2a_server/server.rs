@@ -36,12 +36,6 @@ impl std::fmt::Debug for Server {
 }
 
 impl Server {
-    /// Build the embedded A2A HTTP server for a named agent.
-    ///
-    /// # Errors
-    /// Returns [`crate::error::AgentError`] if the agent cannot be loaded from
-    /// the registry, secrets cannot be read, or the global configuration is
-    /// unavailable.
     pub async fn new(
         db_pool: DbPool,
         agent_state: Arc<AgentState>,
@@ -95,11 +89,6 @@ impl Server {
         })
     }
 
-    /// Reload the agent's configuration from the on-disk registry.
-    ///
-    /// # Errors
-    /// Returns [`crate::error::AgentError::Server`] if the registry cannot be
-    /// loaded or the agent name no longer resolves.
     pub async fn reload_config(&self) -> Result<(), crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
@@ -155,21 +144,11 @@ impl Server {
         router.layer(CorsLayer::permissive())
     }
 
-    /// Start the server and run it until the underlying axum service stops.
-    ///
-    /// # Errors
-    /// Returns [`crate::error::AgentError::Io`] if the listener cannot bind, or
-    /// [`crate::error::AgentError::Server`] if axum reports a serving failure.
     pub async fn run(self) -> Result<(), crate::error::AgentError> {
         Self::log_server_configuration();
         self.start_server(None).await
     }
 
-    /// Start the server and shut down gracefully when `shutdown_signal`
-    /// resolves.
-    ///
-    /// # Errors
-    /// See [`Self::run`].
     pub async fn run_with_shutdown(
         self,
         shutdown_signal: impl Future<Output = ()> + Send + 'static,

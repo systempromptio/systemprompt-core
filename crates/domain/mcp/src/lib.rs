@@ -51,10 +51,8 @@ pub use extension::McpExtension;
 pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
 
-/// Wire-protocol version implemented by this crate's MCP server runtime.
 pub const MCP_PROTOCOL_VERSION: &str = "2024-11-05";
 
-/// Convenience alias for results returned from MCP request handlers.
 pub type McpResult<T> = Result<T, McpError>;
 
 pub use capabilities::{
@@ -92,12 +90,10 @@ pub use systemprompt_models::mcp::{
     McpProvider, McpRegistry, McpServerState,
 };
 
-/// Returns the `rmcp` runtime's currently-advertised protocol version string.
 pub fn mcp_protocol_version() -> String {
     ProtocolVersion::LATEST.to_string()
 }
 
-/// Public re-export of the registry surface.
 pub mod registry {
     pub use crate::services::registry::RegistryManager;
 }
@@ -165,8 +161,6 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     response
 }
 
-/// Build an axum router that mounts the MCP streamable-HTTP service at `/mcp`,
-/// with request logging and SSE-buffer-disable middleware applied.
 pub fn create_router<S>(server: S, db_pool: &DbPool) -> axum::Router
 where
     S: ServerHandler + Clone + Send + Sync + 'static,

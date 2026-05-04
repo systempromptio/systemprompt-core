@@ -133,13 +133,6 @@ impl From<&PluginConfig> for PluginSummary {
 }
 
 impl PluginConfig {
-    /// Validate this plugin manifest entry against its declared key.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigValidationError`] when the id, version, or component
-    /// references violate structural constraints. Hook configuration
-    /// validation is delegated to [`HookEventsConfig::validate`].
     pub fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
         let id_str = self.id.as_str();
         if id_str.len() < 3 || id_str.len() > 50 {

@@ -71,18 +71,10 @@ const SHORT_UA_NEEDLES: &[(&str, usize)] = &[
     ("ruby", MAX_RUBY_UA_LENGTH),
 ];
 
-/// Heuristic scanner / bot detector.
-///
-/// Inspects request paths, user-agent strings, and request velocity to
-/// classify obvious vulnerability scanners (sqlmap, nmap, masscan, etc.)
-/// and unrealistically-old browsers. Used by the API entry crate to short
-/// -circuit responses before any business logic runs.
 #[derive(Debug, Clone, Copy)]
 pub struct ScannerDetector;
 
 impl ScannerDetector {
-    /// Returns `true` if `path` looks like a vulnerability-scanner probe
-    /// (e.g. `/wp-admin`, `*.php` against a non-PHP service).
     #[must_use]
     pub fn is_scanner_path(path: &str) -> bool {
         Self::has_scanner_extension(path) || Self::has_scanner_directory(path)
@@ -104,8 +96,6 @@ impl ScannerDetector {
         SCANNER_PATHS.iter().any(|p| path_lower.contains(p))
     }
 
-    /// Returns `true` if `user_agent` matches a known scanner signature,
-    /// is suspiciously short, or claims to be a wildly outdated browser.
     #[must_use]
     pub fn is_scanner_agent(user_agent: &str) -> bool {
         let ua_lower = user_agent.to_lowercase();
@@ -146,8 +136,6 @@ impl ScannerDetector {
         false
     }
 
-    /// Returns `true` if `request_count` over `duration_seconds` exceeds
-    /// the configured max-requests-per-minute threshold.
     #[must_use]
     pub fn is_high_velocity(request_count: i64, duration_seconds: i64) -> bool {
         if duration_seconds < 1 {
@@ -158,10 +146,6 @@ impl ScannerDetector {
         requests_per_minute > MAX_REQUESTS_PER_MINUTE
     }
 
-    /// Composite check across path, user-agent, and request velocity.
-    ///
-    /// Any signal returns `true`; a missing `user_agent` is treated as
-    /// scanner-likely because every legitimate browser sends one.
     #[must_use]
     pub fn is_scanner(
         path: Option<&str>,

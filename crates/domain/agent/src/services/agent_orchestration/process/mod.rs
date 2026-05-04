@@ -18,12 +18,6 @@ pub use signals::{
     force_kill_process, kill_process, process_exists, terminate_gracefully, terminate_process,
 };
 
-/// Spawn the platform `systemprompt` binary as a detached agent process.
-///
-/// # Errors
-/// Returns [`OrchestrationError::ProcessSpawnFailed`] if any prerequisite
-/// (binary path, config, secrets, profile path, log file, `spawn`) fails or if
-/// the child process dies immediately.
 pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> OrchestrationResult<u32> {
     let binary_path = paths.build().resolve_binary("systemprompt").map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to find systemprompt binary: {e}"))
@@ -71,13 +65,11 @@ pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> Orchestr
     Ok(pid)
 }
 
-/// Returns whether the given TCP port on `127.0.0.1` is currently bound.
 pub fn is_port_in_use(port: u16) -> bool {
     use std::net::TcpListener;
     TcpListener::bind(format!("127.0.0.1:{port}")).is_err()
 }
 
-/// Compatibility alias for [`spawn_detached`].
 pub fn spawn_detached_process(
     paths: &AppPaths,
     agent_name: &str,
@@ -86,12 +78,6 @@ pub fn spawn_detached_process(
     spawn_detached(paths, agent_name, port)
 }
 
-/// Validate that the `systemprompt` binary on disk exists and is executable.
-///
-/// # Errors
-/// Returns [`crate::error::AgentError::Validation`] if the binary cannot be
-/// resolved or is not an executable file, or [`crate::error::AgentError::Io`]
-/// if its metadata cannot be read.
 pub fn validate_agent_binary(paths: &AppPaths) -> crate::error::AgentResult<()> {
     let binary_path = paths
         .build()

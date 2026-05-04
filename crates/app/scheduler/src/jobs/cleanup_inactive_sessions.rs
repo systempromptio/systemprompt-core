@@ -8,7 +8,6 @@ use tracing::debug;
 
 use crate::error::SchedulerError;
 
-/// Scheduled job that closes inactive sessions older than 1 hour.
 #[derive(Debug, Clone, Copy)]
 pub struct CleanupInactiveSessionsJob;
 

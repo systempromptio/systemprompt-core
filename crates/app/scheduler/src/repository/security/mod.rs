@@ -9,32 +9,24 @@ use systemprompt_database::DbPool;
 
 use crate::error::SchedulerResult;
 
-/// Repository surfacing IP-aggregation queries against `user_sessions`.
 #[derive(Debug, Clone)]
 pub struct SecurityRepository {
     pool: Arc<PgPool>,
 }
 
-/// Aggregate row describing IP activity in the last 24 hours.
 #[derive(Debug)]
 pub struct IpSessionRecord {
-    /// Source IP address of the aggregated sessions.
     pub ip_address: Option<String>,
-    /// Country code as recorded on the session, when available.
     pub country: Option<String>,
-    /// Number of sessions that contributed to this aggregate.
     pub session_count: i64,
 }
 
 impl SecurityRepository {
-    /// Construct a new repository from the shared [`DbPool`].
     pub fn new(db: &DbPool) -> SchedulerResult<Self> {
         let pool = db.pool_arc()?;
         Ok(Self { pool })
     }
 
-    /// Find IPs that ran at least `threshold` non-bot sessions in the last
-    /// 24 hours.
     pub async fn find_high_volume_ips(
         &self,
         threshold: i64,
@@ -66,8 +58,6 @@ impl SecurityRepository {
             .collect())
     }
 
-    /// Find IPs that the analytics scanner-detector flagged at least
-    /// `threshold` times in the last 24 hours.
     pub async fn find_scanner_ips(&self, threshold: i64) -> SchedulerResult<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
@@ -96,8 +86,6 @@ impl SecurityRepository {
             .collect())
     }
 
-    /// Return per-IP session aggregates for every distinct IP active in the
-    /// last 24 hours.
     pub async fn find_recent_ips(&self) -> SchedulerResult<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
@@ -123,9 +111,6 @@ impl SecurityRepository {
             .collect())
     }
 
-    /// Find IPs from any country that contributed at least `threshold`
-    /// sessions in the last 24 hours; the caller filters by high-risk
-    /// country list.
     pub async fn find_high_risk_country_ips(
         &self,
         threshold: i64,

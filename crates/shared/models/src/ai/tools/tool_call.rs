@@ -32,14 +32,6 @@ pub struct ToolExecution {
 }
 
 impl ToolExecution {
-    /// Build a [`ToolExecution`] from a JSON-shaped row map produced by
-    /// the runtime SQL adapter.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RowParseError::Missing`] when a required column is
-    /// absent or has the wrong type, or [`RowParseError::OutOfRange`]
-    /// when a numeric column does not fit the target representation.
     pub fn from_json_row(row: &HashMap<String, JsonValue>) -> Result<Self, RowParseError> {
         let id = row
             .get("id")

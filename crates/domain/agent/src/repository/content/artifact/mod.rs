@@ -14,7 +14,6 @@ use systemprompt_database::DbPool;
 
 use crate::error::AgentError;
 
-/// Repository for task artifacts; holds the read and write pools.
 #[derive(Debug, Clone)]
 pub struct ArtifactRepository {
     pool: Arc<PgPool>,
@@ -22,11 +21,6 @@ pub struct ArtifactRepository {
 }
 
 impl ArtifactRepository {
-    /// Construct a new `ArtifactRepository` from a shared [`DbPool`].
-    ///
-    /// # Errors
-    /// Returns [`AgentError::Init`] if the read or write pool cannot be
-    /// acquired.
     pub fn new(db: &DbPool) -> Result<Self, AgentError> {
         let pool = db.pool_arc().map_err(|e| AgentError::Init(e.to_string()))?;
         let write_pool = db

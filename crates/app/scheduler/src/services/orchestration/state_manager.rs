@@ -9,7 +9,7 @@ use tokio::time::timeout;
 use super::process_cleanup::ProcessCleanup;
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
 use super::verified_state::VerifiedServiceState;
-use crate::error::{SchedulerError, SchedulerResult};
+use crate::error::SchedulerResult;
 use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
@@ -17,49 +17,33 @@ const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
      ('running', 'starting', 'stopped')",
 );
 
-/// Static service configuration used as input to verification.
 #[derive(Debug, Clone)]
 pub struct ServiceConfig {
-    /// Service identifier as referenced by config and the `services` table.
     pub name: String,
-    /// Service-type discriminator.
     pub service_type: ServiceType,
-    /// TCP port the service binds to.
     pub port: u16,
-    /// Whether the service is enabled in configuration.
     pub enabled: bool,
 }
 
-/// One row from the `services` table consumed during verification.
 #[derive(Debug, Clone)]
 pub struct DbServiceRecord {
-    /// Service name primary key.
     pub name: String,
-    /// Persisted module name (used to derive [`ServiceType`]).
     pub service_type: String,
-    /// Persisted status string (`running`, `starting`, `stopped`).
     pub status: String,
-    /// Persisted PID when the service was last marked running.
     pub pid: Option<i64>,
-    /// Persisted port number.
     pub port: i32,
 }
 
-/// Verification engine that pairs [`ServiceConfig`] with live process/port
-/// observations and the persisted `services` row.
 #[derive(Debug)]
 pub struct ServiceStateManager {
     db_pool: DbPool,
 }
 
 impl ServiceStateManager {
-    /// Construct a new manager.
     pub const fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
     }
 
-    /// Verify every supplied config and every orphan `services` row, returning
-    /// a [`VerifiedServiceState`] per logical service.
     pub async fn get_verified_states(
         &self,
         configs: &[ServiceConfig],
@@ -174,8 +158,7 @@ impl ServiceStateManager {
             .db_pool
             .as_ref()
             .fetch_all(&FETCH_DB_SERVICES, empty_params)
-            .await
-            .map_err(SchedulerError::Other)?;
+            .await?;
 
         let mut records = Vec::new();
         for row in rows {
@@ -224,8 +207,6 @@ impl ServiceStateManager {
         Ok(records)
     }
 
-    /// Return only those services whose verified state requires reconciler
-    /// action.
     pub async fn get_services_needing_action(
         &self,
         configs: &[ServiceConfig],
@@ -237,7 +218,6 @@ impl ServiceStateManager {
             .collect())
     }
 
-    /// Return only those services whose runtime status is `Running`.
     pub async fn get_running_services(
         &self,
         configs: &[ServiceConfig],
@@ -249,7 +229,6 @@ impl ServiceStateManager {
             .collect())
     }
 
-    /// Return only those services whose runtime status is `Crashed`.
     pub async fn get_crashed_services(
         &self,
         configs: &[ServiceConfig],

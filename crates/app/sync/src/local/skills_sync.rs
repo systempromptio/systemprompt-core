@@ -13,7 +13,6 @@ use systemprompt_identifiers::SourceId;
 use systemprompt_models::SkillsConfig;
 use tracing::info;
 
-/// Drives sync between an on-disk skills directory and the database.
 #[derive(Debug)]
 pub struct SkillsLocalSync {
     db: DbPool,
@@ -21,14 +20,10 @@ pub struct SkillsLocalSync {
 }
 
 impl SkillsLocalSync {
-    /// Construct a new sync handle for the given database pool and skills
-    /// directory.
     pub const fn new(db: DbPool, skills_path: PathBuf) -> Self {
         Self { db, skills_path }
     }
 
-    /// Compute the [`SkillsDiffResult`] between disk and database without
-    /// applying any changes.
     pub async fn calculate_diff(&self) -> SyncResult<SkillsDiffResult> {
         let calculator = SkillsDiffCalculator::new(&self.db).map_err(SyncError::other)?;
         calculator
@@ -37,8 +32,6 @@ impl SkillsLocalSync {
             .map_err(SyncError::other)
     }
 
-    /// Apply `diff` from the database back to disk. When `delete_orphans` is
-    /// `true`, on-disk-only skills are deleted.
     pub async fn sync_to_disk(
         &self,
         diff: &SkillsDiffResult,
@@ -106,9 +99,6 @@ impl SkillsLocalSync {
         Ok(result)
     }
 
-    /// Apply `diff` from disk into the database via the skill ingestion
-    /// service. `delete_orphans` is currently a no-op (skill deletion through
-    /// this path is not supported); callers receive a logged WARN.
     pub async fn sync_to_db(
         &self,
         diff: &SkillsDiffResult,

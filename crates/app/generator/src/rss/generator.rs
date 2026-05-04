@@ -12,19 +12,13 @@ use tokio::fs;
 use super::default_provider::DefaultRssFeedProvider;
 use crate::error::{GeneratorResult as Result, PublishError};
 
-/// Generated feed XML ready to be written to disk.
 #[derive(Debug, Clone)]
 pub struct GeneratedFeed {
-    /// Output filename (relative to the build output directory).
     pub filename: String,
-    /// Serialised RSS XML.
     pub xml: String,
-    /// Number of items in the feed.
     pub item_count: usize,
 }
 
-/// Generate every RSS feed produced by the default RSS provider and write
-/// the resulting XML files into `paths.web().dist()`.
 pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
     let provider = DefaultRssFeedProvider::new(Arc::clone(&db_pool), paths).await?;
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![Arc::new(provider)];
@@ -46,9 +40,6 @@ pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
     Ok(())
 }
 
-/// Generate every feed advertised by the supplied providers. Returns the
-/// in-memory XML rather than writing to disk so callers can post-process or
-/// dispatch to a custom destination.
 pub async fn generate_feed_with_providers(
     providers: &[Arc<dyn RssFeedProvider>],
     _db_pool: DbPool,

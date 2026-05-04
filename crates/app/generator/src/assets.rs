@@ -7,8 +7,6 @@ use tokio::fs;
 
 use crate::error::{GeneratorResult, PublishError};
 
-/// Move loose `*.css` and `*.js` files from `dist/` into `dist/css/` and
-/// `dist/js/`. Returns `(css_count, js_count)`.
 pub async fn organize_dist_assets(dist_dir: &Path) -> GeneratorResult<(u32, u32)> {
     let css_count = organize_assets_by_extension(dist_dir, "css").await?;
     let js_count = organize_assets_by_extension(dist_dir, "js").await?;

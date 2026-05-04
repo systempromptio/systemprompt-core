@@ -13,7 +13,6 @@ pub use systemprompt_models::modules::{Module, ModuleType, Modules, ServiceCateg
 
 use crate::AppContext;
 
-/// Runtime map of module name -> registered router and metadata.
 #[derive(Debug)]
 pub struct ModuleApiRegistry {
     registry: HashMap<String, ModuleApiImpl>,
@@ -27,33 +26,21 @@ struct ModuleApiImpl {
     auth_required: bool,
 }
 
-/// `inventory` registration record submitted by
-/// [`register_module_api!`](crate::register_module_api).
 #[derive(Debug, Copy, Clone)]
 pub struct ModuleApiRegistration {
-    /// Module name (matches the manifest key).
     pub module_name: &'static str,
-    /// Service category bucket.
     pub category: ServiceCategory,
-    /// Whether the module is regular or system-only.
     pub module_type: ModuleType,
-    /// Function that builds the module's `axum::Router`.
     pub router_fn: fn(&AppContext) -> Router,
-    /// `true` when requests must be authenticated.
     pub auth_required: bool,
 }
 
 inventory::collect!(ModuleApiRegistration);
 
-/// `inventory` registration record submitted by
-/// [`register_wellknown_route!`](crate::register_wellknown_route).
 #[derive(Debug, Clone, Copy)]
 pub struct WellKnownRoute {
-    /// Path under `/.well-known/`.
     pub path: &'static str,
-    /// Function that builds the route's `axum::Router`.
     pub handler_fn: fn(&AppContext) -> Router,
-    /// HTTP methods accepted by the route.
     pub methods: &'static [axum::http::Method],
 }
 
@@ -66,7 +53,6 @@ impl Default for ModuleApiRegistry {
 }
 
 impl ModuleApiRegistry {
-    /// Build the registry from all submitted [`ModuleApiRegistration`]s.
     pub fn new() -> Self {
         let mut registry = HashMap::new();
 
@@ -83,33 +69,28 @@ impl ModuleApiRegistry {
         Self { registry }
     }
 
-    /// Materialise the registered router for `module_name`.
     pub fn get_routes(&self, module_name: &str, ctx: &AppContext) -> Option<Router> {
         self.registry
             .get(module_name)
             .map(|impl_| (impl_.router_fn)(ctx))
     }
 
-    /// Service category for `module_name`.
     pub fn get_category(&self, module_name: &str) -> Option<ServiceCategory> {
         self.registry.get(module_name).map(|impl_| impl_.category)
     }
 
-    /// Module type for `module_name`.
     pub fn get_module_type(&self, module_name: &str) -> Option<ModuleType> {
         self.registry
             .get(module_name)
             .map(|impl_| impl_.module_type)
     }
 
-    /// Whether `module_name` requires authenticated requests.
     pub fn get_auth_required(&self, module_name: &str) -> Option<bool> {
         self.registry
             .get(module_name)
             .map(|impl_| impl_.auth_required)
     }
 
-    /// All module names registered under `category`.
     pub fn modules_by_category(&self, category: ServiceCategory) -> Vec<String> {
         self.registry
             .iter()
@@ -119,11 +100,8 @@ impl ModuleApiRegistry {
     }
 }
 
-/// Per-module router-resolution helpers.
 pub trait ModuleRuntime {
-    /// Resolve the API router for `self` given `ctx` and `registry`.
     fn routes(&self, ctx: &AppContext, registry: &ModuleApiRegistry) -> Option<Router>;
-    /// Build a fresh [`ModuleApiRegistry`] from current `inventory` state.
     fn create_api_registry(&self) -> ModuleApiRegistry;
 }
 

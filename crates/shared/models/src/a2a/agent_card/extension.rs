@@ -2,23 +2,17 @@
 
 use serde::{Deserialize, Serialize};
 
-/// URI of the systemprompt.io artifact-rendering A2A extension.
 pub const ARTIFACT_RENDERING_URI: &str = "https://systemprompt.io/extensions/artifact-rendering/v1";
 
-/// Capability flags advertised by an agent on its card.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentCapabilities {
-    /// Whether the agent supports streaming responses.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub streaming: Option<bool>,
-    /// Whether the agent emits push notifications.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub push_notifications: Option<bool>,
-    /// Whether the agent records full state-transition history.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_transition_history: Option<bool>,
-    /// Named A2A extensions the agent participates in.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extensions: Option<Vec<AgentExtension>>,
 }
@@ -35,7 +29,6 @@ impl Default for AgentCapabilities {
 }
 
 impl AgentCapabilities {
-    /// Replace `None` capability flags with the documented defaults.
     #[must_use]
     pub const fn normalize(mut self) -> Self {
         if self.streaming.is_none() {
@@ -51,24 +44,18 @@ impl AgentCapabilities {
     }
 }
 
-/// Named A2A extension declared in an agent card.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AgentExtension {
-    /// URI identifying the extension.
     pub uri: String,
-    /// Free-form description.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    /// Whether clients must understand the extension.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<bool>,
-    /// Extension-defined parameters.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<serde_json::Value>,
 }
 
 impl AgentExtension {
-    /// MCP-tool capability extension.
     #[must_use]
     pub fn mcp_tools_extension() -> Self {
         Self {
@@ -81,7 +68,6 @@ impl AgentExtension {
         }
     }
 
-    /// MCP-tool capability extension that also publishes server endpoints.
     #[must_use]
     pub fn mcp_tools_extension_with_servers(servers: &[serde_json::Value]) -> Self {
         Self {
@@ -95,7 +81,6 @@ impl AgentExtension {
         }
     }
 
-    /// `OpenCode` integration extension.
     #[must_use]
     pub fn opencode_integration_extension() -> Self {
         Self {
@@ -109,7 +94,6 @@ impl AgentExtension {
         }
     }
 
-    /// systemprompt.io artifact-rendering extension.
     #[must_use]
     pub fn artifact_rendering_extension() -> Self {
         Self {
@@ -125,7 +109,6 @@ impl AgentExtension {
         }
     }
 
-    /// systemprompt.io agent identity extension.
     #[must_use]
     pub fn agent_identity(agent_name: &str) -> Self {
         Self {
@@ -138,7 +121,6 @@ impl AgentExtension {
         }
     }
 
-    /// systemprompt.io system-instructions extension.
     #[must_use]
     pub fn system_instructions(system_prompt: &str) -> Self {
         Self {
@@ -152,13 +134,11 @@ impl AgentExtension {
         }
     }
 
-    /// Optional [`Self::system_instructions`] convenience.
     #[must_use]
     pub fn system_instructions_opt(system_prompt: Option<&str>) -> Option<Self> {
         system_prompt.map(Self::system_instructions)
     }
 
-    /// systemprompt.io service-status extension.
     #[must_use]
     pub fn service_status(
         status: &str,

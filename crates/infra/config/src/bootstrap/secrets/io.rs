@@ -9,13 +9,6 @@ use systemprompt_models::secrets::Secrets;
 use super::{SecretsBootstrapError, log_secrets_issue};
 use crate::error::{ConfigError, ConfigResult};
 
-/// Load secrets from an arbitrary on-disk path without installing
-/// them in the global cell.
-///
-/// # Errors
-///
-/// Returns [`ConfigError::Secrets`] if the file does not exist, or
-/// the underlying I/O / parse errors composed via [`ConfigError`].
 pub fn load_secrets_from_path(secrets_path: &Path) -> ConfigResult<Secrets> {
     if !secrets_path.exists() {
         return Err(SecretsBootstrapError::FileNotFound {

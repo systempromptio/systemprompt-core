@@ -5,7 +5,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, TraceId};
 
-/// Filter parameters for full-text log search.
 #[derive(Debug, Clone)]
 pub struct LogSearchFilter {
     pub pattern: String,
@@ -15,7 +14,6 @@ pub struct LogSearchFilter {
 }
 
 impl LogSearchFilter {
-    /// Construct a new log-search filter with the given pattern and row limit.
     pub const fn new(pattern: String, limit: i64) -> Self {
         Self {
             pattern,
@@ -25,7 +23,6 @@ impl LogSearchFilter {
         }
     }
 
-    /// Restrict results to log lines emitted at or after the given timestamp.
     pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
@@ -36,7 +33,6 @@ impl LogSearchFilter {
     }
 }
 
-/// A row matched by a log search query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogSearchItem {
     pub id: LogId,
@@ -48,21 +44,18 @@ pub struct LogSearchItem {
     pub metadata: Option<String>,
 }
 
-/// Per-level count of log lines.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LevelCount {
     pub level: String,
     pub count: i64,
 }
 
-/// Per-module count of log lines.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleCount {
     pub module: String,
     pub count: i64,
 }
 
-/// The earliest and latest log timestamps observed within a query window.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LogTimeRange {
     pub earliest: Option<DateTime<Utc>>,

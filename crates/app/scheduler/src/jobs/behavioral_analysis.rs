@@ -15,8 +15,6 @@ use crate::error::SchedulerError;
 
 const SESSION_ABUSE_THRESHOLD: i32 = 10;
 
-/// Scheduled job that scans fingerprint reputation rows and flags or bans
-/// abusive sources.
 #[derive(Debug, Clone, Copy)]
 pub struct BehavioralAnalysisJob;
 

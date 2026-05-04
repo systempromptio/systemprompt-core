@@ -45,7 +45,6 @@ pub fn terminate_gracefully(pid: u32) -> McpDomainResult<()> {
     Ok(())
 }
 
-/// Force-kill a unix process by PID, ignoring "process not found" errors.
 #[cfg(unix)]
 pub fn force_kill(pid: u32) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};

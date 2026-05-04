@@ -3,14 +3,12 @@
 use crate::services::DatabaseProvider;
 use anyhow::{Context, Result};
 
-/// Round-trip a `SELECT 1` to confirm `db` is reachable.
 pub async fn validate_database_connection(db: &dyn DatabaseProvider) -> Result<()> {
     db.test_connection()
         .await
         .context("Failed to establish database connection")
 }
 
-/// Return whether `table_name` exists in the public schema.
 pub async fn validate_table_exists(db: &dyn DatabaseProvider, table_name: &str) -> Result<bool> {
     let result = db
         .query_raw_with(
@@ -27,7 +25,6 @@ pub async fn validate_table_exists(db: &dyn DatabaseProvider, table_name: &str) 
         .ok_or_else(|| anyhow::anyhow!("Failed to check table existence for '{}'", table_name))
 }
 
-/// Return whether `column_name` exists on `table_name` in the public schema.
 pub async fn validate_column_exists(
     db: &dyn DatabaseProvider,
     table_name: &str,

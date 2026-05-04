@@ -3,10 +3,6 @@
 use systemprompt_logging::{RequestSpan, RequestSpanBuilder};
 use systemprompt_models::RequestContext;
 
-/// Build a [`RequestSpan`] populated from `ctx`.
-///
-/// User, session, trace, context, task, and client identifiers are
-/// attached when present.
 pub fn create_request_span(ctx: &RequestContext) -> RequestSpan {
     let mut builder = RequestSpanBuilder::new(
         &ctx.auth.user_id,

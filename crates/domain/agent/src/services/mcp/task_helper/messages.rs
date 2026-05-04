@@ -6,35 +6,19 @@ use rmcp::ErrorData as McpError;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 
-/// Parameters for [`save_messages_for_tool_execution`].
 #[derive(Debug)]
 pub struct SaveMessagesForToolExecutionParams<'a> {
-    /// Database pool.
     pub db_pool: &'a DbPool,
-    /// Owning task id.
     pub task_id: &'a TaskId,
-    /// Owning context id.
     pub context_id: &'a ContextId,
-    /// MCP tool name that was executed.
     pub tool_name: &'a str,
-    /// Stringified tool result.
     pub tool_result: &'a str,
-    /// Optional artifact produced by the tool.
     pub artifact: Option<&'a Artifact>,
-    /// User the tool was executed on behalf of.
     pub user_id: &'a UserId,
-    /// Owning session id.
     pub session_id: &'a SessionId,
-    /// Trace id propagated through the execution.
     pub trace_id: &'a TraceId,
 }
 
-/// Persist a synthetic user/agent message pair representing an MCP tool
-/// execution.
-///
-/// # Errors
-/// Returns [`McpError`] if the message service cannot be initialised or the
-/// message persistence fails.
 pub async fn save_messages_for_tool_execution(
     params: SaveMessagesForToolExecutionParams<'_>,
 ) -> Result<(), McpError> {

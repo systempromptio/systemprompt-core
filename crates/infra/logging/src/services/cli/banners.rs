@@ -19,38 +19,30 @@ use super::table::{ServiceTableEntry, render_service_table, render_startup_compl
 use super::theme::{EmphasisType, Theme};
 
 impl CliService {
-    /// Render the systemprompt.io ASCII startup banner with an optional
-    /// subtitle.
     pub fn startup_banner(subtitle: Option<&str>) {
         render_startup_banner(subtitle);
     }
 
-    /// Begin a named startup phase, mirroring the message into structured logs.
     pub fn phase(name: &str) {
         publish_log(LogEventLevel::Info, "cli", &format!("Phase: {}", name));
         render_phase_header(name);
     }
 
-    /// Mark a phase as successful with an optional detail line.
     pub fn phase_success(message: &str, detail: Option<&str>) {
         publish_log(LogEventLevel::Info, "cli", message);
         render_phase_success(message, detail);
     }
 
-    /// Emit a phase informational note.
     pub fn phase_info(message: &str, detail: Option<&str>) {
         publish_log(LogEventLevel::Info, "cli", message);
         render_phase_info(message, detail);
     }
 
-    /// Emit a phase warning with an optional detail line.
     pub fn phase_warning(message: &str, detail: Option<&str>) {
         publish_log(LogEventLevel::Warn, "cli", message);
         render_phase_warning(message, detail);
     }
 
-    /// Build a steady-tick spinner labeled with a service name (and optional
-    /// port).
     pub fn service_spinner(service_name: &str, port: Option<u16>) -> ProgressBar {
         let msg = port.map_or_else(
             || format!("Starting {}", service_name),
@@ -68,12 +60,10 @@ impl CliService {
         pb
     }
 
-    /// Render the service-status table for a startup phase.
     pub fn service_table(title: &str, services: &[ServiceTableEntry]) {
         render_service_table(title, services);
     }
 
-    /// Render the "startup complete" footer with elapsed time and the API URL.
     pub fn startup_complete(duration: Duration, api_url: &str) {
         publish_log(
             LogEventLevel::Info,
@@ -83,7 +73,6 @@ impl CliService {
         render_startup_complete(duration, api_url);
     }
 
-    /// Print the active session-context banner (profile + session id + tenant).
     pub fn session_context(
         profile: &str,
         session_id: &systemprompt_identifiers::SessionId,
@@ -92,7 +81,6 @@ impl CliService {
         Self::session_context_with_url(profile, session_id, tenant, None);
     }
 
-    /// Print the session-context banner including the API URL.
     pub fn session_context_with_url(
         profile: &str,
         session_id: &systemprompt_identifiers::SessionId,
@@ -118,8 +106,6 @@ impl CliService {
         writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
     }
 
-    /// Print the active profile banner (profile name + target environment +
-    /// tenant).
     pub fn profile_banner(profile_name: &str, is_cloud: bool, tenant: Option<&str>) {
         let target_label = if is_cloud { "cloud" } else { "local" };
         let tenant_info = tenant.map_or_else(String::new, |t| format!(" | tenant: {}", t));

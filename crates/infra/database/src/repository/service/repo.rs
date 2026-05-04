@@ -8,7 +8,6 @@ use sqlx::PgPool;
 use super::model::{CreateServiceInput, ServiceConfig};
 use crate::DbPool;
 
-/// Repository over the `services` table.
 #[derive(Debug, Clone)]
 pub struct ServiceRepository {
     pool: Arc<PgPool>,
@@ -16,15 +15,12 @@ pub struct ServiceRepository {
 }
 
 impl ServiceRepository {
-    /// Construct a repository from the application [`DbPool`], picking up
-    /// both the read and write pools.
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
         Ok(Self { pool, write_pool })
     }
 
-    /// Look up a single service by name.
     pub async fn get_service_by_name(&self, name: &str) -> Result<Option<ServiceConfig>> {
         let row = sqlx::query!(
             r#"
@@ -50,7 +46,6 @@ impl ServiceRepository {
         }))
     }
 
-    /// Return every registered agent service name.
     pub async fn get_all_agent_service_names(&self) -> Result<Vec<String>> {
         let rows = sqlx::query!(r#"SELECT name FROM services WHERE module_name = 'agent'"#)
             .fetch_all(&*self.pool)
@@ -58,7 +53,6 @@ impl ServiceRepository {
         Ok(rows.into_iter().map(|r| r.name).collect())
     }
 
-    /// Return every registered MCP service.
     pub async fn get_mcp_services(&self) -> Result<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
@@ -86,8 +80,6 @@ impl ServiceRepository {
             .collect())
     }
 
-    /// Insert a service row, or upsert metadata onto an existing row with
-    /// the same name.
     pub async fn create_service(&self, input: CreateServiceInput<'_>) -> Result<()> {
         let port_i32 = i32::from(input.port);
         sqlx::query!(
@@ -112,7 +104,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Update a service's lifecycle status.
     pub async fn update_service_status(&self, service_name: &str, status: &str) -> Result<()> {
         sqlx::query!(
             r#"UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE name = $2"#,
@@ -124,7 +115,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Delete a service row by name.
     pub async fn delete_service(&self, service_name: &str) -> Result<()> {
         sqlx::query!(r#"DELETE FROM services WHERE name = $1"#, service_name)
             .execute(&*self.write_pool)
@@ -132,7 +122,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Record the PID of a running service.
     pub async fn update_service_pid(&self, service_name: &str, pid: i32) -> Result<()> {
         sqlx::query!(
             r#"UPDATE services SET pid = $1, updated_at = CURRENT_TIMESTAMP WHERE name = $2"#,
@@ -144,7 +133,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Clear a service's PID without altering its lifecycle status.
     pub async fn clear_service_pid(&self, service_name: &str) -> Result<()> {
         sqlx::query!(
             r#"UPDATE services SET pid = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1"#,
@@ -155,7 +143,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Return all services currently in the `running` state.
     pub async fn get_all_running_services(&self) -> Result<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
@@ -183,7 +170,6 @@ impl ServiceRepository {
             .collect())
     }
 
-    /// Count running services for a given module.
     pub async fn count_running_services(&self, module_name: &str) -> Result<usize> {
         let row = sqlx::query!(
             r#"SELECT COUNT(*) as "count!" FROM services WHERE module_name = $1 AND status = 'running'"#,
@@ -194,7 +180,6 @@ impl ServiceRepository {
         Ok(usize::try_from(row.count).unwrap_or(0))
     }
 
-    /// Mark a service as crashed and clear its PID.
     pub async fn mark_service_crashed(&self, service_name: &str) -> Result<()> {
         sqlx::query!(
             r#"UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1"#,
@@ -205,7 +190,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Mark a service as cleanly stopped.
     pub async fn update_service_stopped(&self, service_name: &str) -> Result<()> {
         sqlx::query!(
             r#"UPDATE services SET status = 'stopped', pid = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1"#,
@@ -216,12 +200,10 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Return all running services that have a PID assigned.
     pub async fn get_running_services_with_pid(&self) -> Result<Vec<ServiceConfig>> {
         self.get_all_running_services().await
     }
 
-    /// Return every service belonging to the given module.
     pub async fn get_services_by_type(&self, module_name: &str) -> Result<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
@@ -250,8 +232,6 @@ impl ServiceRepository {
             .collect())
     }
 
-    /// Delete services that are in a terminal/error state or running without
-    /// a PID. Returns the number of rows removed.
     pub async fn cleanup_stale_entries(&self) -> Result<u64> {
         let result = sqlx::query!(
             r#"

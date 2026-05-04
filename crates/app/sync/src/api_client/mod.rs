@@ -18,11 +18,6 @@ use tokio::time::sleep;
 use crate::error::{SyncError, SyncResult};
 pub use retry::RetryConfig;
 
-/// HTTP client for the systemprompt cloud sync API.
-///
-/// Wraps a `reqwest::Client` plus the bearer token, optional direct-sync
-/// hostname/token, and a [`RetryConfig`] for exponential-backoff retries on
-/// upload / download failures.
 #[derive(Clone, Debug)]
 pub struct SyncApiClient {
     client: Client,
@@ -33,36 +28,25 @@ pub struct SyncApiClient {
     retry_config: RetryConfig,
 }
 
-/// Registry credentials returned by the cloud API for `docker login`.
 #[derive(Debug, Deserialize)]
 pub struct RegistryToken {
-    /// Registry hostname.
     pub registry: String,
-    /// Username to log in as.
     pub username: String,
-    /// Bearer token used as the registry password.
     pub token: String,
 }
 
-/// Response body returned by the cloud sync upload endpoint.
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct UploadResponse {
-    /// Number of files the server reports as uploaded.
     pub files_uploaded: usize,
 }
 
-/// Response body returned by the cloud deploy endpoint.
 #[derive(Debug, Deserialize)]
 pub struct DeployResponse {
-    /// Deployment status string (`pending`, `running`, …).
     pub status: String,
-    /// Public URL of the deployed app, when known.
     pub app_url: Option<String>,
 }
 
 impl SyncApiClient {
-    /// Construct a new client targeting `api_url` with the given bearer
-    /// token and the default [`RetryConfig`].
     pub fn new(api_url: &str, token: &str) -> SyncResult<Self> {
         Ok(Self {
             client: Client::builder()
@@ -77,10 +61,6 @@ impl SyncApiClient {
         })
     }
 
-    /// Switch the client to direct-sync mode, talking straight to the
-    /// supplied tenant hostname with `sync_token` instead of routing through
-    /// the central cloud API. When either argument is `None`, the client
-    /// keeps the cloud-relay endpoint.
     pub fn with_direct_sync(
         mut self,
         hostname: Option<String>,
@@ -105,7 +85,6 @@ impl SyncApiClient {
         self.retry_config.next_delay(current)
     }
 
-    /// Upload the supplied bundle of files for `tenant_id` with retries.
     pub async fn upload_files(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -153,7 +132,6 @@ impl SyncApiClient {
         })
     }
 
-    /// Download the file bundle for `tenant_id` with retries.
     pub async fn download_files(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -198,8 +176,6 @@ impl SyncApiClient {
         })
     }
 
-    /// Fetch transient registry credentials for `tenant_id`, used to
-    /// `docker login` before pushing a deploy image.
     pub async fn get_registry_token(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -211,8 +187,6 @@ impl SyncApiClient {
         self.get(&url).await
     }
 
-    /// Trigger a deploy for `tenant_id` using the supplied container image
-    /// reference.
     pub async fn deploy(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -223,8 +197,6 @@ impl SyncApiClient {
             .await
     }
 
-    /// Fetch the Fly.io app name associated with `tenant_id`. Returns
-    /// [`SyncError::TenantNoApp`] if the tenant has no app configured.
     pub async fn get_tenant_app_id(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
@@ -238,8 +210,6 @@ impl SyncApiClient {
         info.fly_app_name.ok_or(SyncError::TenantNoApp)
     }
 
-    /// Fetch the cloud database connection string for `tenant_id`. Returns
-    /// a 404 [`SyncError::ApiError`] if no database is provisioned.
     pub async fn get_database_url(
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,

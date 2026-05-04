@@ -28,10 +28,8 @@ pub mod repository;
 pub mod services;
 pub(crate) mod state;
 
-/// Compile-time-registered extension entry point for the agent crate.
 pub use extension::AgentExtension;
 
-/// Shared runtime state injected into agent HTTP handlers.
 pub use state::AgentState;
 
 pub use models::a2a::{
@@ -45,7 +43,6 @@ pub use error::{
     AgentError, AgentResult, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError,
 };
 
-/// A2A protocol version implemented by this crate.
 pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 
 pub use services::{

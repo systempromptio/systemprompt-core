@@ -25,8 +25,6 @@ struct ValidationError {
     expected_file: String,
 }
 
-/// Validate that the freshly-built `web_dir/dist` directory has the expected
-/// shape and that every sitemap URL resolves to a generated HTML file.
 pub async fn validate_build(web_dir: &Path) -> Result<()> {
     let dist_dir = web_dir.join("dist");
     validate_required_paths(&dist_dir)?;

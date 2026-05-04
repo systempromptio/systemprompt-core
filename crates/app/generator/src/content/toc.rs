@@ -6,32 +6,19 @@ use std::collections::HashMap;
 use comrak::nodes::{AstNode, NodeValue};
 use comrak::{Arena, Options, parse_document};
 
-/// A single heading detected during table-of-contents extraction.
 #[derive(Debug)]
 pub struct TocEntry {
-    /// Heading level (1–6).
     pub level: u8,
-    /// Visible heading text.
     pub text: String,
-    /// URL-safe slug used both as the link target and the heading `id`.
     pub slug: String,
 }
 
-/// Output of [`generate_toc`].
-///
-/// Holds the rendered table-of-contents HTML and the rendered content with
-/// `id` attributes injected on each heading.
 #[derive(Debug)]
 pub struct TocResult {
-    /// Pre-rendered `<ul>`-based table of contents, or empty if no headings
-    /// were found.
     pub toc_html: String,
-    /// `rendered_html` with `id` attributes injected so anchor links resolve.
     pub content_html: String,
 }
 
-/// Build a [`TocResult`] from the original `markdown` source and the already
-/// rendered HTML.
 pub fn generate_toc(markdown: &str, rendered_html: &str) -> TocResult {
     let entries = extract_headings(markdown);
 

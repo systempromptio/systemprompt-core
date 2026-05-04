@@ -6,12 +6,6 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::Config;
 
-/// Trigger a `task_completed` webhook broadcast; failures are logged but never
-/// returned.
-///
-/// # Errors
-/// Currently always returns `Ok(())` — broadcast errors are swallowed and
-/// logged.
 pub async fn complete_task(
     db_pool: &DbPool,
     task_id: &TaskId,

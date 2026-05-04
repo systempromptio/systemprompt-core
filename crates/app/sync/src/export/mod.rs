@@ -10,8 +10,6 @@ pub use agents::{export_agent_to_disk, generate_agent_config, generate_agent_sys
 pub use content::{export_content_to_file, generate_content_markdown};
 pub use skills::{export_skill_to_disk, generate_skill_config, generate_skill_markdown};
 
-/// Escape `s` so it can be embedded as a YAML double-quoted string. Handles
-/// backslashes, double quotes, and newlines.
 pub fn escape_yaml(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('"', "\\\"")

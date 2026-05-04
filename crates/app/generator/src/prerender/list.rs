@@ -13,26 +13,15 @@ use tokio::fs;
 use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::utils::{merge_json_data, render_components};
 
-/// Inputs required to render a list route.
 pub struct RenderListParams<'a> {
-    /// Every content item that should appear in the list.
     pub items: &'a [serde_json::Value],
-    /// Parsed `content.yaml` (used by template providers).
     pub config: &'a ContentConfigRaw,
-    /// Parsed `web.yaml` (used by template providers).
     pub web_config: &'a WebConfig,
-    /// Parent-route configuration (URL, template, …) for this list.
     pub list_config: &'a ParentRoute,
-    /// Source name (e.g. `blog`) — used to resolve the `*-list` template.
     pub source_name: &'a str,
-    /// Template registry used to render the list and components.
     pub template_registry: &'a TemplateRegistry,
-    /// Build output directory.
     pub dist_dir: &'a Path,
-    /// Optional content item that backs the list page itself (for index pages
-    /// authored as a regular content row with an empty slug).
     pub index_content: Option<&'a serde_json::Value>,
-    /// Database pool passed to page-data providers.
     pub db_pool: &'a DbPool,
 }
 
@@ -46,9 +35,6 @@ impl std::fmt::Debug for RenderListParams<'_> {
     }
 }
 
-/// Render the configured list / index route into `dist_dir`. Returns an error
-/// if no template is registered for `<source_name>-list` or if any provider
-/// or template render fails.
 pub async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<()> {
     let RenderListParams {
         items,

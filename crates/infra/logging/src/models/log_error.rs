@@ -24,6 +24,9 @@ pub enum LoggingError {
     #[error("Database operation failed")]
     DatabaseError(#[from] sqlx::Error),
 
+    #[error("Repository operation failed: {0}")]
+    Repository(#[from] systemprompt_database::RepositoryError),
+
     #[error("JSON serialization failed")]
     JsonError(#[from] serde_json::Error),
 
@@ -66,12 +69,6 @@ pub enum LoggingError {
     #[error("Interactive prompt failed")]
     #[cfg(feature = "cli")]
     Prompt(#[from] dialoguer::Error),
-}
-
-impl From<anyhow::Error> for LoggingError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::PoolUnavailable(err.to_string())
-    }
 }
 
 impl LoggingError {

@@ -41,6 +41,9 @@ pub enum McpDomainError {
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 
+    #[error("Repository error: {0}")]
+    Repository(#[from] systemprompt_database::RepositoryError),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

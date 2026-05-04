@@ -17,7 +17,6 @@ use crate::prerender::utils::{merge_json_data, render_components};
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
 
-/// Inputs required to render a single content item to HTML.
 pub(super) struct RenderSingleItemParams<'a> {
     pub ctx: &'a PrerenderContext,
     pub source_name: &'a str,

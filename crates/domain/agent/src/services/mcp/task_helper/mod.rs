@@ -15,22 +15,12 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::TaskMetadata;
 
-/// Result of [`ensure_task_exists`] — either an existing task id or a freshly
-/// created one.
 #[derive(Debug)]
 pub struct TaskResult {
-    /// The task id this MCP execution will record against.
     pub task_id: TaskId,
-    /// `true` if this caller is the owner that created the task.
     pub is_owner: bool,
 }
 
-/// Ensure that an MCP execution has a task to record against, creating one
-/// (and a context, if needed) if the request context does not already carry
-/// one.
-///
-/// # Errors
-/// Returns [`McpError`] if any repository operation fails.
 pub async fn ensure_task_exists(
     db_pool: &DbPool,
     request_context: &mut systemprompt_models::execution::context::RequestContext,

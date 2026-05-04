@@ -5,10 +5,6 @@ use systemprompt_models::secrets::Secrets;
 
 use crate::error::ConfigError;
 
-/// Log a secrets-load failure at the severity selected by `mode`.
-///
-/// `Strict` mode is silent because the error is propagated to the
-/// caller; `Warn` and `Skip` modes emit at warn / debug respectively.
 pub fn log_secrets_issue(e: &ConfigError, mode: SecretsValidationMode) {
     match mode {
         SecretsValidationMode::Warn => log_secrets_warn(e),
@@ -17,18 +13,14 @@ pub fn log_secrets_issue(e: &ConfigError, mode: SecretsValidationMode) {
     }
 }
 
-/// Log a secrets-load failure at warning severity.
 pub fn log_secrets_warn(e: &ConfigError) {
     tracing::warn!("Secrets file issue: {}", e);
 }
 
-/// Log a secrets-load failure at debug severity.
 pub fn log_secrets_skip(e: &ConfigError) {
     tracing::debug!("Skipping secrets file: {}", e);
 }
 
-/// Build the human-readable summary logged after secrets are loaded
-/// successfully.
 #[must_use]
 pub fn build_loaded_secrets_message(secrets: &Secrets) -> String {
     let base = ["jwt_secret", "database_url"];

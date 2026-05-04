@@ -15,106 +15,63 @@ use crate::{SyncDirection, SyncOperationResult};
 
 use upsert::{upsert_context, upsert_skill, upsert_user};
 
-/// Snapshot of every table the database sync moves: users, skills, contexts.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DatabaseExport {
-    /// Users in the source database.
     pub users: Vec<UserExport>,
-    /// Skills in the source database.
     pub skills: Vec<SkillExport>,
-    /// Contexts in the source database.
     pub contexts: Vec<ContextExport>,
-    /// Time the snapshot was taken.
     pub timestamp: DateTime<Utc>,
 }
 
-/// One row of the `users` export.
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct UserExport {
-    /// User identifier.
     pub id: UserId,
-    /// Login / handle.
     pub name: String,
-    /// Email address.
     pub email: String,
-    /// Optional full name.
     pub full_name: Option<String>,
-    /// Optional display name.
     pub display_name: Option<String>,
-    /// Status string (e.g. `active`).
     pub status: String,
-    /// Whether the email has been verified.
     pub email_verified: bool,
-    /// Granted role identifiers.
     pub roles: Vec<String>,
-    /// Whether this user represents a bot account.
     pub is_bot: bool,
-    /// Whether this user represents a scanner / crawler.
     pub is_scanner: bool,
-    /// Optional avatar URL.
     pub avatar_url: Option<String>,
-    /// Row-creation timestamp.
     pub created_at: DateTime<Utc>,
-    /// Row-update timestamp.
     pub updated_at: DateTime<Utc>,
 }
 
-/// One row of the `skills` export.
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct SkillExport {
-    /// Skill identifier.
     pub skill_id: SkillId,
-    /// On-disk path of the skill markdown.
     pub file_path: String,
-    /// Display name.
     pub name: String,
-    /// Description.
     pub description: String,
-    /// Markdown body.
     pub instructions: String,
-    /// Whether the skill is enabled.
     pub enabled: bool,
-    /// Optional tag list.
     pub tags: Option<Vec<String>>,
-    /// Optional category identifier.
     pub category_id: Option<String>,
-    /// Source identifier.
     pub source_id: SourceId,
-    /// Row-creation timestamp.
     pub created_at: DateTime<Utc>,
-    /// Row-update timestamp.
     pub updated_at: DateTime<Utc>,
 }
 
-/// One row of the `contexts` export.
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct ContextExport {
-    /// Context identifier.
     pub context_id: ContextId,
-    /// Owning user.
     pub user_id: UserId,
-    /// Optional session this context belongs to.
     pub session_id: Option<SessionId>,
-    /// Display name.
     pub name: String,
-    /// Row-creation timestamp.
     pub created_at: DateTime<Utc>,
-    /// Row-update timestamp.
     pub updated_at: DateTime<Utc>,
 }
 
-/// Aggregate counts produced by an import pass.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ImportResult {
-    /// Rows newly inserted.
     pub created: usize,
-    /// Rows updated in place.
     pub updated: usize,
-    /// Rows skipped (already up to date or rejected).
     pub skipped: usize,
 }
 
-/// Drives database push / pull.
 #[derive(Debug)]
 pub struct DatabaseSyncService {
     direction: SyncDirection,
@@ -124,7 +81,6 @@ pub struct DatabaseSyncService {
 }
 
 impl DatabaseSyncService {
-    /// Construct a new database sync service.
     pub fn new(
         direction: SyncDirection,
         dry_run: bool,
@@ -139,7 +95,6 @@ impl DatabaseSyncService {
         }
     }
 
-    /// Run the configured push or pull.
     pub async fn sync(&self) -> SyncResult<SyncOperationResult> {
         match self.direction {
             SyncDirection::Push => self.push().await,

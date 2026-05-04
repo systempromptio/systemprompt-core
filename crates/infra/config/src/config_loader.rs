@@ -24,15 +24,6 @@ struct BuildConfigPaths {
     web_metadata: String,
 }
 
-/// Build a [`Config`] from the currently-initialized profile and
-/// install it into the global cell.
-///
-/// # Errors
-///
-/// Returns [`ConfigError::Profile`] if the profile has not been
-/// bootstrapped, [`ConfigError::AlreadyInitialized`] if a config has
-/// already been installed, and other variants for path/database
-/// validation failures.
 pub fn init_config() -> ConfigResult<()> {
     let profile = ProfileBootstrap::get()?;
     let config = build_from_profile(profile)?;
@@ -40,13 +31,6 @@ pub fn init_config() -> ConfigResult<()> {
     Ok(())
 }
 
-/// Like [`init_config`] but a no-op if the config cell is already
-/// populated.
-///
-/// # Errors
-///
-/// Same as [`init_config`], except [`ConfigError::AlreadyInitialized`]
-/// is suppressed.
 pub fn try_init_config() -> ConfigResult<()> {
     if Config::is_initialized() {
         return Ok(());
@@ -54,12 +38,6 @@ pub fn try_init_config() -> ConfigResult<()> {
     init_config()
 }
 
-/// Build a [`Config`] from the supplied [`Profile`].
-///
-/// # Errors
-///
-/// Returns one of the path-validation, database-validation, or
-/// secrets-not-initialized variants of [`ConfigError`].
 pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
     let profile_path =
         ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_string(), ToString::to_string);
@@ -96,13 +74,6 @@ pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
     Ok(config)
 }
 
-/// Build a [`Config`] from a profile and install it into the global
-/// cell.
-///
-/// # Errors
-///
-/// Returns [`ConfigError::AlreadyInitialized`] if a config is already
-/// installed, plus the same variants as [`build_from_profile`].
 pub fn init_config_from_profile(profile: &Profile) -> ConfigResult<()> {
     let config = build_from_profile(profile)?;
     Config::install(config).map_err(|_| ConfigError::AlreadyInitialized)?;
@@ -183,13 +154,6 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
     })
 }
 
-/// Validate the database section of an installed [`Config`].
-///
-/// # Errors
-///
-/// Returns [`ConfigError::UnsupportedDatabaseType`] when the engine is
-/// not `PostgreSQL`, and [`ConfigError::InvalidDatabaseUrl`] when the
-/// URL string fails [`validate_postgres_url`].
 pub fn validate_database_config(config: &Config) -> ConfigResult<()> {
     let db_type = config.database_type.to_lowercase();
 

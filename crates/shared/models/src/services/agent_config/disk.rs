@@ -12,73 +12,46 @@ fn default_version() -> String {
     "1.0.0".to_string()
 }
 
-/// On-disk YAML shape of an agent's `config.yaml`.
-///
-/// Distinct from [`AgentConfig`] because it carries fields (like
-/// `id`, `system_prompt_file`) that are resolved at load time and
-/// stripped from the runtime shape.
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskAgentConfig {
-    /// Optional declared id; must match the directory name when set.
     #[serde(default)]
     pub id: Option<AgentId>,
-    /// Stable agent name (matches its directory).
     pub name: String,
-    /// Human-readable display name.
     pub display_name: String,
-    /// Free-form description.
     pub description: String,
-    /// Semver tag of the agent revision.
     #[serde(default = "default_version")]
     pub version: String,
-    /// Whether the agent is enabled at startup.
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Listening port.
     pub port: u16,
-    /// Optional public endpoint override.
     #[serde(default)]
     pub endpoint: Option<String>,
-    /// Whether the agent is restricted to the `dev` profile.
     #[serde(default)]
     pub dev_only: bool,
-    /// Whether this is the primary agent for the deployment.
     #[serde(default)]
     pub is_primary: bool,
-    /// Whether the agent should be the default fallback.
     #[serde(default)]
     pub default: bool,
-    /// Optional override for the system-prompt source filename.
     #[serde(default)]
     pub system_prompt_file: Option<String>,
-    /// Tags for client-side filtering.
     #[serde(default)]
     pub tags: Vec<String>,
-    /// Optional category label.
     #[serde(default)]
     pub category: Option<String>,
-    /// MCP server names this agent connects to.
     #[serde(default)]
     pub mcp_servers: Vec<String>,
-    /// Skill identifiers this agent advertises.
     #[serde(default)]
     pub skills: Vec<String>,
-    /// Optional AI provider override.
     #[serde(default)]
     pub provider: Option<String>,
-    /// Optional model override.
     #[serde(default)]
     pub model: Option<String>,
-    /// The agent card descriptor.
     pub card: AgentCardConfig,
-    /// OAuth scope and audience requirements.
     #[serde(default)]
     pub oauth: OAuthConfig,
 }
 
 impl DiskAgentConfig {
-    /// Resolved system-prompt filename, with the documented default
-    /// applied when the field is absent or blank.
     #[must_use]
     pub fn system_prompt_file(&self) -> &str {
         self.system_prompt_file
@@ -87,8 +60,6 @@ impl DiskAgentConfig {
             .unwrap_or(DEFAULT_AGENT_SYSTEM_PROMPT_FILE)
     }
 
-    /// Project this disk shape into the runtime [`AgentConfig`] shape,
-    /// embedding the resolved `base_url` and `system_prompt` values.
     #[must_use]
     pub fn to_agent_config(&self, base_url: &str, system_prompt: Option<String>) -> AgentConfig {
         let endpoint = self.endpoint.clone().unwrap_or_else(|| {
@@ -130,12 +101,6 @@ impl DiskAgentConfig {
         }
     }
 
-    /// Validate this on-disk agent configuration against its source directory.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConfigValidationError::InvalidField`] when the id, name, port,
-    /// or display name violates a structural constraint.
     pub fn validate(&self, dir_name: &str) -> Result<(), ConfigValidationError> {
         if let Some(id) = &self.id
             && id.as_str() != dir_name

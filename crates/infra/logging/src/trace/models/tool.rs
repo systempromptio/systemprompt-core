@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use systemprompt_identifiers::{AiRequestId, ArtifactId, McpExecutionId, TaskId, TraceId};
 
-/// Filter parameters for listing tool executions.
 #[derive(Debug, Clone)]
 pub struct ToolExecutionFilter {
     pub limit: i64,
@@ -16,7 +15,6 @@ pub struct ToolExecutionFilter {
 }
 
 impl ToolExecutionFilter {
-    /// Construct a new tool-execution filter with the given row limit.
     pub const fn new(limit: i64) -> Self {
         Self {
             limit,
@@ -27,7 +25,6 @@ impl ToolExecutionFilter {
         }
     }
 
-    /// Restrict results to executions at or after the given timestamp.
     pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
@@ -40,7 +37,6 @@ impl ToolExecutionFilter {
     }
 }
 
-/// A row in the tool-execution list view.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolExecutionItem {
     pub timestamp: DateTime<Utc>,
@@ -51,7 +47,6 @@ pub struct ToolExecutionItem {
     pub execution_time_ms: Option<i32>,
 }
 
-/// Result row when looking up an AI request for audit purposes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLookupResult {
     pub id: AiRequestId,
@@ -65,7 +60,6 @@ pub struct AuditLookupResult {
     pub trace_id: Option<TraceId>,
 }
 
-/// A single audited tool call attached to an AI request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditToolCallRow {
     pub tool_name: String,
@@ -73,7 +67,6 @@ pub struct AuditToolCallRow {
     pub sequence_number: i32,
 }
 
-/// MCP call linked to an AI request via its trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinkedMcpCall {
     pub tool_name: String,
@@ -82,7 +75,6 @@ pub struct LinkedMcpCall {
     pub execution_time_ms: Option<i32>,
 }
 
-/// Detailed MCP tool execution with input and (optional) output payloads.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpToolExecution {
     pub mcp_execution_id: McpExecutionId,
@@ -95,7 +87,6 @@ pub struct McpToolExecution {
     pub output: Option<String>,
 }
 
-/// A single log line emitted while a tool was executing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolLogEntry {
     pub timestamp: DateTime<Utc>,
@@ -104,7 +95,6 @@ pub struct ToolLogEntry {
     pub message: String,
 }
 
-/// A task artifact (text or structured data) produced during execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskArtifact {
     pub artifact_id: ArtifactId,

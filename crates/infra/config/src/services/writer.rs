@@ -9,14 +9,12 @@ use systemprompt_logging::CliService;
 use super::types::{DeployEnvironment, EnvironmentConfig};
 use crate::error::ConfigResult;
 
-/// Writes `.env`, `.env.<env>`, and the corresponding `web/` files.
 #[derive(Debug)]
 pub struct ConfigWriter {
     project_root: PathBuf,
 }
 
 impl ConfigWriter {
-    /// Create a writer rooted at `project_root`.
     #[must_use]
     pub const fn new(project_root: PathBuf) -> Self {
         Self { project_root }
@@ -30,13 +28,6 @@ impl ConfigWriter {
         self.project_root.join("web")
     }
 
-    /// Write the resolved variables in `config` as a sorted `KEY=VAL`
-    /// list to `output_path`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::error::ConfigError::Io`] on any underlying
-    /// write failure.
     pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
         let mut lines: Vec<String> = config
             .variables
@@ -65,14 +56,6 @@ impl ConfigWriter {
         Ok(())
     }
 
-    /// Write the `VITE_*` subset of `config` to the web frontend
-    /// directory, plus the `Local`/`DockerDev` symlink and Docker
-    /// override.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::error::ConfigError::Io`] on any underlying
-    /// write failure.
     pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> ConfigResult<()> {
         let web_dir = self.resolve_web_dir();
         let web_env_path = web_dir.join(format!(".env.{}", config.environment.as_str()));

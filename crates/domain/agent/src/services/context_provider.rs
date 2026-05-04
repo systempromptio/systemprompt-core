@@ -10,18 +10,12 @@ use systemprompt_traits::{ContextProvider, ContextProviderError, ContextWithStat
 use crate::error::AgentError;
 use crate::repository::ContextRepository;
 
-/// Adapter that implements [`ContextProvider`] on top of [`ContextRepository`].
 #[derive(Debug, Clone)]
 pub struct ContextProviderService {
     repo: ContextRepository,
 }
 
 impl ContextProviderService {
-    /// Construct a new `ContextProviderService` from a shared [`DbPool`].
-    ///
-    /// # Errors
-    /// Returns [`AgentError::Init`] if the inner [`ContextRepository`] cannot
-    /// be initialised.
     pub fn new(db_pool: &DbPool) -> Result<Self, AgentError> {
         Ok(Self {
             repo: ContextRepository::new(db_pool)?,

@@ -11,7 +11,6 @@ use std::process::Command;
 #[path = "pid/linux_proc.rs"]
 mod linux_proc;
 
-/// Find the PID listening on `port`, if any.
 #[cfg(target_os = "linux")]
 pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
     if let Some(pid) = linux_proc::find_pid_by_port_proc(port) {
@@ -21,7 +20,6 @@ pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
     find_pid_by_port_lsof(port)
 }
 
-/// Find the PID listening on `port`, if any.
 #[cfg(all(unix, not(target_os = "linux")))]
 pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
     find_pid_by_port_lsof(port)
@@ -44,7 +42,6 @@ fn find_pid_by_port_lsof(port: u16) -> McpDomainResult<Option<u32>> {
         .and_then(|line| line.trim().parse::<u32>().ok()))
 }
 
-/// Find the PID listening on `port`, if any.
 #[cfg(windows)]
 pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
     let output = Command::new("netstat")
@@ -69,7 +66,6 @@ pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
     Ok(None)
 }
 
-/// Find PIDs whose process command-line contains `process_name`.
 #[cfg(unix)]
 pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
     let output = Command::new("pgrep")
@@ -89,7 +85,6 @@ pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
     Ok(pids)
 }
 
-/// Find PIDs whose process name contains `process_name`.
 #[cfg(windows)]
 pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
     let output = Command::new("tasklist")
@@ -114,7 +109,6 @@ pub fn find_pids_by_name(process_name: &str) -> McpDomainResult<Vec<u32>> {
     Ok(pids)
 }
 
-/// Look up the listening port for a given PID, if any.
 #[cfg(target_os = "linux")]
 pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
     if let Some(port) = linux_proc::get_port_by_pid_proc(pid) {
@@ -124,7 +118,6 @@ pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
     get_port_by_pid_lsof(pid)
 }
 
-/// Look up the listening port for a given PID, if any.
 #[cfg(all(unix, not(target_os = "linux")))]
 pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
     get_port_by_pid_lsof(pid)
@@ -154,7 +147,6 @@ fn get_port_by_pid_lsof(pid: u32) -> McpDomainResult<Option<u16>> {
     Ok(port)
 }
 
-/// Look up the listening port for a given PID, if any.
 #[cfg(windows)]
 pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
     let output = Command::new("netstat")
@@ -181,7 +173,6 @@ pub fn get_port_by_pid(pid: u32) -> McpDomainResult<Option<u16>> {
     Ok(None)
 }
 
-/// Resolve the executable name backing a PID.
 #[cfg(unix)]
 pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     let output = Command::new("ps")
@@ -197,7 +188,6 @@ pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     if name.is_empty() { None } else { Some(name) }
 }
 
-/// Resolve the executable name backing a PID.
 #[cfg(windows)]
 pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     let output = Command::new("tasklist")
@@ -220,7 +210,6 @@ pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
     Some(parts[0].trim_matches('"').to_string())
 }
 
-/// Find a process listening on `port` only if its name matches `expected_name`.
 pub fn find_process_on_port_with_name(
     port: u16,
     expected_name: &str,

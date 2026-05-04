@@ -12,22 +12,18 @@ use systemprompt_identifiers::AgentId;
 use systemprompt_models::{AGENT_CONFIG_FILENAME, DiskAgentConfig, strip_frontmatter};
 use tracing::warn;
 
-/// Computes a structured diff between disk and database agent state.
 #[derive(Debug)]
 pub struct AgentsDiffCalculator {
     agent_repo: AgentRepository,
 }
 
 impl AgentsDiffCalculator {
-    /// Construct a calculator backed by the given database pool.
     pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
             agent_repo: AgentRepository::new(db).map_err(SyncError::other)?,
         })
     }
 
-    /// Compute an [`AgentsDiffResult`] between `agents_path` on disk and the
-    /// agents currently stored in the database.
     pub async fn calculate_diff(&self, agents_path: &Path) -> SyncResult<AgentsDiffResult> {
         let db_agents = self.agent_repo.list_all().await.map_err(SyncError::other)?;
         let db_map: HashMap<AgentId, Agent> =

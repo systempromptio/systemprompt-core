@@ -70,18 +70,14 @@ pub use tenants::{StoredTenant, TenantStore, TenantType};
 
 use clap::ValueEnum;
 
-/// Cloud environment a [`CloudApiClient`] is targeting.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
 pub enum Environment {
-    /// `https://api.systemprompt.io` — the public production cloud.
     #[default]
     Production,
-    /// Sandbox environment used by integration tests.
     Sandbox,
 }
 
 impl Environment {
-    /// Base URL for the environment.
     #[must_use]
     pub const fn api_url(&self) -> &'static str {
         match self {
@@ -91,17 +87,13 @@ impl Environment {
     }
 }
 
-/// OAuth identity providers supported by `systemprompt cloud login`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum OAuthProvider {
-    /// GitHub OAuth.
     Github,
-    /// Google OAuth.
     Google,
 }
 
 impl OAuthProvider {
-    /// Lowercase string used in API URLs (`github` / `google`).
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
@@ -110,7 +102,6 @@ impl OAuthProvider {
         }
     }
 
-    /// Human-readable provider name surfaced in CLI prompts.
     #[must_use]
     pub const fn display_name(&self) -> &'static str {
         match self {

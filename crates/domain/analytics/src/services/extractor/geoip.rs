@@ -4,9 +4,6 @@
 
 use crate::GeoIpReader;
 
-/// Resolve `(country, region, city)` from `ip_str` using the optional
-/// `MaxMind` reader. Returns `None` when the reader is absent, the IP is
-/// unroutable, or the lookup fails.
 #[cfg(feature = "geolocation")]
 pub(super) fn lookup_geoip(
     ip_str: &str,
@@ -70,7 +67,6 @@ pub(super) fn lookup_geoip(
     Some((country, region, city_name))
 }
 
-/// No-op GeoIP lookup used when the `geolocation` feature is disabled.
 #[cfg(not(feature = "geolocation"))]
 pub(super) const fn lookup_geoip(
     _ip_str: &str,
@@ -79,7 +75,6 @@ pub(super) const fn lookup_geoip(
     None
 }
 
-/// Parse the registrable host from a referrer URL, dropping IP-only hosts.
 pub(super) fn parse_referrer_source(url: &str) -> Option<String> {
     match url::Url::parse(url) {
         Ok(parsed_url) => parsed_url

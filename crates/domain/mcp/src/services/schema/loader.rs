@@ -2,12 +2,10 @@ use crate::error::{McpDomainError, McpDomainResult};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Loads and validates schema SQL files for MCP services.
 #[derive(Debug, Clone, Copy)]
 pub struct SchemaLoader;
 
 impl SchemaLoader {
-    /// Read a schema file from `service_path/schema_file`.
     pub fn load_schema_file(service_path: &Path, schema_file: &str) -> McpDomainResult<String> {
         let schema_path = service_path.join(schema_file);
 
@@ -35,7 +33,6 @@ impl SchemaLoader {
         Ok(content)
     }
 
-    /// List all `.sql` files under `service_path/schema/`.
     pub fn list_schema_files(service_path: &Path) -> McpDomainResult<Vec<PathBuf>> {
         let schema_dir = service_path.join("schema");
 
@@ -57,7 +54,6 @@ impl SchemaLoader {
             .collect())
     }
 
-    /// Validate that the SQL is a CREATE TABLE schema.
     pub fn validate_schema_syntax(sql: &str) -> McpDomainResult<()> {
         let sql_upper = sql.trim().to_uppercase();
 
@@ -76,7 +72,6 @@ impl SchemaLoader {
         Ok(())
     }
 
-    /// Validate that all tables in the schema use the module prefix.
     pub fn validate_table_naming(sql: &str, module_name: &str) -> McpDomainResult<()> {
         let module_prefix = module_name.replace('-', "_");
         let table_names = Self::extract_table_names(sql);

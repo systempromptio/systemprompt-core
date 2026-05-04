@@ -13,20 +13,13 @@ use crate::error::CloudResult;
 
 const STORE_VERSION: u32 = 1;
 
-/// Persistent map of session keys to [`CliSession`] records.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionStore {
-    /// On-disk schema version.
     pub version: u32,
-    /// Map of storage key to session record.
     pub sessions: HashMap<String, CliSession>,
-    /// Currently active session, if any.
     pub active_key: Option<String>,
-    /// Active profile name (mirrored from the session for the CLI
-    /// status line).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_profile_name: Option<String>,
-    /// Last write timestamp.
     pub updated_at: DateTime<Utc>,
 }
 
@@ -37,7 +30,6 @@ impl Default for SessionStore {
 }
 
 impl SessionStore {
-    /// Create an empty session store.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -49,8 +41,6 @@ impl SessionStore {
         }
     }
 
-    /// Borrow a session if it exists, is unexpired, and has valid
-    /// credentials.
     #[must_use]
     pub fn get_valid_session(&self, key: &SessionKey) -> Option<&CliSession> {
         self.sessions
@@ -58,26 +48,22 @@ impl SessionStore {
             .filter(|s| !s.is_expired() && s.has_valid_credentials())
     }
 
-    /// Mutable variant of [`SessionStore::get_valid_session`].
     pub fn get_valid_session_mut(&mut self, key: &SessionKey) -> Option<&mut CliSession> {
         self.sessions
             .get_mut(&key.as_storage_key())
             .filter(|s| !s.is_expired() && s.has_valid_credentials())
     }
 
-    /// Borrow a session regardless of expiry/credentials.
     #[must_use]
     pub fn get_session(&self, key: &SessionKey) -> Option<&CliSession> {
         self.sessions.get(&key.as_storage_key())
     }
 
-    /// Insert or replace a session.
     pub fn upsert_session(&mut self, key: &SessionKey, session: CliSession) {
         self.sessions.insert(key.as_storage_key(), session);
         self.updated_at = Utc::now();
     }
 
-    /// Remove a session and return the previous value, if any.
     pub fn remove_session(&mut self, key: &SessionKey) -> Option<CliSession> {
         let storage_key = key.as_storage_key();
         let removed = self.sessions.remove(&storage_key);
@@ -87,21 +73,17 @@ impl SessionStore {
         removed
     }
 
-    /// Mark `key` as the active session.
     pub fn set_active(&mut self, key: &SessionKey) {
         self.active_key = Some(key.as_storage_key());
         self.updated_at = Utc::now();
     }
 
-    /// Mark `key` as active and record the profile name.
     pub fn set_active_with_profile(&mut self, key: &SessionKey, profile_name: &str) {
         self.active_key = Some(key.as_storage_key());
         self.active_profile_name = Some(profile_name.to_string());
         self.updated_at = Utc::now();
     }
 
-    /// Mark `key` as active, set the profile name, and update the
-    /// session's profile path.
     pub fn set_active_with_profile_path(
         &mut self,
         key: &SessionKey,
@@ -118,7 +100,6 @@ impl SessionStore {
         self.updated_at = Utc::now();
     }
 
-    /// Decode `active_key` back into a typed [`SessionKey`].
     #[must_use]
     pub fn active_session_key(&self) -> Option<SessionKey> {
         self.active_key.as_ref().map(|k| {
@@ -132,14 +113,12 @@ impl SessionStore {
         })
     }
 
-    /// Borrow the currently active session if it is valid.
     #[must_use]
     pub fn active_session(&self) -> Option<&CliSession> {
         self.active_session_key()
             .and_then(|key| self.get_valid_session(&key))
     }
 
-    /// Drop expired sessions and return the number removed.
     pub fn prune_expired(&mut self) -> usize {
         let expired_keys: Vec<String> = self
             .sessions
@@ -159,7 +138,6 @@ impl SessionStore {
         count
     }
 
-    /// Find the first unexpired session matching `name`.
     #[must_use]
     pub fn find_by_profile_name(&self, name: &str) -> Option<&CliSession> {
         self.sessions
@@ -167,27 +145,21 @@ impl SessionStore {
             .find(|s| s.profile_name.as_str() == name && !s.is_expired())
     }
 
-    /// Iterate all sessions as `(storage_key, session)` pairs.
     #[must_use]
     pub fn all_sessions(&self) -> Vec<(&String, &CliSession)> {
         self.sessions.iter().collect()
     }
 
-    /// Number of sessions in the store.
     #[must_use]
     pub fn len(&self) -> usize {
         self.sessions.len()
     }
 
-    /// `true` if the store has no sessions.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.sessions.is_empty()
     }
 
-    /// Read `index.json` from `sessions_dir`, returning `None` when
-    /// the file is missing or corrupt. Failures are logged at
-    /// `debug` / `warn`.
     #[must_use]
     pub fn load(sessions_dir: &Path) -> Option<Self> {
         let index_path = sessions_dir.join("index.json");
@@ -207,14 +179,6 @@ impl SessionStore {
         }
     }
 
-    /// Read the store from disk, returning a fresh empty store when
-    /// the file is missing or corrupt.
-    ///
-    /// # Errors
-    ///
-    /// Currently infallible; the [`CloudResult`] return is kept for
-    /// forward compatibility — future versions may surface
-    /// validation failures here.
     #[expect(
         clippy::unnecessary_wraps,
         reason = "Preserves the existing public signature for callers using `?`"
@@ -223,14 +187,6 @@ impl SessionStore {
         Ok(Self::load(sessions_dir).unwrap_or_default())
     }
 
-    /// Atomically write the store back to `index.json` with `0o600`
-    /// permissions on Unix.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::error::CloudError::Io`] /
-    /// [`Json`](crate::error::CloudError::Json) for filesystem and
-    /// serialization failures.
     pub fn save(&self, sessions_dir: &Path) -> CloudResult<()> {
         fs::create_dir_all(sessions_dir)?;
 

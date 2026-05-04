@@ -4,8 +4,6 @@ use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::BrandColors;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
-/// Render the failing report on stderr, including profile path,
-/// per-domain errors, and follow-on instructions.
 pub fn display_validation_report(report: &StartupValidationReport) {
     CliService::output("");
     CliService::output(&format!(
@@ -105,7 +103,6 @@ fn display_extension_errors(ext: &ValidationReport) {
     }
 }
 
-/// Render any non-fatal warnings collected on `report`.
 pub fn display_validation_warnings(report: &StartupValidationReport) {
     if report.warning_count() == 0 {
         return;

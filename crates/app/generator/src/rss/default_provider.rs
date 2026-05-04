@@ -17,7 +17,6 @@ use crate::templates::load_web_config;
 
 const DEFAULT_MAX_ITEMS: i64 = 20;
 
-/// Default RSS feed provider — emits one feed per enabled content source.
 pub struct DefaultRssFeedProvider {
     db_pool: DbPool,
     content_config: ContentConfigRaw,
@@ -36,8 +35,6 @@ impl std::fmt::Debug for DefaultRssFeedProvider {
 }
 
 impl DefaultRssFeedProvider {
-    /// Build a provider from disk: loads `content.yaml` and `web.yaml` from
-    /// `paths` and stores the database pool used by `fetch_items`.
     pub async fn new(db_pool: DbPool, paths: &AppPaths) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
         let web_config = load_web_config(paths)

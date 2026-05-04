@@ -2,37 +2,24 @@
 
 use chrono::{DateTime, Utc};
 
-/// One `<item>` in an RSS 2.0 feed.
 #[derive(Debug, Clone)]
 pub struct RssItem {
-    /// Item title.
     pub title: String,
-    /// Permalink to the item.
     pub link: String,
-    /// HTML or plain-text item description.
     pub description: String,
-    /// Publication date in UTC.
     pub pub_date: DateTime<Utc>,
-    /// Stable unique identifier — typically the same as `link`.
     pub guid: String,
-    /// Optional author display name.
     pub author: Option<String>,
 }
 
-/// Top-level `<channel>` metadata plus the items belonging to it.
 #[derive(Debug, Clone)]
 pub struct RssChannel {
-    /// Channel title.
     pub title: String,
-    /// Channel link (typically the site homepage).
     pub link: String,
-    /// Channel description.
     pub description: String,
-    /// Items in publication order.
     pub items: Vec<RssItem>,
 }
 
-/// XML-escape the five reserved characters (`&`, `<`, `>`, `"`, `'`).
 pub fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -41,12 +28,10 @@ pub fn escape_xml(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-/// Format `dt` as an RFC 2822 datetime string suitable for `<pubDate>`.
 pub fn format_rfc2822(dt: &DateTime<Utc>) -> String {
     dt.format("%a, %d %b %Y %H:%M:%S +0000").to_string()
 }
 
-/// Serialise `channel` (and all its items) into an RSS 2.0 XML string.
 pub fn build_rss_xml(channel: &RssChannel) -> String {
     let mut xml = String::with_capacity(8192);
 

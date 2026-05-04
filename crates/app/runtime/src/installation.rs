@@ -10,18 +10,11 @@ use systemprompt_database::{
 };
 use systemprompt_models::modules::Module;
 
-/// Install schemas and seeds for `module` against a freshly-built
-/// [`AppContext`].
-///
-/// Convenience entry point for callers that do not already hold a
-/// runtime context.
 pub async fn install_module(module: &Module) -> RuntimeResult<()> {
     let app_context = AppContext::new().await?;
     install_module_with_db(module, app_context.db_pool().as_ref()).await
 }
 
-/// Install schemas and seeds for `module` against an existing database
-/// handle.
 pub async fn install_module_with_db(
     module: &Module,
     db: &dyn DatabaseProvider,

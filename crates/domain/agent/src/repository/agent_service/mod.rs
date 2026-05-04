@@ -9,36 +9,25 @@ use systemprompt_traits::RepositoryError;
 
 use crate::error::AgentError;
 
-/// Database row for an agent service row in the registry.
 #[derive(Debug)]
 pub struct AgentServiceRow {
-    /// Agent service name (unique key).
     pub name: String,
-    /// Operating-system process id, when the agent is running.
     pub pid: Option<i32>,
-    /// TCP port the agent listens on.
     pub port: i32,
-    /// Status string (`running`, `stopped`, etc.).
     pub status: String,
 }
 
-/// Minimal projection containing only the agent name.
 #[derive(Debug)]
 pub struct AgentServerIdRow {
-    /// Agent service name.
     pub name: String,
 }
 
-/// Projection of agent name + pid for liveness queries.
 #[derive(Debug)]
 pub struct AgentServerIdPidRow {
-    /// Agent service name.
     pub name: String,
-    /// Operating-system process id.
     pub pid: i32,
 }
 
-/// Repository for declared agent services.
 #[derive(Debug, Clone)]
 pub struct AgentServiceRepository {
     pool: Arc<PgPool>,
@@ -46,11 +35,6 @@ pub struct AgentServiceRepository {
 }
 
 impl AgentServiceRepository {
-    /// Construct a new `AgentServiceRepository` from a shared [`DbPool`].
-    ///
-    /// # Errors
-    /// Returns [`AgentError::Init`] if the read or write pool cannot be
-    /// acquired.
     pub fn new(db: &DbPool) -> Result<Self, AgentError> {
         let pool = db.pool_arc().map_err(|e| AgentError::Init(e.to_string()))?;
         let write_pool = db

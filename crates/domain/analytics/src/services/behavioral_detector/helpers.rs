@@ -5,8 +5,6 @@ use chrono::{DateTime, Utc};
 
 use super::thresholds;
 
-/// Returns `true` when `endpoints` look like a sequential alphabetical crawl
-/// (>70% of positions match a sorted copy and at least five entries).
 pub(super) fn is_sequential_crawl(endpoints: &[String]) -> bool {
     if endpoints.len() < 5 {
         return false;
@@ -24,9 +22,6 @@ pub(super) fn is_sequential_crawl(endpoints: &[String]) -> bool {
     (matches as f64 / endpoints.len() as f64) > 0.7
 }
 
-/// Coefficient of variation (std-dev / mean) of inter-event intervals in
-/// milliseconds. Returns `None` when fewer than two timestamps are available
-/// or the mean is non-positive.
 pub(super) fn compute_timing_variance(timestamps: &[DateTime<Utc>]) -> Option<f64> {
     if timestamps.len() < 2 {
         return None;
@@ -53,8 +48,6 @@ pub(super) fn compute_timing_variance(timestamps: &[DateTime<Utc>]) -> Option<f6
     Some(std_dev / mean)
 }
 
-/// Returns `true` when the user-agent advertises a Chrome / Firefox version
-/// older than the configured minimum.
 pub(super) fn is_outdated_browser(user_agent: &str) -> bool {
     let ua_lower = user_agent.to_lowercase();
 

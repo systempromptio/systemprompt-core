@@ -3,18 +3,11 @@
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-/// A string field that may either be supplied inline or as a reference
-/// to a sibling file via `!include <path>`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum IncludableString {
-    /// Inline literal content.
     Inline(String),
-    /// File include reference.
-    Include {
-        /// Path of the file to include, relative to the document.
-        path: String,
-    },
+    Include { path: String },
 }
 
 impl<'de> Deserialize<'de> for IncludableString {
@@ -33,13 +26,11 @@ impl<'de> Deserialize<'de> for IncludableString {
 }
 
 impl IncludableString {
-    /// True if this value carries an `!include` reference.
     #[must_use]
     pub const fn is_include(&self) -> bool {
         matches!(self, Self::Include { .. })
     }
 
-    /// Borrow the inline string, if any.
     #[must_use]
     pub fn as_inline(&self) -> Option<&str> {
         match self {

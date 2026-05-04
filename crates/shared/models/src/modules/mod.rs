@@ -21,14 +21,6 @@ pub struct Modules {
 }
 
 impl Modules {
-    /// Build a `Modules` collection from a flat module list, ordering
-    /// entries so each module's dependencies precede it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ModuleError::MissingDependencies`] or
-    /// [`ModuleError::Cycle`] when the dependency graph cannot be
-    /// linearised.
     pub fn from_vec(modules: Vec<Module>) -> Result<Self, ModuleError> {
         let modules = Self::resolve_dependencies(modules)?;
         Ok(Self { modules })
@@ -42,14 +34,6 @@ impl Modules {
         self.modules.iter().find(|m| m.name == name)
     }
 
-    /// Topologically sort `modules` so each module appears after its
-    /// declared dependencies.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ModuleError::MissingDependencies`] when a declared
-    /// dependency is not present in `modules`, or [`ModuleError::Cycle`]
-    /// when the graph contains a cycle.
     pub fn resolve_dependencies(mut modules: Vec<Module>) -> Result<Vec<Module>, ModuleError> {
         use std::collections::HashSet;
 

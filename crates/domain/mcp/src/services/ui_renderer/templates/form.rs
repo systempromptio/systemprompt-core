@@ -11,12 +11,10 @@ use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 
-/// Renders an artifact of type [`ArtifactType::Form`] into an HTML form.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FormRenderer;
 
 impl FormRenderer {
-    /// Construct a new [`FormRenderer`].
     pub const fn new() -> Self {
         Self
     }

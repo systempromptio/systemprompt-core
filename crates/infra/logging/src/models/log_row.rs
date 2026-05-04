@@ -23,13 +23,6 @@ pub struct LogRow {
 }
 
 impl LogRow {
-    /// Decode a [`LogRow`] from a generic JSON row returned by the database
-    /// service.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`LoggingError::MissingColumn`] when a required column is absent
-    /// or has the wrong type.
     pub fn from_json_row(row: &systemprompt_database::JsonRow) -> Result<Self> {
         let missing = |col: &str| LoggingError::MissingColumn {
             column: col.to_string(),

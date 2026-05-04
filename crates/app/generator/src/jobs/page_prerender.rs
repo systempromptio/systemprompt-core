@@ -9,7 +9,6 @@ use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderError,
 
 use crate::prerender::prerender_pages;
 
-/// Scheduled job that runs every registered page-prerenderer.
 #[derive(Debug, Clone, Copy)]
 pub struct PagePrerenderJob;
 

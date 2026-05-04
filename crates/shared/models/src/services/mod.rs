@@ -92,13 +92,6 @@ pub struct ServicesConfig {
 }
 
 impl ServicesConfig {
-    /// Validate the entire services document — port assignments, plugin
-    /// bindings, agent metadata, and skill cross-references.
-    ///
-    /// # Errors
-    ///
-    /// Returns the first [`ConfigValidationError`] encountered while traversing
-    /// the document.
     pub fn validate(&self) -> Result<(), ConfigValidationError> {
         self.validate_port_conflicts()?;
         self.validate_port_ranges()?;

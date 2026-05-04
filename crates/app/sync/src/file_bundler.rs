@@ -19,15 +19,10 @@ use crate::files::{
     FileBundle, FileDiffStatus, FileEntry, FileManifest, SyncDiffEntry, SyncDiffResult,
 };
 
-/// Top-level directories under `services/` that are included in every sync
-/// bundle. Anything outside this list is ignored.
 pub const INCLUDE_DIRS: [&str; 8] = [
     "agents", "skills", "content", "web", "config", "profiles", "plugins", "hooks",
 ];
 
-/// Walk `services_path`, collect every regular file under [`INCLUDE_DIRS`],
-/// and build a [`FileBundle`] (manifest + empty `data` slot — caller fills
-/// in `data` after `create_tarball`).
 pub fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     let mut files = vec![];
 
@@ -54,8 +49,6 @@ pub fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     })
 }
 
-/// Recursively walk `dir` and append a [`FileEntry`] to `files` for every
-/// regular file, with paths relative to `base`.
 pub fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncResult<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
@@ -78,9 +71,6 @@ pub fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncR
     Ok(())
 }
 
-/// Build a gzip tarball from every entry in `manifest`, reading file
-/// contents from disk under `base`. Prepends a `manifest.json` header entry
-/// so the archive is self-describing.
 pub fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8>> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     {
@@ -94,14 +84,10 @@ pub fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8
     Ok(encoder.finish()?)
 }
 
-/// Extract every entry in `data` into `target`. Returns the number of files
-/// written.
 pub fn extract_tarball(data: &[u8], target: &Path) -> SyncResult<usize> {
     extract_tarball_filtered(data, target, |_| true)
 }
 
-/// Extract only the entries whose relative path matches one of `paths` from
-/// `data` into `target`.
 pub fn extract_tarball_selective(
     data: &[u8],
     target: &Path,
@@ -181,8 +167,6 @@ where
     Ok(count)
 }
 
-/// Compute a [`SyncDiffResult`] between the remote tarball `data` and the
-/// local files under `services_path`.
 pub fn compare_tarball_with_local(data: &[u8], services_path: &Path) -> SyncResult<SyncDiffResult> {
     let temp_dir = tempfile::tempdir()?;
     extract_tarball(data, temp_dir.path())?;
@@ -268,8 +252,6 @@ pub fn compare_tarball_with_local(data: &[u8], services_path: &Path) -> SyncResu
     })
 }
 
-/// Read just the `manifest.json` header out of a sync tarball without
-/// extracting any of the payload files.
 pub fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
@@ -291,8 +273,6 @@ pub fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     })
 }
 
-/// Recursively add every regular file under `dir` to `zip`, with paths
-/// relative to `base`.
 pub fn add_dir_to_zip<W: Write + std::io::Seek>(
     zip: &mut ZipWriter<W>,
     dir: &Path,

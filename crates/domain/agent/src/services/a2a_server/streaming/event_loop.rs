@@ -20,7 +20,6 @@ use super::handlers::text::TextStreamState;
 use super::handlers::{HandleCompleteParams, HandleErrorParams, handle_complete, handle_error};
 use super::webhook_client::WebhookContext;
 
-/// Parameters for `process_events`.
 pub struct ProcessEventsParams {
     pub tx: Sender<Event>,
     pub chunk_rx: Receiver<StreamEvent>,
@@ -46,8 +45,6 @@ impl std::fmt::Debug for ProcessEventsParams {
     }
 }
 
-/// Drive the streaming event loop until the model's `Complete`/`Error` event
-/// arrives.
 pub async fn process_events(params: ProcessEventsParams) {
     let ProcessEventsParams {
         tx,
