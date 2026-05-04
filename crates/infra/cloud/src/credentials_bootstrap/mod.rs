@@ -1,46 +1,35 @@
-use anyhow::Result;
-use chrono::Utc;
+//! Process-wide cloud credentials bootstrap.
+
+mod error;
+
 use std::path::Path;
 use std::sync::OnceLock;
 
+use chrono::Utc;
+
+pub use error::CredentialsBootstrapError;
+
+use crate::error::{CloudError, CloudResult};
 use crate::{CloudApiClient, CloudCredentials};
 
 static CREDENTIALS: OnceLock<Option<CloudCredentials>> = OnceLock::new();
 
+/// Marker type owning the credentials bootstrap singleton.
 #[derive(Debug, Clone, Copy)]
 pub struct CredentialsBootstrap;
 
-#[derive(Debug, thiserror::Error)]
-pub enum CredentialsBootstrapError {
-    #[error(
-        "Credentials not initialized. Call CredentialsBootstrap::init() after \
-         ProfileBootstrap::init()"
-    )]
-    NotInitialized,
-
-    #[error("Credentials already initialized")]
-    AlreadyInitialized,
-
-    #[error("Cloud credentials not available")]
-    NotAvailable,
-
-    #[error("Cloud credentials file not found: {path}")]
-    FileNotFound { path: String },
-
-    #[error("Cloud credentials file invalid: {message}")]
-    InvalidCredentials { message: String },
-
-    #[error("Cloud token has expired. Run 'systemprompt cloud login' to refresh")]
-    TokenExpired,
-
-    #[error("Cloud API validation failed: {message}")]
-    ApiValidationFailed { message: String },
-}
-
 impl CredentialsBootstrap {
-    pub async fn init() -> Result<Option<&'static CloudCredentials>> {
+    /// Load credentials from the active cloud paths (or environment
+    /// variables in Fly.io containers) and install them in the
+    /// global cell.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CloudError`] for any state-transition, file-system,
+    /// or API-validation failure encountered during loading.
+    pub async fn init() -> CloudResult<Option<&'static CloudCredentials>> {
         if CREDENTIALS.get().is_some() {
-            anyhow::bail!(CredentialsBootstrapError::AlreadyInitialized);
+            return Err(CredentialsBootstrapError::AlreadyInitialized.into());
         }
 
         if Self::is_fly_container() {
@@ -54,11 +43,10 @@ impl CredentialsBootstrap {
                             "cloud credentials unvalidated; proceeding under SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1"
                         );
                     } else {
-                        return Err(anyhow::anyhow!(
-                            CredentialsBootstrapError::ApiValidationFailed {
-                                message: e.to_string()
-                            }
-                        ));
+                        return Err(CredentialsBootstrapError::ApiValidationFailed {
+                            message: e.to_string(),
+                        }
+                        .into());
                     }
                 }
             }
@@ -86,13 +74,14 @@ impl CredentialsBootstrap {
             .as_ref())
     }
 
-    async fn validate_with_api(creds: &CloudCredentials) -> Result<()> {
+    async fn validate_with_api(creds: &CloudCredentials) -> CloudResult<()> {
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
-        client.get_user().await.map_err(|e| {
-            anyhow::anyhow!(CredentialsBootstrapError::ApiValidationFailed {
-                message: e.to_string()
-            })
-        })?;
+        client
+            .get_user()
+            .await
+            .map_err(|e| CredentialsBootstrapError::ApiValidationFailed {
+                message: e.to_string(),
+            })?;
         tracing::debug!("Cloud credentials validated with API");
         Ok(())
     }
@@ -106,27 +95,26 @@ impl CredentialsBootstrap {
     }
 
     fn load_from_env() -> Option<CloudCredentials> {
-        let api_token = std::env::var("SYSTEMPROMPT_API_TOKEN")
-            .ok()
-            .filter(|s| !s.is_empty())?;
-
-        let user_email = std::env::var("SYSTEMPROMPT_USER_EMAIL")
-            .ok()
-            .filter(|s| !s.is_empty())?;
+        let api_token = read_env_optional("SYSTEMPROMPT_API_TOKEN")?;
+        let user_email = read_env_optional("SYSTEMPROMPT_USER_EMAIL")?;
 
         tracing::debug!("Loading cloud credentials from environment variables");
 
         Some(CloudCredentials {
             api_token,
-            api_url: std::env::var("SYSTEMPROMPT_API_URL")
-                .ok()
-                .filter(|s| !s.is_empty())
+            api_url: read_env_optional("SYSTEMPROMPT_API_URL")
                 .unwrap_or_else(|| crate::constants::api::PRODUCTION_URL.into()),
             authenticated_at: Utc::now(),
             user_email,
         })
     }
 
+    /// Borrow the credentials installed by [`CredentialsBootstrap::init`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CredentialsBootstrapError::NotInitialized`] if
+    /// `init` has not been called.
     pub fn get() -> Result<Option<&'static CloudCredentials>, CredentialsBootstrapError> {
         CREDENTIALS
             .get()
@@ -134,25 +122,48 @@ impl CredentialsBootstrap {
             .ok_or(CredentialsBootstrapError::NotInitialized)
     }
 
+    /// Like [`CredentialsBootstrap::get`] but returns an error when
+    /// the singleton was installed with `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CredentialsBootstrapError::NotInitialized`] or
+    /// [`CredentialsBootstrapError::NotAvailable`].
     pub fn require() -> Result<&'static CloudCredentials, CredentialsBootstrapError> {
         Self::get()?.ok_or(CredentialsBootstrapError::NotAvailable)
     }
 
+    /// `true` if the singleton has been initialised (with or without
+    /// credentials).
+    #[must_use]
     pub fn is_initialized() -> bool {
         CREDENTIALS.get().is_some()
     }
 
+    /// Install the singleton with `None` (i.e. "unauthenticated"
+    /// state) for code paths that need to opt out of bootstrap.
     pub fn init_empty() {
-        let _ = CREDENTIALS.set(None);
+        if CREDENTIALS.set(None).is_err() {
+            tracing::debug!("Credentials cell already initialised; init_empty is a no-op");
+        }
     }
 
-    pub async fn try_init() -> Result<Option<&'static CloudCredentials>> {
+    /// Idempotent variant of [`CredentialsBootstrap::init`] that
+    /// returns the already-installed credentials if present.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`CredentialsBootstrap::init`].
+    pub async fn try_init() -> CloudResult<Option<&'static CloudCredentials>> {
         if CREDENTIALS.get().is_some() {
             return Self::get().map_err(Into::into);
         }
         Self::init().await
     }
 
+    /// `true` if a token is present and will expire within
+    /// `duration`.
+    #[must_use]
     pub fn expires_within(duration: chrono::Duration) -> bool {
         match Self::get() {
             Ok(Some(c)) => c.expires_within(duration),
@@ -164,6 +175,12 @@ impl CredentialsBootstrap {
         }
     }
 
+    /// Re-read credentials from disk and re-validate against the
+    /// cloud API without touching the global cell.
+    ///
+    /// # Errors
+    ///
+    /// Returns the relevant [`CredentialsBootstrapError`] variant.
     pub async fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {
         let cloud_paths = crate::paths::get_cloud_paths();
         let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
@@ -183,21 +200,21 @@ impl CredentialsBootstrap {
         Ok(creds)
     }
 
-    fn load_credentials_from_path(path: &Path) -> Result<CloudCredentials> {
+    fn load_credentials_from_path(path: &Path) -> CloudResult<CloudCredentials> {
         let creds = CloudCredentials::load_from_path(path).map_err(|e| {
             if path.exists() {
-                anyhow::anyhow!(CredentialsBootstrapError::InvalidCredentials {
+                CloudError::from(CredentialsBootstrapError::InvalidCredentials {
                     message: e.to_string(),
                 })
             } else {
-                anyhow::anyhow!(CredentialsBootstrapError::FileNotFound {
-                    path: path.display().to_string()
+                CloudError::from(CredentialsBootstrapError::FileNotFound {
+                    path: path.display().to_string(),
                 })
             }
         })?;
 
         if creds.is_token_expired() {
-            anyhow::bail!(CredentialsBootstrapError::TokenExpired);
+            return Err(CredentialsBootstrapError::TokenExpired.into());
         }
 
         if creds.expires_within(chrono::Duration::hours(1)) {
@@ -214,5 +231,12 @@ impl CredentialsBootstrap {
         );
 
         Ok(creds)
+    }
+}
+
+fn read_env_optional(name: &str) -> Option<String> {
+    match std::env::var(name) {
+        Ok(v) if !v.is_empty() => Some(v),
+        Ok(_) | Err(_) => None,
     }
 }

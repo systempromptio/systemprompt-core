@@ -39,5 +39,5 @@ pub fn get_session_for_key(session_key: &SessionKey) -> Result<Option<CliSession
 
 pub fn load_session_store() -> Result<SessionStore> {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
-    SessionStore::load_or_create(&sessions_dir)
+    SessionStore::load_or_create(&sessions_dir).map_err(Into::into)
 }

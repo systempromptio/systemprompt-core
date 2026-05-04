@@ -1,15 +1,27 @@
-use anyhow::{Result, anyhow};
-use futures::StreamExt;
+//! Watch a tenant's provisioning state via SSE, falling back to
+//! polling when the stream errors out.
+
 use std::time::Duration;
+
+use futures::StreamExt;
 
 use crate::CloudApiClient;
 use crate::api_client::{ProvisioningEvent, ProvisioningEventType};
+use crate::error::{CloudError, CloudResult};
 
+/// Subscribe to `subscribe_provisioning_events` and resolve once the
+/// tenant reaches `TenantReady`. Falls back to polling
+/// `get_tenant_status` when the SSE stream errors.
+///
+/// # Errors
+///
+/// Returns [`CloudError::ProvisioningFailed`] when the cloud
+/// reports failure, or any underlying transport error.
 pub async fn wait_for_provisioning<F>(
     client: &CloudApiClient,
     tenant_id: &str,
     on_event: F,
-) -> Result<ProvisioningEvent>
+) -> CloudResult<ProvisioningEvent>
 where
     F: Fn(&ProvisioningEvent),
 {
@@ -23,10 +35,9 @@ where
                 match event.event_type {
                     ProvisioningEventType::TenantReady => return Ok(event),
                     ProvisioningEventType::ProvisioningFailed => {
-                        return Err(anyhow!(
-                            "Provisioning failed: {}",
-                            event.message.as_deref().unwrap_or("Unknown error")
-                        ));
+                        return Err(CloudError::ProvisioningFailed {
+                            message: event.message.unwrap_or_else(|| "Unknown error".to_string()),
+                        });
                     },
                     _ => {},
                 }
@@ -45,7 +56,7 @@ where
 async fn wait_for_provisioning_polling(
     client: &CloudApiClient,
     tenant_id: &str,
-) -> Result<ProvisioningEvent> {
+) -> CloudResult<ProvisioningEvent> {
     const MAX_ATTEMPTS: u32 = 60;
     const POLL_INTERVAL_SECS: u64 = 2;
 
@@ -63,10 +74,11 @@ async fn wait_for_provisioning_polling(
                     });
                 },
                 "failed" => {
-                    return Err(anyhow!(
-                        "Provisioning failed: {}",
-                        status.message.as_deref().unwrap_or("Unknown error")
-                    ));
+                    return Err(CloudError::ProvisioningFailed {
+                        message: status
+                            .message
+                            .unwrap_or_else(|| "Unknown error".to_string()),
+                    });
                 },
                 _ => {
                     tracing::debug!(
@@ -84,8 +96,10 @@ async fn wait_for_provisioning_polling(
         }
     }
 
-    Err(anyhow!(
-        "Provisioning timed out after {} seconds",
-        MAX_ATTEMPTS * POLL_INTERVAL_SECS as u32
-    ))
+    Err(CloudError::ProvisioningFailed {
+        message: format!(
+            "Provisioning timed out after {} seconds",
+            MAX_ATTEMPTS * POLL_INTERVAL_SECS as u32
+        ),
+    })
 }
