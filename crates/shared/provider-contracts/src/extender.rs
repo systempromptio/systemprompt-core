@@ -1,17 +1,29 @@
+//! [`TemplateDataExtender`] contract for grafting extra variables onto
+//! per-page template data immediately before rendering.
+
 use std::any::Any;
 
-use crate::web_config::WebConfig;
-use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
 
+use crate::error::ProviderResult;
+use crate::web_config::WebConfig;
+
+/// Per-call context handed to a [`TemplateDataExtender`].
 pub struct ExtenderContext<'a> {
+    /// The content item currently being rendered.
     pub item: &'a Value,
+    /// Full item list backing the rendering pass.
     pub all_items: &'a [Value],
+    /// Source-config YAML node for the current content source.
     pub config: &'a serde_yaml::Value,
+    /// Resolved web config for the rendering host.
     pub web_config: &'a WebConfig,
+    /// Pre-rendered HTML body of the item.
     pub content_html: &'a str,
+    /// URL pattern used to absolutize permalinks for this source.
     pub url_pattern: &'a str,
+    /// Logical content source name (e.g. `blog`).
     pub source_name: &'a str,
     db_pool: &'a (dyn Any + Send + Sync),
 }
@@ -32,6 +44,7 @@ impl std::fmt::Debug for ExtenderContext<'_> {
     }
 }
 
+/// Builder for [`ExtenderContext`].
 pub struct ExtenderContextBuilder<'a> {
     item: &'a Value,
     all_items: &'a [Value],
@@ -60,6 +73,7 @@ impl std::fmt::Debug for ExtenderContextBuilder<'_> {
 }
 
 impl<'a> ExtenderContextBuilder<'a> {
+    /// Build a fresh [`ExtenderContextBuilder`] with required fields populated.
     #[must_use]
     pub fn new(
         item: &'a Value,
@@ -80,24 +94,28 @@ impl<'a> ExtenderContextBuilder<'a> {
         }
     }
 
+    /// Attach the item's pre-rendered HTML body.
     #[must_use]
     pub const fn with_content_html(mut self, content_html: &'a str) -> Self {
         self.content_html = content_html;
         self
     }
 
+    /// Attach the URL pattern used to absolutize permalinks.
     #[must_use]
     pub const fn with_url_pattern(mut self, url_pattern: &'a str) -> Self {
         self.url_pattern = url_pattern;
         self
     }
 
+    /// Attach the logical content source name.
     #[must_use]
     pub const fn with_source_name(mut self, source_name: &'a str) -> Self {
         self.source_name = source_name;
         self
     }
 
+    /// Finalize the builder into an [`ExtenderContext`].
     #[must_use]
     pub fn build(self) -> ExtenderContext<'a> {
         ExtenderContext {
@@ -114,6 +132,7 @@ impl<'a> ExtenderContextBuilder<'a> {
 }
 
 impl<'a> ExtenderContext<'a> {
+    /// Open an [`ExtenderContextBuilder`] for fluent construction.
     #[must_use]
     pub fn builder(
         item: &'a Value,
@@ -125,19 +144,24 @@ impl<'a> ExtenderContext<'a> {
         ExtenderContextBuilder::new(item, all_items, config, web_config, db_pool)
     }
 
+    /// Type-erased downcast to the host's database pool.
     #[must_use]
     pub fn db_pool<T: 'static>(&self) -> Option<&T> {
         self.db_pool.downcast_ref::<T>()
     }
 }
 
+/// Output of a [`TemplateDataExtender`].
 #[derive(Debug)]
 pub struct ExtendedData {
+    /// JSON variables to merge into the page's template data.
     pub variables: Value,
+    /// Merge priority; higher overrides lower.
     pub priority: u32,
 }
 
 impl ExtendedData {
+    /// Build [`ExtendedData`] with the default priority (100).
     #[must_use]
     pub const fn new(variables: Value) -> Self {
         Self {
@@ -146,6 +170,7 @@ impl ExtendedData {
         }
     }
 
+    /// Build [`ExtendedData`] with an explicit priority.
     #[must_use]
     pub const fn with_priority(variables: Value, priority: u32) -> Self {
         Self {
@@ -155,16 +180,24 @@ impl ExtendedData {
     }
 }
 
+/// Hook that mutates the per-page template data with extra variables.
+///
+/// Marked `#[async_trait]` because it is consumed via
+/// `dyn TemplateDataExtender`.
 #[async_trait]
 pub trait TemplateDataExtender: Send + Sync {
+    /// Stable identifier for this extender.
     fn extender_id(&self) -> &str;
 
+    /// Source names this extender opts into; empty means "all".
     fn applies_to(&self) -> Vec<String> {
         vec![]
     }
 
-    async fn extend(&self, ctx: &ExtenderContext<'_>, data: &mut Value) -> Result<()>;
+    /// Mutate `data` in place with the extender's contributions.
+    async fn extend(&self, ctx: &ExtenderContext<'_>, data: &mut Value) -> ProviderResult<()>;
 
+    /// Extender priority; higher runs first.
     fn priority(&self) -> u32 {
         100
     }
