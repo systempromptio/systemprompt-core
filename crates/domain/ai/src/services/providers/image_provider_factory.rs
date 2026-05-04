@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_models::services::AiProviderConfig;
@@ -11,13 +12,13 @@ pub struct ImageProviderFactory;
 impl ImageProviderFactory {
     pub fn create(name: &str, config: &AiProviderConfig) -> Result<BoxedImageProvider> {
         if !config.enabled {
-            return Err(anyhow!("Image provider {name} is disabled"));
+            return Err(anyhow!("Image provider {name} is disabled").into());
         }
 
         match name {
             "gemini" => Ok(Self::create_gemini(config)),
             "openai" => Ok(Self::create_openai(config)),
-            _ => Err(anyhow!("Unknown image provider: {name}")),
+            _ => Err(anyhow!("Unknown image provider: {name}").into()),
         }
     }
 
@@ -46,7 +47,8 @@ impl ImageProviderFactory {
                 Err(anyhow!(
                     "No image provider available (primary: {} does not support images)",
                     name
-                ))
+                )
+                .into())
             },
             Err(e) => Err(e),
         }
@@ -103,7 +105,7 @@ impl ImageProviderFactory {
         }
 
         if providers.is_empty() {
-            return Err(anyhow!("No image providers could be initialized"));
+            return Err(anyhow!("No image providers could be initialized").into());
         }
 
         Ok(providers)

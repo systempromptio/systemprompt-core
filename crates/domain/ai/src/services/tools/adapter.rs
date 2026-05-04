@@ -14,6 +14,8 @@ pub fn mcp_tool_to_definition(tool: &McpTool) -> ToolDefinition {
         output_schema: tool.output_schema.clone(),
         service_id: tool.service_id.to_string(),
         terminal_on_success: tool.terminal_on_success,
+        // Why: model_config is metadata; if it cannot be serialized we log and
+        // omit it rather than failing the conversion of the entire tool.
         model_config: tool.model_config.as_ref().and_then(|c| {
             serde_json::to_value(c)
                 .map_err(|e| {
@@ -37,6 +39,8 @@ pub fn definition_to_mcp_tool(def: &ToolDefinition) -> McpTool {
         output_schema: def.output_schema.clone(),
         service_id: McpServerId::new(def.service_id.clone()),
         terminal_on_success: def.terminal_on_success,
+        // Why: see `mcp_tool_to_definition`; model_config is metadata, drop on
+        // parse failure rather than failing the whole tool conversion.
         model_config: def.model_config.as_ref().and_then(|c| {
             serde_json::from_value(c.clone())
                 .map_err(|e| {
@@ -92,6 +96,8 @@ pub fn rmcp_result_to_trait_result(result: &CallToolResult) -> TraitToolCallResu
         content,
         structured_content: result.structured_content.clone(),
         is_error: result.is_error,
+        // Why: meta is opaque advisory data; preserve the rest of the result if
+        // serialization fails after logging.
         meta: result.meta.as_ref().and_then(|m| {
             serde_json::to_value(m)
                 .map_err(|e| {
@@ -151,6 +157,8 @@ pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResu
     rmcp_result
         .structured_content
         .clone_from(&result.structured_content);
+    // Why: meta is opaque advisory data; preserve the rest of the result if
+    // deserialization fails after logging.
     let meta = result.meta.as_ref().and_then(|m| {
         serde_json::from_value(m.clone())
             .map_err(|e| {

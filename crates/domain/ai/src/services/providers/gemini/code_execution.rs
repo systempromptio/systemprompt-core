@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use std::time::{Duration, Instant};
 use tracing::info;
 use uuid::Uuid;
@@ -126,10 +127,9 @@ fn build_code_execution_response(
 }
 
 fn get_first_candidate(response: &GeminiResponse) -> Result<&GeminiCandidate> {
-    response
-        .candidates
-        .first()
-        .ok_or_else(|| anyhow!("No response from Gemini for code execution"))
+    response.candidates.first().ok_or_else(|| {
+        crate::error::AiError::Internal(anyhow!("No response from Gemini for code execution"))
+    })
 }
 
 fn log_completion(request_id: Uuid, result: &CodeExtractionResult, latency_ms: u64) {

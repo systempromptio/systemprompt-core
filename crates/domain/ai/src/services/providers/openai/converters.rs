@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 
 use crate::models::ai::ResponseFormat;
 use crate::models::providers::openai::{
@@ -10,9 +11,12 @@ pub fn convert_tools(tools: Vec<McpTool>) -> Result<Vec<OpenAiTool>> {
     tools
         .into_iter()
         .map(|tool| {
-            let input_schema = tool
-                .input_schema
-                .ok_or_else(|| anyhow!("Tool '{}' missing input_schema", tool.name))?;
+            let input_schema = tool.input_schema.ok_or_else(|| {
+                crate::error::AiError::Internal(anyhow!(
+                    "Tool '{}' missing input_schema",
+                    tool.name
+                ))
+            })?;
 
             Ok(OpenAiTool {
                 r#type: "function".to_string(),
@@ -35,9 +39,11 @@ pub fn convert_response_format(format: &ResponseFormat) -> Result<Option<OpenAiR
             name,
             strict,
         } => {
-            let schema_name = name
-                .clone()
-                .ok_or_else(|| anyhow!("JSON schema response format requires a name"))?;
+            let schema_name = name.clone().ok_or_else(|| {
+                crate::error::AiError::Internal(anyhow!(
+                    "JSON schema response format requires a name"
+                ))
+            })?;
 
             Ok(Some(OpenAiResponseFormat::JsonSchema {
                 json_schema: OpenAiJsonSchema {

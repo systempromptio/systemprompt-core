@@ -1,3 +1,8 @@
+//! [`crate::AiService`] internals.
+//!
+//! Split across generation, streaming, tool execution, planning, the
+//! [`crate::AiProvider`] bridge, and the streaming storage wrapper.
+
 mod generation;
 mod planning;
 mod provider_impl;

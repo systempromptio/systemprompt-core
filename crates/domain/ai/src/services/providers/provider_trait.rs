@@ -1,9 +1,9 @@
+use crate::error::Result;
 use crate::models::ai::{
     AiMessage, AiResponse, ResponseFormat, SamplingParams, SearchGroundedResponse, StreamChunk,
 };
 use crate::models::tools::{CallToolResult, McpTool, ToolCall};
 use crate::services::schema::ProviderCapabilities;
-use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::Stream;
 use rmcp::model::RawContent;
@@ -225,20 +225,14 @@ pub trait AiProvider: Send + Sync {
         &self,
         _params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(anyhow::anyhow!(
-            "Streaming not supported by provider {}",
-            self.name()
-        ))
+        Err(anyhow::anyhow!("Streaming not supported by provider {}", self.name()).into())
     }
 
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(anyhow::anyhow!(
-            "Tool streaming not supported by provider {}",
-            self.name()
-        ))
+        Err(anyhow::anyhow!("Tool streaming not supported by provider {}", self.name()).into())
     }
 
     fn supports_streaming(&self) -> bool {
@@ -253,9 +247,6 @@ pub trait AiProvider: Send + Sync {
         &self,
         _params: SearchGenerationParams<'_>,
     ) -> Result<SearchGroundedResponse> {
-        Err(anyhow::anyhow!(
-            "Google Search not supported by provider {}",
-            self.name()
-        ))
+        Err(anyhow::anyhow!("Google Search not supported by provider {}", self.name()).into())
     }
 }

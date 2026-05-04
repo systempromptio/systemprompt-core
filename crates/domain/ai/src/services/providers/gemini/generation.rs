@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use reqwest::Client;
 use std::time::Instant;
 use uuid::Uuid;
@@ -16,7 +17,9 @@ pub fn build_client() -> Result<Client> {
     Client::builder()
         .connect_timeout(timeout::CONNECT_TIMEOUT)
         .build()
-        .map_err(|e| anyhow!("Failed to create HTTP client: {}", e))
+        .map_err(|e| {
+            crate::error::AiError::Internal(anyhow!("Failed to create HTTP client: {}", e))
+        })
 }
 
 pub async fn generate(
@@ -100,14 +103,12 @@ fn extract_content(gemini_response: &GeminiResponse) -> Result<String> {
     let candidate = gemini_response
         .candidates
         .first()
-        .ok_or_else(|| anyhow!("No response from Gemini"))?;
+        .ok_or_else(|| crate::error::AiError::Internal(anyhow!("No response from Gemini")))?;
 
     candidate.content.as_ref().map_or_else(
         || {
             let reason = candidate.finish_reason.as_deref().unwrap_or("UNKNOWN");
-            Err(anyhow!(
-                "Gemini returned no content. Finish reason: {reason}"
-            ))
+            Err(anyhow!("Gemini returned no content. Finish reason: {reason}").into())
         },
         |content| {
             Ok(content

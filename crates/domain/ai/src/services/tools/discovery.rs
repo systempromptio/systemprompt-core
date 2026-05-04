@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::RequestContext;

@@ -1,8 +1,9 @@
 use super::analyzer::DiscriminatedUnion;
 use super::capabilities::ProviderCapabilities;
 use super::sanitizer::SchemaSanitizer;
+use crate::error::Result;
 use crate::models::tools::McpTool;
-use anyhow::{Result, anyhow};
+use anyhow::anyhow;
 use serde_json::{Map, Value, json};
 
 fn merge_properties_into(
@@ -99,10 +100,12 @@ impl SchemaTransformer {
     }
 
     pub fn transform(&self, tool: &McpTool) -> Result<Vec<TransformedTool>> {
-        let schema = tool
-            .input_schema
-            .as_ref()
-            .ok_or_else(|| anyhow!("Tool '{}' missing required input_schema", tool.name))?;
+        let schema = tool.input_schema.as_ref().ok_or_else(|| {
+            crate::error::AiError::Internal(anyhow!(
+                "Tool '{}' missing required input_schema",
+                tool.name
+            ))
+        })?;
 
         if !self.capabilities.requires_transformation(schema) {
             return Ok(vec![self.pass_through(tool)?]);
@@ -119,14 +122,24 @@ impl SchemaTransformer {
         let schema = tool
             .input_schema
             .as_ref()
-            .ok_or_else(|| anyhow!("Tool '{}' missing required input_schema", tool.name))?
+            .ok_or_else(|| {
+                crate::error::AiError::Internal(anyhow!(
+                    "Tool '{}' missing required input_schema",
+                    tool.name
+                ))
+            })?
             .clone();
 
         let description = tool
             .description
             .as_ref()
             .filter(|d| !d.is_empty())
-            .ok_or_else(|| anyhow!("Tool '{}' has empty or missing description", tool.name))?
+            .ok_or_else(|| {
+                crate::error::AiError::Internal(anyhow!(
+                    "Tool '{}' has empty or missing description",
+                    tool.name
+                ))
+            })?
             .clone();
 
         let sanitized_schema = self.sanitizer.sanitize(schema);
@@ -149,7 +162,12 @@ impl SchemaTransformer {
             .description
             .as_ref()
             .filter(|d| !d.is_empty())
-            .ok_or_else(|| anyhow!("Tool '{}' has empty or missing description", tool.name))?;
+            .ok_or_else(|| {
+                crate::error::AiError::Internal(anyhow!(
+                    "Tool '{}' has empty or missing description",
+                    tool.name
+                ))
+            })?;
 
         let transformed_tools = union
             .variants

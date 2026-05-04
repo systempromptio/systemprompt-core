@@ -1,4 +1,5 @@
-use anyhow::{Result, anyhow};
+use crate::error::Result;
+use anyhow::anyhow;
 use futures::Stream;
 use futures::stream::StreamExt;
 use std::pin::Pin;
@@ -41,7 +42,7 @@ pub async fn generate_stream(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("Gemini streaming API error: {error_text}"));
+        return Err(anyhow!("Gemini streaming API error: {error_text}").into());
     }
 
     let byte_stream = response.bytes_stream();
@@ -49,7 +50,7 @@ pub async fn generate_stream(
     let chunk_stream = byte_stream
         .map(|result| {
             result
-                .map_err(|e| anyhow!("Stream error: {e}"))
+                .map_err(|e| crate::error::AiError::Internal(anyhow!("Stream error: {e}")))
                 .map(|b| parse_stream_chunks(&b))
         })
         .flat_map(|result| match result {
@@ -77,6 +78,8 @@ fn parse_stream_chunks(bytes: &bytes::Bytes) -> Vec<StreamChunk> {
 
 fn try_parse_array_format(cleaned: &str) -> Option<Vec<StreamChunk>> {
     let json_array = format!("[{cleaned}]");
+    // Why: streaming chunks may be partial JSON between SSE frames; on parse
+    // failure we log and skip the chunk rather than terminating the stream.
     let responses: Vec<GeminiResponse> = serde_json::from_str(&json_array)
         .map_err(|e| {
             tracing::debug!(error = %e, chunk = %cleaned, "Failed to parse Gemini stream as JSON array");

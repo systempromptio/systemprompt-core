@@ -1,3 +1,10 @@
+//! Provider drivers and shared abstractions.
+//!
+//! Drivers live for Anthropic, `OpenAI`, Gemini (chat + image generation),
+//! along with image provider abstractions. The internal
+//! [`provider_trait::AiProvider`] trait is the dispatch surface
+//! used by [`crate::AiService`].
+
 pub mod anthropic;
 pub mod gemini;
 pub mod gemini_images;
