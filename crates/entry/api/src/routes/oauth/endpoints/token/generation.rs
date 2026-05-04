@@ -71,7 +71,9 @@ pub async fn load_authenticated_user(
     repo: &OAuthRepository,
     user_id: &UserId,
 ) -> Result<AuthenticatedUser> {
-    repo.get_authenticated_user(user_id).await
+    repo.get_authenticated_user(user_id)
+        .await
+        .map_err(Into::into)
 }
 
 pub async fn generate_client_tokens(

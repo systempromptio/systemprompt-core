@@ -1,7 +1,7 @@
 mod creation;
 mod lookup;
 
-use anyhow::Result;
+use crate::error::OauthResult;
 use http::{HeaderMap, Uri};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -112,7 +112,7 @@ impl SessionCreationService {
     pub async fn create_anonymous_session(
         &self,
         input: CreateAnonymousSessionInput<'_>,
-    ) -> Result<AnonymousSessionInfo> {
+    ) -> OauthResult<AnonymousSessionInfo> {
         let analytics = self
             .analytics_provider
             .extract_analytics(input.headers, input.uri);
@@ -184,7 +184,7 @@ impl SessionCreationService {
     async fn create_session_internal(
         &self,
         params: SessionCreationParams<'_>,
-    ) -> Result<AnonymousSessionInfo> {
+    ) -> OauthResult<AnonymousSessionInfo> {
         let _guard = self.acquire_fingerprint_lock(&params.fingerprint).await;
 
         self.update_fingerprint_if_available(&params.fingerprint, &params.analytics)

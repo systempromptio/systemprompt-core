@@ -1,7 +1,7 @@
-use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, FileId};
 
+use crate::error::FilesResult;
 use crate::models::{ContentFile, File, FileRole};
 use crate::repository::FileRepository;
 
@@ -11,7 +11,7 @@ pub struct ContentService {
 }
 
 impl ContentService {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    pub fn new(db: &DbPool) -> FilesResult<Self> {
         Ok(Self {
             repository: FileRepository::new(db)?,
         })
@@ -31,7 +31,7 @@ impl ContentService {
         file_id: &FileId,
         role: FileRole,
         display_order: i32,
-    ) -> Result<ContentFile> {
+    ) -> FilesResult<ContentFile> {
         self.repository
             .link_to_content(content_id, file_id, role, display_order)
             .await
@@ -41,7 +41,7 @@ impl ContentService {
         &self,
         content_id: &ContentId,
         file_id: &FileId,
-    ) -> Result<()> {
+    ) -> FilesResult<()> {
         self.repository
             .unlink_from_content(content_id, file_id)
             .await
@@ -50,19 +50,19 @@ impl ContentService {
     pub async fn list_files_by_content(
         &self,
         content_id: &ContentId,
-    ) -> Result<Vec<(File, ContentFile)>> {
+    ) -> FilesResult<Vec<(File, ContentFile)>> {
         self.repository.list_files_by_content(content_id).await
     }
 
-    pub async fn list_content_by_file(&self, file_id: &FileId) -> Result<Vec<ContentFile>> {
+    pub async fn list_content_by_file(&self, file_id: &FileId) -> FilesResult<Vec<ContentFile>> {
         self.repository.list_content_by_file(file_id).await
     }
 
-    pub async fn find_featured_image(&self, content_id: &ContentId) -> Result<Option<File>> {
+    pub async fn find_featured_image(&self, content_id: &ContentId) -> FilesResult<Option<File>> {
         self.repository.find_featured_image(content_id).await
     }
 
-    pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> Result<()> {
+    pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> FilesResult<()> {
         self.repository.set_featured(file_id, content_id).await
     }
 }

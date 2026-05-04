@@ -219,7 +219,9 @@ async fn store_authorization_code(
         builder = builder.with_resource(resource);
     }
 
-    repo.store_authorization_code(builder.build()).await
+    repo.store_authorization_code(builder.build())
+        .await
+        .map_err(Into::into)
 }
 
 #[derive(Debug, Serialize)]

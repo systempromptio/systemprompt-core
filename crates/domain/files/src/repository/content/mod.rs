@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
 use chrono::Utc;
 use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
 
 use super::file::FileRepository;
+use crate::error::{FilesError, FilesResult};
 use crate::models::{ContentFile, File, FileRole};
 
 impl FileRepository {
@@ -12,13 +12,13 @@ impl FileRepository {
         file_id: &FileId,
         role: FileRole,
         display_order: i32,
-    ) -> Result<ContentFile> {
-        let file_id_uuid =
-            uuid::Uuid::parse_str(file_id.as_str()).context("Invalid UUID for file id")?;
+    ) -> FilesResult<ContentFile> {
+        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
+            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
         let now = Utc::now();
         let content_id_str = content_id.as_str();
 
-        sqlx::query_as!(
+        let result = sqlx::query_as!(
             ContentFile,
             r#"
             INSERT INTO content_files (content_id, file_id, role, display_order, created_at)
@@ -34,19 +34,18 @@ impl FileRepository {
             now
         )
         .fetch_one(self.pool.as_ref())
-        .await
-        .context(format!(
-            "Failed to link file {file_id} to content {content_id}"
-        ))
+        .await?;
+
+        Ok(result)
     }
 
     pub async fn unlink_from_content(
         &self,
         content_id: &ContentId,
         file_id: &FileId,
-    ) -> Result<()> {
-        let file_id_uuid =
-            uuid::Uuid::parse_str(file_id.as_str()).context("Invalid UUID for file id")?;
+    ) -> FilesResult<()> {
+        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
+            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
         let content_id_str = content_id.as_str();
 
         sqlx::query!(
@@ -58,10 +57,7 @@ impl FileRepository {
             file_id_uuid
         )
         .execute(self.pool.as_ref())
-        .await
-        .context(format!(
-            "Failed to unlink file {file_id} from content {content_id}"
-        ))?;
+        .await?;
 
         Ok(())
     }
@@ -69,7 +65,7 @@ impl FileRepository {
     pub async fn list_files_by_content(
         &self,
         content_id: &ContentId,
-    ) -> Result<Vec<(File, ContentFile)>> {
+    ) -> FilesResult<Vec<(File, ContentFile)>> {
         let content_id_str = content_id.as_str();
         let rows = sqlx::query!(
             r#"
@@ -85,8 +81,7 @@ impl FileRepository {
             content_id_str
         )
         .fetch_all(self.pool.as_ref())
-        .await
-        .context(format!("Failed to list files for content: {content_id}"))?;
+        .await?;
 
         Ok(rows
             .into_iter()
@@ -122,10 +117,10 @@ impl FileRepository {
             .collect())
     }
 
-    pub async fn find_featured_image(&self, content_id: &ContentId) -> Result<Option<File>> {
+    pub async fn find_featured_image(&self, content_id: &ContentId) -> FilesResult<Option<File>> {
         let content_id_str = content_id.as_str();
         let featured_role = FileRole::Featured.as_str();
-        sqlx::query_as!(
+        let result = sqlx::query_as!(
             File,
             r#"
             SELECT f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
@@ -141,15 +136,14 @@ impl FileRepository {
             featured_role
         )
         .fetch_optional(self.pool.as_ref())
-        .await
-        .context(format!(
-            "Failed to find featured image for content: {content_id}"
-        ))
+        .await?;
+
+        Ok(result)
     }
 
-    pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> Result<()> {
-        let file_id_uuid =
-            uuid::Uuid::parse_str(file_id.as_str()).context("Invalid UUID for file id")?;
+    pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> FilesResult<()> {
+        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
+            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
         let content_id_str = content_id.as_str();
         let featured_role = FileRole::Featured.as_str();
         let attachment_role = FileRole::Attachment.as_str();
@@ -183,22 +177,20 @@ impl FileRepository {
         .await?;
 
         if result.rows_affected() == 0 {
-            return Err(anyhow::anyhow!(
-                "File {} is not linked to content {}",
-                file_id,
-                content_id
-            ));
+            return Err(FilesError::NotFound(format!(
+                "File {file_id} is not linked to content {content_id}"
+            )));
         }
 
         tx.commit().await?;
         Ok(())
     }
 
-    pub async fn list_content_by_file(&self, file_id: &FileId) -> Result<Vec<ContentFile>> {
-        let file_id_uuid =
-            uuid::Uuid::parse_str(file_id.as_str()).context("Invalid UUID for file id")?;
+    pub async fn list_content_by_file(&self, file_id: &FileId) -> FilesResult<Vec<ContentFile>> {
+        let file_id_uuid = uuid::Uuid::parse_str(file_id.as_str())
+            .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
 
-        sqlx::query_as!(
+        let result = sqlx::query_as!(
             ContentFile,
             r#"
             SELECT id, content_id as "content_id: ContentId", file_id, role, display_order, created_at
@@ -209,7 +201,8 @@ impl FileRepository {
             file_id_uuid
         )
         .fetch_all(self.pool.as_ref())
-        .await
-        .context(format!("Failed to list content for file: {file_id}"))
+        .await?;
+
+        Ok(result)
     }
 }

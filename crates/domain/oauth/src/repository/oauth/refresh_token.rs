@@ -1,5 +1,5 @@
 use super::OAuthRepository;
-use anyhow::Result;
+use crate::error::{OauthError, OauthResult};
 use chrono::Utc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
 
@@ -62,9 +62,9 @@ impl<'a> RefreshTokenParams<'a> {
 }
 
 impl OAuthRepository {
-    pub async fn store_refresh_token(&self, params: RefreshTokenParams<'_>) -> Result<()> {
+    pub async fn store_refresh_token(&self, params: RefreshTokenParams<'_>) -> OauthResult<()> {
         let expires_at_dt = chrono::DateTime::<Utc>::from_timestamp(params.expires_at, 0)
-            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp for expires_at"))?;
+            .ok_or_else(|| OauthError::Validation("Invalid timestamp for expires_at".to_string()))?;
         let now = Utc::now();
         let token_id = params.token_id.as_str();
         let client_id = params.client_id.as_str();
@@ -91,7 +91,7 @@ impl OAuthRepository {
         &self,
         token_id: &RefreshTokenId,
         client_id: &ClientId,
-    ) -> Result<(UserId, String)> {
+    ) -> OauthResult<(UserId, String)> {
         let now = Utc::now();
         let token_id_str = token_id.as_str();
         let client_id_str = client_id.as_str();
@@ -104,10 +104,10 @@ impl OAuthRepository {
         )
         .fetch_optional(self.pool_ref())
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Invalid refresh token"))?;
+        .ok_or_else(|| OauthError::Token("Invalid refresh token".to_string()))?;
 
         if row.expires_at < now {
-            return Err(anyhow::anyhow!("Refresh token expired"));
+            return Err(OauthError::Token("Refresh token expired".to_string()));
         }
 
         Ok((UserId::new(row.user_id), row.scope))
@@ -117,7 +117,7 @@ impl OAuthRepository {
         &self,
         token_id: &RefreshTokenId,
         client_id: &ClientId,
-    ) -> Result<(UserId, String)> {
+    ) -> OauthResult<(UserId, String)> {
         let (user_id, scope) = self.validate_refresh_token(token_id, client_id).await?;
         let token_id_str = token_id.as_str();
 
@@ -131,7 +131,7 @@ impl OAuthRepository {
         Ok((user_id, scope))
     }
 
-    pub async fn revoke_refresh_token(&self, token_id: &RefreshTokenId) -> Result<bool> {
+    pub async fn revoke_refresh_token(&self, token_id: &RefreshTokenId) -> OauthResult<bool> {
         let token_id_str = token_id.as_str();
         let result = sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1",
@@ -143,7 +143,7 @@ impl OAuthRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    pub async fn cleanup_expired_refresh_tokens(&self) -> Result<u64> {
+    pub async fn cleanup_expired_refresh_tokens(&self) -> OauthResult<u64> {
         let now = Utc::now();
 
         let result = sqlx::query!(
@@ -159,7 +159,7 @@ impl OAuthRepository {
     pub async fn get_client_id_from_refresh_token(
         &self,
         token_id: &RefreshTokenId,
-    ) -> Result<Option<ClientId>> {
+    ) -> OauthResult<Option<ClientId>> {
         let token_id_str = token_id.as_str();
         let result = sqlx::query_scalar!(
             "SELECT client_id FROM oauth_refresh_tokens WHERE token_id = $1",
