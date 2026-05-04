@@ -4257,7 +4257,6 @@ dependencies = [
 name = "systemprompt"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "axum",
  "chrono",
  "rmcp",
@@ -4292,7 +4291,9 @@ dependencies = [
  "systemprompt-traits",
  "systemprompt-users",
  "thiserror 2.0.18",
+ "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
