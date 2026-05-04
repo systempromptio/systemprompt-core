@@ -1,3 +1,5 @@
+//! Broadcaster implementations and the static fan-out [`EventRouter`].
+
 mod broadcaster;
 mod routing;
 
