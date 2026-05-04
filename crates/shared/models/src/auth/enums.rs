@@ -1,7 +1,8 @@
-use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
+
+use crate::errors::ParseEnumError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -45,8 +46,8 @@ impl fmt::Display for JwtAudience {
 }
 
 impl FromStr for JwtAudience {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = ParseEnumError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "web" => Ok(Self::Web),
             "api" => Ok(Self::Api),
@@ -103,8 +104,8 @@ impl fmt::Display for UserType {
 }
 
 impl FromStr for UserType {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = ParseEnumError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "admin" => Ok(Self::Admin),
             "user" => Ok(Self::User),
@@ -113,7 +114,7 @@ impl FromStr for UserType {
             "service" => Ok(Self::Service),
             "anon" => Ok(Self::Anon),
             "unknown" => Ok(Self::Unknown),
-            _ => Err(anyhow!("Invalid user type: {s}")),
+            _ => Err(ParseEnumError::new("user_type", s)),
         }
     }
 }
@@ -169,8 +170,8 @@ impl fmt::Display for RateLimitTier {
 }
 
 impl FromStr for RateLimitTier {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = ParseEnumError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "admin" => Ok(Self::Admin),
             "user" => Ok(Self::User),
@@ -178,7 +179,7 @@ impl FromStr for RateLimitTier {
             "mcp" => Ok(Self::Mcp),
             "service" => Ok(Self::Service),
             "anon" => Ok(Self::Anon),
-            _ => Err(anyhow!("Invalid rate limit tier: {s}")),
+            _ => Err(ParseEnumError::new("rate_limit_tier", s)),
         }
     }
 }
@@ -208,13 +209,13 @@ impl fmt::Display for UserRole {
 }
 
 impl FromStr for UserRole {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = ParseEnumError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "admin" => Ok(Self::Admin),
             "user" => Ok(Self::User),
             "anonymous" => Ok(Self::Anonymous),
-            _ => Err(anyhow!("Invalid user role: {s}")),
+            _ => Err(ParseEnumError::new("user_role", s)),
         }
     }
 }
@@ -254,8 +255,8 @@ impl fmt::Display for UserStatus {
 }
 
 impl FromStr for UserStatus {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = ParseEnumError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "active" => Ok(Self::Active),
             "inactive" => Ok(Self::Inactive),
@@ -263,7 +264,7 @@ impl FromStr for UserStatus {
             "pending" => Ok(Self::Pending),
             "deleted" => Ok(Self::Deleted),
             "temporary" => Ok(Self::Temporary),
-            _ => Err(anyhow!("Invalid user status: {s}")),
+            _ => Err(ParseEnumError::new("user_status", s)),
         }
     }
 }

@@ -1,9 +1,10 @@
 use std::fmt;
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::HookId;
+
+use crate::errors::{ConfigValidationError, ParseEnumError};
 
 pub const HOOK_CONFIG_FILENAME: &str = "config.yaml";
 
@@ -75,9 +76,9 @@ impl fmt::Display for HookEvent {
 }
 
 impl FromStr for HookEvent {
-    type Err = anyhow::Error;
+    type Err = ParseEnumError;
 
-    fn from_str(s: &str) -> anyhow::Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "PreToolUse" => Ok(Self::PreToolUse),
             "PostToolUse" => Ok(Self::PostToolUse),
@@ -89,7 +90,7 @@ impl FromStr for HookEvent {
             "Stop" => Ok(Self::Stop),
             "SubagentStart" => Ok(Self::SubagentStart),
             "SubagentStop" => Ok(Self::SubagentStop),
-            _ => Err(anyhow!("Invalid hook event: {s}")),
+            _ => Err(ParseEnumError::new("hook_event", s)),
         }
     }
 }
@@ -118,13 +119,13 @@ impl fmt::Display for HookCategory {
 }
 
 impl FromStr for HookCategory {
-    type Err = anyhow::Error;
+    type Err = ParseEnumError;
 
-    fn from_str(s: &str) -> anyhow::Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "system" => Ok(Self::System),
             "custom" => Ok(Self::Custom),
-            _ => Err(anyhow!("Invalid hook category: {s}")),
+            _ => Err(ParseEnumError::new("hook_category", s)),
         }
     }
 }
@@ -240,25 +241,33 @@ impl HookEventsConfig {
         }
     }
 
-    pub fn validate(&self) -> anyhow::Result<()> {
+    /// Validate that every hook action references the correct payload field
+    /// for its declared `hook_type`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigValidationError::Required`] if a `command`-type matcher
+    /// omits its `command` field, or a `prompt`-type matcher omits its
+    /// `prompt` field.
+    pub fn validate(&self) -> Result<(), ConfigValidationError> {
         for event in HookEvent::ALL_VARIANTS {
             for matcher in self.matchers_for_event(*event) {
                 for action in &matcher.hooks {
                     match action.hook_type {
                         HookType::Command => {
                             if action.command.is_none() {
-                                anyhow::bail!(
+                                return Err(ConfigValidationError::required(format!(
                                     "Hook matcher '{}': command hook requires a 'command' field",
                                     matcher.matcher
-                                );
+                                )));
                             }
                         },
                         HookType::Prompt => {
                             if action.prompt.is_none() {
-                                anyhow::bail!(
+                                return Err(ConfigValidationError::required(format!(
                                     "Hook matcher '{}': prompt hook requires a 'prompt' field",
                                     matcher.matcher
-                                );
+                                )));
                             }
                         },
                         HookType::Agent => {},

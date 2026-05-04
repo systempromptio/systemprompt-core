@@ -1,3 +1,5 @@
+//! `net` module — see crate-level docs for context.
+
 use std::time::Duration;
 
 pub const HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);

@@ -24,14 +24,14 @@ impl From<ProtocolBinding> for String {
 }
 
 impl std::str::FromStr for ProtocolBinding {
-    type Err = anyhow::Error;
+    type Err = crate::errors::ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "JSONRPC" => Ok(Self::JsonRpc),
             "GRPC" => Ok(Self::Grpc),
             "HTTP+JSON" => Ok(Self::HttpJson),
-            _ => Err(anyhow::anyhow!("Invalid protocol binding: {}", s)),
+            _ => Err(crate::errors::ParseEnumError::new("protocol_binding", s)),
         }
     }
 }

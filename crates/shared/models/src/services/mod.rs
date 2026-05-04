@@ -1,13 +1,18 @@
+//! `services` module — see crate-level docs for context.
+
 pub mod agent_config;
 pub mod ai;
 pub mod content;
 pub mod hooks;
+mod includable;
 pub mod mcp;
 pub mod plugin;
 pub mod runtime;
 pub mod scheduler;
 pub mod settings;
 pub mod skills;
+
+pub use includable::IncludableString;
 
 pub use agent_config::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
@@ -37,59 +42,10 @@ pub use skills::{
 };
 pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
 
+use crate::errors::ConfigValidationError;
 use crate::mcp::{Deployment, McpServerType};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
-pub enum IncludableString {
-    Inline(String),
-    Include { path: String },
-}
-
-impl<'de> Deserialize<'de> for IncludableString {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        s.strip_prefix("!include ")
-            .map_or_else(
-                || Self::Inline(s.clone()),
-                |path| Self::Include {
-                    path: path.trim().to_string(),
-                },
-            )
-            .pipe(Ok)
-    }
-}
-
-trait Pipe: Sized {
-    fn pipe<T>(self, f: impl FnOnce(Self) -> T) -> T {
-        f(self)
-    }
-}
-impl<T> Pipe for T {}
-
-impl IncludableString {
-    pub const fn is_include(&self) -> bool {
-        matches!(self, Self::Include { .. })
-    }
-
-    pub fn as_inline(&self) -> Option<&str> {
-        match self {
-            Self::Inline(s) => Some(s),
-            Self::Include { .. } => None,
-        }
-    }
-}
-
-impl Default for IncludableString {
-    fn default() -> Self {
-        Self::Inline(String::new())
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -136,7 +92,14 @@ pub struct ServicesConfig {
 }
 
 impl ServicesConfig {
-    pub fn validate(&self) -> anyhow::Result<()> {
+    /// Validate the entire services document — port assignments, plugin
+    /// bindings, agent metadata, and skill cross-references.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first [`ConfigValidationError`] encountered while traversing
+    /// the document.
+    pub fn validate(&self) -> Result<(), ConfigValidationError> {
         self.validate_port_conflicts()?;
         self.validate_port_ranges()?;
         self.validate_mcp_port_ranges()?;
@@ -158,24 +121,20 @@ impl ServicesConfig {
         &self,
         plugin_name: &str,
         plugin: &PluginConfig,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), ConfigValidationError> {
         for mcp_ref in &plugin.mcp_servers {
             if !self.mcp_servers.contains_key(mcp_ref) {
-                anyhow::bail!(
-                    "Plugin '{}': mcp_servers references unknown mcp_server '{}'",
-                    plugin_name,
-                    mcp_ref
-                );
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "Plugin '{plugin_name}': mcp_servers references unknown mcp_server '{mcp_ref}'"
+                )));
             }
         }
 
         for agent_ref in &plugin.agents.include {
             if !self.agents.contains_key(agent_ref) {
-                anyhow::bail!(
-                    "Plugin '{}': agents.include references unknown agent '{}'",
-                    plugin_name,
-                    agent_ref
-                );
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "Plugin '{plugin_name}': agents.include references unknown agent '{agent_ref}'"
+                )));
             }
         }
 
@@ -184,14 +143,13 @@ impl ServicesConfig {
         Ok(())
     }
 
-    fn validate_skills(&self) -> anyhow::Result<()> {
+    fn validate_skills(&self) -> Result<(), ConfigValidationError> {
         for (key, skill) in &self.skills.skills {
             if !skill.id.as_str().is_empty() && skill.id.as_str() != key.as_str() {
-                anyhow::bail!(
+                return Err(ConfigValidationError::invalid_field(format!(
                     "Skill map key '{}' does not match skill id '{}'",
-                    key,
-                    skill.id
-                );
+                    key, skill.id
+                )));
             }
 
             for agent_ref in &skill.assigned_agents {
@@ -218,18 +176,15 @@ impl ServicesConfig {
         Ok(())
     }
 
-    fn validate_port_conflicts(&self) -> anyhow::Result<()> {
+    fn validate_port_conflicts(&self) -> Result<(), ConfigValidationError> {
         let mut seen_ports = HashMap::new();
 
         for (name, agent) in &self.agents {
             if let Some(existing) = seen_ports.insert(agent.port, ("agent", name.as_str())) {
-                anyhow::bail!(
+                return Err(ConfigValidationError::port_conflict(format!(
                     "Port conflict: {} used by both {} '{}' and agent '{}'",
-                    agent.port,
-                    existing.0,
-                    existing.1,
-                    name
-                );
+                    agent.port, existing.0, existing.1, name
+                )));
             }
         }
 
@@ -238,38 +193,32 @@ impl ServicesConfig {
                 continue;
             }
             if let Some(existing) = seen_ports.insert(mcp.port, ("mcp_server", name.as_str())) {
-                anyhow::bail!(
+                return Err(ConfigValidationError::port_conflict(format!(
                     "Port conflict: {} used by both {} '{}' and mcp_server '{}'",
-                    mcp.port,
-                    existing.0,
-                    existing.1,
-                    name
-                );
+                    mcp.port, existing.0, existing.1, name
+                )));
             }
         }
 
         Ok(())
     }
 
-    fn validate_port_ranges(&self) -> anyhow::Result<()> {
+    fn validate_port_ranges(&self) -> Result<(), ConfigValidationError> {
         let (min, max) = self.settings.agent_port_range;
 
         for (name, agent) in &self.agents {
             if agent.port < min || agent.port > max {
-                anyhow::bail!(
+                return Err(ConfigValidationError::invalid_field(format!(
                     "Agent '{}' port {} is outside allowed range {}-{}",
-                    name,
-                    agent.port,
-                    min,
-                    max
-                );
+                    name, agent.port, min, max
+                )));
             }
         }
 
         Ok(())
     }
 
-    fn validate_mcp_port_ranges(&self) -> anyhow::Result<()> {
+    fn validate_mcp_port_ranges(&self) -> Result<(), ConfigValidationError> {
         let (min, max) = self.settings.mcp_port_range;
 
         for (name, mcp) in &self.mcp_servers {
@@ -277,20 +226,17 @@ impl ServicesConfig {
                 continue;
             }
             if mcp.port < min || mcp.port > max {
-                anyhow::bail!(
+                return Err(ConfigValidationError::invalid_field(format!(
                     "MCP server '{}' port {} is outside allowed range {}-{}",
-                    name,
-                    mcp.port,
-                    min,
-                    max
-                );
+                    name, mcp.port, min, max
+                )));
             }
         }
 
         Ok(())
     }
 
-    fn validate_single_default_agent(&self) -> anyhow::Result<()> {
+    fn validate_single_default_agent(&self) -> Result<(), ConfigValidationError> {
         let default_agents: Vec<&str> = self
             .agents
             .iter()
@@ -305,10 +251,10 @@ impl ServicesConfig {
 
         match default_agents.len() {
             0 | 1 => Ok(()),
-            _ => anyhow::bail!(
+            _ => Err(ConfigValidationError::business_rule(format!(
                 "Multiple agents marked as default: {}. Only one agent can have 'default: true'",
                 default_agents.join(", ")
-            ),
+            ))),
         }
     }
 }

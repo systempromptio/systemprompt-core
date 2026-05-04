@@ -1,6 +1,9 @@
-use anyhow::{Context, Result};
+//! `secrets` module — see crate-level docs for context.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use crate::errors::SecretsError;
 
 pub const JWT_SECRET_MIN_LENGTH: usize = 32;
 
@@ -48,25 +51,46 @@ pub struct Secrets {
 }
 
 impl Secrets {
-    pub fn parse(content: &str) -> Result<Self> {
+    /// Parse a JSON secrets document, drop null fields, and run
+    /// [`Self::validate`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretsError::Parse`] when the document is not valid
+    /// JSON or fails to deserialize, or [`SecretsError::Invalid`] when a
+    /// field violates a length / format constraint.
+    pub fn parse(content: &str) -> Result<Self, SecretsError> {
         let mut value: serde_json::Value =
-            serde_json::from_str(content).context("Failed to parse secrets JSON")?;
+            serde_json::from_str(content).map_err(|source| SecretsError::Parse {
+                context: "Failed to parse secrets JSON",
+                source,
+            })?;
         if let Some(obj) = value.as_object_mut() {
             obj.retain(|_, v| !v.is_null());
         }
-        let secrets: Self = serde_json::from_value(value)
-            .context("Failed to deserialize secrets after null stripping")?;
+        let secrets: Self =
+            serde_json::from_value(value).map_err(|source| SecretsError::Parse {
+                context: "Failed to deserialize secrets after null stripping",
+                source,
+            })?;
         secrets.validate()?;
         Ok(secrets)
     }
 
-    pub fn validate(&self) -> Result<()> {
+    /// Verify that all required secret fields meet their structural
+    /// constraints (currently the minimum JWT secret length).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretsError::Invalid`] when `jwt_secret` is shorter than
+    /// [`JWT_SECRET_MIN_LENGTH`].
+    pub fn validate(&self) -> Result<(), SecretsError> {
         if self.jwt_secret.len() < JWT_SECRET_MIN_LENGTH {
-            anyhow::bail!(
+            return Err(SecretsError::Invalid(format!(
                 "jwt_secret must be at least {} characters (got {})",
                 JWT_SECRET_MIN_LENGTH,
                 self.jwt_secret.len()
-            );
+            )));
         }
         Ok(())
     }
