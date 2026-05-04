@@ -14,6 +14,10 @@ use systemprompt_models::ai::{
 use systemprompt_models::execution::context::RequestContext;
 use uuid::Uuid;
 
+type ResponseQueue<T> = Arc<Mutex<VecDeque<Result<T>>>>;
+type SingleTurnQueue = ResponseQueue<(AiResponse, Vec<ToolCall>)>;
+type HealthCheckQueue = ResponseQueue<HashMap<String, bool>>;
+
 #[derive(Debug, Clone)]
 pub enum MockAiCall {
     Generate { request: AiRequest },
@@ -32,8 +36,8 @@ pub enum MockAiCall {
 pub struct MockAiProvider {
     generate_responses: Arc<Mutex<VecDeque<Result<AiResponse>>>>,
     generate_with_tools_responses: Arc<Mutex<VecDeque<Result<AiResponse>>>>,
-    single_turn_responses: Arc<Mutex<VecDeque<Result<(AiResponse, Vec<ToolCall>)>>>>,
-    health_check_responses: Arc<Mutex<VecDeque<Result<HashMap<String, bool>>>>>,
+    single_turn_responses: SingleTurnQueue,
+    health_check_responses: HealthCheckQueue,
     plan_responses: Arc<Mutex<VecDeque<Result<PlanningResult>>>>,
     generate_response_responses: Arc<Mutex<VecDeque<Result<String>>>>,
     calls: Arc<Mutex<Vec<MockAiCall>>>,

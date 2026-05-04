@@ -280,19 +280,10 @@ impl DatabaseProvider for MockDatabaseProvider {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct MockDatabaseTransaction {
     responses: VecDeque<MockDbResponse>,
     calls: Vec<String>,
-}
-
-impl Default for MockDatabaseTransaction {
-    fn default() -> Self {
-        Self {
-            responses: VecDeque::new(),
-            calls: Vec::new(),
-        }
-    }
 }
 
 #[async_trait]
