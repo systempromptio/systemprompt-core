@@ -19,7 +19,9 @@ pub async fn validate_client_credentials(
     client_id: &ClientId,
     client_secret: Option<&str>,
 ) -> Result<()> {
-    validate_client_credentials_shared(repo, client_id, client_secret).await
+    validate_client_credentials_shared(repo, client_id, client_secret)
+        .await
+        .map_err(Into::into)
 }
 
 #[derive(Debug)]

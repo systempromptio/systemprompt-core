@@ -1,3 +1,5 @@
+//! Domain models for OAuth clients, codes, tokens, and CIMD metadata.
+
 pub mod analytics;
 pub mod cimd;
 pub mod clients;

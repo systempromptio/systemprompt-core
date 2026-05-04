@@ -1,13 +1,15 @@
+//! `WebAuthn` (passkey) registration and authentication services.
+
 pub mod config;
 pub mod jwt;
-pub mod manager;
+pub mod registry;
 pub mod service;
 pub mod token;
 pub mod user_service;
 
 pub use config::WebAuthnConfig;
 pub use jwt::JwtTokenValidator;
-pub use manager::WebAuthnManager;
+pub use registry::WebAuthnRegistry;
 pub use service::{
     FinishRegistrationParams, LinkStates, LinkUserInfo, WebAuthnService, create_link_states,
 };

@@ -1,3 +1,5 @@
+//! Public OAuth wire-format types (pagination, etc.).
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]

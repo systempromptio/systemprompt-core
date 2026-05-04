@@ -5,7 +5,7 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 use std::sync::Arc;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::services::webauthn::WebAuthnManager;
+use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use tracing::instrument;
 
 use crate::routes::oauth::extractors::OAuthRepo;
@@ -68,7 +68,7 @@ pub async fn start_register(
     let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =
-        match WebAuthnManager::get_or_create_service(oauth_repo, user_provider).await {
+        match WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await {
             Ok(service) => service,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to initialize WebAuthn");

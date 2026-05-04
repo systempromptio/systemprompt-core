@@ -1,3 +1,6 @@
+//! Core OAuth model types: grant types, response modes, JWT claims, dynamic
+//! registration.
+
 pub mod api;
 pub mod dynamic_registration;
 

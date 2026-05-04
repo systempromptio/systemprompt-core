@@ -1,3 +1,5 @@
+//! Runtime `WebAuthn` relying-party configuration.
+
 use std::time::Duration;
 use systemprompt_models::Config;
 use webauthn_rs::prelude::*;
@@ -13,16 +15,19 @@ pub struct WebAuthnConfig {
 }
 
 impl WebAuthnConfig {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> crate::error::OauthResult<Self> {
         let config = Config::get()?;
         let api_url = &config.api_external_url;
-        let parsed_url =
-            Url::parse(api_url).map_err(|e| anyhow::anyhow!("API_EXTERNAL_URL invalid: {}", e))?;
+        let parsed_url = Url::parse(api_url).map_err(|e| {
+            crate::error::OauthError::from(anyhow::anyhow!("API_EXTERNAL_URL invalid: {}", e))
+        })?;
 
         let rp_id = parsed_url
             .host_str()
             .ok_or_else(|| {
-                anyhow::anyhow!("API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID")
+                crate::error::OauthError::from(anyhow::anyhow!(
+                    "API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID"
+                ))
             })?
             .to_string();
 

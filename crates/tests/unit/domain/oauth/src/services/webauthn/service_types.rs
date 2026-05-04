@@ -1,9 +1,9 @@
 //! Tests for WebAuthn service data types: VerifiedAuthentication, LinkUserInfo,
-//! LinkStates, WebAuthnManager
+//! LinkStates, WebAuthnRegistry
 
 use std::time::Instant;
 use systemprompt_identifiers::UserId;
-use systemprompt_oauth::services::webauthn::WebAuthnManager;
+use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use systemprompt_oauth::services::webauthn::service::{
     LinkUserInfo, VerifiedAuthentication, create_link_states,
 };
@@ -153,20 +153,20 @@ async fn test_create_link_states_mutex_lockable() {
 }
 
 // ============================================================================
-// WebAuthnManager Tests
+// WebAuthnRegistry Tests
 // ============================================================================
 
 #[test]
 fn test_webauthn_manager_debug() {
-    let manager = WebAuthnManager;
+    let manager = WebAuthnRegistry;
     let debug_output = format!("{manager:?}");
 
-    assert!(debug_output.contains("WebAuthnManager"));
+    assert!(debug_output.contains("WebAuthnRegistry"));
 }
 
 #[test]
 fn test_webauthn_manager_clone() {
-    let manager = WebAuthnManager;
+    let manager = WebAuthnRegistry;
     let cloned = manager.clone();
     let debug_original = format!("{manager:?}");
     let debug_cloned = format!("{cloned:?}");
@@ -176,7 +176,7 @@ fn test_webauthn_manager_clone() {
 
 #[test]
 fn test_webauthn_manager_copy() {
-    let manager = WebAuthnManager;
+    let manager = WebAuthnRegistry;
     let copied = manager;
     let still_valid = manager;
 

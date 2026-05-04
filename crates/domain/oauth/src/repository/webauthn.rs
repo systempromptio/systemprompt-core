@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! `WebAuthn` credential persistence.
+
+use crate::error::OauthResult as Result;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::UserId;
 
@@ -108,8 +110,9 @@ impl crate::repository::OAuthRepository {
         params: WebAuthnCredentialParams<'_>,
     ) -> Result<()> {
         let transports_json = serde_json::to_string(params.transports)?;
-        let counter_i32 = i32::try_from(params.counter)
-            .map_err(|_| anyhow::anyhow!("Counter exceeds i32::MAX"))?;
+        let counter_i32 = i32::try_from(params.counter).map_err(|_| {
+            crate::error::OauthError::from(anyhow::anyhow!("Counter exceeds i32::MAX"))
+        })?;
         let now = Utc::now();
 
         sqlx::query!(
@@ -150,8 +153,12 @@ impl crate::repository::OAuthRepository {
         rows.into_iter()
             .map(|row| {
                 let transports: Vec<String> = serde_json::from_str(&row.transports)?;
-                let counter = u32::try_from(row.counter)
-                    .map_err(|_| anyhow::anyhow!("Invalid counter value: {}", row.counter))?;
+                let counter = u32::try_from(row.counter).map_err(|_| {
+                    crate::error::OauthError::from(anyhow::anyhow!(
+                        "Invalid counter value: {}",
+                        row.counter
+                    ))
+                })?;
                 Ok(WebAuthnCredential {
                     id: row.id,
                     user_id: UserId::new(row.user_id),
@@ -173,8 +180,9 @@ impl crate::repository::OAuthRepository {
         credential_id: &[u8],
         counter: u32,
     ) -> Result<()> {
-        let counter_i32 =
-            i32::try_from(counter).map_err(|_| anyhow::anyhow!("Counter exceeds i32::MAX"))?;
+        let counter_i32 = i32::try_from(counter).map_err(|_| {
+            crate::error::OauthError::from(anyhow::anyhow!("Counter exceeds i32::MAX"))
+        })?;
         let now = Utc::now();
 
         sqlx::query!(

@@ -1,3 +1,5 @@
+//! OAuth parameter, audience, redirect URI and JWT validation.
+
 pub mod audience;
 pub mod client_credentials;
 pub mod jwt;

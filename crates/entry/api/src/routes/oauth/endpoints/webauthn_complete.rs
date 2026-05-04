@@ -10,7 +10,7 @@ use crate::routes::oauth::extractors::OAuthRepo;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
-use systemprompt_oauth::services::webauthn::WebAuthnManager;
+use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use systemprompt_oauth::services::{generate_secure_token, is_browser_request};
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +57,7 @@ pub async fn handle_webauthn_complete(
 
     let user_provider = state.user_provider();
     let webauthn_service =
-        match WebAuthnManager::get_or_create_service(repo.clone(), Arc::clone(user_provider)).await
+        match WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(user_provider)).await
         {
             Ok(service) => service,
             Err(e) => {

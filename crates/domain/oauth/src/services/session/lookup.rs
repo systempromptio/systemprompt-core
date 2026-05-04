@@ -1,3 +1,5 @@
+//! Existing-session lookup and JWT regeneration.
+
 use super::{AnonymousSessionInfo, MAX_SESSION_AGE_SECONDS, SessionCreationService};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
@@ -52,9 +54,8 @@ impl SessionCreationService {
         let session_id = SessionId::new(session_id_str);
 
         let config = systemprompt_models::Config::get()
-            .map_err(|e| {
+            .inspect_err(|e| {
                 tracing::warn!(error = %e, "Failed to get config for session reuse");
-                e
             })
             .ok()?;
         let signing = JwtSigningParams {
@@ -113,9 +114,8 @@ impl SessionCreationService {
         let session_id = SessionId::new(existing_session.session_id.clone());
 
         let config = systemprompt_models::Config::get()
-            .map_err(|e| {
+            .inspect_err(|e| {
                 tracing::warn!(error = %e, "Failed to get config for session lookup");
-                e
             })
             .ok()?;
         let signing = JwtSigningParams {

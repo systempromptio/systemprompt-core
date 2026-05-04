@@ -1,3 +1,5 @@
+//! Anonymous session creation and reuse.
+
 mod creation;
 mod lookup;
 

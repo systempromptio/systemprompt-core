@@ -1,3 +1,5 @@
+//! OAuth scope helpers.
+
 use super::OAuthRepository;
 use crate::error::{OauthError, OauthResult};
 

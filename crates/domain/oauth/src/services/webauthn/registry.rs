@@ -1,4 +1,6 @@
-use anyhow::Result;
+//! Process-wide singleton holder for the `WebAuthn` service.
+
+use crate::error::OauthResult as Result;
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,9 +14,9 @@ use systemprompt_traits::UserProvider;
 static WEBAUTHN_SERVICE: OnceCell<RwLock<Option<Arc<WebAuthnService>>>> = OnceCell::new();
 
 #[derive(Debug, Copy, Clone)]
-pub struct WebAuthnManager;
+pub struct WebAuthnRegistry;
 
-impl WebAuthnManager {
+impl WebAuthnRegistry {
     #[instrument(skip(oauth_repo, user_provider))]
     pub async fn get_or_create_service(
         oauth_repo: OAuthRepository,

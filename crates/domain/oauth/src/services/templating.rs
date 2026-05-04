@@ -1,3 +1,5 @@
+//! OAuth-related HTML templating.
+
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug)]
