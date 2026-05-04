@@ -1,3 +1,8 @@
+//! Repository for `task_execution_steps` — per-task tool calls and intermediate
+//! state.
+
+mod parse;
+
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
@@ -6,45 +11,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, PlannedTool, StepContent, StepId, StepStatus};
 
-#[allow(missing_debug_implementations)]
-struct ParseStepParams {
-    step_id: String,
-    task_id: TaskId,
-    status: String,
-    content: serde_json::Value,
-    started_at: DateTime<Utc>,
-    completed_at: Option<DateTime<Utc>>,
-    duration_ms: Option<i32>,
-    error_message: Option<String>,
-}
-
-fn parse_step(params: ParseStepParams) -> Result<ExecutionStep> {
-    let ParseStepParams {
-        step_id,
-        task_id,
-        status,
-        content,
-        started_at,
-        completed_at,
-        duration_ms,
-        error_message,
-    } = params;
-    let status = status
-        .parse::<StepStatus>()
-        .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?;
-    let content: StepContent =
-        serde_json::from_value(content).map_err(|e| anyhow::anyhow!("Invalid content: {}", e))?;
-    Ok(ExecutionStep {
-        step_id: step_id.into(),
-        task_id,
-        status,
-        started_at,
-        completed_at,
-        duration_ms,
-        error_message,
-        content,
-    })
-}
+use parse::{ParseStepParams, parse_step};
 
 #[derive(Debug, Clone)]
 pub struct ExecutionStepRepository {
@@ -53,9 +20,18 @@ pub struct ExecutionStepRepository {
 }
 
 impl ExecutionStepRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
+    /// Construct a new `ExecutionStepRepository` from a shared [`DbPool`].
+    ///
+    /// # Errors
+    /// Returns [`crate::error::AgentError::Init`] if the read or write pool
+    /// cannot be acquired.
+    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
+        let pool = db
+            .pool_arc()
+            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
         Ok(Self { pool, write_pool })
     }
 

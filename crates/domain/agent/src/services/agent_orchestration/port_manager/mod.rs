@@ -1,10 +1,14 @@
-use anyhow::{Context, Result};
-use std::process::Command;
+//! Port management — detect, kill, and verify availability of agent ports.
+
+mod probe;
+
 use std::time::Duration;
-use systemprompt_models::CliPaths;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult, process};
 
+pub use probe::{ProcessInfo, find_process_using_port, get_process_info, is_agent_process};
+
+/// Helper for managing the TCP ports allocated to agent worker processes.
 #[derive(Debug, Copy, Clone)]
 pub struct PortManager;
 
@@ -15,138 +19,20 @@ impl Default for PortManager {
 }
 
 impl PortManager {
+    /// Construct a new `PortManager`.
+    #[must_use]
     pub const fn new() -> Self {
         Self
     }
 
-    #[cfg(unix)]
-    pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
-        let output = Command::new("lsof")
-            .arg("-ti")
-            .arg(format!(":{port}"))
-            .output()
-            .with_context(|| format!("failed to run `lsof -ti :{port}` for port {port}"))?;
-
-        if !output.status.success() {
-            return Ok(None);
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let pid_str = stdout.trim();
-
-        if pid_str.is_empty() {
-            return Ok(None);
-        }
-
-        let pid = pid_str
-            .parse::<u32>()
-            .context("Failed to parse PID from lsof output")?;
-
-        Ok(Some(pid))
-    }
-
-    #[cfg(windows)]
-    pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
-        let output = Command::new("netstat")
-            .args(["-ano", "-p", "TCP"])
-            .output()
-            .with_context(|| format!("failed to run `netstat -ano -p TCP` for port {port}"))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let port_pattern = format!(":{port} ");
-        let port_pattern_tab = format!(":{port}\t");
-
-        for line in stdout.lines() {
-            if line.contains(&port_pattern) || line.contains(&port_pattern_tab) {
-                if let Some(pid_str) = line.split_whitespace().last() {
-                    if let Ok(pid) = pid_str.parse::<u32>() {
-                        return Ok(Some(pid));
-                    }
-                }
-            }
-        }
-
-        Ok(None)
-    }
-
-    #[cfg(unix)]
-    pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
-        let output = Command::new("ps")
-            .arg("-p")
-            .arg(pid.to_string())
-            .arg("-o")
-            .arg("pid,comm,args")
-            .output()
-            .with_context(|| format!("failed to run `ps -p {pid} -o pid,comm,args`"))?;
-
-        if !output.status.success() {
-            return Ok(None);
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let lines: Vec<&str> = stdout.lines().collect();
-
-        if lines.len() < 2 {
-            return Ok(None);
-        }
-
-        let line = lines[1].trim();
-        if line.is_empty() {
-            return Ok(None);
-        }
-
-        let parts: Vec<&str> = line.splitn(3, char::is_whitespace).collect();
-        if parts.len() < 3 {
-            return Ok(None);
-        }
-
-        let command_line = parts[2].trim();
-
-        Ok(Some(ProcessInfo {
-            pid,
-            command: command_line.to_string(),
-        }))
-    }
-
-    #[cfg(windows)]
-    pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
-        let output = Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
-            .output()
-            .with_context(|| format!("failed to run `tasklist /FI PID eq {pid}`"))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let line = stdout.trim();
-
-        if line.is_empty() || line.contains("INFO: No tasks") {
-            return Ok(None);
-        }
-
-        let parts: Vec<&str> = line.split(',').collect();
-        if parts.is_empty() {
-            return Ok(None);
-        }
-
-        let command = parts[0].trim_matches('"').to_string();
-
-        Ok(Some(ProcessInfo { pid, command }))
-    }
-
-    pub fn is_agent_process(pid: u32) -> Result<bool, String> {
-        match Self::get_process_info(pid) {
-            Ok(Some(info)) => {
-                let is_agent = info.command.contains("systemprompt")
-                    && (info.command.contains(CliPaths::agent_run_cmd_pattern())
-                        || info.command.contains("agent-worker"));
-                Ok(is_agent)
-            },
-            Ok(None) => Err(format!("No process info found for PID {}", pid)),
-            Err(e) => Err(format!("Failed to get process info for PID {}: {}", pid, e)),
-        }
-    }
-
+    /// Kill the agent process bound to `port`, if any. Refuses to kill
+    /// non-agent processes.
+    ///
+    /// # Errors
+    /// Returns [`OrchestrationError::ProcessSpawnFailed`] if the port lookup or
+    /// kill fails, or if the bound process is not an agent.
     pub async fn kill_process_on_port(&self, port: u16) -> OrchestrationResult<bool> {
-        let pid = match Self::find_process_using_port(port) {
+        let pid = match find_process_using_port(port) {
             Ok(Some(p)) => p,
             Ok(None) => {
                 return Ok(false);
@@ -159,7 +45,7 @@ impl PortManager {
             },
         };
 
-        match Self::is_agent_process(pid) {
+        match is_agent_process(pid) {
             Ok(true) => {},
             Ok(false) => {
                 return Err(OrchestrationError::ProcessSpawnFailed(format!(
@@ -191,6 +77,11 @@ impl PortManager {
         Ok(true)
     }
 
+    /// Poll until `port` becomes free, up to `timeout_secs` seconds.
+    ///
+    /// # Errors
+    /// Returns [`OrchestrationError::ProcessSpawnFailed`] if the timeout
+    /// elapses.
     pub async fn wait_for_port_available(
         &self,
         port: u16,
@@ -212,25 +103,32 @@ impl PortManager {
         )))
     }
 
+    /// Free `port` by killing any orphaned agent process bound to it.
+    ///
+    /// # Errors
+    /// Returns [`OrchestrationError::ProcessSpawnFailed`] when the bound
+    /// process is not an agent, or any underlying probe/kill operation
+    /// fails.
     pub async fn cleanup_port_if_needed(&self, port: u16) -> OrchestrationResult<()> {
         if !process::is_port_in_use(port) {
             return Ok(());
         }
 
-        match Self::find_process_using_port(port) {
-            Ok(Some(pid)) => match Self::is_agent_process(pid) {
+        match find_process_using_port(port) {
+            Ok(Some(pid)) => match is_agent_process(pid) {
                 Ok(true) => {
                     tracing::warn!(port = %port, pid = %pid, "Port occupied by orphaned agent process");
                     self.kill_process_on_port(port).await?;
                 },
                 Ok(false) => {
-                    let info = Self::get_process_info(pid)
+                    let info = get_process_info(pid)
                         .map_err(|e| {
                             tracing::trace!(pid = %pid, error = %e, "Failed to get process info for error message");
                             e
                         })
                         .ok()
-                        .flatten().map_or_else(|| "unknown".to_string(), |i| i.command);
+                        .flatten()
+                        .map_or_else(|| "unknown".to_string(), |i| i.command);
 
                     return Err(OrchestrationError::ProcessSpawnFailed(format!(
                         "Port {} is in use by non-agent process (PID {}): {}\nPlease stop the \
@@ -262,6 +160,11 @@ impl PortManager {
         Ok(())
     }
 
+    /// Free every port in `ports` that is currently held by an orphaned agent.
+    ///
+    /// # Errors
+    /// Returns [`OrchestrationError::ProcessSpawnFailed`] from
+    /// [`Self::cleanup_port_if_needed`] for the first failing port.
     pub async fn cleanup_agent_ports(&self, ports: &[u16]) -> OrchestrationResult<u32> {
         let mut cleaned = 0;
 
@@ -284,12 +187,17 @@ impl PortManager {
         Ok(cleaned)
     }
 
+    /// Verify that every port in `ports` is currently free.
+    ///
+    /// # Errors
+    /// Returns [`OrchestrationError::ProcessSpawnFailed`] listing each blocked
+    /// port with the offending PID and command line.
     pub fn verify_all_ports_available(ports: &[u16]) -> OrchestrationResult<()> {
         let mut blocked_ports = Vec::new();
 
         for &port in ports {
             if process::is_port_in_use(port) {
-                if let Ok(Some(pid)) = Self::find_process_using_port(port) {
+                if let Ok(Some(pid)) = find_process_using_port(port) {
                     blocked_ports.push((port, pid));
                 }
             }
@@ -299,13 +207,14 @@ impl PortManager {
             let port_info: Vec<String> = blocked_ports
                 .iter()
                 .map(|(port, pid)| {
-                    let info = Self::get_process_info(*pid)
+                    let info = get_process_info(*pid)
                         .map_err(|e| {
                             tracing::trace!(pid = %pid, error = %e, "Failed to get process info for port status");
                             e
                         })
                         .ok()
-                        .flatten().map_or_else(|| "unknown".to_string(), |i| i.command);
+                        .flatten()
+                        .map_or_else(|| "unknown".to_string(), |i| i.command);
                     format!("  • Port {} - PID {} ({})", port, pid, info)
                 })
                 .collect();
@@ -318,10 +227,4 @@ impl PortManager {
 
         Ok(())
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct ProcessInfo {
-    pub pid: u32,
-    pub command: String,
 }
