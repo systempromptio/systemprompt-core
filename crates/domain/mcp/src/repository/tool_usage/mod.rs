@@ -1,4 +1,5 @@
-//! Tool-usage repository — persists each MCP tool execution and aggregates stats.
+//! Tool-usage repository — persists each MCP tool execution and aggregates
+//! stats.
 
 mod stats;
 
@@ -252,7 +253,8 @@ impl ToolUsageRepository {
         Ok(result.flatten().map(ContextId::new))
     }
 
-    /// List per-tool aggregate execution statistics, ordered by execution count.
+    /// List per-tool aggregate execution statistics, ordered by execution
+    /// count.
     pub async fn list_tool_stats(&self, limit: i64) -> McpDomainResult<Vec<ToolStats>> {
         stats::list_tool_stats(&self.pool, limit).await
     }
