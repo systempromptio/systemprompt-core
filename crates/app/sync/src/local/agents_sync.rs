@@ -112,8 +112,7 @@ impl AgentsLocalSync {
         diff: &AgentsDiffResult,
         delete_orphans: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let ingestion_service =
-            AgentIngestionService::new(&self.db).map_err(SyncError::other)?;
+        let ingestion_service = AgentIngestionService::new(&self.db).map_err(SyncError::other)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDatabase,
             ..Default::default()

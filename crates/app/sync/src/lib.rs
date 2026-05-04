@@ -6,8 +6,8 @@
 //!
 //! # Public surface
 //!
-//! - [`SyncService`], [`SyncConfig`], [`SyncConfigBuilder`] — high-level
-//!   façade that wires everything together for `cloud sync` commands.
+//! - [`SyncService`], [`SyncConfig`], [`SyncConfigBuilder`] — high-level façade
+//!   that wires everything together for `cloud sync` commands.
 //! - [`SyncApiClient`] — low-level HTTP client for the cloud API.
 //! - [`AgentsLocalSync`], [`SkillsLocalSync`], [`ContentLocalSync`] — disk ↔
 //!   database sync for each domain.

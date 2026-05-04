@@ -57,12 +57,11 @@ pub async fn load_prerender_context(
 ) -> GeneratorResult<PrerenderContext> {
     let config_path = paths.system().content_config();
 
-    let yaml_content = fs::read_to_string(&config_path).await.map_err(|e| {
-        PublishError::other(format!("Failed to read content config: {e}"))
-    })?;
-    let config: ContentConfigRaw = serde_yaml::from_str(&yaml_content).map_err(|e| {
-        PublishError::other(format!("Failed to parse content config: {e}"))
-    })?;
+    let yaml_content = fs::read_to_string(&config_path)
+        .await
+        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
+    let config: ContentConfigRaw = serde_yaml::from_str(&yaml_content)
+        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))?;
 
     let web_config = load_web_config(paths)
         .await

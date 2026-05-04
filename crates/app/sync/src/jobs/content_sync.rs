@@ -58,8 +58,8 @@ impl Job for ContentSyncJob {
         let delete_orphans = get_bool_param(ctx, "delete_orphans");
         let override_existing = get_bool_param(ctx, "override_existing");
 
-        let config = load_content_config(paths)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let config =
+            load_content_config(paths).map_err(|e| ProviderError::Configuration(e.to_string()))?;
         let services_path = paths.system().services();
 
         let sources: Vec<_> = config

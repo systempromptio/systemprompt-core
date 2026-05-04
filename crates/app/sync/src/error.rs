@@ -129,12 +129,12 @@ pub enum SyncError {
 }
 
 impl SyncError {
-    /// Build a [`SyncError::Other`] from any [`Display`] value.
+    /// Build a [`SyncError::Other`] from any `Display` value.
     pub fn other(cause: impl std::fmt::Display) -> Self {
         Self::Other(cause.to_string())
     }
 
-    /// Build a [`SyncError::InvalidInput`] from any [`Display`] value.
+    /// Build a [`SyncError::InvalidInput`] from any `Display` value.
     pub fn invalid_input(cause: impl std::fmt::Display) -> Self {
         Self::InvalidInput(cause.to_string())
     }

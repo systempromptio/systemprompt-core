@@ -7,9 +7,7 @@ use serde::de::DeserializeOwned;
 
 use crate::error::{SyncError, SyncResult};
 
-pub(super) async fn handle_json<T: DeserializeOwned>(
-    response: reqwest::Response,
-) -> SyncResult<T> {
+pub(super) async fn handle_json<T: DeserializeOwned>(response: reqwest::Response) -> SyncResult<T> {
     let status = response.status();
     if status == StatusCode::UNAUTHORIZED {
         return Err(SyncError::Unauthorized);

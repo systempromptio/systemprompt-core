@@ -1,7 +1,7 @@
 //! Cross-platform process and port cleanup primitives.
 //!
 //! [`ProcessCleanup`] exposes a uniform API; the platform-specific
-//! implementations live in [`posix`] (Unix) and [`winnt`] (Windows) and are
+//! implementations live in `posix` (Unix) and `winnt` (Windows) and are
 //! gated by `#[cfg(unix)]` / `#[cfg(windows)]`.
 
 use crate::error::{SchedulerError, SchedulerResult};

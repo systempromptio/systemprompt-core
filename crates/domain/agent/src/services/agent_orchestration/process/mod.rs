@@ -1,7 +1,7 @@
 //! Process spawning and lifecycle helpers used by the agent orchestrator.
 //!
-//! - `command` builds the `Command` for an agent subprocess and rotates its
-//!   log file.
+//! - `command` builds the `Command` for an agent subprocess and rotates its log
+//!   file.
 //! - `signals` cross-platform `process_exists`, `terminate_process`,
 //!   `force_kill_process`, `terminate_gracefully`, `kill_process`.
 

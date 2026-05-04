@@ -48,7 +48,7 @@ pub struct FileEntry {
     pub size: u64,
 }
 
-/// Per-file classification produced by [`compare_tarball_with_local`].
+/// Per-file classification produced by `compare_tarball_with_local`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileDiffStatus {
     /// File exists in the remote bundle but not locally.
@@ -148,7 +148,7 @@ impl FileSyncService {
         Ok(PullDownload { data, diff })
     }
 
-    /// Snapshot every directory in [`INCLUDE_DIRS`] into a timestamped
+    /// Snapshot every directory in `INCLUDE_DIRS` into a timestamped
     /// `backup/<ts>.zip` next to `services_path` and return the path.
     pub fn backup_services(services_path: &Path) -> SyncResult<PathBuf> {
         let project_root = services_path.parent().unwrap_or(services_path);

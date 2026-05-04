@@ -9,11 +9,11 @@
 //!   rendering content sources and registered page-prerenderer extensions.
 //! - [`BuildOrchestrator`] / [`BuildMode`] — drives the whole build (CSS
 //!   organisation + validation) with progress reporting.
-//! - [`generate_sitemap`], [`generate_feed`] — emit `sitemap.xml` and per-source
-//!   RSS feeds.
+//! - [`generate_sitemap`], [`generate_feed`] — emit `sitemap.xml` and
+//!   per-source RSS feeds.
 //! - [`organize_dist_assets`] — post-build CSS/JS file reorganisation.
-//! - [`PublishError`] / [`GeneratorResult`] — the typed error and
-//!   `Result` alias returned by every public function in this crate.
+//! - [`PublishError`] / [`GeneratorResult`] — the typed error and `Result`
+//!   alias returned by every public function in this crate.
 //! - [`ContentPrerenderJob`], [`PagePrerenderJob`] — scheduled jobs registered
 //!   with the systemprompt scheduler via the `inventory` crate.
 //!

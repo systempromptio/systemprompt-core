@@ -65,15 +65,16 @@ pub async fn generate_feed_with_providers(
                 source_name: spec.source_id.as_str(),
             };
 
-            let metadata = provider
-                .feed_metadata(&ctx)
-                .await
-                .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+            let metadata = provider.feed_metadata(&ctx).await.map_err(|e| {
+                PublishError::provider_failed(provider.provider_id(), e.to_string())
+            })?;
 
             let items = provider
                 .fetch_items(&ctx, spec.max_items)
                 .await
-                .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+                .map_err(|e| {
+                    PublishError::provider_failed(provider.provider_id(), e.to_string())
+                })?;
 
             let rss_items: Vec<RssItem> = items
                 .into_iter()

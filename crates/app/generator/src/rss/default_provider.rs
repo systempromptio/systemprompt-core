@@ -110,8 +110,9 @@ impl RssFeedProvider for DefaultRssFeedProvider {
 
     async fn feed_metadata(&self, ctx: &RssFeedContext<'_>) -> ProviderResult<RssFeedMetadata> {
         let (title, description) = self.get_source_branding(ctx.source_name);
-        let global_config = Config::get()
-            .map_err(|e| ProviderError::Configuration(format!("Failed to load global config: {e}")))?;
+        let global_config = Config::get().map_err(|e| {
+            ProviderError::Configuration(format!("Failed to load global config: {e}"))
+        })?;
 
         let language = if self.content_config.metadata.language.is_empty() {
             "en".to_string()
@@ -137,7 +138,9 @@ impl RssFeedProvider for DefaultRssFeedProvider {
             .content_sources
             .values()
             .find(|s| s.source_id.as_str() == ctx.source_name)
-            .ok_or_else(|| ProviderError::NotFound(format!("Source not found: {}", ctx.source_name)))?;
+            .ok_or_else(|| {
+                ProviderError::NotFound(format!("Source not found: {}", ctx.source_name))
+            })?;
 
         let url_pattern = source_config
             .sitemap

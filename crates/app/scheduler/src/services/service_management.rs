@@ -58,11 +58,7 @@ impl ServiceManagementService {
     }
 
     /// Stop the supplied service, optionally forcing termination.
-    pub async fn stop_service(
-        &self,
-        service: &ServiceConfig,
-        force: bool,
-    ) -> SchedulerResult<()> {
+    pub async fn stop_service(&self, service: &ServiceConfig, force: bool) -> SchedulerResult<()> {
         if let Some(pid) = service.pid {
             if force {
                 ProcessCleanup::kill_process(pid as u32);
@@ -80,10 +76,7 @@ impl ServiceManagementService {
 
     /// Detect orphaned service processes and reap them, returning whether
     /// any cleanup action took place.
-    pub async fn cleanup_orphaned_service(
-        &self,
-        service: &ServiceConfig,
-    ) -> SchedulerResult<bool> {
+    pub async fn cleanup_orphaned_service(&self, service: &ServiceConfig) -> SchedulerResult<bool> {
         if let Some(pid) = service.pid {
             let pid = pid as u32;
 
