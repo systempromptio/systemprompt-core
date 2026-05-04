@@ -1,16 +1,16 @@
-use anyhow::Result;
 use std::path::{Path, PathBuf};
 use systemprompt_loader::ExtensionRegistry;
 use systemprompt_models::Config;
 use systemprompt_models::mcp::McpServerType;
 
+use crate::error::McpDomainResult;
 use crate::services::deployment::DeploymentService;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RegistryService;
 
 impl RegistryService {
-    pub fn get_enabled_servers_as_config() -> Result<Vec<crate::McpServerConfig>> {
+    pub fn get_enabled_servers_as_config() -> McpDomainResult<Vec<crate::McpServerConfig>> {
         use systemprompt_loader::ConfigLoader;
 
         let global_config = Config::get()?;
@@ -72,7 +72,7 @@ impl RegistryService {
         Ok(enabled)
     }
 
-    pub fn validate_registry() -> Result<()> {
+    pub fn validate_registry() -> McpDomainResult<()> {
         DeploymentService::validate_config()?;
         Ok(())
     }

@@ -129,5 +129,8 @@ async fn kill_and_unregister(
     if let Some(pid) = service_info.pid {
         ProcessManager::force_kill(pid as u32)?;
     }
-    database.unregister_service(&server.name).await
+    database
+        .unregister_service(&server.name)
+        .await
+        .map_err(Into::into)
 }

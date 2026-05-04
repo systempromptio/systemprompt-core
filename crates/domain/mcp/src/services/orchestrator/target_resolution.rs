@@ -13,9 +13,12 @@ impl McpOrchestrator {
         match service_name {
             Some(name) if name == "all" => {
                 if enabled_only {
-                    RegistryManager::get_enabled_servers()
+                    RegistryManager::get_enabled_servers().map_err(Into::into)
                 } else {
-                    self.database.get_running_servers().await
+                    self.database
+                        .get_running_servers()
+                        .await
+                        .map_err(Into::into)
                 }
             },
             Some(name) => {
@@ -24,9 +27,12 @@ impl McpOrchestrator {
             },
             None => {
                 if enabled_only {
-                    RegistryManager::get_enabled_servers()
+                    RegistryManager::get_enabled_servers().map_err(Into::into)
                 } else {
-                    self.database.get_running_servers().await
+                    self.database
+                        .get_running_servers()
+                        .await
+                        .map_err(Into::into)
                 }
             },
         }

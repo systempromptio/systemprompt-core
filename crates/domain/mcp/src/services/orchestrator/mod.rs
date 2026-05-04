@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::{McpDomainError, McpDomainResult};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::AppPaths;
@@ -39,7 +39,7 @@ pub struct McpOrchestrator {
 
 impl McpOrchestrator {
     #[allow(clippy::needless_pass_by_value)]
-    pub fn new(db_pool: DbPool, app_paths: Arc<AppPaths>) -> Result<Self> {
+    pub fn new(db_pool: DbPool, app_paths: Arc<AppPaths>) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
 
         RegistryManager::validate()?;
@@ -73,14 +73,14 @@ impl McpOrchestrator {
         })
     }
 
-    pub async fn list_services(&self) -> Result<()> {
+    pub async fn list_services(&self) -> McpDomainResult<()> {
         let servers = RegistryManager::get_enabled_servers()?;
         let status_data = self.monitoring.get_status_for_all(&servers).await?;
         MonitoringManager::display_status(&servers, &status_data);
         Ok(())
     }
 
-    pub async fn start_services(&self, service_name: Option<String>) -> Result<()> {
+    pub async fn start_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         self.start_services_with_events(service_name, None).await
     }
 
@@ -88,7 +88,7 @@ impl McpOrchestrator {
         &self,
         service_name: Option<String>,
         events: Option<&StartupEventSender>,
-    ) -> Result<()> {
+    ) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, true)
             .await?
@@ -138,7 +138,7 @@ impl McpOrchestrator {
         }
 
         if !failed.is_empty() {
-            return Err(anyhow::anyhow!(
+            return Err(McpDomainError::Internal(format!(
                 "Failed to start {} services: {}",
                 failed.len(),
                 failed
@@ -146,13 +146,13 @@ impl McpOrchestrator {
                     .map(|(n, e)| format!("{n} ({e})"))
                     .collect::<Vec<_>>()
                     .join(", ")
-            ));
+            )));
         }
 
         Ok(())
     }
 
-    pub async fn stop_services(&self, service_name: Option<String>) -> Result<()> {
+    pub async fn stop_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, false)
             .await?
@@ -181,7 +181,7 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn restart_services(&self, service_name: Option<String>) -> Result<()> {
+    pub async fn restart_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, false)
             .await?
@@ -203,7 +203,7 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn restart_services_sync(&self, service_name: Option<String>) -> Result<()> {
+    pub async fn restart_services_sync(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, false)
             .await?
@@ -219,7 +219,10 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn build_and_restart_services(&self, service_name: Option<String>) -> Result<()> {
+    pub async fn build_and_restart_services(
+        &self,
+        service_name: Option<String>,
+    ) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, true)
             .await?
@@ -238,7 +241,7 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn build_services(&self, service_name: Option<String>) -> Result<()> {
+    pub async fn build_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
         let servers: Vec<_> = self
             .get_target_servers(service_name, true)
             .await?
@@ -255,24 +258,24 @@ impl McpOrchestrator {
         Ok(())
     }
 
-    pub async fn show_status(&self) -> Result<()> {
+    pub async fn show_status(&self) -> McpDomainResult<()> {
         self.list_services().await
     }
 
-    pub async fn sync_database_state(&self) -> Result<()> {
+    pub async fn sync_database_state(&self) -> McpDomainResult<()> {
         tracing::info!("Synchronizing service database state");
         let servers = RegistryManager::get_enabled_servers()?;
         self.database.sync_state(&servers).await
     }
 
-    pub async fn reconcile(&self) -> Result<usize> {
+    pub async fn reconcile(&self) -> McpDomainResult<usize> {
         self.reconcile_with_events(None).await
     }
 
     pub async fn reconcile_with_events(
         &self,
         events: Option<&StartupEventSender>,
-    ) -> Result<usize> {
+    ) -> McpDomainResult<usize> {
         reconciliation::reconcile(ReconcileParams {
             database: &self.database,
             lifecycle: &self.lifecycle,
@@ -281,25 +284,30 @@ impl McpOrchestrator {
             events,
         })
         .await
+        .map_err(Into::into)
     }
 
-    pub async fn validate_service(&self, service_name: &str) -> Result<()> {
-        service_validation::validate_service(service_name, &self.database).await
+    pub async fn validate_service(&self, service_name: &str) -> McpDomainResult<()> {
+        service_validation::validate_service(service_name, &self.database)
+            .await
+            .map_err(Into::into)
     }
 
-    pub async fn get_running_servers(&self) -> Result<Vec<McpServerConfig>> {
+    pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
         self.database.get_running_servers().await
     }
 
     pub async fn get_service_info(
         &self,
         service_name: &str,
-    ) -> Result<Option<super::database::ServiceInfo>> {
+    ) -> McpDomainResult<Option<super::database::ServiceInfo>> {
         self.database.get_service_by_name(service_name).await
     }
 
-    pub async fn run_daemon(&self) -> Result<()> {
-        daemon::run_daemon(&self.event_bus, &self.lifecycle, &self.database).await
+    pub async fn run_daemon(&self) -> McpDomainResult<()> {
+        daemon::run_daemon(&self.event_bus, &self.lifecycle, &self.database)
+            .await
+            .map_err(Into::into)
     }
 
     pub fn subscribe_events(&self) -> tokio::sync::broadcast::Receiver<McpEvent> {

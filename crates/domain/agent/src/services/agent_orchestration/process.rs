@@ -325,17 +325,19 @@ pub fn spawn_detached_process(
     spawn_detached(paths, agent_name, port)
 }
 
-pub fn validate_agent_binary(paths: &AppPaths) -> Result<()> {
-    let binary_path = paths.build().resolve_binary("systemprompt")?;
+pub fn validate_agent_binary(paths: &AppPaths) -> crate::error::AgentResult<()> {
+    let binary_path = paths
+        .build()
+        .resolve_binary("systemprompt")
+        .map_err(|e| crate::error::AgentError::Validation(e.to_string()))?;
 
-    let metadata = fs::metadata(&binary_path)
-        .with_context(|| format!("Failed to get metadata for: {}", binary_path.display()))?;
+    let metadata = fs::metadata(&binary_path).map_err(crate::error::AgentError::Io)?;
 
     if !metadata.is_file() {
-        return Err(anyhow::anyhow!(
+        return Err(crate::error::AgentError::Validation(format!(
             "Agent binary is not a file: {}",
             binary_path.display()
-        ));
+        )));
     }
 
     #[cfg(unix)]
@@ -343,10 +345,10 @@ pub fn validate_agent_binary(paths: &AppPaths) -> Result<()> {
         use std::os::unix::fs::PermissionsExt;
         let permissions = metadata.permissions();
         if permissions.mode() & 0o111 == 0 {
-            return Err(anyhow::anyhow!(
+            return Err(crate::error::AgentError::Validation(format!(
                 "Agent binary is not executable: {}",
                 binary_path.display()
-            ));
+            )));
         }
     }
 

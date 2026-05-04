@@ -38,7 +38,7 @@ async fn find_running_process(
         }
     }
 
-    ProcessManager::find_pid_by_port(config.port)
+    ProcessManager::find_pid_by_port(config.port).map_err(Into::into)
 }
 
 async fn perform_graceful_shutdown(

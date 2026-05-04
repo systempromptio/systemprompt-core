@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum McpError {
+pub enum McpDomainError {
     #[error("MCP server not found: {0}")]
     ServerNotFound(String),
 
@@ -29,18 +29,29 @@ pub enum McpError {
     #[error("Authentication required for {0}")]
     AuthRequired(String),
 
+    #[error("Manifest error: {0}")]
+    Manifest(String),
+
+    #[error("Transport error: {0}")]
+    Transport(String),
+
+    #[error("Validation error: {0}")]
+    Validation(String),
+
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
     #[error("{0}")]
     Internal(String),
+
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
 
-impl From<anyhow::Error> for McpError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
+pub type McpDomainResult<T> = Result<T, McpDomainError>;
