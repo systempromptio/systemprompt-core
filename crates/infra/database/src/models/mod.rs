@@ -1,3 +1,9 @@
+//! Data models exchanged across the database boundary.
+//!
+//! Typed identifiers, [`DbValue`] and [`JsonRow`] are re-exported from
+//! `systemprompt-identifiers` and `systemprompt-traits` so that downstream
+//! crates only depend on `systemprompt-database` for the database surface.
+
 pub mod info;
 pub mod query;
 pub mod transaction;

@@ -43,3 +43,7 @@ rust_decimal = { workspace = true }
 
 # Extension registration
 inventory = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

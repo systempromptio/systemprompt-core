@@ -1,9 +1,15 @@
+//! Concrete [`DatabaseTransaction`] for `PostgreSQL`.
+//!
+//! Part of the documented sqlx allowlist — the SQL strings here come from
+//! runtime-supplied [`QuerySelector`] values.
+
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 
 use super::conversion::{bind_params, row_to_json};
 use crate::models::{DatabaseTransaction, JsonRow, QuerySelector, ToDbValue};
 
+/// Transaction handle that owns a `sqlx::Transaction` until commit/rollback.
 pub struct PostgresTransaction {
     tx: Option<sqlx::Transaction<'static, sqlx::Postgres>>,
 }
@@ -17,6 +23,7 @@ impl std::fmt::Debug for PostgresTransaction {
 }
 
 impl PostgresTransaction {
+    /// Wrap a freshly-begun `SQLx` transaction.
     #[must_use]
     pub const fn new(tx: sqlx::Transaction<'static, sqlx::Postgres>) -> Self {
         Self { tx: Some(tx) }
