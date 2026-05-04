@@ -69,7 +69,11 @@ pub async fn put<B: serde::Serialize + Sync>(
     Ok(())
 }
 
-pub async fn delete(client: &Client, url: &str, token: Option<&JwtToken>) -> ClientResult<()> {
+pub async fn delete(
+    client: &Client,
+    url: &str,
+    token: Option<&JwtToken>,
+) -> ClientResult<()> {
     let request = apply_auth(client.delete(url), token);
     let response = request.send().await?;
 
