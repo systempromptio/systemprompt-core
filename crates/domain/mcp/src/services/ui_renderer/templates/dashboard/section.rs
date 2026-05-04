@@ -140,8 +140,6 @@ impl DashboardSection {
     }
 
     fn render_table(&self) -> String {
-        use std::fmt::Write;
-
         let columns = self
             .data
             .get("columns")
@@ -161,7 +159,7 @@ impl DashboardSection {
         }
 
         let header = columns.iter().fold(String::new(), |mut acc, c| {
-            let _ = write!(acc, "<th>{}</th>", html_escape(c));
+            acc.push_str(&format!("<th>{}</th>", html_escape(c)));
             acc
         });
 
@@ -183,7 +181,7 @@ impl DashboardSection {
                     );
 
                     let cells_html = cells.iter().fold(String::new(), |mut acc, c| {
-                        let _ = write!(acc, "<td>{}</td>", html_escape(c.trim_matches('"')));
+                        acc.push_str(&format!("<td>{}</td>", html_escape(c.trim_matches('"'))));
                         acc
                     });
 

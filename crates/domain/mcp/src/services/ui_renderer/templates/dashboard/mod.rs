@@ -76,8 +76,6 @@ impl UiRenderer for DashboardRenderer {
     }
 
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
-        use std::fmt::Write;
-
         let sections = Self::extract_sections(artifact);
         let layout = Self::extract_layout(artifact);
         let title = artifact.title.as_deref().unwrap_or("Dashboard");
@@ -96,13 +94,12 @@ impl UiRenderer for DashboardRenderer {
                 .enumerate()
                 .fold(String::new(), |mut acc, (i, s)| {
                     let active = if i == 0 { " active" } else { "" };
-                    let _ = write!(
-                        acc,
+                    acc.push_str(&format!(
                         r#"<button class="tab-btn{active}" data-target="{id}">{title}</button>"#,
                         active = active,
                         id = html_escape(&s.id),
                         title = html_escape(&s.title),
-                    );
+                    ));
                     acc
                 });
 

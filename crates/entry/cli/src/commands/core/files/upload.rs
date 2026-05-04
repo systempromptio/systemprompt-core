@@ -53,8 +53,7 @@ pub async fn execute(
     let bytes_base64 = STANDARD.encode(&bytes);
     let digest = Sha256::digest(&bytes);
     let checksum_sha256 = digest.iter().fold(String::with_capacity(64), |mut acc, b| {
-        use std::fmt::Write;
-        let _ = write!(acc, "{b:02x}");
+        acc.push_str(&format!("{b:02x}"));
         acc
     });
     let size_bytes = bytes.len() as i64;
