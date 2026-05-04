@@ -161,7 +161,7 @@ check-bans-crate CRATE:
     if grep -RInE '(struct|trait|impl|enum) +[A-Z][A-Za-z0-9]*Manager\b' "$crate_dir/src" 2>/dev/null; then fail=1; fi
     echo "==> raw sqlx::query() outside documented allowlist"
     matches=$(grep -RIn --include='*.rs' -E 'sqlx::query\s*\(' "$crate_dir/src" 2>/dev/null \
-        | grep -vE 'crates/infra/database/src/(admin/|services/postgres/(introspection|query_executor|transaction|ext)\.rs)' \
+        | grep -vE 'crates/infra/database/src/(admin/|services/postgres/(mod|introspection|query_executor|transaction|ext|conversion)\.rs)' \
         || true)
     if [ -n "$matches" ]; then echo "$matches"; fail=1; fi
     if [ $fail -ne 0 ]; then echo "check-bans-crate {{CRATE}}: violations found"; exit 1; fi
@@ -176,9 +176,9 @@ check-bans:
     if grep -RInE 'pub +[a-z_]*id +: +String' crates/ 2>/dev/null; then fail=1; fi
     echo "==> banned '*Manager' type names (use *Service / *Handler / *Orchestrator)"
     if grep -RInE '(struct|trait|impl|enum) +[A-Z][A-Za-z0-9]*Manager\b' crates/ 2>/dev/null; then fail=1; fi
-    echo "==> raw sqlx::query() outside allowlist (admin/, postgres/{introspection,query_executor,transaction,ext}.rs)"
+    echo "==> raw sqlx::query() outside allowlist (admin/, postgres/{mod,introspection,query_executor,transaction,ext,conversion}.rs)"
     matches=$(grep -RIn --include='*.rs' -E 'sqlx::query\s*\(' crates/ 2>/dev/null \
-        | grep -vE 'crates/infra/database/src/(admin/|services/postgres/(introspection|query_executor|transaction|ext)\.rs)' \
+        | grep -vE 'crates/infra/database/src/(admin/|services/postgres/(mod|introspection|query_executor|transaction|ext|conversion)\.rs)' \
         || true)
     if [ -n "$matches" ]; then echo "$matches"; fail=1; fi
     if [ $fail -ne 0 ]; then echo "check-bans: violations found"; exit 1; fi

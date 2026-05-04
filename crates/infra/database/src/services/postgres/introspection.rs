@@ -1,9 +1,18 @@
+//! `PostgreSQL` schema introspection used by [`crate::Database::get_info`].
+//!
+//! Part of the documented sqlx allowlist — the queries against
+//! `information_schema` are dynamic by design: per-table `SELECT COUNT(*)`
+//! statements have to be built at runtime against runtime-supplied table
+//! names, and the result columns are typed dynamically.
+
 use anyhow::Result;
 use sqlx::Row;
 use sqlx::postgres::PgPool;
 
 use crate::models::{ColumnInfo, DatabaseInfo, TableInfo};
 
+/// Walk every table in the public schema and return a populated
+/// [`DatabaseInfo`].
 pub async fn get_database_info(pool: &PgPool) -> Result<DatabaseInfo> {
     let version_row = sqlx::query("SELECT version() as version")
         .fetch_one(pool)

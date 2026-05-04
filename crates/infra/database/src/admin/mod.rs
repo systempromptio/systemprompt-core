@@ -1,3 +1,9 @@
+//! Admin-only database surface used by the CLI.
+//!
+//! Every module here is part of the documented sqlx allowlist: the SQL is
+//! either user-supplied or built dynamically against runtime-supplied table
+//! names, so compile-time verification is impossible.
+
 mod admin_sql;
 mod identifier;
 mod introspection;

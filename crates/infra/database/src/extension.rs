@@ -1,5 +1,15 @@
+//! Extension registration for the database crate's own schema.
+//!
+//! Every systemprompt extension that owns DDL registers itself through the
+//! `inventory` framework. The database crate registers its own bookkeeping
+//! tables (`extension_migrations`) and shared SQL helper functions so that
+//! they install before any downstream extension runs.
+
 use systemprompt_extension::prelude::*;
 
+/// Extension that installs the database crate's own schema (migrations table
+/// and shared helper functions). Migration weight `10` ensures it runs before
+/// any domain extension.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DatabaseExtension;
 

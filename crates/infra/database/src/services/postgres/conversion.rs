@@ -1,8 +1,16 @@
+//! Conversions between `SQLx` `PostgreSQL` rows, [`QueryResult`] /
+//! [`crate::models::JsonRow`] values, and parameter binders.
+//!
+//! Part of the documented sqlx allowlist: the binder operates on the dynamic
+//! `sqlx::query::Query` value passed in by the trait implementation.
+
 use sqlx::{Column, Row};
 use std::collections::HashMap;
 
 use crate::models::{DbValue, QueryResult, ToDbValue};
 
+/// Materialise a stream of [`sqlx::postgres::PgRow`] values plus a start
+/// instant into a [`QueryResult`].
 pub fn rows_to_result(rows: Vec<sqlx::postgres::PgRow>, start: std::time::Instant) -> QueryResult {
     let mut columns = Vec::new();
     let mut result_rows = Vec::new();
@@ -30,7 +38,11 @@ pub fn rows_to_result(rows: Vec<sqlx::postgres::PgRow>, start: std::time::Instan
     }
 }
 
-// JSON: Postgres row-to-JSON conversion — column shape unknown at compile time
+/// Convert a single `PostgreSQL` row to a JSON-keyed
+/// [`crate::models::JsonRow`].
+///
+/// The column shape is unknown at compile time, so each column is decoded by
+/// best-effort try-as-T probing in a fixed order.
 pub fn row_to_json(row: &sqlx::postgres::PgRow) -> HashMap<String, serde_json::Value> {
     row.columns()
         .iter()
@@ -94,6 +106,8 @@ fn column_to_json(row: &sqlx::postgres::PgRow, ordinal: usize) -> serde_json::Va
     serde_json::Value::Null
 }
 
+/// Bind a slice of [`ToDbValue`] parameters onto a `SQLx`
+/// [`sqlx::query::Query`].
 pub fn bind_params<'q>(
     mut query: sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments>,
     params: &[&dyn ToDbValue],

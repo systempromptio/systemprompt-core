@@ -1,3 +1,6 @@
+//! Service layer: provider abstraction, owned [`Database`] handle,
+//! transaction helpers, batch execution, and CLI display traits.
+
 pub mod database;
 pub mod display;
 pub mod executor;

@@ -1,18 +1,26 @@
+//! SQL batch and statement-by-statement execution helpers.
+
 use super::database::Database;
 use super::provider::DatabaseProvider;
 use crate::models::QueryResult;
 use anyhow::{Context, Result};
 
+/// Helper namespace bundling SQL parsing and execution utilities.
 #[derive(Debug, Copy, Clone)]
 pub struct SqlExecutor;
 
 impl SqlExecutor {
+    /// Run an arbitrary multi-statement SQL string against `db` using the
+    /// underlying provider's batch path.
     pub async fn execute_statements(db: &Database, sql: &str) -> Result<()> {
         db.execute_batch(sql)
             .await
             .context("Failed to execute SQL statements")
     }
 
+    /// Parse `sql` into individual statements and run each one against `db`.
+    /// Used when the backend's batch path cannot handle the requested DDL
+    /// dialect (e.g. trigger bodies).
     pub async fn execute_statements_parsed(db: &dyn DatabaseProvider, sql: &str) -> Result<()> {
         let statements = Self::parse_sql_statements(sql);
 
@@ -25,6 +33,9 @@ impl SqlExecutor {
         Ok(())
     }
 
+    /// Split a SQL string into top-level statements, respecting trigger
+    /// bodies and dollar-quoted blocks. Comment-only and blank lines are
+    /// dropped.
     pub fn parse_sql_statements(sql: &str) -> Vec<String> {
         let mut statements = Vec::new();
         let mut current_statement = String::new();
@@ -88,24 +99,26 @@ impl SqlExecutor {
         line.ends_with(';')
     }
 
+    /// Run `query` and return the dynamic [`QueryResult`].
     pub async fn execute_query(db: &Database, query: &str) -> Result<QueryResult> {
         db.query(&query).await.context("Failed to execute query")
     }
 
+    /// Read a SQL file from disk and run it as a batch.
     pub async fn execute_file(db: &Database, file_path: &str) -> Result<()> {
         let sql = std::fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read SQL file: {file_path}"))?;
-
         Self::execute_statements(db, &sql).await
     }
 
+    /// Read a SQL file from disk and run it through the parsed-statement path.
     pub async fn execute_file_parsed(db: &dyn DatabaseProvider, file_path: &str) -> Result<()> {
         let sql = std::fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read SQL file: {file_path}"))?;
-
         Self::execute_statements_parsed(db, &sql).await
     }
 
+    /// Check whether a public-schema table exists.
     pub async fn table_exists(db: &Database, table_name: &str) -> Result<bool> {
         let result = db
             .query_with(
@@ -122,6 +135,7 @@ impl SqlExecutor {
             .ok_or_else(|| anyhow::anyhow!("Failed to check table existence"))
     }
 
+    /// Check whether a public-schema column exists.
     pub async fn column_exists(db: &Database, table_name: &str, column_name: &str) -> Result<bool> {
         let result = db
             .query_with(
