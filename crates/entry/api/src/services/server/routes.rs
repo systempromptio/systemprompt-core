@@ -1,26 +1,17 @@
-use axum::Router;
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_oauth::OAuthState;
-use systemprompt_runtime::AppContext;
+mod extension_mount;
+mod protocol;
+mod static_setup;
 
-use crate::services::middleware::{
-    ContextMiddleware, JwtContextExtractor, RouterExt, ip_ban_middleware, site_auth_gate,
-};
-use crate::services::static_content::{
-    StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
-};
-use axum::routing::get;
+use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
-use systemprompt_traits::{AppContext as AppContextTrait, StartupEvent, StartupEventSender};
+use systemprompt_runtime::AppContext;
+use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 use systemprompt_users::BannedIpRepository;
 
-fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
-    let analytics = ctx.analytics_provider()?;
-    let users = ctx.user_provider()?;
-    let state = OAuthState::new(Arc::clone(ctx.db_pool()), analytics, users);
-    Some(state)
-}
+use crate::services::middleware::{
+    ContextMiddleware, JwtContextExtractor, RouterExt, ip_ban_middleware,
+};
 
 pub fn configure_routes(
     ctx: &AppContext,
@@ -28,259 +19,47 @@ pub fn configure_routes(
 ) -> Result<Router, LoaderError> {
     let mut router = Router::new();
 
-    let rate_config = &ctx.config().rate_limits;
-
-    let jwt_extractor = {
-        let extractor = JwtContextExtractor::new(
-            systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
-                LoaderError::InitializationFailed {
-                    extension: "jwt".to_string(),
-                    message: e.to_string(),
-                }
-            })?,
-            ctx.db_pool(),
-        );
-        match ctx.analytics_provider() {
-            Some(analytics) => extractor.with_analytics_provider(analytics),
-            None => extractor,
-        }
-    };
+    let jwt_extractor = build_jwt_extractor(ctx)?;
 
     let public_middleware = ContextMiddleware::public(jwt_extractor.clone());
     let user_middleware = ContextMiddleware::user_only(jwt_extractor.clone());
     let full_middleware = ContextMiddleware::full(jwt_extractor.clone());
     let mcp_middleware = ContextMiddleware::mcp(jwt_extractor);
 
-    if let Some(oauth_state) = create_oauth_state(ctx) {
-        router = router.nest(
-            ApiPaths::OAUTH_BASE,
-            crate::routes::oauth::public_router()
-                .with_state(oauth_state.clone())
-                .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
-                .with_auth_middleware(public_middleware.clone()),
-        );
-
-        router = router.nest(
-            ApiPaths::OAUTH_BASE,
-            crate::routes::oauth::authenticated_router()
-                .with_state(oauth_state)
-                .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)
-                .with_auth_middleware(user_middleware.clone()),
-        );
-    }
-
-    router = router.nest(
-        ApiPaths::CORE_CONTEXTS,
-        crate::routes::agent::contexts_router()
-            .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.contexts_per_second)
-            .with_auth_middleware(user_middleware.clone()),
+    router = protocol::mount_oauth(router, ctx, &public_middleware, &user_middleware);
+    router = protocol::mount_agent(
+        router,
+        ctx,
+        &public_middleware,
+        &user_middleware,
+        full_middleware,
     );
+    router = protocol::mount_mcp_and_stream(
+        router,
+        ctx,
+        &public_middleware,
+        &user_middleware,
+        mcp_middleware,
+    )?;
+    router = protocol::mount_content_and_misc(router, ctx, &public_middleware, &user_middleware)?;
 
-    router = router.nest(
-        ApiPaths::WEBHOOK,
-        crate::routes::agent::webhook_router()
-            .with_state(ctx.clone())
-            .with_auth_middleware(user_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::CORE_TASKS,
-        crate::routes::agent::tasks_router()
-            .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.tasks_per_second)
-            .with_auth_middleware(user_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::CORE_ARTIFACTS,
-        crate::routes::agent::artifacts_router()
-            .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.artifacts_per_second)
-            .with_auth_middleware(user_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::AGENTS_REGISTRY,
-        crate::routes::agent::registry_router(ctx)
-            .with_rate_limit(rate_config, rate_config.agent_registry_per_second)
-            .with_auth_middleware(public_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::AGENTS_BASE,
-        crate::routes::proxy::agents::router(ctx)
-            .with_rate_limit(rate_config, rate_config.agents_per_second)
-            .with_auth_middleware(full_middleware),
-    );
-
-    router = router.nest(
-        ApiPaths::MCP_REGISTRY,
-        crate::routes::mcp::registry_router()
-            .with_rate_limit(rate_config, rate_config.mcp_registry_per_second)
-            .with_auth_middleware(public_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::MCP_BASE,
-        crate::routes::proxy::mcp::router(ctx)
-            .with_rate_limit(rate_config, rate_config.mcp_per_second)
-            .with_auth_middleware(mcp_middleware),
-    );
-
-    router = router.nest(
-        ApiPaths::STREAM_BASE,
-        crate::routes::stream::stream_router(ctx)
-            .map_err(|e| LoaderError::InitializationFailed {
-                extension: "stream".to_string(),
-                message: e.to_string(),
-            })?
-            .with_rate_limit(rate_config, rate_config.stream_per_second)
-            .with_auth_middleware(user_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::CONTENT_BASE,
-        crate::routes::content::router(ctx)
-            .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth_middleware(public_middleware.clone()),
-    );
-
-    router = router.merge(
-        crate::routes::content::redirect_router(ctx.db_pool())
-            .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth_middleware(public_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::SYNC_BASE,
-        crate::routes::sync::router().with_state(ctx.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::MARKETPLACE_BASE,
-        crate::routes::marketplace::router()
-            .with_state(ctx.clone())
-            .with_auth_middleware(public_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::ANALYTICS_BASE,
-        crate::routes::analytics::router(ctx)
-            .map_err(|e| LoaderError::InitializationFailed {
-                extension: "analytics".to_string(),
-                message: e.to_string(),
-            })?
-            .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth_middleware(user_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::TRACK_ENGAGEMENT,
-        crate::routes::engagement::router(ctx)
-            .map_err(|e| LoaderError::InitializationFailed {
-                extension: "engagement".to_string(),
-                message: e.to_string(),
-            })?
-            .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth_middleware(public_middleware.clone()),
-    );
-
-    router = router.nest(
-        ApiPaths::ADMIN_BASE,
-        crate::routes::admin::router()
-            .with_state(ctx.clone())
-            .with_rate_limit(rate_config, 10)
-            .with_auth_middleware(user_middleware.clone()),
-    );
-
-    if let Some(gateway) = crate::routes::gateway::gateway_router(ctx) {
-        router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
-    }
-
-    router = mount_extension_routes(router, ctx, &user_middleware, events)?;
-
-    let path = ctx.app_paths().system().content_config().to_path_buf();
-    #[allow(clippy::option_if_let_else)]
-    let content_matcher = if let Some(path_str) = path.to_str() {
-        match StaticContentMatcher::from_config(path_str) {
-            Ok(matcher) => Arc::new(matcher),
-            Err(e) => {
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::Warning {
-                            message: format!("Failed to load content config: {e}"),
-                            context: Some("Static content matching will be disabled".to_string()),
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!("Startup event receiver dropped");
-                    }
-                }
-                Arc::new(StaticContentMatcher::empty())
-            },
-        }
-    } else {
-        if let Some(tx) = events {
-            if tx
-                .unbounded_send(StartupEvent::Warning {
-                    message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
-                    context: None,
-                })
-                .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped");
-            }
-        }
-        Arc::new(StaticContentMatcher::empty())
-    };
-
-    let static_state = StaticContentState {
-        ctx: Arc::new(ctx.clone()),
-        matcher: content_matcher,
-        route_classifier: Arc::clone(ctx.route_classifier()),
-    };
+    router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 
     router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
     router =
         router.merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware));
-
     router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
 
     router = router.route(
         "/auth/link-passkey",
-        get(crate::routes::oauth::webauthn::link::link_passkey_page),
+        axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
     );
 
-    let static_router = Router::new()
-        .route("/", get(serve_homepage))
-        .fallback(smart_fallback_handler)
-        .with_state(static_state)
-        .with_auth_middleware(public_middleware);
-
-    let site_auth_config = ctx
-        .extension_registry()
-        .extensions()
-        .iter()
-        .find_map(|ext| ext.site_auth());
-
-    let static_router = if let Some(auth_config) = site_auth_config {
-        let secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .unwrap_or_else(|e| {
-                tracing::warn!(error = %e, "JWT secret not available for site auth gate");
-                ""
-            })
-            .to_string();
-        static_router.layer(axum::middleware::from_fn(move |req, next| {
-            let config = auth_config;
-            let secret = secret.clone();
-            async move { site_auth_gate(req, next, config, secret).await }
-        }))
-    } else {
-        static_router
-    };
-
-    router = router.merge(static_router);
+    router = router.merge(static_setup::build_static_router(
+        ctx,
+        public_middleware,
+        events,
+    ));
 
     let banned_ip_repo = Arc::new(BannedIpRepository::new(ctx.db_pool()).map_err(|e| {
         LoaderError::InitializationFailed {
@@ -295,6 +74,22 @@ pub fn configure_routes(
     })))
 }
 
+fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
+    let extractor = JwtContextExtractor::new(
+        systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
+            LoaderError::InitializationFailed {
+                extension: "jwt".to_string(),
+                message: e.to_string(),
+            }
+        })?,
+        ctx.db_pool(),
+    );
+    Ok(match ctx.analytics_provider() {
+        Some(analytics) => extractor.with_analytics_provider(analytics),
+        None => extractor,
+    })
+}
+
 fn discovery_router(ctx: &AppContext) -> Router {
     super::builder::discovery_router(ctx)
 }
@@ -305,75 +100,4 @@ fn authenticated_discovery_router(ctx: &AppContext) -> Router {
 
 fn wellknown_router(ctx: &AppContext) -> Router {
     crate::routes::oauth::wellknown_routes().merge(crate::routes::wellknown_router(ctx))
-}
-
-fn mount_extension_routes(
-    mut router: Router,
-    ctx: &AppContext,
-    user_middleware: &ContextMiddleware<JwtContextExtractor>,
-    events: Option<&StartupEventSender>,
-) -> Result<Router, LoaderError> {
-    let api_extensions = ctx.extension_registry().api_extensions(ctx);
-
-    if api_extensions.is_empty() {
-        return Ok(router);
-    }
-
-    let profile = systemprompt_config::ProfileBootstrap::get().map_err(|e| {
-        LoaderError::InitializationFailed {
-            extension: "profile".to_string(),
-            message: e.to_string(),
-        }
-    })?;
-
-    let config_json = serde_json::json!({
-        "paths": profile.paths,
-    });
-
-    for ext in api_extensions {
-        let ext_id = ext.metadata().id;
-        let ext_name = ext.metadata().name;
-
-        ext.validate_config(&config_json)
-            .map_err(|e| LoaderError::ConfigValidationFailed {
-                extension: ext_id.to_string(),
-                message: e.to_string(),
-            })?;
-
-        let Some(ext_router_config) = ext.router(ctx) else {
-            continue;
-        };
-
-        let base_path = ext_router_config.base_path;
-        let requires_auth = ext_router_config.requires_auth;
-
-        let ext_router = if requires_auth {
-            ext_router_config
-                .router
-                .with_auth_middleware(user_middleware.clone())
-        } else {
-            ext_router_config.router
-        };
-
-        if let Some(tx) = events {
-            if tx
-                .unbounded_send(StartupEvent::ExtensionRouteMounted {
-                    name: ext_name.to_string(),
-                    path: base_path.to_string(),
-                    auth_required: requires_auth,
-                })
-                .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped");
-            }
-        }
-
-        if base_path == "/" {
-            router = router.merge(ext_router);
-        } else {
-            router = router.nest(base_path, ext_router);
-        }
-    }
-
-    Ok(router)
 }

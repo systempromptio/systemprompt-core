@@ -53,6 +53,8 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
+    // Why: extraction failure means no auth cookie — logged at debug, treated as
+    // anonymous so the gate can decide whether the route is publicly accessible.
     let auth_result = TokenExtractor::browser_only()
         .extract(request.headers())
         .map_err(|e| tracing::debug!(error = %e, %path, "token extraction failed"))

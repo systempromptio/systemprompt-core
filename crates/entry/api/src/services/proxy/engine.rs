@@ -1,12 +1,13 @@
+mod mcp_session;
+
 use axum::body::Body;
 use axum::extract::{Path, Request, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{AgentName, UserId};
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_runtime::AppContext;
 use tokio::sync::RwLock;
 
@@ -14,16 +15,7 @@ use super::auth::AccessValidator;
 use super::backend::{HeaderInjector, ProxyError, RequestBuilder, ResponseHandler, UrlResolver};
 use super::client::ClientPool;
 use super::resolver::ServiceResolver;
-
-#[derive(Clone, Debug)]
-struct ProxySessionIdentity {
-    user: String,
-    user_type: String,
-    permissions: Vec<Permission>,
-    auth_token: String,
-}
-
-type SessionCache = Arc<RwLock<HashMap<String, ProxySessionIdentity>>>;
+use mcp_session::SessionCache;
 
 #[derive(Debug, Clone)]
 pub struct ProxyEngine {
@@ -86,34 +78,13 @@ impl ProxyEngine {
         }
 
         if service.module_name == "mcp" && req_context.auth_token().as_str().is_empty() {
-            if let Some(session_id) = request_headers
-                .get("mcp-session-id")
-                .and_then(|v| v.to_str().ok())
-            {
-                if let Some(identity) = self.session_cache.read().await.get(session_id) {
-                    tracing::info!(
-                        service = %service_name,
-                        session_id = %session_id,
-                        user_id = %identity.user,
-                        "Enriching session-only request with cached identity"
-                    );
-                    req_context = req_context
-                        .with_user_id(UserId::new(identity.user.clone()))
-                        .with_user_type(
-                            identity
-                                .user_type
-                                .parse()
-                                .unwrap_or(systemprompt_models::auth::UserType::Unknown),
-                        )
-                        .with_auth_token(identity.auth_token.clone())
-                        .with_user(AuthenticatedUser::new(
-                            identity.user.parse().unwrap_or(uuid::Uuid::nil()),
-                            String::new(),
-                            String::new(),
-                            identity.permissions.clone(),
-                        ));
-                }
-            }
+            req_context = mcp_session::enrich_with_cached_identity(
+                &self.session_cache,
+                &request_headers,
+                req_context,
+                service_name,
+            )
+            .await;
         }
 
         let has_auth_before = headers.get("authorization").is_some();
@@ -155,88 +126,16 @@ impl ProxyEngine {
         };
 
         if service.module_name == "mcp" {
-            let resp_status = response.status();
-            let resp_session = response
-                .headers()
-                .get("mcp-session-id")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("none");
-            let resp_content_type = response
-                .headers()
-                .get("content-type")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("none");
-
-            tracing::info!(
-                service = %service_name,
-                status = %resp_status,
-                resp_session_id = %resp_session,
-                content_type = %resp_content_type,
-                method = %method_str,
-                "MCP backend response"
-            );
-
-            if !resp_status.is_success() {
-                let header_dump: Vec<String> = response
-                    .headers()
-                    .iter()
-                    .map(|(k, v)| format!("{}: {}", k, v.to_str().unwrap_or("?")))
-                    .collect();
-                tracing::error!(
-                    service = %service_name,
-                    status = %resp_status,
-                    headers = ?header_dump,
-                    "MCP backend error response"
-                );
-
-                if resp_status == StatusCode::NOT_FOUND && method_str == "GET" {
-                    if let Some(session_id) = request_headers
-                        .get("mcp-session-id")
-                        .and_then(|v| v.to_str().ok())
-                    {
-                        self.session_cache.write().await.remove(session_id);
-                        tracing::info!(
-                            service = %service_name,
-                            session_id = %session_id,
-                            "Evicted stale proxy session cache on 404 GET"
-                        );
-                    }
-                }
-            }
-
-            if let Some(session_id) = response
-                .headers()
-                .get("mcp-session-id")
-                .and_then(|v| v.to_str().ok())
-            {
-                if let Some(user) = &authenticated_user {
-                    self.session_cache.write().await.insert(
-                        session_id.to_string(),
-                        ProxySessionIdentity {
-                            user: user.id.to_string(),
-                            user_type: req_context.user_type().to_string(),
-                            permissions: user.permissions.clone(),
-                            auth_token: req_context.auth_token().as_str().to_string(),
-                        },
-                    );
-                    tracing::info!(
-                        service = %service_name,
-                        session_id = %session_id,
-                        user_id = %user.id,
-                        "Cached session identity for MCP session"
-                    );
-                }
-            }
-
-            if method_str == "DELETE" {
-                if let Some(session_id) = request_headers
-                    .get("mcp-session-id")
-                    .and_then(|v| v.to_str().ok())
-                {
-                    self.session_cache.write().await.remove(session_id);
-                    tracing::debug!(session_id = %session_id, "Evicted session identity on DELETE");
-                }
-            }
+            mcp_session::handle_mcp_response(mcp_session::McpResponseCtx {
+                cache: &self.session_cache,
+                response: &response,
+                request_headers: &request_headers,
+                req_context: &req_context,
+                authenticated_user: authenticated_user.as_ref(),
+                service_name,
+                method_str: &method_str,
+            })
+            .await;
         }
 
         match ResponseHandler::build_response(response) {
