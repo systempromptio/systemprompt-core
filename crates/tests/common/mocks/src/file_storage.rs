@@ -1,9 +1,10 @@
-use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use systemprompt_traits::{FileStorage, StoredFileId, StoredFileMetadata};
+use systemprompt_traits::{
+    FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+};
 use tokio::sync::Mutex;
 
 pub struct MockFileStorage {
@@ -70,9 +71,9 @@ impl Default for MockFileStorage {
 
 #[async_trait]
 impl FileStorage for MockFileStorage {
-    async fn store(&self, path: &Path, content: &[u8]) -> Result<StoredFileId> {
+    async fn store(&self, path: &Path, content: &[u8]) -> FileStorageResult<StoredFileId> {
         if let Some(ref err) = self.store_error {
-            return Err(anyhow!("{err}"));
+            return Err(FileStorageError::Backend(err.clone()));
         }
 
         let id = uuid::Uuid::new_v4().to_string();
@@ -93,31 +94,31 @@ impl FileStorage for MockFileStorage {
         Ok(file_id)
     }
 
-    async fn retrieve(&self, id: &StoredFileId) -> Result<Vec<u8>> {
+    async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
         self.files
             .lock()
             .await
             .get(id.as_str())
             .cloned()
-            .ok_or_else(|| anyhow!("File not found: {id}"))
+            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
     }
 
-    async fn delete(&self, id: &StoredFileId) -> Result<()> {
+    async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
         self.files.lock().await.remove(id.as_str());
         self.metadata.lock().await.remove(id.as_str());
         Ok(())
     }
 
-    async fn metadata(&self, id: &StoredFileId) -> Result<StoredFileMetadata> {
+    async fn metadata(&self, id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {
         self.metadata
             .lock()
             .await
             .get(id.as_str())
             .cloned()
-            .ok_or_else(|| anyhow!("File not found: {id}"))
+            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
     }
 
-    async fn exists(&self, id: &StoredFileId) -> Result<bool> {
+    async fn exists(&self, id: &StoredFileId) -> FileStorageResult<bool> {
         Ok(self.files.lock().await.contains_key(id.as_str()))
     }
 }
