@@ -111,8 +111,8 @@ pub fn resolve_profile_with_data(
     profile_input: &str,
 ) -> Result<(PathBuf, Profile), ProfileResolutionError> {
     let path = resolve_profile_input(profile_input)?;
-    let profile =
-        ProfileLoader::load_from_path(&path).map_err(ProfileResolutionError::DiscoveryFailed)?;
+    let profile = ProfileLoader::load_from_path(&path)
+        .map_err(|e| ProfileResolutionError::DiscoveryFailed(anyhow::Error::from(e)))?;
     Ok((path, profile))
 }
 

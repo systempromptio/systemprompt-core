@@ -11,7 +11,7 @@ pub async fn pubkey() -> impl IntoResponse {
         Ok(b64) => (StatusCode::OK, Json(json!({ "pubkey": b64 }))).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": e })),
+            Json(json!({ "error": e.to_string() })),
         )
             .into_response(),
     }

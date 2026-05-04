@@ -55,6 +55,12 @@ pub enum McpDomainError {
 
     #[error(transparent)]
     Other(#[from] anyhow::Error),
+
+    #[error("services config: {0}")]
+    ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
+
+    #[error("extension load: {0}")]
+    ExtensionLoad(#[from] systemprompt_loader::ExtensionLoadError),
 }
 
 pub type McpDomainResult<T> = Result<T, McpDomainError>;

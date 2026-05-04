@@ -18,9 +18,9 @@ workspace = true
 [dependencies]
 # Core runtime
 tokio = { workspace = true }
-anyhow = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }
+thiserror = { workspace = true }
 
 # Web framework
 axum = { workspace = true }
@@ -37,3 +37,6 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 
 [dev-dependencies]
+
+[package.metadata.docs.rs]
+all-features = true

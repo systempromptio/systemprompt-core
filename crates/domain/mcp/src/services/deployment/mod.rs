@@ -9,7 +9,7 @@ pub struct DeploymentService;
 
 impl DeploymentService {
     pub fn load_config() -> Result<ServicesConfig> {
-        ConfigLoader::load()
+        ConfigLoader::load().map_err(anyhow::Error::from)
     }
 
     pub fn get_deployment(name: &str) -> Result<Deployment> {

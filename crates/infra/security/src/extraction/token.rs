@@ -6,10 +6,15 @@ const DEFAULT_COOKIE_NAME: &str = "access_token";
 const DEFAULT_MCP_HEADER_NAME: &str = "x-mcp-proxy-auth";
 const BEARER_PREFIX: &str = "Bearer ";
 
+/// Source from which a [`TokenExtractor`] should attempt to read the
+/// bearer token.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtractionMethod {
+    /// `Authorization: Bearer …` header.
     AuthorizationHeader,
+    /// `x-mcp-proxy-auth: Bearer …` header (MCP proxy contract).
     McpProxyHeader,
+    /// Browser session cookie.
     Cookie,
 }
 
@@ -23,6 +28,11 @@ impl fmt::Display for ExtractionMethod {
     }
 }
 
+/// Bearer-token extractor with a configurable fallback chain.
+///
+/// Tries each [`ExtractionMethod`] in order and returns the first token
+/// that parses successfully. The standard chain (header → MCP proxy →
+/// cookie) handles every transport contract the API supports.
 #[derive(Debug, Clone)]
 pub struct TokenExtractor {
     fallback_chain: Vec<ExtractionMethod>,
@@ -31,6 +41,8 @@ pub struct TokenExtractor {
 }
 
 impl TokenExtractor {
+    /// Constructs an extractor with an explicit fallback chain.
+    #[must_use]
     pub fn new(fallback_chain: Vec<ExtractionMethod>) -> Self {
         Self {
             fallback_chain,
@@ -39,16 +51,24 @@ impl TokenExtractor {
         }
     }
 
+    /// Overrides the cookie name used by the [`ExtractionMethod::Cookie`]
+    /// step.
+    #[must_use]
     pub fn with_cookie_name(mut self, name: String) -> Self {
         self.cookie_name = name;
         self
     }
 
+    /// Overrides the MCP proxy header name used by the
+    /// [`ExtractionMethod::McpProxyHeader`] step.
+    #[must_use]
     pub fn with_mcp_header_name(mut self, name: String) -> Self {
         self.mcp_header_name = name;
         self
     }
 
+    /// Returns the standard fallback chain: header → MCP proxy → cookie.
+    #[must_use]
     pub fn standard() -> Self {
         Self::new(vec![
             ExtractionMethod::AuthorizationHeader,
@@ -57,6 +77,8 @@ impl TokenExtractor {
         ])
     }
 
+    /// Returns a chain suited to browser-only flows: header → cookie.
+    #[must_use]
     pub fn browser_only() -> Self {
         Self::new(vec![
             ExtractionMethod::AuthorizationHeader,
@@ -64,14 +86,25 @@ impl TokenExtractor {
         ])
     }
 
+    /// Returns a chain that only accepts the bearer header.
+    #[must_use]
     pub fn api_only() -> Self {
         Self::new(vec![ExtractionMethod::AuthorizationHeader])
     }
 
+    /// Returns the configured fallback chain.
+    #[must_use]
     pub fn chain(&self) -> &[ExtractionMethod] {
         &self.fallback_chain
     }
 
+    /// Walks the fallback chain and returns the first successfully
+    /// extracted token.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TokenExtractionError::NoTokenFound`] when every method
+    /// in the chain fails.
     pub fn extract(&self, headers: &HeaderMap) -> Result<String, TokenExtractionError> {
         for method in &self.fallback_chain {
             match method {
@@ -96,6 +129,12 @@ impl TokenExtractor {
         Err(TokenExtractionError::NoTokenFound)
     }
 
+    /// Extracts the bearer token from the `Authorization` header.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`TokenExtractionError`] variant describing whether the
+    /// header was missing or malformed.
     pub fn extract_from_authorization(headers: &HeaderMap) -> Result<String, TokenExtractionError> {
         let auth_headers = headers.get_all("authorization");
 
@@ -122,6 +161,11 @@ impl TokenExtractor {
         Err(TokenExtractionError::InvalidAuthorizationFormat)
     }
 
+    /// Extracts the bearer token from the configured MCP proxy header.
+    ///
+    /// # Errors
+    ///
+    /// Same shape as [`Self::extract_from_authorization`].
     pub fn extract_from_mcp_proxy(
         &self,
         headers: &HeaderMap,
@@ -140,6 +184,11 @@ impl TokenExtractor {
             .map(ToString::to_string)
     }
 
+    /// Extracts the bearer token from the configured session cookie.
+    ///
+    /// # Errors
+    ///
+    /// Same shape as [`Self::extract_from_authorization`].
     pub fn extract_from_cookie(&self, headers: &HeaderMap) -> Result<String, TokenExtractionError> {
         let cookie_header = headers
             .get("cookie")
@@ -161,15 +210,24 @@ impl TokenExtractor {
     }
 }
 
+/// Failures produced while extracting a bearer token from a request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenExtractionError {
+    /// Every method in the fallback chain failed.
     NoTokenFound,
+    /// The `Authorization` header is missing.
     MissingAuthorizationHeader,
+    /// The `Authorization` header is malformed (not `Bearer <token>`).
     InvalidAuthorizationFormat,
+    /// The MCP proxy header is missing.
     MissingMcpProxyHeader,
+    /// The MCP proxy header is malformed.
     InvalidMcpProxyFormat,
+    /// The `Cookie` header is missing.
     MissingCookie,
+    /// The `Cookie` header is malformed.
     InvalidCookieFormat,
+    /// The configured cookie name was not present in the `Cookie` header.
     TokenNotFoundInCookie,
 }
 

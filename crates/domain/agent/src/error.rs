@@ -182,6 +182,9 @@ pub enum AgentError {
 
     #[error(transparent)]
     Other(#[from] anyhow::Error),
+
+    #[error("services config: {0}")]
+    ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
 }
 
 pub type AgentResult<T> = Result<T, AgentError>;
