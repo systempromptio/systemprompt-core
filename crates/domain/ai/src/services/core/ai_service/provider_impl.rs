@@ -1,4 +1,3 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 use std::collections::HashMap;
@@ -10,8 +9,13 @@ use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, CallToolResult, GenerateResponseParams, GoogleSearchParams,
     McpTool, PlanningResult, SearchGroundedResponse, StreamChunk, ToolCall, ToolModelOverrides,
 };
+use systemprompt_models::errors::ProviderResult;
 
 use super::service::AiService;
+
+fn boxed_err<E: std::fmt::Display>(e: E) -> Box<dyn std::error::Error + Send + Sync> {
+    Box::<dyn std::error::Error + Send + Sync>::from(e.to_string())
+}
 
 #[async_trait]
 impl AiProvider for AiService {
@@ -27,33 +31,45 @@ impl AiProvider for AiService {
         Self::default_max_output_tokens(self)
     }
 
-    async fn generate(&self, request: &AiRequest) -> Result<AiResponse> {
-        Self::generate(self, request).await
+    async fn generate(&self, request: &AiRequest) -> ProviderResult<AiResponse> {
+        Self::generate(self, request).await.map_err(boxed_err)
     }
 
     async fn generate_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Self::generate_stream(self, request).await
+    ) -> ProviderResult<Pin<Box<dyn Stream<Item = ProviderResult<StreamChunk>> + Send>>> {
+        let stream = Self::generate_stream(self, request).await.map_err(boxed_err)?;
+        use futures::StreamExt;
+        let mapped = stream.map(|item| item.map_err(boxed_err));
+        Ok(Box::pin(mapped))
     }
 
-    async fn generate_with_tools(&self, request: &AiRequest) -> Result<AiResponse> {
-        Self::generate_with_tools(self, request).await
+    async fn generate_with_tools(&self, request: &AiRequest) -> ProviderResult<AiResponse> {
+        Self::generate_with_tools(self, request)
+            .await
+            .map_err(boxed_err)
     }
 
     async fn generate_with_tools_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Self::generate_with_tools_stream(self, request).await
+    ) -> ProviderResult<Pin<Box<dyn Stream<Item = ProviderResult<StreamChunk>> + Send>>> {
+        let stream = Self::generate_with_tools_stream(self, request)
+            .await
+            .map_err(boxed_err)?;
+        use futures::StreamExt;
+        let mapped = stream.map(|item| item.map_err(boxed_err));
+        Ok(Box::pin(mapped))
     }
 
     async fn generate_single_turn(
         &self,
         request: &AiRequest,
-    ) -> Result<(AiResponse, Vec<ToolCall>)> {
-        Self::generate_single_turn(self, request).await
+    ) -> ProviderResult<(AiResponse, Vec<ToolCall>)> {
+        Self::generate_single_turn(self, request)
+            .await
+            .map_err(boxed_err)
     }
 
     async fn execute_tools(
@@ -70,30 +86,41 @@ impl AiProvider for AiService {
         &self,
         agent_name: &AgentName,
         context: &RequestContext,
-    ) -> Result<Vec<McpTool>> {
-        Self::list_available_tools_for_agent(self, agent_name, context).await
+    ) -> ProviderResult<Vec<McpTool>> {
+        Self::list_available_tools_for_agent(self, agent_name, context)
+            .await
+            .map_err(boxed_err)
     }
 
     async fn generate_with_google_search(
         &self,
         params: GoogleSearchParams<'_>,
-    ) -> Result<SearchGroundedResponse> {
-        Self::generate_with_google_search(self, params).await
+    ) -> ProviderResult<SearchGroundedResponse> {
+        Self::generate_with_google_search(self, params)
+            .await
+            .map_err(boxed_err)
     }
 
-    async fn health_check(&self) -> Result<HashMap<String, bool>> {
-        Self::health_check(self).await
+    async fn health_check(&self) -> ProviderResult<HashMap<String, bool>> {
+        Self::health_check(self).await.map_err(boxed_err)
     }
 
     async fn generate_plan(
         &self,
         request: &AiRequest,
         available_tools: &[McpTool],
-    ) -> Result<PlanningResult> {
-        Self::generate_plan(self, request, available_tools).await
+    ) -> ProviderResult<PlanningResult> {
+        Self::generate_plan(self, request, available_tools)
+            .await
+            .map_err(boxed_err)
     }
 
-    async fn generate_response(&self, params: GenerateResponseParams<'_>) -> Result<String> {
-        Self::generate_response(self, params).await
+    async fn generate_response(
+        &self,
+        params: GenerateResponseParams<'_>,
+    ) -> ProviderResult<String> {
+        Self::generate_response(self, params)
+            .await
+            .map_err(boxed_err)
     }
 }

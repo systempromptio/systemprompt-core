@@ -399,5 +399,5 @@ pub fn load_secrets_from_path(secrets_path: &Path) -> Result<Secrets> {
     }
     let content = std::fs::read_to_string(secrets_path)
         .with_context(|| format!("Failed to read secrets: {}", secrets_path.display()))?;
-    Secrets::parse(&content)
+    Secrets::parse(&content).map_err(Into::into)
 }

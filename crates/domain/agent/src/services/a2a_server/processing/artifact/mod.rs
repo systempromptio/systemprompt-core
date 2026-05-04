@@ -44,6 +44,7 @@ impl ToolProvider for AiServiceToolProvider {
         self.ai_service
             .list_available_tools_for_agent(agent_name, context)
             .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 }
 
