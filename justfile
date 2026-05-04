@@ -116,11 +116,40 @@ format-check:
 
 # Run clippy linter with strict settings
 lint:
-    cargo clippy --workspace -- -D warnings
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
     ./ci/check-sqlx.sh
+
+# Run cargo-deny: licenses, advisories, banned crates, source policies
+deny:
+    cargo deny check
+
+# Run cargo-audit against the RustSec advisory DB
+audit:
+    cargo audit
+
+# Flag source files exceeding 300 lines (excludes target/ and tests/)
+file-size:
+    @find crates -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' -exec wc -l {} + | awk '$1>300 && $2!="total"'
+
+# Bespoke bans clippy can't catch: raw String IDs, *Manager names, raw sqlx::query() outside allowlist
+check-bans:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    fail=0
+    echo "==> raw 'pub *: String' fields in struct definitions named *Id"
+    if grep -RInE 'pub +[a-z_]*id +: +String' crates/ 2>/dev/null; then fail=1; fi
+    echo "==> banned '*Manager' type names (use *Service / *Handler / *Orchestrator)"
+    if grep -RInE '(struct|trait|impl|enum) +[A-Z][A-Za-z0-9]*Manager\b' crates/ 2>/dev/null; then fail=1; fi
+    echo "==> raw sqlx::query() outside allowlist (admin/, postgres/{introspection,query_executor,transaction,ext}.rs)"
+    matches=$(grep -RIn --include='*.rs' -E 'sqlx::query\s*\(' crates/ 2>/dev/null \
+        | grep -vE 'crates/infra/database/src/(admin/|services/postgres/(introspection|query_executor|transaction|ext)\.rs)' \
+        || true)
+    if [ -n "$matches" ]; then echo "$matches"; fail=1; fi
+    if [ $fail -ne 0 ]; then echo "check-bans: violations found"; exit 1; fi
+    echo "check-bans: ok"
 
 # Run custom style validators
 validate:
