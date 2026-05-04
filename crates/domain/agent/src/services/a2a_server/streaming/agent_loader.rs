@@ -1,6 +1,6 @@
 use axum::response::sse::Event;
 use systemprompt_identifiers::TaskId;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::jsonrpc::NumberOrString;
@@ -13,7 +13,7 @@ pub async fn load_agent_runtime(
     agent_name: &str,
     task_id: &TaskId,
     task_repo: &TaskRepository,
-    tx: &UnboundedSender<Event>,
+    tx: &Sender<Event>,
     request_id: &NumberOrString,
 ) -> Result<AgentRuntimeInfo, ()> {
     let registry = match AgentRegistry::new() {
@@ -26,7 +26,7 @@ pub async fn load_agent_runtime(
             );
             mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
             if tx
-                .send(create_jsonrpc_error_event(
+                .try_send(create_jsonrpc_error_event(
                     -32603,
                     "Failed to load agent registry - check system logs for details",
                     request_id,
@@ -46,7 +46,7 @@ pub async fn load_agent_runtime(
             tracing::error!(agent_name = %agent_name, error = %e, "Failed to load agent");
             mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
             if tx
-                .send(create_jsonrpc_error_event(
+                .try_send(create_jsonrpc_error_event(
                     -32603,
                     "Agent not found",
                     request_id,

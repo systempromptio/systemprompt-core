@@ -107,7 +107,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
         let mut failed_ids = Vec::new();
 
         for (conn_id, sender) in senders {
-            if sender.send(Ok(sse_event.clone())).is_ok() {
+            if sender.try_send(Ok(sse_event.clone())).is_ok() {
                 successful += 1;
             } else {
                 failed_ids.push(conn_id);

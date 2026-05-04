@@ -18,7 +18,7 @@ impl StreamProcessor {
     pub async fn process_message_stream(
         &self,
         params: ProcessMessageStreamParams<'_>,
-    ) -> Result<mpsc::UnboundedReceiver<StreamEvent>> {
+    ) -> Result<mpsc::Receiver<StreamEvent>> {
         let ProcessMessageStreamParams {
             a2a_message,
             agent_runtime,
@@ -26,7 +26,7 @@ impl StreamProcessor {
             context,
             task_id,
         } = params;
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (tx, rx) = mpsc::channel(1024);
 
         let ai_service = Arc::clone(&self.ai_service);
         let agent_runtime = agent_runtime.clone();
@@ -122,7 +122,7 @@ impl StreamProcessor {
                     }
 
                     if let Err(send_err) =
-                        tx.send(StreamEvent::Error(format!("Execution failed: {e}")))
+                        tx.try_send(StreamEvent::Error(format!("Execution failed: {e}")))
                     {
                         tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
                     }
@@ -156,7 +156,7 @@ impl StreamProcessor {
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to build artifacts from tool results");
                     if let Err(send_err) =
-                        tx.send(StreamEvent::Error(format!("Artifact building failed: {e}")))
+                        tx.try_send(StreamEvent::Error(format!("Artifact building failed: {e}")))
                     {
                         tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
                     }
@@ -189,7 +189,7 @@ impl StreamProcessor {
                 );
             }
 
-            let send_result = tx.send(StreamEvent::Complete {
+            let send_result = tx.try_send(StreamEvent::Complete {
                 full_text: final_text,
                 artifacts: artifacts.clone(),
             });

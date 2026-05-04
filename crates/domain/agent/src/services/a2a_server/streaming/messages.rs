@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use systemprompt_models::RequestContext;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::ReceiverStream;
 
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
@@ -36,7 +36,7 @@ impl std::fmt::Debug for CreateSseStreamParams {
     }
 }
 
-pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiverStream<Event> {
+pub async fn create_sse_stream(params: CreateSseStreamParams) -> ReceiverStream<Event> {
     let CreateSseStreamParams {
         message,
         agent_name,
@@ -45,7 +45,7 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiv
         context,
         callback_config,
     } = params;
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
     tracing::info!("create_sse_stream() called - spawning tokio task");
 
@@ -111,5 +111,5 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiv
         }
     });
 
-    UnboundedReceiverStream::new(rx)
+    ReceiverStream::new(rx)
 }

@@ -6,7 +6,7 @@ use systemprompt_identifiers::{
     AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::{RequestContext, TaskMetadata};
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
 use crate::models::a2a::jsonrpc::NumberOrString;
@@ -85,13 +85,13 @@ pub async fn validate_context(
     context_id: &ContextId,
     user_id: &UserId,
     state: &Arc<AgentHandlerState>,
-    tx: &UnboundedSender<Event>,
+    tx: &Sender<Event>,
     request_id: &NumberOrString,
 ) -> Result<(), ()> {
     let context_repo = ContextRepository::new(&state.db_pool).map_err(|e| {
         tracing::error!(error = %e, "Failed to create ContextRepository");
         if tx
-            .send(create_jsonrpc_error_event(
+            .try_send(create_jsonrpc_error_event(
                 -32603,
                 &format!("Failed to initialize context repository: {e}"),
                 request_id,
@@ -113,7 +113,7 @@ pub async fn validate_context(
                 "Context validation failed"
             );
             if tx
-                .send(create_jsonrpc_error_event(
+                .try_send(create_jsonrpc_error_event(
                     -32603,
                     &format!("Context validation failed: {e}"),
                     request_id,
@@ -147,7 +147,7 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
     let task_repo = TaskRepository::new(&state.db_pool).map_err(|e| {
         tracing::error!(error = %e, "Failed to create TaskRepository");
         if tx
-            .send(create_jsonrpc_error_event(
+            .try_send(create_jsonrpc_error_event(
                 -32603,
                 &format!("Failed to initialize task repository: {e}"),
                 request_id,
@@ -187,7 +187,7 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
             tracing::error!(task_id = %task_id, error = %e, "Failed to persist task at start");
             let error_detail = classify_database_error(&e);
             if tx
-                .send(create_jsonrpc_error_event(
+                .try_send(create_jsonrpc_error_event(
                     -32603,
                     &format!("Failed to create task: {error_detail}"),
                     request_id,
@@ -239,7 +239,7 @@ pub async fn save_push_notification_config(
 
 pub async fn setup_stream(
     input: StreamInput,
-    tx: &UnboundedSender<Event>,
+    tx: &Sender<Event>,
 ) -> Result<StreamSetupResult, ()> {
     let StreamInput {
         message,
@@ -295,7 +295,7 @@ pub async fn setup_stream(
         MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service)).map_err(|e| {
             tracing::error!(error = %e, "Failed to create MessageProcessor");
             if tx
-                .send(create_jsonrpc_error_event(
+                .try_send(create_jsonrpc_error_event(
                     -32603,
                     &format!("Failed to initialize message processor: {e}"),
                     &request_id,

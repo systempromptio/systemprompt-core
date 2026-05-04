@@ -2,7 +2,7 @@ use axum::response::sse::Event;
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Message;
@@ -43,13 +43,13 @@ pub struct PersistTaskInput<'a> {
     pub agent_name: &'a str,
     pub context: &'a RequestContext,
     pub state: &'a Arc<AgentHandlerState>,
-    pub tx: &'a UnboundedSender<Event>,
+    pub tx: &'a Sender<Event>,
     pub request_id: &'a NumberOrString,
 }
 
 #[derive(Debug)]
 pub struct StreamContext {
-    pub tx: UnboundedSender<Event>,
+    pub tx: Sender<Event>,
     pub task_id: TaskId,
     pub context_id: ContextId,
     pub message_id: MessageId,
@@ -61,12 +61,12 @@ pub struct StreamContext {
 
 impl StreamContext {
     pub fn send_event(&self, event: Event) -> bool {
-        self.tx.send(event).is_ok()
+        self.tx.try_send(event).is_ok()
     }
 
     pub fn send_json(&self, json: &serde_json::Value) -> bool {
         self.tx
-            .send(Event::default().data(json.to_string()))
+            .try_send(Event::default().data(json.to_string()))
             .is_ok()
     }
 }

@@ -58,7 +58,7 @@ pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<Exec
         {
             if context
                 .tx
-                .send(StreamEvent::ExecutionStepUpdate { step })
+                .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
             {
                 tracing::debug!("Stream receiver dropped");
@@ -82,7 +82,7 @@ pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<Exec
 
     if context
         .tx
-        .send(StreamEvent::ExecutionStepUpdate { step })
+        .try_send(StreamEvent::ExecutionStepUpdate { step })
         .is_err()
     {
         tracing::debug!("Stream receiver dropped");
@@ -110,7 +110,7 @@ pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<Exec
     if let Ok(step) = tracking.track_completion(task_id).await {
         if context
             .tx
-            .send(StreamEvent::ExecutionStepUpdate { step })
+            .try_send(StreamEvent::ExecutionStepUpdate { step })
             .is_err()
         {
             tracing::debug!("Stream receiver dropped");
@@ -159,7 +159,7 @@ pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<Exec
 
     if context
         .tx
-        .send(StreamEvent::Text(response.clone()))
+        .try_send(StreamEvent::Text(response.clone()))
         .is_err()
     {
         tracing::debug!("Stream receiver dropped");
@@ -212,7 +212,7 @@ async fn handle_validation_failure(
 
     if context
         .tx
-        .send(StreamEvent::Text(response.clone()))
+        .try_send(StreamEvent::Text(response.clone()))
         .is_err()
     {
         tracing::debug!("Stream receiver dropped");

@@ -20,7 +20,7 @@ pub struct ExecutionContext {
     pub agent_name: AgentName,
     pub task_id: TaskId,
     pub context_id: ContextId,
-    pub tx: mpsc::UnboundedSender<StreamEvent>,
+    pub tx: mpsc::Sender<StreamEvent>,
     pub request_ctx: RequestContext,
     pub execution_step_repo: Arc<ExecutionStepRepository>,
 }
@@ -34,7 +34,7 @@ impl std::fmt::Debug for ExecutionContext {
             .field("agent_name", &self.agent_name)
             .field("task_id", &self.task_id)
             .field("context_id", &self.context_id)
-            .field("tx", &"<UnboundedSender>")
+            .field("tx", &"<Sender>")
             .field("request_ctx", &self.request_ctx)
             .field("execution_step_repo", &"<Arc<ExecutionStepRepository>>")
             .finish()

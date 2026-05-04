@@ -16,7 +16,7 @@ pub async fn handle_streaming_request(
 ) -> impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send {
     use crate::models::a2a::A2aRequestParams;
     use futures::StreamExt;
-    use tokio_stream::wrappers::UnboundedReceiverStream;
+    use tokio_stream::wrappers::ReceiverStream;
 
 
     let request_type = match &request {
@@ -50,11 +50,11 @@ pub async fn handle_streaming_request(
                 "id": &request_id
             });
 
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            if let Err(e) = tx.send(Event::default().data(error_event.to_string())) {
+            let (tx, rx) = tokio::sync::mpsc::channel(1024);
+            if let Err(e) = tx.try_send(Event::default().data(error_event.to_string())) {
                 tracing::warn!(error = %e, "Failed to send error event to SSE client - client may have disconnected");
             }
-            return UnboundedReceiverStream::new(rx).map(Ok);
+            return ReceiverStream::new(rx).map(Ok);
         }
 
         let callback_config = params
@@ -84,10 +84,10 @@ pub async fn handle_streaming_request(
             "id": &request_id
         });
 
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        if let Err(e) = tx.send(Event::default().data(error_event.to_string())) {
+        let (tx, rx) = tokio::sync::mpsc::channel(1024);
+        if let Err(e) = tx.try_send(Event::default().data(error_event.to_string())) {
             tracing::warn!(error = %e, "Failed to send error event to SSE client - client may have disconnected");
         }
-        UnboundedReceiverStream::new(rx).map(Ok)
+        ReceiverStream::new(rx).map(Ok)
     }
 }
