@@ -6,26 +6,14 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{
-    AgentName, ContextId, SessionId, SessionSource, TaskId, TraceId, UserId,
-};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
-use systemprompt_security::{HeaderExtractor, TokenExtractor};
-use systemprompt_traits::{AnalyticsProvider, CreateSessionInput};
-use systemprompt_users::UserService;
+use systemprompt_security::TokenExtractor;
+use systemprompt_traits::AnalyticsProvider;
 
+use super::params::{BuildContextParams, build_context, extract_common_headers};
 use super::token::{JwtExtractor, JwtUserContext};
-
-struct BuildContextParams {
-    jwt_context: JwtUserContext,
-    session_id: SessionId,
-    user_id: UserId,
-    trace_id: TraceId,
-    context_id: ContextId,
-    agent_name: AgentName,
-    task_id: Option<TaskId>,
-    auth_token: Option<String>,
-}
+use super::validation::{validate_session_exists, validate_user_exists};
 
 #[derive(Clone)]
 pub struct JwtContextExtractor {
@@ -74,138 +62,6 @@ impl JwtContextExtractor {
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
     }
 
-    async fn validate_user_exists(
-        &self,
-        jwt_context: &JwtUserContext,
-        route_context: &str,
-    ) -> Result<(), ContextExtractionError> {
-        let user_service = UserService::new(&self.db_pool).map_err(|e| {
-            ContextExtractionError::DatabaseError(format!("Failed to create user service: {e}"))
-        })?;
-        let user_exists = user_service
-            .find_by_id(&jwt_context.user_id)
-            .await
-            .map_err(|e| {
-                ContextExtractionError::DatabaseError(format!(
-                    "Failed to check user existence: {e}"
-                ))
-            })?;
-
-        if user_exists.is_none() {
-            tracing::info!(
-                session_id = %jwt_context.session_id.as_str(),
-                user_id = %jwt_context.user_id.as_str(),
-                route = %route_context,
-                "JWT validation failed: User no longer exists in database"
-            );
-
-            return Err(ContextExtractionError::UserNotFound(format!(
-                "User {} no longer exists",
-                jwt_context.user_id.as_str()
-            )));
-        }
-        Ok(())
-    }
-
-    async fn validate_session_exists(
-        &self,
-        jwt_context: &JwtUserContext,
-        headers: &HeaderMap,
-        route_context: &str,
-    ) -> Result<(), ContextExtractionError> {
-        let Some(analytics_provider) = &self.analytics_provider else {
-            return Ok(());
-        };
-
-        let session_exists = analytics_provider
-            .find_session_by_id(&jwt_context.session_id)
-            .await
-            .map_err(|e| {
-                ContextExtractionError::DatabaseError(format!("Failed to check session: {e}"))
-            })?
-            .is_some();
-
-        if session_exists {
-            return Ok(());
-        }
-
-        tracing::info!(
-            session_id = %jwt_context.session_id.as_str(),
-            user_id = %jwt_context.user_id.as_str(),
-            route = %route_context,
-            "Creating missing session for legacy token"
-        );
-
-        let config = systemprompt_models::Config::get().map_err(|e| {
-            ContextExtractionError::DatabaseError(format!("Failed to get config: {e}"))
-        })?;
-        let expires_at =
-            chrono::Utc::now() + chrono::Duration::seconds(config.jwt_access_token_expiration);
-        let analytics = analytics_provider.extract_analytics(headers, None);
-        let session_source = jwt_context
-            .client_id
-            .as_ref()
-            .map_or(SessionSource::Api, |c| {
-                SessionSource::from_client_id(c.as_str())
-            });
-
-        analytics_provider
-            .create_session(CreateSessionInput {
-                session_id: &jwt_context.session_id,
-                user_id: Some(&jwt_context.user_id),
-                analytics: &analytics,
-                session_source,
-                is_bot: false,
-                is_ai_crawler: false,
-                expires_at,
-            })
-            .await
-            .map_err(|e| {
-                ContextExtractionError::DatabaseError(format!("Failed to create session: {e}"))
-            })?;
-
-        Ok(())
-    }
-
-    fn extract_common_headers(
-        &self,
-        headers: &HeaderMap,
-    ) -> (TraceId, Option<TaskId>, Option<String>, AgentName) {
-        (
-            HeaderExtractor::extract_trace_id(headers),
-            HeaderExtractor::extract_task_id(headers),
-            self.token_extractor.extract(headers).ok(),
-            HeaderExtractor::extract_agent_name(headers),
-        )
-    }
-
-    fn build_context(params: BuildContextParams) -> RequestContext {
-        let BuildContextParams {
-            jwt_context,
-            session_id,
-            user_id,
-            trace_id,
-            context_id,
-            agent_name,
-            task_id,
-            auth_token,
-        } = params;
-        let mut ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)
-            .with_user_id(user_id)
-            .with_user_type(jwt_context.user_type);
-
-        if let Some(client_id) = jwt_context.client_id {
-            ctx = ctx.with_client_id(client_id);
-        }
-        if let Some(t_id) = task_id {
-            ctx = ctx.with_task_id(t_id);
-        }
-        if let Some(token) = auth_token {
-            ctx = ctx.with_auth_token(token);
-        }
-        ctx
-    }
-
     pub async fn extract_standard(
         &self,
         headers: &HeaderMap,
@@ -230,8 +86,8 @@ impl JwtContextExtractor {
             return Err(ContextExtractionError::MissingUserId);
         }
 
-        self.validate_user_exists(&jwt_context, "").await?;
-        self.validate_session_exists(&jwt_context, headers, "")
+        validate_user_exists(&self.db_pool, &jwt_context, "").await?;
+        validate_session_exists(self.analytics_provider.as_ref(), &jwt_context, headers, "")
             .await?;
 
         let session_id = headers
@@ -258,9 +114,10 @@ impl JwtContextExtractor {
                 |s| ContextId::new(s.to_string()),
             );
 
-        let (trace_id, task_id, auth_token, agent_name) = self.extract_common_headers(headers);
+        let (trace_id, task_id, auth_token, agent_name) =
+            extract_common_headers(&self.token_extractor, headers);
 
-        Ok(Self::build_context(BuildContextParams {
+        Ok(build_context(BuildContextParams {
             jwt_context,
             session_id,
             user_id,
@@ -295,12 +152,12 @@ impl JwtContextExtractor {
             return Err(ContextExtractionError::MissingUserId);
         }
 
-        self.validate_user_exists(&jwt_context, "gateway").await?;
+        validate_user_exists(&self.db_pool, &jwt_context, "gateway").await?;
 
         let session_id = jwt_context.session_id.clone();
         let user_id = jwt_context.user_id.clone();
 
-        Ok(Self::build_context(BuildContextParams {
+        Ok(build_context(BuildContextParams {
             jwt_context,
             session_id,
             user_id,
@@ -341,10 +198,14 @@ impl JwtContextExtractor {
             return Err(ContextExtractionError::MissingUserId);
         }
 
-        self.validate_user_exists(&jwt_context, " (A2A route)")
-            .await?;
-        self.validate_session_exists(&jwt_context, &headers, " (A2A route)")
-            .await?;
+        validate_user_exists(&self.db_pool, &jwt_context, " (A2A route)").await?;
+        validate_session_exists(
+            self.analytics_provider.as_ref(),
+            &jwt_context,
+            &headers,
+            " (A2A route)",
+        )
+        .await?;
 
         let (body_bytes, reconstructed_request) =
             PayloadSource::read_and_reconstruct(request).await?;
@@ -359,13 +220,13 @@ impl JwtContextExtractor {
         };
 
         let (trace_id, task_id_from_header, auth_token, agent_name) =
-            self.extract_common_headers(&headers);
+            extract_common_headers(&self.token_extractor, &headers);
 
         let task_id = task_id_from_payload.or(task_id_from_header);
 
         let session_id = jwt_context.session_id.clone();
         let user_id = jwt_context.user_id.clone();
-        let ctx = Self::build_context(BuildContextParams {
+        let ctx = build_context(BuildContextParams {
             jwt_context,
             session_id,
             user_id,
