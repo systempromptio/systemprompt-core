@@ -130,7 +130,7 @@ impl TemplateRegistry {
             .await
             .map_err(|e| TemplateError::LoadError {
                 name: path.display().to_string(),
-                source: e.into(),
+                message: e.to_string(),
             })
     }
 
@@ -143,7 +143,7 @@ impl TemplateRegistry {
                 return loader.load(&definition.source).await.map_err(|e| {
                     TemplateError::LoadError {
                         name: definition.name.clone(),
-                        source: e.into(),
+                        message: e.to_string(),
                     }
                 });
             }

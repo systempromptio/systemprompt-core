@@ -13,7 +13,7 @@ impl TemplateRegistry {
             .render(template_name, data)
             .map_err(|e| TemplateError::RenderError {
                 name: template_name.to_string(),
-                source: e.into(),
+                message: e.to_string(),
             })
     }
 
@@ -26,7 +26,7 @@ impl TemplateRegistry {
             .render(partial_name, data)
             .map_err(|e| TemplateError::RenderError {
                 name: partial_name.to_string(),
-                source: e.into(),
+                message: e.to_string(),
             })
     }
 

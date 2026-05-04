@@ -1,3 +1,6 @@
+//! Filesystem-backed [`TemplateProvider`] used by the core engine and the
+//! `defaults/` template tree.
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -5,6 +8,8 @@ use serde::Deserialize;
 use systemprompt_template_provider::{TemplateDefinition, TemplateProvider, TemplateSource};
 use tokio::fs;
 use tracing::{debug, warn};
+
+use crate::error::TemplateResult;
 
 #[derive(Debug, Deserialize, Default)]
 struct TemplateManifest {
@@ -18,6 +23,9 @@ struct TemplateConfig {
     content_types: Vec<String>,
 }
 
+/// Filesystem [`TemplateProvider`] that scans a directory for `.html` templates
+/// and an optional `templates.yaml` manifest mapping templates to content
+/// types.
 #[derive(Debug)]
 pub struct CoreTemplateProvider {
     template_dir: PathBuf,
@@ -26,9 +34,13 @@ pub struct CoreTemplateProvider {
 }
 
 impl CoreTemplateProvider {
+    /// Default provider priority for the in-tree `defaults/` directory.
     pub const DEFAULT_PRIORITY: u32 = 1000;
+    /// Default provider priority for extension-supplied template directories.
     pub const EXTENSION_PRIORITY: u32 = 500;
 
+    /// Constructs a provider at [`Self::DEFAULT_PRIORITY`] without performing
+    /// discovery yet.
     #[must_use]
     pub fn new(template_dir: impl Into<PathBuf>) -> Self {
         Self {
@@ -38,6 +50,8 @@ impl CoreTemplateProvider {
         }
     }
 
+    /// Constructs a provider with an explicit priority, without performing
+    /// discovery yet.
     #[must_use]
     pub fn with_priority(template_dir: impl Into<PathBuf>, priority: u32) -> Self {
         Self {
@@ -47,21 +61,25 @@ impl CoreTemplateProvider {
         }
     }
 
-    pub async fn discover(&mut self) -> anyhow::Result<()> {
+    /// Re-scans the template directory and replaces the cached template list.
+    pub async fn discover(&mut self) -> TemplateResult<()> {
         self.templates = discover_templates(&self.template_dir, self.priority).await?;
         Ok(())
     }
 
-    pub async fn discover_from(template_dir: impl Into<PathBuf>) -> anyhow::Result<Self> {
+    /// Constructs a provider and immediately runs discovery.
+    pub async fn discover_from(template_dir: impl Into<PathBuf>) -> TemplateResult<Self> {
         let mut provider = Self::new(template_dir);
         provider.discover().await?;
         Ok(provider)
     }
 
+    /// Constructs a provider with an explicit priority and immediately runs
+    /// discovery.
     pub async fn discover_with_priority(
         template_dir: impl Into<PathBuf>,
         priority: u32,
-    ) -> anyhow::Result<Self> {
+    ) -> TemplateResult<Self> {
         let mut provider = Self::with_priority(template_dir, priority);
         provider.discover().await?;
         Ok(provider)
@@ -105,7 +123,7 @@ async fn load_manifest(dir: &Path) -> TemplateManifest {
     }
 }
 
-async fn discover_templates(dir: &Path, priority: u32) -> anyhow::Result<Vec<TemplateDefinition>> {
+async fn discover_templates(dir: &Path, priority: u32) -> TemplateResult<Vec<TemplateDefinition>> {
     let mut templates = Vec::new();
 
     if !dir.exists() {
