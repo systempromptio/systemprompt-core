@@ -4750,7 +4750,6 @@ dependencies = [
 name = "systemprompt-generator"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "chrono",
  "comrak",
@@ -5071,7 +5070,6 @@ dependencies = [
 name = "systemprompt-sync"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "chrono",
  "flate2",

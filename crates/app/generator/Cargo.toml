@@ -46,7 +46,6 @@ tokio = { workspace = true, features = ["fs"] }
 futures = { workspace = true }
 
 # Error handling
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 
 # Serialization

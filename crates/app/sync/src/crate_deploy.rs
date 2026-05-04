@@ -1,3 +1,6 @@
+//! End-to-end "build crate, push docker image, deploy" flow used by
+//! `systemprompt cloud deploy` for the rust-side container image.
+
 use std::env;
 use std::io::Write;
 use std::path::PathBuf;
@@ -7,6 +10,8 @@ use crate::api_client::SyncApiClient;
 use crate::error::{SyncError, SyncResult};
 use crate::{SyncConfig, SyncOperationResult};
 
+/// Drives the full deploy pipeline: cargo build, docker build, registry
+/// login, image push, and remote deploy trigger.
 #[derive(Debug)]
 pub struct CrateDeployService {
     config: SyncConfig,
@@ -14,10 +19,14 @@ pub struct CrateDeployService {
 }
 
 impl CrateDeployService {
+    /// Construct a new deploy service.
     pub const fn new(config: SyncConfig, api_client: SyncApiClient) -> Self {
         Self { config, api_client }
     }
 
+    /// Run the full deploy pipeline. When `skip_build` is `true` the
+    /// `cargo build --release` step is skipped (assumes a pre-built binary).
+    /// `custom_tag` overrides the auto-generated `deploy-<ts>-<sha>` tag.
     pub async fn deploy(
         &self,
         skip_build: bool,

@@ -1,6 +1,9 @@
+//! Compute the diff between content stored on disk (markdown + frontmatter)
+//! and in the database for one content source.
+
 use super::compute_content_hash;
+use crate::error::{SyncError, SyncResult};
 use crate::models::{ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent};
-use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_content::models::Content;
@@ -10,26 +13,35 @@ use systemprompt_identifiers::SourceId;
 use tracing::warn;
 use walkdir::WalkDir;
 
+/// Computes a structured diff between disk and database content for a single
+/// content source.
 #[derive(Debug)]
 pub struct ContentDiffCalculator {
     content_repo: ContentRepository,
 }
 
 impl ContentDiffCalculator {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    /// Construct a calculator backed by the given database pool.
+    pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
-            content_repo: ContentRepository::new(db)?,
+            content_repo: ContentRepository::new(db).map_err(SyncError::other)?,
         })
     }
 
+    /// Compute the [`ContentDiffResult`] for the supplied source. Files whose
+    /// frontmatter `kind` is not in `allowed_types` are ignored.
     pub async fn calculate_diff(
         &self,
         source_id: &SourceId,
         disk_path: &Path,
         allowed_types: &[String],
-    ) -> Result<ContentDiffResult> {
+    ) -> SyncResult<ContentDiffResult> {
         let source_id_typed = source_id.clone();
-        let db_content = self.content_repo.list_by_source(&source_id_typed).await?;
+        let db_content = self
+            .content_repo
+            .list_by_source(&source_id_typed)
+            .await
+            .map_err(SyncError::other)?;
         let db_map: HashMap<String, Content> = db_content
             .into_iter()
             .map(|c| (c.slug.clone(), c))
@@ -104,12 +116,12 @@ impl ContentDiffCalculator {
 
         for entry in WalkDir::new(path)
             .into_iter()
-            .filter_map(|e| {
-                e.map_err(|err| {
+            .filter_map(|e| match e {
+                Ok(entry) => Some(entry),
+                Err(err) => {
                     tracing::warn!(error = %err, "Failed to read directory entry during sync");
-                    err
-                })
-                .ok()
+                    None
+                },
             })
             .filter(|e| e.file_type().is_file())
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
@@ -130,12 +142,12 @@ impl ContentDiffCalculator {
     }
 }
 
-fn parse_content_file(path: &Path, allowed_types: &[String]) -> Result<Option<DiskContent>> {
+fn parse_content_file(path: &Path, allowed_types: &[String]) -> SyncResult<Option<DiskContent>> {
     let content = std::fs::read_to_string(path)?;
 
     let parts: Vec<&str> = content.splitn(3, "---").collect();
     if parts.len() < 3 {
-        return Err(anyhow!("Invalid frontmatter format"));
+        return Err(SyncError::invalid_input("Invalid frontmatter format"));
     }
 
     let frontmatter: serde_yaml::Value = serde_yaml::from_str(parts[1])?;
@@ -144,7 +156,7 @@ fn parse_content_file(path: &Path, allowed_types: &[String]) -> Result<Option<Di
     let kind = frontmatter
         .get("kind")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("Missing kind in frontmatter"))?;
+        .ok_or_else(|| SyncError::invalid_input("Missing kind in frontmatter"))?;
 
     if !allowed_types.iter().any(|t| t == kind) {
         return Ok(None);
@@ -153,13 +165,13 @@ fn parse_content_file(path: &Path, allowed_types: &[String]) -> Result<Option<Di
     let slug = frontmatter
         .get("slug")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("Missing slug in frontmatter"))?
+        .ok_or_else(|| SyncError::invalid_input("Missing slug in frontmatter"))?
         .to_string();
 
     let title = frontmatter
         .get("title")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("Missing title in frontmatter"))?
+        .ok_or_else(|| SyncError::invalid_input("Missing title in frontmatter"))?
         .to_string();
 
     Ok(Some(DiskContent { slug, title, body }))

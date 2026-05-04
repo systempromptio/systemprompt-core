@@ -1,3 +1,9 @@
+//! Pure-function diff calculators for agents, skills, and content.
+//!
+//! Each calculator hashes the disk-side and database-side representations
+//! and emits a structured diff (`added`/`modified`/`removed`/`unchanged`)
+//! without mutating either side.
+
 mod agents;
 mod content;
 mod skills;
@@ -10,6 +16,8 @@ use crate::models::{DiskAgent, DiskSkill};
 use sha2::{Digest, Sha256};
 use systemprompt_agent::models::{Agent, Skill};
 
+/// SHA-256 hex digest of a content row's title + body, used as the disk-side
+/// `version_hash` when comparing against the database.
 pub fn compute_content_hash(body: &str, title: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(title.as_bytes());
