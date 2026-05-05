@@ -1,91 +1,74 @@
 //! Error types for the systemprompt-sync crate.
-//!
-//! [`SyncError`] is the unified `thiserror` enum returned by every public
-//! function and method in this crate. Upstream errors (`std::io`, `reqwest`,
-//! `serde_json`, `sqlx`, `zip`) are auto-converted via `#[from]`; everything
-//! else is funnelled through a typed variant or stringified into
-//! [`SyncError::Internal`] at the call site.
-//!
-//! [`SyncResult<T>`](SyncResult) is the canonical `Result` alias.
 
-use thiserror::Error;
+use systemprompt_models::domain_error;
 
-#[derive(Debug, Error)]
-pub enum SyncError {
-    #[error("API error {status}: {message}")]
-    ApiError { status: u16, message: String },
+domain_error! {
+    pub enum SyncError {
+        common: [io, http, json, yaml],
 
-    #[error("Unauthorized - run 'systemprompt cloud login'")]
-    Unauthorized,
+        #[error("API error {status}: {message}")]
+        ApiError { status: u16, message: String },
 
-    #[error("Tenant has no associated app")]
-    TenantNoApp,
+        #[error("Unauthorized - run 'systemprompt cloud login'")]
+        Unauthorized,
 
-    #[error("Must run from project root (with infrastructure/ directory)")]
-    NotProjectRoot,
+        #[error("Tenant has no associated app")]
+        TenantNoApp,
 
-    #[error("Command failed: {command}")]
-    CommandFailed { command: String },
+        #[error("Must run from project root (with infrastructure/ directory)")]
+        NotProjectRoot,
 
-    #[error("Failed to spawn `{command}`: {source}")]
-    CommandSpawnFailed {
-        command: String,
-        #[source]
-        source: std::io::Error,
-    },
+        #[error("Command failed: {command}")]
+        CommandFailed { command: String },
 
-    #[error("Failed to open file {path}: {source}")]
-    FileOpenFailed {
-        path: String,
-        #[source]
-        source: std::io::Error,
-    },
+        #[error("Failed to spawn `{command}`: {source}")]
+        CommandSpawnFailed {
+            command: String,
+            #[source]
+            source: std::io::Error,
+        },
 
-    #[error("Docker login failed")]
-    DockerLoginFailed,
+        #[error("Failed to open file {path}: {source}")]
+        FileOpenFailed {
+            path: String,
+            #[source]
+            source: std::io::Error,
+        },
 
-    #[error("Git SHA unavailable")]
-    GitShaUnavailable,
+        #[error("Docker login failed")]
+        DockerLoginFailed,
 
-    #[error("Missing configuration: {0}")]
-    MissingConfig(String),
+        #[error("Git SHA unavailable")]
+        GitShaUnavailable,
 
-    #[error("Partial import failure after {completed}/{total} items: {message}")]
-    PartialImport {
-        completed: usize,
-        total: usize,
-        message: String,
-    },
+        #[error("Missing configuration: {0}")]
+        MissingConfig(String),
 
-    #[error("Unsafe tarball entry rejected: {0}")]
-    TarballUnsafe(String),
+        #[error("Partial import failure after {completed}/{total} items: {message}")]
+        PartialImport {
+            completed: usize,
+            total: usize,
+            message: String,
+        },
 
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+        #[error("Unsafe tarball entry rejected: {0}")]
+        TarballUnsafe(String),
 
-    #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+        #[error("Database error: {0}")]
+        Database(#[from] sqlx::Error),
 
-    #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
+        #[error("Path error: {0}")]
+        StripPrefix(#[from] std::path::StripPrefixError),
 
-    #[error("YAML error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
+        #[error("Zip error: {0}")]
+        Zip(#[from] zip::result::ZipError),
 
-    #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+        #[error("Invalid input: {0}")]
+        InvalidInput(String),
 
-    #[error("Path error: {0}")]
-    StripPrefix(#[from] std::path::StripPrefixError),
-
-    #[error("Zip error: {0}")]
-    Zip(#[from] zip::result::ZipError),
-
-    #[error("Invalid input: {0}")]
-    InvalidInput(String),
-
-    #[error("internal: {0}")]
-    Internal(String),
+        #[error("internal: {0}")]
+        Internal(String),
+    }
 }
 
 impl SyncError {
