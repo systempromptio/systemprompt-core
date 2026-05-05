@@ -5,15 +5,13 @@
 //! statements have to be built at runtime against runtime-supplied table
 //! names, and the result columns are typed dynamically.
 
-use anyhow::Result;
 use sqlx::Row;
 use sqlx::postgres::PgPool;
 
+use crate::error::DatabaseResult;
 use crate::models::{ColumnInfo, DatabaseInfo, TableInfo};
 
-/// Walk every table in the public schema and return a populated
-/// [`DatabaseInfo`].
-pub async fn get_database_info(pool: &PgPool) -> Result<DatabaseInfo> {
+pub async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseInfo> {
     let version_row = sqlx::query("SELECT version() as version")
         .fetch_one(pool)
         .await?;
