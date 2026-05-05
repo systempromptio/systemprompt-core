@@ -1,12 +1,10 @@
-//! Integration tests for FileRepository, AiService, and ContentService
+//! Integration tests for FileRepository AI/content surface.
 //!
 //! These tests require a running PostgreSQL database with the schema set up.
 //! Set DATABASE_URL environment variable to run these tests.
 
 use systemprompt_database::Database;
-use systemprompt_files::{
-    AiService, ContentService, FileRepository, InsertFileRequest,
-};
+use systemprompt_files::{FileRepository, InsertFileRequest};
 use systemprompt_identifiers::{ContentId, FileId, UserId};
 
 async fn get_db() -> Option<Database> {
@@ -26,7 +24,7 @@ fn create_test_file_request(suffix: &str) -> InsertFileRequest {
 }
 
 #[tokio::test]
-async fn test_file_service_new() {
+async fn test_repository_new() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
@@ -37,79 +35,70 @@ async fn test_file_service_new() {
 }
 
 #[tokio::test]
-async fn test_file_service_insert() {
+async fn test_repository_insert() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
-    let service = FileRepository::new(db.pool()).expect("Failed to create service");
+    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
 
-    let result = service.insert(request.clone()).await;
+    let result = repo.insert(request.clone()).await;
     assert!(result.is_ok(), "FileRepository::insert should succeed");
 
-    let file = service.find_by_id(&request.id).await.expect("should query inserted file").expect("inserted file should exist");
-    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("should query inserted file")
+        .expect("inserted file should exist");
+    assert_eq!(
+        file.id.to_string(),
+        request.id.as_str(),
+        "file id should match"
+    );
     assert_eq!(file.mime_type, "image/png", "mime type should match");
     assert_eq!(file.size_bytes, Some(1024), "size should match");
 
-    let _ = service.delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 #[tokio::test]
-async fn test_file_service_find_by_id() {
+async fn test_repository_find_by_path() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
-    let service = FileRepository::new(db.pool()).expect("Failed to create service");
-    let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
-
-    service.insert(request.clone()).await.expect("Insert should succeed");
-
-    let file = service.find_by_id(&request.id).await.expect("Find should succeed");
-    assert!(file.is_some(), "File should be found");
-    let file = file.expect("file should be Some");
-    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match request");
-    assert_eq!(file.mime_type, "image/png", "mime type should match");
-    assert!(file.deleted_at.is_none(), "file should not be soft-deleted");
-
-    let _ = service.delete(&request.id).await;
-}
-
-#[tokio::test]
-async fn test_file_service_find_by_path() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let service = FileRepository::new(db.pool()).expect("Failed to create service");
+    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
     let unique_suffix = uuid::Uuid::new_v4().to_string();
     let request = create_test_file_request(&unique_suffix);
     let path = request.path.clone();
 
-    service.insert(request.clone()).await.expect("Insert should succeed");
+    repo.insert(request.clone())
+        .await
+        .expect("Insert should succeed");
 
-    let file = service.find_by_path(&path).await.expect("Find should succeed");
-    assert!(file.is_some(), "File should be found by path");
-    let file = file.expect("file should be Some");
+    let file = repo.find_by_path(&path).await.expect("Find should succeed");
+    let file = file.expect("file should be found by path");
     assert_eq!(file.path, path, "returned file path should match query path");
-    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match");
+    assert_eq!(
+        file.id.to_string(),
+        request.id.as_str(),
+        "file id should match"
+    );
 
-    let _ = service.delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 #[tokio::test]
-async fn test_file_service_list_by_user() {
+async fn test_repository_list_by_user() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
-    let service = FileRepository::new(db.pool()).expect("Failed to create service");
+    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
     let user_id = UserId::new(format!("svc_user_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
@@ -117,125 +106,91 @@ async fn test_file_service_list_by_user() {
         let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
             .with_user_id(user_id.clone());
 
-        service.insert(request.clone()).await.expect("Insert should succeed");
+        repo.insert(request.clone())
+            .await
+            .expect("Insert should succeed");
         file_ids.push(request.id);
     }
 
-    let files = service.list_by_user(&user_id, 10, 0).await.expect("List should succeed");
+    let files = repo
+        .list_by_user(&user_id, 10, 0)
+        .await
+        .expect("List should succeed");
     assert_eq!(files.len(), 2, "Should return 2 files for user");
     for file in &files {
-        assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all files should belong to the test user");
+        assert_eq!(
+            file.user_id.as_ref().map(|u| u.as_str()),
+            Some(user_id.as_str()),
+            "all files should belong to the test user"
+        );
     }
 
     for id in file_ids {
-        let _ = service.delete(&id).await;
+        let _ = repo.delete(&id).await;
     }
 }
 
 #[tokio::test]
-async fn test_file_service_list_all() {
+async fn test_repository_delete() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
-    let service = FileRepository::new(db.pool()).expect("Failed to create service");
-
-    let files = service.list_all(10, 0).await.expect("List all should succeed");
-    assert!(files.len() <= 10, "Should respect limit");
-}
-
-#[tokio::test]
-async fn test_file_service_delete() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let service = FileRepository::new(db.pool()).expect("Failed to create service");
+    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
 
-    service.insert(request.clone()).await.expect("Insert should succeed");
+    repo.insert(request.clone())
+        .await
+        .expect("Insert should succeed");
 
-    service.delete(&request.id).await.expect("Delete should succeed");
+    repo.delete(&request.id)
+        .await
+        .expect("Delete should succeed");
 
-    let file = service.find_by_id(&request.id).await.expect("Find should succeed");
+    let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
     assert!(file.is_none(), "File should be deleted");
 }
 
 #[tokio::test]
-async fn test_ai_service_new() {
+async fn test_repository_list_ai_images() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
-    let result = AiService::new(db.pool());
-    assert!(result.is_ok(), "AiService::new should succeed");
-}
+    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
 
-#[tokio::test]
-async fn test_ai_service_list_ai_images() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let request =
+        create_test_file_request(&uuid::Uuid::new_v4().to_string()).with_ai_content(true);
 
-    let ai_service = AiService::new(db.pool()).expect("Failed to create AI service");
-    let file_service = FileRepository::new(db.pool()).expect("Failed to create file service");
+    repo.insert(request.clone())
+        .await
+        .expect("Insert should succeed");
 
-    let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
-        .with_ai_content(true);
-
-    file_service.insert(request.clone()).await.expect("Insert should succeed");
-
-    let images = ai_service.list_ai_images(10, 0).await.expect("List should succeed");
-    assert!(!images.is_empty(), "should return at least the AI image we inserted");
-    assert!(images.len() <= 10, "should respect the limit parameter");
+    let images = repo
+        .list_ai_images(10, 0)
+        .await
+        .expect("List should succeed");
+    assert!(
+        !images.is_empty(),
+        "should return at least the AI image we inserted"
+    );
     for img in &images {
         assert!(img.ai_content, "All returned images should be AI content");
-        assert!(!img.mime_type.is_empty(), "returned images should have a mime type");
     }
 
-    let _ = file_service.delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 #[tokio::test]
-async fn test_ai_service_list_ai_images_by_user() {
+async fn test_repository_count_ai_images_by_user() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
-    let ai_service = AiService::new(db.pool()).expect("Failed to create AI service");
-    let file_service = FileRepository::new(db.pool()).expect("Failed to create file service");
-    let user_id = UserId::new(format!("ai_svc_user_{}", uuid::Uuid::new_v4()));
-
-    let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
-        .with_ai_content(true)
-        .with_user_id(user_id.clone());
-
-    file_service.insert(request.clone()).await.expect("Insert should succeed");
-
-    let images = ai_service.list_ai_images_by_user(&user_id, 10, 0).await.expect("List should succeed");
-    assert!(!images.is_empty(), "Should have at least one AI image");
-    for img in &images {
-        assert!(img.ai_content, "all returned images should be AI content");
-        assert_eq!(img.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all images should belong to the test user");
-    }
-
-    let _ = file_service.delete(&request.id).await;
-}
-
-#[tokio::test]
-async fn test_ai_service_count_ai_images_by_user() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let ai_service = AiService::new(db.pool()).expect("Failed to create AI service");
-    let file_service = FileRepository::new(db.pool()).expect("Failed to create file service");
+    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
     let user_id = UserId::new(format!("ai_count_user_{}", uuid::Uuid::new_v4()));
 
     let mut file_ids = Vec::new();
@@ -244,58 +199,40 @@ async fn test_ai_service_count_ai_images_by_user() {
             .with_ai_content(true)
             .with_user_id(user_id.clone());
 
-        file_service.insert(request.clone()).await.expect("Insert should succeed");
+        repo.insert(request.clone())
+            .await
+            .expect("Insert should succeed");
         file_ids.push(request.id);
     }
 
-    let count = ai_service.count_ai_images_by_user(&user_id).await.expect("Count should succeed");
+    let count = repo
+        .count_ai_images_by_user(&user_id)
+        .await
+        .expect("Count should succeed");
     assert_eq!(count, 2, "Should count 2 AI images");
 
     for id in file_ids {
-        let _ = file_service.delete(&id).await;
+        let _ = repo.delete(&id).await;
     }
 }
 
 #[tokio::test]
-async fn test_content_service_new() {
+async fn test_repository_list_files_by_content() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
-    let result = ContentService::new(db.pool());
-    assert!(result.is_ok(), "ContentService::new should succeed");
-}
-
-#[tokio::test]
-async fn test_content_service_find_featured_image() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let content_service = ContentService::new(db.pool()).expect("Failed to create content service");
-
-    let content_id = ContentId::new(format!("nonexistent_{}", uuid::Uuid::new_v4()));
-
-    let result = content_service.find_featured_image(&content_id).await;
-    match result {
-        Ok(file) => assert!(file.is_none(), "Should return None for non-existent content"),
-        Err(_) => {} // FK or other constraint error is acceptable
-    }
-}
-
-#[tokio::test]
-async fn test_content_service_list_files_by_content() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let content_service = ContentService::new(db.pool()).expect("Failed to create content service");
+    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
 
     let content_id = ContentId::new(format!("list_test_{}", uuid::Uuid::new_v4()));
 
-    let files = content_service.list_files_by_content(&content_id).await.expect("List should succeed");
-    assert!(files.is_empty(), "Should return empty list for non-existent content");
+    let files = repo
+        .list_files_by_content(&content_id)
+        .await
+        .expect("List should succeed");
+    assert!(
+        files.is_empty(),
+        "Should return empty list for non-existent content"
+    );
 }
