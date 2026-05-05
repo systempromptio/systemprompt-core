@@ -5,7 +5,8 @@
 
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_identifiers::UserId;
+use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
+use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
@@ -77,7 +78,7 @@ impl AuthResult {
 }
 
 #[tracing::instrument(name = "mcp_rbac", skip_all)]
-pub fn enforce_rbac_from_registry(
+pub async fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
     server_name: &str,
 ) -> Result<AuthResult, McpError> {
@@ -142,8 +143,54 @@ pub fn enforce_rbac_from_registry(
     validate_audience(server_name, &claims, oauth_config)?;
     validate_scopes_for_permissions(server_name, &claims.get_permissions(), oauth_config)?;
 
+    enforce_authz_for_server(server_name, &claims).await?;
+
     let authenticated_context = build_authenticated_context(request_context, &claims, token)?;
     Ok(AuthResult::Authenticated(authenticated_context))
+}
+
+async fn enforce_authz_for_server(
+    server_name: &str,
+    claims: &JwtClaims,
+) -> Result<(), McpError> {
+    let Some(hook) = systemprompt_security::authz::global_hook() else {
+        tracing::error!(
+            server = %server_name,
+            "authz hook not installed — denying MCP request (bootstrap order bug: install_from_governance_config must run before serving traffic)"
+        );
+        return Err(McpError::invalid_request(
+            "authz denied [authz_not_installed]: hook missing".to_string(),
+            None,
+        ));
+    };
+    let Some(tenant_id) = claims.tenant_id.clone() else {
+        tracing::warn!(server = %server_name, "authz denied: tenant_id missing from claims");
+        return Err(McpError::invalid_request(
+            "authz denied [missing_tenant]: tenant_id missing from claims".to_string(),
+            None,
+        ));
+    };
+    let user_id = UserId::new(claims.sub.clone());
+    let req = AuthzRequest {
+        entity_type: EntityKind::McpServer,
+        entity_id: server_name.to_string(),
+        user_id,
+        tenant_id,
+        roles: claims.roles.clone(),
+        department: claims.department.clone().unwrap_or_default(),
+        trace_id: TraceId::generate(),
+        context: serde_json::Value::Null,
+    };
+    match hook.evaluate(req).await {
+        AuthzDecision::Allow => Ok(()),
+        AuthzDecision::Deny { reason, policy } => {
+            tracing::warn!(server = %server_name, reason = %reason, policy = %policy, "authz hook denied MCP request");
+            Err(McpError::invalid_request(
+                format!("authz denied [{policy}]: {reason}"),
+                None,
+            ))
+        }
+    }
 }
 
 fn build_authenticated_context(
