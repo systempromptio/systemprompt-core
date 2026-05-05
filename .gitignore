@@ -45,7 +45,8 @@ tsconfig.*.json
 *secrets*.toml
 
 # Cargo config (may contain local paths)
-.cargo/
+.cargo/*
+!.cargo/audit.toml
 
 tests/validator
 
