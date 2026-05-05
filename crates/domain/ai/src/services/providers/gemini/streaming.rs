@@ -51,7 +51,7 @@ pub async fn generate_stream(
     let chunk_stream = byte_stream
         .map(|result| {
             result
-                .map_err(|e| crate::error::AiError::Internal(format!("Stream error: {e}")))
+                .map_err(crate::error::AiError::from)
                 .map(|b| parse_stream_chunks(&b))
         })
         .flat_map(|result| match result {

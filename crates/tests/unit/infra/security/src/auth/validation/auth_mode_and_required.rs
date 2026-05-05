@@ -83,7 +83,7 @@ fn test_validate_request_required_missing_auth() {
     let err = service
         .validate_request(&headers, AuthMode::Required)
         .unwrap_err();
-    assert!(err.to_string().contains("Missing authorization"));
+    assert!(err.to_string().contains("missing authorization"));
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn test_validate_request_required_invalid_token() {
     let err = service
         .validate_request(&headers, AuthMode::Required)
         .unwrap_err();
-    assert!(err.to_string().contains("Invalid JWT"));
+    assert!(err.to_string().contains("invalid JWT"));
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn test_validate_request_required_expired_token() {
     let err = service
         .validate_request(&headers, AuthMode::Required)
         .unwrap_err();
-    assert!(err.to_string().contains("Invalid JWT"));
+    assert!(err.to_string().contains("invalid JWT"));
 }
 
 #[test]

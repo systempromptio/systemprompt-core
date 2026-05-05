@@ -1,10 +1,3 @@
-/// Tests for analytics session creation
-///
-/// Tests:
-/// - Anonymous session creation on homepage
-/// - Session fingerprint deduplication
-/// - Session with authenticated user
-/// - Session with UTM parameters
 use crate::common::*;
 use anyhow::Result;
 

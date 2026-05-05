@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, UserId};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct RequestStatsRow {
@@ -45,7 +45,7 @@ pub struct RequestListRow {
     pub created_at: DateTime<Utc>,
     pub status: String,
     pub error_message: Option<String>,
-    pub user_id: String,
+    pub user_id: UserId,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]

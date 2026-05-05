@@ -72,8 +72,7 @@ pub async fn generate_with_web_search(
         .header("Content-Type", "application/json")
         .json(&request)
         .send()
-        .await
-        .map_err(|e| crate::error::AiError::Internal(format!("HTTP request failed: {}", e)))?;
+        .await?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -87,10 +86,7 @@ pub async fn generate_with_web_search(
         )));
     }
 
-    let responses_response: OpenAiResponsesResponse = response
-        .json()
-        .await
-        .map_err(|e| crate::error::AiError::Internal(format!("Failed to parse response: {}", e)))?;
+    let responses_response: OpenAiResponsesResponse = response.json().await?;
 
     Ok(extract_search_response(&responses_response, start))
 }

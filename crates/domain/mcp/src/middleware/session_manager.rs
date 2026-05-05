@@ -66,10 +66,17 @@ impl fmt::Debug for DatabaseSessionManager {
 
 impl DatabaseSessionManager {
     pub fn new(db_pool: &DbPool) -> Self {
-        let repository = McpSessionRepository::new(db_pool).ok();
+        Self::with_timeouts(db_pool, crate::SessionTimeouts::default())
+    }
+
+    pub fn with_timeouts(db_pool: &DbPool, timeouts: crate::SessionTimeouts) -> Self {
+        let mut local_manager = LocalSessionManager::default();
+        let cfg = &mut local_manager.session_config;
+        cfg.init_timeout = timeouts.init.or(cfg.init_timeout);
+        cfg.keep_alive = timeouts.keep_alive.or(cfg.keep_alive);
         Self {
-            local_manager: LocalSessionManager::default(),
-            repository: Arc::new(RwLock::new(repository)),
+            local_manager,
+            repository: Arc::new(RwLock::new(McpSessionRepository::new(db_pool).ok())),
         }
     }
 

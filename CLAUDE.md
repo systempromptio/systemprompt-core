@@ -87,7 +87,7 @@ Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) →
 - **Naming**: `*Service` by default, `*Handler` only for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
 - **Schema DDL**: lives in `{crate}/schema/*.sql`, embedded via `include_str!()` in `extension.rs`.
 
-Run after changes: `cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features && just file-size && just check-bans`.
+Run after changes: `cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features && just file-size`.
 
 ### Typed Identifiers
 

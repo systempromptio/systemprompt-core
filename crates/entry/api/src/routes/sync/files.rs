@@ -59,7 +59,7 @@ fn collect_files(services_path: &Path, directories: &[&str]) -> Result<FileManif
         hasher.update(&file.checksum);
         total_size += file.size;
     }
-    let checksum = format!("{:x}", hasher.finalize());
+    let checksum = hex::encode(hasher.finalize());
 
     Ok(FileManifest {
         files,
@@ -84,7 +84,7 @@ fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> Result<()
                 .map_err(|e| format!("Failed to get relative path: {}", e))?;
 
             let content = fs::read(&path).map_err(|e| format!("Failed to read file: {}", e))?;
-            let checksum = format!("{:x}", Sha256::digest(&content));
+            let checksum = hex::encode(Sha256::digest(&content));
 
             files.push(FileEntry {
                 path: relative.to_string_lossy().to_string(),

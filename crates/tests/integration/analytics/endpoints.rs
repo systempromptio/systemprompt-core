@@ -1,4 +1,3 @@
-/// Tests for analytics endpoint tracking
 use crate::common::*;
 use anyhow::Result;
 

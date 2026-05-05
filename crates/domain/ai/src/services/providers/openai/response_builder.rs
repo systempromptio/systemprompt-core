@@ -15,7 +15,7 @@ pub fn build_response(
     let choice = openai_response
         .choices
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from OpenAI")))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_string()))?;
 
     let content = choice
         .message

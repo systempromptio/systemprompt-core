@@ -20,7 +20,7 @@ pub fn compute_content_hash(body: &str, title: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(title.as_bytes());
     hasher.update(body.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 pub(crate) fn compute_skill_hash(skill: &DiskSkill) -> String {
@@ -28,7 +28,7 @@ pub(crate) fn compute_skill_hash(skill: &DiskSkill) -> String {
     hasher.update(skill.name.as_bytes());
     hasher.update(skill.description.as_bytes());
     hasher.update(skill.instructions.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 pub(crate) fn compute_db_skill_hash(skill: &Skill) -> String {
@@ -36,7 +36,7 @@ pub(crate) fn compute_db_skill_hash(skill: &Skill) -> String {
     hasher.update(skill.name.as_bytes());
     hasher.update(skill.description.as_bytes());
     hasher.update(skill.instructions.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 pub(crate) fn compute_agent_hash(agent: &DiskAgent) -> String {
@@ -47,7 +47,7 @@ pub(crate) fn compute_agent_hash(agent: &DiskAgent) -> String {
     if let Some(sp) = &agent.system_prompt {
         hasher.update(sp.as_bytes());
     }
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 pub(crate) fn compute_db_agent_hash(agent: &Agent) -> String {
@@ -58,5 +58,5 @@ pub(crate) fn compute_db_agent_hash(agent: &Agent) -> String {
     if let Some(sp) = &agent.system_prompt {
         hasher.update(sp.as_bytes());
     }
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }

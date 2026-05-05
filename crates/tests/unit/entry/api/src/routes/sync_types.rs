@@ -7,7 +7,6 @@
 //! The sync endpoints (/database/export, /database/import) are tested
 //! through integration tests that can access the full HTTP response.
 
-/// Documents the export endpoint response format
 #[test]
 fn test_export_response_format_documented() {
 
@@ -22,7 +21,6 @@ fn test_export_response_format_documented() {
     assert!(!expected_fields.is_empty());
 }
 
-/// Documents the import request format
 #[test]
 fn test_import_request_format_documented() {
 
@@ -31,7 +29,6 @@ fn test_import_request_format_documented() {
     assert!(!expected_fields.is_empty());
 }
 
-/// Documents the import response format
 #[test]
 fn test_import_response_format_documented() {
 
@@ -40,7 +37,6 @@ fn test_import_response_format_documented() {
     assert_eq!(table_result_fields.len(), 4);
 }
 
-/// Documents error response format
 #[test]
 fn test_export_error_format_documented() {
 

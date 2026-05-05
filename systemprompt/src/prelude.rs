@@ -58,10 +58,8 @@ pub use systemprompt_loader::ConfigLoader;
 #[cfg(feature = "full")]
 pub use systemprompt_logging::init_logging;
 
-/// MCP router builder from `systemprompt-mcp`, re-exported as
-/// `create_mcp_router` for clarity at the call site.
 #[cfg(feature = "full")]
-pub use systemprompt_mcp::create_router as create_mcp_router;
+pub use systemprompt_mcp::{McpHttpConfig, SessionTimeouts, create_router as create_mcp_router};
 
 /// Convenience re-export of `std::sync::Arc` so consumers do not need a
 /// separate `use std::sync::Arc` line when wiring extensions.

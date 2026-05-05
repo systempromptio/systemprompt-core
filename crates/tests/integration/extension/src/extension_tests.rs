@@ -259,7 +259,7 @@ fn test_extension_router_with_nested_path() {
 
 #[test]
 fn test_multiple_schema_definitions() {
-    let schemas = vec![
+    let schemas = [
         SchemaDefinition::inline("users", "CREATE TABLE users ()"),
         SchemaDefinition::inline("posts", "CREATE TABLE posts ()"),
         SchemaDefinition::file("comments", "comments.sql"),
@@ -273,7 +273,7 @@ fn test_multiple_schema_definitions() {
 
 #[test]
 fn test_extension_router_collection() {
-    let routers = vec![
+    let routers = [
         ExtensionRouter::new(Router::new(), "/api/v1/a"),
         ExtensionRouter::public(Router::new(), "/api/v1/b"),
         ExtensionRouter::new(Router::new(), "/api/v1/c"),

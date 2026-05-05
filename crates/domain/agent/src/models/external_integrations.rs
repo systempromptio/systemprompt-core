@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AgentId, McpServerId};
+use systemprompt_identifiers::{AgentId, McpServerId, WebhookEndpointId};
 use systemprompt_models::ai::tools::McpTool;
 use thiserror::Error;
 
@@ -90,7 +90,7 @@ pub struct ToolExecutionResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookEndpoint {
-    pub id: String,
+    pub id: WebhookEndpointId,
     pub url: String,
     pub events: Vec<String>,
     pub secret: Option<String>,

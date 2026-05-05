@@ -3,7 +3,7 @@
 use crate::error::OauthResult as Result;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 
 const TOKEN_PREFIX: &str = "sp_wst_";

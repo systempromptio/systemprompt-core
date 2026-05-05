@@ -39,11 +39,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 
-# Markdown processing
-pulldown-cmark = { workspace = true }
-
-# Environment
-dotenvy = { workspace = true }
 
 # Utilities
 anyhow = { workspace = true }

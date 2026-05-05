@@ -1,4 +1,3 @@
-/// Tests for analytics GeoIP detection
 use crate::common::*;
 use anyhow::Result;
 

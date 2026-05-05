@@ -4,7 +4,6 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 
-/// Create a test RequestContext for use in unit tests
 fn create_test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("test_session".to_string()),

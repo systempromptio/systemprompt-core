@@ -39,9 +39,9 @@ pub fn convert_response_format(format: &ResponseFormat) -> Result<Option<OpenAiR
             strict,
         } => {
             let schema_name = name.clone().ok_or_else(|| {
-                crate::error::AiError::Internal(format!(
-                    "JSON schema response format requires a name"
-                ))
+                crate::error::AiError::Internal(
+                    "JSON schema response format requires a name".to_string(),
+                )
             })?;
 
             Ok(Some(OpenAiResponseFormat::JsonSchema {

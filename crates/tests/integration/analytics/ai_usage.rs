@@ -1,4 +1,3 @@
-/// Tests for analytics AI usage tracking
 use crate::common::*;
 use anyhow::Result;
 

@@ -1,7 +1,6 @@
 use crate::common::context::TestContext;
 use serde_json::json;
 
-/// Test that agent registry returns tools with proper permission filtering
 #[tokio::test]
 async fn test_agent_registry_includes_tools() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -70,7 +69,6 @@ async fn test_agent_registry_includes_tools() {
     }
 }
 
-/// Test that anonymous users see only tools they have permission for in agent cards
 #[tokio::test]
 async fn test_agent_card_respects_permissions() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -131,7 +129,6 @@ async fn test_agent_card_respects_permissions() {
     }
 }
 
-/// Test that agent registry doesn't return tools from servers user can't access
 #[tokio::test]
 async fn test_registry_filters_unauthorized_tools() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -212,7 +209,6 @@ async fn test_registry_filters_unauthorized_tools() {
     }
 }
 
-/// Test that tool schemas are properly formatted
 #[tokio::test]
 async fn test_tool_schemas_are_valid() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -264,7 +260,6 @@ async fn test_tool_schemas_are_valid() {
     }
 }
 
-/// Test that tools from multiple MCP servers are aggregated correctly
 #[tokio::test]
 async fn test_multiple_mcp_servers_aggregated() {
     let ctx = TestContext::new().await.expect("Failed to create test context");

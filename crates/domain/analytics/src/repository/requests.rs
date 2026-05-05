@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::UserId;
 
 use crate::models::cli::{ModelUsageRow, RequestListRow, RequestStatsRow, RequestTrendRow};
 
@@ -151,7 +152,7 @@ impl RequestAnalyticsRepository {
                     created_at as "created_at!",
                     status as "status!",
                     error_message,
-                    user_id as "user_id!"
+                    user_id as "user_id!: UserId"
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                   AND model ILIKE $3
@@ -182,7 +183,7 @@ impl RequestAnalyticsRepository {
                     created_at as "created_at!",
                     status as "status!",
                     error_message,
-                    user_id as "user_id!"
+                    user_id as "user_id!: UserId"
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                 ORDER BY created_at DESC

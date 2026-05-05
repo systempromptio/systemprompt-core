@@ -74,7 +74,7 @@ fn test_file_role_parse_case_insensitive() {
 #[test]
 fn test_file_role_parse_invalid() {
     let err_msg = FileRole::parse("unknown_role").unwrap_err().to_string();
-    assert!(err_msg.contains("Invalid file role"));
+    assert!(err_msg.contains("invalid file role"));
     assert!(err_msg.contains("unknown_role"));
 }
 

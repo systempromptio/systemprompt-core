@@ -288,6 +288,6 @@ impl IngestionService {
         hasher.update(content.author.as_bytes());
         hasher.update(content.published_at.to_string().as_bytes());
         hasher.update(content.public.to_string().as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 }

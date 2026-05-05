@@ -8,7 +8,7 @@
 use std::path::Path;
 
 use base64::Engine;
-use rand::RngCore;
+use rand::Rng;
 
 use super::secrets::SecretsBootstrapError;
 use crate::error::{ConfigError, ConfigResult};

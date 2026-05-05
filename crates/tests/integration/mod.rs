@@ -1,4 +1,3 @@
-/// Integration test module - Tests that interact with database and HTTP APIs
 pub mod common;
 
 pub mod a2a;

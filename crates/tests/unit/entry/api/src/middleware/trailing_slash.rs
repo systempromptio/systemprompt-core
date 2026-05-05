@@ -35,7 +35,6 @@ fn test_api_paths_are_distinct() {
     assert_ne!(ApiPaths::API_BASE, ApiPaths::WELLKNOWN_BASE);
 }
 
-/// Documents the redirect conditions for paths
 #[test]
 fn test_trailing_slash_redirect_conditions_documented() {
 
@@ -48,7 +47,6 @@ fn test_trailing_slash_redirect_conditions_documented() {
     }
 }
 
-/// Documents paths that should NOT redirect
 #[test]
 fn test_trailing_slash_no_redirect_conditions_documented() {
     let root = "/";
@@ -73,7 +71,6 @@ fn test_trailing_slash_no_redirect_conditions_documented() {
     assert!(wellknown_path.starts_with(ApiPaths::WELLKNOWN_BASE));
 }
 
-/// Documents that query strings are preserved during redirect
 #[test]
 fn test_query_string_preservation_documented() {
 

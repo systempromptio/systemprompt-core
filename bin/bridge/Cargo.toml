@@ -40,7 +40,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["f
 tracing-appender = "0.2"
 backtrace = "0.3"
 opener = { version = "0.7", features = ["reveal"] }
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
+zip = { version = "8", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
 tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }

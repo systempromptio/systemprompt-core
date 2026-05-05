@@ -1,10 +1,3 @@
-/// Tests for session deduplication and race condition prevention
-///
-/// Tests the distributed lock mechanism and fingerprint deduplication:
-/// - Parallel requests from same browser don't create duplicate sessions
-/// - Bot traffic is properly detected and NOT stored in database
-/// - Fingerprint lookup timeout is sufficient for parallel writes
-/// - Cookie propagation between requests links to same session
 use crate::common::*;
 use anyhow::Result;
 use futures::future::join_all;

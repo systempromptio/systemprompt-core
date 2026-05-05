@@ -243,7 +243,7 @@ fn build_tool_result_request(
 
 fn extract_synthesis_content(gemini_response: &GeminiResponse) -> Result<String> {
     let candidate = gemini_response.candidates.first().ok_or_else(|| {
-        crate::error::AiError::Internal(format!("No response from Gemini for tool synthesis"))
+        crate::error::AiError::Internal("No response from Gemini for tool synthesis".to_string())
     })?;
 
     let finish_reason = candidate.finish_reason.as_deref().unwrap_or("UNKNOWN");

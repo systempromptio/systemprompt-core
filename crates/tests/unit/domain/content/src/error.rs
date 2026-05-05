@@ -9,14 +9,14 @@ use systemprompt_content::ContentError;
 #[test]
 fn test_content_error_database_not_postgres() {
     let error = ContentError::DatabaseNotPostgres;
-    assert_eq!(error.to_string(), "Database must be PostgreSQL");
+    assert_eq!(error.to_string(), "database must be PostgreSQL");
 }
 
 #[test]
 fn test_content_error_content_not_found() {
     let error = ContentError::ContentNotFound("article-123".to_string());
     let msg = error.to_string();
-    assert!(msg.contains("Content not found"));
+    assert!(msg.contains("content not found"));
     assert!(msg.contains("article-123"));
 }
 
@@ -24,7 +24,7 @@ fn test_content_error_content_not_found() {
 fn test_content_error_link_not_found() {
     let error = ContentError::LinkNotFound("link-456".to_string());
     let msg = error.to_string();
-    assert!(msg.contains("Link not found"));
+    assert!(msg.contains("link not found"));
     assert!(msg.contains("link-456"));
 }
 
@@ -32,7 +32,7 @@ fn test_content_error_link_not_found() {
 fn test_content_error_invalid_request() {
     let error = ContentError::InvalidRequest("Missing required field".to_string());
     let msg = error.to_string();
-    assert!(msg.contains("Invalid request"));
+    assert!(msg.contains("invalid request"));
     assert!(msg.contains("Missing required field"));
 }
 
@@ -40,7 +40,7 @@ fn test_content_error_invalid_request() {
 fn test_content_error_validation() {
     let error = ContentError::Validation("Title must not be empty".to_string());
     let msg = error.to_string();
-    assert!(msg.contains("Validation error"));
+    assert!(msg.contains("validation"));
     assert!(msg.contains("Title must not be empty"));
 }
 
@@ -48,7 +48,7 @@ fn test_content_error_validation() {
 fn test_content_error_parse() {
     let error = ContentError::Parse("Invalid date format".to_string());
     let msg = error.to_string();
-    assert!(msg.contains("Parse error"));
+    assert!(msg.contains("parse error"));
     assert!(msg.contains("Invalid date format"));
 }
 
@@ -81,7 +81,7 @@ fn test_content_error_from_serde_json() {
     let content_error: ContentError = json_error.into();
 
     let msg = content_error.to_string();
-    assert!(msg.contains("Serialization error"));
+    assert!(msg.contains("json"));
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_content_error_from_io() {
     let content_error: ContentError = io_error.into();
 
     let msg = content_error.to_string();
-    assert!(msg.contains("IO error"));
+    assert!(msg.contains("io"));
 }
 
 #[test]
@@ -100,14 +100,14 @@ fn test_content_error_from_yaml() {
     let content_error: ContentError = yaml_error.into();
 
     let msg = content_error.to_string();
-    assert!(msg.contains("YAML parse error"));
+    assert!(msg.contains("yaml"));
 }
 
 #[test]
 fn test_content_error_empty_message() {
     let error = ContentError::Validation(String::new());
     let msg = error.to_string();
-    assert_eq!(msg, "Validation error: ");
+    assert_eq!(msg, "validation: ");
 }
 
 #[test]

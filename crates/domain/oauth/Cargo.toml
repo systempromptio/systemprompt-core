@@ -43,9 +43,7 @@ thiserror = { workspace = true }
 
 # Utilities
 uuid = { workspace = true }
-dotenvy = { workspace = true }
 urlencoding = { workspace = true }
-once_cell = { workspace = true }
 
 # Validation
 validator = { workspace = true }

@@ -35,7 +35,6 @@ sqlx = { workspace = true }
 uuid = { workspace = true }
 
 # CLI formatting and display (optional, enabled by "cli" feature)
-colored = { workspace = true, optional = true }
 console = { workspace = true, optional = true }
 dialoguer = { workspace = true, optional = true }
 indicatif = { workspace = true, optional = true }
@@ -60,7 +59,7 @@ axum = { workspace = true }
 
 [features]
 default = []
-cli = ["dep:colored", "dep:console", "dep:dialoguer", "dep:indicatif"]
+cli = ["dep:console", "dep:dialoguer", "dep:indicatif"]
 
 [package.metadata.docs.rs]
 all-features = true

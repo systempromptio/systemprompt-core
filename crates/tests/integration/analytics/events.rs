@@ -1,4 +1,3 @@
-/// Tests for analytics events tracking
 use crate::common::*;
 use anyhow::Result;
 use serde_json::Value;
