@@ -9,7 +9,7 @@ use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, UserId};
 pub struct McpArtifactRecord {
     pub id: uuid::Uuid,
     pub artifact_id: ArtifactId,
-    pub mcp_execution_id: String,
+    pub mcp_execution_id: McpExecutionId,
     pub context_id: Option<ContextId>,
     pub user_id: Option<UserId>,
     pub server_name: String,
@@ -91,7 +91,7 @@ impl McpArtifactRepository {
             SELECT
                 id as "id!",
                 artifact_id as "artifact_id!: ArtifactId",
-                mcp_execution_id as "mcp_execution_id!",
+                mcp_execution_id as "mcp_execution_id!: McpExecutionId",
                 context_id as "context_id: ContextId",
                 user_id as "user_id: UserId",
                 server_name as "server_name!",
@@ -136,7 +136,7 @@ impl McpArtifactRepository {
             SELECT
                 id as "id!",
                 artifact_id as "artifact_id!: ArtifactId",
-                mcp_execution_id as "mcp_execution_id!",
+                mcp_execution_id as "mcp_execution_id!: McpExecutionId",
                 context_id as "context_id: ContextId",
                 user_id as "user_id: UserId",
                 server_name as "server_name!",

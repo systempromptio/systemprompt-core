@@ -60,7 +60,7 @@ async fn set_domain(domain: String) -> Result<()> {
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner(&format!("Configuring domain {}...", domain));
-    match client.set_custom_domain(tenant_id.as_str(), &domain).await {
+    match client.set_custom_domain(&tenant_id, &domain).await {
         Ok(response) => {
             spinner.finish_and_clear();
 
@@ -102,7 +102,7 @@ async fn get_status() -> Result<()> {
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Checking domain status...");
-    match client.get_custom_domain(tenant_id.as_str()).await {
+    match client.get_custom_domain(&tenant_id).await {
         Ok(response) => {
             spinner.finish_and_clear();
 
@@ -157,7 +157,7 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
-    let domain_name = match client.get_custom_domain(tenant_id.as_str()).await {
+    let domain_name = match client.get_custom_domain(&tenant_id).await {
         Ok(response) => response.domain,
         Err(e) => {
             let err_str = e.to_string();
@@ -191,7 +191,7 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
     }
 
     let spinner = CliService::spinner(&format!("Removing domain {}...", domain_name));
-    match client.delete_custom_domain(tenant_id.as_str()).await {
+    match client.delete_custom_domain(&tenant_id).await {
         Ok(()) => {
             spinner.finish_and_clear();
             CliService::success(&format!(

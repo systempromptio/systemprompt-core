@@ -67,9 +67,10 @@ impl A2aContextExtractor {
             ContextIdSource::Direct(id) => {
                 (id, HeaderSource::extract_optional(headers, "x-task-id"))
             },
-            ContextIdSource::FromTask { task_id } => {
-                (TASK_BASED_CONTEXT_MARKER.to_string(), Some(task_id))
-            },
+            ContextIdSource::FromTask { task_id } => (
+                TASK_BASED_CONTEXT_MARKER.to_string(),
+                Some(task_id.as_str().to_string()),
+            ),
         };
 
         let mut context = RequestContext::new(

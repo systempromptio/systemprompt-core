@@ -112,7 +112,7 @@ pub async fn finish_register(
         Ok(user_id) => {
             if let Some(publisher) = state.event_publisher() {
                 publisher.publish_user_event(systemprompt_traits::UserEvent::UserCreated {
-                    user_id: user_id.as_str().to_string(),
+                    user_id: user_id.clone(),
                 });
             }
 

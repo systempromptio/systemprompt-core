@@ -8,44 +8,47 @@ mod template_error_display_tests {
         let error = TemplateError::NotFound("my-template".to_string());
 
         let display = error.to_string();
-        assert!(display.contains("Template not found"));
+        assert!(display.contains("template not found"));
         assert!(display.contains("my-template"));
     }
 
     #[test]
-    fn load_error_displays_name_and_source() {
+    fn load_error_displays_name_and_message() {
         let error = TemplateError::LoadError {
             name: "broken-template".to_string(),
-            source: anyhow::anyhow!("file not accessible"),
+            message: "file not accessible".to_string(),
         };
 
         let display = error.to_string();
-        assert!(display.contains("Failed to load template"));
+        assert!(display.contains("failed to load template"));
         assert!(display.contains("broken-template"));
+        assert!(display.contains("file not accessible"));
     }
 
     #[test]
-    fn compile_error_displays_name_and_source() {
+    fn compile_error_displays_name_and_message() {
         let error = TemplateError::CompileError {
             name: "invalid-syntax".to_string(),
-            source: anyhow::anyhow!("unexpected token"),
+            message: "unexpected token".to_string(),
         };
 
         let display = error.to_string();
-        assert!(display.contains("Failed to compile template"));
+        assert!(display.contains("failed to compile template"));
         assert!(display.contains("invalid-syntax"));
+        assert!(display.contains("unexpected token"));
     }
 
     #[test]
-    fn render_error_displays_name_and_source() {
+    fn render_error_displays_name_and_message() {
         let error = TemplateError::RenderError {
             name: "render-fail".to_string(),
-            source: anyhow::anyhow!("missing variable"),
+            message: "missing variable".to_string(),
         };
 
         let display = error.to_string();
-        assert!(display.contains("Failed to render template"));
+        assert!(display.contains("failed to render template"));
         assert!(display.contains("render-fail"));
+        assert!(display.contains("missing variable"));
     }
 
     #[test]
@@ -53,7 +56,7 @@ mod template_error_display_tests {
         let error = TemplateError::NoLoader("orphan-template".to_string());
 
         let display = error.to_string();
-        assert!(display.contains("No loader available"));
+        assert!(display.contains("no loader available"));
         assert!(display.contains("orphan-template"));
     }
 
@@ -81,7 +84,7 @@ mod template_error_debug_tests {
     fn load_error_debug() {
         let error = TemplateError::LoadError {
             name: "test".to_string(),
-            source: anyhow::anyhow!("error"),
+            message: "error".to_string(),
         };
 
         let debug = format!("{:?}", error);
@@ -92,7 +95,7 @@ mod template_error_debug_tests {
     fn compile_error_debug() {
         let error = TemplateError::CompileError {
             name: "test".to_string(),
-            source: anyhow::anyhow!("error"),
+            message: "error".to_string(),
         };
 
         let debug = format!("{:?}", error);
@@ -103,7 +106,7 @@ mod template_error_debug_tests {
     fn render_error_debug() {
         let error = TemplateError::RenderError {
             name: "test".to_string(),
-            source: anyhow::anyhow!("error"),
+            message: "error".to_string(),
         };
 
         let debug = format!("{:?}", error);
@@ -147,19 +150,16 @@ mod template_error_construction_tests {
     }
 
     #[test]
-    fn load_error_with_various_sources() {
-        let sources = [
-            anyhow::anyhow!("io error"),
-            anyhow::anyhow!("permission denied"),
-            anyhow::anyhow!("network timeout"),
-        ];
+    fn load_error_with_various_messages() {
+        let messages = ["io error", "permission denied", "network timeout"];
 
-        for source in sources {
+        for message in messages {
             let error = TemplateError::LoadError {
                 name: "test".to_string(),
-                source,
+                message: message.to_string(),
             };
-            assert!(error.to_string().contains("Failed to load"));
+            assert!(error.to_string().contains("failed to load"));
+            assert!(error.to_string().contains(message));
         }
     }
 
@@ -167,7 +167,7 @@ mod template_error_construction_tests {
     fn compile_error_preserves_name() {
         let error = TemplateError::CompileError {
             name: "specific-template".to_string(),
-            source: anyhow::anyhow!("syntax error at line 5"),
+            message: "syntax error at line 5".to_string(),
         };
 
         let display = error.to_string();
@@ -178,7 +178,7 @@ mod template_error_construction_tests {
     fn render_error_preserves_name() {
         let error = TemplateError::RenderError {
             name: "render-template".to_string(),
-            source: anyhow::anyhow!("variable 'title' not found"),
+            message: "variable 'title' not found".to_string(),
         };
 
         let display = error.to_string();
@@ -189,14 +189,14 @@ mod template_error_construction_tests {
     fn empty_template_name_in_not_found() {
         let error = TemplateError::NotFound(String::new());
         let display = error.to_string();
-        assert!(display.contains("Template not found"));
+        assert!(display.contains("template not found"));
     }
 
     #[test]
     fn empty_template_name_in_no_loader() {
         let error = TemplateError::NoLoader(String::new());
         let display = error.to_string();
-        assert!(display.contains("No loader available"));
+        assert!(display.contains("no loader available"));
     }
 }
 
@@ -211,30 +211,30 @@ mod error_trait_tests {
     }
 
     #[test]
-    fn load_error_has_source() {
+    fn load_error_source_is_none() {
         let error = TemplateError::LoadError {
             name: "test".to_string(),
-            source: anyhow::anyhow!("underlying error"),
+            message: "underlying error".to_string(),
         };
-        error.source().expect("expected Some value");
+        assert!(error.source().is_none());
     }
 
     #[test]
-    fn compile_error_has_source() {
+    fn compile_error_source_is_none() {
         let error = TemplateError::CompileError {
             name: "test".to_string(),
-            source: anyhow::anyhow!("underlying error"),
+            message: "underlying error".to_string(),
         };
-        error.source().expect("expected Some value");
+        assert!(error.source().is_none());
     }
 
     #[test]
-    fn render_error_has_source() {
+    fn render_error_source_is_none() {
         let error = TemplateError::RenderError {
             name: "test".to_string(),
-            source: anyhow::anyhow!("underlying error"),
+            message: "underlying error".to_string(),
         };
-        error.source().expect("expected Some value");
+        assert!(error.source().is_none());
     }
 
     #[test]
@@ -283,15 +283,14 @@ mod edge_case_tests {
     }
 
     #[test]
-    fn nested_error_chain() {
-        let inner = anyhow::anyhow!("inner error");
-        let middle = anyhow::anyhow!(inner).context("middle context");
+    fn nested_error_message() {
         let error = TemplateError::LoadError {
             name: "test".to_string(),
-            source: middle,
+            message: "middle context: inner error".to_string(),
         };
 
         let display = error.to_string();
-        assert!(display.contains("Failed to load template"));
+        assert!(display.contains("failed to load template"));
+        assert!(display.contains("middle context"));
     }
 }

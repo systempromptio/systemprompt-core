@@ -18,14 +18,15 @@ pub async fn stream_context_state(
 ) -> impl IntoResponse {
     let user_id = request_context.user_id().clone();
     let user_id_str = user_id.to_string();
-    let conn_id = uuid::Uuid::new_v4().to_string();
+    let conn_id = systemprompt_identifiers::ConnectionId::generate();
+    let conn_id_str = conn_id.as_str().to_string();
 
-    tracing::info!(user_id = %user_id_str, conn_id = %conn_id, "SSE stream opened");
+    tracing::info!(user_id = %user_id_str, conn_id = %conn_id_str, "SSE stream opened");
 
     let (tx, rx) = mpsc::channel(1024);
 
     CONTEXT_BROADCASTER
-        .register(&user_id, &conn_id, tx.clone())
+        .register(&user_id, conn_id.as_str(), tx.clone())
         .await;
 
     match state
@@ -42,25 +43,24 @@ pub async fn stream_context_state(
             let snapshot_event: ContextEvent =
                 SystemEventBuilder::contexts_snapshot(snapshot_data).into();
 
-            tracing::info!(conn_id = %conn_id, "SSE snapshot sent");
+            tracing::info!(conn_id = %conn_id_str, "SSE snapshot sent");
 
             if let Ok(sse_event) = snapshot_event.to_sse()
                 && tx.try_send(Ok(sse_event)).is_err()
             {
-                tracing::error!(conn_id = %conn_id, "Failed to send snapshot");
+                tracing::error!(conn_id = %conn_id_str, "Failed to send snapshot");
             }
         },
         Err(e) => {
-            tracing::error!(conn_id = %conn_id, error = %e, "Failed to create snapshot");
+            tracing::error!(conn_id = %conn_id_str, error = %e, "Failed to create snapshot");
         },
     }
 
-    let cleanup_guard =
-        ConnectionGuard::new(&CONTEXT_BROADCASTER, user_id.clone(), conn_id.clone());
+    let cleanup_guard = ConnectionGuard::new(&CONTEXT_BROADCASTER, user_id.clone(), conn_id);
     let stream = ReceiverStream::new(rx);
     let stream_with_guard = StreamWithGuard::<ContextEvent>::new(stream, cleanup_guard);
 
-    tracing::info!(user_id = %user_id_str, conn_id = %conn_id, "SSE stream ready");
+    tracing::info!(user_id = %user_id_str, conn_id = %conn_id_str, "SSE stream ready");
 
     Sse::new(stream_with_guard)
         .keep_alive(standard_keep_alive())

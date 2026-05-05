@@ -1,4 +1,4 @@
-//! Axum handlers and provisioning watcher used by [`super`].
+//! Axum handlers and provisioning watcher for the checkout flow.
 
 use std::sync::Arc;
 
@@ -34,14 +34,16 @@ pub(super) async fn callback_handler(
     {
         match params.status.as_deref() {
             Some("completed") => {
+                let html = state
+                    .success_template
+                    .replace("{{TENANT_ID}}", tenant_id.as_str());
                 let result = Ok(CheckoutCallbackResult {
                     transaction_id,
-                    tenant_id: tenant_id.clone(),
+                    tenant_id,
                     fly_app_name: None,
                     needs_deploy: false,
                 });
                 send_result(&state.tx, result).await;
-                let html = state.success_template.replace("{{TENANT_ID}}", &tenant_id);
                 return Html(html);
             },
             Some(status) => {
@@ -77,10 +79,12 @@ pub(super) async fn callback_handler(
             let transaction_id = params
                 .transaction_id
                 .clone()
-                .unwrap_or_else(|| checkout_session_id.clone());
+                .unwrap_or_else(|| {
+                    systemprompt_identifiers::TransactionId::new(checkout_session_id.as_str())
+                });
 
             tokio::spawn(async move {
-                match wait_for_checkout_provisioning(&api_client, &checkout_session_id).await {
+                match wait_for_checkout_provisioning(&api_client, checkout_session_id.as_str()).await {
                     Ok(prov_result) => {
                         let result = Ok(CheckoutCallbackResult {
                             transaction_id,
@@ -185,6 +189,7 @@ pub(super) async fn status_handler(
     State(state): State<Arc<AppState>>,
     Path(tenant_id): Path<String>,
 ) -> Json<StatusResponse> {
+    let tenant_id = systemprompt_identifiers::TenantId::new(tenant_id);
     match state.api_client.get_tenant_status(&tenant_id).await {
         Ok(status) => Json(StatusResponse {
             status: status.status,

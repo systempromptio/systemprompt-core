@@ -138,7 +138,7 @@ impl AiRequestRepository {
             )
             "#,
             id.as_str(),
-            record.request_id,
+            record.request_id.as_str(),
             record.user_id.as_str(),
             record.tenant_id.as_ref().map(TenantId::as_str),
             record.session_id.as_ref().map(SessionId::as_str),

@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use anyhow::Result;
 use sqlx::PgPool;
 
 use super::model::{CreateServiceInput, ServiceConfig};
 use crate::DbPool;
+use crate::error::DatabaseResult;
 
 #[derive(Debug, Clone)]
 pub struct ServiceRepository {
@@ -15,13 +15,13 @@ pub struct ServiceRepository {
 }
 
 impl ServiceRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    pub fn new(db: &DbPool) -> DatabaseResult<Self> {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
         Ok(Self { pool, write_pool })
     }
 
-    pub async fn get_service_by_name(&self, name: &str) -> Result<Option<ServiceConfig>> {
+    pub async fn get_service_by_name(&self, name: &str) -> DatabaseResult<Option<ServiceConfig>> {
         let row = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,
@@ -46,14 +46,14 @@ impl ServiceRepository {
         }))
     }
 
-    pub async fn get_all_agent_service_names(&self) -> Result<Vec<String>> {
+    pub async fn get_all_agent_service_names(&self) -> DatabaseResult<Vec<String>> {
         let rows = sqlx::query!(r#"SELECT name FROM services WHERE module_name = 'agent'"#)
             .fetch_all(&*self.pool)
             .await?;
         Ok(rows.into_iter().map(|r| r.name).collect())
     }
 
-    pub async fn get_mcp_services(&self) -> Result<Vec<ServiceConfig>> {
+    pub async fn get_mcp_services(&self) -> DatabaseResult<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,
@@ -80,7 +80,7 @@ impl ServiceRepository {
             .collect())
     }
 
-    pub async fn create_service(&self, input: CreateServiceInput<'_>) -> Result<()> {
+    pub async fn create_service(&self, input: CreateServiceInput<'_>) -> DatabaseResult<()> {
         let port_i32 = i32::from(input.port);
         sqlx::query!(
             r#"
@@ -104,7 +104,7 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn update_service_status(&self, service_name: &str, status: &str) -> Result<()> {
+    pub async fn update_service_status(&self, service_name: &str, status: &str) -> DatabaseResult<()> {
         sqlx::query!(
             r#"UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE name = $2"#,
             status,
@@ -115,14 +115,14 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn delete_service(&self, service_name: &str) -> Result<()> {
+    pub async fn delete_service(&self, service_name: &str) -> DatabaseResult<()> {
         sqlx::query!(r#"DELETE FROM services WHERE name = $1"#, service_name)
             .execute(&*self.write_pool)
             .await?;
         Ok(())
     }
 
-    pub async fn update_service_pid(&self, service_name: &str, pid: i32) -> Result<()> {
+    pub async fn update_service_pid(&self, service_name: &str, pid: i32) -> DatabaseResult<()> {
         sqlx::query!(
             r#"UPDATE services SET pid = $1, updated_at = CURRENT_TIMESTAMP WHERE name = $2"#,
             pid,
@@ -133,7 +133,7 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn clear_service_pid(&self, service_name: &str) -> Result<()> {
+    pub async fn clear_service_pid(&self, service_name: &str) -> DatabaseResult<()> {
         sqlx::query!(
             r#"UPDATE services SET pid = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1"#,
             service_name
@@ -143,7 +143,7 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn get_all_running_services(&self) -> Result<Vec<ServiceConfig>> {
+    pub async fn get_all_running_services(&self) -> DatabaseResult<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,
@@ -170,7 +170,7 @@ impl ServiceRepository {
             .collect())
     }
 
-    pub async fn count_running_services(&self, module_name: &str) -> Result<usize> {
+    pub async fn count_running_services(&self, module_name: &str) -> DatabaseResult<usize> {
         let row = sqlx::query!(
             r#"SELECT COUNT(*) as "count!" FROM services WHERE module_name = $1 AND status = 'running'"#,
             module_name
@@ -180,7 +180,7 @@ impl ServiceRepository {
         Ok(usize::try_from(row.count).unwrap_or(0))
     }
 
-    pub async fn mark_service_crashed(&self, service_name: &str) -> Result<()> {
+    pub async fn mark_service_crashed(&self, service_name: &str) -> DatabaseResult<()> {
         sqlx::query!(
             r#"UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1"#,
             service_name
@@ -190,7 +190,7 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn update_service_stopped(&self, service_name: &str) -> Result<()> {
+    pub async fn update_service_stopped(&self, service_name: &str) -> DatabaseResult<()> {
         sqlx::query!(
             r#"UPDATE services SET status = 'stopped', pid = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1"#,
             service_name
@@ -200,11 +200,11 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn get_running_services_with_pid(&self) -> Result<Vec<ServiceConfig>> {
+    pub async fn get_running_services_with_pid(&self) -> DatabaseResult<Vec<ServiceConfig>> {
         self.get_all_running_services().await
     }
 
-    pub async fn get_services_by_type(&self, module_name: &str) -> Result<Vec<ServiceConfig>> {
+    pub async fn get_services_by_type(&self, module_name: &str) -> DatabaseResult<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,
@@ -232,7 +232,7 @@ impl ServiceRepository {
             .collect())
     }
 
-    pub async fn cleanup_stale_entries(&self) -> Result<u64> {
+    pub async fn cleanup_stale_entries(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!(
             r#"
             DELETE FROM services

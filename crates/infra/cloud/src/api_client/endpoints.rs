@@ -1,6 +1,7 @@
 //! Top-level API endpoints not specific to tenants.
 
 use chrono::Utc;
+use systemprompt_identifiers::{PriceId, UserId};
 use systemprompt_models::modules::ApiPaths;
 
 use super::CloudApiClient;
@@ -27,24 +28,24 @@ impl CloudApiClient {
 
     pub async fn create_checkout(
         &self,
-        price_id: &str,
+        price_id: &PriceId,
         region: &str,
         redirect_uri: Option<&str>,
     ) -> CloudResult<CheckoutResponse> {
         let request = CheckoutRequest {
-            price_id: price_id.to_string(),
+            price_id: price_id.clone(),
             region: region.to_string(),
             redirect_uri: redirect_uri.map(String::from),
         };
         self.post(ApiPaths::CLOUD_CHECKOUT, &request).await
     }
 
-    pub async fn report_activity(&self, event_type: &str, user_id: &str) -> CloudResult<()> {
+    pub async fn report_activity(&self, event_type: &str, user_id: &UserId) -> CloudResult<()> {
         let request = ActivityRequest {
             event: event_type.to_string(),
             timestamp: Utc::now().to_rfc3339(),
             data: ActivityData {
-                user_id: user_id.to_string(),
+                user_id: user_id.clone(),
             },
         };
         self.post_no_response(ApiPaths::CLOUD_ACTIVITY, &request)

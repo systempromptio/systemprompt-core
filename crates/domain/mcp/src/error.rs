@@ -1,84 +1,75 @@
-use thiserror::Error;
+use systemprompt_models::domain_error;
 
-#[derive(Error, Debug)]
-pub enum McpDomainError {
-    #[error("MCP server not found: {0}")]
-    ServerNotFound(String),
+domain_error! {
+    pub enum McpDomainError {
+        common: [repository, io, json, validation, anyhow],
 
-    #[error("Connection failed to {server}: {message}")]
-    ConnectionFailed { server: String, message: String },
+        #[error("MCP server not found: {0}")]
+        ServerNotFound(String),
 
-    #[error("Tool execution failed: {0}")]
-    ToolExecutionFailed(String),
+        #[error("Connection failed to {server}: {message}")]
+        ConnectionFailed { server: String, message: String },
 
-    #[error("Schema validation failed: {0}")]
-    SchemaValidation(String),
+        #[error("Tool execution failed: {0}")]
+        ToolExecutionFailed(String),
 
-    #[error("Registry validation failed: {0}")]
-    RegistryValidation(String),
+        #[error("Schema validation failed: {0}")]
+        SchemaValidation(String),
 
-    #[error("Process spawn failed for {server}: {message}")]
-    ProcessSpawn { server: String, message: String },
+        #[error("Registry validation failed: {0}")]
+        RegistryValidation(String),
 
-    #[error("Port unavailable: {port} - {message}")]
-    PortUnavailable { port: u16, message: String },
+        #[error("Process spawn failed for {server}: {message}")]
+        ProcessSpawn { server: String, message: String },
 
-    #[error("Configuration error: {0}")]
-    Configuration(String),
+        #[error("Port unavailable: {port} - {message}")]
+        PortUnavailable { port: u16, message: String },
 
-    #[error("Authentication required for {0}")]
-    AuthRequired(String),
+        #[error("Configuration error: {0}")]
+        Configuration(String),
 
-    #[error("Manifest error: {0}")]
-    Manifest(String),
+        #[error("Authentication required for {0}")]
+        AuthRequired(String),
 
-    #[error("Transport error: {0}")]
-    Transport(String),
+        #[error("Manifest error: {0}")]
+        Manifest(String),
 
-    #[error("Validation error: {0}")]
-    Validation(String),
+        #[error("Transport error: {0}")]
+        Transport(String),
 
-    #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+        #[error("{0}")]
+        Internal(String),
 
-    #[error("Repository error: {0}")]
-    Repository(#[from] systemprompt_database::RepositoryError),
+        #[error("Configuration: {0}")]
+        Config(#[from] systemprompt_models::errors::ConfigError),
 
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+        #[error("services config: {0}")]
+        ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
 
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+        #[error("extension load: {0}")]
+        ExtensionLoad(#[from] systemprompt_loader::ExtensionLoadError),
 
-    #[error("{0}")]
-    Internal(String),
+        #[error("MCP client initialize: {0}")]
+        ClientInitialize(String),
 
-    #[error("Configuration: {0}")]
-    Config(#[from] systemprompt_models::errors::ConfigError),
+        #[error("MCP service error: {0}")]
+        ServiceError(String),
 
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+        #[error("Task join error: {0}")]
+        TaskJoin(#[from] tokio::task::JoinError),
 
-    #[error("services config: {0}")]
-    ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
+        #[error("Path error: {0}")]
+        Path(String),
 
-    #[error("extension load: {0}")]
-    ExtensionLoad(#[from] systemprompt_loader::ExtensionLoadError),
+        #[error("Config validation: {0}")]
+        ConfigValidation(String),
+    }
+}
 
-    #[error("MCP client initialize: {0}")]
-    ClientInitialize(String),
-
-    #[error("MCP service error: {0}")]
-    ServiceError(String),
-
-    #[error("Task join error: {0}")]
-    TaskJoin(#[from] tokio::task::JoinError),
-
-    #[error("Path error: {0}")]
-    Path(String),
-
-    #[error("Config validation: {0}")]
-    ConfigValidation(String),
+impl From<sqlx::Error> for McpDomainError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(systemprompt_database::RepositoryError::from(err))
+    }
 }
 
 impl From<rmcp::service::ClientInitializeError> for McpDomainError {

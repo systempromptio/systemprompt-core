@@ -114,7 +114,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Fetching registry credentials...");
-    let registry_token = api_client.get_registry_token(tenant_id.as_str()).await?;
+    let registry_token = api_client.get_registry_token(&tenant_id).await?;
     spinner.finish_and_clear();
 
     let image = format!(
@@ -143,7 +143,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     }
 
     let spinner = CliService::spinner("Deploying...");
-    let response = api_client.deploy(tenant_id.as_str(), &image).await?;
+    let response = api_client.deploy(&tenant_id, &image).await?;
     spinner.finish_and_clear();
     CliService::success("Deployed!");
     CliService::key_value("Status", &response.status);
@@ -163,7 +163,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
             let env_secrets = super::secrets::map_secrets_to_env_vars(secrets);
             let spinner = CliService::spinner("Syncing secrets...");
             let keys = api_client
-                .set_secrets(tenant_id.as_str(), env_secrets)
+                .set_secrets(&tenant_id, env_secrets)
                 .await?;
             spinner.finish_and_clear();
             CliService::success(&format!("Synced {} secrets", keys.len()));
@@ -188,7 +188,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
     api_client
-        .set_secrets(tenant_id.as_str(), profile_secret)
+        .set_secrets(&tenant_id, profile_secret)
         .await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");

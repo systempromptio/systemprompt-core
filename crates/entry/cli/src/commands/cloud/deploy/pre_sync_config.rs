@@ -102,7 +102,7 @@ async fn setup_sync_token(
 
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
         let spinner = CliService::spinner("Generating sync token...");
-        let response = client.rotate_sync_token(tenant_id.as_str()).await?;
+        let response = client.rotate_sync_token(tenant_id).await?;
         spinner.finish_and_clear();
 
         let token = response.sync_token;

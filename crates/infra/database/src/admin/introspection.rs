@@ -1,4 +1,4 @@
-//! Schema introspection service used by the CLI's `infra db` commands.
+//! Schema introspection service.
 //!
 //! Part of the documented sqlx allowlist — every query here is built
 //! dynamically because the table name is supplied at runtime as a

@@ -67,7 +67,7 @@ fn build_rejection_record(
     }
     builder.build().unwrap_or_else(|e| {
         tracing::warn!(error = %e, "rejection audit: build failed");
-        AiRequestRecord::minimal_fallback(ai_request_id.as_str().to_string())
+        AiRequestRecord::minimal_fallback(ai_request_id.clone())
     })
 }
 

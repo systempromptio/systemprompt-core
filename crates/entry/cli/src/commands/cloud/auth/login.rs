@@ -76,8 +76,9 @@ pub async fn execute(
 
     CliService::success("Logged in successfully");
 
+    let activity_user_id = systemprompt_identifiers::UserId::new(response.user.id.clone());
     if let Err(e) = client
-        .report_activity(ApiPaths::ACTIVITY_EVENT_LOGIN, &response.user.id)
+        .report_activity(ApiPaths::ACTIVITY_EVENT_LOGIN, &activity_user_id)
         .await
     {
         tracing::debug!(error = %e, "Failed to report login activity");
@@ -108,7 +109,7 @@ fn build_login_output(
     tenants_path: &std::path::Path,
 ) -> LoginOutput {
     let user = LoginUserInfo {
-        id: response.user.id.clone(),
+        id: response.user.id.as_str().to_string(),
         email: response.user.email.clone(),
         name: response.user.name.clone(),
     };
@@ -150,7 +151,7 @@ fn print_login_result(response: &UserMeResponse) {
     if let Some(name) = &response.user.name {
         CliService::key_value("Name", name);
     }
-    CliService::key_value("ID", &response.user.id);
+    CliService::key_value("ID", response.user.id.as_str());
 
     if let Some(customer) = &response.customer {
         CliService::section("Customer");

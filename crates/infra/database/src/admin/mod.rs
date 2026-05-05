@@ -1,4 +1,4 @@
-//! Admin-only database surface used by the CLI.
+//! Admin-only database surface.
 //!
 //! Every module here is part of the documented sqlx allowlist: the SQL is
 //! either user-supplied or built dynamically against runtime-supplied table

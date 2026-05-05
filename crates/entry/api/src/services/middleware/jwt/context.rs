@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 use systemprompt_security::TokenExtractor;
 use systemprompt_traits::AnalyticsProvider;
@@ -213,10 +213,9 @@ impl JwtContextExtractor {
         let context_source = PayloadSource::extract_context_source(&body_bytes)?;
         let (context_id, task_id_from_payload) = match context_source {
             ContextIdSource::Direct(id) => (ContextId::new(id), None),
-            ContextIdSource::FromTask { task_id } => (
-                ContextId::new(TASK_BASED_CONTEXT_MARKER),
-                Some(TaskId::new(task_id)),
-            ),
+            ContextIdSource::FromTask { task_id } => {
+                (ContextId::new(TASK_BASED_CONTEXT_MARKER), Some(task_id))
+            },
         };
 
         let (trace_id, task_id_from_header, auth_token, agent_name) =

@@ -9,6 +9,7 @@
 //! Upstream errors are composed via `#[from]` (`reqwest`, `std::io`,
 //! `serde_json`) so callers can use `?` transparently.
 
+use systemprompt_identifiers::TenantId;
 use thiserror::Error;
 
 mod messages;
@@ -60,8 +61,8 @@ pub enum CloudError {
     #[error("Tenants store invalid: {message}")]
     TenantsStoreInvalid { message: String },
 
-    #[error("Tenant '{tenant_id}' not found.\n\nRun: systemprompt cloud config")]
-    TenantNotFound { tenant_id: String },
+    #[error("Tenant '{}' not found.\n\nRun: systemprompt cloud config", tenant_id.as_str())]
+    TenantNotFound { tenant_id: TenantId },
 
     #[error("API error: {message}")]
     ApiError { message: String },

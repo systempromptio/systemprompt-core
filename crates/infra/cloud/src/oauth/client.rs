@@ -1,5 +1,4 @@
-//! Browser-driven OAuth login flow used by `systemprompt cloud
-//! login`.
+//! Browser-driven OAuth login flow.
 
 use std::sync::Arc;
 

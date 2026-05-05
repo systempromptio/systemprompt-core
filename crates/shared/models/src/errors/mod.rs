@@ -21,6 +21,7 @@
 pub use systemprompt_traits::RepositoryError;
 
 mod core;
+pub mod macros;
 mod metadata;
 mod module;
 mod parse;

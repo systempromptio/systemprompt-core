@@ -97,7 +97,7 @@ impl SystemEventBuilder {
         }
     }
 
-    pub fn connected(connection_id: String) -> SystemEvent {
+    pub fn connected(connection_id: systemprompt_identifiers::ConnectionId) -> SystemEvent {
         SystemEvent::Connected {
             timestamp: Utc::now(),
             payload: ConnectedPayload { connection_id },

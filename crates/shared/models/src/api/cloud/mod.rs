@@ -29,8 +29,7 @@ pub struct CloudApiErrorDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudUserInfo {
-    // JSON: external vendor identifier
-    pub id: String,
+    pub id: systemprompt_identifiers::UserId,
     pub email: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -68,7 +67,7 @@ pub struct CloudPlan {
     // JSON: external vendor identifier
     pub id: String,
     pub name: String,
-    pub paddle_price_id: String,
+    pub paddle_price_id: systemprompt_identifiers::PriceId,
     #[serde(default)]
     pub memory_mb_default: i32,
     #[serde(default)]
@@ -157,8 +156,7 @@ pub struct SetExternalDbAccessRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExternalDbAccessResponse {
-    // JSON: external vendor identifier
-    pub tenant_id: String,
+    pub tenant_id: systemprompt_identifiers::TenantId,
     pub external_db_access: bool,
     pub database_url: String,
 }

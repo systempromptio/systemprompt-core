@@ -7,7 +7,7 @@ use systemprompt_cloud::constants::regions::AVAILABLE;
 use systemprompt_cloud::{
     CheckoutTemplates, CloudApiClient, CloudCredentials, StoredTenant, TenantType,
 };
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{PriceId, TenantId};
 use systemprompt_logging::CliService;
 use url::Url;
 
@@ -49,11 +49,11 @@ pub async fn create_cloud_tenant(
     };
 
     let result = run_checkout_callback_flow(&client, &checkout.checkout_url, templates).await?;
-    let tenant_id = TenantId::new(&result.tenant_id);
-    CliService::success(&format!("Checkout complete! Tenant ID: {}", tenant_id));
+    let tenant_id = result.tenant_id.clone();
+    CliService::success(&format!("Checkout complete! Tenant ID: {}", tenant_id.as_str()));
 
     let spinner = CliService::spinner("Waiting for infrastructure provisioning...");
-    wait_for_provisioning(&client, tenant_id.as_str(), |event| {
+    wait_for_provisioning(&client, &tenant_id, |event| {
         if let Some(msg) = &event.message {
             CliService::info(msg);
         }
@@ -102,7 +102,7 @@ pub async fn create_cloud_tenant(
     Ok(stored_tenant)
 }
 
-async fn select_plan(client: &CloudApiClient) -> Result<String> {
+async fn select_plan(client: &CloudApiClient) -> Result<PriceId> {
     let spinner = CliService::spinner("Fetching available plans...");
     let plans = client.get_plans().await?;
     spinner.finish_and_clear();
@@ -142,7 +142,7 @@ async fn fetch_credentials(
     tenant_id: &TenantId,
 ) -> Result<(String, Option<String>)> {
     let spinner = CliService::spinner("Fetching database credentials...");
-    let status = client.get_tenant_status(tenant_id.as_str()).await?;
+    let status = client.get_tenant_status(tenant_id).await?;
     let secrets_url = status
         .secrets_url
         .ok_or_else(|| anyhow!("Tenant is ready but secrets URL is missing"))?;
@@ -175,7 +175,7 @@ async fn configure_external_access(
 
     let spinner = CliService::spinner("Enabling external database access...");
     match client
-        .set_external_db_access(tenant_id.as_str(), true)
+        .set_external_db_access(tenant_id, true)
         .await
     {
         Ok(_) => {

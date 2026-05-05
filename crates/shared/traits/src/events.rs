@@ -1,6 +1,7 @@
 //! Cross-cutting event publisher traits (logs, user activity, analytics).
 
 use chrono::{DateTime, Utc};
+use systemprompt_identifiers::{SessionId, UserId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -59,10 +60,10 @@ pub trait LogEventPublisher: Send + Sync {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum UserEvent {
-    UserCreated { user_id: String },
-    UserUpdated { user_id: String },
-    SessionCreated { user_id: String, session_id: String },
-    SessionEnded { user_id: String, session_id: String },
+    UserCreated { user_id: UserId },
+    UserUpdated { user_id: UserId },
+    SessionCreated { user_id: UserId, session_id: SessionId },
+    SessionEnded { user_id: UserId, session_id: SessionId },
 }
 
 pub trait UserEventPublisher: Send + Sync {
@@ -74,7 +75,7 @@ pub trait UserEventPublisher: Send + Sync {
 pub enum AnalyticsEvent {
     Updated,
     AiRequestCompleted { tokens_used: i64 },
-    UserActivityRecorded { user_id: String },
+    UserActivityRecorded { user_id: UserId },
 }
 
 pub trait AnalyticsEventPublisher: Send + Sync {

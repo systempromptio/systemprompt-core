@@ -98,5 +98,5 @@ pub struct ContextsSnapshotPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectedPayload {
-    pub connection_id: String,
+    pub connection_id: systemprompt_identifiers::ConnectionId,
 }

@@ -2,6 +2,8 @@
 //! covering authentication, session, module, and IO failure modes with
 //! HTTP status code mapping helpers.
 
+use systemprompt_identifiers::{SessionId, UserId};
+
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum CoreError {
     #[error("Module config missing required field: {field}")]
@@ -49,11 +51,11 @@ pub enum CoreError {
     #[error("Forbidden: {reason}")]
     Forbidden { reason: String },
 
-    #[error("User not found: {user_id}")]
-    UserNotFound { user_id: String },
+    #[error("User not found: {}", user_id.as_str())]
+    UserNotFound { user_id: UserId },
 
-    #[error("Session not found: {session_id}")]
-    SessionNotFound { session_id: String },
+    #[error("Session not found: {}", session_id.as_str())]
+    SessionNotFound { session_id: SessionId },
 
     #[error("Invalid session: {reason}")]
     InvalidSession { reason: String },
