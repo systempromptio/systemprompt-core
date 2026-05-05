@@ -70,18 +70,24 @@ Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) →
 | `instructions/information/boundaries.md` | Module boundary rules, acceptable patterns |
 | `instructions/information/config.md` | Configuration system (profiles, secrets, credentials) |
 | `instructions/information/cloud.md` | Cloud deployment and tenant management |
-| `instructions/rust.md` | Rust coding standards |
+| `instructions/prompt/rust.md` | Rust coding standards (canonical) |
 
 ## Rust Standards
 
-**MANDATORY**: Follow `instructions/rust.md`. Key rules:
-- Zero inline comments - code documents itself through naming
-- Zero raw String IDs - use typed identifiers from `systemprompt_identifiers`
-- Typed ID construction (see "Typed Identifiers" below)
-- Services call repositories, never execute SQL directly
-- All queries via compile-time verified macros: `sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()` (never unverified `sqlx::query()`), **except** in `crates/infra/database/src/admin/` and `crates/infra/database/src/services/postgres/{introspection,query_executor,transaction,ext}.rs` where dynamic SQL is the contract (schema discovery, runtime query execution, parameterized builders)
-- Naming: use `*Service` by default. `*Handler` only for HTTP/RPC request handlers. `*Orchestrator` reserved for workflows that span domains. Avoid `*Manager`
-- Schema DDL lives in `{crate}/schema/*.sql` files, embedded via `include_str!()` in extension.rs
+**MANDATORY**: `instructions/prompt/rust.md` is the canonical source. The marketplace skill `rust-coding-standards` mirrors it. Key rules:
+
+- **Inline `//` comments**: banned for WHAT-comments. Permitted ONLY when encoding a non-obvious *why* (hidden constraint, subtle invariant, bug-workaround). Never narrate "what we just changed" or reference past callers/issues.
+- **`///` rustdoc**: NOT applied mechanically per pub item. Real `//!` blocks live on `lib.rs` and significant `pub mod` files (purpose, public surface, feature matrix, error model). Per-item `///` is added only where it captures non-obvious value — paraphrasing the function name and signature is a code smell. Banned in `entry/*` binaries and inside `crates/tests/**`.
+- **Typed identifiers**: zero raw String IDs in struct fields or service args — use wrappers from `systemprompt_identifiers`. Construct via `Id::new(s)`, `Id::try_new(s)?`, or `Id::generate()`. Never `.into()` or `::from()` at call sites.
+- **Repository pattern**: services never run SQL directly. All queries via compile-time verified macros (`sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()`). Runtime `sqlx::query(_)` is permitted ONLY in `crates/infra/database/src/admin/**` and `crates/infra/database/src/services/postgres/{introspection,query_executor,transaction,ext}.rs` where dynamic SQL is the contract.
+- **Errors**: `thiserror`-derived enums in published library crates (`shared/*`, `infra/*`, `domain/*`, `app/*`, `systemprompt` facade). `anyhow::Error` is forbidden in public signatures of library crates; permitted only in `entry/cli`, `entry/api`, `build.rs`, and tests.
+- **Async traits**: native `async fn` by default. `#[async_trait]` only when the trait must be `dyn`-compatible — document the reason on the trait.
+- **Logging**: all logging via `tracing` with structured fields. `println!` / `eprintln!` / `dbg!` banned in libraries; carve-outs are the CLI display sinks in `crates/infra/logging/services/cli/**` and `crates/infra/database/src/services/display.rs`, plus `cargo:rerun-if-changed=` directives in build scripts.
+- **No legacy code, backwards-compat shims, dual code paths, or `Option<T>` migration stubs**: land the new code AND delete the old form in the same PR.
+- **Naming**: `*Service` by default, `*Handler` only for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
+- **Schema DDL**: lives in `{crate}/schema/*.sql`, embedded via `include_str!()` in `extension.rs`.
+
+Run after changes: `cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features && just file-size && just check-bans`.
 
 ### Typed Identifiers
 
