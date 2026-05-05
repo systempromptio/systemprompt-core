@@ -65,6 +65,8 @@ fn human_bytes(bytes: i64) -> String {
     format!("{size:.1} {}", UNITS[idx])
 }
 
+// reason: nix returns differently-sized integer types depending on target
+// platform; the conversion is needed on some, useless on others
 #[allow(clippy::useless_conversion)]
 fn get_disk_usage() -> Option<serde_json::Value> {
     let stat = nix::sys::statvfs::statvfs(".").ok()?;

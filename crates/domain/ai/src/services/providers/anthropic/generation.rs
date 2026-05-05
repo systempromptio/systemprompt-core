@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::time::Instant;
 use uuid::Uuid;
 
@@ -57,7 +56,9 @@ pub async fn generate(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("Anthropic API error: {error_text}").into());
+        return Err(crate::error::AiError::Internal(format!(
+            "Anthropic API error: {error_text}"
+        )));
     }
 
     let anthropic_response: AnthropicResponse = response.json().await?;
@@ -114,7 +115,9 @@ pub async fn generate_with_tools(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("Anthropic API error: {error_text}").into());
+        return Err(crate::error::AiError::Internal(format!(
+            "Anthropic API error: {error_text}"
+        )));
     }
 
     let anthropic_response: AnthropicResponse = response.json().await?;
@@ -214,7 +217,9 @@ pub async fn generate_with_schema(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("Anthropic API error: {error_text}").into());
+        return Err(crate::error::AiError::Internal(format!(
+            "Anthropic API error: {error_text}"
+        )));
     }
 
     let anthropic_response: AnthropicResponse = response.json().await?;

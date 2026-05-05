@@ -175,7 +175,7 @@ fn load_content_config(paths: &AppPaths) -> SyncResult<ContentConfigRaw> {
 
     let display_path = config_path.display().to_string();
     let content = std::fs::read_to_string(config_path).map_err(|e| {
-        SyncError::other(format!("Failed to read content config {display_path}: {e}"))
+        SyncError::internal(format!("Failed to read content config {display_path}: {e}"))
     })?;
     let config: ContentConfigRaw = serde_yaml::from_str(&content)?;
     Ok(config)

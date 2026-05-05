@@ -57,8 +57,7 @@ async fn service_create_and_find_user() -> Result<()> {
     assert_eq!(found_name.id.to_string(), created.id.to_string());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -84,8 +83,7 @@ async fn service_create_anonymous_user() -> Result<()> {
     assert!(created.roles.contains(&"anonymous".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -131,8 +129,7 @@ async fn service_search_users() -> Result<()> {
     assert!(results.iter().any(|u| u.id.to_string() == created.id.to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -199,8 +196,7 @@ async fn service_update_email() -> Result<()> {
     assert_eq!(updated.id.to_string(), created.id.to_string());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -226,8 +222,7 @@ async fn service_update_status() -> Result<()> {
     assert_eq!(updated.id.to_string(), created.id.to_string());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -255,8 +250,7 @@ async fn service_assign_roles() -> Result<()> {
     assert!(updated.roles.contains(&"user".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -287,8 +281,7 @@ async fn service_delete_user() -> Result<()> {
     assert!(found.is_none());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -374,8 +367,7 @@ async fn service_get_authenticated_user() -> Result<()> {
     assert_eq!(auth.email, unique_email);
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -400,8 +392,7 @@ async fn service_is_temporary_anonymous() -> Result<()> {
     assert!(is_temp);
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -431,8 +422,7 @@ async fn service_list_sessions() -> Result<()> {
     assert!(sessions.is_empty());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -457,8 +447,7 @@ async fn service_list_active_sessions() -> Result<()> {
     assert!(sessions.is_empty());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -483,8 +472,7 @@ async fn service_list_recent_sessions() -> Result<()> {
     assert!(sessions.is_empty());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -531,8 +519,7 @@ async fn service_get_with_sessions() -> Result<()> {
     assert_eq!(user_with_sessions.active_sessions, 0);
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -557,8 +544,7 @@ async fn service_get_activity() -> Result<()> {
     assert_eq!(activity.user_id.to_string(), created.id.to_string());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -624,8 +610,7 @@ async fn service_update_full_name() -> Result<()> {
     let updated = service.update_full_name(&created.id, "New Full Name").await?;
     assert_eq!(updated.full_name, Some("New Full Name".to_string()));
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -649,8 +634,7 @@ async fn service_update_display_name() -> Result<()> {
     let updated = service.update_display_name(&created.id, "New Display").await?;
     assert_eq!(updated.display_name, Some("New Display".to_string()));
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -674,8 +658,7 @@ async fn service_update_email_verified() -> Result<()> {
     let updated = service.update_email_verified(&created.id, true).await?;
     assert_eq!(updated.email_verified, Some(true));
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -710,12 +693,10 @@ async fn service_bulk_update_status() -> Result<()> {
     let found1 = service.find_by_id(&user1.id).await?;
     assert_eq!(found1.as_ref().map(|u| u.status.as_deref()), Some(Some("suspended")));
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user1.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user1.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user2.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user2.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -773,8 +754,7 @@ async fn service_list_by_filter_with_status() -> Result<()> {
     let users = service.list_by_filter(Some("active"), None, None, 100).await?;
     assert!(users.iter().all(|u| u.status.as_deref() == Some("active")));
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -798,8 +778,7 @@ async fn service_list_by_filter_with_role() -> Result<()> {
     let users = service.list_by_filter(None, Some("user"), None, 100).await?;
     assert!(users.iter().all(|u| u.roles.contains(&"user".to_string())));
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -838,8 +817,7 @@ async fn service_merge_users() -> Result<()> {
     let target_found = service.find_by_id(&target.id).await?;
     target_found.expect("target_found should be present");
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(target.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", target.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 

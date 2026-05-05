@@ -1,53 +1,41 @@
 //! Typed error boundary for the `systemprompt-analytics` crate.
-//!
-//! [`AnalyticsError`] is the canonical error returned from public, non-trait
-//! signatures (repositories, services, helpers). It composes [`sqlx::Error`],
-//! [`systemprompt_database::RepositoryError`], [`serde_json::Error`] and
-//! upstream [`anyhow::Error`] via `#[from]` so `?` propagation works
-//! transparently for every internal call site.
 
-use thiserror::Error;
+use systemprompt_models::domain_error;
 
-#[derive(Debug, Error)]
-pub enum AnalyticsError {
-    #[error("Session not found: {0}")]
-    SessionNotFound(String),
+domain_error! {
+    pub enum AnalyticsError {
+        common: [repository, io, json, anyhow],
 
-    #[error("Invalid fingerprint hash: {0}")]
-    InvalidFingerprint(String),
+        #[error("Session not found: {0}")]
+        SessionNotFound(String),
 
-    #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+        #[error("Invalid fingerprint hash: {0}")]
+        InvalidFingerprint(String),
 
-    #[error("Repository error: {0}")]
-    Repository(#[from] systemprompt_database::RepositoryError),
+        #[error("Missing field: {0}")]
+        MissingField(String),
 
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+        #[error("Invalid argument: {0}")]
+        InvalidArgument(String),
 
-    #[error("Missing field: {0}")]
-    MissingField(String),
+        #[error("Session expired")]
+        SessionExpired,
 
-    #[error("Invalid argument: {0}")]
-    InvalidArgument(String),
+        #[error("Throttle level exceeded")]
+        ThrottleLevelExceeded,
 
-    #[error("Session expired")]
-    SessionExpired,
+        #[error("Behavioral bot detected: {0}")]
+        BehavioralBotDetected(String),
 
-    #[error("Throttle level exceeded")]
-    ThrottleLevelExceeded,
+        #[error("Anomaly detection failed: {0}")]
+        AnomalyDetectionFailed(String),
+    }
+}
 
-    #[error("Behavioral bot detected: {0}")]
-    BehavioralBotDetected(String),
-
-    #[error("Anomaly detection failed: {0}")]
-    AnomalyDetectionFailed(String),
-
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
-
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+impl From<sqlx::Error> for AnalyticsError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(systemprompt_database::RepositoryError::from(err))
+    }
 }
 
 impl AnalyticsError {

@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use futures::{Stream, StreamExt};
 use std::pin::Pin;
 
@@ -55,7 +54,9 @@ impl AnthropicProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await?;
-            return Err(anyhow!("Anthropic streaming API error ({status}): {error_text}").into());
+            return Err(crate::error::AiError::Internal(format!(
+                "Anthropic streaming API error ({status}): {error_text}"
+            )));
         }
 
         let stream = response
@@ -63,7 +64,9 @@ impl AnthropicProvider {
             .map(|chunk| -> Result<Vec<StreamChunk>> {
                 match chunk {
                     Ok(bytes) => Ok(parse_sse_chunks(&bytes)),
-                    Err(e) => Err(anyhow!("Stream error: {e}").into()),
+                    Err(e) => Err(crate::error::AiError::Internal(format!(
+                        "Stream error: {e}"
+                    ))),
                 }
             })
             .flat_map(|result| match result {

@@ -30,6 +30,8 @@
 - `cargo check --workspace`: clean.
 - `cargo clippy --workspace -- -D warnings`: clean.
 - `cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-database-tests`: 142 passed.
+- **Lint hygiene** — every hand-written `#[allow(...)]` outside `crates/tests/` (54 sites) now carries a `// reason: ...` comment so external scanners can see the suppression rationale. No allow was removed; no behavior changed.
+- **Sqlx allowlist documented** — extended the `sqlx::query(_)` allowlist in `CLAUDE.md` and `justfile` (`check-bans`) to cover `crates/entry/cli/src/commands/admin/setup/**` (bootstrap DDL: `CREATE USER` / `CREATE DATABASE` / `GRANT` / `CREATE EXTENSION`, which cannot bind identifier parameters and run before the target database exists). Each call site now carries an `// allowlist: bootstrap DDL` annotation.
 
 ## [0.5.0] - 2026-05-04
 

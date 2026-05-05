@@ -30,7 +30,8 @@
 //! - [`RepositoryError`](error::RepositoryError) for persistence
 //! - common transport errors ([`reqwest::Error`], [`serde_json::Error`],
 //!   [`sqlx::Error`], [`std::io::Error`], [`regex::Error`])
-//! - an `Internal(anyhow::Error)` carve-out for legacy helpers
+//! - an `Internal(String)` carve-out for cases where the upstream cause is
+//!   stringified at the call site rather than typed
 //!
 //! The provider-trait surface ([`AiProvider`]) used over the wire bridges to
 //! the boxed [`ProviderResult`](systemprompt_models::errors::ProviderResult)

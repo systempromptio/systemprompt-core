@@ -90,7 +90,9 @@ pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
         .model("unknown")
         .build()
         .unwrap_or_else(|_| {
-            AiRequestRecord::minimal_fallback(AiRequestId::new(params.response.request_id.to_string()))
+            AiRequestRecord::minimal_fallback(AiRequestId::new(
+                params.response.request_id.to_string(),
+            ))
         })
     })
 }

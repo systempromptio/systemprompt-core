@@ -201,8 +201,8 @@ pub enum AgentError {
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+    #[error("internal: {0}")]
+    Internal(String),
 
     #[error("services config: {0}")]
     ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),

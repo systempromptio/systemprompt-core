@@ -50,7 +50,10 @@ pub async fn create_cloud_tenant(
 
     let result = run_checkout_callback_flow(&client, &checkout.checkout_url, templates).await?;
     let tenant_id = result.tenant_id.clone();
-    CliService::success(&format!("Checkout complete! Tenant ID: {}", tenant_id.as_str()));
+    CliService::success(&format!(
+        "Checkout complete! Tenant ID: {}",
+        tenant_id.as_str()
+    ));
 
     let spinner = CliService::spinner("Waiting for infrastructure provisioning...");
     wait_for_provisioning(&client, &tenant_id, |event| {
@@ -174,10 +177,7 @@ async fn configure_external_access(
     }
 
     let spinner = CliService::spinner("Enabling external database access...");
-    match client
-        .set_external_db_access(tenant_id, true)
-        .await
-    {
+    match client.set_external_db_access(tenant_id, true).await {
         Ok(_) => {
             let external_url = swap_to_external_host(internal_database_url);
             spinner.finish_and_clear();

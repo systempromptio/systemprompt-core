@@ -13,6 +13,8 @@ pub enum FilePersistenceMode {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+// reason: file-type allowlist is a flat set of orthogonal toggles, not state to refactor into an
+// enum
 #[allow(clippy::struct_excessive_bools)]
 pub struct AllowedFileTypes {
     pub images: bool,

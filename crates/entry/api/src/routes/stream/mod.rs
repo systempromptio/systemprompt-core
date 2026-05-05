@@ -90,7 +90,9 @@ pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
 
     let (tx, rx) = mpsc::channel(1024);
 
-    broadcaster.register(&user_id, conn_id.as_str(), tx.clone()).await;
+    broadcaster
+        .register(&user_id, conn_id.as_str(), tx.clone())
+        .await;
 
     let cleanup_guard = ConnectionGuard::new(broadcaster, user_id, conn_id);
     let stream = ReceiverStream::new(rx);

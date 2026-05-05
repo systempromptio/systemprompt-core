@@ -38,8 +38,7 @@ async fn admin_find_user_by_email() -> Result<()> {
     assert_eq!(found.email, unique_email);
     assert_eq!(found.name, unique_name);
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -66,8 +65,7 @@ async fn admin_find_user_by_name() -> Result<()> {
     assert_eq!(found.name, unique_name);
     assert_eq!(found.email, unique_email);
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -94,8 +92,7 @@ async fn admin_find_user_by_uuid() -> Result<()> {
     assert_eq!(found.id.to_string(), created.id.to_string());
     assert_eq!(found.email, unique_email);
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -149,8 +146,7 @@ async fn admin_promote_user_to_admin() -> Result<()> {
         _ => panic!("Expected Promoted result"),
     }
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -183,8 +179,7 @@ async fn admin_promote_already_admin_returns_already_admin() -> Result<()> {
         _ => panic!("Expected AlreadyAdmin result"),
     }
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -241,8 +236,7 @@ async fn admin_demote_user_from_admin() -> Result<()> {
         _ => panic!("Expected Demoted result"),
     }
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 
@@ -273,8 +267,7 @@ async fn admin_demote_non_admin_returns_not_admin() -> Result<()> {
         _ => panic!("Expected NotAdmin result"),
     }
 
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
         .await;
 

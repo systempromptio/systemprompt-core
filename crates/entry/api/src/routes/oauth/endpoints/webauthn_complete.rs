@@ -34,6 +34,7 @@ pub struct WebAuthnCompleteError {
     pub error_description: String,
 }
 
+// reason: webauthn-rs proc-macros generate fully-qualified paths in expansion
 #[allow(unused_qualifications)]
 pub async fn handle_webauthn_complete(
     headers: HeaderMap,

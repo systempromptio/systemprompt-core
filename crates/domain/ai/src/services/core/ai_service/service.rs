@@ -53,10 +53,10 @@ impl AiService {
         let default_provider = config.default_provider.clone();
 
         let provider = providers.get(&default_provider).ok_or_else(|| {
-            anyhow::anyhow!(
+            crate::error::AiError::Internal(format!(
                 "Default provider '{}' not found or not enabled",
                 default_provider
-            )
+            ))
         })?;
 
         let provider_config = config.providers.get(&default_provider);
@@ -130,9 +130,10 @@ impl AiService {
     }
 
     pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn AiProvider>> {
-        self.providers.get(name).cloned().ok_or_else(|| {
-            crate::error::AiError::Internal(anyhow::anyhow!("Provider {name} not found"))
-        })
+        self.providers
+            .get(name)
+            .cloned()
+            .ok_or_else(|| crate::error::AiError::Internal(format!("Provider {name} not found")))
     }
 
     pub(super) fn store_error(

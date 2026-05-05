@@ -104,7 +104,11 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn update_service_status(&self, service_name: &str, status: &str) -> DatabaseResult<()> {
+    pub async fn update_service_status(
+        &self,
+        service_name: &str,
+        status: &str,
+    ) -> DatabaseResult<()> {
         sqlx::query!(
             r#"UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE name = $2"#,
             status,
@@ -204,7 +208,10 @@ impl ServiceRepository {
         self.get_all_running_services().await
     }
 
-    pub async fn get_services_by_type(&self, module_name: &str) -> DatabaseResult<Vec<ServiceConfig>> {
+    pub async fn get_services_by_type(
+        &self,
+        module_name: &str,
+    ) -> DatabaseResult<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,

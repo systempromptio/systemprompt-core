@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -17,7 +16,9 @@ impl ProviderFactory {
         db_pool: Option<DbPool>,
     ) -> Result<Arc<dyn AiProvider>> {
         if !config.enabled {
-            return Err(anyhow!("Provider {name} is disabled").into());
+            return Err(crate::error::AiError::Internal(format!(
+                "Provider {name} is disabled"
+            )));
         }
 
         let provider: Arc<dyn AiProvider> = match name {
@@ -70,7 +71,11 @@ impl ProviderFactory {
 
                 Arc::new(provider)
             },
-            _ => return Err(anyhow!("Unknown provider: {name}").into()),
+            _ => {
+                return Err(crate::error::AiError::Internal(format!(
+                    "Unknown provider: {name}"
+                )));
+            },
         };
 
         Ok(provider)
@@ -91,7 +96,9 @@ impl ProviderFactory {
         }
 
         if providers.is_empty() {
-            return Err(anyhow!("No providers could be initialized").into());
+            return Err(crate::error::AiError::Internal(format!(
+                "No providers could be initialized"
+            )));
         }
 
         Ok(providers)

@@ -20,12 +20,16 @@ pub struct SkillsDiffCalculator {
 impl SkillsDiffCalculator {
     pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
-            skill_repo: SkillRepository::new(db).map_err(SyncError::other)?,
+            skill_repo: SkillRepository::new(db).map_err(SyncError::internal)?,
         })
     }
 
     pub async fn calculate_diff(&self, skills_path: &Path) -> SyncResult<SkillsDiffResult> {
-        let db_skills = self.skill_repo.list_all().await.map_err(SyncError::other)?;
+        let db_skills = self
+            .skill_repo
+            .list_all()
+            .await
+            .map_err(SyncError::internal)?;
         let db_map: HashMap<SkillId, Skill> =
             db_skills.into_iter().map(|s| (s.id.clone(), s)).collect();
 

@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::time::{Duration, Instant};
 use tracing::info;
 use uuid::Uuid;
@@ -76,7 +75,9 @@ async fn send_and_parse_request(
 fn extract_code_execution_result(candidate: &GeminiCandidate) -> Result<CodeExtractionResult> {
     let content = candidate.content.as_ref().ok_or_else(|| {
         let reason = candidate.finish_reason.as_deref().unwrap_or("UNKNOWN");
-        anyhow!("Gemini returned no content for code execution. Finish reason: {reason}")
+        crate::error::AiError::Internal(format!(
+            "Gemini returned no content for code execution. Finish reason: {reason}"
+        ))
     })?;
 
     let mut result = CodeExtractionResult::default();
@@ -128,7 +129,7 @@ fn build_code_execution_response(
 
 fn get_first_candidate(response: &GeminiResponse) -> Result<&GeminiCandidate> {
     response.candidates.first().ok_or_else(|| {
-        crate::error::AiError::Internal(anyhow!("No response from Gemini for code execution"))
+        crate::error::AiError::Internal(format!("No response from Gemini for code execution"))
     })
 }
 

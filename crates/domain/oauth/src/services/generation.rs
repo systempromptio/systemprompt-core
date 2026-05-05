@@ -207,6 +207,8 @@ pub fn generate_admin_jwt(
     )
 }
 
+// reason: JWT claim set is fixed by the OAuth/OIDC spec — bundling into a
+// struct would just rename the args
 #[allow(clippy::too_many_arguments)]
 pub fn generate_admin_jwt_with_expiry(
     user_id: &UserId,

@@ -98,7 +98,9 @@ pub async fn cancel_subscription(
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Cancelling subscription...");
-    client.cancel_subscription(&systemprompt_identifiers::TenantId::new(&tenant.id)).await?;
+    client
+        .cancel_subscription(&systemprompt_identifiers::TenantId::new(&tenant.id))
+        .await?;
     spinner.finish_and_clear();
 
     CliService::success("Subscription cancelled");

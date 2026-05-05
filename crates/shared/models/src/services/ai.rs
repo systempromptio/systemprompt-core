@@ -106,6 +106,7 @@ pub struct ToolModelSettings {
     pub max_output_tokens: Option<u32>,
 }
 
+// reason: capability flags are an open-ended set of orthogonal model features
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct ModelCapabilities {

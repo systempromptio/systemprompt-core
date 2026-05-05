@@ -21,7 +21,7 @@ pub struct ContentDiffCalculator {
 impl ContentDiffCalculator {
     pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
-            content_repo: ContentRepository::new(db).map_err(SyncError::other)?,
+            content_repo: ContentRepository::new(db).map_err(SyncError::internal)?,
         })
     }
 
@@ -36,7 +36,7 @@ impl ContentDiffCalculator {
             .content_repo
             .list_by_source(&source_id_typed)
             .await
-            .map_err(SyncError::other)?;
+            .map_err(SyncError::internal)?;
         let db_map: HashMap<String, Content> = db_content
             .into_iter()
             .map(|c| (c.slug.clone(), c))

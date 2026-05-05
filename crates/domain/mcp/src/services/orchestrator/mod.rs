@@ -44,6 +44,8 @@ pub struct McpOrchestrator {
 }
 
 impl McpOrchestrator {
+    // reason: `Arc<AppPaths>` is moved into the orchestrator; pass-by-value is the
+    // intended ownership transfer
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(db_pool: DbPool, app_paths: Arc<AppPaths>) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);

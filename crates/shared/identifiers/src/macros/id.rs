@@ -48,7 +48,7 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            // Why: panicking convenience constructor for static call sites where the input is known-valid; clippy's expect lint is suppressed because validation failure here is a programmer-bug invariant.
+            // reason: panicking convenience ctor for known-valid literals; failure is a programmer-bug invariant
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
@@ -78,7 +78,7 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            // Why: panicking convenience constructor for static call sites where the input is known-valid.
+            // reason: panicking convenience ctor for known-valid literals; failure is a programmer-bug invariant
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
