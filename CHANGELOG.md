@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.6.0] - 2026-05-05
+
+### Changed
+
+- **Breaking — `DatabaseProvider`, `DatabaseTransaction`, and `DatabaseProviderExt` traits return `DatabaseResult<T>`** (`crates/infra/database/src/services/provider.rs`, `crates/infra/database/src/models/transaction.rs`). Every method that previously returned `anyhow::Result<T>` now returns `Result<T, RepositoryError>`. External crates implementing these traits must update return types and convert their backend errors via `RepositoryError::Database(#[from] sqlx::Error)`, `RepositoryError::Serialization(#[from] serde_json::Error)`, or `RepositoryError::invalid_state` for runtime invariant failures. Migration:
+  ```rust
+  // before
+  async fn execute(&self, ...) -> anyhow::Result<u64> { ... }
+  // after
+  async fn execute(&self, ...) -> systemprompt_database::DatabaseResult<u64> { ... }
+  ```
+- **Breaking — `FromDatabaseRow::from_postgres_row` returns `DatabaseResult<Self>`** (`crates/infra/database/src/models/query.rs`). Decoders implementing the trait must return `Result<Self, RepositoryError>` instead of `anyhow::Result<Self>`.
+- **Breaking — `Database::new_postgres`, `Database::from_config`, `Database::pool_arc`, `Database::write_pool_arc`, `Database::read_pool_arc`, `Database::begin`, and `PostgresProvider::new`** all return `DatabaseResult<T>` (`crates/infra/database/src/services/database.rs`, `crates/infra/database/src/services/postgres/mod.rs`).
+
+### Added
+
+- **`RepositoryError::InvalidState(String)` variant** plus `RepositoryError::invalid_state(msg)` constructor (`crates/infra/database/src/error.rs`). Captures driver-protocol invariant failures previously wrapped in `anyhow!` (transaction reused after commit, scalar query with no columns, unsupported `DbValue` type).
+- **`From<systemprompt_database::RepositoryError> for systemprompt_traits::RepositoryError`** bridge so domain repositories that store the boxed-error variant pick up the typed database error transparently through `?`.
+- **`#[from] systemprompt_database::RepositoryError` variants** added to `McpDomainError`, `OauthError`, `UserError`, `FilesError`, and `LoggingError`. Repositories propagating database errors via `?` no longer need a manual `.map_err(...)`.
+
+### Removed
+
+- **`impl From<anyhow::Error> for RepositoryError`** legacy bridge (`crates/infra/database/src/error.rs`). The bridge was only required while the trait surface returned `anyhow::Result`; now obsolete.
+- **`impl From<anyhow::Error> for UserError`** and **`impl From<anyhow::Error> for LoggingError`** — the trait surface no longer produces `anyhow::Error` to be absorbed.
+
+### Quality
+
+- `cargo check --workspace`: clean.
+- `cargo clippy --workspace -- -D warnings`: clean.
+- `cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-database-tests`: 142 passed.
+
 ## [0.5.0] - 2026-05-04
 
 ### Added

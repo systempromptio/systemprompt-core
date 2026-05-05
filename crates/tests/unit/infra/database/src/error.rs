@@ -164,14 +164,6 @@ fn test_internal_display() {
 // ============================================================================
 
 #[test]
-fn test_from_anyhow_error() {
-    let anyhow_err = anyhow::anyhow!("something went wrong");
-    let repo_err: RepositoryError = anyhow_err.into();
-    assert!(matches!(repo_err, RepositoryError::Internal(_)));
-    assert!(repo_err.to_string().contains("something went wrong"));
-}
-
-#[test]
 fn test_from_serde_json_error() {
     let json_err = serde_json::from_str::<serde_json::Value>("not valid json").unwrap_err();
     let repo_err: RepositoryError = json_err.into();
