@@ -1,0 +1,25 @@
+# cargo-audit configuration. Mirrors what `rustsec/audit-check@v2.0.0` reads in CI.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2023-0071 — rsa Marvin Attack timing sidechannel (medium, 5.9). No upstream fix.
+    #
+    # Why this is ignored, not fixed:
+    # `rsa 0.9.x` appears in Cargo.lock only as a dormant transitive of `sqlx-macros-core`,
+    # which lists `sqlx-mysql` (the sole consumer of `rsa`) as an optional dependency.
+    # We do not enable the `mysql` feature anywhere — verified by:
+    #   - `cargo tree -i rsa` (no reverse-deps)
+    #   - `cargo tree -i sqlx-mysql` (no reverse-deps)
+    #   - `cargo tree --workspace -e features --target all | grep mysql` (no hits)
+    # The crate is never compiled into any artifact. cargo-audit reads Cargo.lock flat
+    # and cannot see that the feature is gated off.
+    #
+    # We additionally use `jsonwebtoken` with default features (aws_lc_rs backend, no
+    # `rust_crypto`) and pin `Algorithm::HS256` everywhere — there is no real RSA code
+    # path in this codebase regardless.
+    #
+    # Re-evaluate if: (a) sqlx restructures `sqlx-macros-core` to drop the optional
+    # mysql/sqlite deps, (b) we add the `mysql` feature to our sqlx declaration, or
+    # (c) we add RS256/PS256 JWT support.
+    "RUSTSEC-2023-0071",
+]
