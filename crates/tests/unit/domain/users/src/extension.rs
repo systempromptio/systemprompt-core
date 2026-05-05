@@ -11,10 +11,6 @@ use systemprompt_extension::SchemaSource;
 use systemprompt_extension::prelude::Extension;
 use systemprompt_users::UsersExtension;
 
-// ============================================================================
-// UsersExtension Metadata Tests
-// ============================================================================
-
 mod extension_metadata_tests {
     use super::*;
 
@@ -43,10 +39,6 @@ mod extension_metadata_tests {
     }
 }
 
-// ============================================================================
-// UsersExtension Configuration Tests
-// ============================================================================
-
 mod extension_config_tests {
     use super::*;
 
@@ -71,10 +63,6 @@ mod extension_config_tests {
         assert!(ext.dependencies().is_empty());
     }
 }
-
-// ============================================================================
-// UsersExtension Schema Tests
-// ============================================================================
 
 mod extension_schema_tests {
     use super::*;
@@ -209,10 +197,6 @@ mod extension_schema_tests {
         }
     }
 }
-
-// ============================================================================
-// UsersExtension Trait Implementation Tests
-// ============================================================================
 
 mod extension_trait_tests {
     use super::*;

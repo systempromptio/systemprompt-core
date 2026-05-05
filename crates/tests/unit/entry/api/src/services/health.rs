@@ -9,10 +9,6 @@
 use std::time::Duration;
 use systemprompt_api::{HealthChecker, HealthSummary, ModuleHealth};
 
-// ============================================================================
-// ModuleHealth Tests
-// ============================================================================
-
 #[test]
 fn test_module_health_default() {
     let health = ModuleHealth::default();
@@ -61,10 +57,6 @@ fn test_module_health_debug() {
     assert!(debug_str.contains("healthy"));
     assert!(debug_str.contains("crashed"));
 }
-
-// ============================================================================
-// ModuleHealth AddAssign Tests
-// ============================================================================
 
 #[test]
 fn test_module_health_add_assign() {
@@ -124,10 +116,6 @@ fn test_module_health_add_assign_zeros() {
     assert_eq!(health.crashed, 5);
 }
 
-// ============================================================================
-// HealthSummary Tests
-// ============================================================================
-
 #[test]
 fn test_health_summary_default() {
     let summary = HealthSummary::default();
@@ -149,7 +137,6 @@ fn test_health_summary_total_crashed_empty() {
 #[test]
 fn test_health_summary_is_all_healthy_empty() {
     let summary = HealthSummary::default();
-    // Empty is considered healthy (no crashed services)
     assert!(summary.is_all_healthy());
 }
 
@@ -236,10 +223,6 @@ fn test_health_summary_debug() {
     assert!(debug_str.contains("HealthSummary"));
     assert!(debug_str.contains("modules"));
 }
-
-// ============================================================================
-// HealthChecker Builder Tests
-// ============================================================================
 
 #[test]
 fn test_health_checker_new() {
@@ -328,10 +311,6 @@ fn test_health_checker_retry_delay_large() {
     assert!(debug_str.contains("HealthChecker"));
 }
 
-// ============================================================================
-// Edge Cases
-// ============================================================================
-
 #[test]
 fn test_module_health_large_values() {
     let health = ModuleHealth {
@@ -374,7 +353,6 @@ fn test_health_summary_overwrite_module() {
         },
     );
 
-    // Overwrite with new values
     summary.modules.insert(
         "api".to_string(),
         ModuleHealth {

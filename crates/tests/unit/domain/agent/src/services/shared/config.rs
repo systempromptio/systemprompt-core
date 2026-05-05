@@ -13,10 +13,6 @@ use systemprompt_agent::services::shared::config::{
 };
 use systemprompt_identifiers::AgentId;
 
-// ============================================================================
-// ServiceConfiguration Tests
-// ============================================================================
-
 #[test]
 fn test_service_configuration_default() {
     let config = ServiceConfiguration::default();
@@ -100,10 +96,6 @@ fn test_service_configuration_serialize() {
     assert!(json.contains("retry_attempts"));
 }
 
-// ============================================================================
-// RuntimeConfigurationBuilder Tests
-// ============================================================================
-
 #[test]
 fn test_runtime_configuration_builder_defaults() {
     let config =
@@ -186,10 +178,6 @@ fn test_runtime_configuration_builder_chained() {
     assert_eq!(config.system_prompt, Some("Custom prompt".to_string()));
 }
 
-// ============================================================================
-// RuntimeConfiguration Tests
-// ============================================================================
-
 #[test]
 fn test_runtime_configuration_serialize() {
     let config = RuntimeConfiguration {
@@ -229,10 +217,6 @@ fn test_runtime_configuration_deserialize() {
     assert!(!config.auth_required);
     assert!(config.system_prompt.is_none());
 }
-
-// ============================================================================
-// AgentServiceConfig Tests
-// ============================================================================
 
 #[test]
 fn test_agent_service_config_default() {
@@ -313,10 +297,6 @@ fn test_agent_service_config_serialize() {
     assert!(json.contains("Default Agent"));
     assert!(json.contains("0.1.0"));
 }
-
-// ============================================================================
-// ConnectionConfiguration Tests
-// ============================================================================
 
 #[test]
 fn test_connection_configuration_timeout() {

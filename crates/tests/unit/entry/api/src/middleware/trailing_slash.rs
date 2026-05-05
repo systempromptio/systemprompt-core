@@ -16,13 +16,8 @@
 
 use systemprompt_models::modules::ApiPaths;
 
-// ============================================================================
-// ApiPaths Constants Tests (used by trailing slash middleware)
-// ============================================================================
-
 #[test]
 fn test_api_base_path_defined() {
-    // API_BASE is used to determine if trailing slash redirect should apply
     let api_base = ApiPaths::API_BASE;
     assert!(!api_base.is_empty());
     assert!(api_base.starts_with('/'));
@@ -30,7 +25,6 @@ fn test_api_base_path_defined() {
 
 #[test]
 fn test_wellknown_base_path_defined() {
-    // WELLKNOWN_BASE is excluded from trailing slash redirects
     let wellknown = ApiPaths::WELLKNOWN_BASE;
     assert!(!wellknown.is_empty());
     assert!(wellknown.starts_with('/'));
@@ -41,21 +35,10 @@ fn test_api_paths_are_distinct() {
     assert_ne!(ApiPaths::API_BASE, ApiPaths::WELLKNOWN_BASE);
 }
 
-// ============================================================================
-// Trailing Slash Behavior Documentation Tests
-// ============================================================================
-
 /// Documents the redirect conditions for paths
 #[test]
 fn test_trailing_slash_redirect_conditions_documented() {
-    // These are the conditions for redirect:
-    // 1. Path length > 1 (not just "/")
-    // 2. Path ends with '/'
-    // 3. Path starts with API_BASE
-    // 4. Path does NOT start with WELLKNOWN_BASE
-    // 5. Path does NOT end with asset extensions (.js/, .css/, etc.)
 
-    // Example paths that SHOULD redirect:
     let should_redirect = vec!["/api/users/", "/api/v1/agents/"];
 
     for path in should_redirect {
@@ -68,11 +51,9 @@ fn test_trailing_slash_redirect_conditions_documented() {
 /// Documents paths that should NOT redirect
 #[test]
 fn test_trailing_slash_no_redirect_conditions_documented() {
-    // Root path - too short
     let root = "/";
     assert_eq!(root.len(), 1);
 
-    // Asset paths - excluded by extension check
     let assets = vec![
         "/api/bundle.js/",
         "/api/styles.css/",
@@ -88,7 +69,6 @@ fn test_trailing_slash_no_redirect_conditions_documented() {
         );
     }
 
-    // Wellknown paths - excluded
     let wellknown_path = format!("{}/agent.json/", ApiPaths::WELLKNOWN_BASE);
     assert!(wellknown_path.starts_with(ApiPaths::WELLKNOWN_BASE));
 }
@@ -96,8 +76,6 @@ fn test_trailing_slash_no_redirect_conditions_documented() {
 /// Documents that query strings are preserved during redirect
 #[test]
 fn test_query_string_preservation_documented() {
-    // When redirecting /api/users/?page=1 -> /api/users?page=1
-    // The query string should be preserved
 
     let _path_with_query = "/api/users/";
     let query = "page=1&limit=10";

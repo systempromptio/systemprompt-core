@@ -1,10 +1,6 @@
 use systemprompt_api::routes::oauth::endpoints::token::TokenError;
 use systemprompt_api::routes::oauth::endpoints::token::validation::extract_required_field;
 
-// ============================================================================
-// extract_required_field Tests
-// ============================================================================
-
 #[test]
 fn test_extract_required_field_with_some_value_returns_ok() {
     let result = extract_required_field(Some("https://example.com"), "redirect_uri");

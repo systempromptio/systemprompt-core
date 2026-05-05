@@ -54,7 +54,6 @@ fn test_type_list_type_ids_multiple() {
 
 #[test]
 fn test_subset_runtime_verification() {
-    // Subset::is_subset_of() provides runtime verification
     assert!(<() as Subset<()>>::is_subset_of());
     assert!(<() as Subset<(A, ())>>::is_subset_of());
     assert!(<(A, ()) as Subset<(A, ())>>::is_subset_of());
@@ -62,13 +61,8 @@ fn test_subset_runtime_verification() {
     assert!(<(B, ()) as Subset<(A, (B, ()))>>::is_subset_of());
     assert!(<(A, (B, ())) as Subset<(A, (B, ()))>>::is_subset_of());
 
-    // These would fail runtime verification (but still compile due to blanket impl)
     assert!(!<(C, ()) as Subset<(A, (B, ()))>>::is_subset_of());
 }
-
-// =============================================================================
-// TypeList len() and is_empty() Tests
-// =============================================================================
 
 #[test]
 fn test_type_list_len_empty() {

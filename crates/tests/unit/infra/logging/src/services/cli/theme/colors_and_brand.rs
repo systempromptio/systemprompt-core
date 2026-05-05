@@ -2,10 +2,6 @@
 
 use systemprompt_logging::services::cli::theme::{BrandColors, Colors, ItemStatus, MessageLevel};
 
-// ============================================================================
-// Colors Tests
-// ============================================================================
-
 #[test]
 fn test_colors_success_contains_text() {
     let styled = Colors::success("hello");
@@ -114,10 +110,6 @@ fn test_colors_for_message_level_info_contains_text() {
     assert!(styled.to_string().contains("info"));
 }
 
-// ============================================================================
-// BrandColors Tests
-// ============================================================================
-
 #[test]
 fn test_brand_colors_primary_contains_text() {
     let styled = BrandColors::primary("brand");
@@ -171,10 +163,6 @@ fn test_brand_colors_starting_contains_text() {
     let styled = BrandColors::starting("booting");
     assert!(styled.to_string().contains("booting"));
 }
-
-// ============================================================================
-// Colors with different Display types
-// ============================================================================
 
 #[test]
 fn test_colors_success_with_number() {

@@ -136,7 +136,6 @@ impl Display for ValidationSummary {
         let total_active = self.total_active();
         if total_active > 0 {
             let mut stdout = std::io::stdout();
-            // Why: CLI display sink; broken pipe is not recoverable.
             writeln!(
                 stdout,
                 "\n{} {} active modules ready",
@@ -218,8 +217,6 @@ impl Display for OperationResult {
         for detail in &self.details {
             let colored = Theme::color(detail, EmphasisType::Dim);
             let mut stdout = std::io::stdout();
-            // Why: CLI display sink — see active modules write above for the broken-pipe
-            // rationale.
             writeln!(stdout, "  \u{2022} {colored}").ok();
         }
     }

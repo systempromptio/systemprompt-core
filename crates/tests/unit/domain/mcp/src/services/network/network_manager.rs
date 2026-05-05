@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::services::network::NetworkManager;
 
-// ============================================================================
-// NetworkManager Creation Tests
-// ============================================================================
-
 #[test]
 fn test_network_manager_new() {
     let manager = NetworkManager::new();
@@ -27,10 +23,6 @@ fn test_network_manager_clone() {
     let debug = format!("{:?}", cloned);
     assert!(debug.contains("NetworkManager"));
 }
-
-// ============================================================================
-// NetworkManager Static Method Tests
-// ============================================================================
 
 #[test]
 fn test_network_manager_is_port_responsive_unused_port() {

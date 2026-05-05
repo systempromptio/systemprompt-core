@@ -46,10 +46,6 @@ fn create_disabled_manifest(name: &str) -> String {
     )
 }
 
-// ============================================================================
-// Discovery Tests
-// ============================================================================
-
 #[test]
 fn test_discover_no_extensions_dir() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -161,10 +157,6 @@ fn test_discover_ignores_non_directory() {
     assert!(discovered.is_empty());
 }
 
-// ============================================================================
-// MCP Extension Filtering Tests
-// ============================================================================
-
 #[test]
 fn test_get_enabled_mcp_extensions() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -209,10 +201,6 @@ fn test_get_enabled_mcp_extensions_empty() {
     assert!(mcp_extensions.is_empty());
 }
 
-// ============================================================================
-// CLI Extension Filtering Tests
-// ============================================================================
-
 #[test]
 fn test_get_enabled_cli_extensions() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -239,10 +227,6 @@ fn test_get_enabled_cli_extensions() {
     assert_eq!(cli_extensions.len(), 1);
     assert_eq!(cli_extensions[0].manifest.extension.name, "cli-ext");
 }
-
-// ============================================================================
-// Find CLI Extension Tests
-// ============================================================================
 
 #[test]
 fn test_find_cli_extension_by_name() {

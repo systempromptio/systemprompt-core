@@ -5,10 +5,6 @@
 
 use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
-// ============================================================================
-// OutputFormat Tests
-// ============================================================================
-
 #[test]
 fn test_output_format_table_variant() {
     let format = OutputFormat::Table;
@@ -33,10 +29,6 @@ fn test_output_format_debug() {
     let debug_str = format!("{:?}", format);
     assert!(debug_str.contains("Table"));
 }
-
-// ============================================================================
-// VerbosityLevel Tests
-// ============================================================================
 
 #[test]
 fn test_verbosity_level_quiet_variant() {
@@ -83,10 +75,6 @@ fn test_verbosity_level_debug_format() {
     assert!(debug_str.contains("Debug"));
 }
 
-// ============================================================================
-// ColorMode Tests
-// ============================================================================
-
 #[test]
 fn test_color_mode_auto_variant() {
     let mode = ColorMode::Auto;
@@ -111,10 +99,6 @@ fn test_color_mode_debug() {
     let debug_str = format!("{:?}", mode);
     assert!(debug_str.contains("Never"));
 }
-
-// ============================================================================
-// CliConfig Default Tests
-// ============================================================================
 
 #[test]
 fn test_cli_config_default_output_format() {

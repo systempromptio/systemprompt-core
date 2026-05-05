@@ -5,8 +5,6 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, StepContent, StepStatus};
 
-// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
-// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub(super) struct ParseStepParams {
     pub step_id: String,

@@ -4,10 +4,6 @@ use systemprompt_mcp::services::monitoring::health::{
     HealthCheckDetails, HealthCheckResult, HealthStatus,
 };
 
-// ============================================================================
-// HealthCheckDetails Tests
-// ============================================================================
-
 #[test]
 fn test_health_check_details_new() {
     let details = HealthCheckDetails {
@@ -96,10 +92,6 @@ fn test_health_check_details_debug() {
     assert!(debug_str.contains("HealthCheckDetails"));
     assert!(debug_str.contains("debug-service"));
 }
-
-// ============================================================================
-// HealthCheckResult Tests
-// ============================================================================
 
 #[test]
 fn test_health_check_result_healthy() {

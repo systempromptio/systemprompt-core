@@ -1,9 +1,5 @@
 //! Tests for GenerateLinkParams and GenerateContentLinkParams
 
-// ============================================================================
-// GenerateLinkParams Tests
-// ============================================================================
-
 #[test]
 fn test_generate_link_params_debug() {
     use systemprompt_content::models::LinkType;
@@ -59,10 +55,6 @@ fn test_generate_link_params_full() {
     params.utm_params.expect("expected Some value");
     params.expires_at.expect("expected Some value");
 }
-
-// ============================================================================
-// GenerateContentLinkParams Tests
-// ============================================================================
 
 #[test]
 fn test_generate_content_link_params_debug() {

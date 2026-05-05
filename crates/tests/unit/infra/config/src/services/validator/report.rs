@@ -2,10 +2,6 @@
 
 use systemprompt_config::ValidationReport;
 
-// ============================================================================
-// ValidationReport Creation Tests
-// ============================================================================
-
 #[test]
 fn test_validation_report_new() {
     let report = ValidationReport::new();
@@ -25,10 +21,6 @@ fn test_validation_report_new_is_valid() {
     let report = ValidationReport::new();
     assert!(report.is_valid());
 }
-
-// ============================================================================
-// ValidationReport Error Tests
-// ============================================================================
 
 #[test]
 fn test_validation_report_add_error() {
@@ -61,10 +53,6 @@ fn test_validation_report_error_content() {
     assert!(report.errors[0].contains("DATABASE_URL"));
 }
 
-// ============================================================================
-// ValidationReport Warning Tests
-// ============================================================================
-
 #[test]
 fn test_validation_report_add_warning() {
     let mut report = ValidationReport::new();
@@ -95,10 +83,6 @@ fn test_validation_report_warning_content() {
     assert!(report.warnings[0].contains("PORT"));
 }
 
-// ============================================================================
-// ValidationReport Mixed State Tests
-// ============================================================================
-
 #[test]
 fn test_validation_report_errors_and_warnings() {
     let mut report = ValidationReport::new();
@@ -122,10 +106,6 @@ fn test_validation_report_multiple_errors_multiple_warnings() {
     assert!(!report.is_valid());
 }
 
-// ============================================================================
-// ValidationReport Debug Tests
-// ============================================================================
-
 #[test]
 fn test_validation_report_debug() {
     let report = ValidationReport::new();
@@ -142,10 +122,6 @@ fn test_validation_report_debug_with_content() {
     assert!(debug_str.contains("Error message"));
     assert!(debug_str.contains("Warning message"));
 }
-
-// ============================================================================
-// ValidationReport Edge Cases
-// ============================================================================
 
 #[test]
 fn test_validation_report_empty_error() {
@@ -179,10 +155,6 @@ fn test_validation_report_long_error_message() {
     assert_eq!(report.errors[0], long_message);
 }
 
-// ============================================================================
-// ValidationReport is_valid Comprehensive Tests
-// ============================================================================
-
 #[test]
 fn test_is_valid_empty_report() {
     let report = ValidationReport::new();
@@ -212,15 +184,10 @@ fn test_is_valid_errors_and_warnings() {
     assert!(!report.is_valid());
 }
 
-// ============================================================================
-// ValidationReport Typical Usage Tests
-// ============================================================================
-
 #[test]
 fn test_validation_report_typical_config_errors() {
     let mut report = ValidationReport::new();
 
-    // Simulate typical validation errors
     report.add_error("Required variable missing: DATABASE_URL".to_string());
     report.add_error("Required variable missing: JWT_SECRET".to_string());
     report.add_warning("PORT not explicitly set".to_string());

@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::models::ValidationResultType;
 
-// ============================================================================
-// ValidationResultType as_str Tests
-// ============================================================================
-
 #[test]
 fn test_validation_result_type_auth_required_as_str() {
     assert_eq!(ValidationResultType::AuthRequired.as_str(), "auth_required");
@@ -41,10 +37,6 @@ fn test_validation_result_type_success_as_str() {
 fn test_validation_result_type_error_as_str() {
     assert_eq!(ValidationResultType::Error.as_str(), "error");
 }
-
-// ============================================================================
-// ValidationResultType parse Tests
-// ============================================================================
 
 #[test]
 fn test_validation_result_type_parse_auth_required() {
@@ -111,10 +103,6 @@ fn test_validation_result_type_parse_unknown_defaults_to_error() {
     );
 }
 
-// ============================================================================
-// ValidationResultType Display Tests
-// ============================================================================
-
 #[test]
 fn test_validation_result_type_display() {
     assert_eq!(
@@ -133,14 +121,6 @@ fn test_validation_result_type_display() {
     assert_eq!(ValidationResultType::Success.to_string(), "success");
     assert_eq!(ValidationResultType::Error.to_string(), "error");
 }
-
-// ============================================================================
-// ValidationResultType Equality and Clone Tests
-// ============================================================================
-
-// ============================================================================
-// ValidationResultType Roundtrip Tests
-// ============================================================================
 
 #[test]
 fn test_validation_result_type_roundtrip() {

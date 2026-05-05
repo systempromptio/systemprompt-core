@@ -6,7 +6,6 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ExtensionLoader;
 use tokio::process::Command;
 
-
 #[derive(Debug, Args)]
 pub struct RunArgs {
     #[arg(help = "Extension name (binary name or manifest name)")]

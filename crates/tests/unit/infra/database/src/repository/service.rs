@@ -2,10 +2,6 @@
 
 use systemprompt_database::{CreateServiceInput, ServiceConfig};
 
-// ============================================================================
-// ServiceConfig Tests
-// ============================================================================
-
 #[test]
 fn test_service_config_creation() {
     let config = ServiceConfig {
@@ -98,10 +94,6 @@ fn test_service_config_serialization() {
     assert!(json.contains("\"port\":9999"));
 }
 
-// ============================================================================
-// CreateServiceInput Tests
-// ============================================================================
-
 #[test]
 fn test_create_service_input_creation() {
     let input = CreateServiceInput {
@@ -172,10 +164,6 @@ fn test_create_service_input_zero_port() {
 
     assert_eq!(input.port, 0);
 }
-
-// ============================================================================
-// Service Status Values Tests
-// ============================================================================
 
 #[test]
 fn test_service_config_status_running() {

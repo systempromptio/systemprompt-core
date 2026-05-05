@@ -4,7 +4,6 @@ use super::AnthropicContentBlock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnthropicResponse {
-    // JSON: external vendor identifier
     pub id: String,
     pub r#type: String,
     pub role: String,

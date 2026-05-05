@@ -11,10 +11,6 @@ use systemprompt_identifiers::{
     CampaignId, ContentId, ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId,
 };
 
-// ============================================================================
-// CreateLinkParams Tests
-// ============================================================================
-
 #[test]
 fn test_create_link_params_new() {
     let params = CreateLinkParams::new(
@@ -174,10 +170,6 @@ fn test_create_link_params_full_builder() {
     assert!(params.is_active);
     params.expires_at.expect("expected Some value");
 }
-
-// ============================================================================
-// RecordClickParams Tests
-// ============================================================================
 
 #[test]
 fn test_record_click_params_new() {
@@ -349,10 +341,6 @@ fn test_record_click_params_with_is_conversion() {
 
     assert!(params.is_conversion);
 }
-
-// ============================================================================
-// TrackClickParams Tests
-// ============================================================================
 
 #[test]
 fn test_track_click_params_new() {

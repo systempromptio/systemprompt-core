@@ -7,10 +7,8 @@ use uuid::Uuid;
 async fn test_tool_execution_with_context_propagation() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
 
-    // Create a proper context first
     let context_id = ctx.create_context().await.expect("Failed to create context");
 
-    // Send message that should trigger the context_retrieval tool
     let message_id = Uuid::new_v4().to_string();
     let body = json!({
         "jsonrpc": "2.0",
@@ -37,13 +35,10 @@ async fn test_tool_execution_with_context_propagation() {
 
     assert_eq!(response.status(), 200, "Request should succeed");
 
-    // Parse SSE stream to get final task
     let response_text = response.text().await.expect("Failed to get response text");
 
-    // The response should contain task events with artifacts
     assert!(!response_text.is_empty(), "Response should not be empty");
 
-    // Find the final task in SSE events
     let task_event = response_text
         .lines()
         .filter(|line| line.starts_with("data: "))
@@ -54,22 +49,18 @@ async fn test_tool_execution_with_context_propagation() {
     let task: serde_json::Value = serde_json::from_str(json_str)
         .expect("Should be valid JSON");
 
-    // Verify the tool was actually called
     let history = task.get("history")
         .and_then(|h| h.as_array())
         .expect("Task should have history");
 
-    // Should have user message + agent response with tool results
     assert!(history.len() >= 2, "Should have at least user message and agent response");
 
-    // Check for artifacts (proves tool executed and artifact creation succeeded)
     let artifacts = task.get("artifacts")
         .and_then(|a| a.as_array());
 
     if let Some(artifacts) = artifacts {
         assert!(!artifacts.is_empty(), "Tool execution should produce artifacts");
 
-        // Verify artifact has proper metadata with context_id
         for artifact in artifacts {
             let metadata = artifact.get("metadata")
                 .expect("Artifact should have metadata");
@@ -84,7 +75,6 @@ async fn test_tool_execution_with_context_propagation() {
                 "Artifact context_id should match message context_id"
             );
 
-            // Verify task_id is also present
             let task_id = metadata.get("task_id")
                 .or_else(|| metadata.get("taskId"))
                 .and_then(|t| t.as_str())
@@ -94,7 +84,6 @@ async fn test_tool_execution_with_context_propagation() {
         }
     }
 
-    // Query tool execution records to verify context_id was stored correctly
     let tool_executions = ctx.db_pool
         .fetch_all(
             "SELECT context_id, tool_name FROM mcp_tool_executions WHERE context_id = $1",
@@ -181,7 +170,6 @@ async fn test_context_propagation_both_paths() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
     let context_id = ctx.create_context().await.expect("Failed to create context");
 
-    // Test streaming path (SendStreamingMessage)
     let streaming_body = json!({
         "jsonrpc": "2.0",
         "method": "SendStreamingMessage",
@@ -207,7 +195,6 @@ async fn test_context_propagation_both_paths() {
 
     assert_eq!(streaming_response.status(), 200, "Streaming should succeed");
 
-    // Test non-streaming path (SendMessage)
     let non_streaming_body = json!({
         "jsonrpc": "2.0",
         "method": "SendMessage",
@@ -233,7 +220,6 @@ async fn test_context_propagation_both_paths() {
 
     assert_eq!(non_streaming_response.status(), 200, "Non-streaming should succeed");
 
-    // Both should have stored tool executions with correct context_id
     let executions = ctx.db_pool
         .fetch_all(
             "SELECT tool_name, context_id FROM mcp_tool_executions WHERE context_id = $1",
@@ -242,7 +228,6 @@ async fn test_context_propagation_both_paths() {
         .await
         .expect("Failed to query executions");
 
-    // Should have at least 2 executions (one from each path)
     assert!(
         executions.len() >= 2,
         "Both streaming and non-streaming should create tool execution records"

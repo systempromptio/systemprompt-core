@@ -3,7 +3,6 @@
 use systemprompt_ai::error::{AiError, RepositoryError};
 use uuid::Uuid;
 
-// sqlx is needed for Database error variants
 use sqlx;
 
 mod ai_error_tests {

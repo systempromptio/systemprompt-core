@@ -7,10 +7,6 @@
 
 use systemprompt_models::{A2AEventType, SystemEventType};
 
-// ============================================================================
-// SystemEventType Tests
-// ============================================================================
-
 #[test]
 fn test_system_event_type_context_created_serialize() {
     let json = serde_json::to_string(&SystemEventType::ContextCreated).unwrap();
@@ -103,10 +99,6 @@ fn test_system_event_type_debug() {
     let debug_str = format!("{:?}", t);
     assert!(debug_str.contains("Connected"));
 }
-
-// ============================================================================
-// A2AEventType Tests
-// ============================================================================
 
 #[test]
 fn test_a2a_event_type_task_status_update_serialize() {

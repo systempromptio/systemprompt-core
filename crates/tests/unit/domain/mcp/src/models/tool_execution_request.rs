@@ -39,10 +39,6 @@ fn create_test_result() -> ToolExecutionResult {
     }
 }
 
-// ============================================================================
-// ToolExecutionRequest Tests
-// ============================================================================
-
 #[test]
 fn test_tool_execution_request_creation() {
     let request = create_test_request();
@@ -148,10 +144,6 @@ fn test_tool_execution_request_timestamps() {
     assert!(request.started_at >= before);
     assert!(request.started_at <= after);
 }
-
-// ============================================================================
-// ToolExecutionResult Tests
-// ============================================================================
 
 #[test]
 fn test_tool_execution_result_success() {
@@ -276,10 +268,6 @@ fn test_tool_execution_result_empty_error_message() {
 
     assert_eq!(result.error_message, Some(String::new()));
 }
-
-// ============================================================================
-// Combined Request/Result Tests
-// ============================================================================
 
 #[test]
 fn test_request_result_consistency() {

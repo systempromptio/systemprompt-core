@@ -20,10 +20,6 @@ fn create_test_service(status: &str, health: &str) -> MCPService {
     }
 }
 
-// ============================================================================
-// MCPService is_running Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_service_is_running_true() {
     let service = create_test_service("running", "healthy");
@@ -48,10 +44,6 @@ fn test_mcp_service_is_running_false_starting() {
     assert!(!service.is_running());
 }
 
-// ============================================================================
-// MCPService is_healthy Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_service_is_healthy_true() {
     let service = create_test_service("running", "healthy");
@@ -75,10 +67,6 @@ fn test_mcp_service_is_healthy_false_unknown() {
     let service = create_test_service("running", "unknown");
     assert!(!service.is_healthy());
 }
-
-// ============================================================================
-// MCPService Field Access Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_service_fields() {
@@ -122,10 +110,6 @@ fn test_mcp_service_no_last_health_check() {
     assert!(service.last_health_check.is_none());
 }
 
-// ============================================================================
-// MCPService Clone Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_service_clone() {
     let service = create_test_service("running", "healthy");
@@ -137,10 +121,6 @@ fn test_mcp_service_clone() {
     assert_eq!(service.health, cloned.health);
 }
 
-// ============================================================================
-// MCPService Debug Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_service_debug() {
     let service = create_test_service("running", "healthy");
@@ -151,10 +131,6 @@ fn test_mcp_service_debug() {
     assert!(debug_str.contains("running"));
     assert!(debug_str.contains("healthy"));
 }
-
-// ============================================================================
-// MCPService Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_service_serialize() {

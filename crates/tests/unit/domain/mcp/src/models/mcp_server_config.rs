@@ -36,10 +36,6 @@ fn create_test_config() -> McpServerConfig {
     }
 }
 
-// ============================================================================
-// McpServerConfig endpoint Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_server_config_endpoint() {
     let config = create_test_config();
@@ -54,7 +50,6 @@ fn test_mcp_server_config_endpoint() {
 fn test_mcp_server_config_endpoint_with_trailing_slash() {
     let config = create_test_config();
     let endpoint = config.endpoint("http://localhost:3000/");
-    // Note: this will produce a double slash - just documenting behavior
     assert!(endpoint.contains("test-service"));
 }
 
@@ -74,10 +69,6 @@ fn test_mcp_server_config_endpoint_different_names() {
     let endpoint = config.endpoint("http://localhost");
     assert!(endpoint.contains("my-custom-service"));
 }
-
-// ============================================================================
-// McpServerConfig Field Access Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_server_config_fields() {
@@ -127,10 +118,6 @@ fn test_mcp_server_config_with_env_vars() {
     assert!(config.env_vars.contains(&"DATABASE_URL".to_string()));
 }
 
-// ============================================================================
-// McpServerConfig Clone Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_server_config_clone() {
     let config = create_test_config();
@@ -142,10 +129,6 @@ fn test_mcp_server_config_clone() {
     assert_eq!(config.host, cloned.host);
 }
 
-// ============================================================================
-// McpServerConfig Debug Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_server_config_debug() {
     let config = create_test_config();
@@ -154,10 +137,6 @@ fn test_mcp_server_config_debug() {
     assert!(debug_str.contains("McpServerConfig"));
     assert!(debug_str.contains("test-service"));
 }
-
-// ============================================================================
-// McpServerConfig Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_server_config_serialize() {

@@ -5,10 +5,6 @@ use systemprompt_mcp::orchestration::{
     McpServerConnectionInfo, McpServiceState, ServerStatus, SkillLoadingResult,
 };
 
-// ============================================================================
-// McpServerConnectionInfo Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_server_connection_info_creation() {
     let info = McpServerConnectionInfo {
@@ -74,10 +70,6 @@ fn test_mcp_server_connection_info_debug() {
     assert!(debug.contains("localhost"));
     assert!(debug.contains("5000"));
 }
-
-// ============================================================================
-// ServerStatus Tests
-// ============================================================================
 
 #[test]
 fn test_server_status_running_healthy() {
@@ -190,10 +182,6 @@ fn test_server_status_large_tool_count() {
     assert_eq!(status.tool_count, 1000);
 }
 
-// ============================================================================
-// SkillLoadingResult Tests
-// ============================================================================
-
 #[test]
 fn test_skill_loading_result_success() {
     let result = SkillLoadingResult {
@@ -286,10 +274,6 @@ fn test_skill_loading_result_high_load_time() {
 
     assert_eq!(result.load_time_ms, u64::MAX);
 }
-
-// ============================================================================
-// McpServiceState Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_service_state_running() {

@@ -67,10 +67,6 @@ fn create_validator() -> JwtTokenValidator {
     )
 }
 
-// ============================================================================
-// Construction Tests
-// ============================================================================
-
 #[test]
 fn test_jwt_token_validator_new() {
     let validator = JwtTokenValidator::new(
@@ -82,10 +78,6 @@ fn test_jwt_token_validator_new() {
     let debug_output = format!("{validator:?}");
     assert!(debug_output.contains("JwtTokenValidator"));
 }
-
-// ============================================================================
-// Successful Validation Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_jwt_token_validator_validate_success() {
@@ -138,10 +130,6 @@ async fn test_jwt_token_validator_validate_extracts_email() {
     let user = result.expect("expected successful validation");
     assert_eq!(user.email, "custom@domain.com");
 }
-
-// ============================================================================
-// Error Validation Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_jwt_token_validator_validate_expired() {

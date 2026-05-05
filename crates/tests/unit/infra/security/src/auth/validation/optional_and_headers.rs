@@ -7,10 +7,6 @@ use systemprompt_security::AuthMode;
 
 use super::helpers::*;
 
-// ============================================================================
-// AuthMode::Optional Tests
-// ============================================================================
-
 #[test]
 fn test_validate_request_optional_no_token() {
     let service = create_test_service();
@@ -61,10 +57,6 @@ fn test_validate_request_optional_valid_token() {
     assert_eq!(context.request.session_id.as_str(), "session_456");
     assert_eq!(context.auth.user_type, UserType::User);
 }
-
-// ============================================================================
-// Header Extraction Tests
-// ============================================================================
 
 #[test]
 fn test_validate_request_extracts_trace_id() {
@@ -171,10 +163,6 @@ fn test_validate_request_anonymous_extracts_headers() {
     assert_eq!(context.execution.context_id.as_str(), "anon-context");
     assert_eq!(context.execution.agent_name.as_str(), "anon-agent");
 }
-
-// ============================================================================
-// Authorization Header Format Tests
-// ============================================================================
 
 #[test]
 fn test_validate_request_lowercase_authorization() {

@@ -2,10 +2,6 @@
 
 use systemprompt_content::ContentMetadata;
 
-// ============================================================================
-// ContentMetadata Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_content_metadata_deserialization_minimal() {
     let yaml = r#"
@@ -91,10 +87,6 @@ fn test_content_metadata_serialization() {
     assert!(json.contains("\"title\":\"Test\""));
     assert!(json.contains("\"slug\":\"test\""));
 }
-
-// ============================================================================
-// ContentLinkMetadata Tests
-// ============================================================================
 
 #[test]
 fn test_content_link_metadata_creation() {

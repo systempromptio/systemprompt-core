@@ -3,20 +3,12 @@
 
 use systemprompt_runtime::StartupValidator;
 
-// ============================================================================
-// StartupValidator Creation Tests
-// ============================================================================
-
 #[test]
 fn test_startup_validator_debug() {
     let validator = StartupValidator::new();
     let debug_str = format!("{:?}", validator);
     assert!(debug_str.contains("StartupValidator"));
 }
-
-// ============================================================================
-// Expected Domain Validators Documentation Tests
-// ============================================================================
 
 #[test]
 fn test_expected_web_domain() {
@@ -54,10 +46,6 @@ fn test_all_expected_domains() {
     assert_eq!(expected_domains.len(), 5);
 }
 
-// ============================================================================
-// Validator Lifecycle Tests
-// ============================================================================
-
 #[test]
 fn test_validator_in_option() {
     let mut maybe_validator: Option<StartupValidator> = None;
@@ -84,10 +72,6 @@ fn test_validator_in_vec() {
     validators.clear();
     assert!(validators.is_empty());
 }
-
-// ============================================================================
-// Validation Report Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_validation_success_pattern() {
@@ -116,10 +100,6 @@ fn test_validation_warning_pattern() {
     assert!(!has_errors);
 }
 
-// ============================================================================
-// Error Field Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_validation_error_has_field() {
     let field = "database_url";
@@ -143,10 +123,6 @@ fn test_validation_error_optional_suggestion() {
     let suggestion: Option<&str> = Some("Check your configuration file");
     suggestion.expect("Should have a suggestion");
 }
-
-// ============================================================================
-// Domain Report Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_domain_report_structure() {
@@ -174,10 +150,6 @@ fn test_domain_with_errors_pattern() {
     assert_eq!(errors.len(), 2);
 }
 
-// ============================================================================
-// Profile Path Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_profile_path_pattern() {
     use std::path::PathBuf;
@@ -195,10 +167,6 @@ fn test_profile_path_display() {
     assert!(display.contains("config"));
 }
 
-// ============================================================================
-// Extension Validation Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_extension_id_pattern() {
     let ext_id = "my-extension";
@@ -212,10 +180,6 @@ fn test_extension_config_prefix_pattern() {
     let field = format!("{}.config", prefix);
     assert_eq!(field, "ext_config.config");
 }
-
-// ============================================================================
-// CLI Output Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_phase_success_pattern() {
@@ -241,10 +205,6 @@ fn test_phase_error_pattern() {
     assert!(output.contains("[web]"));
     assert!(output.contains("3 error(s)"));
 }
-
-// ============================================================================
-// FilesConfigValidator Tests
-// ============================================================================
 
 #[test]
 fn test_files_config_validator_debug() {

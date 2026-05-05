@@ -2,10 +2,6 @@
 
 use systemprompt_logging::models::LoggingError;
 
-// ============================================================================
-// LoggingError Constructor Tests
-// ============================================================================
-
 #[test]
 fn test_logging_error_invalid_log_entry() {
     let error = LoggingError::invalid_log_entry("timestamp", "invalid format");
@@ -77,10 +73,6 @@ fn test_logging_error_filter_error() {
     assert_eq!(error.to_string(), "Log filter invalid: level=UNKNOWN");
 }
 
-// ============================================================================
-// LoggingError Variant Display Tests
-// ============================================================================
-
 #[test]
 fn test_logging_error_empty_module_name() {
     let error = LoggingError::EmptyModuleName;
@@ -115,10 +107,6 @@ fn test_logging_error_database_unavailable() {
 
     assert_eq!(error.to_string(), "Database connection not available");
 }
-
-// ============================================================================
-// LoggingError Constructor with String Types Tests
-// ============================================================================
 
 #[test]
 fn test_logging_error_invalid_log_entry_with_string() {
@@ -164,16 +152,11 @@ fn test_logging_error_filter_error_with_string() {
     assert!(error.to_string().contains("invalid"));
 }
 
-// ============================================================================
-// LoggingError into_sqlx_error Tests
-// ============================================================================
-
 #[test]
 fn test_logging_error_into_sqlx_error() {
     let error = LoggingError::EmptyModuleName;
     let sqlx_error = error.into_sqlx_error();
 
-    // sqlx::Error::Protocol contains the error message
     let error_str = sqlx_error.to_string();
     assert!(error_str.contains("Empty log module name"));
 }
@@ -186,10 +169,6 @@ fn test_logging_error_into_sqlx_error_validation() {
     let error_str = sqlx_error.to_string();
     assert!(error_str.contains("test validation"));
 }
-
-// ============================================================================
-// LoggingError Edge Cases
-// ============================================================================
 
 #[test]
 fn test_logging_error_with_empty_strings() {

@@ -11,10 +11,6 @@
 
 use systemprompt_cloud::CloudError;
 
-// ============================================================================
-// CloudError Display Messages Tests
-// ============================================================================
-
 #[test]
 fn test_not_authenticated_display() {
     let error = CloudError::NotAuthenticated;
@@ -120,10 +116,6 @@ fn test_tenant_not_found_display() {
     assert!(msg.contains("systemprompt cloud config"));
 }
 
-// ============================================================================
-// user_message() Tests
-// ============================================================================
-
 #[test]
 fn test_user_message_not_authenticated() {
     let error = CloudError::NotAuthenticated;
@@ -216,10 +208,6 @@ fn test_user_message_tenant_not_found() {
     assert_eq!(error.user_message(), "Tenant not found");
 }
 
-// ============================================================================
-// recovery_hint() Tests
-// ============================================================================
-
 #[test]
 fn test_recovery_hint_not_authenticated() {
     let error = CloudError::NotAuthenticated;
@@ -303,10 +291,6 @@ fn test_recovery_hint_tenant_not_found() {
     assert!(error.recovery_hint().contains("systemprompt cloud config"));
 }
 
-// ============================================================================
-// requires_login() Tests
-// ============================================================================
-
 #[test]
 fn test_requires_login_true_for_not_authenticated() {
     let error = CloudError::NotAuthenticated;
@@ -338,10 +322,6 @@ fn test_requires_login_false_for_jwt_decode() {
     assert!(!error.requires_login());
 }
 
-// ============================================================================
-// requires_setup() Tests
-// ============================================================================
-
 #[test]
 fn test_requires_setup_true_for_tenant_not_configured() {
     let error = CloudError::TenantNotConfigured;
@@ -365,10 +345,6 @@ fn test_requires_setup_false_for_token_expired() {
     let error = CloudError::TokenExpired;
     assert!(!error.requires_setup());
 }
-
-// ============================================================================
-// Error Debug Trait Tests
-// ============================================================================
 
 #[test]
 fn test_cloud_error_debug() {

@@ -62,8 +62,6 @@ where
         match self.inner.as_mut().poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(Ok(bytes))) => {
-                // Why: lock failure means the mutex is poisoned; we drop telemetry for this
-                // chunk rather than killing the live response stream.
                 if let Ok(mut s) = self.state.lock() {
                     s.response_buffer.extend_from_slice(&bytes);
                     s.sse_buffer.extend_from_slice(&bytes);
@@ -72,8 +70,6 @@ where
                 Poll::Ready(Some(Ok(bytes)))
             },
             Poll::Ready(Some(Err(e))) => {
-                // Why: same poisoned-lock recovery — record the error if we can, otherwise the
-                // Drop path will mark the stream as failed anyway.
                 if let Ok(mut s) = self.state.lock() {
                     s.error = Some(e.to_string());
                 }
@@ -133,8 +129,6 @@ impl<S> TappedStream<S> {
 
 impl<S> Drop for TappedStream<S> {
     fn drop(&mut self) {
-        // Why: poisoned-lock recovery — if `.lock()` errors we silently skip the
-        // drop-path audit because the stream was already torn down.
         let snapshot = self.state.lock().ok().and_then(|mut s| {
             if s.finalized {
                 return None;

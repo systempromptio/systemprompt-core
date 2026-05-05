@@ -3,10 +3,6 @@
 use systemprompt_content::models::CampaignLink;
 use systemprompt_identifiers::LinkId;
 
-// ============================================================================
-// Destination Type Detection Tests (via build_trackable_url behavior)
-// ============================================================================
-
 #[test]
 fn test_destination_type_internal_slash_prefix() {
     let link = CampaignLink {
@@ -169,10 +165,6 @@ fn test_destination_type_external_github() {
     assert_eq!(link.destination_type, Some("external".to_string()));
 }
 
-// ============================================================================
-// LinkType Enum Tests
-// ============================================================================
-
 #[test]
 fn test_link_type_redirect_as_str() {
     use systemprompt_content::models::LinkType;
@@ -209,10 +201,6 @@ fn test_link_type_display_both() {
     assert_eq!(format!("{}", LinkType::Both), "both");
 }
 
-// ============================================================================
-// DestinationType Enum Tests
-// ============================================================================
-
 #[test]
 fn test_destination_type_internal_as_str() {
     use systemprompt_content::models::DestinationType;
@@ -236,10 +224,6 @@ fn test_destination_type_display_external() {
     use systemprompt_content::models::DestinationType;
     assert_eq!(format!("{}", DestinationType::External), "external");
 }
-
-// ============================================================================
-// CampaignLink.get_full_url Tests
-// ============================================================================
 
 #[test]
 fn test_campaign_link_get_full_url_no_utm() {

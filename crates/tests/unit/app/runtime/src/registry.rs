@@ -13,20 +13,12 @@ use systemprompt_runtime::{
     ModuleApiRegistration, ModuleApiRegistry, ModuleType, ServiceCategory, WellKnownRoute,
 };
 
-// ============================================================================
-// ModuleApiRegistry Creation Tests
-// ============================================================================
-
 #[test]
 fn test_api_registry_debug() {
     let registry = ModuleApiRegistry::new();
     let debug_str = format!("{:?}", registry);
     assert!(debug_str.contains("ModuleApiRegistry"));
 }
-
-// ============================================================================
-// ModuleApiRegistry Lookup Tests - Nonexistent Modules
-// ============================================================================
 
 #[test]
 fn test_get_category_nonexistent() {
@@ -46,9 +38,6 @@ fn test_get_auth_required_nonexistent() {
     assert!(registry.get_auth_required("nonexistent-module").is_none());
 }
 
-// Note: get_registration returns a private type, so it cannot be tested from
-// external crate
-
 #[test]
 fn test_lookup_empty_module_name() {
     let registry = ModuleApiRegistry::new();
@@ -65,15 +54,10 @@ fn test_lookup_with_special_characters() {
     assert!(registry.get_category("module@with@at").is_none());
 }
 
-// ============================================================================
-// ModuleApiRegistry Category Listing Tests
-// ============================================================================
-
 #[test]
 fn test_modules_by_category_core() {
     let registry = ModuleApiRegistry::new();
     let modules = registry.modules_by_category(ServiceCategory::Core);
-    // Returns a list (may be empty if no modules registered)
     assert!(modules.is_empty() || !modules.is_empty());
 }
 
@@ -86,16 +70,11 @@ fn test_modules_by_all_categories_returns_vectors() {
     let mcp = registry.modules_by_category(ServiceCategory::Mcp);
     let meta = registry.modules_by_category(ServiceCategory::Meta);
 
-    // All should return Vec<String>
     assert!(core.iter().all(|s| !s.is_empty() || s.is_empty()));
     assert!(agent.iter().all(|s| !s.is_empty() || s.is_empty()));
     assert!(mcp.iter().all(|s| !s.is_empty() || s.is_empty()));
     assert!(meta.iter().all(|s| !s.is_empty() || s.is_empty()));
 }
-
-// ============================================================================
-// ModuleApiRegistration Struct Tests
-// ============================================================================
 
 fn dummy_router(_ctx: &systemprompt_runtime::AppContext) -> Router {
     Router::new()
@@ -187,10 +166,6 @@ fn test_module_api_registration_clone() {
     assert_eq!(cloned.module_name, "clone-test");
 }
 
-// ============================================================================
-// WellKnownRoute Struct Tests
-// ============================================================================
-
 fn dummy_handler(_ctx: &systemprompt_runtime::AppContext) -> Router {
     Router::new()
 }
@@ -256,10 +231,6 @@ fn test_wellknown_route_clone() {
     let cloned = route;
     assert_eq!(cloned.path, "/.well-known/clone");
 }
-
-// ============================================================================
-// ModuleType Enum Tests
-// ============================================================================
 
 #[test]
 fn test_module_type_regular() {

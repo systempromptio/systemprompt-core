@@ -3,10 +3,6 @@
 use http::HeaderMap;
 use systemprompt_oauth::{extract_bearer_token, extract_cookie_token};
 
-// ============================================================================
-// extract_bearer_token Tests
-// ============================================================================
-
 #[test]
 fn test_extract_bearer_token_success() {
     let mut headers = HeaderMap::new();
@@ -78,10 +74,6 @@ fn test_extract_bearer_token_with_jwt_format() {
     let val = result.expect("expected success");
     assert_eq!(val, jwt);
 }
-
-// ============================================================================
-// extract_cookie_token Tests
-// ============================================================================
 
 #[test]
 fn test_extract_cookie_token_success() {

@@ -3,10 +3,6 @@
 use systemprompt_files::{ImageGenerationInfo, ImageMetadata};
 use systemprompt_identifiers::AiRequestId;
 
-// ============================================================================
-// ImageMetadata Tests
-// ============================================================================
-
 #[test]
 fn test_image_metadata_new() {
     let meta = ImageMetadata::new();
@@ -93,10 +89,6 @@ fn test_image_metadata_clone() {
     assert_eq!(meta.alt_text, cloned.alt_text);
 }
 
-// ============================================================================
-// ImageMetadata Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_image_metadata_serialize_with_dimensions() {
     let meta = ImageMetadata::new().with_dimensions(800, 600);
@@ -117,10 +109,6 @@ fn test_image_metadata_serialize_skip_none() {
     assert!(!json.contains("description"));
     assert!(!json.contains("generation"));
 }
-
-// ============================================================================
-// ImageGenerationInfo Tests
-// ============================================================================
 
 #[test]
 fn test_image_generation_info_new() {
@@ -206,10 +194,6 @@ fn test_image_generation_info_clone() {
     assert_eq!(gen_info.cost_estimate, cloned.cost_estimate);
 }
 
-// ============================================================================
-// ImageGenerationInfo Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_image_generation_info_serialize_minimal() {
     let gen_info = ImageGenerationInfo::new("prompt text", "gpt-image", "openai");
@@ -244,6 +228,3 @@ fn test_image_generation_info_serialize_with_optionals() {
     assert!(json.contains("\"generation_time_ms\":10000"));
 }
 
-// ============================================================================
-// Combined Tests
-// ============================================================================

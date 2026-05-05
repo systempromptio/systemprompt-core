@@ -9,10 +9,6 @@ use systemprompt_agent::services::shared::auth::{
     AgentSessionUser, JwtValidator, extract_bearer_token,
 };
 
-// ============================================================================
-// Bearer Token Extraction Tests
-// ============================================================================
-
 #[test]
 fn test_extract_bearer_token_valid() {
     let header = "Bearer abc123xyz";
@@ -66,14 +62,9 @@ fn test_extract_bearer_token_empty_header() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// JwtValidator Tests
-// ============================================================================
-
 #[test]
 fn test_jwt_validator_new() {
     let validator = JwtValidator::new("secret123");
-    // Validator should be created without panic
     let debug = format!("{:?}", validator);
     assert!(debug.contains("JwtValidator"));
 }
@@ -83,7 +74,6 @@ fn test_jwt_validator_debug_hides_key() {
     let validator = JwtValidator::new("super_secret_key");
     let debug = format!("{:?}", validator);
 
-    // Debug should not expose the actual secret key
     assert!(!debug.contains("super_secret_key"));
     assert!(debug.contains("<decoding_key>"));
 }
@@ -112,10 +102,6 @@ fn test_jwt_validator_validate_empty_token() {
 
     result.unwrap_err();
 }
-
-// ============================================================================
-// AgentSessionUser Tests
-// ============================================================================
 
 #[test]
 fn test_agent_session_user_debug() {

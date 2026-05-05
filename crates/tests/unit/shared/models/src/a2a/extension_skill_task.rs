@@ -2,10 +2,6 @@
 
 use systemprompt_models::{AgentExtension, AgentSkill, Task, TaskState, TaskStatus};
 
-// ============================================================================
-// AgentExtension Tests
-// ============================================================================
-
 #[test]
 fn test_agent_extension_mcp_tools() {
     let ext = AgentExtension::mcp_tools_extension();
@@ -101,10 +97,6 @@ fn test_agent_extension_service_status_without_optional() {
     assert!(params.get("pid").is_none());
 }
 
-// ============================================================================
-// AgentSkill Tests
-// ============================================================================
-
 #[test]
 fn test_agent_skill_from_mcp_server() {
     let skill = AgentSkill::from_mcp_server(
@@ -136,10 +128,6 @@ fn test_agent_skill_mcp_server_name() {
     assert_eq!(skill.mcp_server_name(), "test-server");
 }
 
-// ============================================================================
-// Task Tests
-// ============================================================================
-
 #[test]
 fn test_task_default() {
     let task = Task::default();
@@ -150,10 +138,6 @@ fn test_task_default() {
     assert!(matches!(task.status.state, TaskState::Submitted));
 }
 
-// ============================================================================
-// TaskStatus Tests
-// ============================================================================
-
 #[test]
 fn test_task_status_default() {
     let status = TaskStatus::default();
@@ -162,10 +146,6 @@ fn test_task_status_default() {
     assert!(status.message.is_none());
     assert!(status.timestamp.is_none());
 }
-
-// ============================================================================
-// TaskState Tests
-// ============================================================================
 
 #[test]
 fn test_task_state_pending() {

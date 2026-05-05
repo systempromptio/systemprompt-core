@@ -67,10 +67,8 @@ mod register_transformation_tests {
         let mut mapper = ToolNameMapper::new();
         let tool = create_transformed_tool("tool_variant", "tool", Some("variant"));
 
-        // Pass None to use default "action" field
         mapper.register_transformation(&tool, None);
 
-        // Should still be registered
         assert!(mapper.is_variant("tool_variant"));
     }
 
@@ -158,7 +156,6 @@ mod resolve_tool_call_tests {
         let (resolved_name, resolved_params) = mapper.resolve_tool_call("passthrough_tool", params);
 
         assert_eq!(resolved_name, "passthrough_tool");
-        // No discriminator value should be added
         assert!(resolved_params.get("action").is_none());
     }
 
@@ -169,12 +166,10 @@ mod resolve_tool_call_tests {
 
         mapper.register_transformation(&tool, Some("version".to_string()));
 
-        // Pass a non-object value
         let params = json!("string value");
         let (resolved_name, resolved_params) = mapper.resolve_tool_call("tool_v1", params);
 
         assert_eq!(resolved_name, "tool");
-        // Can't add discriminator to non-object, but should still work
         assert_eq!(resolved_params, "string value");
     }
 }
@@ -246,7 +241,6 @@ mod is_variant_tests {
 
         mapper.register_transformation(&tool, None);
 
-        // Original name is not in forward map
         assert!(!mapper.is_variant("original_name"));
     }
 }
@@ -268,20 +262,16 @@ mod multiple_tools_tests {
         mapper.register_transformation(&tool3, Some("command".to_string()));
         mapper.register_transformation(&tool4, Some("command".to_string()));
 
-        // Check variants for search
         let search_variants = mapper.get_variants("search").unwrap();
         assert_eq!(search_variants.len(), 2);
 
-        // Check variants for action
         let action_variants = mapper.get_variants("action").unwrap();
         assert_eq!(action_variants.len(), 2);
 
-        // Resolve search_web
         let (name, params) = mapper.resolve_tool_call("search_web", json!({"query": "test"}));
         assert_eq!(name, "search");
         assert_eq!(params["type"], "web");
 
-        // Resolve action_stop
         let (name, params) = mapper.resolve_tool_call("action_stop", json!({}));
         assert_eq!(name, "action");
         assert_eq!(params["command"], "stop");

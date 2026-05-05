@@ -329,7 +329,6 @@ mod throttle_service_tests {
 
     #[test]
     fn can_deescalate_respects_cooldown_minutes() {
-        // Well before cooldown - should not allow deescalate
         let before_cooldown = Utc::now() - Duration::minutes(15);
         assert!(!ThrottleService::can_deescalate(
             ThrottleLevel::Warning,
@@ -337,7 +336,6 @@ mod throttle_service_tests {
             30
         ));
 
-        // Well after cooldown - should allow deescalate
         let after_cooldown = Utc::now() - Duration::minutes(60);
         assert!(ThrottleService::can_deescalate(
             ThrottleLevel::Warning,

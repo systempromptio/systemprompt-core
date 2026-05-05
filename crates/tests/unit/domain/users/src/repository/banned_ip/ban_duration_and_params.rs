@@ -3,10 +3,6 @@
 use chrono::{Duration, Utc};
 use systemprompt_users::{BanDuration, BanIpParams};
 
-// ============================================================================
-// BanDuration Tests
-// ============================================================================
-
 mod ban_duration_tests {
     use super::*;
 
@@ -107,10 +103,6 @@ mod ban_duration_tests {
         assert!(debug.contains("Permanent"));
     }
 }
-
-// ============================================================================
-// BanIpParams Tests
-// ============================================================================
 
 mod ban_ip_params_tests {
     use super::*;

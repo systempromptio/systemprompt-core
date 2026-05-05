@@ -9,10 +9,6 @@
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_security::{CookieExtractionError, CookieExtractor};
 
-// ============================================================================
-// CookieExtractor Constructor Tests
-// ============================================================================
-
 #[test]
 fn test_cookie_extractor_new() {
     let extractor = CookieExtractor::new("my_token");
@@ -43,10 +39,6 @@ fn test_cookie_extractor_default_cookie_name_constant() {
     assert_eq!(CookieExtractor::DEFAULT_COOKIE_NAME, "access_token");
 }
 
-// ============================================================================
-// Static Extraction Tests
-// ============================================================================
-
 #[test]
 fn test_extract_access_token_static() {
     let mut headers = HeaderMap::new();
@@ -68,10 +60,6 @@ fn test_extract_access_token_static_missing() {
     result.as_ref().expect_err("result should fail");
     assert_eq!(result.unwrap_err(), CookieExtractionError::MissingCookie);
 }
-
-// ============================================================================
-// Cookie Extraction Success Cases
-// ============================================================================
 
 #[test]
 fn test_extract_single_cookie() {
@@ -157,13 +145,8 @@ fn test_extract_cookie_with_spaces_around_semicolons() {
 
     let result = extractor.extract(&headers);
     result.as_ref().expect("result should succeed");
-    // Cookie value extraction trims the cookie key prefix but not trailing spaces
     assert_eq!(result.unwrap(), "spaced");
 }
-
-// ============================================================================
-// Cookie Extraction Error Cases
-// ============================================================================
 
 #[test]
 fn test_extract_missing_cookie_header() {
@@ -237,10 +220,6 @@ fn test_extract_partial_cookie_name_match() {
     );
 }
 
-// ============================================================================
-// Custom Cookie Name Tests
-// ============================================================================
-
 #[test]
 fn test_extract_custom_cookie_name() {
     let extractor = CookieExtractor::new("auth_token");
@@ -285,10 +264,6 @@ fn test_extract_custom_cookie_from_string() {
     result.as_ref().expect("result should succeed");
     assert_eq!(result.unwrap(), "dynamic_value");
 }
-
-// ============================================================================
-// CookieExtractionError Display Tests
-// ============================================================================
 
 #[test]
 fn test_cookie_extraction_error_display_missing() {

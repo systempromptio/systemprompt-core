@@ -68,8 +68,6 @@ where
     })
 }
 
-// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
-// struct is internal-use only
 #[allow(missing_debug_implementations)]
 struct BuildTasksParams<'a> {
     task_rows: &'a [TaskRow],

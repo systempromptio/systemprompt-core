@@ -6,10 +6,6 @@ use systemprompt_security::{AuthMode, AuthValidationService};
 
 use super::helpers::*;
 
-// ============================================================================
-// AuthMode Tests
-// ============================================================================
-
 #[test]
 fn test_auth_mode_required_variant() {
     let mode = AuthMode::Required;
@@ -35,10 +31,6 @@ fn test_auth_mode_clone() {
     assert_eq!(mode, cloned);
 }
 
-// ============================================================================
-// AuthValidationService Constructor Tests
-// ============================================================================
-
 #[test]
 fn test_auth_validation_service_new() {
     let service = AuthValidationService::new(
@@ -56,10 +48,6 @@ fn test_auth_validation_service_debug() {
     let debug_str = format!("{:?}", service);
     assert!(debug_str.contains("AuthValidationService"));
 }
-
-// ============================================================================
-// AuthMode::Disabled Tests
-// ============================================================================
 
 #[test]
 fn test_validate_request_disabled_mode() {
@@ -86,10 +74,6 @@ fn test_validate_request_disabled_ignores_token() {
         .validate_request(&headers, AuthMode::Disabled)
         .expect("Disabled mode should ignore invalid token");
 }
-
-// ============================================================================
-// AuthMode::Required Tests
-// ============================================================================
 
 #[test]
 fn test_validate_request_required_missing_auth() {

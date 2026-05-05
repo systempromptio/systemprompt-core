@@ -4,10 +4,6 @@ use systemprompt_logging::services::cli::theme::{
     ActionType, EmphasisType, Icons, ItemStatus, MessageLevel, ModuleType, Theme,
 };
 
-// ============================================================================
-// Theme::icon Tests
-// ============================================================================
-
 #[test]
 fn test_theme_icon_for_item_status_valid_returns_checkmark() {
     let icon = Theme::icon(ItemStatus::Valid);
@@ -50,10 +46,6 @@ fn test_theme_icon_for_action_type_arrow_returns_arrow() {
     assert_eq!(icon.to_string(), Icons::ARROW.to_string());
 }
 
-// ============================================================================
-// Theme::color Tests
-// ============================================================================
-
 #[test]
 fn test_theme_color_for_item_status_contains_text() {
     let styled = Theme::color("status_text", ItemStatus::Valid);
@@ -89,10 +81,6 @@ fn test_theme_color_for_emphasis_underlined_contains_text() {
     let styled = Theme::color("ul_text", EmphasisType::Underlined);
     assert!(styled.to_string().contains("ul_text"));
 }
-
-// ============================================================================
-// Theme Integration Tests
-// ============================================================================
 
 #[test]
 fn test_theme_all_item_statuses_produce_icons_matching_icons_for_status() {

@@ -4,10 +4,6 @@ use chrono::Utc;
 use systemprompt_files::{ContentFile, FileRole};
 use systemprompt_identifiers::ContentId;
 
-// ============================================================================
-// FileRole::as_str Tests
-// ============================================================================
-
 #[test]
 fn test_file_role_featured_as_str() {
     assert_eq!(FileRole::Featured.as_str(), "featured");
@@ -32,10 +28,6 @@ fn test_file_role_og_image_as_str() {
 fn test_file_role_thumbnail_as_str() {
     assert_eq!(FileRole::Thumbnail.as_str(), "thumbnail");
 }
-
-// ============================================================================
-// FileRole::parse Tests
-// ============================================================================
 
 #[test]
 fn test_file_role_parse_featured() {
@@ -92,10 +84,6 @@ fn test_file_role_parse_empty_string() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// FileRole Display Tests
-// ============================================================================
-
 #[test]
 fn test_file_role_display_featured() {
     let role = FileRole::Featured;
@@ -126,19 +114,11 @@ fn test_file_role_display_thumbnail() {
     assert_eq!(format!("{}", role), "thumbnail");
 }
 
-// ============================================================================
-// FileRole Default Tests
-// ============================================================================
-
 #[test]
 fn test_file_role_default_is_attachment() {
     let default = FileRole::default();
     assert!(matches!(default, FileRole::Attachment));
 }
-
-// ============================================================================
-// FileRole Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_file_role_serialize_featured() {
@@ -160,7 +140,6 @@ fn test_file_role_serialize_inline() {
 
 #[test]
 fn test_file_role_serialize_og_image() {
-    // serde uses rename_all = "lowercase" which removes underscores
     let json = serde_json::to_string(&FileRole::OgImage).unwrap();
     assert_eq!(json, "\"ogimage\"");
 }
@@ -170,22 +149,6 @@ fn test_file_role_serialize_thumbnail() {
     let json = serde_json::to_string(&FileRole::Thumbnail).unwrap();
     assert_eq!(json, "\"thumbnail\"");
 }
-
-// ============================================================================
-// FileRole Deserialization Tests
-// ============================================================================
-
-// ============================================================================
-// FileRole Equality Tests
-// ============================================================================
-
-// ============================================================================
-// FileRole Copy/Clone Tests
-// ============================================================================
-
-// ============================================================================
-// FileRole Roundtrip Tests
-// ============================================================================
 
 #[test]
 fn test_file_role_as_str_parse_roundtrip() {
@@ -203,10 +166,6 @@ fn test_file_role_as_str_parse_roundtrip() {
         assert_eq!(role, parsed);
     }
 }
-
-// ============================================================================
-// ContentFile Tests
-// ============================================================================
 
 fn create_test_content_file(role: &str) -> ContentFile {
     ContentFile {

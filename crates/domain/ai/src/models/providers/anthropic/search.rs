@@ -31,7 +31,6 @@ pub struct AnthropicSearchRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AnthropicSearchResponse {
-    // JSON: external vendor identifier
     pub id: String,
     pub content: Vec<AnthropicSearchContentBlock>,
     pub model: String,

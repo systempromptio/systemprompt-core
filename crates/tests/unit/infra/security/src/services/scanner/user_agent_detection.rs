@@ -2,10 +2,6 @@
 
 use systemprompt_security::ScannerDetector;
 
-// ============================================================================
-// Scanner User Agent Detection - Known Scanners
-// ============================================================================
-
 #[test]
 fn test_is_scanner_agent_masscan() {
     assert!(ScannerDetector::is_scanner_agent("masscan/1.0"));
@@ -104,10 +100,6 @@ fn test_is_scanner_agent_xpanse() {
     assert!(ScannerDetector::is_scanner_agent("xpanse"));
 }
 
-// ============================================================================
-// Scanner User Agent Detection - Generic Bot Indicators
-// ============================================================================
-
 #[test]
 fn test_is_scanner_agent_empty() {
     assert!(ScannerDetector::is_scanner_agent(""));
@@ -178,10 +170,6 @@ fn test_is_scanner_agent_probe_image_size() {
     assert!(ScannerDetector::is_scanner_agent("probe-image-size"));
 }
 
-// ============================================================================
-// Scanner User Agent Detection - Outdated Browsers
-// ============================================================================
-
 #[test]
 fn test_is_scanner_agent_outdated_chrome() {
     assert!(ScannerDetector::is_scanner_agent(
@@ -203,10 +191,6 @@ fn test_is_scanner_agent_outdated_firefox() {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0 "
     ));
 }
-
-// ============================================================================
-// Scanner User Agent Detection - Legitimate Browsers
-// ============================================================================
 
 #[test]
 fn test_is_scanner_agent_modern_chrome() {

@@ -14,10 +14,6 @@ fn create_test_status() -> ServiceStatus {
     }
 }
 
-// ============================================================================
-// ServiceStatus Field Access Tests
-// ============================================================================
-
 #[test]
 fn test_service_status_fields() {
     let status = create_test_status();
@@ -127,10 +123,6 @@ fn test_service_status_no_tools() {
     assert_eq!(status.tools_count, 0);
 }
 
-// ============================================================================
-// ServiceStatus Clone Tests
-// ============================================================================
-
 #[test]
 fn test_service_status_clone() {
     let status = create_test_status();
@@ -142,10 +134,6 @@ fn test_service_status_clone() {
     assert_eq!(status.tools_count, cloned.tools_count);
 }
 
-// ============================================================================
-// ServiceStatus Debug Tests
-// ============================================================================
-
 #[test]
 fn test_service_status_debug() {
     let status = create_test_status();
@@ -155,10 +143,6 @@ fn test_service_status_debug() {
     assert!(debug_str.contains("running"));
     assert!(debug_str.contains("healthy"));
 }
-
-// ============================================================================
-// ServiceStatus Various States Tests
-// ============================================================================
 
 #[test]
 fn test_service_status_starting() {

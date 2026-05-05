@@ -5,9 +5,6 @@ use systemprompt_traits::{
     StartupValidationError, StartupValidationReport, ValidationReport, ValidationWarning,
 };
 
-// Note: ValidationError from validation_report module has different fields than
-// the one from validation module (path, suggestion vs context).
-// We test the validation_report::ValidationError here.
 use systemprompt_traits::validation_report::ValidationError;
 
 mod validation_error_tests {

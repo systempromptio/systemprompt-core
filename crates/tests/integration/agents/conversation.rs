@@ -11,7 +11,6 @@ async fn test_initiate_agent_conversation() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "Hello, can you help?").await?;
 
     let registry = ctx

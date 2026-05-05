@@ -4,10 +4,6 @@ use systemprompt_logging::services::cli::theme::{
     ActionType, ColorType, EmphasisType, IconType, ItemStatus, MessageLevel, ModuleType,
 };
 
-// ============================================================================
-// ItemStatus Tests
-// ============================================================================
-
 #[test]
 fn test_item_status_debug() {
     assert_eq!(format!("{:?}", ItemStatus::Missing), "Missing");
@@ -32,10 +28,6 @@ fn test_item_status_equality() {
     assert_ne!(ItemStatus::Missing, ItemStatus::Pending);
 }
 
-// ============================================================================
-// ModuleType Tests
-// ============================================================================
-
 #[test]
 fn test_module_type_debug() {
     assert_eq!(format!("{:?}", ModuleType::Schema), "Schema");
@@ -50,10 +42,6 @@ fn test_module_type_equality() {
     assert_ne!(ModuleType::Schema, ModuleType::Seed);
     assert_ne!(ModuleType::Module, ModuleType::Configuration);
 }
-
-// ============================================================================
-// MessageLevel Tests
-// ============================================================================
 
 #[test]
 fn test_message_level_debug() {
@@ -70,20 +58,12 @@ fn test_message_level_equality() {
     assert_ne!(MessageLevel::Warning, MessageLevel::Info);
 }
 
-// ============================================================================
-// ActionType Tests
-// ============================================================================
-
 #[test]
 fn test_action_type_debug() {
     assert_eq!(format!("{:?}", ActionType::Install), "Install");
     assert_eq!(format!("{:?}", ActionType::Update), "Update");
     assert_eq!(format!("{:?}", ActionType::Arrow), "Arrow");
 }
-
-// ============================================================================
-// EmphasisType Tests
-// ============================================================================
 
 #[test]
 fn test_emphasis_type_debug() {
@@ -92,10 +72,6 @@ fn test_emphasis_type_debug() {
     assert_eq!(format!("{:?}", EmphasisType::Bold), "Bold");
     assert_eq!(format!("{:?}", EmphasisType::Underlined), "Underlined");
 }
-
-// ============================================================================
-// IconType Conversion Tests
-// ============================================================================
 
 #[test]
 fn test_icon_type_from_item_status() {
@@ -145,10 +121,6 @@ fn test_icon_type_from_action_type_update() {
     assert!(matches!(icon, IconType::Action(ActionType::Update)));
 }
 
-// ============================================================================
-// ColorType Conversion Tests
-// ============================================================================
-
 #[test]
 fn test_color_type_from_item_status() {
     let color: ColorType = ItemStatus::Valid.into();
@@ -187,10 +159,6 @@ fn test_color_type_from_emphasis_type_bold() {
     let color: ColorType = EmphasisType::Bold.into();
     assert!(matches!(color, ColorType::Emphasis(EmphasisType::Bold)));
 }
-
-// ============================================================================
-// IconType All Variants Test
-// ============================================================================
 
 #[test]
 fn test_icon_type_all_action_variants() {
@@ -236,10 +204,6 @@ fn test_item_status_all_variants() {
         assert!(matches!(color, ColorType::Status(_)));
     }
 }
-
-// ============================================================================
-// IconType Debug Tests
-// ============================================================================
 
 #[test]
 fn test_icon_type_debug_status() {

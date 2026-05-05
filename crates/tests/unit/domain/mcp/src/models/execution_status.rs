@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::models::ExecutionStatus;
 
-// ============================================================================
-// ExecutionStatus as_str Tests
-// ============================================================================
-
 #[test]
 fn test_execution_status_pending_as_str() {
     assert_eq!(ExecutionStatus::Pending.as_str(), "pending");
@@ -21,10 +17,6 @@ fn test_execution_status_failed_as_str() {
     assert_eq!(ExecutionStatus::Failed.as_str(), "failed");
 }
 
-// ============================================================================
-// ExecutionStatus from_error Tests
-// ============================================================================
-
 #[test]
 fn test_execution_status_from_error_true() {
     assert_eq!(ExecutionStatus::from_error(true), ExecutionStatus::Failed);
@@ -34,10 +26,6 @@ fn test_execution_status_from_error_true() {
 fn test_execution_status_from_error_false() {
     assert_eq!(ExecutionStatus::from_error(false), ExecutionStatus::Success);
 }
-
-// ============================================================================
-// ExecutionStatus Display Tests
-// ============================================================================
 
 #[test]
 fn test_execution_status_display_pending() {
@@ -54,6 +42,3 @@ fn test_execution_status_display_failed() {
     assert_eq!(ExecutionStatus::Failed.to_string(), "failed");
 }
 
-// ============================================================================
-// ExecutionStatus Equality and Clone Tests
-// ============================================================================

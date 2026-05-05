@@ -9,10 +9,6 @@ use systemprompt_extension::typed::{
     ApiExtensionTyped, ApiExtensionTypedDyn, SchemaDefinitionTyped, SchemaExtensionTyped,
 };
 
-// =============================================================================
-// Test Extension Types
-// =============================================================================
-
 #[derive(Default, Debug)]
 struct BasicExtension;
 
@@ -78,10 +74,6 @@ impl ApiExtensionTypedDyn for ApiTestExtension {
     }
 }
 
-// =============================================================================
-// ExtensionWrapper Tests
-// =============================================================================
-
 #[test]
 fn test_extension_wrapper_id() {
     let wrapper = ExtensionWrapper::new(BasicExtension);
@@ -111,7 +103,6 @@ fn test_extension_wrapper_as_any() {
     let wrapper = ExtensionWrapper::new(BasicExtension);
     let any_ref: &dyn Any = wrapper.as_any();
 
-    // Should be able to downcast to the inner type
     any_ref
         .downcast_ref::<BasicExtension>()
         .expect("any_ref.downcast_ref::<BasicExtension>() should be present");
@@ -143,10 +134,6 @@ fn test_extension_wrapper_debug() {
     assert!(debug_str.contains("ExtensionWrapper"));
     assert!(debug_str.contains("BasicExtension"));
 }
-
-// =============================================================================
-// SchemaExtensionWrapper Tests
-// =============================================================================
 
 #[test]
 fn test_schema_extension_wrapper_id() {
@@ -216,10 +203,6 @@ fn test_schema_extension_wrapper_debug() {
     assert!(debug_str.contains("SchemaTestExtension"));
 }
 
-// =============================================================================
-// ApiExtensionWrapper Tests
-// =============================================================================
-
 #[test]
 fn test_api_extension_wrapper_id() {
     let wrapper = ApiExtensionWrapper::new(ApiTestExtension);
@@ -285,10 +268,6 @@ fn test_api_extension_wrapper_debug() {
     assert!(debug_str.contains("ApiTestExtension"));
 }
 
-// =============================================================================
-// AnyExtension Trait Object Tests
-// =============================================================================
-
 #[test]
 fn test_any_extension_as_trait_object() {
     use systemprompt_extension::any::AnyExtension;
@@ -321,10 +300,6 @@ fn test_api_any_extension_as_trait_object() {
         .as_api()
         .expect("wrapper.as_api() should be present");
 }
-
-// =============================================================================
-// Default Trait Method Tests
-// =============================================================================
 
 #[test]
 fn test_any_extension_default_as_config_returns_none() {

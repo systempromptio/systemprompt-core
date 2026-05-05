@@ -16,10 +16,6 @@ use systemprompt_scheduler::{
     SchedulerError, ServiceAction, ServiceConfig, ServiceType, VerifiedServiceState,
 };
 
-// ============================================================================
-// JobStatus Tests
-// ============================================================================
-
 #[test]
 fn test_job_status_as_str() {
     assert_eq!(JobStatus::Success.as_str(), "success");
@@ -55,10 +51,6 @@ fn test_job_status_deserialization() {
         serde_json::from_str("\"failed\"").expect("should deserialize failed status");
     assert_eq!(failed, JobStatus::Failed);
 }
-
-// ============================================================================
-// SchedulerError Tests
-// ============================================================================
 
 #[test]
 fn test_scheduler_error_job_not_found() {
@@ -101,10 +93,6 @@ fn test_scheduler_error_not_initialized() {
     let error = SchedulerError::NotInitialized;
     assert_eq!(error.to_string(), "Scheduler not initialized");
 }
-
-// ============================================================================
-// ScheduledJob Model Tests
-// ============================================================================
 
 #[test]
 fn test_scheduled_job_model() {
@@ -178,10 +166,6 @@ fn test_scheduled_job_serialization() {
     assert!(json.contains("\"enabled\":false"));
 }
 
-// ============================================================================
-// ServiceConfig Tests
-// ============================================================================
-
 #[test]
 fn test_service_config_enabled() {
     let config = ServiceConfig {
@@ -209,10 +193,6 @@ fn test_service_config_disabled() {
     assert_eq!(config.service_type, ServiceType::Mcp);
 }
 
-// ============================================================================
-// DesiredStatus Tests
-// ============================================================================
-
 #[test]
 fn test_desired_status_variants() {
     let enabled = DesiredStatus::Enabled;
@@ -234,10 +214,6 @@ fn test_desired_status_serialization() {
     assert_eq!(json, "\"Disabled\"");
 }
 
-// ============================================================================
-// RuntimeStatus Tests
-// ============================================================================
-
 #[test]
 fn test_runtime_status_variants() {
     assert_eq!(RuntimeStatus::Running, RuntimeStatus::Running);
@@ -253,10 +229,6 @@ fn test_runtime_status_not_equal() {
     assert_ne!(RuntimeStatus::Starting, RuntimeStatus::Crashed);
     assert_ne!(RuntimeStatus::Stopped, RuntimeStatus::Orphaned);
 }
-
-// ============================================================================
-// ServiceAction Tests
-// ============================================================================
 
 #[test]
 fn test_service_action_none() {
@@ -299,10 +271,6 @@ fn test_service_action_cleanup_process() {
     assert!(action.requires_process_change());
     assert!(!action.requires_db_change());
 }
-
-// ============================================================================
-// VerifiedServiceState Tests - State Determination
-// ============================================================================
 
 #[test]
 fn test_verified_state_enabled_running_no_action() {
@@ -463,10 +431,6 @@ fn test_verified_state_disabled_orphaned_needs_cleanup_process() {
     assert!(state.needs_attention());
 }
 
-// ============================================================================
-// VerifiedServiceState Display Methods
-// ============================================================================
-
 #[test]
 fn test_verified_state_status_display() {
     let running = VerifiedServiceState::builder(
@@ -543,10 +507,6 @@ fn test_verified_state_action_display() {
     assert_eq!(start_action.action_display(), "start");
 }
 
-// ============================================================================
-// VerifiedServiceState Builder Tests
-// ============================================================================
-
 #[test]
 fn test_verified_state_builder_with_pid() {
     let state = VerifiedServiceState::builder(
@@ -598,10 +558,6 @@ fn test_verified_state_builder_complete() {
     assert_eq!(state.needs_action, ServiceAction::None);
     assert!(state.error.is_none());
 }
-
-// ============================================================================
-// ReconciliationResult Tests
-// ============================================================================
 
 #[test]
 fn test_reconciliation_result_new() {
@@ -686,10 +642,6 @@ fn test_reconciliation_result_mixed_actions() {
     assert_eq!(result.total_actions(), 5);
 }
 
-// ============================================================================
-// DbServiceRecord Tests
-// ============================================================================
-
 #[test]
 fn test_db_service_record_running() {
     let record = DbServiceRecord {
@@ -733,10 +685,6 @@ fn test_db_service_record_starting() {
     assert_eq!(record.pid, Some(5678));
 }
 
-// ============================================================================
-// ServiceType Tests
-// ============================================================================
-
 #[test]
 fn test_service_type_from_module_name_api() {
     let service_type = ServiceType::from_module_name("api");
@@ -758,17 +706,11 @@ fn test_service_type_from_module_name_agent() {
 #[test]
 fn test_service_type_from_module_name_unknown() {
     let service_type = ServiceType::from_module_name("unknown");
-    // Should default to Mcp for unknown types
     assert_eq!(service_type, ServiceType::Mcp);
 }
 
-// ============================================================================
-// State Transition Matrix Tests (comprehensive coverage)
-// ============================================================================
-
 #[test]
 fn test_all_enabled_state_transitions() {
-    // Enabled + Running = None
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -779,7 +721,6 @@ fn test_all_enabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::None);
 
-    // Enabled + Starting = None
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -790,7 +731,6 @@ fn test_all_enabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::None);
 
-    // Enabled + Stopped = Start
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -801,7 +741,6 @@ fn test_all_enabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::Start);
 
-    // Enabled + Crashed = Restart
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -812,7 +751,6 @@ fn test_all_enabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::Restart);
 
-    // Enabled + Orphaned = Restart
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -826,7 +764,6 @@ fn test_all_enabled_state_transitions() {
 
 #[test]
 fn test_all_disabled_state_transitions() {
-    // Disabled + Running = Stop
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -837,7 +774,6 @@ fn test_all_disabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::Stop);
 
-    // Disabled + Starting = Stop
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -848,7 +784,6 @@ fn test_all_disabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::Stop);
 
-    // Disabled + Stopped = CleanupDb
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -859,7 +794,6 @@ fn test_all_disabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::CleanupDb);
 
-    // Disabled + Crashed = CleanupDb
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -870,7 +804,6 @@ fn test_all_disabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::CleanupDb);
 
-    // Disabled + Orphaned = CleanupProcess
     let state = VerifiedServiceState::builder(
         "s".to_string(),
         ServiceType::Api,
@@ -881,10 +814,6 @@ fn test_all_disabled_state_transitions() {
     .build();
     assert_eq!(state.needs_action, ServiceAction::CleanupProcess);
 }
-
-// ============================================================================
-// VerifiedServiceState Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_verified_state_serialization() {
@@ -923,10 +852,6 @@ fn test_verified_state_deserialization() {
     assert_eq!(state.port, 9000);
     assert_eq!(state.pid, Some(5678));
 }
-
-// ============================================================================
-// Edge Cases and Boundary Tests
-// ============================================================================
 
 #[test]
 fn test_empty_service_name() {
@@ -1031,13 +956,8 @@ fn test_very_long_error_message() {
     );
 }
 
-// ============================================================================
-// Cron Schedule Format Tests
-// ============================================================================
-
 #[test]
 fn test_common_cron_schedules() {
-    // These are just format validation, not actual cron parsing
     let schedules = vec![
         ("0 0 * * * *", "Every hour"),
         ("0 */10 * * * *", "Every 10 minutes"),
@@ -1065,10 +985,6 @@ fn test_common_cron_schedules() {
         assert_eq!(job.schedule, schedule);
     }
 }
-
-// ============================================================================
-// Multiple Service Configs Tests
-// ============================================================================
 
 #[test]
 fn test_multiple_service_configs() {
@@ -1109,15 +1025,10 @@ fn test_multiple_service_configs() {
     assert_eq!(mcp_count, 2);
 }
 
-// ============================================================================
-// ReconciliationResult Aggregation Tests
-// ============================================================================
-
 #[test]
 fn test_reconciliation_result_aggregation() {
     let mut result = ReconciliationResult::new();
 
-    // Simulate a reconciliation run
     result.started.push("new-api".to_string());
     result.started.push("new-mcp".to_string());
     result.restarted.push("crashed-service".to_string());
@@ -1136,10 +1047,6 @@ fn test_reconciliation_result_aggregation() {
     assert_eq!(result.total_actions(), 6);
     assert!(!result.is_success());
 }
-
-// ============================================================================
-// Job Trait Tests - Basic Job Properties
-// ============================================================================
 
 #[test]
 fn test_behavioral_analysis_job_properties() {
@@ -1197,10 +1104,6 @@ fn test_cleanup_inactive_sessions_job_properties() {
     assert_eq!(job.schedule(), "0 */10 * * * *"); // Every 10 minutes
 }
 
-// ============================================================================
-// Job Cron Schedule Validation Tests
-// ============================================================================
-
 #[test]
 fn test_job_schedules_are_valid_cron_format() {
     use systemprompt_scheduler::{
@@ -1218,7 +1121,6 @@ fn test_job_schedules_are_valid_cron_format() {
 
     for job in jobs {
         let schedule = job.schedule();
-        // 6-field cron: second minute hour day month weekday
         assert_eq!(
             schedule.split_whitespace().count(),
             6,
@@ -1255,10 +1157,6 @@ fn test_all_jobs_have_unique_names() {
         names
     );
 }
-
-// ============================================================================
-// ProcessInfo Tests
-// ============================================================================
 
 #[test]
 fn test_process_info_creation() {
@@ -1335,15 +1233,10 @@ fn test_process_info_with_long_name() {
     assert_eq!(info.name.len(), 1000);
 }
 
-// ============================================================================
-// ProcessCleanup Tests - Protected Ports
-// ============================================================================
-
 #[test]
 fn test_check_port_protected_postgres() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // PostgreSQL port should return None (protected)
     let result = ProcessCleanup::check_port(5432);
     assert!(result.is_none(), "PostgreSQL port 5432 should be protected");
 }
@@ -1352,7 +1245,6 @@ fn test_check_port_protected_postgres() {
 fn test_check_port_protected_pgbouncer() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // PgBouncer port should return None (protected)
     let result = ProcessCleanup::check_port(6432);
     assert!(result.is_none(), "PgBouncer port 6432 should be protected");
 }
@@ -1361,7 +1253,6 @@ fn test_check_port_protected_pgbouncer() {
 fn test_kill_port_protected_postgres() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // Killing PostgreSQL port should return empty vec (protected)
     let result = ProcessCleanup::kill_port(5432);
     assert!(
         result.is_empty(),
@@ -1373,7 +1264,6 @@ fn test_kill_port_protected_postgres() {
 fn test_kill_port_protected_pgbouncer() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // Killing PgBouncer port should return empty vec (protected)
     let result = ProcessCleanup::kill_port(6432);
     assert!(
         result.is_empty(),
@@ -1381,15 +1271,10 @@ fn test_kill_port_protected_pgbouncer() {
     );
 }
 
-// ============================================================================
-// ProcessCleanup Tests - Protected Patterns
-// ============================================================================
-
 #[test]
 fn test_kill_by_pattern_protected_postgres() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // Should not kill postgres processes
     let result = ProcessCleanup::kill_by_pattern("postgres");
     assert_eq!(result, 0, "Should not kill postgres processes");
 }
@@ -1398,7 +1283,6 @@ fn test_kill_by_pattern_protected_postgres() {
 fn test_kill_by_pattern_protected_pgbouncer() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // Should not kill pgbouncer processes
     let result = ProcessCleanup::kill_by_pattern("pgbouncer");
     assert_eq!(result, 0, "Should not kill pgbouncer processes");
 }
@@ -1407,7 +1291,6 @@ fn test_kill_by_pattern_protected_pgbouncer() {
 fn test_kill_by_pattern_protected_psql() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // Should not kill psql processes
     let result = ProcessCleanup::kill_by_pattern("psql");
     assert_eq!(result, 0, "Should not kill psql processes");
 }
@@ -1416,14 +1299,9 @@ fn test_kill_by_pattern_protected_psql() {
 fn test_kill_by_pattern_protected_contains() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // Patterns containing protected names should also be blocked
     let result = ProcessCleanup::kill_by_pattern("my-postgres-wrapper");
     assert_eq!(result, 0, "Should not kill patterns containing postgres");
 }
-
-// ============================================================================
-// ProcessCleanup Tests - Process Existence
-// ============================================================================
 
 #[test]
 fn test_process_exists_current_process() {
@@ -1435,10 +1313,6 @@ fn test_process_exists_current_process() {
         "Current process PID should exist"
     );
 }
-
-// ============================================================================
-// DbServiceRecord Additional Tests
-// ============================================================================
 
 #[test]
 fn test_db_service_record_clone() {
@@ -1489,10 +1363,6 @@ fn test_db_service_record_all_statuses() {
         assert_eq!(record.status, status);
     }
 }
-
-// ============================================================================
-// VerifiedServiceState Additional Tests
-// ============================================================================
 
 #[test]
 fn test_verified_state_serialization_with_error() {
@@ -1552,10 +1422,6 @@ fn test_verified_state_all_service_types() {
     }
 }
 
-// ============================================================================
-// ServiceConfig Additional Tests
-// ============================================================================
-
 #[test]
 fn test_service_config_clone() {
     let config = ServiceConfig {
@@ -1587,10 +1453,6 @@ fn test_service_config_debug() {
     assert!(debug_str.contains("3001"));
 }
 
-// ============================================================================
-// SchedulerError Additional Tests
-// ============================================================================
-
 #[test]
 fn test_scheduler_error_display_all_variants() {
     let errors = vec![
@@ -1619,10 +1481,6 @@ fn test_scheduler_error_display_all_variants() {
     }
 }
 
-// ============================================================================
-// ReconciliationResult Default Tests
-// ============================================================================
-
 #[test]
 fn test_reconciliation_result_default() {
     let result = ReconciliationResult::default();
@@ -1645,10 +1503,6 @@ fn test_reconciliation_result_debug() {
     assert!(debug_str.contains("ReconciliationResult"));
     assert!(debug_str.contains("service-1"));
 }
-
-// ============================================================================
-// Job Name and Schedule Consistency Tests
-// ============================================================================
 
 #[test]
 fn test_all_jobs_have_non_empty_names() {
@@ -1692,7 +1546,6 @@ fn test_all_jobs_have_snake_case_names() {
 
     for job in jobs {
         let name = job.name();
-        // Snake case: lowercase with underscores
         assert!(
             name.chars().all(|c| c.is_lowercase() || c == '_'),
             "Job name '{}' should be snake_case",
@@ -1700,10 +1553,6 @@ fn test_all_jobs_have_snake_case_names() {
         );
     }
 }
-
-// ============================================================================
-// Job Copy Trait Tests
-// ============================================================================
 
 #[test]
 fn test_behavioral_analysis_job_copy() {
@@ -1745,10 +1594,6 @@ fn test_cleanup_inactive_sessions_job_copy() {
     assert_eq!(job1.name(), job2.name());
 }
 
-// ============================================================================
-// ServiceAction Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_service_action_serialization_all_variants() {
     let actions = [
@@ -1783,10 +1628,6 @@ fn test_service_action_deserialization_all_variants() {
         assert_eq!(action, expected, "Deserialization mismatch for {}", json);
     }
 }
-
-// ============================================================================
-// DesiredStatus and RuntimeStatus Additional Tests
-// ============================================================================
 
 #[test]
 fn test_desired_status_clone() {

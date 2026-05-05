@@ -83,8 +83,6 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
-    // reason: only the closure side-effect (hashing) matters; the binding is
-    // intentionally write-only
     #[allow(clippy::collection_is_never_read)]
     let args_str = tool_arguments
         .and_then(|args| {

@@ -3,7 +3,6 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-// reason: A2A wire protocol mandates these field names verbatim
 #[allow(clippy::struct_field_names)]
 pub struct Message {
     pub role: MessageRole,

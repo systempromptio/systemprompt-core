@@ -118,7 +118,6 @@ That's all!"#;
     fn extracts_first_json_object() {
         let content = r#"{"first": true} some text {"second": true}"#;
         let result = JsonParser::extract_json(content, None).unwrap();
-        // Should get the first one
         assert!(
             result.get("first").is_some() || result.get("second").is_some(),
             "expected at least one of 'first' or 'second' keys in result"

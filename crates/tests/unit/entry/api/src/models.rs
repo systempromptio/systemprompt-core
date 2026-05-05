@@ -7,10 +7,6 @@
 
 use systemprompt_api::ServerConfig;
 
-// ============================================================================
-// ServerConfig Default Tests
-// ============================================================================
-
 #[test]
 fn test_server_config_default_host() {
     let config = ServerConfig::default();
@@ -29,10 +25,6 @@ fn test_server_config_default_values() {
     assert_eq!(config.host, "0.0.0.0");
     assert_eq!(config.port, 8080);
 }
-
-// ============================================================================
-// ServerConfig Construction Tests
-// ============================================================================
 
 #[test]
 fn test_server_config_custom_host() {
@@ -80,10 +72,6 @@ fn test_server_config_empty_host() {
     assert!(config.host.is_empty());
 }
 
-// ============================================================================
-// ServerConfig Boundary Tests
-// ============================================================================
-
 #[test]
 fn test_server_config_port_zero() {
     let config = ServerConfig {
@@ -114,10 +102,6 @@ fn test_server_config_common_ports() {
     }
 }
 
-// ============================================================================
-// ServerConfig Clone Tests
-// ============================================================================
-
 #[test]
 fn test_server_config_clone_independence() {
     let original = ServerConfig {
@@ -133,10 +117,6 @@ fn test_server_config_clone_independence() {
     assert_eq!(cloned.host, "modified");
     assert_eq!(cloned.port, 2000);
 }
-
-// ============================================================================
-// ServerConfig Debug Tests
-// ============================================================================
 
 #[test]
 fn test_server_config_debug() {

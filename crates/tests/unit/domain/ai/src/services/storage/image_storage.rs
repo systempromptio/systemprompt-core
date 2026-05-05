@@ -25,7 +25,6 @@ mod storage_config_tests {
 
         assert_eq!(config.base_path, PathBuf::from("/images"));
         assert_eq!(config.url_prefix, "https://cdn.example.com");
-        // Default max file size is 10MB
         assert_eq!(config.max_file_size_bytes, 10 * 1024 * 1024);
         assert!(config.organize_by_date);
     }
@@ -138,7 +137,6 @@ mod image_storage_tests {
         let (path, _) = storage.save_image_bytes(&bytes, "image/gif").unwrap();
         assert!(path.to_string_lossy().contains(".gif"));
 
-        // Unknown defaults to png
         let (path, _) = storage.save_image_bytes(&bytes, "image/unknown").unwrap();
         assert!(path.to_string_lossy().contains(".png"));
     }
@@ -164,7 +162,6 @@ mod image_storage_tests {
         let (_temp_dir, config) = create_temp_storage();
         let storage = ImageStorage::new(config).unwrap();
 
-        // Base64 encoded "test"
         let base64_data = "dGVzdA==";
         let (path, _) = storage.save_base64_image(base64_data, "image/png").unwrap();
 
@@ -241,12 +238,9 @@ mod image_storage_tests {
         let bytes = vec![1, 2, 3];
         let (path, url) = storage.save_image_bytes(&bytes, "image/png").unwrap();
 
-        // Should contain year/month/day structure
         let path_str = path.to_string_lossy();
-        // Check for year pattern (4 digits)
         assert!(path_str.contains('/'));
 
-        // URL should also be organized
         assert!(url.contains('/'));
     }
 
@@ -263,7 +257,6 @@ mod image_storage_tests {
         let bytes = vec![1, 2, 3];
         let (path, _) = storage.save_image_bytes(&bytes, "image/png").unwrap();
 
-        // Should be directly in base path
         assert_eq!(path.parent().unwrap(), config.base_path);
     }
 }

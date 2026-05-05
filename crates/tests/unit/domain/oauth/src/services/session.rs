@@ -165,10 +165,6 @@ fn create_test_anonymous_session_info() -> AnonymousSessionInfo {
     }
 }
 
-// ============================================================================
-// AnonymousSessionInfo Tests
-// ============================================================================
-
 #[test]
 fn test_anonymous_session_info_fields() {
     let info = create_test_anonymous_session_info();
@@ -212,10 +208,6 @@ fn test_authenticated_session_info_fields() {
     assert_eq!(info.session_id.as_str(), "sess_auth-session-001");
 }
 
-// ============================================================================
-// SessionCreationError Tests
-// ============================================================================
-
 #[test]
 fn test_session_creation_error_user_not_found() {
     let error = SessionCreationError::UserNotFound {
@@ -258,10 +250,6 @@ fn test_session_creation_error_is_std_error() {
     assert!(!std_error.to_string().is_empty());
 }
 
-// ============================================================================
-// CreateAnonymousSessionInput Tests
-// ============================================================================
-
 #[test]
 fn test_create_anonymous_session_input_debug() {
     let headers = HeaderMap::new();
@@ -277,10 +265,6 @@ fn test_create_anonymous_session_input_debug() {
 
     assert!(debug_output.contains("CreateAnonymousSessionInput"));
 }
-
-// ============================================================================
-// SessionCreationService Construction Tests
-// ============================================================================
 
 #[test]
 fn test_session_creation_service_new() {
@@ -335,10 +319,6 @@ fn test_session_creation_service_debug() {
     assert!(debug_without.contains("None"));
     assert!(debug_with.contains("Some"));
 }
-
-// ============================================================================
-// Client Secret Verification Tests
-// ============================================================================
 
 #[test]
 fn test_verify_client_secret_correct() {

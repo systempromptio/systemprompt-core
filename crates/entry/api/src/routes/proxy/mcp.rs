@@ -59,8 +59,6 @@ pub async fn handle_get_execution(
                 server_name: execution.server_name.clone(),
                 server_endpoint,
                 input,
-                // Why: malformed output JSON is logged and surfaced as a null output rather than
-                // failing the entire execution-history fetch.
                 output: execution.output.as_deref().and_then(|s| {
                     serde_json::from_str(s)
                         .map_err(|e| {
@@ -141,8 +139,6 @@ pub async fn handle_mcp_protected_resource(Path(service_name): Path<String>) -> 
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
-// reason: Axum handler signature requires `async fn` even when the body has no
-// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_mcp_authorization_server(
     Path(_service_name): Path<String>,

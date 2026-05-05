@@ -7,10 +7,6 @@
 
 use systemprompt_agent::models::skill::SkillMetadata;
 
-// ============================================================================
-// SkillMetadata Tests
-// ============================================================================
-
 #[test]
 fn test_skill_metadata_serialize() {
     let metadata = SkillMetadata {
@@ -121,10 +117,6 @@ fn test_skill_metadata_multiple_agents() {
     assert_eq!(metadata.assigned_agents.len(), 3);
     assert!(metadata.assigned_agents.contains(&"agent-b".to_string()));
 }
-
-// ============================================================================
-// Skill from_json_row Tests (error paths)
-// ============================================================================
 
 #[test]
 fn test_skill_from_json_row_missing_skill_id() {
@@ -245,7 +237,6 @@ fn test_skill_from_json_row_default_tags() {
     row.insert("description".to_string(), serde_json::json!("Desc"));
     row.insert("instructions".to_string(), serde_json::json!("Instr"));
     row.insert("enabled".to_string(), serde_json::json!(true));
-    // No tags field - should default to empty
     row.insert("source_id".to_string(), serde_json::json!("src-1"));
     row.insert(
         "created_at".to_string(),

@@ -65,8 +65,6 @@ async fn resolve_content_id(
 ) -> Option<ContentId> {
     let slug = content_routing.and_then(|r| r.resolve_slug(page_url))?;
 
-    // Why: slug-lookup failure is logged but treated as "no matching content" so
-    // the engagement event records without a content_id rather than 500ing.
     content_repo
         .get_by_slug(&slug)
         .await

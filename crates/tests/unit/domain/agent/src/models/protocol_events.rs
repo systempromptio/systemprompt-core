@@ -44,10 +44,6 @@ fn create_failed_status() -> TaskStatus {
     status
 }
 
-// ============================================================================
-// TaskStatusUpdateEvent Tests
-// ============================================================================
-
 #[test]
 fn test_task_status_update_event_new() {
     let status = create_working_status();
@@ -89,10 +85,6 @@ fn test_task_status_update_event_to_jsonrpc_response() {
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["result"].is_object());
 }
-
-// ============================================================================
-// TaskArtifactUpdateEvent Tests
-// ============================================================================
 
 #[test]
 fn test_task_artifact_update_event_new() {
@@ -138,10 +130,6 @@ fn test_task_artifact_update_event_to_jsonrpc_response() {
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["result"].is_object());
 }
-
-// ============================================================================
-// ServiceStatusParams Tests
-// ============================================================================
 
 #[test]
 fn test_service_status_params_serialize() {

@@ -9,10 +9,6 @@
 #[cfg(test)]
 use systemprompt_client::{ClientError, ClientResult};
 
-// ============================================================================
-// ClientError::from_response Tests
-// ============================================================================
-
 #[test]
 fn test_from_response_creates_api_error() {
     let error = ClientError::from_response(404, "Not found".to_string());
@@ -97,10 +93,6 @@ fn test_from_response_various_status_codes() {
     }
 }
 
-// ============================================================================
-// ClientError::is_retryable Tests
-// ============================================================================
-
 #[test]
 fn test_timeout_is_retryable() {
     let error = ClientError::Timeout;
@@ -148,10 +140,6 @@ fn test_config_error_not_retryable() {
     assert!(!error.is_retryable());
 }
 
-// ============================================================================
-// ClientError Display Tests
-// ============================================================================
-
 #[test]
 fn test_timeout_display() {
     let error = ClientError::Timeout;
@@ -195,10 +183,6 @@ fn test_api_error_display() {
     );
 }
 
-// ============================================================================
-// ClientResult Type Tests
-// ============================================================================
-
 #[test]
 fn test_client_result_ok() {
     let result: ClientResult<i32> = Ok(42);
@@ -210,10 +194,6 @@ fn test_client_result_err() {
     let result: ClientResult<i32> = Err(ClientError::Timeout);
     result.unwrap_err();
 }
-
-// ============================================================================
-// Error Variant Construction Tests
-// ============================================================================
 
 #[test]
 fn test_api_error_with_details() {

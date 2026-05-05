@@ -8,13 +8,11 @@ use systemprompt_models::execution::context::RequestContext;
 async fn test_admin_jwt_generation_at_startup() {
     let ctx = AppContext::new().await.unwrap();
 
-    // Verify admin token exists and is not empty
     assert!(
         !ctx.admin_auth_token().as_str().is_empty(),
         "Admin token should not be empty"
     );
 
-    // Verify admin user ID exists
     assert!(
         ctx.admin_user_id().is_system(),
         "Admin user ID should be system user"
@@ -69,7 +67,6 @@ async fn test_admin_token_has_correct_claims() {
 
 #[test]
 fn test_context_id_patterns() {
-    // Pattern 1: Empty string for user-level contexts
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
@@ -82,7 +79,6 @@ fn test_context_id_patterns() {
         "User-level context should have empty context_id"
     );
 
-    // Pattern 2: UUID for conversation contexts
     let conversation_id = uuid::Uuid::new_v4().to_string();
     let ctx2 = RequestContext::new(
         SessionId::new("sess_123".to_string()),
@@ -102,13 +98,7 @@ fn test_context_id_patterns() {
 
 #[test]
 fn test_context_id_should_not_be_system() {
-    // Verify "system" is NOT used as a context ID
-    // This test documents the correct pattern
 
-    // ❌ WRONG - DO NOT DO THIS
-    // ContextId::new("system".to_string())
-
-    // ✅ CORRECT - Use empty string for user-level
     let ctx = RequestContext::new(
         SessionId::new("test".to_string()),
         TraceId::new("trace".to_string()),
@@ -121,7 +111,6 @@ fn test_context_id_should_not_be_system() {
         "User-level context should use empty string, not 'system'"
     );
 
-    // Verify "system" is never a context ID in this codebase
     assert_ne!(
         ctx.execution.context_id.as_str(),
         "system",
@@ -135,7 +124,6 @@ fn test_context_id_should_not_be_system() {
 async fn test_admin_token_used_for_system_operations() {
     let app_ctx = AppContext::new().await.unwrap();
 
-    // System operations must use admin token from AppContext
     let req_ctx = RequestContext::new(
         SessionId::new("system".to_string()),
         TraceId::new(format!("trace_{}", uuid::Uuid::new_v4())),
@@ -146,20 +134,17 @@ async fn test_admin_token_used_for_system_operations() {
     .with_user_id(app_ctx.admin_user_id().clone())
     .with_user_type(UserType::Admin);
 
-    // Verify token is not empty
     assert!(
         !req_ctx.auth.auth_token.as_str().is_empty(),
         "System operation should have non-empty token"
     );
 
-    // Verify it's the admin token
     assert_eq!(
         req_ctx.auth.auth_token.as_str(),
         app_ctx.admin_auth_token().as_str(),
         "System operation should use admin token from AppContext"
     );
 
-    // Verify user type is admin
     assert_eq!(
         req_ctx.auth.user_type,
         UserType::Admin,
@@ -171,13 +156,7 @@ async fn test_admin_token_used_for_system_operations() {
 
 #[test]
 fn test_request_context_only_one_constructor() {
-    // Verify only RequestContext::new() exists
-    // Old constructors should be deleted:
-    // - RequestContext::system() ❌ DELETED
-    // - RequestContext::user_only() ❌ DELETED
-    // - RequestContext::from_session() ❌ DELETED
 
-    // Only valid constructor:
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
@@ -185,11 +164,9 @@ fn test_request_context_only_one_constructor() {
         AgentName::new("agent".to_string()),
     );
 
-    // Default values should be safe (unauthenticated)
     assert_eq!(ctx.auth.user_type, UserType::Anon, "Default should be Anon");
     assert!(ctx.auth.user_id.is_anonymous(), "Default should be anonymous");
 
-    // Authentication must be explicitly added via builder
     let authenticated_ctx = ctx
         .with_auth_token("test_token")
         .with_user_id(systemprompt_identifiers::UserId::new("user_123".to_string()))
@@ -234,7 +211,6 @@ async fn test_no_empty_tokens_for_admin_operations() {
 
 #[test]
 fn test_context_structure_separation() {
-    // Verify Phase 3 context structure is in place
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
@@ -242,13 +218,11 @@ fn test_context_structure_separation() {
         AgentName::new("agent".to_string()),
     );
 
-    // Verify structured components exist
     let _auth = &ctx.auth;
     let _request = &ctx.request;
     let _execution = &ctx.execution;
     let _settings = &ctx.settings;
 
-    // Verify accessors work
     assert_eq!(ctx.session_id().as_str(), "sess_123");
     assert_eq!(ctx.trace_id().as_str(), "trace_456");
     assert_eq!(ctx.context_id().as_str(), "ctx_789");

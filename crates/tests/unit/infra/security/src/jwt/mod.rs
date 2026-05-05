@@ -239,10 +239,6 @@ fn test_generate_admin_token_unique_jti() {
     assert_ne!(token1.as_str(), token2.as_str());
 }
 
-// ============================================================================
-// JwtService Struct Tests
-// ============================================================================
-
 #[test]
 fn test_jwt_service_debug() {
     let service = JwtService;

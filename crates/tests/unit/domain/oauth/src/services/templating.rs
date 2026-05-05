@@ -3,10 +3,6 @@
 use std::collections::HashMap;
 use systemprompt_oauth::TemplateEngine;
 
-// ============================================================================
-// TemplateEngine::render Tests
-// ============================================================================
-
 #[test]
 fn test_render_simple_template() {
     let template = "Hello, {name}!";
@@ -53,7 +49,6 @@ fn test_render_missing_placeholder() {
     let context = HashMap::new();
 
     let result = TemplateEngine::render(template, context);
-    // Placeholder should remain unchanged if not in context
     assert_eq!(result, "Hello, {name}!");
 }
 
@@ -148,15 +143,10 @@ fn test_render_empty_value() {
     assert_eq!(result, "Value: []");
 }
 
-// ============================================================================
-// TemplateEngine template loading Tests
-// ============================================================================
-
 #[test]
 fn test_load_authorize_template() {
     let template = TemplateEngine::load_authorize_template();
     assert!(!template.is_empty());
-    // Should be valid HTML
     assert!(template.contains("<!DOCTYPE html>") || template.contains("<html"));
 }
 
@@ -164,13 +154,8 @@ fn test_load_authorize_template() {
 fn test_load_webauthn_oauth_template() {
     let template = TemplateEngine::load_webauthn_oauth_template();
     assert!(!template.is_empty());
-    // Should be valid HTML
     assert!(template.contains("<!DOCTYPE html>") || template.contains("<html"));
 }
-
-// ============================================================================
-// TemplateEngine struct Tests
-// ============================================================================
 
 #[test]
 fn test_template_engine_debug() {

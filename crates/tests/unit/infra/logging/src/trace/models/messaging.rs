@@ -5,10 +5,6 @@ use chrono::Utc;
 use serde_json::json;
 use systemprompt_logging::{ConversationMessage, TaskArtifact, ToolLogEntry};
 
-// ============================================================================
-// ConversationMessage Tests
-// ============================================================================
-
 #[test]
 fn test_conversation_message_creation() {
     let msg = ConversationMessage {
@@ -74,10 +70,6 @@ fn test_conversation_message_serialize() {
     assert!(json.contains("sequence_number"));
 }
 
-// ============================================================================
-// ToolLogEntry Tests
-// ============================================================================
-
 #[test]
 fn test_tool_log_entry_creation() {
     let entry = ToolLogEntry {
@@ -133,10 +125,6 @@ fn test_tool_log_entry_serialize() {
     assert!(json.contains("module"));
     assert!(json.contains("message"));
 }
-
-// ============================================================================
-// TaskArtifact Tests
-// ============================================================================
 
 #[test]
 fn test_task_artifact_creation() {
@@ -238,10 +226,6 @@ fn test_task_artifact_serialize() {
     assert!(json.contains("artifact_type"));
     assert!(json.contains("Serialized"));
 }
-
-// ============================================================================
-// Roundtrip Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_conversation_message_roundtrip() {

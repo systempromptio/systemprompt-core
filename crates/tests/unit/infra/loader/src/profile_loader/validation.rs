@@ -4,15 +4,10 @@
 use systemprompt_loader::ProfileLoader;
 use tempfile::TempDir;
 
-// ============================================================================
-// Load and Validate Tests
-// ============================================================================
-
 #[test]
 fn test_load_from_path_and_validate_valid() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create the paths directories for validation
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services"))
@@ -79,7 +74,6 @@ rate_limits:
 fn test_load_from_path_and_validate_invalid_port() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create the paths directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services"))
@@ -142,22 +136,16 @@ rate_limits:
     assert!(err.to_string().contains("port"));
 }
 
-// ============================================================================
-// Environment Variable Substitution Tests
-// ============================================================================
-
 #[test]
 #[allow(unsafe_code)]
 fn test_load_with_env_var_substitution() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("services"))
         .expect("Failed to create services dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
-    // Set environment variable for test
     unsafe { std::env::set_var("TEST_PROFILE_HOST", "env-host.example.com") };
 
     let profile_content = format!(
@@ -217,6 +205,5 @@ rate_limits:
         .expect("should load profile with env var substitution");
     assert_eq!(profile.server.host, "env-host.example.com");
 
-    // Clean up
     unsafe { std::env::remove_var("TEST_PROFILE_HOST") };
 }

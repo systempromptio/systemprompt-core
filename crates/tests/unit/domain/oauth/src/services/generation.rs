@@ -6,10 +6,6 @@ use systemprompt_oauth::services::{
     hash_client_secret, verify_client_secret,
 };
 
-// ============================================================================
-// generate_secure_token Tests
-// ============================================================================
-
 #[test]
 fn test_generate_secure_token_with_prefix() {
     let token = generate_secure_token("auth");
@@ -19,8 +15,6 @@ fn test_generate_secure_token_with_prefix() {
 #[test]
 fn test_generate_secure_token_length() {
     let token = generate_secure_token("test");
-    // Format: prefix_<32 alphanumeric chars>
-    // "test_" = 5 chars + 32 = 37 total
     assert_eq!(token.len(), 37);
 }
 
@@ -51,10 +45,6 @@ fn test_generate_secure_token_long_prefix() {
     assert!(token.starts_with("very_long_prefix_for_testing_"));
 }
 
-// ============================================================================
-// generate_client_secret Tests
-// ============================================================================
-
 #[test]
 fn test_generate_client_secret_prefix() {
     let secret = generate_client_secret();
@@ -64,7 +54,6 @@ fn test_generate_client_secret_prefix() {
 #[test]
 fn test_generate_client_secret_length() {
     let secret = generate_client_secret();
-    // Format: "secret_" (7 chars) + 64 alphanumeric chars = 71 total
     assert_eq!(secret.len(), 71);
 }
 
@@ -82,14 +71,9 @@ fn test_generate_client_secret_unique() {
     assert_ne!(secret1, secret2);
 }
 
-// ============================================================================
-// generate_access_token_jti Tests
-// ============================================================================
-
 #[test]
 fn test_generate_access_token_jti_is_uuid() {
     let jti = generate_access_token_jti();
-    // UUID v4 format: 8-4-4-4-12 = 36 chars with hyphens
     assert_eq!(jti.len(), 36);
     assert!(jti.contains('-'));
 }
@@ -120,17 +104,12 @@ fn test_generate_access_token_jti_parseable_as_uuid() {
     parsed.expect("expected success");
 }
 
-// ============================================================================
-// hash_client_secret and verify_client_secret Tests
-// ============================================================================
-
 #[test]
 fn test_hash_client_secret_success() {
     let secret = "my_test_secret_123";
     let result = hash_client_secret(secret);
     let hash = result.expect("expected success");
     assert!(!hash.is_empty());
-    // bcrypt hashes start with "$2b$" or "$2a$"
     assert!(hash.starts_with("$2"));
 }
 
@@ -139,7 +118,6 @@ fn test_hash_client_secret_different_hashes() {
     let secret = "same_secret";
     let hash1 = hash_client_secret(secret).unwrap();
     let hash2 = hash_client_secret(secret).unwrap();
-    // Same secret should produce different hashes due to salt
     assert_ne!(hash1, hash2);
 }
 
@@ -215,10 +193,6 @@ fn test_hash_client_secret_unicode() {
     assert!(verified);
 }
 
-// ============================================================================
-// JwtConfig Tests
-// ============================================================================
-
 #[test]
 fn test_jwt_config_default() {
     let config = JwtConfig::default();
@@ -284,10 +258,6 @@ fn test_jwt_config_deserialize() {
     assert_eq!(config.audience, vec![JwtAudience::Api]);
     assert_eq!(config.expires_in_hours, Some(72));
 }
-
-// ============================================================================
-// generate_anonymous_jwt_with_expiry Tests
-// ============================================================================
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
@@ -393,10 +363,6 @@ fn test_generate_anonymous_jwt_with_expiry_claims_contain_client_id() {
     assert_eq!(claims.username, "anon-user-4");
     assert_eq!(claims.email, "anon-user-4");
 }
-
-// ============================================================================
-// generate_admin_jwt_with_expiry Tests
-// ============================================================================
 
 #[test]
 fn test_generate_admin_jwt_with_expiry_produces_valid_jwt() {

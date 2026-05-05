@@ -23,7 +23,6 @@ async fn test_agent_tools_available() -> Result<()> {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Agent missing name"))?;
 
-        // Check that agent has MCP tools capability in extensions
         let capabilities = agent
             .get("capabilities")
             .ok_or_else(|| anyhow::anyhow!("Agent {} missing capabilities", agent_name))?;
@@ -35,7 +34,6 @@ async fn test_agent_tools_available() -> Result<()> {
                 anyhow::anyhow!("Agent {} missing capabilities.extensions", agent_name)
             })?;
 
-        // Find the MCP tools extension
         let has_mcp_tools = extensions.iter().any(|ext| {
             ext.get("uri")
                 .and_then(|u| u.as_str())

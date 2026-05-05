@@ -48,7 +48,6 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            // reason: panicking convenience ctor for known-valid literals; failure is a programmer-bug invariant
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
@@ -78,7 +77,6 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            // reason: panicking convenience ctor for known-valid literals; failure is a programmer-bug invariant
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))

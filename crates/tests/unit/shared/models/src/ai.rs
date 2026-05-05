@@ -8,10 +8,6 @@
 
 use systemprompt_models::{AiMessage, MessageRole, ProviderConfig, SamplingParams};
 
-// ============================================================================
-// AiMessage Tests
-// ============================================================================
-
 #[test]
 fn test_ai_message_user() {
     let msg = AiMessage::user("Hello");
@@ -53,10 +49,6 @@ fn test_ai_message_serialize() {
     assert!(json.contains("Test message"));
 }
 
-// ============================================================================
-// MessageRole Tests
-// ============================================================================
-
 #[test]
 fn test_message_role_system_serialize() {
     let json = serde_json::to_string(&MessageRole::System).unwrap();
@@ -74,10 +66,6 @@ fn test_message_role_assistant_serialize() {
     let json = serde_json::to_string(&MessageRole::Assistant).unwrap();
     assert_eq!(json, "\"assistant\"");
 }
-
-// ============================================================================
-// ProviderConfig Tests
-// ============================================================================
 
 #[test]
 fn test_provider_config_new() {
@@ -106,28 +94,16 @@ fn test_provider_config_serialize() {
     assert!(json.contains("4096"));
 }
 
-// ============================================================================
-// SamplingParams Tests
-// ============================================================================
-
 #[test]
 fn test_sampling_params_default() {
     let params = SamplingParams::default();
 
-    // Default values should be reasonable
     let json = serde_json::to_string(&params).unwrap();
     assert!(!json.is_empty());
 }
 
-// ============================================================================
-// AiRequest Tests
-// Note: Full AiRequest deserialization requires a complex RequestContext,
-// so we test the accessor methods via the ProviderConfig which is simpler
-// ============================================================================
-
 #[test]
 fn test_ai_request_provider_config_accessors() {
-    // Test that ProviderConfig provides the values that AiRequest would expose
     let config = ProviderConfig::new("anthropic", "claude-3-sonnet", 4096);
 
     assert_eq!(config.provider, "anthropic");
@@ -137,7 +113,6 @@ fn test_ai_request_provider_config_accessors() {
 
 #[test]
 fn test_ai_request_has_tools_logic() {
-    // Test the has_tools logic pattern (None case)
     let tools: Option<Vec<String>> = None;
     let has_tools = tools.as_ref().is_some_and(|t| !t.is_empty());
     assert!(!has_tools);
@@ -145,7 +120,6 @@ fn test_ai_request_has_tools_logic() {
 
 #[test]
 fn test_ai_request_has_tools_empty_vec() {
-    // Test the has_tools logic pattern (empty vec case)
     let tools: Option<Vec<String>> = Some(vec![]);
     let has_tools = tools.as_ref().is_some_and(|t| !t.is_empty());
     assert!(!has_tools);
@@ -153,7 +127,6 @@ fn test_ai_request_has_tools_empty_vec() {
 
 #[test]
 fn test_ai_request_has_tools_with_items() {
-    // Test the has_tools logic pattern (non-empty vec case)
     let tools: Option<Vec<String>> = Some(vec!["tool1".to_string()]);
     let has_tools = tools.as_ref().is_some_and(|t| !t.is_empty());
     assert!(has_tools);

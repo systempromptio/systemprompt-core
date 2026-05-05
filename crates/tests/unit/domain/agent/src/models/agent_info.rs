@@ -35,10 +35,6 @@ fn create_test_card() -> AgentCard {
     }
 }
 
-// ============================================================================
-// Construction Tests
-// ============================================================================
-
 #[test]
 fn test_agent_info_from_repository_data() {
     let card = create_test_card();
@@ -60,10 +56,6 @@ fn test_agent_info_from_card() {
     assert!(info.skills.is_none());
     assert!(info.mcp_servers.is_none());
 }
-
-// ============================================================================
-// Getter Method Tests
-// ============================================================================
 
 #[test]
 fn test_agent_info_id() {
@@ -96,10 +88,6 @@ fn test_agent_info_version() {
 
     assert_eq!(info.version(), "1.0.0");
 }
-
-// ============================================================================
-// Builder Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_agent_info_with_skills() {
@@ -170,10 +158,6 @@ fn test_agent_info_builder_chain() {
     info.skills.expect("expected Some value");
     info.mcp_servers.expect("expected Some value");
 }
-
-// ============================================================================
-// Count Method Tests
-// ============================================================================
 
 #[test]
 fn test_agent_info_skills_count_none() {
@@ -247,10 +231,6 @@ fn test_agent_info_mcp_count_with_servers() {
 
     assert_eq!(info.mcp_count(), 3);
 }
-
-// ============================================================================
-// Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_agent_info_serialize() {

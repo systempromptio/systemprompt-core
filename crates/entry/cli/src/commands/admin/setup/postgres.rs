@@ -234,8 +234,6 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
             config.user.replace('"', "\"\""),
             config.password.replace('\'', "''")
         );
-        // allowlist: bootstrap DDL — CREATE USER cannot bind role-name parameters; see
-        // CLAUDE.md
         sqlx::query(&create_user_sql).execute(&pool).await?;
         CliService::success(&format!("Created user '{}'", config.user));
     }
@@ -255,8 +253,6 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
             config.database.replace('"', "\"\""),
             config.user.replace('"', "\"\"")
         );
-        // allowlist: bootstrap DDL — CREATE DATABASE cannot bind identifier parameters;
-        // see CLAUDE.md
         sqlx::query(&create_db_sql).execute(&pool).await?;
         CliService::success(&format!("Created database '{}'", config.database));
     }
@@ -266,8 +262,6 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
         config.database.replace('"', "\"\""),
         config.user.replace('"', "\"\"")
     );
-    // allowlist: bootstrap DDL — GRANT cannot bind identifier parameters; see
-    // CLAUDE.md
     sqlx::query(&grant_sql).execute(&pool).await?;
 
     pool.close().await;

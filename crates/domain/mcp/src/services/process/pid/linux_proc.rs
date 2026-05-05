@@ -74,7 +74,6 @@ fn check_process_fd_for_inode(pid: u32, target_inode: u64) -> Option<u32> {
         let Ok(metadata) = entry.metadata() else {
             continue;
         };
-        // Why: only inode equality matters for socket-fd matching.
         if metadata.ino() == target_inode {
             return Some(pid);
         }

@@ -3,10 +3,6 @@
 
 use systemprompt_database::{AppliedMigration, MigrationResult, MigrationStatus};
 
-// ============================================================================
-// AppliedMigration Tests
-// ============================================================================
-
 #[test]
 fn test_applied_migration_creation() {
     let migration = AppliedMigration {
@@ -79,10 +75,6 @@ fn test_applied_migration_with_empty_strings() {
     assert!(migration.checksum.is_empty());
 }
 
-// ============================================================================
-// MigrationResult Tests
-// ============================================================================
-
 #[test]
 fn test_migration_result_default() {
     let result = MigrationResult::default();
@@ -133,10 +125,6 @@ fn test_migration_result_large_values() {
     assert_eq!(result.migrations_run, 1_000_000);
     assert_eq!(result.migrations_skipped, 500_000);
 }
-
-// ============================================================================
-// MigrationStatus Tests
-// ============================================================================
 
 #[test]
 fn test_migration_status_creation() {

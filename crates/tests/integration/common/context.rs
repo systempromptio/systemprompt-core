@@ -121,7 +121,6 @@ impl TestContext {
             .http
             .get(&url)
             .header("user-agent", user_agent)
-            // Don't override fingerprint - let middleware compute from user-agent + locale
             .header("accept", "text/html,application/json")
             .header("accept-language", "en-US,en;q=0.9")
             .send()

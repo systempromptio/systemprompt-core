@@ -8,10 +8,6 @@
 
 use systemprompt_content::models::{DestinationType, LinkType, UtmParams};
 
-// ============================================================================
-// LinkType Tests
-// ============================================================================
-
 #[test]
 fn test_link_type_as_str_redirect() {
     let link_type = LinkType::Redirect;
@@ -37,10 +33,6 @@ fn test_link_type_display() {
     assert_eq!(format!("{}", LinkType::Both), "both");
 }
 
-// ============================================================================
-// DestinationType Tests
-// ============================================================================
-
 #[test]
 fn test_destination_type_as_str_internal() {
     let dest_type = DestinationType::Internal;
@@ -58,10 +50,6 @@ fn test_destination_type_display() {
     assert_eq!(format!("{}", DestinationType::Internal), "internal");
     assert_eq!(format!("{}", DestinationType::External), "external");
 }
-
-// ============================================================================
-// UtmParams Tests
-// ============================================================================
 
 #[test]
 fn test_utm_params_to_query_string_all_params() {
@@ -164,10 +152,6 @@ fn test_utm_params_clone() {
     assert_eq!(cloned.content, params.content);
 }
 
-// ============================================================================
-// LinkPerformance Tests
-// ============================================================================
-
 #[test]
 fn test_link_performance_serialization() {
     use systemprompt_content::models::LinkPerformance;
@@ -187,10 +171,6 @@ fn test_link_performance_serialization() {
     assert!(json.contains("\"conversion_count\":10"));
 }
 
-// ============================================================================
-// CampaignPerformance Tests
-// ============================================================================
-
 #[test]
 fn test_campaign_performance_serialization() {
     use systemprompt_content::models::CampaignPerformance;
@@ -208,10 +188,6 @@ fn test_campaign_performance_serialization() {
     assert!(json.contains("\"total_clicks\":500"));
     assert!(json.contains("\"link_count\":10"));
 }
-
-// ============================================================================
-// ContentJourneyNode Tests
-// ============================================================================
 
 #[test]
 fn test_content_journey_node_creation() {

@@ -37,7 +37,6 @@ pub struct CloudUserInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudCustomerInfo {
-    // JSON: external vendor identifier
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
@@ -64,7 +63,6 @@ pub struct CloudPlanInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudPlan {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub paddle_price_id: systemprompt_identifiers::PriceId,
@@ -87,7 +85,6 @@ pub enum CloudTenantStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudTenantInfo {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -111,7 +108,6 @@ pub struct CloudTenantInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudTenant {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -176,7 +172,6 @@ pub struct RotateSyncTokenResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudEnterpriseLicenseInfo {
-    // JSON: external vendor identifier
     pub id: String,
     pub name: String,
     pub domain: String,

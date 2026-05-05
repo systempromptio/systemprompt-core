@@ -6,10 +6,6 @@ use std::path::PathBuf;
 use axum::Router;
 use systemprompt_extension::{ExtensionMetadata, ExtensionRouter, SchemaDefinition, SchemaSource};
 
-// =============================================================================
-// ExtensionMetadata Tests
-// =============================================================================
-
 #[test]
 fn test_extension_metadata_creation() {
     let metadata = ExtensionMetadata {
@@ -64,10 +60,6 @@ fn test_extension_metadata_serialize() {
     assert!(json.contains("Serializable Extension"));
     assert!(json.contains("3.0.0"));
 }
-
-// =============================================================================
-// SchemaSource Tests
-// =============================================================================
 
 #[test]
 fn test_schema_source_inline() {
@@ -133,10 +125,6 @@ fn test_schema_source_serialize_file() {
     let json = serde_json::to_string(&source).expect("should serialize");
     assert!(json.contains("test.sql"));
 }
-
-// =============================================================================
-// SchemaDefinition Tests
-// =============================================================================
 
 #[test]
 fn test_schema_definition_inline() {
@@ -217,10 +205,6 @@ fn test_schema_definition_serialize() {
     assert!(json.contains("CREATE TABLE ser_table"));
 }
 
-// =============================================================================
-// ExtensionRouter Tests
-// =============================================================================
-
 #[test]
 fn test_extension_router_new() {
     let router = ExtensionRouter::new(Router::new(), "/api/v1/myext");
@@ -272,10 +256,6 @@ fn test_extension_router_with_nested_path() {
     let router = ExtensionRouter::new(Router::new(), "/api/v1/deep/nested/path");
     assert_eq!(router.base_path, "/api/v1/deep/nested/path");
 }
-
-// =============================================================================
-// Integration Tests
-// =============================================================================
 
 #[test]
 fn test_multiple_schema_definitions() {

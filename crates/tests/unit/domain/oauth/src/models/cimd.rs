@@ -3,10 +3,6 @@
 use systemprompt_identifiers::{ClientId, ClientType};
 use systemprompt_oauth::models::cimd::{CimdMetadata, ClientValidation};
 
-// ============================================================================
-// CimdMetadata Tests
-// ============================================================================
-
 fn create_valid_cimd_metadata() -> CimdMetadata {
     CimdMetadata {
         client_id: ClientId::new("https://example.com/.well-known/oauth-client"),
@@ -148,7 +144,6 @@ fn test_cimd_metadata_skip_serializing_none_fields() {
     };
 
     let json = serde_json::to_string(&metadata).unwrap();
-    // Optional fields with None should be skipped
     assert!(!json.contains("client_name"));
     assert!(!json.contains("grant_types"));
     assert!(!json.contains("logo_uri"));
@@ -161,10 +156,6 @@ fn test_cimd_metadata_debug() {
     assert!(debug_str.contains("CimdMetadata"));
     assert!(debug_str.contains("example.com"));
 }
-
-// ============================================================================
-// ClientValidation Tests
-// ============================================================================
 
 #[test]
 fn test_client_validation_dcr_client_id() {
@@ -217,8 +208,6 @@ fn test_client_validation_dcr_client_type() {
     let validation = ClientValidation::Dcr { client_id };
 
     let client_type = validation.client_type();
-    // DCR clients derive type from client_id - for non-prefixed IDs, it's
-    // ThirdParty or Unknown
     assert!(matches!(
         client_type,
         ClientType::ThirdParty | ClientType::Unknown

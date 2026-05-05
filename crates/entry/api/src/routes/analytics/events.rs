@@ -45,8 +45,6 @@ async fn resolve_content_id(
         &resolved_slug
     };
 
-    // Why: a slug-lookup failure is logged but treated as "no content" so the
-    // analytics event records without a content_id rather than failing the call.
     content_repo
         .get_by_slug(slug_to_use)
         .await

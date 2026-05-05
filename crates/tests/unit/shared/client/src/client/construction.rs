@@ -5,10 +5,6 @@ use systemprompt_client::SystempromptClient;
 #[cfg(test)]
 use systemprompt_identifiers::JwtToken;
 
-// ============================================================================
-// Client Construction Tests
-// ============================================================================
-
 #[test]
 fn test_client_new_success() {
     SystempromptClient::new("https://api.example.com").expect("client creation should succeed");
@@ -55,10 +51,6 @@ fn test_client_with_large_timeout() {
     SystempromptClient::with_timeout("https://api.example.com", 3600)
         .expect("large timeout should succeed");
 }
-
-// ============================================================================
-// Token Management Tests
-// ============================================================================
 
 #[test]
 fn test_client_initially_no_token() {
@@ -119,10 +111,6 @@ fn test_client_with_token_chaining() {
     assert_eq!(client.base_url(), "https://api.example.com");
     assert_eq!(client.token().unwrap().as_str(), "chained-token");
 }
-
-// ============================================================================
-// Base URL Tests
-// ============================================================================
 
 #[test]
 fn test_base_url_accessor() {

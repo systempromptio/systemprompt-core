@@ -9,10 +9,6 @@
 use systemprompt_traits::Job;
 use systemprompt_users::jobs::CleanupAnonymousUsersJob;
 
-// ============================================================================
-// CleanupAnonymousUsersJob Tests
-// ============================================================================
-
 mod cleanup_anonymous_users_job_tests {
     use super::*;
 
@@ -36,7 +32,6 @@ mod cleanup_anonymous_users_job_tests {
         let job = CleanupAnonymousUsersJob;
         let description = job.description();
 
-        // Should mention the 30 day period
         assert!(description.contains("30"));
     }
 
@@ -45,12 +40,8 @@ mod cleanup_anonymous_users_job_tests {
         let job = CleanupAnonymousUsersJob;
         let schedule = job.schedule();
 
-        // The schedule should be a cron expression
-        // Format: "0 0 * * * *" (at minute 0, every hour)
         assert!(!schedule.is_empty());
 
-        // Should have 6 fields (seconds, minutes, hours, day of month, month, day of
-        // week)
         let fields: Vec<&str> = schedule.split_whitespace().collect();
         assert_eq!(fields.len(), 6);
     }
@@ -60,7 +51,6 @@ mod cleanup_anonymous_users_job_tests {
         let job = CleanupAnonymousUsersJob;
         let schedule = job.schedule();
 
-        // "0 0 * * * *" means at second 0, minute 0, every hour
         let fields: Vec<&str> = schedule.split_whitespace().collect();
         assert_eq!(fields[0], "0"); // seconds
         assert_eq!(fields[1], "0"); // minutes

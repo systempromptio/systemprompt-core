@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::services::orchestrator::McpEvent;
 
-// ============================================================================
-// McpEvent service_name Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_event_service_start_requested_service_name() {
     let event = McpEvent::ServiceStartRequested {
@@ -97,10 +93,6 @@ fn test_mcp_event_reconciliation_completed_service_name_empty() {
     };
     assert_eq!(event.service_name(), "");
 }
-
-// ============================================================================
-// McpEvent event_type Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_event_service_start_requested_event_type() {
@@ -194,10 +186,6 @@ fn test_mcp_event_reconciliation_completed_event_type() {
     assert_eq!(event.event_type(), "reconciliation_completed");
 }
 
-// ============================================================================
-// McpEvent Constructors Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_event_start_completed_success() {
     let event = McpEvent::start_completed_success("test-service".to_string(), 1234, 8080, 100);
@@ -250,10 +238,6 @@ fn test_mcp_event_start_completed_failure() {
     }
 }
 
-// ============================================================================
-// McpEvent Clone and Debug Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_event_debug() {
     let event = McpEvent::ServiceStarted {
@@ -266,10 +250,6 @@ fn test_mcp_event_debug() {
     assert!(debug_str.contains("ServiceStarted"));
     assert!(debug_str.contains("test-service"));
 }
-
-// ============================================================================
-// McpEvent Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_event_serialize_service_started() {

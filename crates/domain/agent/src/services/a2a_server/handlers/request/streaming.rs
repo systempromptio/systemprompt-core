@@ -18,7 +18,6 @@ pub async fn handle_streaming_request(
     use futures::StreamExt;
     use tokio_stream::wrappers::ReceiverStream;
 
-
     let request_type = match &request {
         A2aRequestParams::SendStreamingMessage(_) => "SendStreamingMessage",
         A2aRequestParams::SendMessage(_) => "SendMessage",

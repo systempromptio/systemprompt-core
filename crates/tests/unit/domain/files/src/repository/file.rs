@@ -6,10 +6,6 @@
 use systemprompt_files::InsertFileRequest;
 use systemprompt_identifiers::{FileId, SessionId, TraceId, UserId};
 
-// ============================================================================
-// InsertFileRequest Construction Tests
-// ============================================================================
-
 #[test]
 fn test_insert_file_request_new() {
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
@@ -38,10 +34,6 @@ fn test_insert_file_request_default_values() {
     assert!(request.session_id.is_none());
     assert!(request.trace_id.is_none());
 }
-
-// ============================================================================
-// Builder Method Tests
-// ============================================================================
 
 #[test]
 fn test_insert_file_request_with_size() {
@@ -142,10 +134,6 @@ fn test_insert_file_request_with_trace_id() {
     assert_eq!(request.trace_id.as_ref().unwrap().as_str(), "trace_def456");
 }
 
-// ============================================================================
-// Builder Chain Tests
-// ============================================================================
-
 #[test]
 fn test_insert_file_request_builder_chain() {
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
@@ -200,10 +188,6 @@ fn test_insert_file_request_partial_builder() {
     assert!(request.trace_id.is_none());
 }
 
-// ============================================================================
-// Clone/Debug Tests
-// ============================================================================
-
 #[test]
 fn test_insert_file_request_clone() {
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
@@ -231,10 +215,6 @@ fn test_insert_file_request_debug() {
     assert!(debug_str.contains("/url"));
     assert!(debug_str.contains("image/gif"));
 }
-
-// ============================================================================
-// Various Mime Type Tests
-// ============================================================================
 
 #[test]
 fn test_insert_file_request_image_mime_types() {

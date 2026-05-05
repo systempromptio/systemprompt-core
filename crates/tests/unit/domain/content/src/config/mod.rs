@@ -9,10 +9,6 @@
 use systemprompt_content::{LoadStats, ParsedContent};
 use systemprompt_identifiers::{CategoryId, SourceId};
 
-// ============================================================================
-// LoadStats Tests
-// ============================================================================
-
 #[test]
 fn test_load_stats_default() {
     let stats = LoadStats::default();
@@ -55,10 +51,6 @@ fn test_load_stats_clone() {
     assert_eq!(cloned.files_with_errors, stats.files_with_errors);
     assert_eq!(cloned.load_time_ms, stats.load_time_ms);
 }
-
-// ============================================================================
-// ParsedContent Tests
-// ============================================================================
 
 #[test]
 fn test_parsed_content_creation() {
@@ -144,13 +136,8 @@ fn test_parsed_content_clone() {
     assert_eq!(cloned.file_path, content.file_path);
 }
 
-// ============================================================================
-// URL Pattern Matching Tests (documenting expected behavior)
-// ============================================================================
-
 #[test]
 fn test_url_pattern_matching_exact() {
-    // Documents expected behavior for exact path matching
     let pattern = "/blog/articles";
     let path = "/blog/articles";
 
@@ -168,7 +155,6 @@ fn test_url_pattern_matching_exact() {
 
 #[test]
 fn test_url_pattern_matching_with_slug() {
-    // Documents expected behavior for slug pattern matching
     let pattern = "/blog/{slug}";
     let path = "/blog/my-article";
 
@@ -179,7 +165,6 @@ fn test_url_pattern_matching_with_slug() {
     assert_eq!(pattern_parts[0], "blog");
     assert_eq!(pattern_parts[1], "{slug}");
 
-    // {slug} should match any value
     let matches = pattern_parts
         .iter()
         .zip(path_parts.iter())
@@ -189,7 +174,6 @@ fn test_url_pattern_matching_with_slug() {
 
 #[test]
 fn test_url_pattern_matching_different_lengths() {
-    // Patterns with different segment counts should not match
     let pattern = "/blog/{slug}";
     let path = "/blog/category/article";
 
@@ -220,13 +204,8 @@ fn test_url_pattern_nested_slug() {
     assert_eq!(pattern_parts[2], "{slug}");
 }
 
-// ============================================================================
-// Source Determination Tests (documenting expected behavior)
-// ============================================================================
-
 #[test]
 fn test_source_determination_root() {
-    // Root path "/" should return "web"
     let path = "/";
     let expected = "web";
 
@@ -237,22 +216,14 @@ fn test_source_determination_root() {
 
 #[test]
 fn test_source_determination_unknown() {
-    // Unknown paths should return "unknown"
     let _path = "/unknown/random/path";
     let default = "unknown";
 
-    // When no pattern matches, default to "unknown"
     assert_eq!(default, "unknown");
 }
 
-// ============================================================================
-// ValidationResult Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_validation_result_pattern() {
-    // ValidationResult is Result<ContentConfigValidated, ContentConfigErrors>
-    // This tests the pattern of using Result types
 
     type TestResult = Result<String, String>;
 

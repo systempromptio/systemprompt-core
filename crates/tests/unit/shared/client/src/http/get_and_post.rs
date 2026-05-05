@@ -18,10 +18,6 @@ fn response_meta() -> serde_json::Value {
     })
 }
 
-// ============================================================================
-// GET Request Tests (via SystempromptClient)
-// ============================================================================
-
 #[tokio::test]
 async fn test_get_request_success_json_response() {
     let mock_server = MockServer::start().await;
@@ -139,10 +135,6 @@ async fn test_get_request_invalid_json_response() {
 
     result.unwrap_err();
 }
-
-// ============================================================================
-// POST Request Tests (via SystempromptClient)
-// ============================================================================
 
 #[tokio::test]
 async fn test_post_request_success() {

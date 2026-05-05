@@ -9,10 +9,6 @@ use systemprompt_agent::models::web::{
     AgentCounts, AgentDiscoveryEntry, AgentDiscoveryResponse, ListAgentsQuery,
 };
 
-// ============================================================================
-// ListAgentsQuery Tests
-// ============================================================================
-
 #[test]
 fn test_list_agents_query_default() {
     let query = ListAgentsQuery::default();
@@ -69,10 +65,6 @@ fn test_list_agents_query_clone() {
     assert_eq!(cloned.search, query.search);
 }
 
-// ============================================================================
-// AgentCounts Tests
-// ============================================================================
-
 #[test]
 fn test_agent_counts_serialize() {
     let counts = AgentCounts {
@@ -115,10 +107,6 @@ fn test_agent_counts_copy() {
     assert_eq!(copied.active, 50);
     assert_eq!(copied.enabled, 75);
 }
-
-// ============================================================================
-// AgentDiscoveryEntry Tests
-// ============================================================================
 
 #[test]
 fn test_agent_discovery_entry_serialize() {
@@ -177,10 +165,6 @@ fn test_agent_discovery_entry_clone() {
     assert_eq!(cloned.slug, entry.slug);
     assert_eq!(cloned.name, entry.name);
 }
-
-// ============================================================================
-// AgentDiscoveryResponse Tests
-// ============================================================================
 
 #[test]
 fn test_agent_discovery_response_serialize() {

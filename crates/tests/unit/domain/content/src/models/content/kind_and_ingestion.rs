@@ -4,10 +4,6 @@
 use systemprompt_content::{IngestionOptions, IngestionReport, IngestionSource};
 use systemprompt_identifiers::{CategoryId, SourceId};
 
-// ============================================================================
-// ContentKind Tests
-// ============================================================================
-
 #[test]
 fn test_content_kind_as_str_article() {
     use systemprompt_content::models::ContentKind;
@@ -52,10 +48,6 @@ fn test_content_kind_serialization() {
     assert_eq!(json, "\"guide\"");
 }
 
-// ============================================================================
-// IngestionReport Tests
-// ============================================================================
-
 #[test]
 fn test_ingestion_report_new() {
     let report = IngestionReport::new();
@@ -99,10 +91,6 @@ fn test_ingestion_report_with_data() {
     assert!(!report.is_success());
 }
 
-// ============================================================================
-// IngestionOptions Tests
-// ============================================================================
-
 #[test]
 fn test_ingestion_options_default() {
     let options = IngestionOptions::default();
@@ -140,10 +128,6 @@ fn test_ingestion_options_with_override_false() {
         .with_override(false);
     assert!(!options.override_existing);
 }
-
-// ============================================================================
-// IngestionSource Tests
-// ============================================================================
 
 #[test]
 fn test_ingestion_source_new() {

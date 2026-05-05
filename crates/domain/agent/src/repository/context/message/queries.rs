@@ -7,7 +7,6 @@ use systemprompt_traits::RepositoryError;
 use crate::models::a2a::{Message, MessageRole, Part};
 use crate::repository::task::constructor::batch_queries;
 
-
 pub async fn get_messages_by_task(
     pool: &Arc<PgPool>,
     task_id: &TaskId,

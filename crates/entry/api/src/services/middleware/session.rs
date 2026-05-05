@@ -138,8 +138,6 @@ impl SessionMiddleware {
             return Ok((Self::bot_context(trace_id), None));
         }
 
-        // Why: TokenExtractor returns Result; .ok() converts to Option because the
-        // absence of a browser cookie is normal and triggers fresh-session creation.
         let token_result = TokenExtractor::browser_only().extract(headers).ok();
 
         let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) = self
@@ -193,8 +191,6 @@ impl SessionMiddleware {
                 tracing::warn!(error = %e, "find_session_by_id failed");
                 e
             })
-            // Why: failure to look up the session is treated as "session missing" so the middleware
-            // mints a fresh one rather than 500ing a normal request.
             .ok()
             .flatten()
             .is_some();

@@ -1,10 +1,6 @@
 //! Tests for LinkPerformance, CampaignPerformance, ContentJourneyNode,
 //! LinkClick, and TrackClickParams
 
-// ============================================================================
-// LinkPerformance Tests
-// ============================================================================
-
 #[test]
 fn test_link_performance_creation() {
     use systemprompt_content::models::LinkPerformance;
@@ -61,10 +57,6 @@ fn test_link_performance_serialization() {
     assert!(json.contains("\"conversion_count\":5"));
 }
 
-// ============================================================================
-// CampaignPerformance Tests
-// ============================================================================
-
 #[test]
 fn test_campaign_performance_creation() {
     use systemprompt_content::models::CampaignPerformance;
@@ -102,10 +94,6 @@ fn test_campaign_performance_serialization() {
     assert!(json.contains("\"link_count\":5"));
 }
 
-// ============================================================================
-// ContentJourneyNode Tests
-// ============================================================================
-
 #[test]
 fn test_content_journey_node_creation() {
     use systemprompt_content::models::ContentJourneyNode;
@@ -136,10 +124,6 @@ fn test_content_journey_node_serialization() {
     assert!(json.contains("\"click_count\":10"));
     assert!(json.contains("\"target_url\":\"/related-article\""));
 }
-
-// ============================================================================
-// LinkClick Tests
-// ============================================================================
 
 #[test]
 fn test_link_click_creation_minimal() {
@@ -235,10 +219,6 @@ fn test_link_click_serialization() {
     assert!(json.contains("\"device_type\":\"mobile\""));
     assert!(json.contains("\"is_first_click\":true"));
 }
-
-// ============================================================================
-// TrackClickParams Tests
-// ============================================================================
 
 #[test]
 fn test_track_click_params_creation() {

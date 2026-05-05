@@ -83,7 +83,6 @@ async fn test_get_agent_by_id() -> Result<()> {
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("Agent missing name"))?;
 
-    // Validate that the agent has all expected metadata fields in registry
     assert!(first_agent["name"].is_string(), "Agent missing name field");
     assert!(
         first_agent["description"].is_string(),
@@ -115,7 +114,6 @@ async fn test_invalid_agent_id_returns_404() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Try to send an A2A message to a non-existent agent
     let invalid_agent_id = "invalid-agent-id-12345";
     let task_id = format!("test-task-{}", uuid::Uuid::new_v4());
     let context_id = format!("test-context-{}", uuid::Uuid::new_v4());
@@ -145,7 +143,6 @@ async fn test_invalid_agent_id_returns_404() -> Result<()> {
         .make_authenticated_json_request(reqwest::Method::POST, &agent_url, &token, a2a_payload)
         .await?;
 
-    // Should get 404 when trying to communicate with non-existent agent
     assert_eq!(response.status(), 404, "Expected 404 for invalid agent");
 
     cleanup.cleanup_all().await?;

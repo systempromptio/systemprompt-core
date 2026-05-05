@@ -6,10 +6,6 @@ use systemprompt_oauth::services::webauthn::{
 
 const TOKEN_PREFIX: &str = "sp_wst_";
 
-// ============================================================================
-// Token Generation Tests
-// ============================================================================
-
 #[test]
 fn test_generate_setup_token_has_prefix() {
     let (token, _hash) = generate_setup_token();
@@ -32,10 +28,6 @@ fn test_generate_setup_token_hash_matches() {
     assert_eq!(hash_token(&token), hash);
 }
 
-// ============================================================================
-// Hash Tests
-// ============================================================================
-
 #[test]
 fn test_hash_token_deterministic() {
     let input = "sp_wst_test_input_value";
@@ -53,10 +45,6 @@ fn test_hash_token_different_inputs() {
 
     assert_ne!(hash_a, hash_b);
 }
-
-// ============================================================================
-// Format Validation Tests
-// ============================================================================
 
 #[test]
 fn test_validate_token_format_valid() {

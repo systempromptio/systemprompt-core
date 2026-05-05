@@ -5,10 +5,6 @@ use systemprompt_api::routes::oauth::endpoints::token::{
     TokenError, TokenErrorResponse, TokenRequest, TokenResponse,
 };
 
-// ============================================================================
-// TokenError Display Tests
-// ============================================================================
-
 #[test]
 fn test_token_error_invalid_request_display() {
     let error = TokenError::InvalidRequest {
@@ -66,10 +62,6 @@ fn test_token_error_server_error_display() {
     let display = format!("{error}");
     assert!(display.contains("database unavailable"));
 }
-
-// ============================================================================
-// TokenError -> TokenErrorResponse Conversion Tests
-// ============================================================================
 
 #[test]
 fn test_token_error_response_from_invalid_request() {
@@ -196,10 +188,6 @@ fn test_token_error_response_from_invalid_client_secret() {
     );
 }
 
-// ============================================================================
-// TokenRequest Deserialization Tests
-// ============================================================================
-
 #[test]
 fn test_token_request_deserialize_authorization_code() {
     let json = serde_json::json!({
@@ -262,10 +250,6 @@ fn test_token_request_debug() {
     assert!(debug.contains("refresh_token"));
 }
 
-// ============================================================================
-// TokenResponse Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_token_response_serialize_full() {
     let response = TokenResponse {
@@ -318,10 +302,6 @@ fn test_token_response_debug() {
     assert!(debug.contains("at_test"));
 }
 
-// ============================================================================
-// TokenErrorResponse Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_token_error_response_serialize() {
     let response = TokenErrorResponse {
@@ -347,10 +327,6 @@ fn test_token_error_response_skip_none_description() {
     assert_eq!(json["error"], "server_error");
     assert!(json.get("error_description").is_none());
 }
-
-// ============================================================================
-// WellKnownResponse Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_well_known_response_serialize() {
@@ -391,10 +367,6 @@ fn test_well_known_response_serialize() {
         "S256"
     );
 }
-
-// ============================================================================
-// OAuthProtectedResourceResponse Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_oauth_protected_resource_response_serialize() {

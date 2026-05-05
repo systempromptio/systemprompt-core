@@ -2,10 +2,6 @@
 
 use systemprompt_extension::error::{ConfigError, LoaderError};
 
-// =============================================================================
-// LoaderError Tests
-// =============================================================================
-
 #[test]
 fn test_loader_error_missing_dependency_display() {
     let err = LoaderError::MissingDependency {
@@ -116,10 +112,6 @@ fn test_loader_error_circular_dependency_display() {
     assert!(msg.contains("Circular dependency"));
 }
 
-// =============================================================================
-// ConfigError Tests
-// =============================================================================
-
 #[test]
 fn test_config_error_not_found_display() {
     let err = ConfigError::NotFound("database.host".to_string());
@@ -173,10 +165,6 @@ fn test_config_error_schema_validation_display() {
     assert!(msg.contains("missing required property"));
     assert!(msg.contains("Schema validation"));
 }
-
-// =============================================================================
-// Error Variant Matching Tests
-// =============================================================================
 
 #[test]
 fn test_loader_error_variant_matching() {

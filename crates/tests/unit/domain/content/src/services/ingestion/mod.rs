@@ -7,10 +7,6 @@
 
 use systemprompt_content::{IngestionOptions, IngestionReport};
 
-// ============================================================================
-// IngestionOptions Tests
-// ============================================================================
-
 #[test]
 fn test_ingestion_options_default() {
     let options = IngestionOptions::default();
@@ -48,10 +44,6 @@ fn test_ingestion_options_builder_toggle() {
         .with_override(false);
     assert!(!options.override_existing);
 }
-
-// ============================================================================
-// IngestionReport Tests
-// ============================================================================
 
 #[test]
 fn test_ingestion_report_new() {

@@ -9,10 +9,6 @@
 use systemprompt_content::{SearchFilters, SearchRequest, SearchResponse, SearchResult};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
-// ============================================================================
-// SearchRequest Tests
-// ============================================================================
-
 #[test]
 fn test_search_request_minimal() {
     let json = r#"{"query": "rust programming"}"#;
@@ -78,10 +74,6 @@ fn test_search_request_serialization() {
     assert!(json.contains("\"limit\":10"));
 }
 
-// ============================================================================
-// SearchFilters Tests
-// ============================================================================
-
 #[test]
 fn test_search_filters_with_category() {
     let filters = SearchFilters {
@@ -108,10 +100,6 @@ fn test_search_filters_serialization() {
     let json = serde_json::to_string(&filters).unwrap();
     assert!(json.contains("test-category"));
 }
-
-// ============================================================================
-// SearchResult Tests
-// ============================================================================
 
 #[test]
 fn test_search_result_creation() {
@@ -189,10 +177,6 @@ fn test_search_result_clone() {
     assert_eq!(cloned.slug, result.slug);
     assert_eq!(cloned.view_count, result.view_count);
 }
-
-// ============================================================================
-// SearchResponse Tests
-// ============================================================================
 
 #[test]
 fn test_search_response_empty() {

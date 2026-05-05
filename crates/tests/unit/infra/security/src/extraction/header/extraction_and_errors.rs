@@ -3,10 +3,6 @@
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_security::{HeaderExtractor, HeaderInjectionError};
 
-// ============================================================================
-// HeaderExtractor Tests
-// ============================================================================
-
 #[test]
 fn test_header_extractor_extract_trace_id_present() {
     let mut headers = HeaderMap::new();
@@ -168,10 +164,6 @@ fn test_header_extractor_debug() {
     let debug_str = format!("{:?}", extractor);
     assert!(debug_str.contains("HeaderExtractor"));
 }
-
-// ============================================================================
-// HeaderInjectionError Tests
-// ============================================================================
 
 #[test]
 fn test_header_injection_error_display() {

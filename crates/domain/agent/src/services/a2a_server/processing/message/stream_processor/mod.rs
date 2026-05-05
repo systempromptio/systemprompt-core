@@ -13,8 +13,6 @@ use systemprompt_models::{
     is_supported_video,
 };
 
-// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
-// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct StreamProcessor {
     pub ai_service: Arc<dyn AiProvider>,

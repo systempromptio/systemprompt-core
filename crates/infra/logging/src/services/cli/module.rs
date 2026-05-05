@@ -8,7 +8,6 @@ type Result<T> = std::result::Result<T, LoggingError>;
 
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
     let mut out = std::io::stdout();
-    // Why: CLI display sink; broken pipe is not recoverable.
     writeln!(out, "{args}").ok();
 }
 

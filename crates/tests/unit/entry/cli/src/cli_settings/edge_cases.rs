@@ -4,10 +4,6 @@
 
 use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
-// ============================================================================
-// Edge Cases and Boundary Tests
-// ============================================================================
-
 #[test]
 fn test_multiple_format_changes() {
     let config = CliConfig::default()
@@ -72,10 +68,6 @@ fn test_all_output_formats_with_is_json() {
         assert_eq!(config.is_json_output(), expected, "Failed for {:?}", format);
     }
 }
-
-// ============================================================================
-// Field Access Tests
-// ============================================================================
 
 #[test]
 fn test_direct_field_access_output_format() {

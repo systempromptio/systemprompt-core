@@ -101,7 +101,6 @@ pub struct OpenAiFunction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenAiResponse {
-    // JSON: external vendor identifier
     pub id: String,
     pub object: String,
     pub created: i64,
@@ -126,7 +125,6 @@ pub struct OpenAiResponseMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenAiToolCall {
-    // JSON: external vendor identifier
     pub id: String,
     pub r#type: String,
     pub function: OpenAiFunctionCall,
@@ -219,7 +217,6 @@ pub enum OpenAiResponsesTool {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct OpenAiResponsesResponse {
-    // JSON: external vendor identifier
     pub id: String,
     pub output: Vec<OpenAiResponsesOutput>,
     #[serde(default)]

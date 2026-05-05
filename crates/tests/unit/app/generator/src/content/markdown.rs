@@ -2,10 +2,6 @@
 
 use systemprompt_generator::{extract_frontmatter, render_markdown};
 
-// ============================================================================
-// render_markdown Tests
-// ============================================================================
-
 #[test]
 fn test_render_markdown_basic_paragraph() {
     let input = "This is a paragraph.";
@@ -19,7 +15,6 @@ fn test_render_markdown_basic_paragraph() {
 fn test_render_markdown_strips_first_h1() {
     let input = "# Title\n\nSome content here.";
     let result = render_markdown(input);
-    // The first h1 should be stripped
     assert!(!result.contains("<h1>"));
     assert!(!result.contains("Title"));
     assert!(result.contains("Some content here."));
@@ -37,7 +32,6 @@ fn test_render_markdown_preserves_h2() {
 fn test_render_markdown_preserves_multiple_h1_after_first() {
     let input = "# First Title\n\n# Second Title\n\nContent.";
     let result = render_markdown(input);
-    // First h1 stripped, second preserved (but as h1 since it starts with "# ")
     assert!(!result.contains("First Title"));
     assert!(result.contains("Second Title"));
 }
@@ -183,10 +177,6 @@ fn test_render_markdown_nested_formatting() {
     assert!(result.contains("<strong>") || result.contains("<em>"));
 }
 
-// ============================================================================
-// extract_frontmatter Tests
-// ============================================================================
-
 #[test]
 fn test_extract_frontmatter_valid() {
     let content = r#"---
@@ -276,7 +266,6 @@ invalid yaml: [not closed
 Body."#;
 
     let result = extract_frontmatter(content);
-    // Invalid YAML should return None
     assert!(result.is_none());
 }
 
@@ -330,7 +319,6 @@ fn test_extract_frontmatter_whitespace_around_delimiters() {
     let content = r#"---
 title: Test
 ---
-
 
 Body with leading whitespace."#;
 

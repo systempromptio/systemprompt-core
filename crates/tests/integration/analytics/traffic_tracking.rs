@@ -18,7 +18,6 @@ async fn test_request_count_increments_with_multiple_requests() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Make multiple requests
     for i in 1..=5 {
         let response = ctx.make_request("/").await?;
         assert!(
@@ -80,13 +79,10 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Make initial request
     ctx.make_request("/").await?;
 
-    // Wait a few seconds to simulate session activity
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    // Make another request to update last_activity_at
     ctx.make_request("/").await?;
 
     wait_for_async_processing().await;
@@ -109,8 +105,6 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
         _ => None,
     });
 
-    // For now, duration_seconds might be NULL if not calculated yet
-    // But if it's set, it should be > 0
     if let Some(duration) = duration_seconds {
         assert!(
             duration > 0,
@@ -120,7 +114,6 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
             3
         );
     } else {
-        // Alternative: Check that started_at and last_activity_at are different
         let started_at = session.get("started_at").and_then(|v| v.as_str());
         let last_activity_at = session.get("last_activity_at").and_then(|v| v.as_str());
 
@@ -131,7 +124,6 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
                  Session tracking may not be updating properly."
             );
 
-            // Compute traffic summary inline from user_sessions
             let traffic_rows = ctx
                 .db
                 .fetch_all(
@@ -159,9 +151,6 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
                     avg_duration_secs
                 );
 
-                // This is the critical check - if duration is NULL, the query should still
-                // compute it If this fails, it means the production dashboard
-                // will show "0.0s"
                 if avg_duration_secs == 0.0 {
                     println!(
                         "WARNING: Even though last_activity_at ({}) != started_at ({}), avg \
@@ -191,7 +180,6 @@ async fn test_landing_page_not_null() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Make request to homepage
     let response = ctx.make_request("/").await?;
     assert!(response.status().is_success());
 
@@ -244,7 +232,6 @@ async fn test_traffic_summary_query_returns_nonzero_metrics() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Create some traffic
     for _ in 0..3 {
         ctx.make_request("/").await?;
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -252,7 +239,6 @@ async fn test_traffic_summary_query_returns_nonzero_metrics() -> Result<()> {
 
     wait_for_async_processing().await;
 
-    // Compute traffic summary inline from user_sessions (no analytics_traffic_summary view)
     let traffic_rows = ctx
         .db
         .fetch_all(
@@ -275,7 +261,6 @@ async fn test_traffic_summary_query_returns_nonzero_metrics() -> Result<()> {
 
     let summary = &traffic_rows[0];
 
-    // Check total_sessions
     let total_sessions = summary
         .get("total_sessions")
         .and_then(|v| v.as_i64())
@@ -287,7 +272,6 @@ async fn test_traffic_summary_query_returns_nonzero_metrics() -> Result<()> {
          show no sessions."
     );
 
-    // Check total_requests - THIS IS THE MAIN BUG REPORTED
     let total_requests = summary
         .get("total_requests")
         .and_then(|v| v.as_i64())
@@ -299,22 +283,16 @@ async fn test_traffic_summary_query_returns_nonzero_metrics() -> Result<()> {
          reported in production: 'Total Requests: 0'"
     );
 
-    // NOTE: We can't assert exact count because this query aggregates ALL sessions
-    // in the database, not just this test's session. The important check is that
-    // total_requests is non-zero, which means the tracking mechanism is working.
     println!(
         "INFO: total_requests = {} (includes all sessions in last 30 days)",
         total_requests
     );
 
-    // Check avg_session_duration_secs - THIS IS THE SECOND BUG REPORTED
     let avg_duration = summary
         .get("avg_session_duration_secs")
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
 
-    // Duration might be 0 if session hasn't ended or if duration calculation is
-    // broken We can't assert > 0 here reliably, but we should log it
     println!(
         "INFO: avg_session_duration_secs = {} (reported bug was showing 0.0s in production)",
         avg_duration
@@ -327,7 +305,6 @@ async fn test_traffic_summary_query_returns_nonzero_metrics() -> Result<()> {
         );
     }
 
-    // Check unique_users
     let unique_users = summary
         .get("unique_users")
         .and_then(|v| v.as_i64())
@@ -355,7 +332,6 @@ async fn test_landing_pages_query_not_showing_not_set() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Make request to a specific page
     let response = ctx.make_request("/").await?;
     assert!(response.status().is_success());
 
@@ -375,7 +351,6 @@ async fn test_landing_pages_query_not_showing_not_set() -> Result<()> {
         "Landing pages query returned no results"
     );
 
-    // Check if any landing page is NULL or empty
     for row in &landing_rows {
         let landing_page = row.get("landing_page").and_then(|v| v.as_str());
 

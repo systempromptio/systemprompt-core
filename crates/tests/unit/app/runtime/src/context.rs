@@ -8,10 +8,6 @@
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_runtime::{AppContext, AppContextBuilder};
 
-// ============================================================================
-// AppContextBuilder Tests
-// ============================================================================
-
 #[test]
 fn test_context_builder_new() {
     let builder = AppContextBuilder::new();
@@ -66,10 +62,6 @@ fn test_context_builder_default_startup_warnings() {
     assert!(debug_str.contains("show_startup_warnings: false"));
 }
 
-// ============================================================================
-// AppContext Static Methods Tests
-// ============================================================================
-
 #[test]
 fn test_get_provided_audiences() {
     let audiences = AppContext::get_provided_audiences();
@@ -82,7 +74,6 @@ fn test_get_provided_audiences() {
 #[test]
 fn test_get_provided_audiences_order() {
     let audiences = AppContext::get_provided_audiences();
-    // Verify the audiences are returned in expected order
     assert_eq!(audiences[0], "a2a");
     assert_eq!(audiences[1], "api");
     assert_eq!(audiences[2], "mcp");
@@ -101,7 +92,6 @@ fn test_get_valid_audiences_different_modules() {
     let mcp_audiences = AppContext::get_valid_audiences("mcp-server");
     let agent_audiences = AppContext::get_valid_audiences("agent");
 
-    // All modules should get the same audiences
     assert_eq!(auth_audiences, mcp_audiences);
     assert_eq!(mcp_audiences, agent_audiences);
 }
@@ -127,7 +117,6 @@ fn test_get_server_audiences_different_ports() {
     let port_3000 = AppContext::get_server_audiences("server", 3000);
     let port_443 = AppContext::get_server_audiences("server", 443);
 
-    // All ports should get the same audiences
     assert_eq!(port_8080, port_3000);
     assert_eq!(port_3000, port_443);
 }
@@ -138,7 +127,6 @@ fn test_get_server_audiences_different_servers() {
     let mcp = AppContext::get_server_audiences("mcp-server", 3000);
     let agent = AppContext::get_server_audiences("agent-server", 4000);
 
-    // All servers should get the same audiences
     assert_eq!(api, mcp);
     assert_eq!(mcp, agent);
 }
@@ -152,21 +140,14 @@ fn test_get_server_audiences_boundary_ports() {
     assert_eq!(max_port.len(), 3);
 }
 
-// ============================================================================
-// Audience Content Tests
-// ============================================================================
-
 #[test]
 fn test_audiences_contain_expected_values() {
     let audiences = AppContext::get_provided_audiences();
 
-    // a2a - Agent-to-Agent protocol
     assert!(audiences.iter().any(|a| a == "a2a"));
 
-    // api - Standard API access
     assert!(audiences.iter().any(|a| a == "api"));
 
-    // mcp - Model Context Protocol
     assert!(audiences.iter().any(|a| a == "mcp"));
 }
 

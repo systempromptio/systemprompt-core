@@ -43,7 +43,6 @@ async fn test_no_duplicates_on_parallel_requests() -> Result<()> {
 
     println!("  ✓ 10 parallel requests completed in {:?}", duration);
 
-    // Wait for async session creation to complete
     tokio::time::sleep(Duration::from_millis(3000)).await;
 
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \
@@ -81,7 +80,6 @@ async fn test_rapid_sequential_requests_single_session() -> Result<()> {
     let duration = start.elapsed();
     println!("  ✓ 10 sequential requests completed in {:?}", duration);
 
-    // Wait for async processing
     tokio::time::sleep(Duration::from_millis(3000)).await;
 
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \
@@ -119,8 +117,6 @@ async fn test_bot_traffic_not_stored() -> Result<()> {
 
     tokio::time::sleep(Duration::from_millis(3000)).await;
 
-    // Bot traffic should either be marked as is_bot=true OR not create sessions at
-    // all
     let non_bot_query = "SELECT COUNT(*) as count FROM user_sessions WHERE user_agent IN \
                          ('Go-http-client/2.0', 'Googlebot/2.1') AND is_bot = false";
     let non_bot_result = db.fetch_one(&non_bot_query, &[]).await?;
@@ -172,7 +168,6 @@ async fn test_fingerprint_lookup_timeout_adequate() -> Result<()> {
         duration
     );
 
-    // Wait for async processing
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \
@@ -199,13 +194,11 @@ async fn test_cookie_enables_session_reuse() -> Result<()> {
     let db = ctx.db.clone();
     let test_ua = "Mozilla/5.0 (Testing) CookieTest/1.0";
 
-    // Make first request
     let response1 = ctx.make_request_with_ua("/", test_ua).await?;
     assert!(response1.status().is_success());
 
     tokio::time::sleep(Duration::from_millis(1500)).await;
 
-    // Make follow-up requests
     let response2 = ctx
         .make_request_with_ua("/api/v1/content/blog", test_ua)
         .await?;
@@ -216,7 +209,6 @@ async fn test_cookie_enables_session_reuse() -> Result<()> {
     let response3 = ctx.make_request_with_ua("/", test_ua).await?;
     assert!(response3.status().is_success());
 
-    // Wait for all to process
     tokio::time::sleep(Duration::from_millis(3000)).await;
 
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \

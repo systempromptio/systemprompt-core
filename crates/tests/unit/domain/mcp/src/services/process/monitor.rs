@@ -4,10 +4,6 @@ use systemprompt_mcp::services::process::monitor::{
     ProcessInfo, get_process_info, is_process_running,
 };
 
-// ============================================================================
-// ProcessInfo Tests
-// ============================================================================
-
 #[test]
 fn test_process_info_creation() {
     let info = ProcessInfo {
@@ -77,10 +73,6 @@ fn test_process_info_with_special_characters() {
     assert!(info.command.contains("quoted"));
 }
 
-// ============================================================================
-// is_process_running Tests
-// ============================================================================
-
 #[test]
 fn test_is_process_running_current_process() {
     let pid = std::process::id();
@@ -102,10 +94,6 @@ fn test_is_process_running_init() {
     let result = is_process_running(1);
     assert!(result || !result);
 }
-
-// ============================================================================
-// get_process_info Tests
-// ============================================================================
 
 #[test]
 fn test_get_process_info_current_process() {

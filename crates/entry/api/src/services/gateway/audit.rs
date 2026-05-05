@@ -34,7 +34,6 @@ pub struct GatewayRequestContext {
     pub is_streaming: bool,
 }
 
-// reason: holds non-Debug HTTP transport state; service is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct GatewayAudit {
     requests: Arc<AiRequestRepository>,
@@ -77,8 +76,6 @@ impl GatewayAudit {
     }
 
     fn effective_model(&self) -> String {
-        // Why: poisoned-mutex recovery — fall back to the configured request model
-        // rather than panicking on a poisoned `served_model` slot.
         self.served_model
             .lock()
             .map_err(|e| {

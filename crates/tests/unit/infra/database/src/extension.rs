@@ -3,10 +3,6 @@
 use systemprompt_database::DatabaseExtension;
 use systemprompt_extension::Extension;
 
-// ============================================================================
-// DatabaseExtension Metadata Tests
-// ============================================================================
-
 #[test]
 fn test_database_extension_metadata_id() {
     let ext = DatabaseExtension;
@@ -27,10 +23,6 @@ fn test_database_extension_metadata_version() {
     let metadata = ext.metadata();
     assert!(!metadata.version.is_empty());
 }
-
-// ============================================================================
-// DatabaseExtension Configuration Tests
-// ============================================================================
 
 #[test]
 fn test_database_extension_migration_weight() {
@@ -59,10 +51,6 @@ fn test_database_extension_schemas_contains_functions() {
     let has_functions = schemas.iter().any(|s| s.table == "functions");
     assert!(has_functions);
 }
-
-// ============================================================================
-// DatabaseExtension Trait Tests
-// ============================================================================
 
 #[test]
 fn test_database_extension_debug() {

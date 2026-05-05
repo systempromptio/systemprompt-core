@@ -17,7 +17,6 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
-    // ========== PHASE 1: Setup ==========
     let ctx = TestContext::new()
         .await
         .expect("Failed to create test context");
@@ -26,7 +25,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
     let mut cleanup = TestCleanup::new(ctx.db.clone());
     cleanup.track_fingerprint(test_fingerprint.clone());
 
-    // Get anonymous token for API authentication
     let token = ctx
         .get_anonymous_token()
         .await
@@ -37,7 +35,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
     println!("   - Test Fingerprint: {}", test_fingerprint);
     println!("   - Auth Token: {} chars", token.len());
 
-    // ========== PHASE 2: Load Agent Registry ==========
     println!("\n🔍 Phase 2: Loading agent registry...");
 
     let registry_response = ctx
@@ -59,9 +56,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
     println!("   ✓ Registry loaded");
     println!("   - Response: {} chars", registry_text.len());
 
-    // Parse agent list from registry
-    // Registry response format: { "data": [ { "name": "...", "url": "...", ... } ]
-    // }
     let registry_json: serde_json::Value =
         serde_json::from_str(&registry_text).expect("Failed to parse registry JSON");
 
@@ -87,7 +81,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
     println!("   - Found {} agents", agents.len());
     println!("   - Using agent: {}", agent_name);
 
-    // ========== PHASE 3: Create Real Context ==========
     println!("\n📝 Phase 3: Creating real context...");
 
     let create_context_payload = json!({
@@ -124,12 +117,10 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
 
     println!("   ✓ Context created: {}", context_id);
 
-    // ========== PHASE 4: Post Conversation Message ==========
     println!("\n💬 Phase 4: Posting conversation to agent...");
 
     let task_id = format!("test-task-{}", uuid::Uuid::new_v4());
 
-    // Use the correct A2A protocol format (not JSON-RPC)
     let message_id = format!("msg-{}", uuid::Uuid::new_v4());
 
     let conversation_payload = json!({
@@ -183,7 +174,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
 
     println!("   ✓ Message posted successfully");
 
-    // ========== PHASE 5: Handle Streaming Response ==========
     println!("\n📥 Phase 5: Receiving streaming response...");
 
     wait_for_async_processing().await;
@@ -195,7 +185,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
 
     println!("   - Response received: {} chars", response_text.len());
 
-    // Try to parse response as JSON
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&response_text) {
         if let Some(result) = parsed.get("result") {
             println!("   ✓ Valid JSON response received");
@@ -205,7 +194,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
         }
     }
 
-    // ========== PHASE 6: Query Databases for Data Integrity ==========
     println!("\n🔍 Phase 6: Validating data in all databases...");
 
     println!("\n   6.1 Agent Tasks");
@@ -258,7 +246,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
 
     println!("       ✓ Found {} messages for task", message_rows.len());
 
-    // Verify we have both user and agent messages
     let has_user_message = message_rows.iter().any(|row| {
         row.get("role")
             .and_then(|v| v.as_str())
@@ -280,7 +267,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
     println!("       ✓ Agent response message found");
     println!("       ✓ Message-Task relationships valid");
 
-    // ========== PHASE 7: Summary ==========
     println!("\n📊 Phase 7: Test Summary");
     println!("   ✅ Agent Registry: Loaded and parsed successfully");
     println!("   ✅ Context Created: {}", context_id);
@@ -297,7 +283,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
     println!("      - Agent message present: {}", has_agent_message);
     println!("   ✅ Foreign Keys: All relationships validated");
 
-    // ========== PHASE 8: Cleanup ==========
     println!("\n🧹 Phase 8: Cleanup...");
     cleanup.cleanup_all().await.ok();
     println!("   ✓ Test data cleaned up");

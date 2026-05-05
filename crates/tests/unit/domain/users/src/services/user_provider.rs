@@ -10,7 +10,6 @@ use systemprompt_identifiers::UserId;
 use systemprompt_traits::AuthUser;
 use systemprompt_users::User;
 
-// Helper function to create a test user
 fn create_test_user() -> User {
     User {
         id: UserId::new("user-123".to_string()),
@@ -28,10 +27,6 @@ fn create_test_user() -> User {
         updated_at: Some(Utc::now()),
     }
 }
-
-// ============================================================================
-// From<User> for AuthUser Tests
-// ============================================================================
 
 mod auth_user_conversion_tests {
     use super::*;
@@ -185,10 +180,6 @@ mod auth_user_conversion_tests {
     }
 }
 
-// ============================================================================
-// AuthUser Structure Tests
-// ============================================================================
-
 mod auth_user_structure_tests {
     use super::*;
 
@@ -214,10 +205,6 @@ mod auth_user_structure_tests {
         assert!(debug.contains("AuthUser") || debug.contains("id") || debug.contains("user-123"));
     }
 }
-
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
 
 mod edge_case_tests {
     use super::*;
@@ -254,7 +241,6 @@ mod edge_case_tests {
         user.status = Some("unknown_status".to_string());
         let auth_user: AuthUser = user.into();
 
-        // Only "active" should result in is_active = true
         assert!(!auth_user.is_active);
     }
 
@@ -264,7 +250,6 @@ mod edge_case_tests {
         user.status = Some("ACTIVE".to_string());
         let auth_user: AuthUser = user.into();
 
-        // Status comparison is case-sensitive
         assert!(!auth_user.is_active);
     }
 
@@ -274,7 +259,6 @@ mod edge_case_tests {
         user.status = Some("Active".to_string());
         let auth_user: AuthUser = user.into();
 
-        // Status comparison is case-sensitive
         assert!(!auth_user.is_active);
     }
 
@@ -284,7 +268,6 @@ mod edge_case_tests {
         user.status = Some(" active ".to_string());
         let auth_user: AuthUser = user.into();
 
-        // Status with whitespace should not match
         assert!(!auth_user.is_active);
     }
 
@@ -294,7 +277,6 @@ mod edge_case_tests {
         user.roles = vec!["user".to_string(), "user".to_string(), "admin".to_string()];
         let auth_user: AuthUser = user.into();
 
-        // Duplicates are preserved (not deduplicated)
         assert_eq!(auth_user.roles.len(), 3);
     }
 

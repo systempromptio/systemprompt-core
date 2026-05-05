@@ -19,10 +19,6 @@ fn create_test_config() -> WebAuthnConfig {
     }
 }
 
-// ============================================================================
-// Construction Tests
-// ============================================================================
-
 #[test]
 fn test_webauthn_config_construction() {
     let config = create_test_config();
@@ -34,10 +30,6 @@ fn test_webauthn_config_construction() {
     assert!(!config.allow_any_port);
     assert!(!config.allow_subdomains);
 }
-
-// ============================================================================
-// Builder Method Tests
-// ============================================================================
 
 #[test]
 fn test_webauthn_config_with_rp_id() {
@@ -87,10 +79,6 @@ fn test_webauthn_config_with_subdomains() {
     assert!(!config.allow_any_port);
 }
 
-// ============================================================================
-// Chrono Duration Conversion Tests
-// ============================================================================
-
 #[test]
 fn test_webauthn_config_challenge_expiry_chrono() {
     let config = create_test_config();
@@ -106,10 +94,6 @@ fn test_webauthn_config_challenge_expiry_chrono_large_value() {
     let chrono_duration = config.challenge_expiry_chrono();
     assert_eq!(chrono_duration.num_seconds(), 86400);
 }
-
-// ============================================================================
-// Debug Tests
-// ============================================================================
 
 #[test]
 fn test_webauthn_config_debug() {

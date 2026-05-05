@@ -4,10 +4,6 @@
 use systemprompt_runtime::FilesConfigValidator;
 use systemprompt_traits::{DomainConfig, StartupValidationReport, ValidationReport};
 
-// ============================================================================
-// StartupValidationReport Tests
-// ============================================================================
-
 #[test]
 fn test_startup_validation_report_new() {
     let report = StartupValidationReport::new();
@@ -53,10 +49,6 @@ fn test_startup_validation_report_warning_count_zero() {
     let report = StartupValidationReport::new();
     assert_eq!(report.warning_count(), 0);
 }
-
-// ============================================================================
-// ValidationReport Tests
-// ============================================================================
 
 #[test]
 fn test_validation_report_new() {
@@ -124,10 +116,6 @@ fn test_validation_report_multiple_warnings() {
     assert_eq!(report.warnings.len(), 2);
 }
 
-// ============================================================================
-// ValidationError Tests
-// ============================================================================
-
 #[test]
 fn test_validation_error_new() {
     use systemprompt_traits::validation_report::ValidationError;
@@ -174,10 +162,6 @@ fn test_validation_error_full_chain() {
         .expect("Should have suggestion in full chain");
 }
 
-// ============================================================================
-// ValidationWarning Tests
-// ============================================================================
-
 #[test]
 fn test_validation_warning_new() {
     use systemprompt_traits::validation_report::ValidationWarning;
@@ -194,10 +178,6 @@ fn test_validation_warning_with_suggestion() {
     let warning = ValidationWarning::new("field", "message").with_suggestion("Consider this");
     warning.suggestion.as_ref().expect("Should have suggestion");
 }
-
-// ============================================================================
-// Expected Domains Complete List Tests
-// ============================================================================
 
 #[test]
 fn test_all_registered_domains() {

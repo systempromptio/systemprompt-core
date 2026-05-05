@@ -56,13 +56,10 @@ mod response_strategy_tests {
         let strategy =
             ResponseStrategy::from_response(content, tool_calls.clone(), tool_results.clone());
 
-        // Empty whitespace should not trigger ContentProvided with that content
         match strategy {
             ResponseStrategy::ToolsOnly { .. } | ResponseStrategy::ArtifactsProvided { .. } => {
-                // Expected when content is just whitespace
             },
             ResponseStrategy::ContentProvided { content: c, .. } => {
-                // Also acceptable if content is preserved
                 assert!(c.trim().is_empty() || !c.is_empty());
             },
         }

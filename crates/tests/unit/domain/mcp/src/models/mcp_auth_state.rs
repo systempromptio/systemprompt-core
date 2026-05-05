@@ -14,10 +14,6 @@ fn create_test_user() -> AuthenticatedUser {
     }
 }
 
-// ============================================================================
-// McpAuthState is_authenticated Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_auth_state_is_authenticated_true() {
     let user = create_test_user();
@@ -31,10 +27,6 @@ fn test_mcp_auth_state_is_authenticated_false() {
     assert!(!state.is_authenticated());
 }
 
-// ============================================================================
-// McpAuthState is_anonymous Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_auth_state_is_anonymous_true() {
     let state = McpAuthState::Anonymous;
@@ -47,10 +39,6 @@ fn test_mcp_auth_state_is_anonymous_false() {
     let state = McpAuthState::Authenticated(user);
     assert!(!state.is_anonymous());
 }
-
-// ============================================================================
-// McpAuthState user Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_auth_state_user_some() {
@@ -68,10 +56,6 @@ fn test_mcp_auth_state_user_none() {
     assert!(state.user().is_none());
 }
 
-// ============================================================================
-// McpAuthState username Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_auth_state_username_authenticated() {
     let user = create_test_user();
@@ -85,10 +69,6 @@ fn test_mcp_auth_state_username_anonymous() {
     assert_eq!(state.username(), "anonymous");
 }
 
-// ============================================================================
-// McpAuthState has_permission Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_auth_state_has_permission_anonymous_allowed() {
     let state = McpAuthState::Anonymous;
@@ -101,20 +81,12 @@ fn test_mcp_auth_state_has_permission_anonymous_denied() {
     assert!(!state.has_permission(Permission::Admin));
 }
 
-// ============================================================================
-// McpAuthState Clone Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_auth_state_clone_anonymous() {
     let state = McpAuthState::Anonymous;
     let cloned = state.clone();
     assert!(cloned.is_anonymous());
 }
-
-// ============================================================================
-// McpAuthState Debug Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_auth_state_debug_authenticated() {
@@ -130,10 +102,6 @@ fn test_mcp_auth_state_debug_anonymous() {
     let debug_str = format!("{:?}", state);
     assert!(debug_str.contains("Anonymous"));
 }
-
-// ============================================================================
-// McpAuthState Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_auth_state_serialize_authenticated() {

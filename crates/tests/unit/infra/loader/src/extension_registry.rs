@@ -22,10 +22,6 @@ fn create_mcp_manifest(name: &str, binary: &str) -> String {
     )
 }
 
-// ============================================================================
-// Build Registry Tests
-// ============================================================================
-
 #[test]
 fn test_build_registry_local_mode() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -78,10 +74,6 @@ fn test_build_registry_cloud_mode_ignores_local_extensions() {
 
     assert!(!registry.has_extension("local-binary"));
 }
-
-// ============================================================================
-// Get Path Tests
-// ============================================================================
 
 #[test]
 fn test_get_path_local_mode() {
@@ -154,10 +146,6 @@ fn test_get_path_cloud_mode_not_found() {
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
-// ============================================================================
-// Get Extension Tests
-// ============================================================================
-
 #[test]
 fn test_get_extension_found() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -208,10 +196,6 @@ fn test_get_extension_cloud_mode_returns_none() {
         "Cloud mode doesn't store DiscoveredExtension"
     );
 }
-
-// ============================================================================
-// Has Extension Tests
-// ============================================================================
 
 #[test]
 fn test_has_extension_local_discovered() {
@@ -277,10 +261,6 @@ fn test_has_extension_not_found() {
     assert!(!registry.has_extension("anything"));
 }
 
-// ============================================================================
-// Multiple Extensions Tests
-// ============================================================================
-
 #[test]
 fn test_registry_with_multiple_extensions() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -307,10 +287,6 @@ fn test_registry_with_multiple_extensions() {
 
     assert!(!registry.has_extension("binary-6"));
 }
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
 
 #[test]
 fn test_registry_empty_project() {

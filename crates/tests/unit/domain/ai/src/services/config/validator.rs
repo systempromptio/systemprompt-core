@@ -109,7 +109,6 @@ mod validate_providers_tests {
     fn rejects_disabled_default_provider() {
         let mut config = create_valid_config();
 
-        // Add another enabled provider
         config.providers.insert(
             "anthropic".to_string(),
             AiProviderConfig {
@@ -124,7 +123,6 @@ mod validate_providers_tests {
             },
         );
 
-        // Disable the default
         config.providers.get_mut("openai").unwrap().enabled = false;
 
         let err = ConfigValidator::validate(&config, &[]).unwrap_err();
@@ -181,7 +179,6 @@ mod validate_mcp_tests {
         let mut config = create_valid_config();
         config.mcp.retry_attempts = 0;
 
-        // Should pass but log a warning (we can't test the warning easily)
         ConfigValidator::validate(&config, &[]).expect("zero retry attempts should pass");
     }
 }
@@ -195,7 +192,6 @@ mod validate_sampling_tests {
         config.sampling.enable_smart_routing = false;
         config.sampling.fallback_enabled = false;
 
-        // Should pass but log a warning
         ConfigValidator::validate(&config, &[]).expect("disabled routing should pass");
     }
 }
@@ -208,7 +204,6 @@ mod validate_history_tests {
         let mut config = create_valid_config();
         config.history.retention_days = 0;
 
-        // Should pass but log a warning
         ConfigValidator::validate(&config, &[]).expect("zero retention should pass");
     }
 
@@ -217,7 +212,6 @@ mod validate_history_tests {
         let mut config = create_valid_config();
         config.history.retention_days = 500;
 
-        // Should pass but log a warning
         ConfigValidator::validate(&config, &[]).expect("high retention should pass");
     }
 }

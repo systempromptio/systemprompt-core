@@ -13,10 +13,6 @@ fn response_meta() -> serde_json::Value {
     })
 }
 
-// ============================================================================
-// Async API Tests - Health Check
-// ============================================================================
-
 #[tokio::test]
 async fn test_check_health_success() {
     let mock_server = MockServer::start().await;
@@ -56,10 +52,6 @@ async fn test_check_health_no_server() {
 
     assert!(!is_healthy);
 }
-
-// ============================================================================
-// Async API Tests - List Agents
-// ============================================================================
 
 #[tokio::test]
 async fn test_list_agents_success() {
@@ -136,10 +128,6 @@ async fn test_list_agents_unauthorized() {
 
     result.unwrap_err();
 }
-
-// ============================================================================
-// Async API Tests - Verify Token
-// ============================================================================
 
 #[tokio::test]
 async fn test_verify_token_success() {

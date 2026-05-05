@@ -129,10 +129,6 @@ fn test_registry_extension_metadata() {
     assert_eq!(ext.priority(), 100);
 }
 
-// =============================================================================
-// API Path Validation Tests
-// =============================================================================
-
 #[test]
 fn test_validate_api_path_valid() {
     let registry = TypedExtensionRegistry::new();

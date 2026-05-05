@@ -39,7 +39,6 @@ mod openai_models_tests {
 
         assert!(models.gpt4_turbo.cost_per_1k_tokens > 0.0);
         assert!(models.gpt35_turbo.cost_per_1k_tokens > 0.0);
-        // GPT-4 should be more expensive
         assert!(models.gpt4_turbo.cost_per_1k_tokens > models.gpt35_turbo.cost_per_1k_tokens);
     }
 }

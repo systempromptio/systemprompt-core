@@ -5,10 +5,6 @@ use systemprompt_identifiers::LogId;
 use systemprompt_logging::models::LogRow;
 use systemprompt_logging::{LogEntry, LogLevel};
 
-// ============================================================================
-// LogRow Default ID Conversion Tests
-// ============================================================================
-
 #[test]
 fn test_log_row_to_log_entry_no_user_id_uses_system() {
     let row = LogRow {
@@ -80,10 +76,6 @@ fn test_log_row_to_log_entry_no_trace_id_uses_system() {
         systemprompt_identifiers::TraceId::system().as_str()
     );
 }
-
-// ============================================================================
-// LogRow Level String Variations Tests
-// ============================================================================
 
 #[test]
 fn test_log_row_level_case_insensitive_info() {

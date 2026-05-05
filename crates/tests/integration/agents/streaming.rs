@@ -10,7 +10,6 @@ async fn test_streaming_response_format() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "What is streaming?").await?;
 
     let registry = ctx
@@ -56,7 +55,6 @@ async fn test_response_contains_valid_json() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "Test JSON response").await?;
 
     let registry = ctx
@@ -108,7 +106,6 @@ async fn test_agent_processes_request() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "Process this request").await?;
 
     let registry = ctx

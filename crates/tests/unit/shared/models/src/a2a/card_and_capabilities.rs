@@ -2,10 +2,6 @@
 
 use systemprompt_models::{AgentCapabilities, AgentCard, AgentProvider};
 
-// ============================================================================
-// AgentCard Tests
-// ============================================================================
-
 #[test]
 fn test_agent_card_builder_creates_valid_card() {
     let card = AgentCard::builder(
@@ -143,10 +139,6 @@ fn test_agent_card_ensure_mcp_extension_idempotent() {
     assert_eq!(ext_count, ext_count_after);
 }
 
-// ============================================================================
-// AgentCapabilities Tests
-// ============================================================================
-
 #[test]
 fn test_agent_capabilities_default() {
     let caps = AgentCapabilities::default();
@@ -188,10 +180,6 @@ fn test_agent_capabilities_normalize_preserves_existing() {
     assert_eq!(normalized.push_notifications, Some(true));
     assert_eq!(normalized.state_transition_history, Some(false));
 }
-
-// ============================================================================
-// AgentProvider Tests
-// ============================================================================
 
 #[test]
 fn test_agent_provider_serialize() {

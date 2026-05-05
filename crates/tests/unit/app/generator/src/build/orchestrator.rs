@@ -2,10 +2,6 @@
 
 use systemprompt_generator::{BuildError, BuildMode};
 
-// ============================================================================
-// BuildMode Parsing Tests
-// ============================================================================
-
 #[test]
 fn test_build_mode_parse_development() {
     assert_eq!(
@@ -50,10 +46,6 @@ fn test_build_mode_parse_invalid() {
     assert_eq!(BuildMode::parse("staging"), None);
 }
 
-// ============================================================================
-// BuildMode as_str Tests
-// ============================================================================
-
 #[test]
 fn test_build_mode_as_str_development() {
     assert_eq!(BuildMode::Development.as_str(), "development");
@@ -68,18 +60,6 @@ fn test_build_mode_as_str_production() {
 fn test_build_mode_as_str_docker() {
     assert_eq!(BuildMode::Docker.as_str(), "docker");
 }
-
-// ============================================================================
-// BuildMode Equality Tests
-// ============================================================================
-
-// ============================================================================
-// BuildMode Clone and Copy Tests
-// ============================================================================
-
-// ============================================================================
-// BuildError Display Tests
-// ============================================================================
 
 #[test]
 fn test_build_error_css_organization_failed() {
@@ -121,10 +101,6 @@ fn test_build_error_io_from_std_io_error() {
     assert!(build_error.to_string().contains("I/O error"));
 }
 
-// ============================================================================
-// BuildError Debug Tests
-// ============================================================================
-
 #[test]
 fn test_build_error_debug() {
     let error = BuildError::ValidationFailed("test".to_string());
@@ -132,10 +108,6 @@ fn test_build_error_debug() {
     assert!(debug_str.contains("ValidationFailed"));
     assert!(debug_str.contains("test"));
 }
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
 
 #[test]
 fn test_build_mode_parse_with_whitespace() {

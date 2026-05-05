@@ -55,10 +55,6 @@ fn create_test_token(claims: &TestClaims, secret: &str) -> String {
     .unwrap()
 }
 
-// ============================================================================
-// Valid Token Tests
-// ============================================================================
-
 #[test]
 fn test_validate_jwt_token_success() {
     let claims = create_test_claims(3600, TEST_ISSUER, &["api"]);
@@ -107,10 +103,6 @@ fn test_validate_jwt_token_with_a2a_audience() {
     result.expect("expected success");
 }
 
-// ============================================================================
-// Expired Token Tests
-// ============================================================================
-
 #[test]
 fn test_validate_jwt_token_expired() {
     let claims = create_test_claims(-3600, TEST_ISSUER, &["api"]);
@@ -132,10 +124,6 @@ fn test_validate_jwt_token_just_expired() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// Invalid Secret Tests
-// ============================================================================
-
 #[test]
 fn test_validate_jwt_token_wrong_secret() {
     let claims = create_test_claims(3600, TEST_ISSUER, &["api"]);
@@ -147,10 +135,6 @@ fn test_validate_jwt_token_wrong_secret() {
     assert!(err.to_string().contains("validation failed"));
 }
 
-// ============================================================================
-// Invalid Issuer Tests
-// ============================================================================
-
 #[test]
 fn test_validate_jwt_token_wrong_issuer() {
     let claims = create_test_claims(3600, "https://wrong-issuer.com", &["api"]);
@@ -161,10 +145,6 @@ fn test_validate_jwt_token_wrong_issuer() {
     let err = result.unwrap_err();
     assert!(err.to_string().contains("validation failed"));
 }
-
-// ============================================================================
-// Invalid Audience Tests
-// ============================================================================
 
 #[test]
 fn test_validate_jwt_token_wrong_audience() {
@@ -186,10 +166,6 @@ fn test_validate_jwt_token_missing_required_audience() {
 
     result.unwrap_err();
 }
-
-// ============================================================================
-// Malformed Token Tests
-// ============================================================================
 
 #[test]
 fn test_validate_jwt_token_malformed() {
@@ -233,10 +209,6 @@ fn test_validate_jwt_token_base64_but_not_jwt() {
 
     result.unwrap_err();
 }
-
-// ============================================================================
-// Claims Validation Tests
-// ============================================================================
 
 #[test]
 fn test_validate_jwt_token_extracts_correct_subject() {

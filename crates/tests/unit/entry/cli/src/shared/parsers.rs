@@ -9,10 +9,6 @@
 
 use systemprompt_cli::shared::{parse_email, parse_profile_name};
 
-// ============================================================================
-// parse_profile_name Tests
-// ============================================================================
-
 #[test]
 fn test_parse_profile_name_valid_simple() {
     let result = parse_profile_name("local");
@@ -99,10 +95,6 @@ fn test_parse_profile_name_error_message_is_string() {
     let error = result.unwrap_err();
     assert!(!error.is_empty());
 }
-
-// ============================================================================
-// parse_email Tests
-// ============================================================================
 
 #[test]
 fn test_parse_email_valid_simple() {
@@ -205,10 +197,6 @@ fn test_parse_email_error_message_is_string() {
     let error = result.unwrap_err();
     assert!(!error.is_empty());
 }
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
 
 #[test]
 fn test_parse_profile_name_single_char() {

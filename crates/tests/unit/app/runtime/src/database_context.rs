@@ -7,10 +7,6 @@
 //! Note: The async from_url function requires a real database connection.
 //! Full connection testing is performed in integration tests.
 
-// ============================================================================
-// DatabaseContext Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_database_url_postgres_pattern() {
     let url = "postgresql://localhost:5432/testdb";
@@ -74,10 +70,6 @@ fn test_database_url_with_ipv6() {
     assert!(url.contains("[::1]"));
 }
 
-// ============================================================================
-// Connection Pool Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_pool_size_default_pattern() {
     let default_pool_size = 10;
@@ -97,10 +89,6 @@ fn test_pool_idle_timeout_pattern() {
     let idle_timeout_minutes = 10;
     assert!(idle_timeout_minutes > 0);
 }
-
-// ============================================================================
-// Arc Clone Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_arc_clone_pattern() {
@@ -137,10 +125,6 @@ fn test_arc_drop_behavior() {
 
     assert_eq!(Arc::strong_count(&original), 1);
 }
-
-// ============================================================================
-// Database URL Validation Patterns
-// ============================================================================
 
 #[test]
 fn test_valid_postgres_urls() {
@@ -193,10 +177,6 @@ fn test_url_with_schema() {
     let url = "postgresql://localhost:5432/db?currentSchema=myschema";
     assert!(url.contains("currentSchema"));
 }
-
-// ============================================================================
-// Database Context Struct Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_database_context_debug_pattern() {

@@ -83,7 +83,6 @@ mod format_for_ai_tests {
 
         let formatted = ToolResultFormatter::format_for_ai(&calls, &results);
 
-        // Should be truncated (500 chars + "...")
         assert!(formatted.len() < 1000);
         assert!(formatted.contains("..."));
     }
@@ -191,7 +190,6 @@ mod format_for_display_tests {
 
         let formatted = ToolResultFormatter::format_for_display(&calls, &results);
 
-        // Should be truncated (200 chars)
         assert!(formatted.len() < 500);
     }
 }
@@ -217,7 +215,6 @@ mod format_fallback_summary_tests {
 
         let formatted = ToolResultFormatter::format_fallback_summary(&calls, &results);
 
-        // Should not include failed result content
         assert!(!formatted.contains("Error message"));
     }
 

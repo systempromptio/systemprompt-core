@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::services::monitoring::health::HealthStatus;
 
-// ============================================================================
-// HealthStatus as_str Tests
-// ============================================================================
-
 #[test]
 fn test_health_status_healthy_as_str() {
     assert_eq!(HealthStatus::Healthy.as_str(), "healthy");
@@ -26,10 +22,6 @@ fn test_health_status_unknown_as_str() {
     assert_eq!(HealthStatus::Unknown.as_str(), "unknown");
 }
 
-// ============================================================================
-// HealthStatus emoji Tests
-// ============================================================================
-
 #[test]
 fn test_health_status_healthy_emoji() {
     assert_eq!(HealthStatus::Healthy.emoji(), "\u{2705}");
@@ -49,14 +41,6 @@ fn test_health_status_unhealthy_emoji() {
 fn test_health_status_unknown_emoji() {
     assert_eq!(HealthStatus::Unknown.emoji(), "\u{2753}");
 }
-
-// ============================================================================
-// HealthStatus Equality and Clone Tests
-// ============================================================================
-
-// ============================================================================
-// HealthStatus All Variants Tests
-// ============================================================================
 
 #[test]
 fn test_health_status_all_variants_as_str() {

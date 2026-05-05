@@ -10,10 +10,6 @@ use systemprompt_content::api::routes::links::{
     AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery,
 };
 
-// ============================================================================
-// GenerateLinkRequest Tests
-// ============================================================================
-
 #[test]
 fn test_generate_link_request_minimal() {
     let json = r#"{
@@ -103,10 +99,6 @@ fn test_generate_link_request_debug() {
     assert!(debug.contains("target_url"));
 }
 
-// ============================================================================
-// GenerateLinkResponse Tests
-// ============================================================================
-
 #[test]
 fn test_generate_link_response_serialization() {
     let response = GenerateLinkResponse {
@@ -150,10 +142,6 @@ fn test_generate_link_response_debug() {
     let debug = format!("{:?}", response);
     assert!(debug.contains("GenerateLinkResponse"));
 }
-
-// ============================================================================
-// ListLinksQuery Tests
-// ============================================================================
 
 #[test]
 fn test_list_links_query_empty() {
@@ -199,10 +187,6 @@ fn test_list_links_query_debug() {
     let debug = format!("{:?}", query);
     assert!(debug.contains("ListLinksQuery"));
 }
-
-// ============================================================================
-// AnalyticsQuery Tests
-// ============================================================================
 
 #[test]
 fn test_analytics_query_empty() {
@@ -256,10 +240,6 @@ fn test_analytics_query_clone() {
     assert_eq!(cloned.limit, query.limit);
     assert_eq!(cloned.offset, query.offset);
 }
-
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
 
 #[test]
 fn test_generate_link_request_empty_strings() {

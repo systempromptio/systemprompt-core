@@ -8,10 +8,6 @@
 
 use systemprompt_agent::services::shared::slug::{generate_slug, generate_unique_slug};
 
-// ============================================================================
-// Basic Slug Generation Tests
-// ============================================================================
-
 #[test]
 fn test_generate_slug_simple_name() {
     let slug = generate_slug("Test Agent");
@@ -48,10 +44,6 @@ fn test_generate_slug_numbers_only() {
     assert_eq!(slug, "12345");
 }
 
-// ============================================================================
-// Special Character Handling Tests
-// ============================================================================
-
 #[test]
 fn test_generate_slug_with_underscores() {
     let slug = generate_slug("my_agent_name");
@@ -85,13 +77,8 @@ fn test_generate_slug_with_ampersand() {
 #[test]
 fn test_generate_slug_with_unicode() {
     let slug = generate_slug("Café Agent");
-    // Unicode characters like 'é' are kept as alphanumeric
     assert_eq!(slug, "café-agent");
 }
-
-// ============================================================================
-// Whitespace Normalization Tests
-// ============================================================================
 
 #[test]
 fn test_generate_slug_multiple_spaces() {
@@ -129,10 +116,6 @@ fn test_generate_slug_only_special_chars() {
     assert_eq!(slug, "");
 }
 
-// ============================================================================
-// Consecutive Hyphen Handling Tests
-// ============================================================================
-
 #[test]
 fn test_generate_slug_consecutive_hyphens() {
     let slug = generate_slug("Agent---Name");
@@ -156,10 +139,6 @@ fn test_generate_slug_trailing_hyphens() {
     let slug = generate_slug("Agent---");
     assert_eq!(slug, "agent");
 }
-
-// ============================================================================
-// Unique Slug Generation Tests
-// ============================================================================
 
 #[test]
 fn test_generate_unique_slug_no_collision() {
@@ -217,10 +196,6 @@ fn test_generate_unique_slug_preserves_numbers() {
     let slug = generate_unique_slug("Agent v2.0", &existing);
     assert_eq!(slug, "agent-v2-0");
 }
-
-// ============================================================================
-// Edge Cases Tests
-// ============================================================================
 
 #[test]
 fn test_generate_slug_single_character() {

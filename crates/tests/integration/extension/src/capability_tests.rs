@@ -8,10 +8,6 @@ use systemprompt_extension::capabilities::{
 };
 use systemprompt_traits::{ConfigProvider, DatabaseHandle, UserEvent, UserEventPublisher};
 
-// =============================================================================
-// Mock Implementations for Testing
-// =============================================================================
-
 #[derive(Debug, Clone)]
 struct MockConfig {
     app_name: String,
@@ -60,13 +56,8 @@ struct MockEventBus;
 
 impl UserEventPublisher for MockEventBus {
     fn publish_user_event(&self, _event: UserEvent) {
-        // No-op for testing
     }
 }
-
-// =============================================================================
-// CapabilityContext Tests
-// =============================================================================
 
 #[test]
 fn test_has_config_trait() {
@@ -95,10 +86,6 @@ fn test_has_database_trait() {
     let db: &MockDatabase = ctx.database();
     assert!(db.is_connected());
 }
-
-// =============================================================================
-// Trait Bound Tests
-// =============================================================================
 
 fn requires_has_config<T: HasConfig>(ctx: &T) -> String {
     let _ = ctx;

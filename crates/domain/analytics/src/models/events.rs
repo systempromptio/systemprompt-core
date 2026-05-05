@@ -65,7 +65,6 @@ pub struct CreateAnalyticsEventBatchInput {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AnalyticsEventCreated {
-    // SQLx: analytics event primary key (text column, no typed ID defined)
     pub id: String,
     pub event_type: String,
 }
