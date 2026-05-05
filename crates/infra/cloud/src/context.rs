@@ -84,7 +84,7 @@ impl CloudContext {
         store.find_tenant(tenant_id).map_or_else(
             || {
                 Err(CloudError::TenantNotFound {
-                    tenant_id: tenant_id.to_string(),
+                    tenant_id: systemprompt_identifiers::TenantId::new(tenant_id),
                 })
             },
             |tenant| Ok(Some(ResolvedTenant::from(tenant.clone()))),

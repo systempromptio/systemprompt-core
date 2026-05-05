@@ -2,10 +2,11 @@ use super::section_types::{SectionLayout, SectionType};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use systemprompt_identifiers::SectionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DashboardSection {
-    pub section_id: String,
+    pub section_id: SectionId,
     pub title: String,
     pub section_type: SectionType,
     pub data: JsonValue,
@@ -19,7 +20,7 @@ impl DashboardSection {
         section_type: SectionType,
     ) -> Self {
         Self {
-            section_id: section_id.into(),
+            section_id: SectionId::new(section_id),
             title: title.into(),
             section_type,
             data: JsonValue::Object(serde_json::Map::new()),

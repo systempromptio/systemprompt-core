@@ -71,8 +71,9 @@ pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<CommandResu
         CliService::success("Logged out of systemprompt.io Cloud");
     }
 
+    let activity_user_id = systemprompt_identifiers::UserId::new(creds.user_email.clone());
     if let Err(e) = client
-        .report_activity(ApiPaths::ACTIVITY_EVENT_LOGOUT, &creds.user_email)
+        .report_activity(ApiPaths::ACTIVITY_EVENT_LOGOUT, &activity_user_id)
         .await
     {
         tracing::debug!(error = %e, "Failed to report logout activity");

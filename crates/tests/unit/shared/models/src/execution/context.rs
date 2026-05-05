@@ -279,10 +279,10 @@ fn context_id_source_direct() {
 #[test]
 fn context_id_source_from_task() {
     let source = ContextIdSource::FromTask {
-        task_id: "task-abc".to_string(),
+        task_id: systemprompt_identifiers::TaskId::new("task-abc"),
     };
     match source {
-        ContextIdSource::FromTask { task_id } => assert_eq!(task_id, "task-abc"),
+        ContextIdSource::FromTask { task_id } => assert_eq!(task_id.as_str(), "task-abc"),
         _ => panic!("Expected FromTask variant"),
     }
 }

@@ -1,7 +1,8 @@
 //! Periodic cleanup queries for orphaned rows and expired tokens.
 
-use anyhow::Result;
 use sqlx::PgPool;
+
+use crate::error::DatabaseResult;
 
 #[derive(Debug)]
 pub struct CleanupRepository {
@@ -17,7 +18,7 @@ impl CleanupRepository {
         Self { write_pool }
     }
 
-    pub async fn delete_orphaned_logs(&self) -> Result<u64> {
+    pub async fn delete_orphaned_logs(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!(
             r#"
             DELETE FROM logs
@@ -30,7 +31,7 @@ impl CleanupRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn delete_orphaned_mcp_executions(&self) -> Result<u64> {
+    pub async fn delete_orphaned_mcp_executions(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!(
             r#"
             DELETE FROM mcp_tool_executions
@@ -43,7 +44,7 @@ impl CleanupRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn delete_old_logs(&self, days: i32) -> Result<u64> {
+    pub async fn delete_old_logs(&self, days: i32) -> DatabaseResult<u64> {
         let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(days));
         let result = sqlx::query!("DELETE FROM logs WHERE timestamp < $1", cutoff)
             .execute(&self.write_pool)
@@ -51,14 +52,14 @@ impl CleanupRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn delete_expired_oauth_tokens(&self) -> Result<u64> {
+    pub async fn delete_expired_oauth_tokens(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!("DELETE FROM oauth_refresh_tokens WHERE expires_at < NOW()")
             .execute(&self.write_pool)
             .await?;
         Ok(result.rows_affected())
     }
 
-    pub async fn delete_expired_oauth_codes(&self) -> Result<u64> {
+    pub async fn delete_expired_oauth_codes(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM oauth_auth_codes WHERE expires_at < NOW() OR used_at IS NOT NULL"
         )

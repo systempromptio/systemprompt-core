@@ -47,11 +47,11 @@ impl SessionCreationService {
             .map_err(|e| OauthError::Token(e.to_string()))?;
 
         self.publish_event(UserEvent::UserCreated {
-            user_id: user_id.to_string(),
+            user_id: user_id.clone(),
         });
         self.publish_event(UserEvent::SessionCreated {
-            user_id: user_id.to_string(),
-            session_id: session_id.to_string(),
+            user_id: user_id.clone(),
+            session_id: session_id.clone(),
         });
 
         Ok(AnonymousSessionInfo {

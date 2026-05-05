@@ -113,7 +113,7 @@ fn test_tenants_store_invalid_display() {
 #[test]
 fn test_tenant_not_found_display() {
     let error = CloudError::TenantNotFound {
-        tenant_id: "tenant-123".to_string(),
+        tenant_id: systemprompt_identifiers::TenantId::new("tenant-123"),
     };
     let msg = error.to_string();
     assert!(msg.contains("Tenant 'tenant-123' not found"));
@@ -211,7 +211,7 @@ fn test_user_message_tenants_store_invalid() {
 #[test]
 fn test_user_message_tenant_not_found() {
     let error = CloudError::TenantNotFound {
-        tenant_id: "test".to_string(),
+        tenant_id: systemprompt_identifiers::TenantId::new("test"),
     };
     assert_eq!(error.user_message(), "Tenant not found");
 }
@@ -298,7 +298,7 @@ fn test_recovery_hint_tenants_store_invalid() {
 #[test]
 fn test_recovery_hint_tenant_not_found() {
     let error = CloudError::TenantNotFound {
-        tenant_id: "test".to_string(),
+        tenant_id: systemprompt_identifiers::TenantId::new("test"),
     };
     assert!(error.recovery_hint().contains("systemprompt cloud config"));
 }
@@ -380,7 +380,7 @@ fn test_cloud_error_debug() {
 #[test]
 fn test_cloud_error_debug_with_fields() {
     let error = CloudError::TenantNotFound {
-        tenant_id: "test-123".to_string(),
+        tenant_id: systemprompt_identifiers::TenantId::new("test-123"),
     };
     let debug_str = format!("{:?}", error);
     assert!(debug_str.contains("TenantNotFound"));

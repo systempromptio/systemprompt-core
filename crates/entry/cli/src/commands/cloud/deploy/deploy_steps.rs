@@ -27,7 +27,7 @@ pub async fn deploy_with_secrets(
     validate_profile_dockerfile(&dockerfile, project.as_path(), &services_config)?;
 
     let spinner = CliService::spinner("Fetching registry credentials...");
-    let registry_token = client.get_registry_token(tenant_id.as_str()).await?;
+    let registry_token = client.get_registry_token(tenant_id).await?;
     spinner.finish_and_clear();
 
     let image = format!(
@@ -52,7 +52,7 @@ pub async fn deploy_with_secrets(
     CliService::success("Image pushed");
 
     let spinner = CliService::spinner("Deploying...");
-    let response = client.deploy(tenant_id.as_str(), &image).await?;
+    let response = client.deploy(tenant_id, &image).await?;
     spinner.finish_and_clear();
     CliService::success("Deployed!");
     if let Some(url) = response.app_url {
@@ -68,7 +68,7 @@ pub async fn deploy_with_secrets(
         if !secrets.is_empty() {
             let env_secrets = super::super::secrets::map_secrets_to_env_vars(secrets);
             let spinner = CliService::spinner("Syncing secrets...");
-            let keys = client.set_secrets(tenant_id.as_str(), env_secrets).await?;
+            let keys = client.set_secrets(tenant_id, env_secrets).await?;
             spinner.finish_and_clear();
             CliService::success(&format!("Synced {} secrets", keys.len()));
         }
@@ -90,7 +90,7 @@ pub async fn deploy_with_secrets(
     let mut profile_secret = HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
     client
-        .set_secrets(tenant_id.as_str(), profile_secret)
+        .set_secrets(tenant_id, profile_secret)
         .await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");

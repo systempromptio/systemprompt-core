@@ -163,7 +163,7 @@ impl WebAuthnService {
             .await?;
 
         self.oauth_repo
-            .consume_setup_token(token_record.id.as_str())
+            .consume_setup_token(&token_record.id)
             .await?;
 
         tracing::info!(

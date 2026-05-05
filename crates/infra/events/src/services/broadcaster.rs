@@ -1,4 +1,4 @@
-//! Generic SSE broadcaster used by all event kinds.
+//! Generic SSE broadcaster.
 //!
 //! [`GenericBroadcaster`] holds a `RwLock<HashMap<UserId, HashMap<ConnId,
 //! Sender>>>` and is parameterised over the payload type via the [`ToSse`]
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ConnectionId, UserId};
 use tokio::sync::RwLock;
 
 use crate::{Broadcaster, EventSender, ToSse};
@@ -159,7 +159,7 @@ pub type AnalyticsBroadcaster = GenericBroadcaster<AnalyticsEvent>;
 pub struct ConnectionGuard<E: ToSse + Clone + Send + Sync + 'static> {
     broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,
     user_id: UserId,
-    connection_id: String,
+    connection_id: ConnectionId,
 }
 
 impl<E: ToSse + Clone + Send + Sync + 'static> std::fmt::Debug for ConnectionGuard<E> {
@@ -177,7 +177,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> ConnectionGuard<E> {
     pub fn new(
         broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,
         user_id: UserId,
-        connection_id: String,
+        connection_id: ConnectionId,
     ) -> Self {
         Self {
             broadcaster,
@@ -194,7 +194,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Drop for ConnectionGuard<E> {
         let conn_id = self.connection_id.clone();
 
         tokio::spawn(async move {
-            broadcaster.unregister(&user_id, &conn_id).await;
+            broadcaster.unregister(&user_id, conn_id.as_str()).await;
         });
     }
 }

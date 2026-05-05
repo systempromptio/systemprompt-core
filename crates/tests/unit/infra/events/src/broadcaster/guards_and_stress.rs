@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 use std::time::Duration;
 use systemprompt_events::{Broadcaster, ConnectionGuard, GenericBroadcaster};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
 
 type TestBroadcaster = GenericBroadcaster<SystemEvent>;
@@ -26,7 +26,7 @@ async fn test_connection_guard_debug() {
     let guard = ConnectionGuard::new(
         &TEST_BROADCASTER,
         UserId::new("test-user"),
-        "test-conn".to_string(),
+        ConnectionId::new("test-conn"),
     );
 
     let debug_str = format!("{:?}", guard);
@@ -43,11 +43,11 @@ async fn test_connection_guard_drop_unregisters() {
         LazyLock::new(GenericBroadcaster::new);
 
     let user_id = UserId::new("drop-test-user");
-    let conn_id = "drop-test-conn".to_string();
+    let conn_id = ConnectionId::new("drop-test-conn");
     let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     DROP_TEST_BROADCASTER
-        .register(&user_id, &conn_id, sender)
+        .register(&user_id, conn_id.as_str(), sender)
         .await;
 
     assert_eq!(DROP_TEST_BROADCASTER.connection_count(&user_id).await, 1);
@@ -83,7 +83,7 @@ async fn test_connection_guard_multiple_guards_same_user() {
         let _guard1 = ConnectionGuard::new(
             &MULTI_GUARD_BROADCASTER,
             user_id.clone(),
-            "conn-1".to_string(),
+            ConnectionId::new("conn-1"),
         );
     }
 
@@ -95,7 +95,7 @@ async fn test_connection_guard_multiple_guards_same_user() {
         let _guard2 = ConnectionGuard::new(
             &MULTI_GUARD_BROADCASTER,
             user_id.clone(),
-            "conn-2".to_string(),
+            ConnectionId::new("conn-2"),
         );
     }
 

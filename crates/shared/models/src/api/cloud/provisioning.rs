@@ -2,6 +2,7 @@
 //! being created and deployed.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{CheckoutSessionId, PriceId, TenantId, TransactionId, UserId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -21,7 +22,7 @@ pub enum ProvisioningEventType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProvisioningEvent {
-    pub tenant_id: String,
+    pub tenant_id: TenantId,
     pub event_type: ProvisioningEventType,
     pub status: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -34,8 +35,8 @@ pub struct ProvisioningEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutEvent {
-    pub checkout_session_id: String,
-    pub tenant_id: String,
+    pub checkout_session_id: CheckoutSessionId,
+    pub tenant_id: TenantId,
     pub tenant_name: String,
     pub event_type: ProvisioningEventType,
     pub status: String,
@@ -49,7 +50,7 @@ pub struct CheckoutEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutRequest {
-    pub price_id: String,
+    pub price_id: PriceId,
     pub region: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect_uri: Option<String>,
@@ -58,8 +59,8 @@ pub struct CheckoutRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutResponse {
     pub checkout_url: String,
-    pub transaction_id: String,
-    pub checkout_session_id: String,
+    pub transaction_id: TransactionId,
+    pub checkout_session_id: CheckoutSessionId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,5 +79,5 @@ pub struct ActivityRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActivityData {
-    pub user_id: String,
+    pub user_id: UserId,
 }

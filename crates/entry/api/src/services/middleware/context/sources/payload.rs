@@ -30,7 +30,9 @@ impl PayloadSource {
                     reason: "Task ID required for task methods".to_string(),
                 })?;
 
-            return Ok(ContextIdSource::FromTask { task_id });
+            return Ok(ContextIdSource::FromTask {
+                task_id: systemprompt_identifiers::TaskId::new(task_id),
+            });
         }
 
         payload

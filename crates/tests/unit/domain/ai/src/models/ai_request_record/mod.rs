@@ -339,9 +339,9 @@ mod ai_request_record_tests {
 
     #[test]
     fn minimal_fallback_creates_failed_record() {
-        let record = AiRequestRecord::minimal_fallback("fallback-123".to_string());
+        let record = AiRequestRecord::minimal_fallback(AiRequestId::new("fallback-123"));
 
-        assert_eq!(record.request_id, "fallback-123");
+        assert_eq!(record.request_id.as_str(), "fallback-123");
         assert_eq!(record.user_id.to_string(), "unknown");
         assert_eq!(record.provider, "unknown");
         assert_eq!(record.model, "unknown");

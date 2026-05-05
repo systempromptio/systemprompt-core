@@ -4,6 +4,7 @@
 use std::time::Duration;
 
 use futures::StreamExt;
+use systemprompt_identifiers::TenantId;
 
 use crate::CloudApiClient;
 use crate::api_client::{ProvisioningEvent, ProvisioningEventType};
@@ -11,13 +12,13 @@ use crate::error::{CloudError, CloudResult};
 
 pub async fn wait_for_provisioning<F>(
     client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
     on_event: F,
 ) -> CloudResult<ProvisioningEvent>
 where
     F: Fn(&ProvisioningEvent),
 {
-    let mut stream = client.subscribe_provisioning_events(tenant_id);
+    let mut stream = client.subscribe_provisioning_events(tenant_id.as_str());
 
     while let Some(event_result) = stream.next().await {
         match event_result {
@@ -47,7 +48,7 @@ where
 
 async fn wait_for_provisioning_polling(
     client: &CloudApiClient,
-    tenant_id: &str,
+    tenant_id: &TenantId,
 ) -> CloudResult<ProvisioningEvent> {
     const MAX_ATTEMPTS: u32 = 60;
     const POLL_INTERVAL_SECS: u64 = 2;
@@ -57,7 +58,7 @@ async fn wait_for_provisioning_polling(
             Ok(status) => match status.status.as_str() {
                 "ready" => {
                     return Ok(ProvisioningEvent {
-                        tenant_id: tenant_id.to_string(),
+                        tenant_id: tenant_id.clone(),
                         event_type: ProvisioningEventType::TenantReady,
                         status: "ready".to_string(),
                         message: status.message,

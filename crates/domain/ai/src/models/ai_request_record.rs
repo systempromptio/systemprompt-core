@@ -35,7 +35,7 @@ impl RequestStatus {
 
 #[derive(Debug, Clone)]
 pub struct AiRequestRecord {
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub user_id: UserId,
     pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
@@ -60,7 +60,7 @@ impl AiRequestRecord {
         AiRequestRecordBuilder::new(request_id, user_id)
     }
 
-    pub fn minimal_fallback(request_id: String) -> Self {
+    pub fn minimal_fallback(request_id: AiRequestId) -> Self {
         Self {
             request_id,
             user_id: UserId::new("unknown"),
@@ -86,7 +86,7 @@ impl AiRequestRecord {
 
 #[derive(Debug)]
 pub struct AiRequestRecordBuilder {
-    request_id: String,
+    request_id: AiRequestId,
     user_id: UserId,
     tenant_id: Option<TenantId>,
     session_id: Option<SessionId>,
@@ -109,7 +109,7 @@ pub struct AiRequestRecordBuilder {
 impl AiRequestRecordBuilder {
     pub fn new(request_id: AiRequestId, user_id: UserId) -> Self {
         Self {
-            request_id: request_id.into(),
+            request_id,
             user_id,
             tenant_id: None,
             session_id: None,

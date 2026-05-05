@@ -102,7 +102,7 @@ impl Fixture {
     }
 
     fn repo(&self) -> Result<CostAnalyticsRepository> {
-        CostAnalyticsRepository::new(&self.db)
+        Ok(CostAnalyticsRepository::new(&self.db)?)
     }
 
     async fn cleanup(&self) -> Result<()> {
@@ -141,7 +141,7 @@ async fn breakdown_reconciles_with_summary_when_all_attributed() -> Result<()> {
     let breakdown_sum: i64 = breakdown.iter().map(|r| r.cost).sum();
     let expected_total: i64 = (1_000 * (1 + 2 + 3 + 4 + 5)) + (500 * (1 + 2 + 3 + 4 + 5));
 
-    assert_eq!(summary.total_cost, Some(expected_total));
+    assert_eq!(summary.cost, Some(expected_total));
     assert_eq!(breakdown_sum, expected_total);
     assert!(
         breakdown.iter().all(|r| r.name != "unattributed"),
@@ -173,7 +173,7 @@ async fn breakdown_reconciles_with_summary_with_null_task_ids() -> Result<()> {
     let breakdown_sum: i64 = breakdown.iter().map(|r| r.cost).sum();
     let expected_total: i64 = (5 * 2_000) + (5 * 1_500);
 
-    assert_eq!(summary.total_cost, Some(expected_total));
+    assert_eq!(summary.cost, Some(expected_total));
     assert_eq!(breakdown_sum, expected_total);
 
     let unattributed = breakdown

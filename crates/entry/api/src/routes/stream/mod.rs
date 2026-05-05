@@ -83,19 +83,20 @@ pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
 ) -> impl IntoResponse {
     let user_id = request_context.user_id().clone();
     let user_id_str = user_id.to_string();
-    let conn_id = uuid::Uuid::new_v4().to_string();
+    let conn_id = systemprompt_identifiers::ConnectionId::generate();
+    let conn_id_str = conn_id.as_str().to_string();
 
-    tracing::info!(user_id = %user_id_str, conn_id = %conn_id, stream = %stream_name, "SSE stream opened");
+    tracing::info!(user_id = %user_id_str, conn_id = %conn_id_str, stream = %stream_name, "SSE stream opened");
 
     let (tx, rx) = mpsc::channel(1024);
 
-    broadcaster.register(&user_id, &conn_id, tx.clone()).await;
+    broadcaster.register(&user_id, conn_id.as_str(), tx.clone()).await;
 
-    let cleanup_guard = ConnectionGuard::new(broadcaster, user_id, conn_id.clone());
+    let cleanup_guard = ConnectionGuard::new(broadcaster, user_id, conn_id);
     let stream = ReceiverStream::new(rx);
     let stream_with_guard = StreamWithGuard::<E>::new(stream, cleanup_guard);
 
-    tracing::info!(user_id = %user_id_str, conn_id = %conn_id, stream = %stream_name, "SSE stream ready");
+    tracing::info!(user_id = %user_id_str, conn_id = %conn_id_str, stream = %stream_name, "SSE stream ready");
 
     Sse::new(stream_with_guard)
         .keep_alive(standard_keep_alive())

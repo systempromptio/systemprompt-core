@@ -1,5 +1,4 @@
-//! Shared value types used by [`super::ConfigManager`],
-//! [`super::ConfigValidator`], and [`super::ConfigWriter`].
+//! Shared value types for the config services.
 
 use std::collections::HashMap;
 

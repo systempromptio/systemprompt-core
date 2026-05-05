@@ -1,6 +1,6 @@
 //! Top-level [`Database`] handle that owns one or two
 //! [`DatabaseProvider`] instances (read + optional write) and exposes the
-//! query/transaction surface used by every repository in the workspace.
+//! query and transaction surface.
 
 use super::postgres::PostgresProvider;
 use super::provider::DatabaseProvider;

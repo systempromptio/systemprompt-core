@@ -9,6 +9,7 @@ use std::time::Duration;
 use axum::Router;
 use axum::routing::get;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{CheckoutSessionId, TenantId, TransactionId};
 use systemprompt_logging::CliService;
 use tokio::sync::{Mutex, oneshot};
 
@@ -20,11 +21,11 @@ use crate::error::{CloudError, CloudResult};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct CallbackParams {
-    pub(super) transaction_id: Option<String>,
-    pub(super) tenant_id: Option<String>,
+    pub(super) transaction_id: Option<TransactionId>,
+    pub(super) tenant_id: Option<TenantId>,
     pub(super) status: Option<String>,
     pub(super) error: Option<String>,
-    pub(super) checkout_session_id: Option<String>,
+    pub(super) checkout_session_id: Option<CheckoutSessionId>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -36,8 +37,8 @@ pub(super) struct StatusResponse {
 
 #[derive(Debug, Clone)]
 pub struct CheckoutCallbackResult {
-    pub transaction_id: String,
-    pub tenant_id: String,
+    pub transaction_id: TransactionId,
+    pub tenant_id: TenantId,
     pub fly_app_name: Option<String>,
     pub needs_deploy: bool,
 }
