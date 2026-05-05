@@ -4,22 +4,23 @@
 ignore = [
     # RUSTSEC-2023-0071 — rsa Marvin Attack timing sidechannel (medium, 5.9). No upstream fix.
     #
-    # Why this is ignored, not fixed:
-    # `rsa 0.9.x` appears in Cargo.lock only as a dormant transitive of `sqlx-macros-core`,
-    # which lists `sqlx-mysql` (the sole consumer of `rsa`) as an optional dependency.
-    # We do not enable the `mysql` feature anywhere — verified by:
-    #   - `cargo tree -i rsa` (no reverse-deps)
-    #   - `cargo tree -i sqlx-mysql` (no reverse-deps)
-    #   - `cargo tree --workspace -e features --target all | grep mysql` (no hits)
-    # The crate is never compiled into any artifact. cargo-audit reads Cargo.lock flat
-    # and cannot see that the feature is gated off.
+    # Why this is ignored:
+    # `rsa 0.9.x` is linked into the binary via `jsonwebtoken`'s `rust_crypto` backend
+    # feature. We need that feature explicitly — jsonwebtoken 10.x's default features
+    # are `["use_pem"]` only, with no crypto backend; loading without `rust_crypto` or
+    # `aws_lc_rs` panics at the first JWT operation ("Could not automatically determine
+    # the process-level CryptoProvider"). The `aws_lc_rs` alternative requires modern
+    # gcc/clang in every build environment, which we don't want to mandate.
     #
-    # We additionally use `jsonwebtoken` with default features (aws_lc_rs backend, no
-    # `rust_crypto`) and pin `Algorithm::HS256` everywhere — there is no real RSA code
-    # path in this codebase regardless.
+    # Why this is safe in this codebase:
+    # The Marvin Attack only affects RSA private-key timing operations. Every JWT call
+    # site in this repo pins `Algorithm::HS256` (HMAC-SHA256, symmetric, no RSA).
+    # Verified by `grep -rn "Algorithm::" crates/infra/security crates/domain/oauth`
+    # and `grep -rn "RS256\|RS384\|RS512\|PS256\|PS384\|PS512" crates/` — zero hits
+    # on RSA-based algorithms. The `rsa` code path is never executed at runtime.
     #
-    # Re-evaluate if: (a) sqlx restructures `sqlx-macros-core` to drop the optional
-    # mysql/sqlite deps, (b) we add the `mysql` feature to our sqlx declaration, or
-    # (c) we add RS256/PS256 JWT support.
+    # Re-evaluate if: (a) any RS256/PS256/etc. JWT support is added, (b) we switch
+    # jsonwebtoken to `aws_lc_rs` (which removes `rsa` from the dep tree entirely),
+    # or (c) RUSTSEC publishes a fixed `rsa` upgrade.
     "RUSTSEC-2023-0071",
 ]
