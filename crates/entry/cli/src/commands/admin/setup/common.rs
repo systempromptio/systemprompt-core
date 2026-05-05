@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rand::distr::Alphanumeric;
-use rand::{Rng, rng};
+use rand::{RngExt, rng};
 use sqlx::postgres::PgPoolOptions;
 use std::net::ToSocketAddrs;
 use std::time::Duration;

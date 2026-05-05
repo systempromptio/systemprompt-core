@@ -52,6 +52,17 @@ impl CleanupRepository {
         Ok(result.rows_affected())
     }
 
+    pub async fn count_old_logs(&self, days: i32) -> DatabaseResult<i64> {
+        let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(days));
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) as "count!" FROM logs WHERE timestamp < $1"#,
+            cutoff
+        )
+        .fetch_one(&self.write_pool)
+        .await?;
+        Ok(count)
+    }
+
     pub async fn delete_expired_oauth_tokens(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!("DELETE FROM oauth_refresh_tokens WHERE expires_at < NOW()")
             .execute(&self.write_pool)

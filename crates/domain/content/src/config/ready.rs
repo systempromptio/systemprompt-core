@@ -228,5 +228,5 @@ fn compute_version_hash(title: &str, body: &str, description: &str) -> String {
     hasher.update(title.as_bytes());
     hasher.update(body.as_bytes());
     hasher.update(description.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }

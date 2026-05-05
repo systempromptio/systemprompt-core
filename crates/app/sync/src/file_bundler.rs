@@ -37,7 +37,7 @@ pub fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     for file_entry in &files {
         hasher.update(&file_entry.checksum);
     }
-    let checksum = format!("{:x}", hasher.finalize());
+    let checksum = hex::encode(hasher.finalize());
 
     Ok(FileBundle {
         manifest: FileManifest {
@@ -59,7 +59,7 @@ pub fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncR
         } else if path.is_file() {
             let relative = path.strip_prefix(base)?;
             let content = fs::read(&path)?;
-            let checksum = format!("{:x}", Sha256::digest(&content));
+            let checksum = hex::encode(Sha256::digest(&content));
 
             files.push(FileEntry {
                 path: relative.to_string_lossy().to_string(),

@@ -35,7 +35,7 @@ fn test_load_from_path_nonexistent() {
     let path = PathBuf::from("/nonexistent/services.yaml");
     let result = ConfigLoader::load_from_path(&path);
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("Failed to read"));
+    assert!(err.contains("io error"));
 }
 
 #[test]

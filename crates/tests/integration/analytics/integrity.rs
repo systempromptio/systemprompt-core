@@ -1,4 +1,3 @@
-/// Tests for analytics data integrity
 use crate::common::*;
 use anyhow::Result;
 

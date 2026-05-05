@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::RequestAnalyticsRepository;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -43,7 +43,7 @@ pub struct ListArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RequestListRowOutput {
     pub id: AiRequestId,
-    pub user_id: String,
+    pub user_id: UserId,
     pub provider: String,
     pub model: String,
     pub status: String,

@@ -51,6 +51,7 @@ urlencoding = { workspace = true }
 regex = { workspace = true }
 indexmap = { workspace = true }
 sha2 = { workspace = true }
+hex = { workspace = true }
 subtle = { workspace = true }
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 base64 = { workspace = true }
@@ -61,8 +62,6 @@ thiserror = { workspace = true }
 # Logging
 tracing = { workspace = true }
 
-# Configuration
-dotenvy = { workspace = true }
 
 # systemprompt.io crates
 systemprompt-models = { workspace = true, features = ["web"] }
@@ -91,7 +90,6 @@ inventory = { workspace = true }
 
 # JWT
 jsonwebtoken = { workspace = true }
-once_cell = { workspace = true }
 
 # Authentication
 bcrypt = { workspace = true }

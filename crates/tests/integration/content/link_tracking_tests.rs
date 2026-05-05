@@ -262,16 +262,6 @@ async fn test_nonexistent_link_redirect() -> Result<()> {
     Ok(())
 }
 
-/// Regression test for NULL timestamp binding bug
-///
-/// This test ensures that links can be created with NULL optional fields
-/// (particularly expires_at as Option<DateTime<Utc>>).
-///
-/// Bug: Previously, binding Option<DateTime<Utc>> = None would bind as
-/// None::<String>, causing PostgreSQL to reject it for TIMESTAMP columns.
-///
-/// Fix: Type-specific NULL variants (DbValue::NullTimestamp) ensure
-/// PostgreSQL receives the correct type even for NULL values.
 #[tokio::test]
 async fn test_null_timestamp_binding_regression() -> Result<()> {
     let ctx = TestContext::new().await?;
@@ -337,10 +327,6 @@ async fn test_null_timestamp_binding_regression() -> Result<()> {
     Ok(())
 }
 
-/// Test creating a link WITH an expiration date
-///
-/// This ensures the opposite case works: when expires_at IS provided,
-/// it should be properly stored as a TIMESTAMP value.
 #[tokio::test]
 async fn test_link_with_expiration() -> Result<()> {
     let ctx = TestContext::new().await?;

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_database::CleanupRepository;
 use systemprompt_runtime::AppContext;
 
 use super::types::LogCleanupOutput;
@@ -17,21 +18,11 @@ pub struct LogCleanupArgs {
 
 pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
+    let write_pool = ctx.db_pool().write_pool_arc()?;
+    let repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
 
     if args.dry_run {
-        let pool = ctx.db_pool().pool_arc()?;
-        let count: i64 = sqlx::query_scalar::<_, i64>(
-            r"
-            SELECT COUNT(*)
-            FROM application_logs
-            WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
-            ",
-        )
-        .bind(args.days.to_string())
-        .fetch_one(&*pool)
-        .await
-        .unwrap_or(0);
-
+        let count = repo.count_old_logs(args.days).await?;
         let output = LogCleanupOutput {
             job_name: "log_cleanup".to_string(),
             entries_deleted: 0,
@@ -41,22 +32,10 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
                 count, args.days
             ),
         };
-
         return Ok(CommandResult::text(output).with_title("Log Cleanup (Dry Run)"));
     }
 
-    let write_pool = ctx.db_pool().write_pool_arc()?;
-    let deleted_count = sqlx::query(
-        r"
-        DELETE FROM application_logs
-        WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
-        ",
-    )
-    .bind(args.days.to_string())
-    .execute(&*write_pool)
-    .await?
-    .rows_affected() as i64;
-
+    let deleted_count = repo.delete_old_logs(args.days).await? as i64;
     let output = LogCleanupOutput {
         job_name: "log_cleanup".to_string(),
         entries_deleted: deleted_count,
@@ -66,6 +45,5 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
             deleted_count, args.days
         ),
     };
-
     Ok(CommandResult::text(output).with_title("Log Cleanup"))
 }

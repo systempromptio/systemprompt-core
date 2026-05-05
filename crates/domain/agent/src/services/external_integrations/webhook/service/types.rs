@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use systemprompt_identifiers::WebhookEndpointId;
 
 #[derive(Debug, Clone)]
 pub struct WebhookConfig {
@@ -29,7 +30,7 @@ pub struct WebhookDeliveryResult {
 
 #[derive(Debug, Clone)]
 pub struct WebhookStats {
-    pub endpoint_id: String,
+    pub endpoint_id: WebhookEndpointId,
     pub total_requests: u64,
     pub successful_requests: u64,
     pub failed_requests: u64,
@@ -39,7 +40,7 @@ pub struct WebhookStats {
 
 #[derive(Debug, Clone)]
 pub struct WebhookTestResult {
-    pub endpoint_id: String,
+    pub endpoint_id: WebhookEndpointId,
     pub success: bool,
     pub status_code: u16,
     pub response_time_ms: u64,

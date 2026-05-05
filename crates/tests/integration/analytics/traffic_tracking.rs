@@ -1,14 +1,3 @@
-/// Traffic tracking integration tests
-///
-/// These tests verify that the analytics tracking system correctly records:
-/// 1. Request counts (non-zero when sessions have activity)
-/// 2. Session duration (calculated from started_at and last_activity_at)
-/// 3. Landing pages (properly set, not NULL/"not set")
-///
-/// These tests address production issues where:
-/// - Total Requests showed 0 despite having sessions
-/// - Avg Session Duration showed 0.0s
-/// - Landing Pages showed "(not set)"
 use crate::common::*;
 use anyhow::Result;
 use serde_json::Value;

@@ -3,13 +3,13 @@ mod types;
 
 pub use types::{RetryPolicy, WebhookConfig, WebhookDeliveryResult, WebhookTestResult};
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use reqwest::Client;
 use serde_json::Value;
 use sha2::Sha256;
 use std::collections::HashMap;
+use systemprompt_identifiers::WebhookEndpointId;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use crate::models::external_integrations::{
     IntegrationError, IntegrationResult, WebhookEndpoint, WebhookRequest, WebhookResponse,
@@ -19,7 +19,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Debug)]
 pub struct WebhookService {
-    pub(crate) endpoints: RwLock<HashMap<String, WebhookEndpoint>>,
+    pub(crate) endpoints: RwLock<HashMap<WebhookEndpointId, WebhookEndpoint>>,
     pub(crate) http_client: Client,
 }
 
@@ -34,9 +34,9 @@ impl WebhookService {
     pub async fn register_endpoint(
         &self,
         mut endpoint: WebhookEndpoint,
-    ) -> IntegrationResult<String> {
-        if endpoint.id.is_empty() {
-            endpoint.id = Uuid::new_v4().to_string();
+    ) -> IntegrationResult<WebhookEndpointId> {
+        if endpoint.id.as_str().is_empty() {
+            endpoint.id = WebhookEndpointId::generate();
         }
 
         let endpoint_id = endpoint.id.clone();
@@ -59,7 +59,7 @@ impl WebhookService {
 
     pub async fn get_endpoint(
         &self,
-        endpoint_id: &str,
+        endpoint_id: &WebhookEndpointId,
     ) -> IntegrationResult<Option<WebhookEndpoint>> {
         let endpoints = self.endpoints.read().await;
         Ok(endpoints.get(endpoint_id).cloned())
@@ -70,14 +70,17 @@ impl WebhookService {
         Ok(endpoints.values().cloned().collect())
     }
 
-    pub async fn remove_endpoint(&self, endpoint_id: &str) -> IntegrationResult<bool> {
+    pub async fn remove_endpoint(
+        &self,
+        endpoint_id: &WebhookEndpointId,
+    ) -> IntegrationResult<bool> {
         let mut endpoints = self.endpoints.write().await;
         Ok(endpoints.remove(endpoint_id).is_some())
     }
 
     pub async fn handle_webhook(
         &self,
-        endpoint_id: &str,
+        endpoint_id: &WebhookEndpointId,
         request: WebhookRequest,
     ) -> IntegrationResult<WebhookResponse> {
         let endpoint = {
@@ -133,7 +136,7 @@ impl WebhookService {
 
     pub async fn verify_signature(
         &self,
-        endpoint_id: &str,
+        endpoint_id: &WebhookEndpointId,
         payload: &Value,
         signature: &str,
     ) -> IntegrationResult<bool> {

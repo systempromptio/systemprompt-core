@@ -102,7 +102,7 @@ fn extract_content(gemini_response: &GeminiResponse) -> Result<String> {
     let candidate = gemini_response
         .candidates
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from Gemini")))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_string()))?;
 
     candidate.content.as_ref().map_or_else(
         || {

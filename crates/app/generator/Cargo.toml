@@ -60,7 +60,6 @@ tracing = { workspace = true }
 handlebars = { workspace = true }
 
 # Markdown processing
-pulldown-cmark = { workspace = true }
 comrak = { workspace = true }
 
 # XML generation (sitemap)

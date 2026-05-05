@@ -127,7 +127,7 @@ fn extract_grounded_response(
     let candidate = response
         .candidates
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from Gemini")))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_string()))?;
 
     let content_text = candidate
         .content

@@ -104,9 +104,9 @@ impl AiService {
             .values()
             .find(|p| p.supports_google_search())
             .ok_or_else(|| {
-                crate::error::AiError::Internal(format!(
-                    "No provider with Google Search support available"
-                ))
+                crate::error::AiError::Internal(
+                    "No provider with Google Search support available".to_string(),
+                )
             })?;
         let model = params
             .model

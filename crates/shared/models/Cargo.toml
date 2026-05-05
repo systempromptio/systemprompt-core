@@ -45,7 +45,6 @@ schemars = { workspace = true }
 
 # Regex
 regex = { workspace = true }
-once_cell = { workspace = true }
 
 # Crypto (manifest signing seed: random generation + base64 persistence)
 rand = { workspace = true }

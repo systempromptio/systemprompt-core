@@ -1,10 +1,3 @@
-/// Tests for analytics under high concurrency
-///
-/// Validates that:
-/// - Multiple concurrent requests don't cause FK violations
-/// - Session creation is atomic and thread-safe
-/// - Analytics events and endpoint requests maintain referential integrity
-/// - No race conditions between session creation and analytics logging
 use crate::common::*;
 use anyhow::Result;
 use futures::future::join_all;

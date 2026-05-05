@@ -1,16 +1,3 @@
-/// Comprehensive end-to-end A2A integration test
-///
-/// This test validates the entire agent conversation pipeline:
-/// 1. Load agent registry
-/// 2. Post conversation to agent endpoint
-/// 3. Receive streaming response
-/// 4. Query all databases to verify data integrity:
-///    - agent_tasks with correct context
-///    - task_messages with proper structure
-///    - ai_request logs with usage data
-///    - analytics_events for tracking
-///    - endpoint_requests for monitoring
-///    - All foreign keys and relationships valid
 use crate::common::*;
 use serde_json::json;
 use std::time::Duration;
@@ -290,7 +277,6 @@ async fn test_comprehensive_a2a_agent_conversation_with_full_data_validation() {
     println!("\n✨ Comprehensive A2A test PASSED!");
 }
 
-/// Helper: Parse streaming response chunks
 #[allow(dead_code)]
 fn parse_stream_chunks(text: &str) -> Vec<String> {
     text.lines()

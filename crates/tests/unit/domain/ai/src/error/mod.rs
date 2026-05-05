@@ -1,9 +1,8 @@
 //! Tests for error module types and implementations.
 
 use systemprompt_ai::error::{AiError, RepositoryError};
+use systemprompt_identifiers::McpServerId;
 use uuid::Uuid;
-
-use sqlx;
 
 mod ai_error_tests {
     use super::*;
@@ -58,7 +57,7 @@ mod ai_error_tests {
     #[test]
     fn authentication_required_error() {
         let err = AiError::AuthenticationRequired {
-            service_id: "github-mcp".to_string(),
+            service_id: McpServerId::new("github-mcp"),
         };
         let msg = err.to_string();
         assert!(msg.contains("github-mcp"));
@@ -170,7 +169,7 @@ mod ai_error_tests {
     #[test]
     fn mcp_service_not_found_error() {
         let err = AiError::McpServiceNotFound {
-            service_id: "custom-service".to_string(),
+            service_id: McpServerId::new("custom-service"),
         };
         let msg = err.to_string();
         assert!(msg.contains("custom-service"));
@@ -180,7 +179,7 @@ mod ai_error_tests {
     #[test]
     fn mcp_authentication_missing_error() {
         let err = AiError::McpAuthenticationMissing {
-            service_id: "oauth-service".to_string(),
+            service_id: McpServerId::new("oauth-service"),
         };
         let msg = err.to_string();
         assert!(msg.contains("oauth-service"));

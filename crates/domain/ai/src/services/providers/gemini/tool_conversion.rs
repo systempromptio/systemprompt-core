@@ -81,7 +81,7 @@ pub async fn extract_tool_response(
     let candidate = response
         .candidates
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from Gemini")))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_string()))?;
 
     let mut content = String::new();
     let mut tool_calls = Vec::new();
@@ -113,9 +113,9 @@ pub async fn extract_tool_response(
 
         if reason == "MALFORMED_FUNCTION_CALL" {
             error!("Gemini MALFORMED_FUNCTION_CALL - model generated invalid tool call JSON");
-            return Err(crate::error::AiError::Internal(format!(
-                "Gemini returned no content. Finish reason: MALFORMED_FUNCTION_CALL"
-            )));
+            return Err(crate::error::AiError::Internal(
+                "Gemini returned no content. Finish reason: MALFORMED_FUNCTION_CALL".to_string(),
+            ));
         }
 
         return Err(crate::error::AiError::Internal(format!(

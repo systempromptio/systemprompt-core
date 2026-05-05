@@ -71,22 +71,16 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
-# Configuration
-dotenvy = { workspace = true }
 clap = { workspace = true }
 
 # Utilities
 uuid = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
-md5 = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
 url = { workspace = true }
-
-# OAuth2 client
-oauth2 = { workspace = true }
 
 # Cryptographic hashing for webhooks
 hmac = { workspace = true }

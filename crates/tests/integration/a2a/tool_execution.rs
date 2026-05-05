@@ -2,7 +2,6 @@ use crate::common::context::TestContext;
 use serde_json::json;
 use uuid::Uuid;
 
-/// Test that A2A messages with contextId properly propagate context through tool execution
 #[tokio::test]
 async fn test_tool_execution_with_context_propagation() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -114,7 +113,6 @@ async fn test_tool_execution_with_context_propagation() {
     }
 }
 
-/// Test that tool execution without proper context fails gracefully
 #[tokio::test]
 async fn test_tool_execution_requires_valid_context() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -164,7 +162,6 @@ async fn test_tool_execution_requires_valid_context() {
     );
 }
 
-/// Test that streaming and non-streaming paths both propagate context properly
 #[tokio::test]
 async fn test_context_propagation_both_paths() {
     let ctx = TestContext::new().await.expect("Failed to create test context");

@@ -3,6 +3,7 @@ use super::types::{WebhookConfig, WebhookDeliveryResult, WebhookStats, WebhookTe
 use crate::models::external_integrations::{IntegrationError, IntegrationResult};
 use serde_json::Value;
 use std::collections::HashMap;
+use systemprompt_identifiers::WebhookEndpointId;
 
 impl WebhookService {
     pub async fn send_webhook(
@@ -76,7 +77,10 @@ impl WebhookService {
         }
     }
 
-    pub async fn get_endpoint_stats(&self, endpoint_id: &str) -> IntegrationResult<WebhookStats> {
+    pub async fn get_endpoint_stats(
+        &self,
+        endpoint_id: &WebhookEndpointId,
+    ) -> IntegrationResult<WebhookStats> {
         let endpoint = {
             let endpoints = self.endpoints.read().await;
             endpoints.get(endpoint_id).cloned().ok_or_else(|| {
@@ -94,7 +98,10 @@ impl WebhookService {
         })
     }
 
-    pub async fn test_endpoint(&self, endpoint_id: &str) -> IntegrationResult<WebhookTestResult> {
+    pub async fn test_endpoint(
+        &self,
+        endpoint_id: &WebhookEndpointId,
+    ) -> IntegrationResult<WebhookTestResult> {
         let endpoint = {
             let endpoints = self.endpoints.read().await;
             endpoints.get(endpoint_id).cloned().ok_or_else(|| {

@@ -1,14 +1,3 @@
-/// Content Config and Landing Page Integration Tests
-///
-/// These tests verify that:
-/// 1. CONTENT_CONFIG_PATH environment variable is set
-/// 2. ContentConfig is properly loaded by AppContext
-/// 3. Landing pages are correctly identified for different URL patterns
-/// 4. Landing page tracking fails gracefully if content_config is None
-///
-/// Root Cause: Production startup script (startup.sh) was missing CONTENT_CONFIG_PATH
-/// in the .env.docker file, causing content_config to be None and all landing page
-/// tracking to fail silently (resulting in "(not set)" in analytics dashboard).
 
 use crate::common::*;
 use anyhow::Result;

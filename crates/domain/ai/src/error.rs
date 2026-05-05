@@ -19,6 +19,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
+use systemprompt_identifiers::McpServerId;
 use systemprompt_provider_contracts::LlmProviderError;
 
 #[derive(Debug, Error)]
@@ -39,7 +40,7 @@ pub enum AiError {
     InvalidToolSchema { reason: String },
 
     #[error("Authentication required for service {service_id}")]
-    AuthenticationRequired { service_id: String },
+    AuthenticationRequired { service_id: McpServerId },
 
     #[error("Structured output validation failed after {retries} attempts: {details}")]
     StructuredOutputFailed { retries: usize, details: String },
@@ -84,10 +85,10 @@ pub enum AiError {
     DatabaseError(String),
 
     #[error("MCP service {service_id} not found or not configured")]
-    McpServiceNotFound { service_id: String },
+    McpServiceNotFound { service_id: McpServerId },
 
     #[error("MCP service {service_id} requires OAuth authentication but no token available")]
-    McpAuthenticationMissing { service_id: String },
+    McpAuthenticationMissing { service_id: McpServerId },
 
     #[error("Failed to determine service authentication requirements: {details}")]
     ServiceAuthCheckFailed { details: String },

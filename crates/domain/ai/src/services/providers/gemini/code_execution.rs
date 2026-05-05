@@ -129,7 +129,7 @@ fn build_code_execution_response(
 
 fn get_first_candidate(response: &GeminiResponse) -> Result<&GeminiCandidate> {
     response.candidates.first().ok_or_else(|| {
-        crate::error::AiError::Internal(format!("No response from Gemini for code execution"))
+        crate::error::AiError::Internal("No response from Gemini for code execution".to_string())
     })
 }
 

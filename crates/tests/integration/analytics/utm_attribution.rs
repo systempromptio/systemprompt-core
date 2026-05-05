@@ -1,4 +1,3 @@
-/// Tests for analytics UTM attribution tracking
 use crate::common::*;
 use anyhow::Result;
 

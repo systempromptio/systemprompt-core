@@ -96,9 +96,9 @@ impl ProviderFactory {
         }
 
         if providers.is_empty() {
-            return Err(crate::error::AiError::Internal(format!(
-                "No providers could be initialized"
-            )));
+            return Err(crate::error::AiError::Internal(
+                "No providers could be initialized".to_string(),
+            ));
         }
 
         Ok(providers)

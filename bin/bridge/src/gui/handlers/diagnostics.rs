@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::json;
 use zip::ZipWriter;
-use zip::write::FileOptions;
+use zip::write::SimpleFileOptions;
 
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
@@ -70,8 +70,8 @@ fn build_bundle() -> io::Result<PathBuf> {
 
     let file = fs::File::create(&zip_path)?;
     let mut zip = ZipWriter::new(file);
-    let opts: FileOptions =
-        FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let opts: SimpleFileOptions =
+        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     if let Ok(entries) = fs::read_dir(&log_dir) {
         for entry in entries.flatten() {
@@ -108,7 +108,7 @@ fn add_file(
     zip: &mut ZipWriter<fs::File>,
     path: &Path,
     name: &str,
-    opts: FileOptions,
+    opts: SimpleFileOptions,
 ) -> io::Result<()> {
     zip.start_file(name, opts)?;
     let mut f = fs::File::open(path)?;

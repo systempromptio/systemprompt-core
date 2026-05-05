@@ -2,7 +2,6 @@ use crate::common::context::TestContext;
 use serde_json::json;
 use uuid::Uuid;
 
-/// Test that anonymous users can access tools requiring "anonymous" scope
 #[tokio::test]
 async fn test_anonymous_user_can_use_anonymous_tools() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -83,7 +82,6 @@ async fn test_anonymous_user_can_use_anonymous_tools() {
     );
 }
 
-/// Test that permission filtering happens BEFORE HTTP call, not after 403 error
 #[tokio::test]
 async fn test_permission_filtering_prevents_403_errors() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
@@ -138,7 +136,6 @@ async fn test_permission_filtering_prevents_403_errors() {
     );
 }
 
-/// Test that permission check logs are generated
 #[tokio::test]
 async fn test_permission_checks_are_logged() {
     let ctx = TestContext::new().await.expect("Failed to create test context");

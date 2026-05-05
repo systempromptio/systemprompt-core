@@ -2,7 +2,7 @@
 
 use crate::error::OauthResult as Result;
 use chrono::{Duration as ChronoDuration, Utc};
-use rand::RngCore;
+use rand::Rng;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;

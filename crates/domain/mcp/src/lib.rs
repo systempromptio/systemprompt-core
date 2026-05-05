@@ -102,6 +102,8 @@ pub use cli::{list_services, show_status, start_services, stop_services};
 
 pub(crate) mod state;
 
+use std::time::Duration;
+
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -112,6 +114,29 @@ use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 use systemprompt_database::DbPool;
 
 use crate::middleware::DatabaseSessionManager;
+
+#[derive(Debug, Clone)]
+pub struct McpHttpConfig {
+    pub allowed_hosts: Option<Vec<String>>,
+    pub allowed_origins: Vec<String>,
+    pub session: SessionTimeouts,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SessionTimeouts {
+    pub init: Option<Duration>,
+    pub keep_alive: Option<Duration>,
+}
+
+impl Default for McpHttpConfig {
+    fn default() -> Self {
+        Self {
+            allowed_hosts: Some(vec!["localhost".into(), "127.0.0.1".into(), "::1".into()]),
+            allowed_origins: Vec::new(),
+            session: SessionTimeouts::default(),
+        }
+    }
+}
 
 pub use state::McpState;
 
@@ -161,13 +186,24 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     response
 }
 
-pub fn create_router<S>(server: S, db_pool: &DbPool) -> axum::Router
+pub fn create_router<S>(server: S, db_pool: &DbPool, http: McpHttpConfig) -> axum::Router
 where
     S: ServerHandler + Clone + Send + Sync + 'static,
 {
-    let config = StreamableHttpServerConfig::default();
+    let McpHttpConfig {
+        allowed_hosts,
+        allowed_origins,
+        session,
+    } = http;
 
-    let session_manager = DatabaseSessionManager::new(db_pool);
+    let host_policy = StreamableHttpServerConfig::default().with_allowed_origins(allowed_origins);
+    let host_policy = match allowed_hosts {
+        Some(hosts) => host_policy.with_allowed_hosts(hosts),
+        None => host_policy.disable_allowed_hosts(),
+    };
+    let config = host_policy.with_sse_keep_alive(session.keep_alive);
+
+    let session_manager = DatabaseSessionManager::with_timeouts(db_pool, session);
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);

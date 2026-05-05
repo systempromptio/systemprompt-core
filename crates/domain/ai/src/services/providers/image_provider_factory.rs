@@ -107,9 +107,9 @@ impl ImageProviderFactory {
         }
 
         if providers.is_empty() {
-            return Err(crate::error::AiError::Internal(format!(
-                "No image providers could be initialized"
-            )));
+            return Err(crate::error::AiError::Internal(
+                "No image providers could be initialized".to_string(),
+            ));
         }
 
         Ok(providers)

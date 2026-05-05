@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use systemprompt_database::DbPool;

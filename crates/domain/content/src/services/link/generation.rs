@@ -244,7 +244,7 @@ impl LinkGenerationService {
     }
 
     fn generate_short_code() -> String {
-        use rand::Rng;
+        use rand::RngExt;
         const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         const CODE_LENGTH: usize = 8;
 

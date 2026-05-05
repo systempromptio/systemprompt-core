@@ -67,6 +67,7 @@ mod tenant;
 mod trace;
 mod url;
 mod user;
+mod webhook;
 
 pub mod error;
 pub mod headers;
@@ -102,3 +103,4 @@ pub use tenant::TenantId;
 pub use trace::TraceId;
 pub use url::ValidatedUrl;
 pub use user::UserId;
+pub use webhook::WebhookEndpointId;

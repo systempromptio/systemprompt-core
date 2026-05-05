@@ -129,7 +129,7 @@ pub async fn generate_with_tools(
     let choice = openai_response
         .choices
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from OpenAI")))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_string()))?;
 
     let tool_calls = choice
         .message

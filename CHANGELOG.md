@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- **`just check-bans` and `just check-bans-crate` recipes** (`justfile`) and the matching `check-bans` job in `.github/workflows/quality.yml`. The recipes were grep-based stand-ins for three rules: raw `String` ID fields, `*Manager` type names, and out-of-allowlist `sqlx::query()`. Typed-ID discipline and the `*Manager` preference remain reviewer-enforced conventions (already documented as such in `CLAUDE.md` and `instructions/prompt/rust.md`); the sqlx allowlist is enforced by clippy and `ci/check-sqlx.sh`. Dropping the recipes removes a governance surface that was producing busywork (23 historical `*Manager` flags across MCP/scheduler/agent internals) without a corresponding bug class. Existing dated audit reports under `instructions/audits/` continue to reference these recipes as historical evidence and are intentionally left unchanged.
+
 ## [0.6.0] - 2026-05-05
 
 ### Changed

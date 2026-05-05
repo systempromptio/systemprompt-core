@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use systemprompt_agent::models::external_integrations::{
     RegisteredMcpServer, ToolExecutionResult, WebhookEndpoint, WebhookRequest, WebhookResponse,
 };
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{McpServerId, WebhookEndpointId};
 
 #[test]
 fn test_registered_mcp_server_serialize() {
@@ -83,7 +83,7 @@ fn test_webhook_endpoint_serialize() {
     headers.insert("Authorization".to_string(), "Bearer token".to_string());
 
     let endpoint = WebhookEndpoint {
-        id: "webhook-1".to_string(),
+        id: WebhookEndpointId::new("webhook-1"),
         url: "https://webhook.example.com/hook".to_string(),
         events: vec!["task.completed".to_string(), "task.failed".to_string()],
         secret: Some("webhook_secret".to_string()),
@@ -101,7 +101,7 @@ fn test_webhook_endpoint_serialize() {
 #[test]
 fn test_webhook_endpoint_without_secret() {
     let endpoint = WebhookEndpoint {
-        id: "webhook-2".to_string(),
+        id: WebhookEndpointId::new("webhook-2"),
         url: "https://example.com/callback".to_string(),
         events: vec!["event.created".to_string()],
         secret: None,

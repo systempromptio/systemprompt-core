@@ -34,9 +34,9 @@ impl JsonParser {
             return Ok(json);
         }
 
-        Err(crate::error::AiError::Internal(format!(
-            "No valid JSON found in response"
-        )))
+        Err(crate::error::AiError::Internal(
+            "No valid JSON found in response".to_string(),
+        ))
     }
 
     fn extract_with_pattern(content: &str, pattern: &str) -> Result<Option<JsonValue>> {
@@ -48,9 +48,9 @@ impl JsonParser {
                 .or_else(|| captures.get(0))
                 .map(|m| m.as_str())
                 .ok_or_else(|| {
-                    crate::error::AiError::Internal(format!(
-                        "Pattern matched but no capture group found"
-                    ))
+                    crate::error::AiError::Internal(
+                        "Pattern matched but no capture group found".to_string(),
+                    )
                 })?;
 
             serde_json::from_str::<JsonValue>(json_str)

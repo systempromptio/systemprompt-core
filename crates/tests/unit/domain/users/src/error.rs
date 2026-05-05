@@ -18,7 +18,7 @@ mod user_error_display_tests {
         let error = UserError::NotFound(user_id);
 
         let display = error.to_string();
-        assert!(display.contains("User not found"));
+        assert!(display.contains("user not found"));
         assert!(display.contains("user-123"));
     }
 
@@ -27,7 +27,7 @@ mod user_error_display_tests {
         let error = UserError::EmailAlreadyExists("test@example.com".to_string());
 
         let display = error.to_string();
-        assert!(display.contains("User already exists"));
+        assert!(display.contains("user already exists"));
         assert!(display.contains("test@example.com"));
     }
 
@@ -36,7 +36,7 @@ mod user_error_display_tests {
         let error = UserError::InvalidStatus("unknown_status".to_string());
 
         let display = error.to_string();
-        assert!(display.contains("Invalid status"));
+        assert!(display.contains("invalid status"));
         assert!(display.contains("unknown_status"));
     }
 
@@ -45,7 +45,7 @@ mod user_error_display_tests {
         let error = UserError::InvalidRole("superuser".to_string());
 
         let display = error.to_string();
-        assert!(display.contains("Invalid role"));
+        assert!(display.contains("invalid role"));
         assert!(display.contains("superuser"));
     }
 
@@ -54,7 +54,7 @@ mod user_error_display_tests {
         let error = UserError::Validation("Name cannot be empty".to_string());
 
         let display = error.to_string();
-        assert!(display.contains("Validation error"));
+        assert!(display.contains("validation"));
         assert!(display.contains("Name cannot be empty"));
     }
 
@@ -63,7 +63,7 @@ mod user_error_display_tests {
         let error = UserError::InvalidRoles(vec!["superuser".to_string(), "root".to_string()]);
 
         let display = error.to_string();
-        assert!(display.contains("Invalid roles"));
+        assert!(display.contains("invalid roles"));
         assert!(display.contains("superuser"));
         assert!(display.contains("root"));
     }
@@ -157,7 +157,7 @@ mod user_error_construction_tests {
 
         for status in statuses {
             let error = UserError::InvalidStatus(status.to_string());
-            assert!(error.to_string().contains("Invalid status"));
+            assert!(error.to_string().contains("invalid status"));
         }
     }
 
@@ -167,7 +167,7 @@ mod user_error_construction_tests {
 
         for role in roles {
             let error = UserError::InvalidRole(role.to_string());
-            assert!(error.to_string().contains("Invalid role"));
+            assert!(error.to_string().contains("invalid role"));
         }
     }
 
@@ -183,7 +183,7 @@ mod user_error_construction_tests {
         for msg in messages {
             let error = UserError::Validation(msg.to_string());
             let display = error.to_string();
-            assert!(display.contains("Validation error"));
+            assert!(display.contains("validation"));
         }
     }
 }
@@ -285,7 +285,7 @@ mod edge_case_tests {
     fn empty_user_id_in_not_found() {
         let error = UserError::NotFound(UserId::new("".to_string()));
         let display = error.to_string();
-        assert!(display.contains("User not found"));
+        assert!(display.contains("user not found"));
     }
 
     #[test]

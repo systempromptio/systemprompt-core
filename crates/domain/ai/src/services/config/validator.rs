@@ -102,15 +102,15 @@ impl ConfigValidator {
 
     fn validate_mcp(config: &AiConfig) -> Result<()> {
         if config.mcp.connect_timeout_ms == 0 {
-            return Err(crate::error::AiError::Internal(format!(
-                "MCP connect timeout must be greater than 0"
-            )));
+            return Err(crate::error::AiError::Internal(
+                "MCP connect timeout must be greater than 0".to_string(),
+            ));
         }
 
         if config.mcp.execution_timeout_ms == 0 {
-            return Err(crate::error::AiError::Internal(format!(
-                "MCP execution timeout must be greater than 0"
-            )));
+            return Err(crate::error::AiError::Internal(
+                "MCP execution timeout must be greater than 0".to_string(),
+            ));
         }
 
         if config.mcp.retry_attempts == 0 {

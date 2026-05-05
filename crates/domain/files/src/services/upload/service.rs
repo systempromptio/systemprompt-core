@@ -10,8 +10,7 @@ use uuid::Uuid;
 
 use crate::config::{FilePersistenceMode, FilesConfig};
 use crate::models::{FileChecksums, FileMetadata};
-use crate::repository::InsertFileRequest;
-use crate::repository::FileRepository;
+use crate::repository::{FileRepository, InsertFileRequest};
 
 use super::error::FileUploadError;
 use super::request::{FileUploadRequest, UploadedFile};

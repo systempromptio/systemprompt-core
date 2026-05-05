@@ -16,7 +16,7 @@ impl ServiceResolver {
         let service_repo =
             ServiceRepository::new(ctx.db_pool()).map_err(|e| ProxyError::DatabaseError {
                 service: service_name.to_string(),
-                source: e.into(),
+                source: e,
             })?;
 
         let service = match service_repo.get_service_by_name(service_name).await {
@@ -25,7 +25,7 @@ impl ServiceResolver {
                 tracing::error!(service = %service_name, error = %e, "Database error when looking up service");
                 return Err(ProxyError::DatabaseError {
                     service: service_name.to_string(),
-                    source: e.into(),
+                    source: e,
                 });
             },
         };
