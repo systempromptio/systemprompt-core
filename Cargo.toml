@@ -224,7 +224,7 @@ rmcp-macros = "1.6"
 rand = "0.10"
 bcrypt = "0.19"
 base64 = "0.22"
-jsonwebtoken = { version = "10" }
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 sha2 = "0.11"
 subtle = "2"
 hmac = "0.13"
