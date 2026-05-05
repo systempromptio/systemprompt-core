@@ -19,6 +19,9 @@
 - **`RepositoryError::InvalidState(String)` variant** plus `RepositoryError::invalid_state(msg)` constructor (`crates/infra/database/src/error.rs`). Captures driver-protocol invariant failures previously wrapped in `anyhow!` (transaction reused after commit, scalar query with no columns, unsupported `DbValue` type).
 - **`From<systemprompt_database::RepositoryError> for systemprompt_traits::RepositoryError`** bridge so domain repositories that store the boxed-error variant pick up the typed database error transparently through `?`.
 - **`#[from] systemprompt_database::RepositoryError` variants** added to `McpDomainError`, `OauthError`, `UserError`, `FilesError`, and `LoggingError`. Repositories propagating database errors via `?` no longer need a manual `.map_err(...)`.
+- **Typed identifiers extended for cloud surfaces** — `TenantId`, `PriceId`, `TransactionId`, `CheckoutSessionId`, `ConnectionId`, `SectionId` now used end-to-end across `crates/infra/cloud/`, `crates/entry/cli/src/commands/cloud/`, and `crates/shared/models/src/api/cloud/**`. Eliminates 50+ raw-`String` ID call sites.
+- **`domain_error!` declarative macro** (`crates/shared/models/src/errors/macros.rs`). Domain crates compose their typed error enum from a `common: [repository, io, json, yaml, validation, not_found, config, anyhow, http]` token list plus their own variants. Drops ~300 lines of boilerplate across `files`, `mcp`, etc.
+- **`crates/shared/identifiers/src/{cloud,connection,section}.rs`** — new typed-ID modules backing the cloud and dashboard surfaces.
 
 ### Removed
 
@@ -28,8 +31,11 @@
 ### Quality
 
 - `cargo check --workspace`: clean.
-- `cargo clippy --workspace -- -D warnings`: clean.
-- `cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-database-tests`: 142 passed.
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --manifest-path crates/tests/Cargo.toml --workspace`: **3578 passed, 0 failed.**
+- `cargo sqlx prepare --workspace`: refreshed; `.sqlx/` cache committed.
+- **CLAUDE.md** updated to point at canonical `instructions/prompt/rust.md` and to spell out the real comment policy: inline `//` only for non-obvious *why*, `///` not applied mechanically, `//!` on `lib.rs` and significant `pub mod` heads as the load-bearing form, banned in `entry/*` binaries and inside `crates/tests/**`.
+- **`rust-coding-standards` skill cache** synced from marketplace source so it no longer says "delete `///`".
 - **Lint hygiene** — every hand-written `#[allow(...)]` outside `crates/tests/` (54 sites) now carries a `// reason: ...` comment so external scanners can see the suppression rationale. No allow was removed; no behavior changed.
 - **Sqlx allowlist documented** — extended the `sqlx::query(_)` allowlist in `CLAUDE.md` and `justfile` (`check-bans`) to cover `crates/entry/cli/src/commands/admin/setup/**` (bootstrap DDL: `CREATE USER` / `CREATE DATABASE` / `GRANT` / `CREATE EXTENSION`, which cannot bind identifier parameters and run before the target database exists). Each call site now carries an `// allowlist: bootstrap DDL` annotation.
 
