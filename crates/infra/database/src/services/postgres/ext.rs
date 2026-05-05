@@ -3,7 +3,7 @@
 //! Part of the documented sqlx allowlist: the SQL is supplied dynamically
 //! through [`QuerySelector`], so compile-time verification is impossible.
 
-use anyhow::{Result, anyhow};
+use crate::error::DatabaseResult;
 
 use super::PostgresProvider;
 use super::conversion::bind_params;
@@ -15,15 +15,12 @@ impl DatabaseProviderExt for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
-    ) -> Result<Option<T>> {
+    ) -> DatabaseResult<Option<T>> {
         let sql = query.select_query();
         let query_obj = sqlx::query(sql);
         let query_obj = bind_params(query_obj, params);
 
-        let row = query_obj
-            .fetch_optional(self.pool())
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let row = query_obj.fetch_optional(self.pool()).await?;
 
         match row {
             Some(r) => Ok(Some(T::from_postgres_row(&r)?)),
@@ -35,15 +32,12 @@ impl DatabaseProviderExt for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
-    ) -> Result<T> {
+    ) -> DatabaseResult<T> {
         let sql = query.select_query();
         let query_obj = sqlx::query(sql);
         let query_obj = bind_params(query_obj, params);
 
-        let row = query_obj
-            .fetch_one(self.pool())
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let row = query_obj.fetch_one(self.pool()).await?;
 
         T::from_postgres_row(&row)
     }
@@ -52,15 +46,12 @@ impl DatabaseProviderExt for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
-    ) -> Result<Vec<T>> {
+    ) -> DatabaseResult<Vec<T>> {
         let sql = query.select_query();
         let query_obj = sqlx::query(sql);
         let query_obj = bind_params(query_obj, params);
 
-        let rows = query_obj
-            .fetch_all(self.pool())
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let rows = query_obj.fetch_all(self.pool()).await?;
 
         rows.iter().map(|r| T::from_postgres_row(r)).collect()
     }

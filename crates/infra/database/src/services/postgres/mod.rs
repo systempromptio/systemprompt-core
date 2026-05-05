@@ -11,7 +11,6 @@ mod ext;
 mod introspection;
 pub mod transaction;
 
-use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use sqlx::Executor;
 use sqlx::postgres::{PgConnectOptions, PgPool, PgSslMode};
@@ -19,28 +18,21 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::provider::DatabaseProvider;
+use crate::error::{DatabaseResult, RepositoryError};
 use crate::models::{
     DatabaseInfo, DatabaseTransaction, DbValue, JsonRow, QueryResult, QuerySelector, ToDbValue,
 };
 use conversion::{bind_params, row_to_json, rows_to_result};
 use transaction::PostgresTransaction;
 
-/// Concrete [`DatabaseProvider`] backed by a single `SQLx` [`PgPool`].
-///
-/// The provider is `Send + Sync` and cheaply cloneable — wrap in [`Arc`] to
-/// hand it to extension code through `dyn DatabaseProvider`.
 #[derive(Debug)]
 pub struct PostgresProvider {
     pool: Arc<PgPool>,
 }
 
 impl PostgresProvider {
-    /// Open a new pool against `database_url`. Recognises `sslmode=require`
-    /// and `sslmode=disable` and respects `PGCA_CERT_PATH` for a custom CA
-    /// certificate.
-    pub async fn new(database_url: &str) -> Result<Self> {
-        let mut connect_options = PgConnectOptions::from_str(database_url)
-            .map_err(|e| anyhow!("Failed to parse database URL: {e}"))?;
+    pub async fn new(database_url: &str) -> DatabaseResult<Self> {
+        let mut connect_options = PgConnectOptions::from_str(database_url)?;
 
         let ssl_mode = if database_url.contains("sslmode=require") {
             PgSslMode::Require
@@ -67,8 +59,7 @@ impl PostgresProvider {
             .acquire_timeout(std::time::Duration::from_secs(30))
             .idle_timeout(std::time::Duration::from_secs(300))
             .connect_with(connect_options)
-            .await
-            .map_err(|e| anyhow!("Failed to connect to `PostgreSQL`: {e}"))?;
+            .await?;
 
         Ok(Self {
             pool: Arc::new(pool),
@@ -81,7 +72,6 @@ impl PostgresProvider {
             .map(std::path::PathBuf::from)
     }
 
-    /// Borrow the underlying [`PgPool`].
     #[must_use]
     pub fn pool(&self) -> &PgPool {
         &self.pool
@@ -94,29 +84,24 @@ impl DatabaseProvider for PostgresProvider {
         Some(Arc::clone(&self.pool))
     }
 
-    async fn execute(&self, query: &dyn QuerySelector, params: &[&dyn ToDbValue]) -> Result<u64> {
+    async fn execute(
+        &self,
+        query: &dyn QuerySelector,
+        params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
         let sql = query.select_query();
         let query_obj = sqlx::query(sql);
         let query_obj = bind_params(query_obj, params);
 
-        let result = query_obj
-            .execute(&*self.pool)
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let result = query_obj.execute(&*self.pool).await?;
 
         Ok(result.rows_affected())
     }
 
-    async fn execute_raw(&self, sql: &str) -> Result<()> {
-        let mut conn = self
-            .pool
-            .acquire()
-            .await
-            .map_err(|e| anyhow!("Failed to acquire connection: {e}"))?;
+    async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
+        let mut conn = self.pool.acquire().await?;
 
-        conn.execute(sql)
-            .await
-            .map_err(|e| anyhow!("Raw query execution failed: {e}"))?;
+        conn.execute(sql).await?;
 
         Ok(())
     }
@@ -125,15 +110,12 @@ impl DatabaseProvider for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
-    ) -> Result<Vec<JsonRow>> {
+    ) -> DatabaseResult<Vec<JsonRow>> {
         let sql = query.select_query();
         let query_obj = sqlx::query(sql);
         let query_obj = bind_params(query_obj, params);
 
-        let rows = query_obj
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let rows = query_obj.fetch_all(&*self.pool).await?;
 
         Ok(rows.iter().map(row_to_json).collect())
     }
@@ -142,15 +124,12 @@ impl DatabaseProvider for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
-    ) -> Result<JsonRow> {
+    ) -> DatabaseResult<JsonRow> {
         let sql = query.select_query();
         let query_obj = sqlx::query(sql);
         let query_obj = bind_params(query_obj, params);
 
-        let row = query_obj
-            .fetch_one(&*self.pool)
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let row = query_obj.fetch_one(&*self.pool).await?;
 
         Ok(row_to_json(&row))
     }
@@ -159,15 +138,12 @@ impl DatabaseProvider for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
-    ) -> Result<Option<JsonRow>> {
+    ) -> DatabaseResult<Option<JsonRow>> {
         let sql = query.select_query();
         let query_obj = sqlx::query(sql);
         let query_obj = bind_params(query_obj, params);
 
-        let row = query_obj
-            .fetch_optional(&*self.pool)
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let row = query_obj.fetch_optional(&*self.pool).await?;
 
         Ok(row.map(|r| row_to_json(&r)))
     }
@@ -176,13 +152,13 @@ impl DatabaseProvider for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
-    ) -> Result<DbValue> {
+    ) -> DatabaseResult<DbValue> {
         let row = self.fetch_one(query, params).await?;
 
         let first_value = row
             .values()
             .next()
-            .ok_or_else(|| anyhow!("No columns in result"))?;
+            .ok_or_else(|| RepositoryError::invalid_state("No columns in result"))?;
 
         let db_value = match first_value {
             serde_json::Value::String(s) => DbValue::String(s.clone()),
@@ -194,54 +170,41 @@ impl DatabaseProvider for PostgresProvider {
             serde_json::Value::Bool(b) => DbValue::Bool(*b),
             serde_json::Value::Null => DbValue::NullString,
             serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                return Err(anyhow!("Unsupported value type"));
+                return Err(RepositoryError::invalid_state("Unsupported value type"));
             },
         };
 
         Ok(db_value)
     }
 
-    async fn begin_transaction(&self) -> Result<Box<dyn DatabaseTransaction>> {
-        let tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| anyhow!("Failed to begin transaction: {e}"))?;
+    async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
+        let tx = self.pool.begin().await?;
 
         Ok(Box::new(PostgresTransaction::new(tx)))
     }
 
-    async fn get_database_info(&self) -> Result<DatabaseInfo> {
+    async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
         introspection::get_database_info(&self.pool).await
     }
 
-    async fn test_connection(&self) -> Result<()> {
-        sqlx::query("SELECT 1")
-            .fetch_one(&*self.pool)
-            .await
-            .map_err(|e| anyhow!("Connection test failed: {e}"))?;
+    async fn test_connection(&self) -> DatabaseResult<()> {
+        sqlx::query("SELECT 1").fetch_one(&*self.pool).await?;
         Ok(())
     }
 
-    async fn execute_batch(&self, sql: &str) -> Result<()> {
+    async fn execute_batch(&self, sql: &str) -> DatabaseResult<()> {
         let statements = crate::services::SqlExecutor::parse_sql_statements(sql);
         for statement in statements {
-            sqlx::query(&statement)
-                .execute(&*self.pool)
-                .await
-                .map_err(|e| anyhow!("Batch execution failed: {e}"))?;
+            sqlx::query(&statement).execute(&*self.pool).await?;
         }
         Ok(())
     }
 
-    async fn query_raw(&self, query: &dyn QuerySelector) -> Result<QueryResult> {
+    async fn query_raw(&self, query: &dyn QuerySelector) -> DatabaseResult<QueryResult> {
         let sql = query.select_query();
         let start = std::time::Instant::now();
 
-        let rows = sqlx::query(sql)
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let rows = sqlx::query(sql).fetch_all(&*self.pool).await?;
 
         Ok(rows_to_result(rows, start))
     }
@@ -251,7 +214,7 @@ impl DatabaseProvider for PostgresProvider {
         &self,
         query: &dyn QuerySelector,
         params: Vec<serde_json::Value>,
-    ) -> Result<QueryResult> {
+    ) -> DatabaseResult<QueryResult> {
         let sql = query.select_query();
         let start = std::time::Instant::now();
 
@@ -278,17 +241,13 @@ impl DatabaseProvider for PostgresProvider {
                     query_obj.bind(strings)
                 },
                 serde_json::Value::Object(_) => {
-                    let json_str = serde_json::to_string(&param)
-                        .map_err(|e| anyhow!("Failed to serialize JSON object: {e}"))?;
+                    let json_str = serde_json::to_string(&param)?;
                     query_obj.bind(Some(json_str))
                 },
             };
         }
 
-        let rows = query_obj
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(|e| anyhow!("Query execution failed: {e}"))?;
+        let rows = query_obj.fetch_all(&*self.pool).await?;
 
         Ok(rows_to_result(rows, start))
     }
