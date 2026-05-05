@@ -128,6 +128,8 @@ async fn revoke_key(
     }
 }
 
+// reason: error variant size matches the surrounding handler error type; boxing
+// here would force allocation on every call
 #[allow(clippy::result_large_err)]
 fn resolve_target_user(
     req_ctx: &RequestContext,

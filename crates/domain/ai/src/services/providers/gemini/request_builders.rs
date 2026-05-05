@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::time::Instant;
 use uuid::Uuid;
 
@@ -108,7 +107,9 @@ pub async fn send_request(
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().await?;
-        return Err(anyhow!("Gemini API error ({status}): {error_text}").into());
+        return Err(crate::error::AiError::Internal(format!(
+            "Gemini API error ({status}): {error_text}"
+        )));
     }
 
     Ok(response.text().await?)
@@ -116,7 +117,7 @@ pub async fn send_request(
 
 pub fn parse_response<T: serde::de::DeserializeOwned>(response_text: &str) -> Result<T> {
     serde_json::from_str(response_text).map_err(|e| {
-        crate::error::AiError::Internal(anyhow!(
+        crate::error::AiError::Internal(format!(
             "Failed to parse Gemini response: {}. Preview: {}",
             e,
             &response_text.chars().take(500).collect::<String>()

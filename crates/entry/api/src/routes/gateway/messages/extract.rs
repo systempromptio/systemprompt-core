@@ -9,6 +9,7 @@ use crate::services::gateway::models::AnthropicGatewayRequest;
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 
+// reason: HTTP wire schema mandates these exact field names
 #[allow(clippy::struct_field_names)]
 #[derive(Default)]
 pub(super) struct RejectionPartial {

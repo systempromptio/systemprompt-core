@@ -3,7 +3,8 @@
 //! [`SyncError`] is the unified `thiserror` enum returned by every public
 //! function and method in this crate. Upstream errors (`std::io`, `reqwest`,
 //! `serde_json`, `sqlx`, `zip`) are auto-converted via `#[from]`; everything
-//! else is funnelled through a typed variant or [`SyncError::Other`].
+//! else is funnelled through a typed variant or stringified into
+//! [`SyncError::Internal`] at the call site.
 //!
 //! [`SyncResult<T>`](SyncResult) is the canonical `Result` alias.
 
@@ -83,13 +84,13 @@ pub enum SyncError {
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
-    #[error("{0}")]
-    Other(String),
+    #[error("internal: {0}")]
+    Internal(String),
 }
 
 impl SyncError {
-    pub fn other(cause: impl std::fmt::Display) -> Self {
-        Self::Other(cause.to_string())
+    pub fn internal(cause: impl std::fmt::Display) -> Self {
+        Self::Internal(cause.to_string())
     }
 
     pub fn invalid_input(cause: impl std::fmt::Display) -> Self {

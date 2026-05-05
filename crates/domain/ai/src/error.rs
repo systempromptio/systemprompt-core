@@ -107,8 +107,8 @@ pub enum AiError {
     #[error(transparent)]
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
-    #[error(transparent)]
-    Internal(#[from] anyhow::Error),
+    #[error("internal: {0}")]
+    Internal(String),
 }
 
 #[derive(Debug, Error)]

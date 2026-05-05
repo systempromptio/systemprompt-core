@@ -4357,7 +4357,6 @@ dependencies = [
 name = "systemprompt-ai"
 version = "0.6.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "base64 0.22.1",
  "bytes",
@@ -4985,7 +4984,6 @@ dependencies = [
 name = "systemprompt-runtime"
 version = "0.6.0"
 dependencies = [
- "anyhow",
  "axum",
  "indicatif",
  "inventory",

@@ -8,6 +8,8 @@ use systemprompt_runtime::AppContext;
 use super::health::handle_health;
 use super::health_detail::handle_health_detail;
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -73,6 +75,8 @@ pub async fn handle_root_discovery(
     Json(SingleResponse::new(data))
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_core_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -106,6 +110,8 @@ pub async fn handle_core_discovery(
     Json(SingleResponse::new(data))
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_agents_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -130,6 +136,8 @@ pub async fn handle_agents_discovery(
     Json(SingleResponse::new(data))
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_mcp_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,

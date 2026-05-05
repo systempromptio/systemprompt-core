@@ -6,6 +6,8 @@ use crate::repository::context::message::{
 };
 use systemprompt_traits::RepositoryError;
 
+// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
+// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct UpdateTaskAndSaveMessagesParams<'a> {
     pub task: &'a Task,

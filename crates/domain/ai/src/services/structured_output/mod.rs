@@ -6,7 +6,6 @@ pub mod validator;
 
 use crate::error::Result;
 use crate::models::ai::{ResponseFormat, StructuredOutputOptions};
-use anyhow::anyhow;
 use serde_json::Value as JsonValue;
 
 #[derive(Debug, Copy, Clone)]
@@ -101,7 +100,7 @@ impl StructuredOutputProcessor {
         }
 
         Err(last_error.unwrap_or_else(|| {
-            crate::error::AiError::Internal(anyhow!("Failed after {max_retries} retries"))
+            crate::error::AiError::Internal(format!("Failed after {max_retries} retries"))
         }))
     }
 }

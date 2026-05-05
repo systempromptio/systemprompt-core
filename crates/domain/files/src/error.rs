@@ -10,7 +10,7 @@ use systemprompt_models::domain_error;
 
 domain_error! {
     pub enum FilesError {
-        common: [repository, io, json, yaml, validation, not_found, config, anyhow],
+        common: [repository, io, json, yaml, validation, not_found, config],
 
         #[error("storage error: {0}")]
         Storage(String),

@@ -18,8 +18,8 @@
 //! SchedulerError>`). [`SchedulerError`] composes the
 //! `sqlx`, `tokio-cron-scheduler`, `systemprompt-database`,
 //! `systemprompt-analytics`, and `systemprompt-users` error types via
-//! `#[from]`, plus an `Other(#[from] anyhow::Error)` catch-all for upstream
-//! callers that still propagate `anyhow`.
+//! `#[from]`, plus an `Internal(String)` carve-out for cases where the
+//! upstream cause is stringified at the call site rather than typed.
 //!
 //! Provider-trait bodies (`Job::execute`, …) keep returning
 //! [`systemprompt_provider_contracts::ProviderResult`] for ABI parity with

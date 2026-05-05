@@ -29,6 +29,8 @@ pub struct UserinfoError {
     pub error_description: Option<String>,
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_userinfo(
     State(_state): State<OAuthState>,

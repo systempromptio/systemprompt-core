@@ -20,12 +20,16 @@ pub struct AgentsDiffCalculator {
 impl AgentsDiffCalculator {
     pub fn new(db: &DbPool) -> SyncResult<Self> {
         Ok(Self {
-            agent_repo: AgentRepository::new(db).map_err(SyncError::other)?,
+            agent_repo: AgentRepository::new(db).map_err(SyncError::internal)?,
         })
     }
 
     pub async fn calculate_diff(&self, agents_path: &Path) -> SyncResult<AgentsDiffResult> {
-        let db_agents = self.agent_repo.list_all().await.map_err(SyncError::other)?;
+        let db_agents = self
+            .agent_repo
+            .list_all()
+            .await
+            .map_err(SyncError::internal)?;
         let db_map: HashMap<AgentId, Agent> =
             db_agents.into_iter().map(|a| (a.id.clone(), a)).collect();
 

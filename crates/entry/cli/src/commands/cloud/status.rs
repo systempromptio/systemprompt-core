@@ -109,7 +109,10 @@ async fn load_credentials_and_tenants(
             message: None,
             configured_in_profile: tenant_id_from_profile == Some(tenant.id.as_str()),
         };
-        match api_client.get_tenant_status(&systemprompt_identifiers::TenantId::new(&tenant.id)).await {
+        match api_client
+            .get_tenant_status(&systemprompt_identifiers::TenantId::new(&tenant.id))
+            .await
+        {
             Ok(status) => {
                 status_info.status = status.status;
                 status_info.url = status.app_url;

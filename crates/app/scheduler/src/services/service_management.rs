@@ -27,28 +27,28 @@ impl ServiceManagementService {
         self.service_repo
             .get_services_by_type(module_name)
             .await
-            .map_err(SchedulerError::Other)
+            .map_err(SchedulerError::from)
     }
 
     pub async fn get_running_services_with_pid(&self) -> SchedulerResult<Vec<ServiceConfig>> {
         self.service_repo
             .get_running_services_with_pid()
             .await
-            .map_err(SchedulerError::Other)
+            .map_err(SchedulerError::from)
     }
 
     pub async fn mark_service_stopped(&self, service_name: &str) -> SchedulerResult<()> {
         self.service_repo
             .update_service_stopped(service_name)
             .await
-            .map_err(SchedulerError::Other)
+            .map_err(SchedulerError::from)
     }
 
     pub async fn cleanup_stale_entries(&self) -> SchedulerResult<u64> {
         self.service_repo
             .cleanup_stale_entries()
             .await
-            .map_err(SchedulerError::Other)
+            .map_err(SchedulerError::from)
     }
 
     pub async fn stop_service(&self, service: &ServiceConfig, force: bool) -> SchedulerResult<()> {

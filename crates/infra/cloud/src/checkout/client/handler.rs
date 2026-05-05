@@ -76,15 +76,14 @@ pub(super) async fn callback_handler(
 
             let api_client = Arc::clone(&state.api_client);
             let tx = Arc::clone(&state.tx);
-            let transaction_id = params
-                .transaction_id
-                .clone()
-                .unwrap_or_else(|| {
-                    systemprompt_identifiers::TransactionId::new(checkout_session_id.as_str())
-                });
+            let transaction_id = params.transaction_id.clone().unwrap_or_else(|| {
+                systemprompt_identifiers::TransactionId::new(checkout_session_id.as_str())
+            });
 
             tokio::spawn(async move {
-                match wait_for_checkout_provisioning(&api_client, checkout_session_id.as_str()).await {
+                match wait_for_checkout_provisioning(&api_client, checkout_session_id.as_str())
+                    .await
+                {
                     Ok(prov_result) => {
                         let result = Ok(CheckoutCallbackResult {
                             transaction_id,

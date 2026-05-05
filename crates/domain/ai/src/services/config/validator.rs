@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use systemprompt_models::services::AiConfig;
 use tracing::warn;
 
@@ -48,33 +47,32 @@ impl ConfigValidator {
                 config.providers.keys().collect::<Vec<_>>()
             ));
 
-            return Err(anyhow!(error_msg).into());
+            return Err(crate::error::AiError::Internal(error_msg));
         }
 
         for (name, provider_config) in &enabled_providers {
             if provider_config.api_key.is_empty() {
-                return Err(anyhow!(
+                return Err(crate::error::AiError::Internal(format!(
                     "Provider '{}' is enabled but has no API key.\n\nFix: Add '\"{}\"' key to \
                      your secrets.json file",
-                    name,
-                    name
-                )
-                .into());
+                    name, name
+                )));
             }
 
             if provider_config.default_model.is_empty() {
-                return Err(anyhow!("Provider {name} has no default model specified").into());
+                return Err(crate::error::AiError::Internal(format!(
+                    "Provider {name} has no default model specified"
+                )));
             }
         }
 
         if !config.providers.contains_key(&config.default_provider) {
-            return Err(anyhow!(
+            return Err(crate::error::AiError::Internal(format!(
                 "Default provider '{}' not found in providers.\nAvailable providers: {:?}\nFix: \
                  Update 'default_provider' in your config file",
                 config.default_provider,
                 config.providers.keys().collect::<Vec<_>>()
-            )
-            .into());
+            )));
         }
 
         if !config.providers[&config.default_provider].enabled {
@@ -85,15 +83,12 @@ impl ConfigValidator {
                 .map(|(n, _)| n.as_str())
                 .collect();
 
-            return Err(anyhow!(
+            return Err(crate::error::AiError::Internal(format!(
                 "Default provider '{}' is not enabled.\nEnabled providers: {:?}\nFix: Either \
                  enable '{}' in your config OR change 'default_provider' to one of the enabled \
                  providers",
-                config.default_provider,
-                available,
-                config.default_provider
-            )
-            .into());
+                config.default_provider, available, config.default_provider
+            )));
         }
 
         Ok(())
@@ -107,11 +102,15 @@ impl ConfigValidator {
 
     fn validate_mcp(config: &AiConfig) -> Result<()> {
         if config.mcp.connect_timeout_ms == 0 {
-            return Err(anyhow!("MCP connect timeout must be greater than 0").into());
+            return Err(crate::error::AiError::Internal(format!(
+                "MCP connect timeout must be greater than 0"
+            )));
         }
 
         if config.mcp.execution_timeout_ms == 0 {
-            return Err(anyhow!("MCP execution timeout must be greater than 0").into());
+            return Err(crate::error::AiError::Internal(format!(
+                "MCP execution timeout must be greater than 0"
+            )));
         }
 
         if config.mcp.retry_attempts == 0 {

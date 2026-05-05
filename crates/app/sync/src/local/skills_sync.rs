@@ -25,11 +25,11 @@ impl SkillsLocalSync {
     }
 
     pub async fn calculate_diff(&self) -> SyncResult<SkillsDiffResult> {
-        let calculator = SkillsDiffCalculator::new(&self.db).map_err(SyncError::other)?;
+        let calculator = SkillsDiffCalculator::new(&self.db).map_err(SyncError::internal)?;
         calculator
             .calculate_diff(&self.skills_path)
             .await
-            .map_err(SyncError::other)
+            .map_err(SyncError::internal)
     }
 
     pub async fn sync_to_disk(
@@ -37,7 +37,7 @@ impl SkillsLocalSync {
         diff: &SkillsDiffResult,
         delete_orphans: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let skill_repo = SkillRepository::new(&self.db).map_err(SyncError::other)?;
+        let skill_repo = SkillRepository::new(&self.db).map_err(SyncError::internal)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDisk,
             ..Default::default()
@@ -47,7 +47,7 @@ impl SkillsLocalSync {
             match skill_repo
                 .get_by_skill_id(&item.skill_id)
                 .await
-                .map_err(SyncError::other)?
+                .map_err(SyncError::internal)?
             {
                 Some(skill) => {
                     export_skill_to_disk(&skill, &self.skills_path)?;
@@ -66,7 +66,7 @@ impl SkillsLocalSync {
             match skill_repo
                 .get_by_skill_id(&item.skill_id)
                 .await
-                .map_err(SyncError::other)?
+                .map_err(SyncError::internal)?
             {
                 Some(skill) => {
                     export_skill_to_disk(&skill, &self.skills_path)?;
@@ -105,7 +105,8 @@ impl SkillsLocalSync {
         skills_config: &SkillsConfig,
         delete_orphans: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let ingestion_service = SkillIngestionService::new(&self.db).map_err(SyncError::other)?;
+        let ingestion_service =
+            SkillIngestionService::new(&self.db).map_err(SyncError::internal)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDatabase,
             ..Default::default()
@@ -115,7 +116,7 @@ impl SkillsLocalSync {
         let report = ingestion_service
             .ingest_config(skills_config, source_id, true)
             .await
-            .map_err(SyncError::other)?;
+            .map_err(SyncError::internal)?;
 
         result.items_synced += report.files_processed;
 

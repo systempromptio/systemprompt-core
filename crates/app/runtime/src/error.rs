@@ -8,7 +8,8 @@
 //!
 //! Calls into upstream crates that still return `anyhow::Result` (for
 //! example schema/seed installation and database connectivity probes)
-//! are absorbed into the [`RuntimeError::Other`] variant.
+//! are stringified into the [`RuntimeError::Internal`] variant at the
+//! call site so the lossy conversion is visible.
 
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::{ConfigError as ProfileConfigError, ProfileBootstrapError};
@@ -60,6 +61,6 @@ pub enum RuntimeError {
     #[error("Database path '{path}' exists but is not a file")]
     DatabaseNotFile { path: String },
 
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+    #[error("internal: {0}")]
+    Internal(String),
 }

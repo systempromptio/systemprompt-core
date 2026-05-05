@@ -115,7 +115,8 @@ impl CloudApiClient {
     }
 
     pub async fn list_secrets(&self, tenant_id: &TenantId) -> CloudResult<ListSecretsResponse> {
-        self.get(&ApiPaths::tenant_secrets(tenant_id.as_str())).await
+        self.get(&ApiPaths::tenant_secrets(tenant_id.as_str()))
+            .await
     }
 
     pub async fn set_custom_domain(

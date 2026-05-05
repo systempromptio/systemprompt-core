@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::collections::HashSet;
 use tracing::error;
 
@@ -82,7 +81,7 @@ pub async fn extract_tool_response(
     let candidate = response
         .candidates
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(anyhow!("No response from Gemini")))?;
+        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from Gemini")))?;
 
     let mut content = String::new();
     let mut tool_calls = Vec::new();
@@ -114,13 +113,14 @@ pub async fn extract_tool_response(
 
         if reason == "MALFORMED_FUNCTION_CALL" {
             error!("Gemini MALFORMED_FUNCTION_CALL - model generated invalid tool call JSON");
-            return Err(anyhow!(
+            return Err(crate::error::AiError::Internal(format!(
                 "Gemini returned no content. Finish reason: MALFORMED_FUNCTION_CALL"
-            )
-            .into());
+            )));
         }
 
-        return Err(anyhow!("Gemini returned no content. Finish reason: {reason}").into());
+        return Err(crate::error::AiError::Internal(format!(
+            "Gemini returned no content. Finish reason: {reason}"
+        )));
     }
 
     Ok((content, tool_calls))

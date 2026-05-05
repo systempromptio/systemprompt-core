@@ -1,15 +1,18 @@
 //! Pre-flight validation helpers used by the boot path and tests.
 
+use crate::error::{DatabaseResult, RepositoryError};
 use crate::services::DatabaseProvider;
-use anyhow::{Context, Result};
 
-pub async fn validate_database_connection(db: &dyn DatabaseProvider) -> Result<()> {
-    db.test_connection()
-        .await
-        .context("Failed to establish database connection")
+pub async fn validate_database_connection(db: &dyn DatabaseProvider) -> DatabaseResult<()> {
+    db.test_connection().await.map_err(|e| {
+        RepositoryError::Internal(format!("Failed to establish database connection: {e}"))
+    })
 }
 
-pub async fn validate_table_exists(db: &dyn DatabaseProvider, table_name: &str) -> Result<bool> {
+pub async fn validate_table_exists(
+    db: &dyn DatabaseProvider,
+    table_name: &str,
+) -> DatabaseResult<bool> {
     let result = db
         .query_raw_with(
             &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = \
@@ -22,14 +25,18 @@ pub async fn validate_table_exists(db: &dyn DatabaseProvider, table_name: &str) 
         .first()
         .and_then(|row| row.get("exists"))
         .and_then(serde_json::Value::as_bool)
-        .ok_or_else(|| anyhow::anyhow!("Failed to check table existence for '{}'", table_name))
+        .ok_or_else(|| {
+            RepositoryError::Internal(format!(
+                "Failed to check table existence for '{table_name}'"
+            ))
+        })
 }
 
 pub async fn validate_column_exists(
     db: &dyn DatabaseProvider,
     table_name: &str,
     column_name: &str,
-) -> Result<bool> {
+) -> DatabaseResult<bool> {
     let result = db
         .query_raw_with(
             &"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = \
@@ -46,10 +53,8 @@ pub async fn validate_column_exists(
         .and_then(|row| row.get("exists"))
         .and_then(serde_json::Value::as_bool)
         .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Failed to check column existence for '{}.{}'",
-                table_name,
-                column_name
-            )
+            RepositoryError::Internal(format!(
+                "Failed to check column existence for '{table_name}.{column_name}'"
+            ))
         })
 }

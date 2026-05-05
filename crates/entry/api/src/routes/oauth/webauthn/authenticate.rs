@@ -31,6 +31,7 @@ pub struct AuthError {
     pub error_description: String,
 }
 
+// reason: webauthn-rs proc-macros generate fully-qualified paths in expansion
 #[allow(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(email = %params.email))]
 pub async fn start_auth(

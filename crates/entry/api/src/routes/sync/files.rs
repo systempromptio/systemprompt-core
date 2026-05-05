@@ -210,6 +210,8 @@ fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
     })
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn manifest(
     State(ctx): State<AppContext>,
@@ -223,6 +225,8 @@ pub async fn manifest(
     Ok(Json(manifest))
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn download(
     State(ctx): State<AppContext>,
@@ -251,6 +255,8 @@ pub async fn download(
         .map_err(|e| ApiError::internal_error(e.to_string()))
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn upload(
     State(ctx): State<AppContext>,

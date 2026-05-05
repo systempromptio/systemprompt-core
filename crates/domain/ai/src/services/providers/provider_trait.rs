@@ -225,14 +225,20 @@ pub trait AiProvider: Send + Sync {
         &self,
         _params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(anyhow::anyhow!("Streaming not supported by provider {}", self.name()).into())
+        Err(crate::error::AiError::Internal(format!(
+            "Streaming not supported by provider {}",
+            self.name()
+        )))
     }
 
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(anyhow::anyhow!("Tool streaming not supported by provider {}", self.name()).into())
+        Err(crate::error::AiError::Internal(format!(
+            "Tool streaming not supported by provider {}",
+            self.name()
+        )))
     }
 
     fn supports_streaming(&self) -> bool {
@@ -247,6 +253,9 @@ pub trait AiProvider: Send + Sync {
         &self,
         _params: SearchGenerationParams<'_>,
     ) -> Result<SearchGroundedResponse> {
-        Err(anyhow::anyhow!("Google Search not supported by provider {}", self.name()).into())
+        Err(crate::error::AiError::Internal(format!(
+            "Google Search not supported by provider {}",
+            self.name()
+        )))
     }
 }

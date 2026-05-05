@@ -25,6 +25,7 @@ pub struct StartLinkUserInfo {
     pub name: String,
 }
 
+// reason: webauthn-rs proc-macros generate fully-qualified paths in expansion
 #[allow(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(token_prefix = %params.token.chars().take(12).collect::<String>()))]
 pub async fn start_link(

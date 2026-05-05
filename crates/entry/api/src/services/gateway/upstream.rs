@@ -23,6 +23,7 @@ pub struct UpstreamCtx<'a> {
     pub is_streaming: bool,
 }
 
+// reason: holds non-Debug HTTP transport state; service is internal-use only
 #[allow(missing_debug_implementations)]
 pub enum UpstreamOutcome {
     Buffered {

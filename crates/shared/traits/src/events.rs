@@ -60,10 +60,20 @@ pub trait LogEventPublisher: Send + Sync {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum UserEvent {
-    UserCreated { user_id: UserId },
-    UserUpdated { user_id: UserId },
-    SessionCreated { user_id: UserId, session_id: SessionId },
-    SessionEnded { user_id: UserId, session_id: SessionId },
+    UserCreated {
+        user_id: UserId,
+    },
+    UserUpdated {
+        user_id: UserId,
+    },
+    SessionCreated {
+        user_id: UserId,
+        session_id: SessionId,
+    },
+    SessionEnded {
+        user_id: UserId,
+        session_id: SessionId,
+    },
 }
 
 pub trait UserEventPublisher: Send + Sync {

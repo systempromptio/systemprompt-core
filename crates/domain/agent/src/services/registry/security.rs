@@ -81,6 +81,8 @@ pub fn oauth_to_security_config(
     (Some(schemes), Some(requirements))
 }
 
+// reason: function operates on the caller's existing HashMap; forcing a hasher
+// generic would leak through callers
 #[allow(clippy::implicit_hasher)]
 pub fn override_oauth_urls(schemes: &mut HashMap<String, SecurityScheme>, api_external_url: &str) {
     if let Some(SecurityScheme::OAuth2 { flows, .. }) = schemes.get_mut("oauth2") {

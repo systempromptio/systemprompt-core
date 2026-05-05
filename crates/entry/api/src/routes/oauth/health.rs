@@ -2,6 +2,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
 use serde_json::json;
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_health_api() -> impl IntoResponse {
     (

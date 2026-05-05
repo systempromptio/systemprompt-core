@@ -46,13 +46,10 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
     }
 
     let write_pool = ctx.db_pool().write_pool_arc()?;
-    let deleted_count = sqlx::query(
-        r"
-        DELETE FROM application_logs
-        WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
-        ",
+    let deleted_count = sqlx::query!(
+        r"DELETE FROM application_logs WHERE created_at < NOW() - ($1 || ' days')::INTERVAL",
+        args.days.to_string()
     )
-    .bind(args.days.to_string())
     .execute(&*write_pool)
     .await?
     .rows_affected() as i64;

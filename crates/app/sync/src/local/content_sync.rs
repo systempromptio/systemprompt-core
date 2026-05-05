@@ -39,11 +39,11 @@ impl ContentLocalSync {
         disk_path: &Path,
         allowed_types: &[String],
     ) -> SyncResult<ContentDiffResult> {
-        let calculator = ContentDiffCalculator::new(&self.db).map_err(SyncError::other)?;
+        let calculator = ContentDiffCalculator::new(&self.db).map_err(SyncError::internal)?;
         calculator
             .calculate_diff(source_id, disk_path, allowed_types)
             .await
-            .map_err(SyncError::other)
+            .map_err(SyncError::internal)
     }
 
     pub async fn sync_to_disk(
@@ -51,7 +51,7 @@ impl ContentLocalSync {
         diffs: &[ContentDiffEntry],
         delete_orphans: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let content_repo = ContentRepository::new(&self.db).map_err(SyncError::other)?;
+        let content_repo = ContentRepository::new(&self.db).map_err(SyncError::internal)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDisk,
             ..Default::default()
@@ -64,7 +64,7 @@ impl ContentLocalSync {
                 match content_repo
                     .get_by_source_and_slug(&entry.source_id, &item.slug)
                     .await
-                    .map_err(SyncError::other)?
+                    .map_err(SyncError::internal)?
                 {
                     Some(content) => {
                         export_content_to_file(&content, source_path, &entry.name)?;
@@ -83,7 +83,7 @@ impl ContentLocalSync {
                 match content_repo
                     .get_by_source_and_slug(&entry.source_id, &item.slug)
                     .await
-                    .map_err(SyncError::other)?
+                    .map_err(SyncError::internal)?
                 {
                     Some(content) => {
                         export_content_to_file(&content, source_path, &entry.name)?;
@@ -130,8 +130,8 @@ impl ContentLocalSync {
         delete_orphans: bool,
         override_existing: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let ingestion_service = IngestionService::new(&self.db).map_err(SyncError::other)?;
-        let content_repo = ContentRepository::new(&self.db).map_err(SyncError::other)?;
+        let ingestion_service = IngestionService::new(&self.db).map_err(SyncError::internal)?;
+        let content_repo = ContentRepository::new(&self.db).map_err(SyncError::internal)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDatabase,
             ..Default::default()
@@ -149,7 +149,7 @@ impl ContentLocalSync {
                         .with_override(override_existing),
                 )
                 .await
-                .map_err(SyncError::other)?;
+                .map_err(SyncError::internal)?;
 
             result.items_synced += report.files_processed;
             result.items_skipped_modified += report.skipped_count;
@@ -167,7 +167,7 @@ impl ContentLocalSync {
                 for item in &entry.diff.removed {
                     let content_id = ContentId::new(&item.slug);
                     content_repo.delete(&content_id).await.map_err(|e| {
-                        SyncError::other(format!("Failed to delete {}: {e}", item.slug))
+                        SyncError::internal(format!("Failed to delete {}: {e}", item.slug))
                     })?;
                     result.items_deleted += 1;
                     info!("Deleted from DB: {}", item.slug);

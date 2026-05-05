@@ -24,11 +24,11 @@ impl AgentsLocalSync {
     }
 
     pub async fn calculate_diff(&self) -> SyncResult<AgentsDiffResult> {
-        let calculator = AgentsDiffCalculator::new(&self.db).map_err(SyncError::other)?;
+        let calculator = AgentsDiffCalculator::new(&self.db).map_err(SyncError::internal)?;
         calculator
             .calculate_diff(&self.agents_path)
             .await
-            .map_err(SyncError::other)
+            .map_err(SyncError::internal)
     }
 
     pub async fn sync_to_disk(
@@ -36,7 +36,7 @@ impl AgentsLocalSync {
         diff: &AgentsDiffResult,
         delete_orphans: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let agent_repo = AgentRepository::new(&self.db).map_err(SyncError::other)?;
+        let agent_repo = AgentRepository::new(&self.db).map_err(SyncError::internal)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDisk,
             ..Default::default()
@@ -46,7 +46,7 @@ impl AgentsLocalSync {
             match agent_repo
                 .get_by_agent_id(&item.agent_id)
                 .await
-                .map_err(SyncError::other)?
+                .map_err(SyncError::internal)?
             {
                 Some(agent) => {
                     export_agent_to_disk(&agent, &self.agents_path)?;
@@ -65,7 +65,7 @@ impl AgentsLocalSync {
             match agent_repo
                 .get_by_agent_id(&item.agent_id)
                 .await
-                .map_err(SyncError::other)?
+                .map_err(SyncError::internal)?
             {
                 Some(agent) => {
                     export_agent_to_disk(&agent, &self.agents_path)?;
@@ -102,7 +102,8 @@ impl AgentsLocalSync {
         diff: &AgentsDiffResult,
         delete_orphans: bool,
     ) -> SyncResult<LocalSyncResult> {
-        let ingestion_service = AgentIngestionService::new(&self.db).map_err(SyncError::other)?;
+        let ingestion_service =
+            AgentIngestionService::new(&self.db).map_err(SyncError::internal)?;
         let mut result = LocalSyncResult {
             direction: LocalSyncDirection::ToDatabase,
             ..Default::default()
@@ -112,7 +113,7 @@ impl AgentsLocalSync {
         let report = ingestion_service
             .ingest_directory(&self.agents_path, source_id, true)
             .await
-            .map_err(SyncError::other)?;
+            .map_err(SyncError::internal)?;
 
         result.items_synced += report.files_processed;
 

@@ -141,6 +141,8 @@ pub async fn handle_mcp_protected_resource(Path(service_name): Path<String>) -> 
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
+// reason: Axum handler signature requires `async fn` even when the body has no
+// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_mcp_authorization_server(
     Path(_service_name): Path<String>,

@@ -63,6 +63,8 @@ fn resolve_provider_config(
     (provider, model, max_tokens)
 }
 
+// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
+// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct SynthesizeToolResultsParams<'a> {
     pub ai_service: Arc<dyn AiProvider>,

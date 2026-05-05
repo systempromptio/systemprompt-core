@@ -20,11 +20,10 @@ impl AiService {
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(anyhow::anyhow!(
+            return Err(crate::error::AiError::Internal(format!(
                 "Provider {} does not support streaming",
                 request.provider()
-            )
-            .into());
+            )));
         }
 
         let mut params = GenerationParams::new(
@@ -62,11 +61,10 @@ impl AiService {
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(anyhow::anyhow!(
+            return Err(crate::error::AiError::Internal(format!(
                 "Provider {} does not support streaming",
                 request.provider()
-            )
-            .into());
+            )));
         }
 
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
@@ -106,7 +104,7 @@ impl AiService {
             .values()
             .find(|p| p.supports_google_search())
             .ok_or_else(|| {
-                crate::error::AiError::Internal(anyhow::anyhow!(
+                crate::error::AiError::Internal(format!(
                     "No provider with Google Search support available"
                 ))
             })?;

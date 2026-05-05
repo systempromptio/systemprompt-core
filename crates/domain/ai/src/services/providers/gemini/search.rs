@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::time::Instant;
 
 use crate::models::ai::{AiMessage, SamplingParams, SearchGroundedResponse, WebSource};
@@ -128,7 +127,7 @@ fn extract_grounded_response(
     let candidate = response
         .candidates
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(anyhow!("No response from Gemini")))?;
+        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from Gemini")))?;
 
     let content_text = candidate
         .content

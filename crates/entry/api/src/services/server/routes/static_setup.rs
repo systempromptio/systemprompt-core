@@ -17,6 +17,8 @@ pub(super) fn build_static_router(
     events: Option<&StartupEventSender>,
 ) -> Router {
     let path = ctx.app_paths().system().content_config().to_path_buf();
+    // reason: the `else` branch logs and returns a non-trivial fallback; map_or
+    // would inline it less readably
     #[allow(clippy::option_if_let_else)]
     let content_matcher = if let Some(path_str) = path.to_str() {
         match StaticContentMatcher::from_config(path_str) {

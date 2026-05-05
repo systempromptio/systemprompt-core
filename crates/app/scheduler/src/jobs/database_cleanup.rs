@@ -39,17 +39,17 @@ impl Job for DatabaseCleanupJob {
         let cleanup_repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
         let mut total_deleted = 0u64;
 
-        let orphaned_logs = cleanup_repo.delete_orphaned_logs().await?;
+        let orphaned_logs = cleanup_repo.delete_orphaned_logs().await.map_err(|e| anyhow::Error::from(e).into())?;
         total_deleted += orphaned_logs;
 
-        let orphaned_mcp = cleanup_repo.delete_orphaned_mcp_executions().await?;
+        let orphaned_mcp = cleanup_repo.delete_orphaned_mcp_executions().await.map_err(|e| anyhow::Error::from(e).into())?;
         total_deleted += orphaned_mcp;
 
-        let old_logs = cleanup_repo.delete_old_logs(30).await?;
+        let old_logs = cleanup_repo.delete_old_logs(30).await.map_err(|e| anyhow::Error::from(e).into())?;
         total_deleted += old_logs;
 
-        let oauth_codes = cleanup_repo.delete_expired_oauth_codes().await?;
-        let oauth_tokens = cleanup_repo.delete_expired_oauth_tokens().await?;
+        let oauth_codes = cleanup_repo.delete_expired_oauth_codes().await.map_err(|e| anyhow::Error::from(e).into())?;
+        let oauth_tokens = cleanup_repo.delete_expired_oauth_tokens().await.map_err(|e| anyhow::Error::from(e).into())?;
         total_deleted += oauth_codes + oauth_tokens;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;

@@ -23,9 +23,9 @@ impl AgentLifecycle {
         use crate::repository::agent_service::AgentServiceRepository;
 
         let agent_service_repo = AgentServiceRepository::new(db_pool)
-            .map_err(|e| crate::error::AgentError::Other(anyhow::anyhow!(e.to_string())))?;
+            .map_err(|e| crate::error::AgentError::Internal(e.to_string()))?;
         let db_service = AgentDatabaseService::new(agent_service_repo)
-            .map_err(|e| crate::error::AgentError::Other(anyhow::anyhow!(e.to_string())))?;
+            .map_err(|e| crate::error::AgentError::Internal(e.to_string()))?;
 
         Ok(Self {
             db_service,

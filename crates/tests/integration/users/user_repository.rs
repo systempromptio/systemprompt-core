@@ -37,8 +37,7 @@ async fn create_user_with_all_fields() -> Result<()> {
     let unique_name = format!("testuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
     // Cleanup first
-    let _ = sqlx::query("DELETE FROM users WHERE email = $1")
-        .bind(&unique_email)
+    let _ = sqlx::query!("DELETE FROM users WHERE email = $1", &unique_email)
         .execute(pool.as_ref())
         .await;
 
@@ -54,8 +53,7 @@ async fn create_user_with_all_fields() -> Result<()> {
     assert!(user.roles.contains(&"user".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -84,8 +82,7 @@ async fn create_user_without_display_name_uses_full_name() -> Result<()> {
     assert_eq!(user.display_name, Some("Full Name Only".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -115,8 +112,7 @@ async fn create_anonymous_user() -> Result<()> {
     assert!(user.roles.contains(&"anonymous".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(user.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -151,8 +147,7 @@ async fn find_by_id_returns_user() -> Result<()> {
     assert_eq!(found.email, unique_email);
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -201,8 +196,7 @@ async fn find_by_email_returns_user() -> Result<()> {
     assert_eq!(found.id.to_string(), created.id.to_string());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -250,8 +244,7 @@ async fn find_by_name_returns_user() -> Result<()> {
     assert_eq!(found.id.to_string(), created.id.to_string());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -283,8 +276,7 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
     assert!(users.iter().any(|u| u.id.to_string() == created.id.to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -340,8 +332,7 @@ async fn update_email_changes_email() -> Result<()> {
     assert_eq!(updated.email_verified, Some(false)); // Should reset on email change
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -372,8 +363,7 @@ async fn update_full_name_changes_name() -> Result<()> {
     assert_eq!(updated.full_name, Some("New Full Name".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -404,8 +394,7 @@ async fn update_status_changes_status() -> Result<()> {
     assert_eq!(updated.status, Some("suspended".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -436,8 +425,7 @@ async fn update_email_verified_sets_flag() -> Result<()> {
     assert_eq!(updated.email_verified, Some(true));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -479,8 +467,7 @@ async fn update_all_fields_updates_everything() -> Result<()> {
     assert_eq!(updated.status, Some("inactive".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -513,8 +500,7 @@ async fn assign_roles_updates_roles() -> Result<()> {
     assert!(updated.roles.contains(&"user".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -613,8 +599,7 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
     assert_eq!(auth_user.status, Some("active".to_string()));
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
@@ -643,8 +628,7 @@ async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
     assert!(auth_user.is_none());
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
+    let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 

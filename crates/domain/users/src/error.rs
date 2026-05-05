@@ -1,36 +1,36 @@
 //! Typed error surface for the users crate.
 
 use systemprompt_identifiers::UserId;
-use thiserror::Error;
+use systemprompt_models::domain_error;
 
-#[derive(Debug, Error)]
-pub enum UserError {
-    #[error("user not found: {0}")]
-    NotFound(UserId),
+domain_error! {
+    pub enum UserError {
+        common: [repository, validation],
 
-    #[error("user already exists with email: {0}")]
-    EmailAlreadyExists(String),
+        #[error("user not found: {0}")]
+        NotFound(UserId),
 
-    #[error("invalid status: {0}")]
-    InvalidStatus(String),
+        #[error("user already exists with email: {0}")]
+        EmailAlreadyExists(String),
 
-    #[error("invalid role: {0}")]
-    InvalidRole(String),
+        #[error("invalid status: {0}")]
+        InvalidStatus(String),
 
-    #[error("invalid roles: {0:?}")]
-    InvalidRoles(Vec<String>),
+        #[error("invalid role: {0}")]
+        InvalidRole(String),
 
-    #[error("database error: {0}")]
-    Database(#[from] sqlx::Error),
+        #[error("invalid roles: {0:?}")]
+        InvalidRoles(Vec<String>),
 
-    #[error("repository error: {0}")]
-    Repository(#[from] systemprompt_database::RepositoryError),
+        #[error("pool error: {0}")]
+        Pool(String),
+    }
+}
 
-    #[error("validation error: {0}")]
-    Validation(String),
-
-    #[error("pool error: {0}")]
-    Pool(String),
+impl From<sqlx::Error> for UserError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(systemprompt_database::RepositoryError::from(err))
+    }
 }
 
 pub type Result<T> = std::result::Result<T, UserError>;

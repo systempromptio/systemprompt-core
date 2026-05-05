@@ -85,10 +85,14 @@ pub async fn delete_tenant(
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
         if config.is_json_output() {
-            client.delete_tenant(&systemprompt_identifiers::TenantId::new(&tenant_id)).await?;
+            client
+                .delete_tenant(&systemprompt_identifiers::TenantId::new(&tenant_id))
+                .await?;
         } else {
             let spinner = CliService::spinner("Deleting cloud tenant...");
-            client.delete_tenant(&systemprompt_identifiers::TenantId::new(&tenant_id)).await?;
+            client
+                .delete_tenant(&systemprompt_identifiers::TenantId::new(&tenant_id))
+                .await?;
             spinner.finish_and_clear();
         }
     } else if tenant.uses_shared_container() {

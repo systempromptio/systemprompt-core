@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::time::Instant;
 use uuid::Uuid;
 
@@ -16,7 +15,7 @@ pub fn build_response(
     let choice = openai_response
         .choices
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal(anyhow!("No response from OpenAI")))?;
+        .ok_or_else(|| crate::error::AiError::Internal(format!("No response from OpenAI")))?;
 
     let content = choice
         .message

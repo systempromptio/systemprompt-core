@@ -21,6 +21,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_traits::{DynFileUploadProvider, DynSessionAnalyticsProvider, RepositoryError};
 
+// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
+// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct RepoCreateTaskParams<'a> {
     pub task: &'a Task,

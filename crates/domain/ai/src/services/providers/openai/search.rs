@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use std::time::Instant;
 
 use crate::models::ai::{
@@ -74,7 +73,7 @@ pub async fn generate_with_web_search(
         .json(&request)
         .send()
         .await
-        .map_err(|e| crate::error::AiError::Internal(anyhow!("HTTP request failed: {}", e)))?;
+        .map_err(|e| crate::error::AiError::Internal(format!("HTTP request failed: {}", e)))?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -82,13 +81,16 @@ pub async fn generate_with_web_search(
             .text()
             .await
             .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-        return Err(anyhow!("OpenAI API returned status {}: {}", status, error_body).into());
+        return Err(crate::error::AiError::Internal(format!(
+            "OpenAI API returned status {}: {}",
+            status, error_body
+        )));
     }
 
     let responses_response: OpenAiResponsesResponse = response
         .json()
         .await
-        .map_err(|e| crate::error::AiError::Internal(anyhow!("Failed to parse response: {}", e)))?;
+        .map_err(|e| crate::error::AiError::Internal(format!("Failed to parse response: {}", e)))?;
 
     Ok(extract_search_response(&responses_response, start))
 }

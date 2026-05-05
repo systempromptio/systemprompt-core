@@ -59,8 +59,8 @@ pub enum SchedulerError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+    #[error("internal: {0}")]
+    Internal(String),
 }
 
 impl SchedulerError {

@@ -10,7 +10,7 @@
 //! upstream typed errors (`ConfigError`, `RepositoryError`,
 //! `FilesError`, `UserError`, `LoaderError`, `AnalyticsError`,
 //! `ProfileBootstrapError`, `PathError`) via `#[from]` and absorbs
-//! still-anyhow upstream calls in [`RuntimeError::Other`].
+//! stringifies still-anyhow upstream calls into [`RuntimeError::Internal`].
 //!
 //! # Feature flags
 //!

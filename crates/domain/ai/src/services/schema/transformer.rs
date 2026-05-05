@@ -3,7 +3,6 @@ use super::capabilities::ProviderCapabilities;
 use super::sanitizer::SchemaSanitizer;
 use crate::error::Result;
 use crate::models::tools::McpTool;
-use anyhow::anyhow;
 use serde_json::{Map, Value, json};
 
 fn merge_properties_into(
@@ -101,7 +100,7 @@ impl SchemaTransformer {
 
     pub fn transform(&self, tool: &McpTool) -> Result<Vec<TransformedTool>> {
         let schema = tool.input_schema.as_ref().ok_or_else(|| {
-            crate::error::AiError::Internal(anyhow!(
+            crate::error::AiError::Internal(format!(
                 "Tool '{}' missing required input_schema",
                 tool.name
             ))
@@ -123,7 +122,7 @@ impl SchemaTransformer {
             .input_schema
             .as_ref()
             .ok_or_else(|| {
-                crate::error::AiError::Internal(anyhow!(
+                crate::error::AiError::Internal(format!(
                     "Tool '{}' missing required input_schema",
                     tool.name
                 ))
@@ -135,7 +134,7 @@ impl SchemaTransformer {
             .as_ref()
             .filter(|d| !d.is_empty())
             .ok_or_else(|| {
-                crate::error::AiError::Internal(anyhow!(
+                crate::error::AiError::Internal(format!(
                     "Tool '{}' has empty or missing description",
                     tool.name
                 ))
@@ -163,7 +162,7 @@ impl SchemaTransformer {
             .as_ref()
             .filter(|d| !d.is_empty())
             .ok_or_else(|| {
-                crate::error::AiError::Internal(anyhow!(
+                crate::error::AiError::Internal(format!(
                     "Tool '{}' has empty or missing description",
                     tool.name
                 ))

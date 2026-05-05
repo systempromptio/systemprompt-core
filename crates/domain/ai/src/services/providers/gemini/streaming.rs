@@ -1,5 +1,4 @@
 use crate::error::Result;
-use anyhow::anyhow;
 use futures::Stream;
 use futures::stream::StreamExt;
 use std::pin::Pin;
@@ -42,7 +41,9 @@ pub async fn generate_stream(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(anyhow!("Gemini streaming API error: {error_text}").into());
+        return Err(crate::error::AiError::Internal(format!(
+            "Gemini streaming API error: {error_text}"
+        )));
     }
 
     let byte_stream = response.bytes_stream();
@@ -50,7 +51,7 @@ pub async fn generate_stream(
     let chunk_stream = byte_stream
         .map(|result| {
             result
-                .map_err(|e| crate::error::AiError::Internal(anyhow!("Stream error: {e}")))
+                .map_err(|e| crate::error::AiError::Internal(format!("Stream error: {e}")))
                 .map(|b| parse_stream_chunks(&b))
         })
         .flat_map(|result| match result {

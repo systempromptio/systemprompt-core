@@ -56,6 +56,8 @@ impl ExtensionsConfig {
     }
 }
 
+// reason: regex literal is constant — failure here is a build-time bug, not a
+// runtime path
 #[allow(clippy::expect_used)]
 static ENV_VAR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{(\w+)\}")
