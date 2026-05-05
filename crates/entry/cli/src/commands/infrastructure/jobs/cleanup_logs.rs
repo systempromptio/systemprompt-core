@@ -46,10 +46,15 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
     }
 
     let write_pool = ctx.db_pool().write_pool_arc()?;
-    let deleted_count = sqlx::query!(
-        r"DELETE FROM application_logs WHERE created_at < NOW() - ($1 || ' days')::INTERVAL",
-        args.days.to_string()
+    // dynamic schema — application_logs is provided by an external extension and
+    // is not present in the core compile-time schema, so query!() cannot verify.
+    let deleted_count = sqlx::query(
+        r"
+        DELETE FROM application_logs
+        WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
+        ",
     )
+    .bind(args.days.to_string())
     .execute(&*write_pool)
     .await?
     .rows_affected() as i64;

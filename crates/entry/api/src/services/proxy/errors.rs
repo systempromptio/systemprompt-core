@@ -42,7 +42,7 @@ pub enum ProxyError {
     DatabaseError {
         service: String,
         #[source]
-        source: anyhow::Error,
+        source: systemprompt_database::RepositoryError,
     },
 
     #[error("Authentication required for service '{service}'")]
