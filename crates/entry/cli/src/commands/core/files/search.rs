@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_files::FileService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
@@ -35,7 +35,7 @@ pub async fn execute_with_pool(
         return Err(anyhow!("Search query cannot be empty"));
     }
 
-    let service = FileService::new(pool)?;
+    let service = FileRepository::new(pool)?;
 
     let found_files = service.search_by_path(&args.query, args.limit).await?;
 

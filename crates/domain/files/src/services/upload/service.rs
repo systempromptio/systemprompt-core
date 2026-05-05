@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::config::{FilePersistenceMode, FilesConfig};
 use crate::models::{FileChecksums, FileMetadata};
 use crate::repository::InsertFileRequest;
-use crate::services::FileService;
+use crate::repository::FileRepository;
 
 use super::error::FileUploadError;
 use super::request::{FileUploadRequest, UploadedFile};
@@ -20,20 +20,20 @@ use super::validator::{FileCategory, FileValidator};
 #[derive(Debug, Clone)]
 pub struct FileUploadService {
     files_config: FilesConfig,
-    file_service: FileService,
+    file_repository: FileRepository,
     validator: FileValidator,
 }
 
 impl FileUploadService {
     pub fn new(db_pool: &DbPool, files_config: FilesConfig) -> Result<Self, FileUploadError> {
         let upload_config = *files_config.upload();
-        let file_service =
-            FileService::new(db_pool).map_err(|e| FileUploadError::Database(e.to_string()))?;
+        let file_repository =
+            FileRepository::new(db_pool).map_err(|e| FileUploadError::Database(e.to_string()))?;
         let validator = FileValidator::new(upload_config);
 
         Ok(Self {
             files_config,
-            file_service,
+            file_repository,
             validator,
         })
     }
@@ -119,7 +119,7 @@ impl FileUploadService {
             insert_request = insert_request.with_trace_id(trace_id);
         }
 
-        if let Err(e) = self.file_service.insert(insert_request).await {
+        if let Err(e) = self.file_repository.insert(insert_request).await {
             if let Err(cleanup_err) = fs::remove_file(&storage_path).await {
                 tracing::warn!(
                     path = %storage_path.display(),

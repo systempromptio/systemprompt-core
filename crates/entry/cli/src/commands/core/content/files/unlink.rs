@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use dialoguer::Confirm;
-use systemprompt_files::ContentService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
@@ -68,7 +68,7 @@ pub async fn execute(
     }
 
     let ctx = AppContext::new().await?;
-    let service = ContentService::new(ctx.db_pool())?;
+    let service = FileRepository::new(ctx.db_pool())?;
 
     service.unlink_from_content(&content_id, &file_id).await?;
 

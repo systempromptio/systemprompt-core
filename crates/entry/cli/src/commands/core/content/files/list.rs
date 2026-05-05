@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_files::ContentService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
@@ -30,7 +30,7 @@ pub enum ListOutput {
 
 pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOutput>> {
     let ctx = AppContext::new().await?;
-    let service = ContentService::new(ctx.db_pool())?;
+    let service = FileRepository::new(ctx.db_pool())?;
 
     match (&args.content, &args.file) {
         (Some(content_id_str), None) => {

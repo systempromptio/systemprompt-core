@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_files::FileService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_runtime::AppContext;
 
@@ -34,7 +34,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileListOutput>> {
-    let service = FileService::new(pool)?;
+    let service = FileRepository::new(pool)?;
 
     let files = match &args.user {
         Some(user_id) => {

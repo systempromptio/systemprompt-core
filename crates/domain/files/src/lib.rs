@@ -9,8 +9,7 @@
 //!   [`FileRole`] structures backed by Postgres.
 //! - **Repositories** — `sqlx`-backed persistence for file rows and
 //!   content↔file associations.
-//! - **Services** — upload validation, content services, AI-persistence glue
-//!   and a [`FileService`] facade.
+//! - **Services** — upload validation, content services, AI-persistence glue.
 //! - **Jobs** — [`FileIngestionJob`] that scans the storage root and reconciles
 //!   on-disk image files with database rows.
 //!
@@ -49,7 +48,6 @@ pub use models::{
 };
 pub use repository::{FileRepository, FileStats, InsertFileRequest};
 pub use services::{
-    AiService, ContentService, FileCategory, FileService, FileUploadError, FileUploadRequest,
-    FileUploadRequestBuilder, FileUploadService, FileValidationError, FileValidator,
-    FilesAiPersistenceProvider, UploadedFile,
+    FileCategory, FileUploadError, FileUploadRequest, FileUploadRequestBuilder, FileUploadService,
+    FileValidationError, FileValidator, FilesAiPersistenceProvider, UploadedFile,
 };

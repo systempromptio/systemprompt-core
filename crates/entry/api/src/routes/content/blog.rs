@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::http::header::LINK;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
-use systemprompt_content::{Content, ContentService};
+use systemprompt_content::{Content, ContentRepository};
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
@@ -15,7 +15,7 @@ pub async fn list_content_by_source_handler(
     State(ctx): State<AppContext>,
     Path(source_id): Path<String>,
 ) -> impl IntoResponse {
-    let content_service = match ContentService::new(ctx.db_pool()) {
+    let content_service = match ContentRepository::new(ctx.db_pool()) {
         Ok(svc) => svc,
         Err(e) => {
             return (
@@ -43,7 +43,7 @@ pub async fn get_content_handler(
     accepted_format: Option<Extension<AcceptedFormat>>,
     Path((source_id, slug)): Path<(String, String)>,
 ) -> Response {
-    let content_service = match ContentService::new(ctx.db_pool()) {
+    let content_service = match ContentRepository::new(ctx.db_pool()) {
         Ok(svc) => svc,
         Err(e) => {
             return (
@@ -104,7 +104,7 @@ pub async fn get_content_markdown_handler(
     Extension(_req_ctx): Extension<RequestContext>,
     Path((source_id, slug)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    let content_service = match ContentService::new(ctx.db_pool()) {
+    let content_service = match ContentRepository::new(ctx.db_pool()) {
         Ok(svc) => svc,
         Err(e) => {
             return (
