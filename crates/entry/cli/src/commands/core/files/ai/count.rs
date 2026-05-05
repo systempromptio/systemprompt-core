@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_files::AiService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 
@@ -22,7 +22,7 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<AiFilesCountOutput>> {
     let ctx = AppContext::new().await?;
-    let service = AiService::new(ctx.db_pool())?;
+    let service = FileRepository::new(ctx.db_pool())?;
 
     let user_id = args.user.as_ref().map(|u| UserId::new(u.clone()));
 

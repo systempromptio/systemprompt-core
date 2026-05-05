@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_files::ContentService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
@@ -22,7 +22,7 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<FeaturedImageOutput>> {
     let ctx = AppContext::new().await?;
-    let service = ContentService::new(ctx.db_pool())?;
+    let service = FileRepository::new(ctx.db_pool())?;
 
     let content_id = ContentId::new(args.content.clone());
 

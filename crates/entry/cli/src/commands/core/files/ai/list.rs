@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_files::AiService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_runtime::AppContext;
 
@@ -25,7 +25,7 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<AiFilesListOutput>> {
     let ctx = AppContext::new().await?;
-    let service = AiService::new(ctx.db_pool())?;
+    let service = FileRepository::new(ctx.db_pool())?;
 
     let files = match &args.user {
         Some(user_id) => {

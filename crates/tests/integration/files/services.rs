@@ -1,11 +1,11 @@
-//! Integration tests for FileService, AiService, and ContentService
+//! Integration tests for FileRepository, AiService, and ContentService
 //!
 //! These tests require a running PostgreSQL database with the schema set up.
 //! Set DATABASE_URL environment variable to run these tests.
 
 use systemprompt_database::Database;
 use systemprompt_files::{
-    AiService, ContentService, FileService, InsertFileRequest,
+    AiService, ContentService, FileRepository, InsertFileRequest,
 };
 use systemprompt_identifiers::{ContentId, FileId, UserId};
 
@@ -32,8 +32,8 @@ async fn test_file_service_new() {
         return;
     };
 
-    let result = FileService::new(db.pool());
-    assert!(result.is_ok(), "FileService::new should succeed");
+    let result = FileRepository::new(db.pool());
+    assert!(result.is_ok(), "FileRepository::new should succeed");
 }
 
 #[tokio::test]
@@ -43,11 +43,11 @@ async fn test_file_service_insert() {
         return;
     };
 
-    let service = FileService::new(db.pool()).expect("Failed to create service");
+    let service = FileRepository::new(db.pool()).expect("Failed to create service");
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
 
     let result = service.insert(request.clone()).await;
-    assert!(result.is_ok(), "FileService::insert should succeed");
+    assert!(result.is_ok(), "FileRepository::insert should succeed");
 
     let file = service.find_by_id(&request.id).await.expect("should query inserted file").expect("inserted file should exist");
     assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match");
@@ -64,7 +64,7 @@ async fn test_file_service_find_by_id() {
         return;
     };
 
-    let service = FileService::new(db.pool()).expect("Failed to create service");
+    let service = FileRepository::new(db.pool()).expect("Failed to create service");
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
 
     service.insert(request.clone()).await.expect("Insert should succeed");
@@ -86,7 +86,7 @@ async fn test_file_service_find_by_path() {
         return;
     };
 
-    let service = FileService::new(db.pool()).expect("Failed to create service");
+    let service = FileRepository::new(db.pool()).expect("Failed to create service");
     let unique_suffix = uuid::Uuid::new_v4().to_string();
     let request = create_test_file_request(&unique_suffix);
     let path = request.path.clone();
@@ -109,7 +109,7 @@ async fn test_file_service_list_by_user() {
         return;
     };
 
-    let service = FileService::new(db.pool()).expect("Failed to create service");
+    let service = FileRepository::new(db.pool()).expect("Failed to create service");
     let user_id = UserId::new(format!("svc_user_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
@@ -139,7 +139,7 @@ async fn test_file_service_list_all() {
         return;
     };
 
-    let service = FileService::new(db.pool()).expect("Failed to create service");
+    let service = FileRepository::new(db.pool()).expect("Failed to create service");
 
     let files = service.list_all(10, 0).await.expect("List all should succeed");
     assert!(files.len() <= 10, "Should respect limit");
@@ -152,7 +152,7 @@ async fn test_file_service_delete() {
         return;
     };
 
-    let service = FileService::new(db.pool()).expect("Failed to create service");
+    let service = FileRepository::new(db.pool()).expect("Failed to create service");
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
 
     service.insert(request.clone()).await.expect("Insert should succeed");
@@ -182,7 +182,7 @@ async fn test_ai_service_list_ai_images() {
     };
 
     let ai_service = AiService::new(db.pool()).expect("Failed to create AI service");
-    let file_service = FileService::new(db.pool()).expect("Failed to create file service");
+    let file_service = FileRepository::new(db.pool()).expect("Failed to create file service");
 
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
         .with_ai_content(true);
@@ -208,7 +208,7 @@ async fn test_ai_service_list_ai_images_by_user() {
     };
 
     let ai_service = AiService::new(db.pool()).expect("Failed to create AI service");
-    let file_service = FileService::new(db.pool()).expect("Failed to create file service");
+    let file_service = FileRepository::new(db.pool()).expect("Failed to create file service");
     let user_id = UserId::new(format!("ai_svc_user_{}", uuid::Uuid::new_v4()));
 
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
@@ -235,7 +235,7 @@ async fn test_ai_service_count_ai_images_by_user() {
     };
 
     let ai_service = AiService::new(db.pool()).expect("Failed to create AI service");
-    let file_service = FileService::new(db.pool()).expect("Failed to create file service");
+    let file_service = FileRepository::new(db.pool()).expect("Failed to create file service");
     let user_id = UserId::new(format!("ai_count_user_{}", uuid::Uuid::new_v4()));
 
     let mut file_ids = Vec::new();

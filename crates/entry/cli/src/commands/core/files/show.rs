@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_files::{File, FileService, TypeSpecificMetadata};
+use systemprompt_files::{File, FileRepository, TypeSpecificMetadata};
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
@@ -31,7 +31,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {
-    let service = FileService::new(pool)?;
+    let service = FileRepository::new(pool)?;
 
     let file = find_file(&service, &args.identifier).await?;
 
@@ -56,7 +56,7 @@ pub async fn execute_with_pool(
     Ok(CommandResult::card(output).with_title(format!("File: {}", args.identifier)))
 }
 
-async fn find_file(service: &FileService, identifier: &str) -> Result<File> {
+async fn find_file(service: &FileRepository, identifier: &str) -> Result<File> {
     if identifier.starts_with('/') || identifier.contains('/') {
         service
             .find_by_path(identifier)

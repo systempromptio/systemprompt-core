@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_files::{FileService, FileStats};
+use systemprompt_files::{FileRepository, FileStats};
 use systemprompt_runtime::AppContext;
 
 use super::types::{CategoryStat, FileCategoryStats, FileStatsOutput};
@@ -24,7 +24,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileStatsOutput>> {
-    let service = FileService::new(pool)?;
+    let service = FileRepository::new(pool)?;
 
     let stats: FileStats = service.get_stats().await?;
 

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Args, ValueEnum};
-use systemprompt_files::{ContentService, FileRole};
+use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
@@ -49,7 +49,7 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<ContentLinkOutput>> {
     let ctx = AppContext::new().await?;
-    let service = ContentService::new(ctx.db_pool())?;
+    let service = FileRepository::new(ctx.db_pool())?;
 
     let file_id = FileId::new(args.file.clone());
     let content_id = ContentId::new(args.content.clone());

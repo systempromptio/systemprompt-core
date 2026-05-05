@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use dialoguer::Confirm;
-use systemprompt_files::FileService;
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
@@ -32,7 +32,7 @@ pub async fn execute(
     let file_id = parse_file_id(&args.file)?;
 
     let ctx = AppContext::new().await?;
-    let service = FileService::new(ctx.db_pool())?;
+    let service = FileRepository::new(ctx.db_pool())?;
 
     let file = service
         .find_by_id(&file_id)

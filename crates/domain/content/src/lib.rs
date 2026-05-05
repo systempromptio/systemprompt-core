@@ -7,9 +7,9 @@
 //!   [`IngestionReport`], [`SearchRequest`], and link-tracking types.
 //! - **Repositories** — [`ContentRepository`], [`SearchRepository`],
 //!   [`LinkAnalyticsRepository`] backed by Postgres + `sqlx` macros.
-//! - **Services** — [`ContentService`], [`IngestionService`],
-//!   [`SearchService`], [`LinkGenerationService`], [`LinkAnalyticsService`],
-//!   plus a [`DefaultContentProvider`] for downstream consumers.
+//! - **Services** — [`IngestionService`], [`SearchService`],
+//!   [`LinkGenerationService`], [`LinkAnalyticsService`], plus a
+//!   [`DefaultContentProvider`] for downstream consumers.
 //! - **Default providers** — [`DefaultBrandingProvider`],
 //!   [`DefaultHomepagePrerenderer`], and [`DefaultListBrandingProvider`] for
 //!   site-generation scaffolding.
@@ -65,8 +65,8 @@ pub use models::{
 pub use repository::{ContentRepository, LinkAnalyticsRepository, SearchRepository};
 
 pub use services::{
-    ContentService, DefaultContentProvider, GenerateLinkParams, IngestionService,
-    LinkAnalyticsService, LinkGenerationService, SearchService,
+    DefaultContentProvider, GenerateLinkParams, IngestionService, LinkAnalyticsService,
+    LinkGenerationService, SearchService,
 };
 
 pub use models::{LinkType, TrackClickParams, UtmParams};
