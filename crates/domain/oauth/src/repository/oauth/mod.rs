@@ -143,7 +143,6 @@ impl OAuthRepository {
             .await
     }
 
-
     pub async fn update_client(
         &self,
         client_id: &ClientId,

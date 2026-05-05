@@ -4,10 +4,6 @@ use systemprompt_logging::services::cli::theme::{
     Icons, ItemStatus, MessageLevel, ModuleType, ServiceStatus,
 };
 
-// ============================================================================
-// ServiceStatus Tests
-// ============================================================================
-
 #[test]
 fn test_service_status_running_symbol() {
     assert_eq!(ServiceStatus::Running.symbol(), "\u{25cf}");
@@ -116,10 +112,6 @@ fn test_service_status_debug() {
     assert_eq!(format!("{:?}", ServiceStatus::Failed), "Failed");
 }
 
-// ============================================================================
-// Icons Constants Tests
-// ============================================================================
-
 #[test]
 fn test_icons_checkmark_value() {
     let s = Icons::CHECKMARK.to_string();
@@ -150,10 +142,6 @@ fn test_icons_arrow_value() {
     assert!(s.contains('\u{2192}') || s.contains("->"));
 }
 
-// ============================================================================
-// Icons for_module_type Tests
-// ============================================================================
-
 #[test]
 fn test_icons_for_module_type_schema_matches_constant() {
     let from_method = Icons::for_module_type(ModuleType::Schema).to_string();
@@ -181,10 +169,6 @@ fn test_icons_for_module_type_configuration_matches_constant() {
     let from_constant = Icons::CONFIG.to_string();
     assert_eq!(from_method, from_constant);
 }
-
-// ============================================================================
-// Icons for_status Tests
-// ============================================================================
 
 #[test]
 fn test_icons_for_status_valid_is_checkmark() {
@@ -221,10 +205,6 @@ fn test_icons_for_status_disabled_is_pause() {
     let icon = Icons::for_status(ItemStatus::Disabled).to_string();
     assert_eq!(icon, Icons::PAUSE.to_string());
 }
-
-// ============================================================================
-// Icons for_message_level Tests
-// ============================================================================
 
 #[test]
 fn test_icons_for_message_level_success_is_checkmark() {

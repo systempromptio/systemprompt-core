@@ -16,10 +16,6 @@ fn create_mcp_manifest(name: &str, binary: &str) -> String {
     )
 }
 
-// ============================================================================
-// Binary Path Tests
-// ============================================================================
-
 #[test]
 fn test_get_cli_binary_path_release() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -74,10 +70,6 @@ fn test_get_cli_binary_path_prefers_release() {
     );
 }
 
-// ============================================================================
-// Validate MCP Binaries Tests
-// ============================================================================
-
 #[test]
 fn test_validate_mcp_binaries_all_present() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -117,10 +109,6 @@ fn test_validate_mcp_binaries_missing() {
     assert_eq!(missing[0].0, "missing-binary");
 }
 
-// ============================================================================
-// MCP Binary Names Tests
-// ============================================================================
-
 #[test]
 fn test_get_mcp_binary_names() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -142,10 +130,6 @@ fn test_get_mcp_binary_names() {
     assert!(names.contains(&"binary-2".to_string()));
     assert!(names.contains(&"binary-3".to_string()));
 }
-
-// ============================================================================
-// Build Binary Map Tests
-// ============================================================================
 
 #[test]
 fn test_build_binary_map() {
@@ -182,10 +166,6 @@ fn test_build_binary_map_empty() {
     let map = ExtensionLoader::build_binary_map(temp_dir.path());
     assert!(map.is_empty());
 }
-
-// ============================================================================
-// Validate Tests
-// ============================================================================
 
 #[test]
 fn test_validate_returns_result() {

@@ -39,7 +39,6 @@ mod anthropic_models_tests {
     fn models_have_decreasing_cost() {
         let models = AnthropicModels::default();
 
-        // Opus is most expensive, Haiku is cheapest
         assert!(models.opus.cost_per_1k_tokens > models.sonnet.cost_per_1k_tokens);
         assert!(models.sonnet.cost_per_1k_tokens > models.haiku.cost_per_1k_tokens);
     }

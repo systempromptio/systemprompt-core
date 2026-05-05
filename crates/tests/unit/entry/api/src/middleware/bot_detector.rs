@@ -7,10 +7,6 @@
 
 use systemprompt_api::services::middleware::bot_detector::{BotMarker, BotType};
 
-// ============================================================================
-// BotType Enum Tests
-// ============================================================================
-
 #[test]
 fn test_bot_type_known_bot() {
     let bot_type = BotType::KnownBot;
@@ -34,10 +30,6 @@ fn test_bot_type_human() {
     let bot_type = BotType::Human;
     assert_eq!(bot_type, BotType::Human);
 }
-
-// ============================================================================
-// BotMarker Struct Tests
-// ============================================================================
 
 #[test]
 fn test_bot_marker_known_bot() {
@@ -153,10 +145,6 @@ fn test_bot_marker_debug() {
     assert!(debug_str.contains("Scanner"));
     assert!(debug_str.contains("test-agent"));
 }
-
-// ============================================================================
-// Real-World User Agent Examples
-// ============================================================================
 
 #[test]
 fn test_bot_marker_common_bots() {

@@ -25,10 +25,6 @@ fn create_test_file_request(suffix: &str) -> InsertFileRequest {
     .with_size(1024)
 }
 
-// ============================================================================
-// FileService Tests
-// ============================================================================
-
 #[tokio::test]
 async fn test_file_service_new() {
     let Some(db) = get_db().await else {
@@ -58,7 +54,6 @@ async fn test_file_service_insert() {
     assert_eq!(file.mime_type, "image/png", "mime type should match");
     assert_eq!(file.size_bytes, Some(1024), "size should match");
 
-    // Cleanup
     let _ = service.delete(&request.id).await;
 }
 
@@ -81,7 +76,6 @@ async fn test_file_service_find_by_id() {
     assert_eq!(file.mime_type, "image/png", "mime type should match");
     assert!(file.deleted_at.is_none(), "file should not be soft-deleted");
 
-    // Cleanup
     let _ = service.delete(&request.id).await;
 }
 
@@ -105,7 +99,6 @@ async fn test_file_service_find_by_path() {
     assert_eq!(file.path, path, "returned file path should match query path");
     assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match");
 
-    // Cleanup
     let _ = service.delete(&request.id).await;
 }
 
@@ -120,7 +113,6 @@ async fn test_file_service_list_by_user() {
     let user_id = UserId::new(format!("svc_user_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
-    // Insert 2 files for this user
     for _ in 0..2 {
         let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
             .with_user_id(user_id.clone());
@@ -135,7 +127,6 @@ async fn test_file_service_list_by_user() {
         assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all files should belong to the test user");
     }
 
-    // Cleanup
     for id in file_ids {
         let _ = service.delete(&id).await;
     }
@@ -166,17 +157,11 @@ async fn test_file_service_delete() {
 
     service.insert(request.clone()).await.expect("Insert should succeed");
 
-    // Delete
     service.delete(&request.id).await.expect("Delete should succeed");
 
-    // Verify file is gone
     let file = service.find_by_id(&request.id).await.expect("Find should succeed");
     assert!(file.is_none(), "File should be deleted");
 }
-
-// ============================================================================
-// AiService Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_ai_service_new() {
@@ -199,13 +184,11 @@ async fn test_ai_service_list_ai_images() {
     let ai_service = AiService::new(db.pool()).expect("Failed to create AI service");
     let file_service = FileService::new(db.pool()).expect("Failed to create file service");
 
-    // Insert an AI image
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
         .with_ai_content(true);
 
     file_service.insert(request.clone()).await.expect("Insert should succeed");
 
-    // List AI images
     let images = ai_service.list_ai_images(10, 0).await.expect("List should succeed");
     assert!(!images.is_empty(), "should return at least the AI image we inserted");
     assert!(images.len() <= 10, "should respect the limit parameter");
@@ -214,7 +197,6 @@ async fn test_ai_service_list_ai_images() {
         assert!(!img.mime_type.is_empty(), "returned images should have a mime type");
     }
 
-    // Cleanup
     let _ = file_service.delete(&request.id).await;
 }
 
@@ -229,14 +211,12 @@ async fn test_ai_service_list_ai_images_by_user() {
     let file_service = FileService::new(db.pool()).expect("Failed to create file service");
     let user_id = UserId::new(format!("ai_svc_user_{}", uuid::Uuid::new_v4()));
 
-    // Insert an AI image for this user
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
         .with_ai_content(true)
         .with_user_id(user_id.clone());
 
     file_service.insert(request.clone()).await.expect("Insert should succeed");
 
-    // List AI images for user
     let images = ai_service.list_ai_images_by_user(&user_id, 10, 0).await.expect("List should succeed");
     assert!(!images.is_empty(), "Should have at least one AI image");
     for img in &images {
@@ -244,7 +224,6 @@ async fn test_ai_service_list_ai_images_by_user() {
         assert_eq!(img.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all images should belong to the test user");
     }
 
-    // Cleanup
     let _ = file_service.delete(&request.id).await;
 }
 
@@ -259,7 +238,6 @@ async fn test_ai_service_count_ai_images_by_user() {
     let file_service = FileService::new(db.pool()).expect("Failed to create file service");
     let user_id = UserId::new(format!("ai_count_user_{}", uuid::Uuid::new_v4()));
 
-    // Insert 2 AI images for this user
     let mut file_ids = Vec::new();
     for _ in 0..2 {
         let request = create_test_file_request(&uuid::Uuid::new_v4().to_string())
@@ -273,15 +251,10 @@ async fn test_ai_service_count_ai_images_by_user() {
     let count = ai_service.count_ai_images_by_user(&user_id).await.expect("Count should succeed");
     assert_eq!(count, 2, "Should count 2 AI images");
 
-    // Cleanup
     for id in file_ids {
         let _ = file_service.delete(&id).await;
     }
 }
-
-// ============================================================================
-// ContentService Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_content_service_new() {
@@ -303,11 +276,9 @@ async fn test_content_service_find_featured_image() {
 
     let content_service = ContentService::new(db.pool()).expect("Failed to create content service");
 
-    // Try to find featured image for a non-existent content (should return None, not error)
     let content_id = ContentId::new(format!("nonexistent_{}", uuid::Uuid::new_v4()));
 
     let result = content_service.find_featured_image(&content_id).await;
-    // Should either succeed with None or fail gracefully
     match result {
         Ok(file) => assert!(file.is_none(), "Should return None for non-existent content"),
         Err(_) => {} // FK or other constraint error is acceptable
@@ -323,7 +294,6 @@ async fn test_content_service_list_files_by_content() {
 
     let content_service = ContentService::new(db.pool()).expect("Failed to create content service");
 
-    // Try to list files for non-existent content (should return empty list)
     let content_id = ContentId::new(format!("list_test_{}", uuid::Uuid::new_v4()));
 
     let files = content_service.list_files_by_content(&content_id).await.expect("List should succeed");

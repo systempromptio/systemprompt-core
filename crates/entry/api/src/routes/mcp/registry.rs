@@ -19,8 +19,6 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
-// reason: Axum handler signature requires `async fn` even when the body has no
-// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_mcp_registry() -> impl IntoResponse {
     let server_configs = match RegistryManager::get_enabled_servers() {

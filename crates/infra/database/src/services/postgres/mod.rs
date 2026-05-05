@@ -209,7 +209,6 @@ impl DatabaseProvider for PostgresProvider {
         Ok(rows_to_result(rows, start))
     }
 
-    // JSON: dynamic query params — type-erased for heterogeneous admin queries
     async fn query_raw_with(
         &self,
         query: &dyn QuerySelector,

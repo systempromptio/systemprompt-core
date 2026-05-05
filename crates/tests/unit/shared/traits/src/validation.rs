@@ -171,7 +171,6 @@ mod metadata_validation_trait_tests {
 
         let result = meta.validate_required_fields();
         let err = result.unwrap_err();
-        // Should fail on description first since it comes before author
         assert_eq!(err.field, "description");
     }
 

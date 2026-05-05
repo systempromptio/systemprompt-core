@@ -3,10 +3,6 @@ use systemprompt_models::execution::{
     ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType,
 };
 
-// ============================================================================
-// StepId Tests
-// ============================================================================
-
 #[test]
 fn step_id_new_generates_unique_ids() {
     let id1 = StepId::new();
@@ -51,10 +47,6 @@ fn step_id_equality() {
     let id2 = StepId::from("same".to_string());
     assert_eq!(id1, id2);
 }
-
-// ============================================================================
-// StepStatus Tests
-// ============================================================================
 
 #[test]
 fn step_status_default_is_pending() {
@@ -148,10 +140,6 @@ fn step_status_from_str_case_insensitive() {
     assert_eq!(status, StepStatus::Pending);
 }
 
-// ============================================================================
-// StepType Tests
-// ============================================================================
-
 #[test]
 fn step_type_default_is_understanding() {
     let step_type = StepType::default();
@@ -200,10 +188,6 @@ fn step_type_from_str_invalid_returns_error() {
     let result: Result<StepType, _> = "invalid_type".parse();
     assert!(result.is_err());
 }
-
-// ============================================================================
-// StepContent Tests
-// ============================================================================
 
 #[test]
 fn step_content_understanding_step_type() {
@@ -370,10 +354,6 @@ fn step_content_completion_no_tool_arguments() {
     let content = StepContent::completion();
     assert!(content.tool_arguments().is_none());
 }
-
-// ============================================================================
-// ExecutionStep Tests
-// ============================================================================
 
 fn test_task_id() -> TaskId {
     TaskId::new("test-task-123".to_string())

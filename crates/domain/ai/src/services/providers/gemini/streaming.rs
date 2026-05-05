@@ -79,8 +79,6 @@ fn parse_stream_chunks(bytes: &bytes::Bytes) -> Vec<StreamChunk> {
 
 fn try_parse_array_format(cleaned: &str) -> Option<Vec<StreamChunk>> {
     let json_array = format!("[{cleaned}]");
-    // Why: streaming chunks may be partial JSON between SSE frames; on parse
-    // failure we log and skip the chunk rather than terminating the stream.
     let responses: Vec<GeminiResponse> = serde_json::from_str(&json_array)
         .map_err(|e| {
             tracing::debug!(error = %e, chunk = %cleaned, "Failed to parse Gemini stream as JSON array");

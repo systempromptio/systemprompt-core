@@ -3,10 +3,6 @@
 
 use systemprompt_security::ScannerDetector;
 
-// ============================================================================
-// High Velocity Detection Tests
-// ============================================================================
-
 #[test]
 fn test_is_high_velocity_normal() {
     assert!(!ScannerDetector::is_high_velocity(10, 60));
@@ -41,10 +37,6 @@ fn test_is_high_velocity_one_second() {
     assert!(ScannerDetector::is_high_velocity(1, 1));
     assert!(!ScannerDetector::is_high_velocity(0, 1));
 }
-
-// ============================================================================
-// Combined Scanner Detection Tests
-// ============================================================================
 
 #[test]
 fn test_is_scanner_path_only() {
@@ -121,10 +113,6 @@ fn test_is_scanner_partial_velocity_data() {
         Some(60)
     ));
 }
-
-// ============================================================================
-// ScannerDetector Struct Tests
-// ============================================================================
 
 #[test]
 fn test_scanner_detector_debug() {

@@ -6,10 +6,6 @@
 
 use systemprompt_content::models::ContentValidationError;
 
-// ============================================================================
-// ContentValidationError Variant Tests
-// ============================================================================
-
 #[test]
 fn test_content_error_missing_field() {
     let error = ContentValidationError::missing_field("title");
@@ -57,10 +53,6 @@ fn test_content_error_missing_branding_config() {
     assert!(msg.contains("logo"));
 }
 
-// ============================================================================
-// ContentValidationError Display Tests
-// ============================================================================
-
 #[test]
 fn test_content_error_display_missing_field() {
     let error = ContentValidationError::MissingField {
@@ -101,10 +93,6 @@ fn test_content_error_display_missing_branding_config() {
     assert!(format!("{}", error).contains("Missing branding config"));
 }
 
-// ============================================================================
-// ContentValidationError Debug Tests
-// ============================================================================
-
 #[test]
 fn test_content_error_debug() {
     let error = ContentValidationError::missing_field("test");
@@ -112,10 +100,6 @@ fn test_content_error_debug() {
     assert!(debug.contains("MissingField"));
     assert!(debug.contains("test"));
 }
-
-// ============================================================================
-// ContentValidationError Factory Methods Edge Cases
-// ============================================================================
 
 #[test]
 fn test_content_error_empty_field_name() {

@@ -4,10 +4,6 @@
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_security::{TokenExtractionError, TokenExtractor};
 
-// ============================================================================
-// MCP Proxy Header Extraction Tests
-// ============================================================================
-
 #[test]
 fn test_extract_from_mcp_proxy_success() {
     let extractor = TokenExtractor::standard();
@@ -44,10 +40,6 @@ fn test_extract_from_mcp_proxy_invalid_format() {
     let err = extractor.extract_from_mcp_proxy(&headers).unwrap_err();
     assert_eq!(err, TokenExtractionError::InvalidMcpProxyFormat);
 }
-
-// ============================================================================
-// Cookie Extraction Tests
-// ============================================================================
 
 #[test]
 fn test_extract_from_cookie_success() {
@@ -122,10 +114,6 @@ fn test_extract_from_cookie_with_spaces() {
         .expect("Should extract from cookie with spaces");
     assert_eq!(token, "spaced_token");
 }
-
-// ============================================================================
-// Fallback Chain Tests
-// ============================================================================
 
 #[test]
 fn test_extract_fallback_authorization_first() {
@@ -202,10 +190,6 @@ fn test_extract_empty_chain() {
     let err = extractor.extract(&headers).unwrap_err();
     assert_eq!(err, TokenExtractionError::NoTokenFound);
 }
-
-// ============================================================================
-// TokenExtractionError Display Tests
-// ============================================================================
 
 #[test]
 fn test_token_extraction_error_display_no_token_found() {

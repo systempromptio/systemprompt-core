@@ -28,8 +28,6 @@ pub struct WellKnownResponse {
     pub claims_supported: Vec<String>,
 }
 
-// reason: Axum handler signature requires `async fn` even when the body has no
-// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_well_known() -> impl IntoResponse {
     let global_config = match Config::get() {
@@ -91,8 +89,6 @@ pub struct OAuthProtectedResourceResponse {
     pub resource_documentation: Option<String>,
 }
 
-// reason: Axum handler signature requires `async fn` even when the body has no
-// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
     let global_config = match Config::get() {

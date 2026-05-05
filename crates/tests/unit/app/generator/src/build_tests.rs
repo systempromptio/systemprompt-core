@@ -3,13 +3,8 @@
 use std::path::PathBuf;
 use systemprompt_generator::{BuildError, BuildMode, BuildOrchestrator};
 
-// =============================================================================
-// BuildMode tests
-// =============================================================================
-
 #[test]
 fn test_build_mode_selection() {
-    // Test parsing valid modes
     assert_eq!(
         BuildMode::parse("development"),
         Some(BuildMode::Development)
@@ -19,7 +14,6 @@ fn test_build_mode_selection() {
     assert_eq!(BuildMode::parse("prod"), Some(BuildMode::Production));
     assert_eq!(BuildMode::parse("docker"), Some(BuildMode::Docker));
 
-    // Test case insensitivity
     assert_eq!(
         BuildMode::parse("DEVELOPMENT"),
         Some(BuildMode::Development)
@@ -30,7 +24,6 @@ fn test_build_mode_selection() {
     assert_eq!(BuildMode::parse("DOCKER"), Some(BuildMode::Docker));
     assert_eq!(BuildMode::parse("Docker"), Some(BuildMode::Docker));
 
-    // Test invalid modes
     assert_eq!(BuildMode::parse("invalid"), None);
     assert_eq!(BuildMode::parse("test"), None);
     assert_eq!(BuildMode::parse(""), None);
@@ -69,16 +62,11 @@ fn test_build_mode_debug() {
     assert!(debug_str.contains("Development"));
 }
 
-// =============================================================================
-// BuildOrchestrator tests
-// =============================================================================
-
 #[test]
 fn test_build_orchestrator_creation() {
     let web_dir = PathBuf::from("/var/www/html/web");
     let orchestrator = BuildOrchestrator::new(web_dir, BuildMode::Development);
 
-    // Just verify it can be created - internal state is private
     let debug_str = format!("{:?}", orchestrator);
     assert!(debug_str.contains("BuildOrchestrator"));
 }
@@ -91,7 +79,6 @@ fn test_build_orchestrator_with_different_modes() {
     let prod = BuildOrchestrator::new(web_dir.clone(), BuildMode::Production);
     let docker = BuildOrchestrator::new(web_dir, BuildMode::Docker);
 
-    // Each should be creatable
     assert!(format!("{:?}", dev).contains("Development"));
     assert!(format!("{:?}", prod).contains("Production"));
     assert!(format!("{:?}", docker).contains("Docker"));
@@ -112,10 +99,6 @@ fn test_build_orchestrator_with_various_paths() {
         assert!(debug_str.contains("BuildOrchestrator"));
     }
 }
-
-// =============================================================================
-// BuildError tests
-// =============================================================================
 
 #[test]
 fn test_build_error_css_organization_failed() {
@@ -164,10 +147,6 @@ fn test_build_error_debug_format() {
     assert!(debug_str.contains("test error"));
 }
 
-// =============================================================================
-// Build mode round-trip tests
-// =============================================================================
-
 #[test]
 fn test_build_mode_parse_roundtrip() {
     let modes = [
@@ -185,7 +164,6 @@ fn test_build_mode_parse_roundtrip() {
 
 #[test]
 fn test_build_mode_all_variants() {
-    // Ensure we can work with all variants
     let modes = [
         ("development", BuildMode::Development),
         ("production", BuildMode::Production),
@@ -199,24 +177,14 @@ fn test_build_mode_all_variants() {
     }
 }
 
-// Note: Full build integration tests require a complete Node.js/TypeScript/Vite
-// environment and are not suitable for unit tests. The async build methods
-// are better tested in integration tests.
-
 #[test]
 fn test_build_orchestrator_new_is_const() {
-    // Verify that new() is const-compatible (can be used in const contexts)
     const WEB_DIR: &str = "/var/www/html/web";
     let _orchestrator = BuildOrchestrator::new(PathBuf::from(WEB_DIR), BuildMode::Production);
 }
 
-// =============================================================================
-// Additional BuildMode edge cases
-// =============================================================================
-
 #[test]
 fn test_build_mode_parse_whitespace() {
-    // Whitespace should not be trimmed automatically
     assert_eq!(BuildMode::parse(" development"), None);
     assert_eq!(BuildMode::parse("development "), None);
     assert_eq!(BuildMode::parse(" development "), None);
@@ -224,7 +192,6 @@ fn test_build_mode_parse_whitespace() {
 
 #[test]
 fn test_build_mode_parse_partial_matches() {
-    // Partial matches should not work
     assert_eq!(BuildMode::parse("develop"), None);
     assert_eq!(BuildMode::parse("product"), None);
     assert_eq!(BuildMode::parse("dock"), None);
@@ -236,7 +203,6 @@ fn test_build_mode_copy() {
     let copied: BuildMode = mode; // Copy trait
     assert_eq!(mode, copied);
 
-    // Both should still be usable
     assert_eq!(mode.as_str(), "production");
     assert_eq!(copied.as_str(), "production");
 }

@@ -35,7 +35,6 @@ mod analytics_service_tests {
         );
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        // User agent is legitimate Chrome, but IP is Google bot IP
         assert!(AnalyticsService::is_bot(&analytics));
     }
 
@@ -115,7 +114,6 @@ mod analytics_service_tests {
         let fp1 = AnalyticsService::compute_fingerprint(&analytics1);
         let fp2 = AnalyticsService::compute_fingerprint(&analytics2);
 
-        // Different locales should produce different fingerprints
         assert_ne!(fp1, fp2);
     }
 
@@ -150,7 +148,6 @@ mod analytics_service_tests {
 
         let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
 
-        // Should still produce a hash using "unknown"
         assert!(!fingerprint.is_empty());
     }
 

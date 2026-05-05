@@ -2,10 +2,6 @@ use systemprompt_api::routes::oauth::endpoints::authorize::AuthorizeQuery;
 use systemprompt_api::routes::oauth::endpoints::authorize::validation::validate_oauth_parameters;
 use systemprompt_identifiers::ClientId;
 
-// ============================================================================
-// Helper
-// ============================================================================
-
 fn valid_query() -> AuthorizeQuery {
     AuthorizeQuery {
         response_type: "code".to_string(),
@@ -24,19 +20,11 @@ fn valid_query() -> AuthorizeQuery {
     }
 }
 
-// ============================================================================
-// Valid Baseline
-// ============================================================================
-
 #[test]
 fn test_valid_query_passes_validation() {
     let query = valid_query();
     assert!(validate_oauth_parameters(&query).is_ok());
 }
-
-// ============================================================================
-// response_type Validation
-// ============================================================================
 
 #[test]
 fn test_response_type_token_rejected() {
@@ -56,10 +44,6 @@ fn test_response_type_empty_rejected() {
     };
     assert!(validate_oauth_parameters(&query).is_err());
 }
-
-// ============================================================================
-// response_mode Validation
-// ============================================================================
 
 #[test]
 fn test_response_mode_query_accepted() {
@@ -88,10 +72,6 @@ fn test_response_mode_none_accepted() {
     };
     assert!(validate_oauth_parameters(&query).is_ok());
 }
-
-// ============================================================================
-// code_challenge Validation
-// ============================================================================
 
 #[test]
 fn test_code_challenge_missing_rejected() {
@@ -171,10 +151,6 @@ fn test_code_challenge_with_equals_padding_rejected() {
     assert!(err.contains("base64url"));
 }
 
-// ============================================================================
-// Low Entropy code_challenge Rejection
-// ============================================================================
-
 #[test]
 fn test_code_challenge_all_same_char_rejected() {
     let challenge = "a".repeat(43);
@@ -246,10 +222,6 @@ fn test_code_challenge_low_diversity_rejected() {
     assert!(err.contains("entropy"));
 }
 
-// ============================================================================
-// code_challenge_method Validation
-// ============================================================================
-
 #[test]
 fn test_code_challenge_method_s256_accepted() {
     let query = valid_query();
@@ -286,10 +258,6 @@ fn test_code_challenge_method_unknown_rejected() {
     assert!(err.contains("S512"));
 }
 
-// ============================================================================
-// display Validation
-// ============================================================================
-
 #[test]
 fn test_display_valid_values_accepted() {
     for display_value in &["page", "popup", "touch", "wap"] {
@@ -313,10 +281,6 @@ fn test_display_invalid_value_rejected() {
     let err = validate_oauth_parameters(&query).unwrap_err();
     assert!(err.contains("fullscreen"));
 }
-
-// ============================================================================
-// prompt Validation
-// ============================================================================
 
 #[test]
 fn test_prompt_valid_single_values_accepted() {
@@ -361,10 +325,6 @@ fn test_prompt_mixed_valid_and_invalid_rejected() {
     assert!(err.contains("force"));
 }
 
-// ============================================================================
-// max_age Validation
-// ============================================================================
-
 #[test]
 fn test_max_age_zero_accepted() {
     let query = AuthorizeQuery {
@@ -392,10 +352,6 @@ fn test_max_age_negative_rejected() {
     let err = validate_oauth_parameters(&query).unwrap_err();
     assert!(err.contains("max_age"));
 }
-
-// ============================================================================
-// resource URI Validation
-// ============================================================================
 
 #[test]
 fn test_resource_valid_https_accepted() {

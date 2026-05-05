@@ -105,7 +105,6 @@ pub fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
         active_profile: current_profile_name.clone(),
     };
 
-
     if !config.is_json_output() {
         if config.is_interactive() {
             let options: Vec<String> = profiles

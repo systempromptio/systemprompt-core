@@ -14,8 +14,6 @@ const fn role_to_str(role: &MessageRole) -> &'static str {
     }
 }
 
-// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
-// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct PersistMessageSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
@@ -108,8 +106,6 @@ pub async fn persist_message_sqlx(
     Ok(())
 }
 
-// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
-// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct PersistMessageWithTxParams<'a> {
     pub tx: &'a mut dyn systemprompt_database::DatabaseTransaction,

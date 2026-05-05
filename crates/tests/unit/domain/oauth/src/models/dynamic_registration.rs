@@ -3,10 +3,6 @@
 use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::{DynamicRegistrationRequest, DynamicRegistrationResponse};
 
-// ============================================================================
-// DynamicRegistrationRequest Tests
-// ============================================================================
-
 fn create_valid_request() -> DynamicRegistrationRequest {
     serde_json::from_str(
         r#"{
@@ -217,10 +213,6 @@ fn test_dynamic_registration_request_debug() {
     assert!(debug_str.contains("Test Client"));
 }
 
-// ============================================================================
-// DynamicRegistrationResponse Tests
-// ============================================================================
-
 fn create_valid_response() -> DynamicRegistrationResponse {
     DynamicRegistrationResponse {
         client_id: ClientId::new("client_abc123"),
@@ -306,12 +298,8 @@ fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
     };
 
     let json = serde_json::to_string(&response).unwrap();
-    // The serde skip_serializing_if should skip None fields
-    // Verify the required fields are present
     assert!(json.contains("client_id"));
     assert!(json.contains("client_secret"));
-    // Note: The implementation may or may not skip null optional fields
-    // depending on serde config
 }
 
 #[test]

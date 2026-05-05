@@ -18,10 +18,6 @@ async fn get_db() -> Option<Database> {
     Database::new_postgres(&database_url).await.ok()
 }
 
-// ============================================================================
-// UserRepository::create Tests
-// ============================================================================
-
 #[tokio::test]
 async fn create_user_with_all_fields() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -36,7 +32,6 @@ async fn create_user_with_all_fields() -> Result<()> {
     let unique_email = format!("test_create_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("testuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
-    // Cleanup first
     let _ = sqlx::query!("DELETE FROM users WHERE email = $1", &unique_email)
         .execute(pool.as_ref())
         .await;
@@ -52,7 +47,6 @@ async fn create_user_with_all_fields() -> Result<()> {
     assert_eq!(user.status, Some("active".to_string()));
     assert!(user.roles.contains(&"user".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
         .execute(pool.as_ref())
         .await;
@@ -78,20 +72,14 @@ async fn create_user_without_display_name_uses_full_name() -> Result<()> {
         .create(&unique_name, &unique_email, Some("Full Name Only"), None)
         .await?;
 
-    // Display name should default to full_name when not provided
     assert_eq!(user.display_name, Some("Full Name Only".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::create_anonymous Tests
-// ============================================================================
 
 #[tokio::test]
 async fn create_anonymous_user() -> Result<()> {
@@ -111,17 +99,12 @@ async fn create_anonymous_user() -> Result<()> {
     assert!(user.email.contains(&fingerprint));
     assert!(user.roles.contains(&"anonymous".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::find_by_id Tests
-// ============================================================================
 
 #[tokio::test]
 async fn find_by_id_returns_user() -> Result<()> {
@@ -134,19 +117,16 @@ async fn find_by_id_returns_user() -> Result<()> {
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
-    // Create a user first
     let unique_email = format!("find_by_id_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findbyid_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    // Find by ID
     let found = repo.find_by_id(&created.id).await?;
     let found = found.expect("find_by_id should return the created user");
     assert_eq!(found.id.to_string(), created.id.to_string());
     assert_eq!(found.name, unique_name);
     assert_eq!(found.email, unique_email);
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
@@ -171,10 +151,6 @@ async fn find_by_id_returns_none_for_nonexistent() -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// UserRepository::find_by_email Tests
-// ============================================================================
-
 #[tokio::test]
 async fn find_by_email_returns_user() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -195,7 +171,6 @@ async fn find_by_email_returns_user() -> Result<()> {
     assert_eq!(found.email, unique_email);
     assert_eq!(found.id.to_string(), created.id.to_string());
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
@@ -219,10 +194,6 @@ async fn find_by_email_returns_none_for_nonexistent() -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// UserRepository::find_by_name Tests
-// ============================================================================
-
 #[tokio::test]
 async fn find_by_name_returns_user() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -243,17 +214,12 @@ async fn find_by_name_returns_user() -> Result<()> {
     assert_eq!(found.name, unique_name);
     assert_eq!(found.id.to_string(), created.id.to_string());
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::find_by_role Tests
-// ============================================================================
 
 #[tokio::test]
 async fn find_by_role_returns_users_with_role() -> Result<()> {
@@ -266,7 +232,6 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
-    // Create a user with user role (default)
     let unique_email = format!("find_role_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findrole_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
@@ -275,17 +240,12 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
     assert!(!users.is_empty());
     assert!(users.iter().any(|u| u.id.to_string() == created.id.to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::find_first_admin Tests
-// ============================================================================
 
 #[tokio::test]
 async fn find_first_admin_returns_admin_user() -> Result<()> {
@@ -298,17 +258,12 @@ async fn find_first_admin_returns_admin_user() -> Result<()> {
     let repo = UserRepository::new(&db_pool)?;
 
     let admin = repo.find_first_admin().await?;
-    // Either None (no admins) or Some (has admin role)
     if let Some(user) = admin {
         assert!(user.roles.contains(&"admin".to_string()));
     }
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::update_email Tests
-// ============================================================================
 
 #[tokio::test]
 async fn update_email_changes_email() -> Result<()> {
@@ -331,17 +286,12 @@ async fn update_email_changes_email() -> Result<()> {
     assert_eq!(updated.email, new_email);
     assert_eq!(updated.email_verified, Some(false)); // Should reset on email change
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::update_full_name Tests
-// ============================================================================
 
 #[tokio::test]
 async fn update_full_name_changes_name() -> Result<()> {
@@ -362,17 +312,12 @@ async fn update_full_name_changes_name() -> Result<()> {
 
     assert_eq!(updated.full_name, Some("New Full Name".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::update_status Tests
-// ============================================================================
 
 #[tokio::test]
 async fn update_status_changes_status() -> Result<()> {
@@ -393,17 +338,12 @@ async fn update_status_changes_status() -> Result<()> {
 
     assert_eq!(updated.status, Some("suspended".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::update_email_verified Tests
-// ============================================================================
 
 #[tokio::test]
 async fn update_email_verified_sets_flag() -> Result<()> {
@@ -424,17 +364,12 @@ async fn update_email_verified_sets_flag() -> Result<()> {
 
     assert_eq!(updated.email_verified, Some(true));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::update_all_fields Tests
-// ============================================================================
 
 #[tokio::test]
 async fn update_all_fields_updates_everything() -> Result<()> {
@@ -466,17 +401,12 @@ async fn update_all_fields_updates_everything() -> Result<()> {
     assert_eq!(updated.display_name, Some("Updated Display".to_string()));
     assert_eq!(updated.status, Some("inactive".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::assign_roles Tests
-// ============================================================================
 
 #[tokio::test]
 async fn assign_roles_updates_roles() -> Result<()> {
@@ -499,17 +429,12 @@ async fn assign_roles_updates_roles() -> Result<()> {
     assert!(updated.roles.contains(&"admin".to_string()));
     assert!(updated.roles.contains(&"user".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::delete Tests
-// ============================================================================
 
 #[tokio::test]
 async fn delete_removes_user() -> Result<()> {
@@ -527,7 +452,6 @@ async fn delete_removes_user() -> Result<()> {
 
     repo.delete(&created.id).await?;
 
-    // Should be completely gone
     let found = repo.find_by_id(&created.id).await?;
     assert!(found.is_none());
 
@@ -552,10 +476,6 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// UserRepository::cleanup_old_anonymous Tests
-// ============================================================================
-
 #[tokio::test]
 async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -566,16 +486,11 @@ async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
     let db_pool = db.as_pool()?;
     let repo = UserRepository::new(&db_pool)?;
 
-    // Just verify the method runs without error
     let deleted = repo.cleanup_old_anonymous(30).await?;
     assert!(deleted >= 0);
 
     Ok(())
 }
-
-// ============================================================================
-// UserRepository::find_authenticated_user Tests
-// ============================================================================
 
 #[tokio::test]
 async fn find_authenticated_user_returns_active_user() -> Result<()> {
@@ -598,7 +513,6 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
     assert_eq!(auth_user.email, unique_email);
     assert_eq!(auth_user.status, Some("active".to_string()));
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;
@@ -621,13 +535,11 @@ async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
     let unique_name = format!("inactiveauth_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    // Suspend the user
     repo.update_status(&created.id, UserStatus::Suspended).await?;
 
     let auth_user = repo.find_authenticated_user(&created.id).await?;
     assert!(auth_user.is_none());
 
-    // Cleanup
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
         .await;

@@ -3,10 +3,6 @@
 use std::str::FromStr;
 use systemprompt_oauth::{DisplayMode, Prompt, TokenAuthMethod};
 
-// ============================================================================
-// DisplayMode Tests
-// ============================================================================
-
 #[test]
 fn test_display_mode_page_as_str() {
     assert_eq!(DisplayMode::Page.as_str(), "page");
@@ -71,10 +67,6 @@ fn test_display_mode_debug() {
     assert!(debug_str.contains("Page"));
 }
 
-// ============================================================================
-// Prompt Tests
-// ============================================================================
-
 #[test]
 fn test_prompt_none_as_str() {
     assert_eq!(Prompt::None.as_str(), "none");
@@ -138,10 +130,6 @@ fn test_prompt_debug() {
     let debug_str = format!("{:?}", Prompt::Login);
     assert!(debug_str.contains("Login"));
 }
-
-// ============================================================================
-// TokenAuthMethod Tests
-// ============================================================================
 
 #[test]
 fn test_token_auth_method_client_secret_post_as_str() {

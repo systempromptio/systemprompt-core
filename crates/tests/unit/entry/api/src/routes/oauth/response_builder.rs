@@ -9,10 +9,6 @@ use systemprompt_api::routes::oauth::endpoints::authorize::response_builder::{
 };
 use systemprompt_identifiers::ClientId;
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
 fn create_full_authorize_request() -> AuthorizeRequest {
     AuthorizeRequest {
         response_type: "code".to_string(),
@@ -44,10 +40,6 @@ fn create_minimal_authorize_request() -> AuthorizeRequest {
         resource: None,
     }
 }
-
-// ============================================================================
-// convert_form_to_query — shared field mapping
-// ============================================================================
 
 #[test]
 fn test_convert_form_to_query_maps_all_shared_fields() {
@@ -105,10 +97,6 @@ fn test_convert_form_to_query_with_minimal_fields() {
     assert!(query.ui_locales.is_none());
     assert!(query.resource.is_none());
 }
-
-// ============================================================================
-// is_user_consent_granted
-// ============================================================================
 
 #[test]
 fn test_is_user_consent_granted_returns_true_for_allow() {

@@ -5,10 +5,6 @@ use systemprompt_oauth::services::{
     validate_any_audience, validate_required_audience, validate_service_access,
 };
 
-// ============================================================================
-// validate_service_access Tests
-// ============================================================================
-
 #[test]
 fn test_validate_service_access_with_api() {
     let audiences = vec![JwtAudience::Api];
@@ -53,10 +49,6 @@ fn test_validate_service_access_different_service_names() {
     assert!(validate_service_access(&audiences, "any_name"));
 }
 
-// ============================================================================
-// validate_required_audience Tests
-// ============================================================================
-
 #[test]
 fn test_validate_required_audience_present() {
     let audiences = vec![JwtAudience::Api, JwtAudience::Web];
@@ -96,10 +88,6 @@ fn test_validate_required_audience_all_types() {
     assert!(validate_required_audience(&audiences, &JwtAudience::A2a));
     assert!(validate_required_audience(&audiences, &JwtAudience::Web));
 }
-
-// ============================================================================
-// validate_any_audience Tests
-// ============================================================================
 
 #[test]
 fn test_validate_any_audience_match_first() {

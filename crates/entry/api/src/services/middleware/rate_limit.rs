@@ -144,8 +144,6 @@ pub async fn tiered_rate_limit_middleware(
                 .headers()
                 .get("x-forwarded-for")
                 .and_then(|h| {
-                    // Why: non-UTF-8 header is logged at trace and treated as missing — request
-                    // falls back to "unknown" client IP.
                     h.to_str()
                         .map_err(|e| {
                             tracing::trace!(error = %e, "Invalid UTF-8 in x-forwarded-for header");

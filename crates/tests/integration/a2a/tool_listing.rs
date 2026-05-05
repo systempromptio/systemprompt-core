@@ -24,7 +24,6 @@ async fn test_agent_registry_includes_tools() {
 
     assert!(!agents.is_empty(), "Should have at least one agent");
 
-    // Find edward agent (has tyingshoelaces MCP server)
     let edward = agents.iter()
         .find(|a| {
             a.get("name")
@@ -34,7 +33,6 @@ async fn test_agent_registry_includes_tools() {
         })
         .expect("Should have edward agent");
 
-    // Check if tools/skills are listed
     let skills = edward.get("skills")
         .and_then(|s| s.as_array());
 
@@ -44,7 +42,6 @@ async fn test_agent_registry_includes_tools() {
             "Edward agent should have skills/tools from MCP servers"
         );
 
-        // Verify context_retrieval tool is present
         let has_context_retrieval = skills.iter().any(|skill| {
             skill.get("name")
                 .and_then(|n| n.as_str())
@@ -57,7 +54,6 @@ async fn test_agent_registry_includes_tools() {
             "Edward should have context_retrieval tool from tyingshoelaces server"
         );
 
-        // Verify tool has proper metadata
         for skill in skills {
             assert!(
                 skill.get("name").is_some(),
@@ -79,7 +75,6 @@ async fn test_agent_registry_includes_tools() {
 async fn test_agent_card_respects_permissions() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
 
-    // Generate anonymous token
     let anon_token_response = ctx.http_client
         .post(&format!("{}/api/v1/core/oauth/session", ctx.base_url))
         .send()
@@ -93,7 +88,6 @@ async fn test_agent_card_respects_permissions() {
         .and_then(|t| t.as_str())
         .expect("Should have access_token");
 
-    // Get agent card with anonymous token
     let card_response = ctx.http_client
         .get(&format!("{}/api/v1/agents/edward/.well-known/agent-card.json", ctx.base_url))
         .header("Authorization", format!("Bearer {}", anon_token))
@@ -106,7 +100,6 @@ async fn test_agent_card_respects_permissions() {
     let card: serde_json::Value = card_response.json().await
         .expect("Failed to parse agent card");
 
-    // Verify capabilities section exists
     let capabilities = card.get("capabilities")
         .expect("Agent card should have capabilities");
 
@@ -119,13 +112,11 @@ async fn test_agent_card_respects_permissions() {
         "Anonymous user should see tools from servers with 'anonymous' scope"
     );
 
-    // All tools should be from servers that allow anonymous access
     for tool in tools {
         let tool_name = tool.get("name")
             .and_then(|n| n.as_str())
             .expect("Tool should have name");
 
-        // Verify the tool has proper structure
         assert!(
             tool.get("description").is_some(),
             "Tool {} should have description",
@@ -145,7 +136,6 @@ async fn test_agent_card_respects_permissions() {
 async fn test_registry_filters_unauthorized_tools() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
 
-    // Get registry with anonymous token
     let anon_token_response = ctx.http_client
         .post(&format!("{}/api/v1/core/oauth/session", ctx.base_url))
         .send()
@@ -175,7 +165,6 @@ async fn test_registry_filters_unauthorized_tools() {
         .and_then(|d| d.as_array())
         .expect("Should have data array");
 
-    // Get registry with admin token
     let admin_response = ctx.http_client
         .get(&format!("{}/api/v1/agents/registry", ctx.base_url))
         .header("Authorization", format!("Bearer {}", ctx.auth_token))
@@ -190,7 +179,6 @@ async fn test_registry_filters_unauthorized_tools() {
         .and_then(|d| d.as_array())
         .expect("Should have data array");
 
-    // Compare tool counts - admin should have same or more tools
     for agent in anon_agents {
         let agent_name = agent.get("name")
             .and_then(|n| n.as_str())
@@ -249,7 +237,6 @@ async fn test_tool_schemas_are_valid() {
             .and_then(|n| n.as_str())
             .expect("Tool should have name");
 
-        // Verify input schema
         let input_schema = tool.get("inputSchema")
             .expect(&format!("Tool {} should have inputSchema", tool_name));
 
@@ -259,7 +246,6 @@ async fn test_tool_schemas_are_valid() {
             tool_name
         );
 
-        // For tools with parameters, verify properties exist
         if let Some(properties) = input_schema.get("properties") {
             assert!(
                 properties.is_object(),
@@ -268,7 +254,6 @@ async fn test_tool_schemas_are_valid() {
             );
         }
 
-        // Verify required fields if present
         if let Some(required) = input_schema.get("required") {
             assert!(
                 required.is_array(),
@@ -299,9 +284,6 @@ async fn test_multiple_mcp_servers_aggregated() {
         .and_then(|t| t.as_array())
         .expect("Should have tools");
 
-    // Edward agent has multiple MCP servers (tyingshoelaces, content-research, etc.)
-    // Verify tools from different servers are present
-
     let server_names: std::collections::HashSet<String> = tools.iter()
         .filter_map(|tool| {
             tool.get("serverName")
@@ -316,7 +298,6 @@ async fn test_multiple_mcp_servers_aggregated() {
         server_names
     );
 
-    // Verify no duplicate tools
     let tool_names: Vec<String> = tools.iter()
         .filter_map(|tool| {
             tool.get("name")

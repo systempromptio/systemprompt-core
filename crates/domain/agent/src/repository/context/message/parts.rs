@@ -95,8 +95,6 @@ pub async fn get_message_parts(
     Ok(parts)
 }
 
-// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
-// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct PersistPartSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,

@@ -6,10 +6,6 @@ use axum::routing::get;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::typed::{ApiExtensionTyped, ApiExtensionTypedDyn};
 
-// =============================================================================
-// Test Extension Types
-// =============================================================================
-
 #[derive(Default, Debug)]
 struct PublicApiExtension;
 
@@ -53,7 +49,6 @@ impl ApiExtensionTyped for AuthenticatedApiExtension {
         "/api/v1/protected"
     }
 
-    // Uses default requires_auth() = true
 }
 
 impl ApiExtensionTypedDyn for AuthenticatedApiExtension {
@@ -84,10 +79,6 @@ impl ApiExtensionTypedDyn for NestedPathApiExtension {
         Router::new()
     }
 }
-
-// =============================================================================
-// ApiExtensionTyped Trait Tests
-// =============================================================================
 
 #[test]
 fn test_api_extension_typed_base_path() {
@@ -122,14 +113,6 @@ fn test_api_extension_typed_metadata() {
     assert_eq!(ext.version(), "1.0.0");
 }
 
-// =============================================================================
-// ApiExtensionTypedDyn Trait Tests
-// =============================================================================
-
-// =============================================================================
-// Trait Object Tests
-// =============================================================================
-
 #[test]
 fn test_api_extension_as_trait_object() {
     let ext: &dyn ApiExtensionTyped = &PublicApiExtension;
@@ -151,10 +134,6 @@ fn test_api_extension_boxed_trait_object() {
     assert_eq!(ext.base_path(), "/api/v1/public");
     let _ = ext.build_router();
 }
-
-// =============================================================================
-// Multiple API Extensions Tests
-// =============================================================================
 
 #[test]
 fn test_multiple_api_extensions() {
@@ -197,10 +176,6 @@ fn test_filter_authenticated_api_extensions() {
     assert_eq!(auth_exts.len(), 2);
 }
 
-// =============================================================================
-// Path Validation Tests
-// =============================================================================
-
 #[test]
 fn test_api_extension_path_starts_with_api() {
     let ext = PublicApiExtension;
@@ -212,10 +187,6 @@ fn test_api_extension_path_versioned() {
     let ext = AuthenticatedApiExtension;
     assert!(ext.base_path().contains("/v1/"));
 }
-
-// =============================================================================
-// Integration with Builder Tests
-// =============================================================================
 
 #[test]
 fn test_api_extension_in_builder() {

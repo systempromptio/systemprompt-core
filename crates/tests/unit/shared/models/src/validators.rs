@@ -5,10 +5,6 @@ use systemprompt_models::validators::{
 };
 use systemprompt_traits::DomainConfig;
 
-// ============================================================================
-// AgentConfigValidator Tests
-// ============================================================================
-
 #[test]
 fn agent_validator_new_creates_instance() {
     let validator = AgentConfigValidator::new();
@@ -39,10 +35,6 @@ fn agent_validator_no_dependencies() {
     let validator = AgentConfigValidator::new();
     assert!(validator.dependencies().is_empty());
 }
-
-// ============================================================================
-// AiConfigValidator Tests
-// ============================================================================
 
 #[test]
 fn ai_validator_new_creates_instance() {
@@ -75,10 +67,6 @@ fn ai_validator_validate_fails_when_not_loaded() {
     let result = validator.validate();
     assert!(result.is_err());
 }
-
-// ============================================================================
-// ContentConfigValidator Tests
-// ============================================================================
 
 #[test]
 fn content_validator_new_creates_instance() {
@@ -113,10 +101,6 @@ fn content_validator_validate_succeeds_when_not_loaded_with_no_content() {
     assert!(!report.has_errors());
 }
 
-// ============================================================================
-// McpConfigValidator Tests
-// ============================================================================
-
 #[test]
 fn mcp_validator_new_creates_instance() {
     let validator = McpConfigValidator::new();
@@ -149,10 +133,6 @@ fn mcp_validator_validate_returns_ok_when_no_config() {
     assert!(result.is_ok());
 }
 
-// ============================================================================
-// SkillConfigValidator Tests
-// ============================================================================
-
 #[test]
 fn skill_validator_new_creates_instance() {
     let validator = SkillConfigValidator::new();
@@ -183,10 +163,6 @@ fn skill_validator_validate_fails_when_not_loaded() {
     let result = validator.validate();
     assert!(result.is_err());
 }
-
-// ============================================================================
-// RateLimitsConfigValidator Tests
-// ============================================================================
 
 #[test]
 fn rate_limits_validator_new_creates_instance() {
@@ -219,10 +195,6 @@ fn rate_limits_validator_validate_fails_when_not_loaded() {
     assert!(result.is_err());
 }
 
-// ============================================================================
-// WebConfigValidator Tests
-// ============================================================================
-
 #[test]
 fn web_validator_new_creates_instance() {
     let validator = WebConfigValidator::new();
@@ -253,10 +225,6 @@ fn web_validator_validate_returns_ok_when_no_config() {
     let result = validator.validate();
     assert!(result.is_ok());
 }
-
-// ============================================================================
-// Validator Priority Ordering Tests
-// ============================================================================
 
 #[test]
 fn rate_limits_and_web_have_lowest_priority() {
@@ -297,10 +265,6 @@ fn ai_has_highest_priority() {
     assert!(ai.priority() > mcp.priority());
     assert!(ai.priority() > agents.priority());
 }
-
-// ============================================================================
-// ValidationConfigProvider Tests
-// ============================================================================
 
 #[test]
 fn validation_config_provider_web_config_raw_deserializes_empty() {

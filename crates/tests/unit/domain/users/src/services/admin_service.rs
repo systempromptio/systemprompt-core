@@ -9,7 +9,6 @@ use chrono::Utc;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{DemoteResult, PromoteResult, User};
 
-// Helper function to create a test user
 fn create_test_user(roles: Vec<String>) -> User {
     User {
         id: UserId::new("user-123".to_string()),
@@ -27,10 +26,6 @@ fn create_test_user(roles: Vec<String>) -> User {
         updated_at: Some(Utc::now()),
     }
 }
-
-// ============================================================================
-// PromoteResult Tests
-// ============================================================================
 
 mod promote_result_tests {
     use super::*;
@@ -136,10 +131,6 @@ mod promote_result_tests {
     }
 }
 
-// ============================================================================
-// DemoteResult Tests
-// ============================================================================
-
 mod demote_result_tests {
     use super::*;
 
@@ -236,10 +227,6 @@ mod demote_result_tests {
         }
     }
 }
-
-// ============================================================================
-// UpdateUserParams Tests
-// ============================================================================
 
 mod update_user_params_tests {
     use systemprompt_users::{UpdateUserParams, UserStatus};

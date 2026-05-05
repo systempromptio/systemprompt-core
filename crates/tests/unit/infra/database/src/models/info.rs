@@ -2,10 +2,6 @@
 
 use systemprompt_database::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 
-// ============================================================================
-// ColumnInfo Tests
-// ============================================================================
-
 #[test]
 fn test_column_info_creation() {
     let column = ColumnInfo {
@@ -78,10 +74,6 @@ fn test_column_info_serialization() {
     assert!(json.contains("\"name\":\"amount\""));
     assert!(json.contains("\"data_type\":\"decimal\""));
 }
-
-// ============================================================================
-// TableInfo Tests
-// ============================================================================
 
 #[test]
 fn test_table_info_creation() {
@@ -180,10 +172,6 @@ fn test_table_info_serialization() {
     assert!(json.contains("\"row_count\":500"));
 }
 
-// ============================================================================
-// DatabaseInfo Tests
-// ============================================================================
-
 #[test]
 fn test_database_info_creation() {
     let db_info = DatabaseInfo {
@@ -268,10 +256,6 @@ fn test_database_info_serialization() {
     assert!(json.contains("\"size\":8192"));
     assert!(json.contains("\"version\":\"15.2\""));
 }
-
-// ============================================================================
-// IndexInfo Tests
-// ============================================================================
 
 #[test]
 fn test_index_info_creation() {

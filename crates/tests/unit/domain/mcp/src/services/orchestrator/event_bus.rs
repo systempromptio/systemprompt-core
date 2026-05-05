@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::services::orchestrator::{EventBus, McpEvent};
 
-// ============================================================================
-// EventBus Creation Tests
-// ============================================================================
-
 #[test]
 fn test_event_bus_new() {
     let event_bus = EventBus::new(100);
@@ -17,7 +13,6 @@ fn test_event_bus_new() {
 #[test]
 #[should_panic(expected = "broadcast channel capacity cannot be zero")]
 fn test_event_bus_new_with_zero_capacity_panics() {
-    // Zero capacity is not allowed for broadcast channels
     let _event_bus = EventBus::new(0);
 }
 
@@ -27,10 +22,6 @@ fn test_event_bus_new_with_large_capacity() {
     let debug_str = format!("{:?}", event_bus);
     assert!(debug_str.contains("EventBus"));
 }
-
-// ============================================================================
-// EventBus Publish Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_event_bus_publish() {
@@ -46,7 +37,6 @@ async fn test_event_bus_publish() {
     let result = event_bus.publish(event).await;
     result.expect("expected success");
 
-    // Verify event was received
     let received = receiver.try_recv();
     let val = received.expect("expected success");
     assert_eq!(val.service_name(), "test-service");
@@ -77,7 +67,6 @@ async fn test_event_bus_publish_multiple_events() {
         result.expect("expected success");
     }
 
-    // Verify all events were received
     let mut received_count = 0;
     while receiver.try_recv().is_ok() {
         received_count += 1;
@@ -95,7 +84,6 @@ async fn test_event_bus_publish_without_subscribers() {
         port: 8080,
     };
 
-    // Should not error even without subscribers
     let result = event_bus.publish(event).await;
     result.expect("expected success");
 }
@@ -115,14 +103,9 @@ async fn test_event_bus_publish_to_multiple_subscribers() {
     let result = event_bus.publish(event).await;
     result.expect("expected success");
 
-    // Both receivers should receive the event
     receiver1.try_recv().expect("expected success");
     receiver2.try_recv().expect("expected success");
 }
-
-// ============================================================================
-// EventBus Debug Tests
-// ============================================================================
 
 #[test]
 fn test_event_bus_debug_format() {

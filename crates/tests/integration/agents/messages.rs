@@ -10,7 +10,6 @@ async fn test_task_messages_persisted() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "What is AI?").await?;
 
     let registry = ctx
@@ -75,7 +74,6 @@ async fn test_message_structure_complete() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "Test message structure").await?;
 
     let registry = ctx
@@ -144,7 +142,6 @@ async fn test_receive_agent_response() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "Hello agent").await?;
 
     let registry = ctx

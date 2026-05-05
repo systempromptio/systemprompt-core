@@ -3,10 +3,6 @@
 use systemprompt_models::AuthError;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
 
-// ============================================================================
-// validate_redirect_uri Tests
-// ============================================================================
-
 #[test]
 fn test_validate_redirect_uri_success() {
     let registered = vec!["https://example.com/callback".to_string()];
@@ -80,11 +76,9 @@ fn test_validate_redirect_uri_empty_registered_list() {
 fn test_validate_redirect_uri_case_sensitive() {
     let registered = vec!["https://Example.com/callback".to_string()];
 
-    // Same case should match
     let result = validate_redirect_uri(&registered, Some("https://Example.com/callback"));
     result.expect("same case should match");
 
-    // Different case should not match
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback"));
     result.unwrap_err();
 }
@@ -101,7 +95,6 @@ fn test_validate_redirect_uri_with_query_params() {
 fn test_validate_redirect_uri_partial_match_fails() {
     let registered = vec!["https://example.com/callback".to_string()];
 
-    // Should not match partial URIs
     let result = validate_redirect_uri(&registered, Some("https://example.com/callbac"));
     result.unwrap_err();
 
@@ -165,10 +158,6 @@ fn test_validate_redirect_uri_whitespace_only() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// Relative URI matching tests
-// ============================================================================
-
 #[test]
 fn test_validate_redirect_uri_relative_path_matches_absolute() {
     let registered = vec!["/admin/login".to_string()];
@@ -213,7 +202,6 @@ fn test_validate_redirect_uri_relative_path_partial_no_match() {
 
 #[test]
 fn test_validate_redirect_uri_protocol_relative_not_treated_as_path() {
-    // URIs starting with // should NOT be treated as relative paths
     let registered = vec!["//evil.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some("https://example.com//evil.com/callback"));
 
@@ -227,11 +215,9 @@ fn test_validate_redirect_uri_relative_alongside_absolute() {
         "http://localhost:8080/callback".to_string(),
     ];
 
-    // Absolute match still works
     let result = validate_redirect_uri(&registered, Some("http://localhost:8080/callback"));
     result.expect("absolute match should work");
 
-    // Absolute URI no longer matches relative registered path
     let result = validate_redirect_uri(&registered, Some("https://prod.example.com/callback"));
     result.unwrap_err();
 }

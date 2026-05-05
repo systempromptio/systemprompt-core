@@ -2,10 +2,6 @@
 
 use systemprompt_logging::LogFilter;
 
-// ============================================================================
-// LogFilter Creation Tests
-// ============================================================================
-
 #[test]
 fn test_log_filter_new() {
     let filter = LogFilter::new(1, 10);
@@ -36,10 +32,6 @@ fn test_log_filter_new_boundary_values() {
     assert_eq!(filter.per_page(), i32::MAX);
 }
 
-// ============================================================================
-// LogFilter Default Tests
-// ============================================================================
-
 #[test]
 fn test_log_filter_default() {
     let filter = LogFilter::default();
@@ -50,10 +42,6 @@ fn test_log_filter_default() {
     assert!(filter.module().is_none());
     assert!(filter.message().is_none());
 }
-
-// ============================================================================
-// LogFilter Builder Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_log_filter_with_level() {
@@ -134,10 +122,6 @@ fn test_log_filter_builder_partial_chain() {
     assert!(filter.message().is_none());
 }
 
-// ============================================================================
-// LogFilter Accessor Tests
-// ============================================================================
-
 #[test]
 fn test_log_filter_page_accessor() {
     let filter = LogFilter::new(42, 10);
@@ -186,10 +170,6 @@ fn test_log_filter_message_accessor_some() {
     assert_eq!(filter.message(), Some("error occurred"));
 }
 
-// ============================================================================
-// LogFilter Clone and Debug Tests
-// ============================================================================
-
 #[test]
 fn test_log_filter_clone() {
     let filter = LogFilter::new(1, 10)
@@ -213,10 +193,6 @@ fn test_log_filter_debug() {
     assert!(debug.contains("LogFilter"));
     assert!(debug.contains("ERROR"));
 }
-
-// ============================================================================
-// LogFilter Edge Cases
-// ============================================================================
 
 #[test]
 fn test_log_filter_with_empty_level() {

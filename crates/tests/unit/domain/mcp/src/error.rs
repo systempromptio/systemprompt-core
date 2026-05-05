@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::McpDomainError as McpError;
 
-// ============================================================================
-// McpError Display Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_error_server_not_found_display() {
     let error = McpError::ServerNotFound("test-server".to_string());
@@ -90,10 +86,6 @@ fn test_mcp_error_internal_display() {
     assert!(display.contains("unexpected internal error"));
 }
 
-// ============================================================================
-// McpError Debug Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_error_server_not_found_debug() {
     let error = McpError::ServerNotFound("debug-server".to_string());
@@ -174,10 +166,6 @@ fn test_mcp_error_internal_debug() {
     assert!(debug.contains("Internal"));
 }
 
-// ============================================================================
-// McpError From Implementations Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_error_from_serde_json() {
     let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
@@ -185,10 +173,6 @@ fn test_mcp_error_from_serde_json() {
     let display = mcp_error.to_string();
     assert!(!display.is_empty());
 }
-
-// ============================================================================
-// McpResult Type Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_result_ok() {
@@ -216,10 +200,6 @@ fn test_mcp_result_and_then() {
     let chained: Result<i32, McpError> = result.and_then(|x| Ok(x + 1));
     assert_eq!(chained.unwrap(), 6);
 }
-
-// ============================================================================
-// McpError Edge Cases
-// ============================================================================
 
 #[test]
 fn test_mcp_error_empty_server_name() {

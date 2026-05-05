@@ -14,10 +14,6 @@ fn create_test_context() -> RequestContext {
     )
 }
 
-// ============================================================================
-// AuthenticatedRequestContext Tests
-// ============================================================================
-
 #[test]
 fn test_authenticated_request_context_new() {
     let context = create_test_context();
@@ -54,10 +50,6 @@ fn test_authenticated_request_context_debug() {
     let debug_str = format!("{:?}", auth_ctx);
     assert!(debug_str.contains("AuthenticatedRequestContext"));
 }
-
-// ============================================================================
-// AuthResult Tests
-// ============================================================================
 
 #[test]
 fn test_auth_result_expect_authenticated_success() {

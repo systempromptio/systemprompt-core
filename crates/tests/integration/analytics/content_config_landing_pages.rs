@@ -15,7 +15,6 @@ use anyhow::Result;
 
 #[tokio::test]
 async fn test_content_config_path_env_var_is_set() -> Result<()> {
-    // CRITICAL: This test ensures CONTENT_CONFIG_PATH is set in production
     let content_config_path = std::env::var("CONTENT_CONFIG_PATH");
 
     assert!(
@@ -39,10 +38,8 @@ async fn test_content_config_path_env_var_is_set() -> Result<()> {
 async fn test_app_context_loads_content_config() -> Result<()> {
     use systemprompt_runtime::AppContext;
 
-    // This will panic if CONTENT_CONFIG_PATH is not set
     let app_context = AppContext::new().await?;
 
-    // Check if content_config is loaded
     let content_config = app_context.content_config();
 
     assert!(
@@ -62,7 +59,6 @@ async fn test_landing_page_set_for_homepage() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Request homepage
     let response = ctx.make_request("/").await?;
     assert!(response.status().is_success());
 
@@ -106,12 +102,8 @@ async fn test_landing_page_set_for_blog_post() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Request a blog post URL
     let blog_url = "/blog/mcp-reckoning";
     let response = ctx.make_request(blog_url).await?;
-
-    // Even if the blog post doesn't exist, the session should be created
-    // and landing_page should be set if it's recognized as an HTML page
 
     wait_for_async_processing().await;
 
@@ -157,7 +149,6 @@ async fn test_landing_page_not_set_for_api_requests() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Request API endpoint
     let api_url = "/api/v1/health";
     let response = ctx.make_request(api_url).await?;
     assert!(response.status().is_success());
@@ -196,7 +187,6 @@ async fn test_landing_page_set_for_legal_pages() -> Result<()> {
     let ctx = TestContext::new().await?;
     let fingerprint = ctx.fingerprint().to_string();
 
-    // Request legal page
     let legal_url = "/privacy-policy";
     let response = ctx.make_request(legal_url).await?;
 

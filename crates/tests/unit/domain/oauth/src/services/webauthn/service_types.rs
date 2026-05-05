@@ -8,10 +8,6 @@ use systemprompt_oauth::services::webauthn::service::{
     LinkUserInfo, VerifiedAuthentication, create_link_states,
 };
 
-// ============================================================================
-// VerifiedAuthentication Tests
-// ============================================================================
-
 #[test]
 fn test_verified_authentication_construction() {
     let auth = VerifiedAuthentication {
@@ -58,10 +54,6 @@ fn test_verified_authentication_timestamp_preserves_value() {
     assert!(auth.timestamp >= before);
     assert!(auth.timestamp <= after);
 }
-
-// ============================================================================
-// LinkUserInfo Tests
-// ============================================================================
 
 #[test]
 fn test_link_user_info_construction() {
@@ -118,10 +110,6 @@ fn test_link_user_info_empty_fields() {
     assert!(info.name.is_empty());
 }
 
-// ============================================================================
-// create_link_states Tests
-// ============================================================================
-
 #[tokio::test]
 async fn test_create_link_states_empty() {
     let states = create_link_states();
@@ -151,10 +139,6 @@ async fn test_create_link_states_mutex_lockable() {
     let guard = states.lock().await;
     assert_eq!(guard.len(), 0);
 }
-
-// ============================================================================
-// WebAuthnRegistry Tests
-// ============================================================================
 
 #[test]
 fn test_webauthn_manager_debug() {

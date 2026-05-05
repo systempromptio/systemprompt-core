@@ -2,10 +2,6 @@
 
 use systemprompt_database::RepositoryError;
 
-// ============================================================================
-// RepositoryError Construction Tests
-// ============================================================================
-
 #[test]
 fn test_not_found_from_string() {
     let error = RepositoryError::not_found("user-123");
@@ -62,10 +58,6 @@ fn test_internal_from_owned_string() {
     assert!(error.to_string().contains("connection pool exhausted"));
 }
 
-// ============================================================================
-// RepositoryError Predicate Tests
-// ============================================================================
-
 #[test]
 fn test_is_not_found_returns_true_for_not_found() {
     let error = RepositoryError::not_found("id");
@@ -114,10 +106,6 @@ fn test_is_constraint_returns_false_for_internal() {
     assert!(!error.is_constraint());
 }
 
-// ============================================================================
-// RepositoryError Display Tests
-// ============================================================================
-
 #[test]
 fn test_not_found_display() {
     let error = RepositoryError::not_found("user-456");
@@ -159,20 +147,12 @@ fn test_internal_display() {
     );
 }
 
-// ============================================================================
-// RepositoryError From Implementations Tests
-// ============================================================================
-
 #[test]
 fn test_from_serde_json_error() {
     let json_err = serde_json::from_str::<serde_json::Value>("not valid json").unwrap_err();
     let repo_err: RepositoryError = json_err.into();
     assert!(matches!(repo_err, RepositoryError::Serialization(_)));
 }
-
-// ============================================================================
-// RepositoryError Debug Tests
-// ============================================================================
 
 #[test]
 fn test_debug_format() {

@@ -4,15 +4,10 @@ use std::path::Path;
 use systemprompt_loader::ProfileLoader;
 use tempfile::TempDir;
 
-// ============================================================================
-// Load From Path Tests
-// ============================================================================
-
 #[test]
 fn test_load_from_path_valid() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("services"))
         .expect("Failed to create services dir");
@@ -109,17 +104,12 @@ display_name: Incomplete
     ProfileLoader::load_from_path(&profile_path).unwrap_err();
 }
 
-// ============================================================================
-// Load By Name Tests
-// ============================================================================
-
 #[test]
 fn test_load_by_name() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
-    // Create the paths directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services"))

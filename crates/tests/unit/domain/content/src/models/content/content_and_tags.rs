@@ -1,9 +1,5 @@
 //! Tests for Content, ContentSummary, and Tag types.
 
-// ============================================================================
-// Content Tests
-// ============================================================================
-
 #[test]
 fn test_content_links_metadata_valid() {
     use chrono::Utc;
@@ -130,10 +126,6 @@ fn test_content_clone() {
     assert_eq!(cloned.title, content.title);
 }
 
-// ============================================================================
-// ContentSummary Tests
-// ============================================================================
-
 #[test]
 fn test_content_summary_creation() {
     use chrono::Utc;
@@ -170,10 +162,6 @@ fn test_content_summary_serialization() {
     assert!(json.contains("\"slug\":\"serial-summary\""));
     assert!(json.contains("\"title\":\"Serialization Test\""));
 }
-
-// ============================================================================
-// Tag Tests
-// ============================================================================
 
 #[test]
 fn test_tag_creation() {

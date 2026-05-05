@@ -87,8 +87,6 @@ impl Email {
     }
 
     #[must_use]
-    // reason: panicking convenience ctor for known-valid literals; failure is a programmer-bug
-    // invariant
     #[allow(clippy::expect_used)]
     pub fn new(value: impl Into<String>) -> Self {
         Self::try_new(value).expect("Email validation failed")

@@ -102,7 +102,6 @@ impl CliService {
         );
 
         let mut stdout = std::io::stdout();
-        // Why: CLI display sink; broken pipe is not recoverable.
         writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
     }
 
@@ -114,7 +113,6 @@ impl CliService {
             profile_name, target_label, tenant_info
         );
         let mut stdout = std::io::stdout();
-        // Why: CLI display sink; broken pipe is not recoverable.
         writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
     }
 }

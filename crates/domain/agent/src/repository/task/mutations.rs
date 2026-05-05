@@ -19,8 +19,6 @@ pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
     }
 }
 
-// reason: holds DbPool/Arc closures/event-loop state with non-Debug fields;
-// struct is internal-use only
 #[allow(missing_debug_implementations)]
 pub struct CreateTaskParams<'a> {
     pub pool: &'a Arc<PgPool>,

@@ -5,9 +5,6 @@ use anyhow::{Context, Result};
 use systemprompt_database::{Database, install_extension_schemas};
 use systemprompt_extension::ExtensionRegistry;
 
-// Force the linker to keep every schema-bearing extension crate so
-// their `inventory::submit!` blocks reach `ExtensionRegistry::discover()`.
-// A path-only Cargo dep is not enough; rustc will drop unused crates.
 #[allow(unused_imports)]
 use {
     systemprompt_agent as _, systemprompt_ai as _, systemprompt_analytics as _,

@@ -3,10 +3,6 @@
 use chrono::Utc;
 use systemprompt_logging::{AiRequestInfo, ExecutionStep, McpToolExecution, TaskInfo};
 
-// ============================================================================
-// TaskInfo Tests
-// ============================================================================
-
 #[test]
 fn test_task_info_creation() {
     let task = TaskInfo {
@@ -88,10 +84,6 @@ fn test_task_info_serialize() {
     assert!(json.contains("pending"));
 }
 
-// ============================================================================
-// ExecutionStep Tests
-// ============================================================================
-
 #[test]
 fn test_execution_step_creation() {
     let step = ExecutionStep {
@@ -158,10 +150,6 @@ fn test_execution_step_serialize() {
     assert!(json.contains("pending"));
 }
 
-// ============================================================================
-// AiRequestInfo Tests
-// ============================================================================
-
 #[test]
 fn test_ai_request_info_creation() {
     let info = AiRequestInfo {
@@ -217,10 +205,6 @@ fn test_ai_request_info_serialize() {
     assert!(json.contains("provider"));
     assert!(json.contains("model"));
 }
-
-// ============================================================================
-// McpToolExecution Tests
-// ============================================================================
 
 #[test]
 fn test_mcp_tool_execution_creation() {

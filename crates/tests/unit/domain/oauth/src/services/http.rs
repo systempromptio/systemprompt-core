@@ -3,10 +3,6 @@
 use http::HeaderMap;
 use systemprompt_oauth::is_browser_request;
 
-// ============================================================================
-// is_browser_request Tests
-// ============================================================================
-
 #[test]
 fn test_is_browser_request_html_accept() {
     let mut headers = HeaderMap::new();
@@ -36,9 +32,6 @@ fn test_is_browser_request_json_first() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "application/json, text/html".parse().unwrap());
 
-    // The implementation checks if accept contains text/html AND doesn't start with
-    // application/json This contains text/html but starts with
-    // application/json, so it returns false
     assert!(!is_browser_request(&headers));
 }
 
@@ -78,7 +71,6 @@ fn test_is_browser_request_api_client() {
         "application/json, text/plain, */*".parse().unwrap(),
     );
 
-    // Starts with application/json
     assert!(!is_browser_request(&headers));
 }
 

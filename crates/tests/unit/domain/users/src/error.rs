@@ -9,10 +9,6 @@
 use systemprompt_identifiers::UserId;
 use systemprompt_users::UserError;
 
-// ============================================================================
-// UserError Display Tests
-// ============================================================================
-
 mod user_error_display_tests {
     use super::*;
 
@@ -73,10 +69,6 @@ mod user_error_display_tests {
     }
 }
 
-// ============================================================================
-// UserError Debug Tests
-// ============================================================================
-
 mod user_error_debug_tests {
     use super::*;
 
@@ -129,10 +121,6 @@ mod user_error_debug_tests {
         assert!(debug.contains("InvalidRoles"));
     }
 }
-
-// ============================================================================
-// UserError Variant Construction Tests
-// ============================================================================
 
 mod user_error_construction_tests {
     use super::*;
@@ -200,10 +188,6 @@ mod user_error_construction_tests {
     }
 }
 
-// ============================================================================
-// Error Trait Implementation Tests
-// ============================================================================
-
 mod error_trait_tests {
     use super::*;
     use std::error::Error;
@@ -244,10 +228,6 @@ mod error_trait_tests {
         assert!(error.source().is_none());
     }
 }
-
-// ============================================================================
-// Result Type Alias Tests
-// ============================================================================
 
 mod result_type_tests {
     use super::*;
@@ -297,10 +277,6 @@ mod result_type_tests {
         }
     }
 }
-
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
 
 mod edge_case_tests {
     use super::*;

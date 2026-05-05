@@ -53,10 +53,7 @@ mod build_thinking_config_tests {
 
     #[test]
     fn model_name_case_sensitive() {
-        // The check uses contains("2.5") which is case-sensitive
-        // but "2.5" itself doesn't have case, so uppercase model names also match
         let config = build_thinking_config("GEMINI-2.5-FLASH");
-        // Since "2.5" is found in the string regardless of case of letters around it
         config.as_ref().expect("config should be present");
     }
 }

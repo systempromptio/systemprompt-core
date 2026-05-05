@@ -8,10 +8,6 @@ use chrono::{TimeZone, Utc};
 use systemprompt_content::models::{CreateContentParams, UpdateContentParams};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
-// ============================================================================
-// CreateContentParams Tests
-// ============================================================================
-
 #[test]
 fn test_create_content_params_new() {
     let params = CreateContentParams::new(
@@ -222,10 +218,6 @@ fn test_create_content_params_builder_chain() {
     assert_eq!(params.category_id.as_ref().unwrap().as_str(), "guides");
     assert_eq!(params.version_hash, "fullhash123");
 }
-
-// ============================================================================
-// UpdateContentParams Tests
-// ============================================================================
 
 #[test]
 fn test_update_content_params_new() {

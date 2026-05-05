@@ -2,10 +2,6 @@
 
 use systemprompt_generator::{SitemapUrl, build_sitemap_index, build_sitemap_xml};
 
-// =============================================================================
-// SitemapUrl tests
-// =============================================================================
-
 #[test]
 fn test_sitemap_url_creation() {
     let url = SitemapUrl {
@@ -36,10 +32,6 @@ fn test_sitemap_url_clone() {
     assert_eq!(cloned.changefreq, url.changefreq);
     assert!((cloned.priority - url.priority).abs() < f32::EPSILON);
 }
-
-// =============================================================================
-// build_sitemap_xml tests
-// =============================================================================
 
 #[test]
 fn test_generate_sitemap() {
@@ -82,22 +74,18 @@ fn test_sitemap_urls() {
 
     let xml = build_sitemap_xml(&urls);
 
-    // Check all URLs are present
     assert!(xml.contains("<loc>https://example.com/</loc>"));
     assert!(xml.contains("<loc>https://example.com/about</loc>"));
     assert!(xml.contains("<loc>https://example.com/blog</loc>"));
 
-    // Check all lastmod dates
     assert!(xml.contains("<lastmod>2024-01-15</lastmod>"));
     assert!(xml.contains("<lastmod>2024-01-10</lastmod>"));
     assert!(xml.contains("<lastmod>2024-01-14</lastmod>"));
 
-    // Check changefreq values
     assert!(xml.contains("<changefreq>daily</changefreq>"));
     assert!(xml.contains("<changefreq>monthly</changefreq>"));
     assert!(xml.contains("<changefreq>weekly</changefreq>"));
 
-    // Check priorities (formatted with one decimal place)
     assert!(xml.contains("<priority>1.0</priority>"));
     assert!(xml.contains("<priority>0.8</priority>"));
     assert!(xml.contains("<priority>0.9</priority>"));
@@ -114,13 +102,11 @@ fn test_sitemap_xml_format() {
 
     let xml = build_sitemap_xml(&urls);
 
-    // Check proper XML structure
     assert!(xml.starts_with("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
     assert!(xml.contains("<url>"));
     assert!(xml.contains("</url>"));
     assert!(xml.ends_with("</urlset>"));
 
-    // Check proper nesting
     assert!(xml.contains("  <url>"));
     assert!(xml.contains("    <loc>"));
 }
@@ -146,7 +132,6 @@ fn test_sitemap_xml_escaping() {
 
     let xml = build_sitemap_xml(&urls);
 
-    // Ampersand should be escaped
     assert!(xml.contains("&amp;"));
     assert!(!xml.contains("&page") || xml.contains("&amp;page"));
 }
@@ -162,7 +147,6 @@ fn test_sitemap_special_characters_escaped() {
 
     let xml = build_sitemap_xml(&urls);
 
-    // < and > should be escaped
     assert!(xml.contains("&lt;"));
     assert!(xml.contains("&gt;"));
 }
@@ -192,7 +176,6 @@ fn test_sitemap_priority_formatting() {
 
     let xml = build_sitemap_xml(&urls);
 
-    // Priorities should be formatted with one decimal place
     assert!(xml.contains("<priority>1.0</priority>"));
     assert!(xml.contains("<priority>0.5</priority>"));
     assert!(xml.contains("<priority>0.1</priority>"));
@@ -200,7 +183,6 @@ fn test_sitemap_priority_formatting() {
 
 #[test]
 fn test_sitemap_large_url_count() {
-    // Test with many URLs (but not exceeding the 50k limit)
     let urls: Vec<SitemapUrl> = (0..100)
         .map(|i| SitemapUrl {
             loc: format!("https://example.com/page/{}", i),
@@ -212,15 +194,10 @@ fn test_sitemap_large_url_count() {
 
     let xml = build_sitemap_xml(&urls);
 
-    // Should contain all URLs
     for i in 0..100 {
         assert!(xml.contains(&format!("/page/{}", i)));
     }
 }
-
-// =============================================================================
-// build_sitemap_index tests
-// =============================================================================
 
 #[test]
 fn test_sitemap_index_generation() {
@@ -261,7 +238,6 @@ fn test_sitemap_index_urls() {
 
     let xml = build_sitemap_index(&chunks, "https://example.com");
 
-    // Should reference numbered sitemaps
     assert!(xml.contains("<loc>https://example.com/sitemaps/sitemap-1.xml</loc>"));
     assert!(xml.contains("<loc>https://example.com/sitemaps/sitemap-2.xml</loc>"));
     assert!(xml.contains("<loc>https://example.com/sitemaps/sitemap-3.xml</loc>"));
@@ -279,7 +255,6 @@ fn test_sitemap_index_format() {
     let chunks = vec![chunk];
     let xml = build_sitemap_index(&chunks, "https://example.com");
 
-    // Check proper structure
     assert!(xml.contains("<sitemap>"));
     assert!(xml.contains("</sitemap>"));
     assert!(xml.contains("<loc>"));
@@ -307,12 +282,9 @@ fn test_sitemap_index_with_different_base_urls() {
 
     let chunks = vec![chunk];
 
-    // Test with trailing slash
     let xml1 = build_sitemap_index(&chunks, "https://example.com/");
-    // The function doesn't strip trailing slashes, so it will have double slash
     assert!(xml1.contains("example.com/"));
 
-    // Test without trailing slash
     let xml2 = build_sitemap_index(&chunks, "https://example.com");
     assert!(xml2.contains("https://example.com/sitemaps/sitemap-1.xml"));
 }
@@ -338,7 +310,6 @@ fn test_sitemap_valid_changefreq_values() {
 
 #[test]
 fn test_sitemap_date_formats() {
-    // Test various date format strings
     let dates = [
         "2024-01-15",
         "2024-01-15T10:30:00+00:00",

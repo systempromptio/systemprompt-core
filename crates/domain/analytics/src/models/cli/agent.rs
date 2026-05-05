@@ -71,7 +71,6 @@ pub struct ConversationListRow {
     pub updated_at: DateTime<Utc>,
 }
 
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct TimestampRow {
     pub timestamp: DateTime<Utc>,

@@ -8,17 +8,8 @@
 //! Full validation testing is performed in integration tests.
 //! The internal validate_database_path function is private and tested inline.
 
-// ============================================================================
-// Database Path Validation Pattern Tests
-// ============================================================================
-
-// These tests validate the expected behavior patterns for database path
-// validation. The actual implementation is private, but these tests document
-// expected behavior.
-
 #[test]
 fn test_empty_path_pattern() {
-    // Empty database paths should be considered invalid
     let path = "";
     assert!(path.is_empty());
 }
@@ -64,10 +55,6 @@ fn test_sqlite_memory_pattern() {
     assert!(!path.starts_with("postgres://"));
 }
 
-// ============================================================================
-// Path Validation Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_absolute_path_pattern() {
     let path = "/absolute/path/to/database.db";
@@ -94,10 +81,6 @@ fn test_path_without_extension() {
         .map_or(false, |(_, name)| name.contains('.'));
     assert!(!has_extension);
 }
-
-// ============================================================================
-// URL Parsing Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_url_host_extraction() {
@@ -132,10 +115,6 @@ fn test_url_database_extraction() {
     assert_eq!(db_part, Some("testdb"));
 }
 
-// ============================================================================
-// Error Message Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_empty_error_message_pattern() {
     let error_msg = "DATABASE_URL is empty";
@@ -154,10 +133,6 @@ fn test_not_file_error_message_pattern() {
     let error_msg = "Database path '/path' exists but is not a file";
     assert!(error_msg.contains("not a file"));
 }
-
-// ============================================================================
-// Connection String Format Tests
-// ============================================================================
 
 #[test]
 fn test_postgresql_standard_format() {
@@ -203,19 +178,13 @@ fn test_non_postgresql_formats() {
     }
 }
 
-// ============================================================================
-// Path Existence Check Pattern Tests
-// ============================================================================
-
 #[test]
 fn test_path_existence_check_logic() {
     use std::path::Path;
 
-    // Existing path (current directory always exists)
     let existing = Path::new(".");
     assert!(existing.exists());
 
-    // Non-existing path
     let non_existing = Path::new("/this/path/definitely/does/not/exist/12345");
     assert!(!non_existing.exists());
 }
@@ -224,14 +193,9 @@ fn test_path_existence_check_logic() {
 fn test_path_is_file_check_logic() {
     use std::path::Path;
 
-    // Directory is not a file
     let dir = Path::new(".");
     assert!(!dir.is_file());
 }
-
-// ============================================================================
-// Tempfile-based Tests
-// ============================================================================
 
 #[test]
 fn test_temp_file_as_database_path() {

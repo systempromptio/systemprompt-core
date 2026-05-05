@@ -32,10 +32,6 @@ fn test_header_agent_name_constant() {
     assert_eq!(headers::AGENT_NAME, "x-agent-name");
 }
 
-// ============================================================================
-// Individual Header Injection Tests
-// ============================================================================
-
 #[test]
 fn test_inject_session_id_success() {
     let mut headers = HeaderMap::new();
@@ -106,10 +102,6 @@ fn test_inject_agent_name_success() {
     );
 }
 
-// ============================================================================
-// Header Overwrite Tests
-// ============================================================================
-
 #[test]
 fn test_inject_overwrites_existing_header() {
     let mut headers = HeaderMap::new();
@@ -124,10 +116,6 @@ fn test_inject_overwrites_existing_header() {
         "second_session"
     );
 }
-
-// ============================================================================
-// RequestContext Injection Tests
-// ============================================================================
 
 #[test]
 fn test_inject_from_request_context_success() {
@@ -198,10 +186,6 @@ fn test_inject_from_request_context_empty_context_id() {
         .expect("Should have agent name header");
 }
 
-// ============================================================================
-// Various ID Format Tests
-// ============================================================================
-
 #[test]
 fn test_inject_uuid_format() {
     let mut headers = HeaderMap::new();
@@ -254,20 +238,12 @@ fn test_inject_hyphenated_id() {
     );
 }
 
-// ============================================================================
-// HeaderInjector Debug Tests
-// ============================================================================
-
 #[test]
 fn test_header_injector_debug() {
     let injector = HeaderInjector;
     let debug_str = format!("{:?}", injector);
     assert!(debug_str.contains("HeaderInjector"));
 }
-
-// ============================================================================
-// Additional HeaderInjector Tests for task_id
-// ============================================================================
 
 #[test]
 fn test_inject_task_id_success() {

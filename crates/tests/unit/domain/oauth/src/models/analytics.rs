@@ -6,10 +6,6 @@ use systemprompt_oauth::models::analytics::{
     ClientAnalytics, ClientAnalyticsRow, ClientErrorAnalytics, ClientErrorAnalyticsRow,
 };
 
-// ============================================================================
-// ClientAnalyticsRow to ClientAnalytics conversion Tests
-// ============================================================================
-
 fn create_analytics_row() -> ClientAnalyticsRow {
     ClientAnalyticsRow {
         client_id: ClientId::new("test-client-123"),
@@ -45,7 +41,6 @@ fn test_client_analytics_timestamps_are_rfc3339() {
     let row = create_analytics_row();
     let analytics: ClientAnalytics = row.into();
 
-    // RFC3339 timestamps should contain 'T' and typically end with 'Z' or timezone
     assert!(analytics.first_seen.contains('T'));
     assert!(analytics.last_seen.contains('T'));
 }
@@ -92,10 +87,6 @@ fn test_client_analytics_zero_values() {
     assert_eq!(analytics.unique_users, 0);
     assert_eq!(analytics.total_cost_microdollars, 0);
 }
-
-// ============================================================================
-// ClientErrorAnalyticsRow to ClientErrorAnalytics conversion Tests
-// ============================================================================
 
 #[test]
 fn test_client_error_analytics_from_row() {
@@ -176,10 +167,6 @@ fn test_client_error_analytics_clone() {
     assert_eq!(analytics.last_error, cloned.last_error);
 }
 
-// ============================================================================
-// ClientAnalyticsRow Tests
-// ============================================================================
-
 #[test]
 fn test_client_analytics_row_debug() {
     let row = create_analytics_row();
@@ -187,10 +174,6 @@ fn test_client_analytics_row_debug() {
     assert!(debug_str.contains("ClientAnalyticsRow"));
     assert!(debug_str.contains("test-client-123"));
 }
-
-// ============================================================================
-// ClientErrorAnalyticsRow Tests
-// ============================================================================
 
 #[test]
 fn test_client_error_analytics_row_debug() {

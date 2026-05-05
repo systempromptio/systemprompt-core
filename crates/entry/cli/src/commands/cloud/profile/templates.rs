@@ -182,7 +182,6 @@ pub fn save_secrets(
     Ok(())
 }
 
-
 pub fn get_services_path() -> Result<String> {
     if let Ok(path) = std::env::var("SYSTEMPROMPT_SERVICES_PATH") {
         return Ok(path);

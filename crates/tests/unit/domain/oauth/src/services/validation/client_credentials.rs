@@ -5,10 +5,6 @@
 
 use systemprompt_oauth::services::verify_client_authentication;
 
-// ============================================================================
-// auth_method "none" Tests
-// ============================================================================
-
 #[test]
 fn auth_method_none_returns_ok() {
     let result = verify_client_authentication("none", None, None);
@@ -24,10 +20,6 @@ fn auth_method_none_ignores_secret_and_hash() {
 
     assert!(result.is_ok());
 }
-
-// ============================================================================
-// Valid Credentials Tests
-// ============================================================================
 
 #[test]
 fn valid_secret_and_hash_returns_ok() {
@@ -48,10 +40,6 @@ fn client_secret_post_method_with_valid_creds() {
 
     assert!(result.is_ok());
 }
-
-// ============================================================================
-// Invalid Credentials Tests
-// ============================================================================
 
 #[test]
 fn wrong_secret_returns_err() {
@@ -106,10 +94,6 @@ fn no_hash_no_secret_returns_err() {
     );
 }
 
-// ============================================================================
-// Error Message Quality Tests
-// ============================================================================
-
 #[test]
 fn error_messages_are_descriptive() {
     let hash = bcrypt::hash("secret", 4).unwrap();
@@ -130,10 +114,6 @@ fn error_messages_are_descriptive() {
             .to_string();
     assert!(wrong_secret_err.contains("Invalid client secret"));
 }
-
-// ============================================================================
-// Auth Method Variants Tests
-// ============================================================================
 
 #[test]
 fn various_auth_methods_require_secret() {

@@ -10,7 +10,6 @@ async fn test_agent_task_created_in_database() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx.create_context(&token, "Test task creation").await?;
 
     let registry = ctx
@@ -68,7 +67,6 @@ async fn test_task_context_preserved() -> Result<()> {
 
     let token = ctx.get_anonymous_token().await?;
 
-    // Create context first
     let context_id = ctx
         .create_context(&token, "Test context preservation")
         .await?;

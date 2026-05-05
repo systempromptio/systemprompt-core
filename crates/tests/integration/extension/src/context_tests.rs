@@ -8,10 +8,6 @@ use systemprompt_extension::context::{DynExtensionContext, ExtensionContext};
 use systemprompt_extension::{Extension, ExtensionMetadata};
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};
 
-// =============================================================================
-// Mock Implementations
-// =============================================================================
-
 #[derive(Debug, Clone)]
 struct MockConfig;
 
@@ -89,10 +85,6 @@ impl ExtensionContext for MockExtensionContext {
         self.extensions.get(id).cloned()
     }
 }
-
-// =============================================================================
-// ExtensionContext Implementation Tests
-// =============================================================================
 
 #[test]
 fn test_extension_context_config() {
@@ -218,10 +210,6 @@ fn test_extension_context_multiple_extensions() {
     );
 }
 
-// =============================================================================
-// DynExtensionContext Type Alias Tests
-// =============================================================================
-
 #[test]
 fn test_dyn_extension_context_type_alias() {
     let ctx = MockExtensionContext {
@@ -230,7 +218,6 @@ fn test_dyn_extension_context_type_alias() {
         extensions: HashMap::new(),
     };
 
-    // Can be used as DynExtensionContext
     let dyn_ctx: DynExtensionContext = Arc::new(ctx);
     assert!(dyn_ctx.database().is_connected());
 }
@@ -268,10 +255,6 @@ fn test_dyn_extension_context_thread_safe() {
     assert!(dyn_ctx.database().is_connected());
     assert!(handle.join().expect("thread should complete"));
 }
-
-// =============================================================================
-// Extension Trait Default Method Tests
-// =============================================================================
 
 #[test]
 fn test_extension_default_schemas() {
@@ -350,7 +333,6 @@ fn test_extension_default_priority() {
 fn test_extension_derived_methods() {
     let ext = TestExtension { id: "my-ext" };
 
-    // These methods derive from metadata()
     assert_eq!(ext.id(), "my-ext");
     assert_eq!(ext.name(), "Test Extension");
     assert_eq!(ext.version(), "1.0.0");

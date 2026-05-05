@@ -127,7 +127,6 @@ async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<Messa
         )
 }
 
-
 fn render_text_output(output: &RequestShowOutput, full: bool) {
     CliService::section(&format!("AI Request: {}", output.request_id));
     CliService::key_value("Provider", &output.provider);

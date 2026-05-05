@@ -10,10 +10,6 @@ use systemprompt_agent::services::agent_orchestration::{
     AgentRuntimeConfig, AgentStatus, OrchestrationError, ValidationReport,
 };
 
-// ============================================================================
-// AgentStatus Tests
-// ============================================================================
-
 #[test]
 fn test_agent_status_running() {
     let status = AgentStatus::Running {
@@ -94,10 +90,6 @@ fn test_agent_status_debug_failed() {
     assert!(debug_str.contains("Test reason"));
 }
 
-// ============================================================================
-// AgentRuntimeConfig Tests
-// ============================================================================
-
 #[test]
 fn test_agent_runtime_config_creation() {
     let config = AgentRuntimeConfig {
@@ -139,10 +131,6 @@ fn test_agent_runtime_config_clone() {
     assert_eq!(cloned.name, "Clone Agent");
     assert_eq!(cloned.port, 4000);
 }
-
-// ============================================================================
-// ValidationReport Tests
-// ============================================================================
 
 #[test]
 fn test_validation_report_new() {
@@ -200,10 +188,6 @@ fn test_validation_report_stays_invalid() {
     assert_eq!(report.issues.len(), 2);
 }
 
-// ============================================================================
-// OrchestrationError Tests
-// ============================================================================
-
 #[test]
 fn test_orchestration_error_agent_not_found() {
     let error = OrchestrationError::AgentNotFound("missing-agent".to_string());
@@ -253,10 +237,6 @@ fn test_orchestration_error_debug() {
     assert!(debug_str.contains("AgentNotFound"));
     assert!(debug_str.contains("test-agent"));
 }
-
-// ============================================================================
-// OrchestrationResult Tests
-// ============================================================================
 
 #[test]
 fn test_orchestration_result_ok() {

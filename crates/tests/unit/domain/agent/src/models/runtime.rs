@@ -7,10 +7,6 @@
 use systemprompt_agent::models::runtime::AgentRuntimeInfo;
 use systemprompt_models::ai::ToolModelOverrides;
 
-// ============================================================================
-// AgentRuntimeInfo Tests
-// ============================================================================
-
 #[test]
 fn test_agent_runtime_info_serialize() {
     let info = AgentRuntimeInfo {

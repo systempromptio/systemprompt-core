@@ -23,8 +23,6 @@ pub(super) fn check_port(port: u16) -> Option<u32> {
     if output.stdout.is_empty() {
         None
     } else {
-        // Why: stdout from `lsof -ti` is one PID per line; trim+parse failures mean the
-        // OS returned non-numeric output, which we treat as "no PID".
         String::from_utf8_lossy(&output.stdout)
             .lines()
             .next()
@@ -91,8 +89,6 @@ pub(super) fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
         },
     };
 
-    // Why: `lsof -ti` may produce empty stdout when the port is free, and
-    // non-numeric output indicates an OS error we cannot recover from here.
     let pid: u32 = String::from_utf8_lossy(&output.stdout)
         .lines()
         .next()?

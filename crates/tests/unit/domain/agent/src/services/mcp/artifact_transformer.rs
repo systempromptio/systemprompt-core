@@ -18,10 +18,6 @@ use systemprompt_agent::services::mcp::artifact_transformer::{
 };
 use systemprompt_models::artifacts::types::ArtifactType;
 
-// ============================================================================
-// parse_tool_response Tests
-// ============================================================================
-
 #[test]
 fn parse_tool_response_valid_complete() {
     let input = json!({
@@ -139,10 +135,6 @@ fn parse_tool_response_artifact_can_be_nested_object() {
     assert_eq!(parsed.artifact["total"], 2);
 }
 
-// ============================================================================
-// calculate_fingerprint Tests
-// ============================================================================
-
 #[test]
 fn calculate_fingerprint_deterministic_same_inputs() {
     let fp1 = calculate_fingerprint("my-tool", Some(&json!({"a": 1})));
@@ -201,10 +193,6 @@ fn calculate_fingerprint_complex_arguments() {
     assert!(fp.starts_with("db-query-"));
     assert!(fp.len() > "db-query-".len());
 }
-
-// ============================================================================
-// artifact_type_to_string Tests
-// ============================================================================
 
 #[test]
 fn artifact_type_to_string_text() {
@@ -277,10 +265,6 @@ fn artifact_type_to_string_custom() {
         "sparkline"
     );
 }
-
-// ============================================================================
-// infer_type Tests
-// ============================================================================
 
 #[test]
 fn infer_type_from_schema_x_artifact_type() {
@@ -417,10 +401,6 @@ fn infer_type_array_of_primitives_not_tabular() {
     let result = infer_type(&artifact, None, "tool");
     assert!(result.is_err());
 }
-
-// ============================================================================
-// build_metadata Tests
-// ============================================================================
 
 #[test]
 fn build_metadata_text_type_no_hints() {
@@ -601,10 +581,6 @@ fn build_metadata_custom_type() {
     });
     assert!(result.is_ok());
 }
-
-// ============================================================================
-// build_parts Tests
-// ============================================================================
 
 #[test]
 fn build_parts_from_json_object() {

@@ -5,10 +5,6 @@ use systemprompt_identifiers::LogId;
 use systemprompt_logging::models::LogRow;
 use systemprompt_logging::{LogEntry, LogLevel};
 
-// ============================================================================
-// LogRow Creation Tests
-// ============================================================================
-
 #[test]
 fn test_log_row_creation() {
     let row = LogRow {
@@ -63,10 +59,6 @@ fn test_log_row_minimal() {
     assert!(row.context_id.is_none());
     assert!(row.client_id.is_none());
 }
-
-// ============================================================================
-// LogRow to LogEntry Level Conversion Tests
-// ============================================================================
 
 #[test]
 fn test_log_row_to_log_entry_info() {

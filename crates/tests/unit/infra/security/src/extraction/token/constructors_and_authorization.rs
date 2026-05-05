@@ -4,10 +4,6 @@
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_security::{ExtractionMethod, TokenExtractionError, TokenExtractor};
 
-// ============================================================================
-// ExtractionMethod Display Tests
-// ============================================================================
-
 #[test]
 fn test_extraction_method_display_authorization_header() {
     let method = ExtractionMethod::AuthorizationHeader;
@@ -25,10 +21,6 @@ fn test_extraction_method_display_cookie() {
     let method = ExtractionMethod::Cookie;
     assert_eq!(format!("{}", method), "Cookie");
 }
-
-// ============================================================================
-// TokenExtractor Constructor Tests
-// ============================================================================
 
 #[test]
 fn test_token_extractor_new_with_custom_chain() {
@@ -97,10 +89,6 @@ fn test_token_extractor_with_mcp_header_name() {
         .expect("Should extract from custom MCP header");
     assert_eq!(token, "custom_token");
 }
-
-// ============================================================================
-// Authorization Header Extraction Tests
-// ============================================================================
 
 #[test]
 fn test_extract_from_authorization_header_success() {

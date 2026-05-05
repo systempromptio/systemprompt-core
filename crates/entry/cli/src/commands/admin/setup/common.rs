@@ -87,8 +87,6 @@ pub async fn enable_extensions(config: &PostgresConfig) -> Result<()> {
 
     for ext in extensions {
         let sql = format!("CREATE EXTENSION IF NOT EXISTS \"{}\"", ext);
-        // allowlist: bootstrap DDL — CREATE EXTENSION cannot bind identifier
-        // parameters; see CLAUDE.md
         if let Err(e) = sqlx::query(&sql).execute(&pool).await {
             CliService::warning(&format!("Could not create extension '{}': {}", ext, e));
         }

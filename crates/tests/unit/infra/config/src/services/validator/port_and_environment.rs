@@ -30,10 +30,6 @@ fn create_valid_config(environment: DeployEnvironment) -> EnvironmentConfig {
     }
 }
 
-// ============================================================================
-// Additional Validation Tests
-// ============================================================================
-
 #[test]
 fn test_validate_unresolved_variable_in_nested_value() {
     let mut config = create_valid_config(DeployEnvironment::Local);
@@ -54,10 +50,6 @@ fn test_validate_empty_required_variable_treated_as_missing() {
 
     ConfigValidator::validate(&config).unwrap_err();
 }
-
-// ============================================================================
-// Port Validation Tests
-// ============================================================================
 
 #[test]
 fn test_validate_invalid_port_not_numeric() {
@@ -135,10 +127,6 @@ fn test_validate_missing_port_adds_warning() {
 
     ConfigValidator::validate(&config).unwrap_err();
 }
-
-// ============================================================================
-// Environment-Specific Tests
-// ============================================================================
 
 #[test]
 fn test_validate_production_use_https_warning() {

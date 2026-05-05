@@ -22,10 +22,6 @@ fn create_test_execution() -> ToolExecution {
     }
 }
 
-// ============================================================================
-// ToolExecution Field Access Tests
-// ============================================================================
-
 #[test]
 fn test_tool_execution_fields() {
     let exec = create_test_execution();
@@ -76,10 +72,6 @@ fn test_tool_execution_without_context() {
     assert!(exec.ai_tool_call_id.is_none());
 }
 
-// ============================================================================
-// ToolExecution Clone Tests
-// ============================================================================
-
 #[test]
 fn test_tool_execution_clone() {
     let exec = create_test_execution();
@@ -92,10 +84,6 @@ fn test_tool_execution_clone() {
     assert_eq!(exec.output, cloned.output);
 }
 
-// ============================================================================
-// ToolExecution Debug Tests
-// ============================================================================
-
 #[test]
 fn test_tool_execution_debug() {
     let exec = create_test_execution();
@@ -106,10 +94,6 @@ fn test_tool_execution_debug() {
     assert!(debug_str.contains("test-server"));
     assert!(debug_str.contains("success"));
 }
-
-// ============================================================================
-// ToolExecution Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_tool_execution_serialize() {

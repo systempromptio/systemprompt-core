@@ -3,10 +3,6 @@
 use std::str::FromStr;
 use systemprompt_oauth::{GrantType, PkceMethod, ResponseMode, ResponseType};
 
-// ============================================================================
-// GrantType Tests
-// ============================================================================
-
 #[test]
 fn test_grant_type_authorization_code_as_str() {
     assert_eq!(GrantType::AuthorizationCode.as_str(), "authorization_code");
@@ -73,10 +69,6 @@ fn test_grant_type_debug() {
     assert!(debug_str.contains("AuthorizationCode"));
 }
 
-// ============================================================================
-// PkceMethod Tests
-// ============================================================================
-
 #[test]
 fn test_pkce_method_s256_as_str() {
     assert_eq!(PkceMethod::S256.as_str(), "S256");
@@ -117,10 +109,6 @@ fn test_pkce_method_debug() {
     assert!(debug_str.contains("S256"));
 }
 
-// ============================================================================
-// ResponseType Tests
-// ============================================================================
-
 #[test]
 fn test_response_type_code_as_str() {
     assert_eq!(ResponseType::Code.as_str(), "code");
@@ -148,10 +136,6 @@ fn test_response_type_debug() {
     let debug_str = format!("{:?}", ResponseType::Code);
     assert!(debug_str.contains("Code"));
 }
-
-// ============================================================================
-// ResponseMode Tests
-// ============================================================================
 
 #[test]
 fn test_response_mode_query_as_str() {

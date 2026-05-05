@@ -90,7 +90,6 @@ pub struct ToolExecutionResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookEndpoint {
-    // JSON: external webhook endpoint identifier (third-party service-owned)
     pub id: String,
     pub url: String,
     pub events: Vec<String>,

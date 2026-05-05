@@ -2,10 +2,6 @@
 
 use systemprompt_mcp::services::process::ProcessManager;
 
-// ============================================================================
-// ProcessManager Creation Tests
-// ============================================================================
-
 #[test]
 fn test_process_manager_new() {
     let manager = ProcessManager::new();
@@ -27,10 +23,6 @@ fn test_process_manager_clone() {
     let debug = format!("{:?}", cloned);
     assert!(debug.contains("ProcessManager"));
 }
-
-// ============================================================================
-// ProcessManager Static Method Tests
-// ============================================================================
 
 #[test]
 fn test_process_manager_is_running_nonexistent_pid_high() {

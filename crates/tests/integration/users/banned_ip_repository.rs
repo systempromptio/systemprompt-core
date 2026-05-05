@@ -22,10 +22,6 @@ async fn cleanup_test_ip(repo: &BannedIpRepository, ip: &str) {
     let _ = repo.unban_ip(ip).await;
 }
 
-// ============================================================================
-// BannedIpRepository::new Tests
-// ============================================================================
-
 #[tokio::test]
 async fn repository_creation_from_db_pool() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -36,7 +32,6 @@ async fn repository_creation_from_db_pool() -> Result<()> {
     let db_pool = db.as_pool()?;
     let repo = BannedIpRepository::new(&db_pool)?;
 
-    // Verify the repo is functional by calling a method
     let count = repo.count_active_bans().await?;
     assert!(count >= 0);
 
@@ -53,16 +48,11 @@ async fn repository_creation_from_pool_arc() -> Result<()> {
     let pool = db.pool_arc()?;
     let repo = BannedIpRepository::from_pool(pool);
 
-    // Verify the repo is functional
     let count = repo.count_active_bans().await?;
     assert!(count >= 0);
 
     Ok(())
 }
-
-// ============================================================================
-// BannedIpRepository::is_banned Tests
-// ============================================================================
 
 #[tokio::test]
 async fn is_banned_returns_false_for_unbanned_ip() -> Result<()> {
@@ -74,7 +64,6 @@ async fn is_banned_returns_false_for_unbanned_ip() -> Result<()> {
     let db_pool = db.as_pool()?;
     let repo = BannedIpRepository::new(&db_pool)?;
 
-    // Use a unique IP that's unlikely to be in the database
     let test_ip = "192.168.255.254";
     cleanup_test_ip(&repo, test_ip).await;
 
@@ -97,22 +86,16 @@ async fn is_banned_returns_true_for_banned_ip() -> Result<()> {
     let test_ip = "192.168.100.1";
     cleanup_test_ip(&repo, test_ip).await;
 
-    // Ban the IP
     let params = BanIpParams::new(test_ip, "Test ban", BanDuration::Hours(1), "integration_test");
     repo.ban_ip(params).await?;
 
     let is_banned = repo.is_banned(test_ip).await?;
     assert!(is_banned);
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
 }
-
-// ============================================================================
-// BannedIpRepository::ban_ip Tests
-// ============================================================================
 
 #[tokio::test]
 async fn ban_ip_creates_new_ban() -> Result<()> {
@@ -143,7 +126,6 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
     assert!(!ban.is_permanent);
     assert!(ban.expires_at.is_some(), "non-permanent ban should have an expiry");
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
@@ -172,7 +154,6 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
     assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.source_fingerprint.as_deref(), Some(fingerprint));
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
@@ -206,7 +187,6 @@ async fn ban_ip_permanent() -> Result<()> {
     assert!(ban.is_permanent);
     assert!(ban.expires_at.is_none(), "permanent ban should have no expiry");
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
@@ -225,14 +205,12 @@ async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
     let test_ip = "192.168.100.5";
     cleanup_test_ip(&repo, test_ip).await;
 
-    // First ban
     let params = BanIpParams::new(test_ip, "First ban", BanDuration::Hours(1), "integration_test");
     repo.ban_ip(params).await?;
 
     let ban = repo.get_ban(test_ip).await?;
     let first_count = ban.map(|b| b.ban_count).unwrap_or(0);
 
-    // Second ban
     let params =
         BanIpParams::new(test_ip, "Second ban", BanDuration::Hours(1), "integration_test");
     repo.ban_ip(params).await?;
@@ -242,15 +220,10 @@ async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
 
     assert_eq!(second_count, first_count + 1);
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
 }
-
-// ============================================================================
-// BannedIpRepository::ban_ip_with_metadata Tests
-// ============================================================================
 
 #[tokio::test]
 async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
@@ -288,15 +261,10 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
     let session_ids = ban.associated_session_ids.expect("ban should have associated session ids");
     assert!(!session_ids.is_empty(), "associated session ids should contain the session id");
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
 }
-
-// ============================================================================
-// BannedIpRepository::unban_ip Tests
-// ============================================================================
 
 #[tokio::test]
 async fn unban_ip_removes_ban() -> Result<()> {
@@ -311,13 +279,11 @@ async fn unban_ip_removes_ban() -> Result<()> {
     let test_ip = "192.168.100.7";
     cleanup_test_ip(&repo, test_ip).await;
 
-    // Ban first
     let params = BanIpParams::new(test_ip, "To be unbanned", BanDuration::Hours(1), "integration_test");
     repo.ban_ip(params).await?;
 
     assert!(repo.is_banned(test_ip).await?);
 
-    // Unban
     let removed = repo.unban_ip(test_ip).await?;
     assert!(removed);
 
@@ -345,10 +311,6 @@ async fn unban_ip_returns_false_for_nonexistent() -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// BannedIpRepository::get_ban Tests
-// ============================================================================
-
 #[tokio::test]
 async fn get_ban_returns_none_for_unbanned() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -368,10 +330,6 @@ async fn get_ban_returns_none_for_unbanned() -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// BannedIpRepository::list_active_bans Tests
-// ============================================================================
-
 #[tokio::test]
 async fn list_active_bans_returns_active_bans() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -385,7 +343,6 @@ async fn list_active_bans_returns_active_bans() -> Result<()> {
     let test_ip = "192.168.100.8";
     cleanup_test_ip(&repo, test_ip).await;
 
-    // Create a ban
     let params = BanIpParams::new(test_ip, "List test", BanDuration::Hours(1), "integration_test");
     repo.ban_ip(params).await?;
 
@@ -393,15 +350,10 @@ async fn list_active_bans_returns_active_bans() -> Result<()> {
     let found = bans.iter().any(|b| b.ip_address == test_ip);
     assert!(found);
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
 }
-
-// ============================================================================
-// BannedIpRepository::list_bans_by_source Tests
-// ============================================================================
 
 #[tokio::test]
 async fn list_bans_by_source_filters_correctly() -> Result<()> {
@@ -417,7 +369,6 @@ async fn list_bans_by_source_filters_correctly() -> Result<()> {
     let unique_source = "unique_integration_test_source";
     cleanup_test_ip(&repo, test_ip).await;
 
-    // Create a ban with unique source
     let params = BanIpParams::new(test_ip, "Source test", BanDuration::Hours(1), unique_source);
     repo.ban_ip(params).await?;
 
@@ -425,15 +376,10 @@ async fn list_bans_by_source_filters_correctly() -> Result<()> {
     assert!(!bans.is_empty());
     assert!(bans.iter().all(|b| b.ban_source.as_deref() == Some(unique_source)));
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
 }
-
-// ============================================================================
-// BannedIpRepository::list_bans_by_fingerprint Tests
-// ============================================================================
 
 #[tokio::test]
 async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
@@ -449,7 +395,6 @@ async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
     let unique_fp = "unique_test_fingerprint_xyz";
     cleanup_test_ip(&repo, test_ip).await;
 
-    // Create a ban with unique fingerprint
     let params = BanIpParams::new(test_ip, "FP test", BanDuration::Hours(1), "integration_test")
         .with_source_fingerprint(unique_fp);
     repo.ban_ip(params).await?;
@@ -458,15 +403,10 @@ async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
     assert!(!bans.is_empty());
     assert!(bans.iter().all(|b| b.source_fingerprint.as_deref() == Some(unique_fp)));
 
-    // Cleanup
     cleanup_test_ip(&repo, test_ip).await;
 
     Ok(())
 }
-
-// ============================================================================
-// BannedIpRepository::count_active_bans Tests
-// ============================================================================
 
 #[tokio::test]
 async fn count_active_bans_returns_count() -> Result<()> {
@@ -484,10 +424,6 @@ async fn count_active_bans_returns_count() -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// BannedIpRepository::cleanup_expired Tests
-// ============================================================================
-
 #[tokio::test]
 async fn cleanup_expired_runs_without_error() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -498,7 +434,6 @@ async fn cleanup_expired_runs_without_error() -> Result<()> {
     let db_pool = db.as_pool()?;
     let repo = BannedIpRepository::new(&db_pool)?;
 
-    // Just verify the method runs without error
     let deleted = repo.cleanup_expired().await?;
     assert!(deleted >= 0);
 

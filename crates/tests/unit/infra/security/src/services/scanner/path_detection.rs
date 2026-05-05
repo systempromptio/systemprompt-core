@@ -2,10 +2,6 @@
 
 use systemprompt_security::ScannerDetector;
 
-// ============================================================================
-// Scanner Path Detection - Extension Tests
-// ============================================================================
-
 #[test]
 fn test_is_scanner_path_php_extension() {
     assert!(ScannerDetector::is_scanner_path("/admin.php"));
@@ -63,10 +59,6 @@ fn test_is_scanner_path_htm_extension() {
     assert!(ScannerDetector::is_scanner_path("/page.htm"));
     assert!(ScannerDetector::is_scanner_path("/index.HTM"));
 }
-
-// ============================================================================
-// Scanner Path Detection - Directory Tests
-// ============================================================================
 
 #[test]
 fn test_is_scanner_path_admin_directory() {
@@ -161,10 +153,6 @@ fn test_is_scanner_path_identity() {
 fn test_is_scanner_path_login_htm() {
     assert!(ScannerDetector::is_scanner_path("/login.htm"));
 }
-
-// ============================================================================
-// Scanner Path Detection - Legitimate Paths
-// ============================================================================
 
 #[test]
 fn test_is_scanner_path_legitimate_paths() {

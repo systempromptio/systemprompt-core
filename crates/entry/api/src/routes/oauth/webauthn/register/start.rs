@@ -47,7 +47,6 @@ impl StartRegisterQuery {
     }
 }
 
-// reason: webauthn-rs proc-macros generate fully-qualified paths in expansion
 #[allow(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(username = %params.username, email = %params.email))]
 pub async fn start_register(

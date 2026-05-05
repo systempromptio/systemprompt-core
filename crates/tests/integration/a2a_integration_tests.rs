@@ -111,11 +111,9 @@ impl A2ATestContext {
 
         let body: serde_json::Value = response.json().await?;
 
-        // Response is wrapped in a "data" field containing an array
         let agents: Vec<AgentInfo> = serde_json::from_value(body["data"].clone())
             .map_err(|e| anyhow::anyhow!("Failed to parse agent registry: {}", e))?;
 
-        // Get first agent available (prefer edward, then admin, then any)
         let agent = agents
             .iter()
             .find(|a| a.name == "edward")
@@ -124,7 +122,6 @@ impl A2ATestContext {
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("No available agents found in registry"))?;
 
-        // Set ID to name if not present
         let mut agent = agent;
         if agent.id.is_empty() {
             agent.id = agent.name.clone();
@@ -355,7 +352,6 @@ impl A2ATestContext {
 
         let response_text = response.text().await?;
 
-        // Handle empty response (streaming might return empty body)
         if response_text.is_empty() || response_text.trim().is_empty() {
             return Ok(A2aTask {
                 id: message_id.clone(),
@@ -371,8 +367,6 @@ impl A2ATestContext {
             });
         }
 
-        // Parse SSE format (Server-Sent Events): "data: {...}\ndata: {...}"
-        // Get the last data event which should be the final task response
         let last_data_line = response_text
             .lines()
             .rev()

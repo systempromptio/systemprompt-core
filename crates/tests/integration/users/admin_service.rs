@@ -14,10 +14,6 @@ async fn get_db() -> Option<Database> {
     Database::new_postgres(&database_url).await.ok()
 }
 
-// ============================================================================
-// UserAdminService::find_user Tests
-// ============================================================================
-
 #[tokio::test]
 async fn admin_find_user_by_email() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -116,10 +112,6 @@ async fn admin_find_user_returns_none_for_nonexistent() -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// UserAdminService::promote_to_admin Tests
-// ============================================================================
-
 #[tokio::test]
 async fn admin_promote_user_to_admin() -> Result<()> {
     let Some(db) = get_db().await else {
@@ -203,10 +195,6 @@ async fn admin_promote_nonexistent_returns_not_found() -> Result<()> {
 
     Ok(())
 }
-
-// ============================================================================
-// UserAdminService::demote_from_admin Tests
-// ============================================================================
 
 #[tokio::test]
 async fn admin_demote_user_from_admin() -> Result<()> {

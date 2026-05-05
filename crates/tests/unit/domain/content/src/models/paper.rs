@@ -6,10 +6,6 @@
 
 use systemprompt_content::models::{PaperMetadata, PaperSection};
 
-// ============================================================================
-// PaperSection Tests
-// ============================================================================
-
 #[test]
 fn test_paper_section_default() {
     let section = PaperSection::default();
@@ -18,8 +14,6 @@ fn test_paper_section_default() {
     assert!(section.file.is_none());
     assert!(section.image.is_none());
     assert!(section.image_alt.is_none());
-    // Note: Default derive uses String::default() (empty),
-    // while serde's default_image_position is only used during deserialization
     assert!(section.image_position.is_empty());
 }
 
@@ -94,10 +88,6 @@ fn test_paper_section_clone() {
     assert_eq!(cloned.image_alt, section.image_alt);
     assert_eq!(cloned.image_position, section.image_position);
 }
-
-// ============================================================================
-// PaperMetadata Tests
-// ============================================================================
 
 #[test]
 fn test_paper_metadata_default() {

@@ -25,7 +25,6 @@ mod parse_database_datetime_tests {
         let result = parse_database_datetime(&value);
 
         let dt = result.expect("should parse datetime");
-        // Should be converted to UTC (15:45 +05:00 = 10:45 UTC)
         assert_eq!(dt.hour(), 10);
         assert_eq!(dt.minute(), 45);
     }

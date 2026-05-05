@@ -12,10 +12,6 @@ use systemprompt_agent::{
     AgentError, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError,
 };
 
-// ============================================================================
-// RowParseError Tests
-// ============================================================================
-
 #[test]
 fn test_row_parse_error_missing_field_display() {
     let error = RowParseError::MissingField {
@@ -42,10 +38,6 @@ fn test_row_parse_error_debug() {
     let debug_str = format!("{:?}", error);
     assert!(debug_str.contains("MissingField"));
 }
-
-// ============================================================================
-// TaskError Tests
-// ============================================================================
 
 #[test]
 fn test_task_error_missing_task_uuid_display() {
@@ -136,10 +128,6 @@ fn test_task_error_missing_created_timestamp_display() {
     assert_eq!(error.to_string(), "Created timestamp missing from database");
 }
 
-// ============================================================================
-// ContextError Tests
-// ============================================================================
-
 #[test]
 fn test_context_error_missing_uuid_display() {
     let error = ContextError::MissingUuid;
@@ -177,10 +165,6 @@ fn test_context_error_from_row_parse_invalid_datetime() {
     assert!(context_error.to_string().contains("updated_at"));
     assert!(context_error.to_string().contains("Invalid datetime"));
 }
-
-// ============================================================================
-// ArtifactError Tests
-// ============================================================================
 
 #[test]
 fn test_artifact_error_missing_uuid_display() {
@@ -238,10 +222,6 @@ fn test_artifact_error_metadata_validation_display() {
     assert!(error.to_string().contains("Invalid schema"));
 }
 
-// ============================================================================
-// ProtocolError Tests
-// ============================================================================
-
 #[test]
 fn test_protocol_error_missing_tool_name_display() {
     let error = ProtocolError::MissingToolName;
@@ -279,10 +259,6 @@ fn test_protocol_error_validation_failed_display() {
     assert!(error.to_string().contains("Invalid message format"));
 }
 
-// ============================================================================
-// AgentError Tests
-// ============================================================================
-
 #[test]
 fn test_agent_error_database_display() {
     let error = AgentError::Database("Connection failed".to_string());
@@ -317,10 +293,6 @@ fn test_agent_error_protocol_display() {
     let agent_error: AgentError = protocol_error.into();
     assert!(agent_error.to_string().contains("A2A protocol error"));
 }
-
-// ============================================================================
-// Error Debug Implementation Tests
-// ============================================================================
 
 #[test]
 fn test_task_error_debug() {

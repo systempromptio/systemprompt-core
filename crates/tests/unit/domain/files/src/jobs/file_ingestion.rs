@@ -3,10 +3,6 @@
 use systemprompt_files::FileIngestionJob;
 use systemprompt_traits::Job;
 
-// ============================================================================
-// FileIngestionJob Construction Tests
-// ============================================================================
-
 #[test]
 fn test_file_ingestion_job_new() {
     let job = FileIngestionJob::new();
@@ -18,10 +14,6 @@ fn test_file_ingestion_job_default() {
     let job = FileIngestionJob::default();
     assert_eq!(job.name(), "file_ingestion");
 }
-
-// ============================================================================
-// Job Trait Implementation Tests
-// ============================================================================
 
 #[test]
 fn test_file_ingestion_job_name() {
@@ -61,14 +53,6 @@ fn test_file_ingestion_job_enabled() {
     let job = FileIngestionJob::new();
     assert!(job.enabled());
 }
-
-// ============================================================================
-// Copy/Clone Tests
-// ============================================================================
-
-// ============================================================================
-// Debug Implementation Tests
-// ============================================================================
 
 #[test]
 fn test_file_ingestion_job_debug() {

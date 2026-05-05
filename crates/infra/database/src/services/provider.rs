@@ -71,8 +71,6 @@ pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
     ) -> DatabaseResult<QueryResult>;
 }
 
-// reason: provider trait is generic-only (never used as `dyn`); native async fn
-// avoids `async_trait` overhead
 #[allow(async_fn_in_trait)]
 pub trait DatabaseProviderExt {
     async fn fetch_typed_optional<T: FromDatabaseRow>(

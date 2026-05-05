@@ -15,10 +15,6 @@ fn create_test_stats() -> ToolStats {
     }
 }
 
-// ============================================================================
-// ToolStats Field Access Tests
-// ============================================================================
-
 #[test]
 fn test_tool_stats_fields() {
     let stats = create_test_stats();
@@ -81,10 +77,6 @@ fn test_tool_stats_all_errors() {
     assert_eq!(stats.error_count, 10);
 }
 
-// ============================================================================
-// ToolStats Clone Tests
-// ============================================================================
-
 #[test]
 fn test_tool_stats_clone() {
     let stats = create_test_stats();
@@ -96,10 +88,6 @@ fn test_tool_stats_clone() {
     assert_eq!(stats.avg_duration_ms, cloned.avg_duration_ms);
 }
 
-// ============================================================================
-// ToolStats Debug Tests
-// ============================================================================
-
 #[test]
 fn test_tool_stats_debug() {
     let stats = create_test_stats();
@@ -109,10 +97,6 @@ fn test_tool_stats_debug() {
     assert!(debug_str.contains("search"));
     assert!(debug_str.contains("api-server"));
 }
-
-// ============================================================================
-// ToolStats Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_tool_stats_serialize() {

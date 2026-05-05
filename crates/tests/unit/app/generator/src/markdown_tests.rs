@@ -2,16 +2,11 @@
 
 use systemprompt_generator::{extract_frontmatter, render_markdown};
 
-// =============================================================================
-// render_markdown tests
-// =============================================================================
-
 #[test]
 fn test_render_markdown() {
     let markdown = "# Hello World\n\nThis is a paragraph.";
     let html = render_markdown(markdown);
 
-    // The first H1 should be stripped
     assert!(!html.contains("<h1>"));
     assert!(html.contains("<p>This is a paragraph.</p>"));
 }
@@ -21,7 +16,6 @@ fn test_render_markdown_preserves_subsequent_headings() {
     let markdown = "# First Heading\n\n## Second Heading\n\nContent here.";
     let html = render_markdown(markdown);
 
-    // First H1 should be stripped, but H2 should remain
     assert!(!html.contains("<h1>"));
     assert!(html.contains("<h2>"));
     assert!(html.contains("Second Heading"));
@@ -165,14 +159,9 @@ fn test_markdown_only_heading() {
     let markdown = "# Just a heading";
     let html = render_markdown(markdown);
 
-    // The H1 should be stripped
     assert!(!html.contains("<h1>"));
     assert!(html.trim().is_empty() || !html.contains("Just a heading"));
 }
-
-// =============================================================================
-// extract_frontmatter tests
-// =============================================================================
 
 #[test]
 fn test_extract_frontmatter() {

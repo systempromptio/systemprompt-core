@@ -6,10 +6,6 @@
 
 use systemprompt_agent::services::shared::error::AgentServiceError;
 
-// ============================================================================
-// AgentServiceError Variant Tests
-// ============================================================================
-
 #[test]
 fn test_agent_service_error_database() {
     let error = AgentServiceError::Database("Connection refused".to_string());
@@ -113,10 +109,6 @@ fn test_agent_service_error_capacity() {
     assert!(error.to_string().contains("Connection pool exhausted"));
 }
 
-// ============================================================================
-// Error Debug Tests
-// ============================================================================
-
 #[test]
 fn test_agent_service_error_debug_database() {
     let error = AgentServiceError::Database("test".to_string());
@@ -140,10 +132,6 @@ fn test_agent_service_error_debug_timeout() {
     assert!(debug_str.contains("Timeout"));
     assert!(debug_str.contains("5000"));
 }
-
-// ============================================================================
-// Error Type Matching Tests
-// ============================================================================
 
 #[test]
 fn test_agent_service_error_match_database() {
@@ -172,10 +160,6 @@ fn test_agent_service_error_match_timeout() {
     }
 }
 
-// ============================================================================
-// Result Type Tests
-// ============================================================================
-
 #[test]
 fn test_result_ok() {
     let result: systemprompt_agent::services::shared::error::Result<i32> = Ok(42);
@@ -188,10 +172,6 @@ fn test_result_err() {
         Err(AgentServiceError::NotFound("item".to_string()));
     result.unwrap_err();
 }
-
-// ============================================================================
-// Error Message Formatting Tests
-// ============================================================================
 
 #[test]
 fn test_error_message_includes_context() {

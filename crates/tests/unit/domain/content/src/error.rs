@@ -6,10 +6,6 @@
 
 use systemprompt_content::ContentError;
 
-// ============================================================================
-// ContentError Display Tests
-// ============================================================================
-
 #[test]
 fn test_content_error_database_not_postgres() {
     let error = ContentError::DatabaseNotPostgres;
@@ -56,10 +52,6 @@ fn test_content_error_parse() {
     assert!(msg.contains("Invalid date format"));
 }
 
-// ============================================================================
-// ContentError Debug Tests
-// ============================================================================
-
 #[test]
 fn test_content_error_debug_database_not_postgres() {
     let error = ContentError::DatabaseNotPostgres;
@@ -81,10 +73,6 @@ fn test_content_error_debug_validation() {
     let debug = format!("{:?}", error);
     assert!(debug.contains("Validation"));
 }
-
-// ============================================================================
-// ContentError Serialization From Conversions
-// ============================================================================
 
 #[test]
 fn test_content_error_from_serde_json() {
@@ -114,10 +102,6 @@ fn test_content_error_from_yaml() {
     let msg = content_error.to_string();
     assert!(msg.contains("YAML parse error"));
 }
-
-// ============================================================================
-// ContentError Edge Cases
-// ============================================================================
 
 #[test]
 fn test_content_error_empty_message() {
@@ -155,10 +139,6 @@ fn test_content_error_newlines() {
     let msg = error.to_string();
     assert!(msg.contains('\n'));
 }
-
-// ============================================================================
-// ContentError Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_content_error_matching() {

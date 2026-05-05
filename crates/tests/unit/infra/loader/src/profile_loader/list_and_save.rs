@@ -61,10 +61,6 @@ runtime:
     .to_string()
 }
 
-// ============================================================================
-// List Available Tests
-// ============================================================================
-
 #[test]
 fn test_list_available_empty() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -85,7 +81,6 @@ fn test_list_available_with_profiles() {
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
-    // Create profile files
     std::fs::write(
         profiles_dir.join("dev.secrets.profile.yaml"),
         create_valid_profile_yaml(),
@@ -115,14 +110,12 @@ fn test_list_available_ignores_other_files() {
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
-    // Create valid profile file
     std::fs::write(
         profiles_dir.join("dev.secrets.profile.yaml"),
         create_valid_profile_yaml(),
     )
     .expect("Failed to write profile");
 
-    // Create other files that should be ignored
     std::fs::write(profiles_dir.join("config.yaml"), "key: value").expect("Failed to write config");
     std::fs::write(profiles_dir.join("README.md"), "# Profiles").expect("Failed to write readme");
     std::fs::write(profiles_dir.join("dev.backup.yaml"), "backup: true")
@@ -133,15 +126,10 @@ fn test_list_available_ignores_other_files() {
     assert_eq!(profiles[0], "dev");
 }
 
-// ============================================================================
-// Save Tests
-// ============================================================================
-
 #[test]
 fn test_save_profile() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create required directories first
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services"))
@@ -197,22 +185,18 @@ rate_limits:
         temp_dir.path().join("bin").display()
     );
 
-    // Load the profile first
     let profile_path = temp_dir.path().join("original.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
     let profile = ProfileLoader::load_from_path(&profile_path).expect("Failed to load profile");
 
-    // Save to a different location
     ProfileLoader::save(&profile, temp_dir.path()).expect("should save profile");
 
-    // Verify the saved file exists
     let saved_path = temp_dir
         .path()
         .join("profiles")
         .join("save-test.secrets.profile.yaml");
     assert!(saved_path.exists());
 
-    // Verify the saved content includes the warning header
     let saved_content = std::fs::read_to_string(&saved_path).expect("Failed to read saved file");
     assert!(saved_content.contains("WARNING"));
     assert!(saved_content.contains("DO NOT commit"));
@@ -222,7 +206,6 @@ rate_limits:
 fn test_save_creates_profiles_directory() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
     std::fs::create_dir_all(temp_dir.path().join("services"))
         .expect("Failed to create services dir");
@@ -282,12 +265,10 @@ rate_limits:
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
     let profile = ProfileLoader::load_from_path(&profile_path).expect("Failed to load profile");
 
-    // profiles directory doesn't exist yet
     assert!(!temp_dir.path().join("profiles").exists());
 
     ProfileLoader::save(&profile, temp_dir.path())
         .expect("should save profile and create directory");
 
-    // Now it should exist
     assert!(temp_dir.path().join("profiles").exists());
 }

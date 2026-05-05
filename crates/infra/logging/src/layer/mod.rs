@@ -76,9 +76,6 @@ impl DatabaseLayer {
 
     async fn flush(db_pool: &DbPool, buffer: &mut Vec<LogEntry>) {
         if let Err(e) = Self::batch_insert(db_pool, buffer).await {
-            // Why: stderr sink for the database log flush — if writing to stderr ALSO fails
-            // we have nowhere left to report; recursing into tracing IS the failure mode we
-            // are avoiding.
             writeln!(
                 std::io::stderr(),
                 "DATABASE LOG FLUSH FAILED ({} entries lost): {e}",
@@ -138,12 +135,8 @@ impl DatabaseLayer {
 impl DatabaseLayer {
     fn send_entry(&self, entry: LogEntry) {
         let is_error = entry.level == LogLevel::Error;
-        // Why: a closed mpsc channel means the batch_writer task has exited (process
-        // shutdown). The tracing layer must never panic or recurse; dropping the entry
-        // is the contract.
         self.sender.send(LogCommand::Entry(Box::new(entry))).ok();
         if is_error {
-            // Why: flush-now signal is best-effort during shutdown — see comment above.
             self.sender.send(LogCommand::FlushNow).ok();
         }
     }

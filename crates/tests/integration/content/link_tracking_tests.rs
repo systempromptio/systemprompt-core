@@ -58,7 +58,6 @@ async fn test_link_redirect() -> Result<()> {
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
 
-    // First, generate a link
     let gen_response = client
         .post(format!("{}/api/v1/content/links/generate", ctx.base_url))
         .json(&json!({
@@ -72,7 +71,6 @@ async fn test_link_redirect() -> Result<()> {
     let gen_json: serde_json::Value = gen_response.json().await?;
     let short_code = gen_json["short_code"].as_str().unwrap();
 
-    // Test redirect
     let redirect_response = client
         .get(format!("{}/r/{}", ctx.base_url, short_code))
         .send()
@@ -103,7 +101,6 @@ async fn test_link_performance() -> Result<()> {
     let ctx = TestContext::new().await?;
     let client = reqwest::Client::new();
 
-    // Generate a link
     let gen_response = client
         .post(format!("{}/api/v1/content/links/generate", ctx.base_url))
         .json(&json!({
@@ -118,7 +115,6 @@ async fn test_link_performance() -> Result<()> {
     let gen_json: serde_json::Value = gen_response.json().await?;
     let link_id = gen_json["link_id"].as_str().unwrap();
 
-    // Get performance metrics
     let perf_response = client
         .get(format!(
             "{}/api/v1/content/links/{}/performance",
@@ -155,7 +151,6 @@ async fn test_campaign_performance() -> Result<()> {
 
     let campaign_id = "TEST_CAMPAIGN_ANALYTICS";
 
-    // Generate multiple links for the campaign
     for i in 0..3 {
         client
             .post(format!("{}/api/v1/content/links/generate", ctx.base_url))
@@ -169,7 +164,6 @@ async fn test_campaign_performance() -> Result<()> {
             .await?;
     }
 
-    // Get campaign performance
     let response = client
         .get(format!(
             "{}/api/v1/content/links/campaigns/{}/performance",
@@ -193,7 +187,6 @@ async fn test_content_journey() -> Result<()> {
     let ctx = TestContext::new().await?;
     let client = reqwest::Client::new();
 
-    // Generate internal navigation links
     client
         .post(format!("{}/api/v1/content/links/generate", ctx.base_url))
         .json(&json!({
@@ -209,7 +202,6 @@ async fn test_content_journey() -> Result<()> {
         .send()
         .await?;
 
-    // Get journey map
     let response = client
         .get(format!(
             "{}/api/v1/content/links/journey?limit=50",
@@ -285,14 +277,12 @@ async fn test_null_timestamp_binding_regression() -> Result<()> {
     let ctx = TestContext::new().await?;
     let client = reqwest::Client::new();
 
-    // Generate link WITHOUT expires_at (NULL timestamp)
     let response = client
         .post(format!("{}/api/v1/content/links/generate", ctx.base_url))
         .json(&json!({
             "target_url": "https://example.com/null-test",
             "link_type": "both",
             "campaign_name": "NULL_REGRESSION_TEST"
-            // Deliberately omitting expires_at to test NULL binding
         }))
         .send()
         .await?;
@@ -301,7 +291,6 @@ async fn test_null_timestamp_binding_regression() -> Result<()> {
     let body = response.text().await?;
     println!("Response body: {}", body);
 
-    // Should succeed (previously failed with "incorrect binary data format")
     let json: serde_json::Value = serde_json::from_str(&body)?;
 
     let link_id = json["link_id"]
@@ -324,14 +313,12 @@ async fn test_null_timestamp_binding_regression() -> Result<()> {
 
     let link_row = row.expect("Link should exist in database");
 
-    // Verify expires_at is NULL in database
     let expires_at = link_row.get("expires_at");
     assert!(
         expires_at.is_none() || expires_at == Some(&serde_json::Value::Null),
         "expires_at should be NULL in database"
     );
 
-    // Verify redirect still works with NULL timestamp
     let redirect_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()?;

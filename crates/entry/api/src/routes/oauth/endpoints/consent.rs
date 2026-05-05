@@ -60,8 +60,6 @@ pub struct ConsentRequest {
     pub decision: String,
 }
 
-// reason: Axum handler signature requires `async fn` even when the body has no
-// await points
 #[allow(clippy::unused_async)]
 pub async fn handle_consent_post(Json(decision): Json<ConsentRequest>) -> impl IntoResponse {
     let response = process_consent_decision(&decision);

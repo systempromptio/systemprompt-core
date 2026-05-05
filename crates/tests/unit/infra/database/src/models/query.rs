@@ -3,10 +3,6 @@
 use std::collections::HashMap;
 use systemprompt_database::{DatabaseQuery, QueryResult, QuerySelector};
 
-// ============================================================================
-// DatabaseQuery Tests
-// ============================================================================
-
 #[test]
 fn test_database_query_new() {
     const QUERY: DatabaseQuery = DatabaseQuery::new("SELECT * FROM users");
@@ -44,10 +40,6 @@ fn test_database_query_debug() {
     assert!(debug.contains("DatabaseQuery"));
 }
 
-// ============================================================================
-// QuerySelector Trait Tests
-// ============================================================================
-
 #[test]
 fn test_query_selector_for_str() {
     let query: &str = "SELECT * FROM users";
@@ -77,10 +69,6 @@ fn test_query_selector_whitespace() {
     let query = "   SELECT * FROM users   ";
     assert_eq!(query.select_query(), "   SELECT * FROM users   ");
 }
-
-// ============================================================================
-// QueryResult Tests
-// ============================================================================
 
 #[test]
 fn test_query_result_new() {

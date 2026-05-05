@@ -7,10 +7,6 @@ use systemprompt_extension::typed::{
     SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
 };
 
-// =============================================================================
-// SchemaSourceTyped Tests
-// =============================================================================
-
 #[test]
 fn test_schema_source_typed_embedded() {
     let source = SchemaSourceTyped::Embedded("CREATE TABLE test (id INT)".to_string());
@@ -53,10 +49,6 @@ fn test_schema_source_typed_serialize() {
     let json = serde_json::to_string(&embedded).expect("should serialize");
     assert!(json.contains("SELECT * FROM t"));
 }
-
-// =============================================================================
-// SchemaDefinitionTyped Tests
-// =============================================================================
 
 #[test]
 fn test_schema_definition_typed_embedded() {
@@ -128,10 +120,6 @@ fn test_schema_definition_typed_serialize() {
     assert!(json.contains("CREATE TABLE ser_table"));
 }
 
-// =============================================================================
-// SchemaExtensionTyped Trait Tests
-// =============================================================================
-
 #[derive(Default, Debug)]
 struct TestSchemaExtension;
 
@@ -174,7 +162,6 @@ impl SchemaExtensionTyped for DefaultWeightExtension {
             "CREATE TABLE default_table ()",
         )]
     }
-    // Uses default migration_weight() = 100
 }
 
 #[test]
@@ -203,15 +190,10 @@ fn test_schema_extension_typed_default_migration_weight() {
 fn test_schema_extension_typed_metadata() {
     let ext = TestSchemaExtension;
 
-    // ExtensionMeta is auto-implemented for ExtensionType
     assert_eq!(ext.id(), "test-schema");
     assert_eq!(ext.name(), "Test Schema Extension");
     assert_eq!(ext.version(), "1.0.0");
 }
-
-// =============================================================================
-// Multiple Schema Extensions Tests
-// =============================================================================
 
 #[derive(Default, Debug)]
 struct LowPrioritySchemaExt;
@@ -268,7 +250,6 @@ fn test_schema_extension_ordering_by_weight() {
 
     let extensions: Vec<&dyn SchemaExtensionTyped> = vec![&high, &low];
 
-    // Sort by migration weight
     let mut sorted: Vec<_> = extensions.iter().collect();
     sorted.sort_by_key(|e| e.migration_weight());
 

@@ -10,10 +10,6 @@
 
 use systemprompt_cli::shared::ProfileResolutionError;
 
-// ============================================================================
-// ProfileResolutionError Tests
-// ============================================================================
-
 #[test]
 fn test_profile_resolution_error_no_profiles_found_display() {
     let error = ProfileResolutionError::NoProfilesFound;
@@ -63,11 +59,6 @@ fn test_profile_resolution_error_discovery_failed_debug() {
     let debug = format!("{:?}", error);
     assert!(debug.contains("DiscoveryFailed"));
 }
-
-// ============================================================================
-// generate_display_name Tests (via module behavior)
-// Note: This tests the expected display name behavior documented in the code
-// ============================================================================
 
 fn expected_display_name(input: &str) -> String {
     match input.to_lowercase().as_str() {
@@ -144,10 +135,6 @@ fn test_expected_display_name_empty() {
     assert_eq!(expected_display_name(""), "");
 }
 
-// ============================================================================
-// capitalize_first behavior tests
-// ============================================================================
-
 fn capitalize_first_ref(name: &str) -> String {
     let mut chars = name.chars();
     chars
@@ -190,10 +177,6 @@ fn test_capitalize_first_with_numbers() {
 fn test_capitalize_first_with_underscore() {
     assert_eq!(capitalize_first_ref("_test"), "_test");
 }
-
-// ============================================================================
-// JWT Secret Generation Tests (testing expected behavior)
-// ============================================================================
 
 #[test]
 fn test_jwt_secret_generation_expected_length() {
@@ -241,10 +224,6 @@ fn test_jwt_secret_generation_uniqueness() {
 
     assert_eq!(secrets.len(), 100, "All 100 secrets should be unique");
 }
-
-// ============================================================================
-// Error Chain Tests
-// ============================================================================
 
 #[test]
 fn test_profile_resolution_error_source_none_for_no_profiles() {

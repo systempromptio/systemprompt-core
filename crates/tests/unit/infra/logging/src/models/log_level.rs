@@ -2,10 +2,6 @@
 
 use systemprompt_logging::LogLevel;
 
-// ============================================================================
-// LogLevel Display Tests
-// ============================================================================
-
 #[test]
 fn test_log_level_display_error() {
     assert_eq!(LogLevel::Error.to_string(), "ERROR");
@@ -31,10 +27,6 @@ fn test_log_level_display_trace() {
     assert_eq!(LogLevel::Trace.to_string(), "TRACE");
 }
 
-// ============================================================================
-// LogLevel as_str Tests
-// ============================================================================
-
 #[test]
 fn test_log_level_as_str_error() {
     assert_eq!(LogLevel::Error.as_str(), "ERROR");
@@ -59,10 +51,6 @@ fn test_log_level_as_str_debug() {
 fn test_log_level_as_str_trace() {
     assert_eq!(LogLevel::Trace.as_str(), "TRACE");
 }
-
-// ============================================================================
-// LogLevel FromStr Tests
-// ============================================================================
 
 #[test]
 fn test_log_level_from_str_error() {
@@ -107,10 +95,6 @@ fn test_log_level_from_str_invalid() {
     "err".parse::<LogLevel>().unwrap_err();
 }
 
-// ============================================================================
-// LogLevel Equality and Clone Tests
-// ============================================================================
-
 #[test]
 fn test_log_level_equality() {
     assert_eq!(LogLevel::Error, LogLevel::Error);
@@ -140,10 +124,6 @@ fn test_log_level_clone() {
     let cloned = level.clone();
     assert_eq!(level, cloned);
 }
-
-// ============================================================================
-// LogLevel Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_log_level_serialize_error() {

@@ -94,7 +94,6 @@ mod mcp_error_data_tests {
         let err = McpErrorData::new(200, "OK");
         let json = serde_json::to_string(&err).unwrap();
 
-        // data field should be omitted when None
         assert!(!json.contains("data"));
     }
 }

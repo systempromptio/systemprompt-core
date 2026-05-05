@@ -4,10 +4,6 @@ use systemprompt_content::models::CampaignLink;
 use systemprompt_content::services::LinkGenerationService;
 use systemprompt_identifiers::LinkId;
 
-// ============================================================================
-// build_trackable_url Tests
-// ============================================================================
-
 #[test]
 fn test_build_trackable_url_redirect_type() {
     let link = CampaignLink {
@@ -123,10 +119,6 @@ fn test_build_trackable_url_unknown_type() {
     let result = LinkGenerationService::build_trackable_url(&link, base_url);
     assert_eq!(result, "https://example.com/unknown");
 }
-
-// ============================================================================
-// LinkType Behavior Tests
-// ============================================================================
 
 #[test]
 fn test_link_type_redirect_in_trackable_url() {

@@ -2,10 +2,6 @@
 
 use systemprompt_logging::{LogEntry, LogLevel};
 
-// ============================================================================
-// LogEntry Creation Tests
-// ============================================================================
-
 #[test]
 fn test_log_entry_new() {
     let entry = LogEntry::new(LogLevel::Info, "test_module", "Test message");
@@ -36,7 +32,6 @@ fn test_log_entry_has_generated_id() {
     let entry1 = LogEntry::new(LogLevel::Info, "module", "message");
     let entry2 = LogEntry::new(LogLevel::Info, "module", "message");
 
-    // IDs should be unique
     assert_ne!(entry1.id.as_str(), entry2.id.as_str());
 }
 
@@ -49,10 +44,6 @@ fn test_log_entry_has_timestamp() {
     assert!(entry.timestamp >= before);
     assert!(entry.timestamp <= after);
 }
-
-// ============================================================================
-// LogEntry Builder Pattern Tests
-// ============================================================================
 
 #[test]
 fn test_log_entry_with_metadata() {
@@ -132,10 +123,6 @@ fn test_log_entry_builder_chaining() {
     assert_eq!(entry.metadata, Some(metadata));
 }
 
-// ============================================================================
-// LogEntry Validation Tests
-// ============================================================================
-
 #[test]
 fn test_log_entry_validate_valid() {
     let entry = LogEntry::new(LogLevel::Info, "module", "message");
@@ -196,10 +183,6 @@ fn test_log_entry_validate_with_boolean_metadata() {
     entry.validate().unwrap_err();
 }
 
-// ============================================================================
-// LogEntry Display Tests
-// ============================================================================
-
 #[test]
 fn test_log_entry_display_without_metadata() {
     let entry = LogEntry::new(LogLevel::Info, "test_module", "Test message");
@@ -252,10 +235,6 @@ fn test_log_entry_display_all_levels() {
     );
 }
 
-// ============================================================================
-// LogEntry Clone and Debug Tests
-// ============================================================================
-
 #[test]
 fn test_log_entry_clone() {
     let entry = LogEntry::new(LogLevel::Info, "module", "message")
@@ -280,10 +259,6 @@ fn test_log_entry_debug() {
     assert!(debug.contains("debug_message"));
 }
 
-// ============================================================================
-// LogEntry Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_log_entry_serialize() {
     let entry = LogEntry::new(LogLevel::Info, "module", "message");
@@ -307,10 +282,6 @@ fn test_log_entry_roundtrip() {
     assert_eq!(parsed.message, entry.message);
     assert_eq!(parsed.metadata, entry.metadata);
 }
-
-// ============================================================================
-// LogEntry Default IDs Tests
-// ============================================================================
 
 #[test]
 fn test_log_entry_default_user_id_is_system() {

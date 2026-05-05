@@ -22,10 +22,6 @@ use std::path::{Path, PathBuf};
 use systemprompt_cli::shared::project::{ProjectError, ProjectRoot};
 use tempfile::TempDir;
 
-// ============================================================================
-// ProjectError Tests
-// ============================================================================
-
 #[test]
 fn test_project_error_not_found_display() {
     let error = ProjectError::ProjectNotFound {
@@ -67,15 +63,10 @@ fn test_project_error_path_resolution_source() {
         source: io_error,
     };
 
-    // Check that error chain is preserved
     use std::error::Error;
     let source = error.source();
     source.expect("source should be present");
 }
-
-// ============================================================================
-// ProjectRoot Construction Tests (using temp directories)
-// ============================================================================
 
 fn create_project_dir() -> TempDir {
     let temp = TempDir::new().expect("Failed to create temp directory");
@@ -89,9 +80,6 @@ fn test_project_root_as_path() {
     let temp = create_project_dir();
     let _project_path = temp.path().to_path_buf();
 
-    // Create ProjectRoot by discovering in the temp directory
-    // Since we can't directly set current_dir safely in tests,
-    // we test the as_path method by constructing with known paths
     let expected_path = temp.path();
     assert!(expected_path.join(".systemprompt").is_dir());
 }
@@ -101,7 +89,6 @@ fn test_project_root_clone() {
     let temp = create_project_dir();
     let expected_path = temp.path();
 
-    // Verify the temp directory has .systemprompt
     assert!(expected_path.join(".systemprompt").is_dir());
 }
 
@@ -110,23 +97,16 @@ fn test_project_root_debug() {
     let temp = create_project_dir();
     let _expected = temp.path().to_string_lossy();
 
-    // Verify temp dir exists
     assert!(temp.path().exists());
     assert!(temp.path().join(".systemprompt").exists());
 }
-
-// ============================================================================
-// ProjectRoot Discovery - Edge Cases
-// ============================================================================
 
 #[test]
 fn test_systemprompt_directory_must_be_directory() {
     let temp = TempDir::new().expect("Failed to create temp directory");
 
-    // Create .systemprompt as a FILE instead of directory
     std::fs::write(temp.path().join(".systemprompt"), "not a dir").expect("Failed to create file");
 
-    // Verify it's a file, not a directory
     assert!(temp.path().join(".systemprompt").is_file());
     assert!(!temp.path().join(".systemprompt").is_dir());
 }
@@ -135,14 +115,11 @@ fn test_systemprompt_directory_must_be_directory() {
 fn test_nested_project_structure() {
     let temp = TempDir::new().expect("Failed to create temp directory");
 
-    // Create root/.systemprompt
     std::fs::create_dir(temp.path().join(".systemprompt")).expect("Failed to create .systemprompt");
 
-    // Create nested subdirectories
     let nested = temp.path().join("src").join("components").join("auth");
     std::fs::create_dir_all(&nested).expect("Failed to create nested dirs");
 
-    // Verify the structure
     assert!(temp.path().join(".systemprompt").is_dir());
     assert!(nested.exists());
 }
@@ -151,7 +128,6 @@ fn test_nested_project_structure() {
 fn test_no_systemprompt_directory() {
     let temp = TempDir::new().expect("Failed to create temp directory");
 
-    // Verify no .systemprompt directory exists
     assert!(!temp.path().join(".systemprompt").exists());
 }
 
@@ -159,26 +135,19 @@ fn test_no_systemprompt_directory() {
 fn test_hidden_directories_ignored() {
     let temp = TempDir::new().expect("Failed to create temp directory");
 
-    // Create other hidden directories that should be ignored
     std::fs::create_dir(temp.path().join(".git")).expect("Failed to create .git");
     std::fs::create_dir(temp.path().join(".vscode")).expect("Failed to create .vscode");
 
-    // No .systemprompt = not a project
     assert!(!temp.path().join(".systemprompt").exists());
     assert!(temp.path().join(".git").exists());
     assert!(temp.path().join(".vscode").exists());
 }
-
-// ============================================================================
-// ProjectRoot Path Operations
-// ============================================================================
 
 #[test]
 fn test_project_path_join() {
     let temp = create_project_dir();
     let project_path = temp.path();
 
-    // Test path joining operations
     let config_path = project_path.join("config");
     assert_eq!(config_path.parent(), Some(project_path));
 }
@@ -188,7 +157,6 @@ fn test_project_path_components() {
     let temp = create_project_dir();
     let project_path = temp.path();
 
-    // Path should have components
     let components: Vec<_> = project_path.components().collect();
     assert!(!components.is_empty());
 }
@@ -201,10 +169,6 @@ fn test_project_path_display() {
     let display = project_path.display().to_string();
     assert!(!display.is_empty());
 }
-
-// ============================================================================
-// ProjectError Path Contents
-// ============================================================================
 
 #[test]
 fn test_project_error_preserves_path() {
@@ -240,10 +204,6 @@ fn test_project_error_with_unicode_path() {
     assert!(msg.contains("日本語"));
 }
 
-// ============================================================================
-// Path Resolution Error Tests
-// ============================================================================
-
 #[test]
 fn test_path_resolution_error_kinds() {
     let test_cases = [
@@ -259,15 +219,10 @@ fn test_path_resolution_error_kinds() {
             source: io_error,
         };
 
-        // Error should contain path information
         let error_str = error.to_string();
         assert!(error_str.contains("/test"));
     }
 }
-
-// ============================================================================
-// TempDir Cleanup Verification
-// ============================================================================
 
 #[test]
 fn test_temp_dir_cleanup() {
@@ -277,14 +232,7 @@ fn test_temp_dir_cleanup() {
         path = temp.path().to_path_buf();
         assert!(path.exists());
     }
-    // After temp goes out of scope, directory should be cleaned up
-    // Note: This is not guaranteed to be immediate, so we don't assert
-    // !path.exists()
 }
-
-// ============================================================================
-// Project Structure Validation
-// ============================================================================
 
 #[test]
 fn test_valid_project_has_systemprompt_dir() {
@@ -300,7 +248,6 @@ fn test_empty_systemprompt_dir_is_valid() {
     let temp = create_project_dir();
     let systemprompt_dir = temp.path().join(".systemprompt");
 
-    // Empty directory should still be valid
     let entries: Vec<_> = std::fs::read_dir(&systemprompt_dir)
         .expect("Failed to read dir")
         .collect();
@@ -312,7 +259,6 @@ fn test_systemprompt_dir_with_contents() {
     let temp = create_project_dir();
     let systemprompt_dir = temp.path().join(".systemprompt");
 
-    // Add some content to .systemprompt
     std::fs::write(systemprompt_dir.join("config.toml"), "# config")
         .expect("Failed to write config");
 

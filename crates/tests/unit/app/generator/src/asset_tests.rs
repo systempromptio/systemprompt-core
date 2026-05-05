@@ -105,7 +105,6 @@ body {
 ";
 
     let js_content = r"
-// Complex JS
 const config = {
     api: '/api/v1',
     timeout: 5000
@@ -250,7 +249,6 @@ async fn test_organize_dist_assets_unicode_content() {
 "#;
 
     let unicode_js = r#"
-// JS with Unicode
 const greeting = "مرحبا";
 const emoji = "🚀";
 "#;

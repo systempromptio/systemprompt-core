@@ -6,10 +6,6 @@ use systemprompt_logging::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 
-// ============================================================================
-// TraceEvent Tests
-// ============================================================================
-
 #[test]
 fn test_trace_event_creation() {
     let event = TraceEvent {
@@ -90,10 +86,6 @@ fn test_trace_event_serialize() {
     assert!(json.contains("Serialize details"));
 }
 
-// ============================================================================
-// AiRequestSummary Tests
-// ============================================================================
-
 #[test]
 fn test_ai_request_summary_default() {
     let summary = AiRequestSummary::default();
@@ -141,10 +133,6 @@ fn test_ai_request_summary_serialize() {
     assert!(json.contains("500"));
 }
 
-// ============================================================================
-// McpExecutionSummary Tests
-// ============================================================================
-
 #[test]
 fn test_mcp_execution_summary_default() {
     let summary = McpExecutionSummary::default();
@@ -175,10 +163,6 @@ fn test_mcp_execution_summary_serialize() {
     assert!(json.contains("8"));
     assert!(json.contains("4000"));
 }
-
-// ============================================================================
-// ExecutionStepSummary Tests
-// ============================================================================
 
 #[test]
 fn test_execution_step_summary_default() {

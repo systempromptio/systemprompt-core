@@ -245,7 +245,6 @@ mod auto_split_tests {
 
         for transformed in &result {
             let props = transformed.input_schema["properties"].as_object().unwrap();
-            // common_field should be present in all variants
             assert!(
                 props.contains_key("common_field")
                     || props.contains_key("data")
@@ -267,7 +266,6 @@ mod auto_split_tests {
 
         for transformed in &result {
             assert!(transformed.description.contains("Base description"));
-            // Description should include variant info
             assert!(transformed.description.len() > "Base description".len());
         }
     }

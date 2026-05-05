@@ -31,7 +31,6 @@ pub enum AnthropicStreamEvent {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AnthropicMessageInfo {
-    // JSON: external vendor identifier
     pub id: String,
     pub model: String,
     pub role: String,

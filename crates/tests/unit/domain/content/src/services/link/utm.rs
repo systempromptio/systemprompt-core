@@ -3,10 +3,6 @@
 use systemprompt_content::models::UtmParams;
 use systemprompt_content::services::LinkGenerationService;
 
-// ============================================================================
-// inject_utm_params Tests
-// ============================================================================
-
 #[test]
 fn test_inject_utm_params_empty_params() {
     let params = UtmParams {
@@ -107,10 +103,6 @@ fn test_inject_utm_params_url_with_fragment() {
     assert!(result.contains("utm_source=email"));
 }
 
-// ============================================================================
-// Edge Cases for inject_utm_params
-// ============================================================================
-
 #[test]
 fn test_inject_utm_params_special_characters() {
     let params = UtmParams {
@@ -158,10 +150,6 @@ fn test_inject_utm_params_url_only_query_mark() {
     let result = LinkGenerationService::inject_utm_params(url, &params);
     assert!(result.contains("&utm_source=google"));
 }
-
-// ============================================================================
-// UtmParams Tests
-// ============================================================================
 
 #[test]
 fn test_utm_params_to_query_string_empty() {

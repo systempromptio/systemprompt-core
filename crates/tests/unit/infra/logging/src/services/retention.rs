@@ -3,10 +3,6 @@
 use systemprompt_logging::LogLevel;
 use systemprompt_logging::services::retention::{RetentionConfig, RetentionPolicy};
 
-// ============================================================================
-// RetentionPolicy Creation Tests
-// ============================================================================
-
 #[test]
 fn test_retention_policy_new() {
     let policy = RetentionPolicy::new("test_policy", 30);
@@ -72,10 +68,6 @@ fn test_retention_policy_all_log_levels() {
     assert_eq!(trace.level, Some(LogLevel::Trace));
 }
 
-// ============================================================================
-// RetentionPolicy Clone and Debug Tests
-// ============================================================================
-
 #[test]
 fn test_retention_policy_clone() {
     let policy = RetentionPolicy::new("test", 30)
@@ -99,10 +91,6 @@ fn test_retention_policy_debug() {
     assert!(debug.contains("7"));
 }
 
-// ============================================================================
-// RetentionPolicy Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_retention_policy_serialize() {
     let policy = RetentionPolicy::new("serialize_test", 14).with_level(LogLevel::Warn);
@@ -112,10 +100,6 @@ fn test_retention_policy_serialize() {
     assert!(json.contains("\"retention_days\":14"));
     assert!(json.contains("\"level\":\"WARN\""));
 }
-
-// ============================================================================
-// RetentionConfig Default Tests
-// ============================================================================
 
 #[test]
 fn test_retention_config_default() {
@@ -130,7 +114,6 @@ fn test_retention_config_default() {
 fn test_retention_config_default_schedule() {
     let config = RetentionConfig::default();
 
-    // Default schedule is "0 0 2 * * *" (2 AM daily)
     assert_eq!(config.schedule, "0 0 2 * * *");
 }
 
@@ -138,11 +121,8 @@ fn test_retention_config_default_schedule() {
 fn test_retention_config_default_policies() {
     let config = RetentionConfig::default();
 
-    // Default has 4 policies: debug (1 day), info (7 days), warnings (30 days),
-    // errors (90 days)
     assert_eq!(config.policies.len(), 4);
 
-    // Check debug logs policy
     let debug_policy = config.policies.iter().find(|p| p.name == "debug_logs");
     debug_policy
         .as_ref()
@@ -151,21 +131,18 @@ fn test_retention_config_default_policies() {
     assert_eq!(debug_policy.retention_days, 1);
     assert_eq!(debug_policy.level, Some(LogLevel::Debug));
 
-    // Check info logs policy
     let info_policy = config.policies.iter().find(|p| p.name == "info_logs");
     info_policy.as_ref().expect("info_policy should be present");
     let info_policy = info_policy.unwrap();
     assert_eq!(info_policy.retention_days, 7);
     assert_eq!(info_policy.level, Some(LogLevel::Info));
 
-    // Check warnings policy
     let warn_policy = config.policies.iter().find(|p| p.name == "warnings");
     warn_policy.as_ref().expect("warn_policy should be present");
     let warn_policy = warn_policy.unwrap();
     assert_eq!(warn_policy.retention_days, 30);
     assert_eq!(warn_policy.level, Some(LogLevel::Warn));
 
-    // Check errors policy
     let error_policy = config.policies.iter().find(|p| p.name == "errors");
     error_policy
         .as_ref()
@@ -174,10 +151,6 @@ fn test_retention_config_default_policies() {
     assert_eq!(error_policy.retention_days, 90);
     assert_eq!(error_policy.level, Some(LogLevel::Error));
 }
-
-// ============================================================================
-// RetentionConfig Builder Tests
-// ============================================================================
 
 #[test]
 fn test_retention_config_with_schedule() {
@@ -230,10 +203,6 @@ fn test_retention_config_builder_chaining() {
     assert!(config.enabled);
 }
 
-// ============================================================================
-// RetentionConfig Clone and Debug Tests
-// ============================================================================
-
 #[test]
 fn test_retention_config_clone() {
     let config = RetentionConfig::default().with_schedule("0 0 5 * * *");
@@ -255,10 +224,6 @@ fn test_retention_config_debug() {
     assert!(debug.contains("schedule"));
 }
 
-// ============================================================================
-// RetentionConfig Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_retention_config_serialize() {
     let config = RetentionConfig::default();
@@ -269,10 +234,6 @@ fn test_retention_config_serialize() {
     assert!(json.contains("\"schedule\""));
     assert!(json.contains("\"policies\""));
 }
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
 
 #[test]
 fn test_retention_policy_zero_retention_days() {
@@ -321,6 +282,5 @@ fn test_retention_config_multiple_policies_same_level() {
         .filter(|p| p.level == Some(LogLevel::Error))
         .collect();
 
-    // Should have 3 error policies: default + 2 added
     assert_eq!(error_policies.len(), 3);
 }

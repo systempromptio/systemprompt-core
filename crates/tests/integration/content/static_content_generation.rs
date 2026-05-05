@@ -366,7 +366,6 @@ async fn test_template_variables_not_empty() -> Result<()> {
         let index_html = post_dir.join("index.html");
         let html_content = fs::read_to_string(&index_html)?;
 
-        // Check that placeholders are not literally in the HTML
         assert!(
             !html_content.contains("{{TITLE}}"),
             "Title placeholder should be replaced"
@@ -384,7 +383,6 @@ async fn test_template_variables_not_empty() -> Result<()> {
             "Content placeholder should be replaced"
         );
 
-        // Check that values are not empty
         let title_match = html_content.lines().find(|line| line.contains("<title>"));
         assert!(
             title_match
@@ -393,7 +391,6 @@ async fn test_template_variables_not_empty() -> Result<()> {
             "Title should not be empty"
         );
 
-        // Check for non-empty article content
         assert!(
             html_content.len() > 1000,
             "Generated HTML should have substantial content"

@@ -9,10 +9,6 @@
 use std::collections::HashMap;
 use systemprompt_config::{DeployEnvironment, DeploymentConfig, EnvironmentConfig};
 
-// ============================================================================
-// DeployEnvironment as_str Tests
-// ============================================================================
-
 #[test]
 fn test_deploy_environment_local_as_str() {
     let env = DeployEnvironment::Local;
@@ -30,10 +26,6 @@ fn test_deploy_environment_production_as_str() {
     let env = DeployEnvironment::Production;
     assert_eq!(env.as_str(), "production");
 }
-
-// ============================================================================
-// DeployEnvironment parse Tests
-// ============================================================================
 
 #[test]
 fn test_deploy_environment_parse_local() {
@@ -90,10 +82,6 @@ fn test_deploy_environment_parse_case_sensitive() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// DeployEnvironment Trait Tests
-// ============================================================================
-
 #[test]
 fn test_deploy_environment_debug() {
     let env = DeployEnvironment::Local;
@@ -113,10 +101,6 @@ fn test_deploy_environment_eq() {
     assert_eq!(DeployEnvironment::Local, DeployEnvironment::Local);
     assert_ne!(DeployEnvironment::Local, DeployEnvironment::Production);
 }
-
-// ============================================================================
-// DeploymentConfig Tests
-// ============================================================================
 
 #[test]
 fn test_deployment_config_new_empty() {
@@ -182,10 +166,6 @@ fn test_deployment_config_deserialize() {
     assert_eq!(config.vars.len(), 2);
 }
 
-// ============================================================================
-// EnvironmentConfig Tests
-// ============================================================================
-
 #[test]
 fn test_environment_config_new() {
     let config = EnvironmentConfig {
@@ -232,10 +212,6 @@ fn test_environment_config_environment_accessor() {
     };
     assert_eq!(config.environment.as_str(), "production");
 }
-
-// ============================================================================
-// Integration Between Types
-// ============================================================================
 
 #[test]
 fn test_environment_config_all_environments() {

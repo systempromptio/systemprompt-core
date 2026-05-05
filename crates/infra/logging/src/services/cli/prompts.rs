@@ -83,7 +83,6 @@ impl Prompts {
             }
             {
                 let mut stdout = std::io::stdout();
-                // Why: CLI display sink; broken pipe is not recoverable.
                 writeln!(stdout).ok();
             }
         }
@@ -153,7 +152,6 @@ impl PromptBuilder {
         if !self.show_context.is_empty() {
             {
                 let mut stdout = std::io::stdout();
-                // Why: CLI display sink; broken pipe is not recoverable.
                 writeln!(stdout).ok();
             }
         }

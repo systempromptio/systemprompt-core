@@ -11,7 +11,6 @@ pub trait DatabaseCliDisplay {
 
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
     let mut stdout = std::io::stdout();
-    // Why: CLI display sink; broken pipe is not recoverable.
     writeln!(stdout, "{args}").ok();
 }
 

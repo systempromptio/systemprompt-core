@@ -19,10 +19,6 @@ fn response_meta() -> serde_json::Value {
     })
 }
 
-// ============================================================================
-// PUT Request Tests (via SystempromptClient)
-// ============================================================================
-
 #[tokio::test]
 async fn test_put_request_success() {
     let mock_server = MockServer::start().await;
@@ -78,10 +74,6 @@ async fn test_put_request_404_not_found() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// DELETE Request Tests (via SystempromptClient)
-// ============================================================================
-
 #[tokio::test]
 async fn test_delete_request_success() {
     let mock_server = MockServer::start().await;
@@ -136,10 +128,6 @@ async fn test_delete_request_403_forbidden() {
     let err = result.unwrap_err();
     assert!(err.to_string().contains("403"));
 }
-
-// ============================================================================
-// Error Response Body Handling Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_error_response_json_body() {
@@ -197,10 +185,6 @@ async fn test_error_response_empty_body() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// Network Error Tests
-// ============================================================================
-
 #[tokio::test]
 async fn test_connection_refused() {
     let client = SystempromptClient::new("http://127.0.0.1:59998").unwrap();
@@ -209,10 +193,6 @@ async fn test_connection_refused() {
     let err = result.unwrap_err();
     assert!(err.to_string().contains("HTTP request failed"));
 }
-
-// ============================================================================
-// Request Timeout Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_request_timeout() {

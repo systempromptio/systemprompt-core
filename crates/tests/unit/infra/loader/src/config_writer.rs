@@ -77,10 +77,6 @@ fn create_agent_yaml_content(name: &str) -> String {
     )
 }
 
-// ============================================================================
-// Create Agent Tests
-// ============================================================================
-
 #[test]
 fn test_create_agent_success() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -145,10 +141,6 @@ fn test_create_agent_already_exists() {
     result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("already exists"));
 }
-
-// ============================================================================
-// Find Agent File Tests
-// ============================================================================
 
 #[test]
 fn test_find_agent_file_exists() {
@@ -232,10 +224,6 @@ fn test_find_agent_file_in_different_filename() {
     );
 }
 
-// ============================================================================
-// Update Agent Tests
-// ============================================================================
-
 #[test]
 fn test_update_agent_success() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -269,10 +257,6 @@ fn test_update_agent_not_found() {
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
-// ============================================================================
-// Delete Agent Tests
-// ============================================================================
-
 #[test]
 fn test_delete_agent_success() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -305,10 +289,6 @@ fn test_delete_agent_not_found() {
     result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
-
-// ============================================================================
-// Agent File Content Tests
-// ============================================================================
 
 #[test]
 fn test_created_agent_file_has_header() {

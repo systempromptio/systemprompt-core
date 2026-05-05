@@ -4,10 +4,6 @@ use systemprompt_mcp::services::network::port_manager::{
     find_available_port, is_port_in_use, is_port_responsive,
 };
 
-// ============================================================================
-// is_port_in_use Tests
-// ============================================================================
-
 #[test]
 fn test_is_port_in_use_unused_high_port() {
     let result = is_port_in_use(59995);
@@ -32,19 +28,11 @@ fn test_is_port_in_use_boundary_min() {
     assert!(!result || result);
 }
 
-// ============================================================================
-// is_port_responsive Tests
-// ============================================================================
-
 #[test]
 fn test_is_port_responsive_unused() {
     let result = is_port_responsive(59993);
     assert!(!result);
 }
-
-// ============================================================================
-// find_available_port Tests
-// ============================================================================
 
 #[test]
 fn test_find_available_port_success() {
@@ -74,10 +62,6 @@ fn test_find_available_port_high_range() {
     result.expect("expected success");
 }
 
-// ============================================================================
-// Port Manager Async Tests
-// ============================================================================
-
 #[tokio::test]
 async fn test_prepare_port_unused() {
     use systemprompt_mcp::services::network::port_manager::prepare_port;
@@ -101,10 +85,6 @@ async fn test_cleanup_port_processes_no_processes() {
     let result = cleanup_port_processes(59987).await;
     result.expect("expected success");
 }
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
 
 #[test]
 fn test_is_port_in_use_multiple_checks_consistent() {

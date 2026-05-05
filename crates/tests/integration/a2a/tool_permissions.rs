@@ -7,7 +7,6 @@ use uuid::Uuid;
 async fn test_anonymous_user_can_use_anonymous_tools() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
 
-    // Create anonymous token (this is what frontend uses)
     let anon_token_response = ctx.http_client
         .post(&format!("{}/api/v1/core/oauth/session", ctx.base_url))
         .send()
@@ -23,7 +22,6 @@ async fn test_anonymous_user_can_use_anonymous_tools() {
         .and_then(|t| t.as_str())
         .expect("Should have access_token");
 
-    // Create context
     let context_id = ctx.http_client
         .post(&format!("{}/api/v1/core/contexts", ctx.base_url))
         .header("Authorization", format!("Bearer {}", anon_token))
@@ -39,7 +37,6 @@ async fn test_anonymous_user_can_use_anonymous_tools() {
         .expect("Should have context_id")
         .to_string();
 
-    // Send message that triggers tyingshoelaces MCP server tool (requires "anonymous" scope)
     let message_id = Uuid::new_v4().to_string();
     let body = json!({
         "jsonrpc": "2.0",
@@ -69,16 +66,13 @@ async fn test_anonymous_user_can_use_anonymous_tools() {
         "Anonymous user should be able to use tools requiring 'anonymous' scope"
     );
 
-    // Parse response to verify tool was actually called (not just permission granted)
     let response_text = response.text().await.expect("Failed to get response text");
 
-    // Should have SSE events with tool execution
     assert!(
         !response_text.is_empty(),
         "Should have response with tool execution results"
     );
 
-    // The AI should have called the tool, not returned text saying it couldn't
     let has_tool_use = response_text.contains("context_retrieval") ||
                        response_text.contains("artifacts");
 
@@ -94,10 +88,8 @@ async fn test_anonymous_user_can_use_anonymous_tools() {
 async fn test_permission_filtering_prevents_403_errors() {
     let ctx = TestContext::new().await.expect("Failed to create test context");
 
-    // Get edward agent which has tyingshoelaces MCP server assigned
     let agent_url = format!("{}/api/v1/agents/edward/", ctx.base_url);
 
-    // Generate anonymous token
     let anon_token_response = ctx.http_client
         .post(&format!("{}/api/v1/core/oauth/session", ctx.base_url))
         .send()
@@ -111,7 +103,6 @@ async fn test_permission_filtering_prevents_403_errors() {
         .and_then(|t| t.as_str())
         .expect("Should have access_token");
 
-    // Get agent card to see available tools
     let card_response = ctx.http_client
         .get(&format!("{}/.well-known/agent-card.json", agent_url))
         .header("Authorization", format!("Bearer {}", anon_token))
@@ -124,7 +115,6 @@ async fn test_permission_filtering_prevents_403_errors() {
     let card: serde_json::Value = card_response.json().await
         .expect("Failed to parse agent card");
 
-    // Verify tools are listed (permission filtering allowed access)
     let tools = card.get("capabilities")
         .and_then(|c| c.get("tools"))
         .and_then(|t| t.as_array())
@@ -135,7 +125,6 @@ async fn test_permission_filtering_prevents_403_errors() {
         "Anonymous user should see tools from servers they have permission for"
     );
 
-    // Verify context_retrieval tool is included
     let has_context_retrieval = tools.iter().any(|tool| {
         tool.get("name")
             .and_then(|n| n.as_str())
@@ -182,7 +171,6 @@ async fn test_permission_checks_are_logged() {
         .expect("Should have context_id")
         .to_string();
 
-    // Make a request that triggers tool loading
     let body = json!({
         "jsonrpc": "2.0",
         "method": "SendStreamingMessage",
@@ -206,7 +194,6 @@ async fn test_permission_checks_are_logged() {
         .await
         .expect("Failed to send request");
 
-    // Check logs table for permission check entries
     let logs = ctx.db_pool
         .fetch_all(
             "SELECT message FROM logs WHERE module = 'ai_mcp_client' AND message LIKE '%permission%' ORDER BY created_at DESC LIMIT 10",

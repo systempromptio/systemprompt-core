@@ -4,10 +4,6 @@ use systemprompt_identifiers::{ClientId, ClientType};
 use systemprompt_oauth::models::cimd::{CimdMetadata, ClientValidation};
 use systemprompt_oauth::services::cimd::CimdFetcher;
 
-// ============================================================================
-// Helper
-// ============================================================================
-
 fn valid_cimd_metadata() -> CimdMetadata {
     CimdMetadata {
         client_id: ClientId::new("https://example.com/.well-known/oauth-client"),
@@ -22,10 +18,6 @@ fn valid_cimd_metadata() -> CimdMetadata {
     }
 }
 
-// ============================================================================
-// CimdFetcher Construction Tests
-// ============================================================================
-
 #[test]
 fn test_cimd_fetcher_new_succeeds() {
     let fetcher = CimdFetcher::new();
@@ -38,10 +30,6 @@ fn test_cimd_fetcher_new_returns_debug_impl() {
     let debug = format!("{:?}", fetcher);
     assert!(debug.contains("CimdFetcher"));
 }
-
-// ============================================================================
-// CimdFetcher URL Validation Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_cimd_fetcher_rejects_http_url() {
@@ -106,10 +94,6 @@ async fn test_cimd_fetcher_rejects_javascript_url() {
     assert!(err.to_string().contains("HTTPS"));
 }
 
-// ============================================================================
-// ClientId Type Dispatch Tests
-// ============================================================================
-
 #[test]
 fn test_client_id_https_resolves_to_cimd() {
     let id = ClientId::new("https://app.example.com/.well-known/oauth-client");
@@ -145,10 +129,6 @@ fn test_client_id_empty_resolves_to_unknown() {
     let id = ClientId::new("");
     assert_eq!(id.client_type(), ClientType::Unknown);
 }
-
-// ============================================================================
-// ClientId Convenience Methods
-// ============================================================================
 
 #[test]
 fn test_client_id_is_cimd_for_https() {
@@ -186,10 +166,6 @@ fn test_client_id_is_dcr_false_for_cimd() {
     assert!(!id.is_dcr());
 }
 
-// ============================================================================
-// ClientId Factory Methods
-// ============================================================================
-
 #[test]
 fn test_client_id_web_is_first_party() {
     let id = ClientId::web();
@@ -210,10 +186,6 @@ fn test_client_id_system_factory_produces_system_type() {
     assert_eq!(id.client_type(), ClientType::System);
     assert_eq!(id.as_str(), "sys_event_bus");
 }
-
-// ============================================================================
-// ClientValidation Accessor Tests
-// ============================================================================
 
 #[test]
 fn test_client_validation_cimd_exposes_client_id() {
@@ -261,10 +233,6 @@ fn test_client_validation_dcr_derives_type_from_client_id() {
     assert_eq!(validation.client_type(), ClientType::ThirdParty);
 }
 
-// ============================================================================
-// ClientType Display and Serialization
-// ============================================================================
-
 #[test]
 fn test_client_type_as_str_all_variants() {
     assert_eq!(ClientType::Cimd.as_str(), "cimd");
@@ -286,10 +254,6 @@ fn test_client_type_display_matches_as_str() {
         assert_eq!(format!("{}", variant), variant.as_str());
     }
 }
-
-// ============================================================================
-// CimdMetadata Edge Cases (not covered by model tests)
-// ============================================================================
 
 #[test]
 fn test_cimd_metadata_has_redirect_uri_empty_list() {

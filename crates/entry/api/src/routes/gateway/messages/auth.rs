@@ -5,7 +5,6 @@ use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
 use crate::services::middleware::JwtContextExtractor;
 
-// reason: HTTP wire schema mandates these exact field names
 #[allow(clippy::struct_field_names)]
 pub(super) struct AuthedPrincipal {
     pub user_id: UserId,

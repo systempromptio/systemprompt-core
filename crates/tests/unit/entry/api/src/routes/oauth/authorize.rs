@@ -10,10 +10,6 @@ use systemprompt_api::routes::oauth::endpoints::authorize::{
 };
 use systemprompt_identifiers::ClientId;
 
-// ============================================================================
-// Helper
-// ============================================================================
-
 fn create_valid_authorize_query() -> AuthorizeQuery {
     AuthorizeQuery {
         response_type: "code".to_string(),
@@ -47,10 +43,6 @@ fn create_valid_authorize_request() -> AuthorizeRequest {
         resource: None,
     }
 }
-
-// ============================================================================
-// AuthorizeQuery Deserialization
-// ============================================================================
 
 #[test]
 fn test_authorize_query_deserialize_all_fields() {
@@ -214,10 +206,6 @@ fn test_authorize_query_client_id_types() {
     assert!(system_query.client_id.is_system());
 }
 
-// ============================================================================
-// AuthorizeRequest Deserialization
-// ============================================================================
-
 #[test]
 fn test_authorize_request_deserialize_all_fields() {
     let json = serde_json::json!({
@@ -331,10 +319,6 @@ fn test_authorize_request_debug_trait() {
     assert!(debug_output.contains("sp_test_client"));
 }
 
-// ============================================================================
-// AuthorizeResponse Serialization
-// ============================================================================
-
 #[test]
 fn test_authorize_response_serialize_success() {
     let response = AuthorizeResponse {
@@ -433,10 +417,6 @@ fn test_authorize_response_debug_trait() {
     assert!(debug_output.contains("AuthorizeResponse"));
     assert!(debug_output.contains("auth_code_123"));
 }
-
-// ============================================================================
-// AuthorizeQuery and AuthorizeRequest Field Correspondence
-// ============================================================================
 
 #[test]
 fn test_query_and_request_share_common_fields() {

@@ -23,9 +23,6 @@ pub fn signing_key() -> ManifestSigningResult<&'static SigningKey> {
     let seed = SecretsBootstrap::manifest_signing_secret_seed()
         .map_err(|e| ManifestSigningError::SeedUnavailable(e.to_string()))?;
     let key = SigningKey::from_bytes(&seed);
-    // Why: a concurrent caller may have populated CELL between the `get()` above
-    // and this `set()`; either branch leaves the cell initialized so we discard the
-    // result and read it back.
     drop(CELL.set(key));
     CELL.get().ok_or(ManifestSigningError::KeyMissing)
 }

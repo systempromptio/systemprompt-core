@@ -16,10 +16,6 @@ fn test_context() -> RequestContext {
     )
 }
 
-// ============================================================================
-// RequestContext::new Tests
-// ============================================================================
-
 #[test]
 fn request_context_new_sets_session_id() {
     let ctx = test_context();
@@ -91,10 +87,6 @@ fn request_context_new_is_not_authenticated() {
     let ctx = test_context();
     assert!(!ctx.is_authenticated());
 }
-
-// ============================================================================
-// Builder Chain Tests
-// ============================================================================
 
 #[test]
 fn request_context_with_user_id() {
@@ -200,10 +192,6 @@ fn request_context_builder_chain_multiple() {
     assert_eq!(ctx.settings.max_budget_cents, Some(100));
 }
 
-// ============================================================================
-// Validation Tests
-// ============================================================================
-
 #[test]
 fn request_context_validate_task_execution_fails_without_task_id() {
     let ctx = test_context();
@@ -263,10 +251,6 @@ fn request_context_elapsed_returns_duration() {
     assert!(elapsed.as_secs() < 2);
 }
 
-// ============================================================================
-// ContextIdSource Tests
-// ============================================================================
-
 #[test]
 fn context_id_source_direct() {
     let source = ContextIdSource::Direct("ctx-123".to_string());
@@ -286,10 +270,6 @@ fn context_id_source_from_task() {
         _ => panic!("Expected FromTask variant"),
     }
 }
-
-// ============================================================================
-// ContextExtractionError Tests
-// ============================================================================
 
 #[test]
 fn context_extraction_error_missing_header_display() {
@@ -322,10 +302,6 @@ fn context_extraction_error_invalid_header_value() {
     assert!(msg.contains("x-test"));
     assert!(msg.contains("bad encoding"));
 }
-
-// ============================================================================
-// TASK_BASED_CONTEXT_MARKER Tests
-// ============================================================================
 
 #[test]
 fn task_based_context_marker_is_not_empty() {

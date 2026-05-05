@@ -4,10 +4,6 @@
 
 use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
-// ============================================================================
-// CliConfig Builder Tests
-// ============================================================================
-
 #[test]
 fn test_cli_config_with_output_format_json() {
     let config = CliConfig::default().with_output_format(OutputFormat::Json);
@@ -95,10 +91,6 @@ fn test_cli_config_builder_preserves_unmodified_fields() {
     assert!(config.interactive);
 }
 
-// ============================================================================
-// CliConfig Query Method Tests
-// ============================================================================
-
 #[test]
 fn test_is_json_output_true_when_json() {
     let config = CliConfig::default().with_output_format(OutputFormat::Json);
@@ -152,10 +144,6 @@ fn test_should_use_color_false_when_never() {
     let config = CliConfig::default().with_color_mode(ColorMode::Never);
     assert!(!config.should_use_color());
 }
-
-// ============================================================================
-// CliConfig Clone and Debug Tests
-// ============================================================================
 
 #[test]
 fn test_cli_config_clone() {

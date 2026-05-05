@@ -10,10 +10,6 @@ use systemprompt_agent::models::context::{ContextDetail, ContextMessage, Context
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, UserId};
 use systemprompt_models::UserContext;
 
-// ============================================================================
-// ContextMessage Tests
-// ============================================================================
-
 #[test]
 fn test_context_message_serialize() {
     let message = ContextMessage {
@@ -78,10 +74,6 @@ fn test_context_message_clone() {
     assert_eq!(cloned.sequence_number, message.sequence_number);
 }
 
-// ============================================================================
-// ContextDetail Tests
-// ============================================================================
-
 #[test]
 fn test_context_detail_serialize() {
     let detail = ContextDetail {
@@ -132,10 +124,6 @@ fn test_context_detail_with_messages() {
     assert_eq!(detail.messages[0].sequence_number, 1);
     assert_eq!(detail.messages[1].sequence_number, 2);
 }
-
-// ============================================================================
-// ContextStateEvent Tests
-// ============================================================================
 
 #[test]
 fn test_context_state_event_tool_execution_completed_context_id() {

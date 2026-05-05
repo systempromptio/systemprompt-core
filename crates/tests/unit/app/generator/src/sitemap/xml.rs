@@ -2,10 +2,6 @@
 
 use systemprompt_generator::{SitemapUrl, build_sitemap_index, build_sitemap_xml};
 
-// ============================================================================
-// SitemapUrl Tests
-// ============================================================================
-
 #[test]
 fn test_sitemap_url_creation() {
     let url = SitemapUrl {
@@ -50,10 +46,6 @@ fn test_sitemap_url_debug() {
     assert!(debug.contains("SitemapUrl"));
     assert!(debug.contains("example.com"));
 }
-
-// ============================================================================
-// build_sitemap_xml Tests
-// ============================================================================
 
 #[test]
 fn test_build_sitemap_xml_empty() {
@@ -110,7 +102,6 @@ fn test_build_sitemap_xml_multiple_urls() {
 
     let result = build_sitemap_xml(&urls);
 
-    // Count URL elements
     let url_count = result.matches("<url>").count();
     assert_eq!(url_count, 3);
 
@@ -138,7 +129,6 @@ fn test_build_sitemap_xml_priority_formatting() {
 
     let result = build_sitemap_xml(&urls);
 
-    // Priority should be formatted with one decimal place
     assert!(result.contains("<priority>1.0</priority>"));
     assert!(result.contains("<priority>0.1</priority>"));
 }
@@ -154,7 +144,6 @@ fn test_build_sitemap_xml_escapes_special_characters() {
 
     let result = build_sitemap_xml(&urls);
 
-    // Ampersand should be escaped
     assert!(result.contains("&amp;"));
     assert!(!result.contains("&page"));
 }
@@ -221,10 +210,6 @@ fn test_build_sitemap_xml_changefreq_values() {
     }
 }
 
-// ============================================================================
-// build_sitemap_index Tests
-// ============================================================================
-
 #[test]
 fn test_build_sitemap_index_empty() {
     let chunks: Vec<Vec<SitemapUrl>> = vec![];
@@ -278,7 +263,6 @@ fn test_build_sitemap_index_multiple_chunks() {
 
     let result = build_sitemap_index(&chunks, "https://example.com");
 
-    // Should have 3 sitemap references
     let sitemap_count = result.matches("<sitemap>").count();
     assert_eq!(sitemap_count, 3);
 
@@ -310,11 +294,9 @@ fn test_build_sitemap_index_base_url_formatting() {
         priority: 1.0,
     }]];
 
-    // Test with trailing slash
     let result = build_sitemap_index(&chunks, "https://example.com/");
     assert!(result.contains("https://example.com//sitemaps/sitemap-1.xml"));
 
-    // Test without trailing slash
     let result = build_sitemap_index(&chunks, "https://example.com");
     assert!(result.contains("https://example.com/sitemaps/sitemap-1.xml"));
 }
@@ -330,16 +312,10 @@ fn test_build_sitemap_index_lastmod_date_format() {
 
     let result = build_sitemap_index(&chunks, "https://example.com");
 
-    // Lastmod should be in YYYY-MM-DD format (from current date)
     assert!(result.contains("<lastmod>"));
-    // The date format should be something like 2024-01-15 or 2025-12-28
     let has_date_format = result.contains("-") && result.contains("</lastmod>");
     assert!(has_date_format);
 }
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
 
 #[test]
 fn test_sitemap_url_with_unicode() {
@@ -352,7 +328,6 @@ fn test_sitemap_url_with_unicode() {
 
     let result = build_sitemap_xml(&urls);
 
-    // Should handle Unicode in URLs
     assert!(result.contains("日本語ページ"));
 }
 
@@ -418,11 +393,9 @@ fn test_sitemap_xml_well_formed() {
 
     let result = build_sitemap_xml(&urls);
 
-    // Check XML is well-formed (basic checks)
     assert!(result.starts_with("<?xml"));
     assert!(result.ends_with("</urlset>"));
 
-    // Count opening and closing tags
     let url_open = result.matches("<url>").count();
     let url_close = result.matches("</url>").count();
     assert_eq!(url_open, url_close);

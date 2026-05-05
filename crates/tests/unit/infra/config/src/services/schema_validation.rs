@@ -9,10 +9,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_config::{ConfigValidationError, generate_schema, validate_yaml_str};
 
-// ============================================================================
-// Test Structs
-// ============================================================================
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 struct SimpleConfig {
     name: String,
@@ -55,10 +51,6 @@ struct ConfigWithDefaults {
 fn default_name() -> String {
     "default".to_string()
 }
-
-// ============================================================================
-// validate_yaml_str Tests
-// ============================================================================
 
 #[test]
 fn test_validate_yaml_str_simple_config() {
@@ -180,10 +172,6 @@ fn test_validate_yaml_str_zero_port() {
     assert_eq!(result.unwrap().port, 0);
 }
 
-// ============================================================================
-// generate_schema Tests
-// ============================================================================
-
 #[test]
 fn test_generate_schema_simple() {
     let result = generate_schema::<SimpleConfig>();
@@ -270,10 +258,6 @@ fn test_generate_schema_has_schema_field() {
         .expect("schema.get(\"$schema\") should be present");
 }
 
-// ============================================================================
-// ConfigValidationError Tests
-// ============================================================================
-
 #[test]
 fn test_config_validation_error_parse() {
     let yaml = "invalid: [yaml";
@@ -304,16 +288,10 @@ fn test_config_validation_error_debug() {
     assert!(!debug.is_empty());
 }
 
-// ============================================================================
-// Edge Cases
-// ============================================================================
-
 #[test]
 fn test_validate_yaml_str_whitespace_only() {
-    // Whitespace-only YAML is parsed as null, which won't deserialize to a struct
     let yaml = "   \n\t\n   ";
     let result: Result<ConfigWithDefaults, ConfigValidationError> = validate_yaml_str(yaml);
-    // This should fail because whitespace-only parses as null, not as empty map
     result.unwrap_err();
 }
 

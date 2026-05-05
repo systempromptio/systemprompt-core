@@ -10,8 +10,6 @@ pub async fn store_request_async(
     repo: &AiRequestRepository,
     record: &AiRequestRecord,
 ) -> Option<AiRequestId> {
-    // Why: storage is best-effort on the audit-trail path; the error has already
-    // been logged via map_err and the in-memory request can still be served.
     repo.insert(record)
         .await
         .map_err(|e| {

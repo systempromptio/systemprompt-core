@@ -4,10 +4,6 @@ use chrono::Utc;
 use systemprompt_files::{File, FileMetadata, ImageMetadata};
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
 fn create_test_file() -> File {
     let now = Utc::now();
     File {
@@ -48,10 +44,6 @@ fn create_test_file_with_metadata(metadata: FileMetadata) -> File {
     }
 }
 
-// ============================================================================
-// File::id() Tests
-// ============================================================================
-
 #[test]
 fn test_file_id_returns_file_id() {
     let file = create_test_file();
@@ -89,10 +81,6 @@ fn test_file_id_format() {
             .all(|c| c.is_ascii_hexdigit() || c == '-')
     );
 }
-
-// ============================================================================
-// File::metadata() Tests
-// ============================================================================
 
 #[test]
 fn test_file_metadata_empty() {
@@ -166,10 +154,6 @@ fn test_file_metadata_invalid_json() {
     let result = file.metadata();
     result.unwrap_err();
 }
-
-// ============================================================================
-// File Field Tests
-// ============================================================================
 
 #[test]
 fn test_file_with_all_optional_ids() {
@@ -254,10 +238,6 @@ fn test_file_deleted_at() {
         .as_ref()
         .expect("deleted_at should be present");
 }
-
-// ============================================================================
-// File Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_file_clone() {

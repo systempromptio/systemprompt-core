@@ -17,7 +17,6 @@ mod gemini_models_tests {
     fn default_models_have_large_context() {
         let models = GeminiModels::default();
 
-        // Gemini models support 1M tokens
         assert_eq!(models.gemini_flash_lite.max_tokens, 1_000_000);
         assert_eq!(models.gemini_flash.max_tokens, 1_000_000);
     }

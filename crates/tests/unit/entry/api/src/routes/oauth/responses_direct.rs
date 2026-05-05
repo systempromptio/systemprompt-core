@@ -12,10 +12,6 @@ use systemprompt_api::routes::oauth::responses::{
     single_response,
 };
 
-// ============================================================================
-// error_response Tests
-// ============================================================================
-
 #[tokio::test]
 async fn error_response_returns_correct_status_code() {
     let response = error_response(StatusCode::FORBIDDEN, "access_denied", "Not allowed");
@@ -41,10 +37,6 @@ async fn error_response_body_contains_error_and_description() {
     );
 }
 
-// ============================================================================
-// internal_error Tests
-// ============================================================================
-
 #[tokio::test]
 async fn internal_error_returns_500() {
     let response = internal_error("Database connection failed");
@@ -58,10 +50,6 @@ async fn internal_error_returns_500() {
     assert_eq!(json["error_description"], "Database connection failed");
 }
 
-// ============================================================================
-// not_found Tests
-// ============================================================================
-
 #[tokio::test]
 async fn not_found_returns_404() {
     let response = not_found("Client not found");
@@ -74,10 +62,6 @@ async fn not_found_returns_404() {
     assert_eq!(json["error"], "not_found");
     assert_eq!(json["error_description"], "Client not found");
 }
-
-// ============================================================================
-// bad_request Tests
-// ============================================================================
 
 #[tokio::test]
 async fn bad_request_returns_400() {
@@ -94,10 +78,6 @@ async fn bad_request_returns_400() {
         "Missing required parameter: redirect_uri"
     );
 }
-
-// ============================================================================
-// single_response Tests
-// ============================================================================
 
 #[tokio::test]
 async fn single_response_wraps_data_in_data_field() {
@@ -117,10 +97,6 @@ async fn single_response_wraps_data_in_data_field() {
     assert_eq!(json["data"]["count"], 42);
 }
 
-// ============================================================================
-// init_error Tests
-// ============================================================================
-
 #[tokio::test]
 async fn init_error_includes_formatted_message() {
     let response = init_error("connection refused");
@@ -136,10 +112,6 @@ async fn init_error_includes_formatted_message() {
         "Repository initialization failed: connection refused"
     );
 }
-
-// ============================================================================
-// created_response Tests
-// ============================================================================
 
 #[tokio::test]
 async fn created_response_returns_201_with_location_header() {

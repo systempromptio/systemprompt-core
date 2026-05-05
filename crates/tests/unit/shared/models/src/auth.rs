@@ -7,10 +7,6 @@
 
 use systemprompt_models::BaseRoles;
 
-// ============================================================================
-// BaseRoles Constants Tests
-// ============================================================================
-
 #[test]
 fn test_base_roles_anonymous_constant() {
     assert_eq!(BaseRoles::ANONYMOUS, "anonymous");
@@ -39,10 +35,6 @@ fn test_base_roles_available_roles_excludes_anonymous() {
     let roles = BaseRoles::available_roles();
     assert!(!roles.contains(&"anonymous"));
 }
-
-// ============================================================================
-// BaseRoles Factory Methods Tests
-// ============================================================================
 
 #[test]
 fn test_base_roles_anonymous() {
@@ -73,7 +65,6 @@ fn test_base_roles_admin() {
 fn test_base_roles_admin_has_empty_permissions() {
     let role = BaseRoles::admin();
 
-    // Admin has wildcard access, so permissions set is empty
     assert!(role.permissions.is_empty());
 }
 
@@ -92,10 +83,6 @@ fn test_base_roles_all() {
 fn test_base_roles_is_admin_permission_wildcard() {
     assert!(BaseRoles::is_admin_permission_wildcard());
 }
-
-// ============================================================================
-// BaseRole Struct Tests
-// ============================================================================
 
 #[test]
 fn test_base_role_name_field() {
@@ -141,10 +128,6 @@ fn test_base_role_debug() {
     assert!(debug_str.contains("admin"));
 }
 
-// ============================================================================
-// Permissions Tests
-// ============================================================================
-
 #[test]
 fn test_anonymous_permissions_contains_users_read() {
     let role = BaseRoles::anonymous();
@@ -162,10 +145,6 @@ fn test_admin_permissions_is_empty() {
     let role = BaseRoles::admin();
     assert!(role.permissions.is_empty());
 }
-
-// ============================================================================
-// Role Comparison Tests
-// ============================================================================
 
 #[test]
 fn test_different_roles_have_different_names() {
@@ -190,10 +169,6 @@ fn test_different_roles_have_different_permissions() {
 
     assert_ne!(anonymous.permissions, admin.permissions);
 }
-
-// ============================================================================
-// Static Lifetime Tests
-// ============================================================================
 
 #[test]
 fn test_available_roles_is_static() {

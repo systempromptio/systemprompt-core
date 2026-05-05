@@ -26,8 +26,6 @@ impl AgentName {
         Ok(Self(name))
     }
 
-    // reason: panicking convenience ctor for known-valid literals; failure is a
-    // programmer-bug invariant
     #[allow(clippy::expect_used)]
     pub fn new(name: impl Into<String>) -> Self {
         Self::try_new(name).expect("AgentName validation failed")

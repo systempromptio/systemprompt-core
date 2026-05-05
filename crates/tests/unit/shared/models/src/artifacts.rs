@@ -10,10 +10,6 @@
 
 use systemprompt_models::{Alignment, ArtifactType, AxisType, ChartType, ColumnType};
 
-// ============================================================================
-// ArtifactType Tests
-// ============================================================================
-
 #[test]
 fn test_artifact_type_text_serialize() {
     let json = serde_json::to_string(&ArtifactType::Text).unwrap();
@@ -72,10 +68,6 @@ fn test_artifact_type_custom_deserialize() {
     }
 }
 
-// ============================================================================
-// ColumnType Tests
-// ============================================================================
-
 #[test]
 fn test_column_type_string_serialize() {
     let json = serde_json::to_string(&ColumnType::String).unwrap();
@@ -124,10 +116,6 @@ fn test_column_type_link_serialize() {
     assert_eq!(json, "\"link\"");
 }
 
-// ============================================================================
-// ChartType Tests
-// ============================================================================
-
 #[test]
 fn test_chart_type_default_is_line() {
     let default = ChartType::default();
@@ -164,10 +152,6 @@ fn test_chart_type_area_serialize() {
     assert_eq!(json, "\"area\"");
 }
 
-// ============================================================================
-// AxisType Tests
-// ============================================================================
-
 #[test]
 fn test_axis_type_default_is_linear() {
     let default = AxisType::default();
@@ -197,14 +181,6 @@ fn test_axis_type_time_serialize() {
     let json = serde_json::to_string(&AxisType::Time).unwrap();
     assert_eq!(json, "\"time\"");
 }
-
-// ============================================================================
-// SortOrder Tests
-// ============================================================================
-
-// ============================================================================
-// Alignment Tests
-// ============================================================================
 
 #[test]
 fn test_alignment_left_serialize() {

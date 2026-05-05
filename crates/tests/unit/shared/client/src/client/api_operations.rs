@@ -13,10 +13,6 @@ fn response_meta() -> serde_json::Value {
     })
 }
 
-// ============================================================================
-// Async API Tests - List Contexts
-// ============================================================================
-
 #[tokio::test]
 async fn test_list_contexts_success() {
     let mock_server = MockServer::start().await;
@@ -50,10 +46,6 @@ async fn test_list_contexts_success() {
     assert_eq!(contexts.len(), 1);
 }
 
-// ============================================================================
-// Async API Tests - Delete Context
-// ============================================================================
-
 #[tokio::test]
 async fn test_delete_context_success() {
     let mock_server = MockServer::start().await;
@@ -86,10 +78,6 @@ async fn test_delete_context_not_found() {
     result.unwrap_err();
 }
 
-// ============================================================================
-// Async API Tests - Delete Task
-// ============================================================================
-
 #[tokio::test]
 async fn test_delete_task_success() {
     let mock_server = MockServer::start().await;
@@ -105,10 +93,6 @@ async fn test_delete_task_success() {
 
     result.expect("delete_task should succeed");
 }
-
-// ============================================================================
-// Async API Tests - Authorization Header
-// ============================================================================
 
 #[tokio::test]
 async fn test_request_includes_auth_header() {
@@ -155,10 +139,6 @@ async fn test_request_without_token_no_auth_header() {
         .await
         .expect("request without token should succeed");
 }
-
-// ============================================================================
-// Admin API Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_list_logs_success() {

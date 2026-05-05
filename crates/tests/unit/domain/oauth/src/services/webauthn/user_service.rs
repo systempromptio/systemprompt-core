@@ -101,10 +101,6 @@ fn make_test_user(id: &str, name: &str, email: &str) -> AuthUser {
     }
 }
 
-// ============================================================================
-// Construction Tests
-// ============================================================================
-
 #[test]
 fn test_user_creation_service_new() {
     let provider = Arc::new(MockUserProvider::new());
@@ -121,10 +117,6 @@ fn test_user_creation_service_debug() {
         "debug output should contain struct name"
     );
 }
-
-// ============================================================================
-// find_or_create_user_with_webauthn_registration Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_find_or_create_existing_user_by_email() {
@@ -257,10 +249,6 @@ async fn test_find_or_create_returns_created_user_id() {
     );
 }
 
-// ============================================================================
-// create_user_with_webauthn_registration Tests
-// ============================================================================
-
 #[tokio::test]
 async fn test_create_user_email_already_registered() {
     let existing = make_test_user("existing-1", "alice", "alice@example.com");
@@ -367,10 +355,6 @@ async fn test_create_user_none_full_name() {
         "username should be used when full_name is None"
     );
 }
-
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
 
 #[tokio::test]
 async fn test_find_or_create_empty_username() {

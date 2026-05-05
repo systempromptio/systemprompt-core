@@ -6,10 +6,6 @@ use systemprompt_extension::error::ConfigError;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::typed::ConfigExtensionTyped;
 
-// =============================================================================
-// Test Extension Types
-// =============================================================================
-
 #[derive(Default, Debug)]
 struct BasicConfigExtension;
 
@@ -25,7 +21,6 @@ impl ConfigExtensionTyped for BasicConfigExtension {
     fn config_prefix(&self) -> &'static str {
         "basic"
     }
-    // Uses default validate_config and config_schema
 }
 
 #[derive(Default, Debug)]
@@ -89,10 +84,6 @@ impl ConfigExtensionTyped for NestedPrefixConfigExtension {
     }
 }
 
-// =============================================================================
-// ConfigExtensionTyped Trait Tests
-// =============================================================================
-
 #[test]
 fn test_config_extension_typed_prefix() {
     let ext = BasicConfigExtension;
@@ -127,10 +118,6 @@ fn test_config_extension_typed_metadata() {
     assert_eq!(ext.name(), "Basic Config Extension");
     assert_eq!(ext.version(), "1.0.0");
 }
-
-// =============================================================================
-// Custom Validation Tests
-// =============================================================================
 
 #[test]
 fn test_config_extension_custom_validate_success() {
@@ -197,10 +184,6 @@ fn test_config_extension_custom_validate_null() {
     result.unwrap_err();
 }
 
-// =============================================================================
-// Config Schema Tests
-// =============================================================================
-
 #[test]
 fn test_config_extension_custom_schema() {
     let ext = ValidatingConfigExtension;
@@ -235,10 +218,6 @@ fn test_config_extension_schema_required_fields() {
     assert!(required.contains(&json!("required_field")));
 }
 
-// =============================================================================
-// Trait Object Tests
-// =============================================================================
-
 #[test]
 fn test_config_extension_as_trait_object() {
     let ext: &dyn ConfigExtensionTyped = &BasicConfigExtension;
@@ -252,10 +231,6 @@ fn test_config_extension_boxed_trait_object() {
     ext.config_schema()
         .expect("ext.config_schema() should be present");
 }
-
-// =============================================================================
-// Multiple Config Extensions Tests
-// =============================================================================
 
 #[test]
 fn test_multiple_config_extensions() {
@@ -290,10 +265,6 @@ fn test_filter_extensions_with_schema() {
     assert_eq!(with_schema[0].config_prefix(), "validating");
 }
 
-// =============================================================================
-// Config Prefix Format Tests
-// =============================================================================
-
 #[test]
 fn test_config_prefix_simple() {
     let ext = BasicConfigExtension;
@@ -307,16 +278,11 @@ fn test_config_prefix_dotted() {
     assert_eq!(ext.config_prefix().split('.').count(), 3);
 }
 
-// =============================================================================
-// Validation Edge Cases
-// =============================================================================
-
 #[test]
 fn test_validate_empty_object() {
     let ext = ValidatingConfigExtension;
     let config = json!({});
 
-    // Empty object should fail because required_field is missing
     ext.validate_config(&config).unwrap_err();
 }
 
@@ -329,7 +295,6 @@ fn test_validate_with_extra_fields() {
         "another_extra": 123
     });
 
-    // Extra fields should be allowed
     ext.validate_config(&config)
         .expect("ext.validate_config(&config) should succeed");
 }
@@ -342,35 +307,25 @@ fn test_validate_with_wrong_type_for_optional() {
         "optional_field": "not a number"
     });
 
-    // The simple validator doesn't check types, so this passes
-    // A real implementation would use JSON schema validation
     ext.validate_config(&config)
         .expect("ext.validate_config(&config) should succeed");
 }
-
-// =============================================================================
-// Integration Tests
-// =============================================================================
 
 #[test]
 fn test_config_extension_full_workflow() {
     let ext = ValidatingConfigExtension;
 
-    // 1. Check prefix
     assert_eq!(ext.config_prefix(), "validating");
 
-    // 2. Get schema
     let schema = ext.config_schema().expect("should have schema");
     schema["required"]
         .as_array()
         .expect("schema[\"required\"].as_array() should be present");
 
-    // 3. Validate good config
     let good_config = json!({ "required_field": "test" });
     ext.validate_config(&good_config)
         .expect("ext.validate_config(&good_config) should succeed");
 
-    // 4. Validate bad config
     let bad_config = json!({});
     ext.validate_config(&bad_config).unwrap_err();
 }
