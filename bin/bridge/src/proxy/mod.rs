@@ -1,6 +1,8 @@
 pub mod forward;
+pub mod heartbeat;
 pub mod secret;
 pub mod server;
+pub mod session;
 pub mod token_cache;
 pub mod usage;
 
@@ -17,6 +19,7 @@ pub use server::{ProxyHandle, ProxyStats};
 pub const DEFAULT_PROXY_PORT: u16 = 48217;
 const REFRESH_TICK: Duration = Duration::from_secs(60);
 pub use forward::REFRESH_THRESHOLD_SECS;
+use session::SessionContext;
 use token_cache::TokenCache;
 
 static HANDLE: OnceLock<ProxyHandle> = OnceLock::new();
@@ -88,11 +91,13 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
     let shared = runtime_config();
     let token_cache = Arc::new(TokenCache::default_for_runtime());
     let _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
+    let session_context = Arc::new(SessionContext::new());
     let handle = match server::start(
         rt,
         DEFAULT_PROXY_PORT,
         Arc::clone(&shared),
         Arc::clone(&token_cache),
+        Arc::clone(&session_context),
     ) {
         Ok(h) => h,
         Err(e) => {

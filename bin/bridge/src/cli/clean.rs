@@ -30,7 +30,7 @@ pub(crate) fn cmd_clean() -> ExitCode {
                 ));
             }
             output::print_line("Token cache cleared.");
-            output::print_line("Cowork is back to a fresh splash on next launch.");
+            output::print_line("Bridge is back to a fresh splash on next launch.");
             ExitCode::SUCCESS
         },
         Err(e) => {

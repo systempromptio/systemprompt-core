@@ -3,7 +3,7 @@ use serde_json::json;
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::IpcReplyPayload;
 use crate::gui::state::CancelScope;
-use crate::gui::{GuiApp, ipc_runtime};
+use crate::gui::{GuiApp, emit, ipc_runtime};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_cancel_in_flight(app: &mut GuiApp, scope: Option<CancelScope>, reply_to: ReplyId) {

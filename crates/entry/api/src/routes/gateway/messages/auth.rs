@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use systemprompt_identifiers::{JwtToken, SessionId, TenantId, TraceId, UserId};
+use systemprompt_identifiers::{JwtToken, TenantId, TraceId, UserId};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
@@ -8,7 +8,6 @@ use crate::services::middleware::JwtContextExtractor;
 pub(super) struct AuthedPrincipal {
     pub user_id: UserId,
     pub tenant_id: Option<TenantId>,
-    pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
     pub roles: Vec<String>,
     pub department: String,
@@ -47,7 +46,6 @@ async fn authenticate_api_key(
         Some(rec) => Ok(AuthedPrincipal {
             user_id: rec.user_id,
             tenant_id,
-            session_id: None,
             trace_id: Some(TraceId::generate()),
             roles: Vec::new(),
             department: String::new(),
@@ -70,16 +68,9 @@ async fn authenticate_jwt(
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
-    let session_id = if claims.session_id.as_str().is_empty() {
-        None
-    } else {
-        Some(claims.session_id)
-    };
-
     Ok(AuthedPrincipal {
         user_id: claims.user_id,
         tenant_id: header_tenant_id,
-        session_id,
         trace_id: Some(TraceId::generate()),
         roles: claims.roles,
         department: claims.department.unwrap_or_default(),

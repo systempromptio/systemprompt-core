@@ -1,4 +1,4 @@
-//! Single-use cowork exchange code persistence.
+//! Single-use bridge exchange code persistence.
 
 use crate::error::OauthResult as Result;
 use chrono::{DateTime, Utc};
@@ -14,13 +14,13 @@ pub struct CreateExchangeCodeParams<'a> {
 }
 
 impl OAuthRepository {
-    pub async fn create_cowork_exchange_code(
+    pub async fn create_bridge_exchange_code(
         &self,
         params: CreateExchangeCodeParams<'_>,
     ) -> Result<()> {
         sqlx::query!(
             r#"
-            INSERT INTO cowork_exchange_codes (code_hash, user_id, expires_at)
+            INSERT INTO bridge_exchange_codes (code_hash, user_id, expires_at)
             VALUES ($1, $2, $3)
             "#,
             params.code_hash,
@@ -32,10 +32,10 @@ impl OAuthRepository {
         Ok(())
     }
 
-    pub async fn consume_cowork_exchange_code(&self, code_hash: &str) -> Result<Option<UserId>> {
+    pub async fn consume_bridge_exchange_code(&self, code_hash: &str) -> Result<Option<UserId>> {
         let row = sqlx::query!(
             r#"
-            UPDATE cowork_exchange_codes
+            UPDATE bridge_exchange_codes
             SET consumed_at = CURRENT_TIMESTAMP
             WHERE code_hash = $1
               AND consumed_at IS NULL

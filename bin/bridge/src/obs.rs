@@ -56,7 +56,7 @@ pub mod tracing_init {
                 let _ = tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
                     .with_env_filter(filter)
-                    .event_format(CoworkFormat)
+                    .event_format(BridgeFormat)
                     .try_init();
             }
             tracing::info!(
@@ -210,7 +210,7 @@ pub mod tracing_init {
         }
     }
 
-    struct CoworkFormat;
+    struct BridgeFormat;
 
     struct MessageVisitor<'a>(&'a mut String);
 
@@ -229,7 +229,7 @@ pub mod tracing_init {
         }
     }
 
-    impl<S, N> FormatEvent<S, N> for CoworkFormat
+    impl<S, N> FormatEvent<S, N> for BridgeFormat
     where
         S: Subscriber + for<'a> LookupSpan<'a>,
         N: for<'a> FormatFields<'a> + 'static,

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed (BREAKING)
+
+- `SessionSource::Cowork` → `SessionSource::Bridge` (`as_str` returns `"bridge"`); `from_client_id("sp_bridge") => SessionSource::Bridge`.
+- `ClientId::cowork()` → `ClientId::bridge()`; returns `"sp_bridge"`.
+
 ## [0.1.18] - 2026-03-27
 
 ### Added

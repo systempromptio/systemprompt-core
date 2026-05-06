@@ -17,7 +17,7 @@ pub enum ApplyError {
     #[error("unsafe agent name in manifest: {0}")]
     UnsafeAgentName(String),
     #[error(
-        "manifest contains a plugin with reserved id `{0}` (used by cowork for managed \
+        "manifest contains a plugin with reserved id `{0}` (used by bridge for managed \
          skills/agents/mcp)"
     )]
     ReservedPluginId(PluginId),

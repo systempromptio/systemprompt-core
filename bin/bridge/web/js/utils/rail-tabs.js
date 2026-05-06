@@ -15,12 +15,12 @@ export const TAB_DEFS = [
 ];
 
 export function readInitialTab() {
-  try { return localStorage.getItem("cowork.tab") || "marketplace"; }
+  try { return localStorage.getItem("bridge.tab") || "marketplace"; }
   catch (_) { return "marketplace"; }
 }
 
 export function persistTab(name) {
-  try { localStorage.setItem("cowork.tab", name); } catch (_) {}
+  try { localStorage.setItem("bridge.tab", name); } catch (_) {}
 }
 
 export function isTextInput(target) {

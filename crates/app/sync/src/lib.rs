@@ -53,8 +53,10 @@ pub use files::{
     FileBundle, FileDiffStatus, FileEntry, FileManifest, FileSyncService, PullDownload,
     SyncDiffEntry, SyncDiffResult,
 };
-pub use jobs::ContentSyncJob;
-pub use local::{AgentsLocalSync, ContentDiffEntry, ContentLocalSync, SkillsLocalSync};
+pub use jobs::{AccessControlSyncJob, ContentSyncJob};
+pub use local::{
+    AccessControlLocalSync, AgentsLocalSync, ContentDiffEntry, ContentLocalSync, SkillsLocalSync,
+};
 pub use models::{
     AgentDiffItem, AgentsDiffResult, ContentDiffItem, ContentDiffResult, DiffStatus, DiskAgent,
     DiskContent, DiskSkill, LocalSyncDirection, LocalSyncResult, SkillDiffItem, SkillsDiffResult,

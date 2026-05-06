@@ -16,9 +16,9 @@ function dotClass(state) {
 }
 
 function docsUrl(platform) {
-  if (platform === "macos") { return "https://systemprompt.io/documentation/services/cowork-deployment-macos"; }
-  if (platform === "windows") { return "https://systemprompt.io/documentation/services/cowork-deployment-windows"; }
-  return "https://systemprompt.io/documentation/services/cowork-deployment";
+  if (platform === "macos") { return "https://systemprompt.io/documentation/services/bridge-deployment-macos"; }
+  if (platform === "windows") { return "https://systemprompt.io/documentation/services/bridge-deployment-windows"; }
+  return "https://systemprompt.io/documentation/services/bridge-deployment";
 }
 
 function isMissing(v) {

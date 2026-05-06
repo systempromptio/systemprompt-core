@@ -17,8 +17,9 @@ use tokio::sync::oneshot;
 use crate::config::{RuntimeConfig, SharedRuntimeConfig};
 use crate::ids::ProxySecret;
 use crate::obs::output::diag;
+use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
-use crate::proxy::{forward, secret};
+use crate::proxy::{forward, heartbeat, secret};
 
 #[derive(Clone)]
 pub struct ProxyHandle {
@@ -44,6 +45,7 @@ pub(super) struct ProxyContext {
     pub stats: Arc<ProxyStats>,
     pub client: reqwest::Client,
     pub token_cache: Arc<TokenCache>,
+    pub session: Arc<SessionContext>,
 }
 
 impl ProxyContext {
@@ -57,6 +59,7 @@ pub fn start(
     port: u16,
     runtime_config: SharedRuntimeConfig,
     token_cache: Arc<TokenCache>,
+    session: Arc<SessionContext>,
 ) -> std::io::Result<ProxyHandle> {
     let loopback = secret::proxy_init()?;
     let proxy_secret = ProxySecret::new(loopback.into_inner());
@@ -65,15 +68,23 @@ pub fn start(
     let client = build_upstream_client()?;
 
     let ctx = ProxyContext {
-        runtime_config,
+        runtime_config: runtime_config.clone(),
         secret: Arc::new(proxy_secret),
         stats: stats.clone(),
-        client,
-        token_cache,
+        client: client.clone(),
+        token_cache: token_cache.clone(),
+        session: session.clone(),
     };
 
     let (port_tx, port_rx) = oneshot::channel::<std::io::Result<u16>>();
     rt.spawn(run_listener(port, ctx, port_tx));
+    rt.spawn(heartbeat::run_loop(
+        runtime_config,
+        token_cache,
+        session,
+        Arc::clone(&stats),
+        client,
+    ));
 
     let bound_port = match port_rx.blocking_recv() {
         Ok(Ok(p)) => p,
@@ -203,6 +214,7 @@ async fn handle_request(
         ctx.client.clone(),
         cfg.gateway_base.as_ref(),
         ctx.token_cache.as_ref(),
+        ctx.session.as_ref(),
         Arc::clone(&ctx.stats),
     )
     .await

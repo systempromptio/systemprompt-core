@@ -47,14 +47,14 @@ members = [
     # Unit tests - entry layer
     "unit/entry/api",
     "unit/entry/cli",
-    # Unit tests - cowork binary
-    "unit/cowork/manifest",
-    "unit/cowork/paths",
-    "unit/cowork/install",
-    "unit/cowork/sync",
-    "unit/cowork/integration",
-    "unit/cowork/proxy",
-    "unit/cowork/auth",
+    # Unit tests - bridge binary
+    "unit/bridge/manifest",
+    "unit/bridge/paths",
+    "unit/bridge/install",
+    "unit/bridge/sync",
+    "unit/bridge/integration",
+    "unit/bridge/proxy",
+    "unit/bridge/auth",
     # Common test utilities
     "common/mocks",
     "common/migrate",

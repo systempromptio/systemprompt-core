@@ -1,6 +1,8 @@
 //! Tests for `systemprompt-authz` integration into core.
 
 #[cfg(test)]
+mod access_control_config;
+#[cfg(test)]
 mod bootstrap;
 #[cfg(test)]
 mod hook_runtime;

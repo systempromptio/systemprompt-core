@@ -1,6 +1,7 @@
+pub mod access_control;
 pub mod agents;
+pub mod bridge;
 pub mod config;
-pub mod cowork;
 pub mod session;
 pub mod setup;
 pub mod users;
@@ -31,9 +32,16 @@ pub enum AdminCommands {
 
     #[command(
         subcommand,
-        about = "Cowork helper enrollment (device certs, exchange codes)"
+        about = "Bridge helper enrollment (device certs, exchange codes)"
     )]
-    Cowork(cowork::CoworkCommands),
+    Bridge(bridge::BridgeCommands),
+
+    #[command(
+        subcommand,
+        name = "access-control",
+        about = "Access-control baseline operations (DB → YAML export)"
+    )]
+    AccessControl(access_control::AccessControlCommands),
 }
 
 pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
@@ -47,7 +55,8 @@ pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         AdminCommands::Session(cmd) => session::execute(cmd, config).await,
-        AdminCommands::Cowork(cmd) => cowork::execute(cmd, config).await,
+        AdminCommands::Bridge(cmd) => bridge::execute(cmd, config).await,
+        AdminCommands::AccessControl(cmd) => access_control::execute(cmd, config).await,
     }
 }
 

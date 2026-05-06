@@ -44,7 +44,7 @@ In scope for this policy:
 
 - The `systempromptio/systemprompt-core` repository and all crates it publishes to crates.io under `systemprompt-*`
 - The `systemprompt` facade crate
-- The `systemprompt-cowork` binary and its sync/credential-helper flows
+- The `systemprompt-bridge` binary and its sync/credential-helper flows
 - Official release binaries attached to GitHub releases
 
 Out of scope:

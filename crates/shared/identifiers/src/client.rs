@@ -52,8 +52,8 @@ impl ClientId {
         Self("sp_desktop".to_string())
     }
 
-    pub fn cowork() -> Self {
-        Self("sp_cowork".to_string())
+    pub fn bridge() -> Self {
+        Self("sp_bridge".to_string())
     }
 
     pub fn system(service_name: &str) -> Self {

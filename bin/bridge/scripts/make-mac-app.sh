@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Wrap the systemprompt-bridge binary in a macOS .app bundle (branded "Cowork").
+# Wrap the systemprompt-bridge binary in a macOS .app bundle (branded "Bridge").
 #
 # Usage: bin/bridge/scripts/make-mac-app.sh [--target <triple>]
 #
 # Reads version from bin/bridge/Cargo.toml, picks the matching release binary,
 # generates an .icns from bin/bridge/assets/window-icon-1024.png, and emits
-# bin/bridge/target/<triple>/release/SystempromptCowork.app
-# (or bin/bridge/target/release/SystempromptCowork.app when no target is given).
+# bin/bridge/target/<triple>/release/SystempromptBridge.app
+# (or bin/bridge/target/release/SystempromptBridge.app when no target is given).
 set -euo pipefail
 
 cd "$(dirname "$0")/../../.."  # repo root
@@ -34,7 +34,7 @@ if [[ ! -f "$BIN" ]]; then
 fi
 
 VERSION="$(awk -F'"' '/^version/ { print $2; exit }' "$CRATE_DIR/Cargo.toml")"
-APP="$OUT_DIR/SystempromptCowork.app"
+APP="$OUT_DIR/SystempromptBridge.app"
 CONTENTS="$APP/Contents"
 MACOS_DIR="$CONTENTS/MacOS"
 RES_DIR="$CONTENTS/Resources"
@@ -42,8 +42,8 @@ RES_DIR="$CONTENTS/Resources"
 rm -rf "$APP"
 mkdir -p "$MACOS_DIR" "$RES_DIR"
 
-cp "$BIN" "$MACOS_DIR/systemprompt-cowork"
-chmod +x "$MACOS_DIR/systemprompt-cowork"
+cp "$BIN" "$MACOS_DIR/systemprompt-bridge"
+chmod +x "$MACOS_DIR/systemprompt-bridge"
 
 sed "s/__VERSION__/$VERSION/g" "$PLIST_TEMPLATE" > "$CONTENTS/Info.plist"
 
@@ -62,4 +62,4 @@ iconutil -c icns -o "$RES_DIR/AppIcon.icns" "$ICONSET"
 rm -rf "$(dirname "$ICONSET")"
 
 echo "built: $APP (v$VERSION)"
-echo "run with: open '$APP'  or  '$MACOS_DIR/systemprompt-cowork' gui"
+echo "run with: open '$APP'  or  '$MACOS_DIR/systemprompt-bridge' gui"

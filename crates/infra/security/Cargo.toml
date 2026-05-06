@@ -31,7 +31,7 @@ uuid = { workspace = true }
 jsonwebtoken = { workspace = true }
 chrono = { workspace = true }
 
-# Signed-manifest crypto (cowork)
+# Signed-manifest crypto (bridge)
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 base64 = { workspace = true }
 serde = { workspace = true }

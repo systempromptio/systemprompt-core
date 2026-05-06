@@ -1,5 +1,6 @@
 pub mod auth;
-pub mod cowork;
+pub mod bridge;
+pub mod bridge_heartbeat;
 pub mod messages;
 pub mod models;
 
@@ -25,6 +26,21 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
     let status = resp.status().as_u16();
     let elapsed_ms = started.elapsed().as_millis() as u64;
 
+    let metadata = serde_json::json!({
+        "method": method.to_string(),
+        "path": path,
+        "status": status,
+        "elapsed_ms": elapsed_ms,
+    });
+
+    if status >= 500 {
+        tracing::error!(method = %method, path = %path, status, elapsed_ms, "gateway request failed");
+    } else if status >= 400 {
+        tracing::warn!(method = %method, path = %path, status, elapsed_ms, "gateway request rejected");
+    } else {
+        tracing::info!(method = %method, path = %path, status, elapsed_ms, "gateway request");
+    }
+
     if let Ok(repo) = LoggingRepository::new(&pool) {
         let level = if status >= 500 {
             LogLevel::Error
@@ -33,24 +49,15 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
         } else {
             LogLevel::Info
         };
-        let metadata = serde_json::json!({
-            "method": method.to_string(),
-            "path": path,
-            "status": status,
-            "elapsed_ms": elapsed_ms,
-        });
         let entry = LogEntry::new(
             level,
             "systemprompt_api::gateway",
-            format!(
-                "{method} {} -> {status} ({elapsed_ms}ms)",
-                &metadata["path"].as_str().unwrap_or("")
-            ),
+            format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
         )
         .with_metadata(metadata);
         if let Err(e) = repo
             .with_database(true)
-            .with_terminal(true)
+            .with_terminal(false)
             .log(entry)
             .await
         {
@@ -76,6 +83,8 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let ctx_pat = ctx.clone();
     let ctx_session = ctx.clone();
     let ctx_mtls = ctx.clone();
+    let ctx_heartbeat = ctx.clone();
+    let jwt_heartbeat = Arc::clone(&jwt_extractor);
 
     let router = Router::new()
         .route(
@@ -87,29 +96,37 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             }),
         )
         .route(
-            "/auth/cowork/pat",
+            "/auth/bridge/pat",
             post(move |request| {
                 let context = ctx_pat.clone();
                 async move { auth::pat(context, request).await }
             }),
         )
         .route(
-            "/auth/cowork/session",
+            "/auth/bridge/session",
             post(move |request| {
                 let context = ctx_session.clone();
                 async move { auth::session(context, request).await }
             }),
         )
         .route(
-            "/auth/cowork/mtls",
+            "/auth/bridge/mtls",
             post(move |request| {
                 let context = ctx_mtls.clone();
                 async move { auth::mtls(context, request).await }
             }),
         )
-        .route("/auth/cowork/capabilities", get(auth::capabilities))
-        .route("/cowork/pubkey", get(cowork::pubkey))
-        .route("/cowork/profile", get(cowork::profile))
+        .route("/auth/bridge/capabilities", get(auth::capabilities))
+        .route("/bridge/pubkey", get(bridge::pubkey))
+        .route("/bridge/profile", get(bridge::profile))
+        .route(
+            "/bridge/heartbeat",
+            post(move |headers, body| {
+                let extractor = Arc::clone(&jwt_heartbeat);
+                let context = ctx_heartbeat.clone();
+                async move { bridge_heartbeat::handle(extractor, context, headers, body).await }
+            }),
+        )
         .route("/models", get(models::list))
         .route("/", get(models::root))
         .layer(Extension(ctx.clone()))

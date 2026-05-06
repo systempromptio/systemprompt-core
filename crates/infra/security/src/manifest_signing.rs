@@ -1,4 +1,4 @@
-//! Ed25519 signing of cowork manifests.
+//! Ed25519 signing of bridge manifests.
 //!
 //! The signing key is derived from a 32-byte seed loaded by
 //! [`systemprompt_config::SecretsBootstrap`]. The seed is cached in a

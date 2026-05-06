@@ -32,9 +32,9 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
     }
     if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
         summary.push(
-            "warning: Cowork rejects http:// for non-127.0.0.1 hosts. Re-run --apply with http://127.0.0.1:<port> or switch to https://.".into(),
+            "warning: Bridge rejects http:// for non-127.0.0.1 hosts. Re-run --apply with http://127.0.0.1:<port> or switch to https://.".into(),
         );
     }
-    summary.push("Fully quit Cowork (tray icon → Quit) and relaunch to pick up new policy.".into());
+    summary.push("Fully quit Bridge (tray icon → Quit) and relaunch to pick up new policy.".into());
     Ok(summary)
 }

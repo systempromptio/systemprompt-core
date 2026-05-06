@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed (BREAKING)
+
+- **`cowork` → `bridge` rename across the public API.** `issue_cowork_access` → `issue_bridge_access`, `issue_cowork_access_with` → `issue_bridge_access_with`, `issue_cowork_exchange_code` → `issue_bridge_exchange_code`, `exchange_cowork_session_code` → `exchange_bridge_session_code`, `CoworkAuthResult` → `BridgeAuthResult`, `CoworkExchangeCode` → `BridgeExchangeCode`. Repository methods `create_cowork_exchange_code` / `consume_cowork_exchange_code` likewise. File rename `services/cowork.rs` → `services/bridge.rs`. No deprecated shims.
+- **DB table `cowork_exchange_codes` → `bridge_exchange_codes`** (plus matching index renames). Idempotent migration `MIGRATION_002_RENAME_COWORK_TO_BRIDGE` registered on `OauthExtension`; existing deployments rename in place at next bootstrap.
+
+### Added
+
+- **`BridgeSessionRepository`** in `repository::bridge_session` with `upsert`, `list_active(within)`, `list_active_for_user(user, within)`, and `delete_stale(older_than)`. Backed by the new `bridge_sessions` table (schema embedded via `OauthExtension::schemas`). Powers the `/v1/bridge/heartbeat` endpoint and the `systemprompt admin bridge list` CLI command.
+
 ## [0.4.3] - 2026-04-29
 
 ### Changed

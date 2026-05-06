@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking — `cowork` is renamed to `bridge` everywhere.** Clean cutover, no compatibility shims. A `0.7.x` bridge cannot authenticate against a `0.8.0` gateway and vice versa.
+  - HTTP routes: `/v1/cowork/*` → `/v1/bridge/*`, `/v1/auth/cowork/*` → `/v1/auth/bridge/*`.
+  - Wire formats: `JwtAudience::Cowork` (`"cowork"`) → `JwtAudience::Bridge` (`"bridge"`); `ClientId::cowork()` (`"sp_cowork"`) → `ClientId::bridge()` (`"sp_bridge"`); `SessionSource::Cowork` → `SessionSource::Bridge`.
+  - DB: `cowork_exchange_codes` → `bridge_exchange_codes`. Idempotent `MIGRATION_002_RENAME_COWORK_TO_BRIDGE` added to the OAuth extension; existing deployments rename in place on next bootstrap.
+  - Symbol renames across `systemprompt_oauth` (`issue_bridge_access`, `BridgeAuthResult`, `BridgeExchangeCode`, …), `bin/bridge` macros (`bridge_define_id!`, `bridge_define_token!`), and the file moves `services/cowork.rs` → `services/bridge.rs`, `routes/gateway/cowork.rs` → `routes/gateway/bridge.rs`, `commands/admin/cowork/` → `commands/admin/bridge/`.
+  - Env vars: `SP_COWORK_*` → `SP_BRIDGE_*`. Config file: `~/.config/systemprompt/systemprompt-cowork.toml` → `systemprompt-bridge.toml`.
+  - GitHub workflows, MDM templates, and `documentation/cowork/` → `documentation/bridge/` follow the same rename. Historical CHANGELOG entries are unchanged.
+
+### Added
+
+- **Bridge heartbeat + active-device registry.**
+  - New `bridge_sessions` table (`crates/domain/oauth/schema/bridge_sessions.sql`) keyed on `session_id`, with `bridge_version`, `os`, `hostname`, `started_at`, `last_heartbeat_at`, `last_activity_at`, and forwarded/token totals. Two indices on `last_heartbeat_at` for the active-devices query.
+  - `BridgeSessionRepository` (`crates/domain/oauth/src/repository/bridge_session.rs`) — `upsert`, `list_active(within)`, `list_active_for_user`, `delete_stale`. All queries via compile-time `sqlx::query!` / `query_as!` macros.
+  - `POST /v1/bridge/heartbeat` (`crates/entry/api/src/routes/gateway/bridge_heartbeat.rs`) — JWT-authed; typed `BridgeHeartbeatRequest`; upserts the session row and returns `204 No Content`.
+  - Bridge polling loop (`bin/bridge/src/proxy/heartbeat.rs`) — 30 s cadence, spawned next to the existing token-refresh loop. Reuses the proxy's reqwest client and `TokenCache`. On `401` the token cache invalidates so the next tick re-authenticates.
+  - `SessionContext::touch_activity()` is called on every successful messages-path forward, so `last_activity_at` reflects real inference traffic rather than just the heartbeat tick.
+  - New CLI: `systemprompt admin bridge list [--user-id <id>] [--within-secs <N>]` (default 120 s = 4× heartbeat grace) for operators to list active devices.
+
 ## [0.7.0] - 2026-05-06
 
 ### Added

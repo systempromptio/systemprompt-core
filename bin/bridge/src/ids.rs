@@ -26,7 +26,7 @@ impl IdValidationError {
 }
 
 #[macro_export]
-macro_rules! cowork_define_id {
+macro_rules! bridge_define_id {
     ($name:ident) => {
         #[derive(
             Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
@@ -44,7 +44,7 @@ macro_rules! cowork_define_id {
         impl From<String> for $name { fn from(s: String) -> Self { Self(s) } }
         impl From<&str> for $name { fn from(s: &str) -> Self { Self(s.to_string()) } }
 
-        $crate::cowork_id_common!($name);
+        $crate::bridge_id_common!($name);
     };
 
     ($name:ident, non_empty) => {
@@ -68,8 +68,8 @@ macro_rules! cowork_define_id {
             pub fn into_inner(self) -> String { self.0 }
         }
 
-        $crate::cowork_id_validated_conversions!($name);
-        $crate::cowork_id_common!($name);
+        $crate::bridge_id_validated_conversions!($name);
+        $crate::bridge_id_common!($name);
     };
 
     ($name:ident, validated, $validator:expr) => {
@@ -93,14 +93,14 @@ macro_rules! cowork_define_id {
             pub fn into_inner(self) -> String { self.0 }
         }
 
-        $crate::cowork_id_validated_conversions!($name);
-        $crate::cowork_id_common!($name);
+        $crate::bridge_id_validated_conversions!($name);
+        $crate::bridge_id_common!($name);
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! cowork_id_common {
+macro_rules! bridge_id_common {
     ($name:ident) => {
         impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -122,7 +122,7 @@ macro_rules! cowork_id_common {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! cowork_id_validated_conversions {
+macro_rules! bridge_id_validated_conversions {
     ($name:ident) => {
         impl TryFrom<String> for $name {
             type Error = $crate::ids::IdValidationError;
@@ -155,7 +155,7 @@ macro_rules! cowork_id_validated_conversions {
 }
 
 #[macro_export]
-macro_rules! cowork_define_token {
+macro_rules! bridge_define_token {
     ($name:ident) => {
         #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
         #[serde(transparent)]
@@ -228,29 +228,29 @@ macro_rules! cowork_define_token {
     };
 }
 
-cowork_define_token!(PatToken);
-cowork_define_token!(BearerToken);
-cowork_define_token!(LoopbackSecret);
-cowork_define_token!(ProxySecret);
-cowork_define_token!(ManifestSignature);
-cowork_define_token!(PinnedPubKey);
+bridge_define_token!(PatToken);
+bridge_define_token!(BearerToken);
+bridge_define_token!(LoopbackSecret);
+bridge_define_token!(ProxySecret);
+bridge_define_token!(ManifestSignature);
+bridge_define_token!(PinnedPubKey);
 
-cowork_define_id!(PluginId, non_empty);
-cowork_define_id!(SkillId, non_empty);
-cowork_define_id!(SkillName, non_empty);
-cowork_define_id!(ManagedMcpServerName, non_empty);
-cowork_define_id!(ToolName, non_empty);
-cowork_define_id!(PrefsDomain, non_empty);
-cowork_define_id!(PrefsKey, non_empty);
-cowork_define_id!(ModelId, non_empty);
-cowork_define_id!(KeystoreRef, non_empty);
-cowork_define_id!(CertFingerprint, non_empty);
-cowork_define_id!(QueryKey, non_empty);
+bridge_define_id!(PluginId, non_empty);
+bridge_define_id!(SkillId, non_empty);
+bridge_define_id!(SkillName, non_empty);
+bridge_define_id!(ManagedMcpServerName, non_empty);
+bridge_define_id!(ToolName, non_empty);
+bridge_define_id!(PrefsDomain, non_empty);
+bridge_define_id!(PrefsKey, non_empty);
+bridge_define_id!(ModelId, non_empty);
+bridge_define_id!(KeystoreRef, non_empty);
+bridge_define_id!(CertFingerprint, non_empty);
+bridge_define_id!(QueryKey, non_empty);
 
-cowork_define_id!(PrefsValue);
-cowork_define_id!(QueryValue);
+bridge_define_id!(PrefsValue);
+bridge_define_id!(QueryValue);
 
-cowork_define_id!(Sha256Digest, validated, |value: &str| {
+bridge_define_id!(Sha256Digest, validated, |value: &str| {
     if value.len() != 64 {
         return Err(IdValidationError::invalid(
             "Sha256Digest",

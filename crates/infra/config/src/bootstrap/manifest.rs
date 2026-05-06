@@ -1,7 +1,7 @@
 //! Manifest signing seed generation, decoding, and persistence.
 //!
 //! The manifest signing key is a 32-byte secret used by the
-//! cowork/manifest pipeline to detach-sign module manifests. This
+//! bridge/manifest pipeline to detach-sign module manifests. This
 //! module owns its base64 encoding and the atomic-write helper that
 //! persists rotated seeds back into the secrets file.
 

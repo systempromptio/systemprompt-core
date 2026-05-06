@@ -69,7 +69,7 @@ pub enum SecretsBootstrapError {
 
     #[error(
         "manifest_signing_secret_seed is missing from the secrets file and the bootstrap path is \
-         not writable. Run `systemprompt admin cowork rotate-signing-key` against a writable \
+         not writable. Run `systemprompt admin bridge rotate-signing-key` against a writable \
          secrets file, or add a base64-encoded 32-byte value under `manifest_signing_secret_seed`."
     )]
     ManifestSeedUnavailable,

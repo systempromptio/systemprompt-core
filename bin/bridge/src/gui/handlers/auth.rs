@@ -8,7 +8,7 @@ use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::state::CancelScope;
-use crate::gui::{GuiApp, ipc_runtime};
+use crate::gui::{GuiApp, emit, ipc_runtime};
 use crate::i18n;
 
 #[tracing::instrument(level = "info", skip(app, token), fields(has_gateway = gateway.is_some()))]

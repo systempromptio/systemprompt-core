@@ -167,7 +167,7 @@ mod tests {
         let toml_input = r#"gateway_url = "https://gateway.example.com"
 
 [pat]
-file = "/etc/cowork/pat.token"
+file = "/etc/bridge/pat.token"
 
 [session]
 enabled = true

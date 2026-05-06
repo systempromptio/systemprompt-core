@@ -2,7 +2,7 @@ use serde_json::json;
 
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::IpcReplyPayload;
-use crate::gui::{GuiApp, ipc_runtime};
+use crate::gui::{GuiApp, emit, ipc_runtime};
 use crate::{i18n, validate};
 
 #[tracing::instrument(level = "info", skip(app))]

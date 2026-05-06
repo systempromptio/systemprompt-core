@@ -9,7 +9,7 @@ use http::HeaderValue;
 use systemprompt_ai::InsertSafetyFinding;
 use systemprompt_ai::repository::AiSafetyFindingRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, ContextId};
 use systemprompt_models::profile::GatewayConfig;
 
 use super::audit::{GatewayAudit, GatewayRequestContext};
@@ -33,6 +33,12 @@ impl GatewayService {
         ctx: GatewayRequestContext,
         db: &DbPool,
     ) -> Result<Response<Body>> {
+        if ctx.context_id.as_ref().is_none_or(ContextId::is_empty) || ctx.session_id.is_none() {
+            return Err(anyhow!(
+                "gateway dispatch missing conversation binding (session_id + context_id)"
+            ));
+        }
+
         let route = config
             .find_route(&request.model)
             .ok_or_else(|| anyhow!("No gateway route matches model '{}'", request.model))?;

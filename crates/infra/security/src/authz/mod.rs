@@ -7,9 +7,11 @@
 //! the same table and audit shape.
 
 pub mod audit;
+pub mod config;
 pub mod error;
 pub mod extension;
 pub mod hook;
+pub mod ingestion;
 pub mod repository;
 pub mod resolver;
 pub mod runtime;
@@ -19,9 +21,11 @@ pub use audit::{
     AuthzAuditSink, AuthzSource, DbAuditSink, GovernanceDecisionRecord,
     GovernanceDecisionRepository, NullAuditSink, insert_governance_decision,
 };
+pub use config::{AccessControlConfig, DepartmentEntry, RuleEntry};
 pub use error::{AuthzBootstrapError, AuthzError, AuthzResult};
 pub use extension::AuthzExtension;
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, WebhookHook};
+pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::resolve;
 pub use runtime::{

@@ -3,6 +3,8 @@ mod dispatch;
 mod extract;
 mod rejection;
 
+pub use extract::extract_credential;
+
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;

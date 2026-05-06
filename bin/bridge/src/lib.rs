@@ -51,7 +51,7 @@ Commands (credential helper):
   whoami                     Print authenticated identity from the gateway
 
 Commands (plugin + MCP sync):
-  install                    Bootstrap Cowork integration on this machine
+  install                    Bootstrap Bridge integration on this machine
     [--gateway <url>]                     Persist gateway URL
     [--pubkey <base64>]                   Pin manifest signing pubkey out of band.
                                           With --apply, also written to

@@ -1,8 +1,8 @@
 //! OAuth domain services: token generation, JWT, session, `WebAuthn`, CIMD,
 //! validation, templating.
 
+pub mod bridge;
 pub mod cimd;
-pub mod cowork;
 pub mod generation;
 pub mod http;
 pub mod jwt;
@@ -12,9 +12,9 @@ pub mod templating;
 pub mod validation;
 pub mod webauthn;
 
-pub use cowork::{
-    CoworkAuthResult, CoworkExchangeCode, exchange_cowork_session_code, hash_exchange_code,
-    issue_cowork_access, issue_cowork_access_with, issue_cowork_exchange_code,
+pub use bridge::{
+    BridgeAuthResult, BridgeExchangeCode, exchange_bridge_session_code, hash_exchange_code,
+    issue_bridge_access, issue_bridge_access_with, issue_bridge_exchange_code,
 };
 pub use http::is_browser_request;
 pub use jwt::{AuthService, TokenValidator, extract_bearer_token, extract_cookie_token};

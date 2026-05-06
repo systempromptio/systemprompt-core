@@ -6,6 +6,22 @@ const MIGRATION_001_RFC8707_RESOURCE: &str = r"
 ALTER TABLE oauth_auth_codes ADD COLUMN IF NOT EXISTS resource TEXT;
 ";
 
+const MIGRATION_002_RENAME_COWORK_TO_BRIDGE: &str = r"
+DO $$
+BEGIN
+    IF to_regclass('cowork_exchange_codes') IS NOT NULL
+       AND to_regclass('bridge_exchange_codes') IS NULL THEN
+        ALTER TABLE cowork_exchange_codes RENAME TO bridge_exchange_codes;
+    END IF;
+    IF to_regclass('idx_cowork_exchange_codes_user') IS NOT NULL THEN
+        ALTER INDEX idx_cowork_exchange_codes_user RENAME TO idx_bridge_exchange_codes_user;
+    END IF;
+    IF to_regclass('idx_cowork_exchange_codes_active') IS NOT NULL THEN
+        ALTER INDEX idx_cowork_exchange_codes_active RENAME TO idx_bridge_exchange_codes_active;
+    END IF;
+END $$;
+";
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
 
@@ -97,13 +113,23 @@ impl Extension for OauthExtension {
                 "token_hash".into(),
             ]),
             SchemaDefinition::inline(
-                "cowork_exchange_codes",
-                include_str!("../schema/cowork_exchange_codes.sql"),
+                "bridge_exchange_codes",
+                include_str!("../schema/bridge_exchange_codes.sql"),
             )
             .with_required_columns(vec![
                 "code_hash".into(),
                 "user_id".into(),
                 "expires_at".into(),
+            ]),
+            SchemaDefinition::inline(
+                "bridge_sessions",
+                include_str!("../schema/bridge_sessions.sql"),
+            )
+            .with_required_columns(vec![
+                "session_id".into(),
+                "user_id".into(),
+                "bridge_version".into(),
+                "last_heartbeat_at".into(),
             ]),
         ]
     }
@@ -113,11 +139,18 @@ impl Extension for OauthExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(
-            1,
-            "add_rfc8707_resource_column",
-            MIGRATION_001_RFC8707_RESOURCE,
-        )]
+        vec![
+            Migration::new(
+                1,
+                "add_rfc8707_resource_column",
+                MIGRATION_001_RFC8707_RESOURCE,
+            ),
+            Migration::new(
+                2,
+                "rename_cowork_to_bridge",
+                MIGRATION_002_RENAME_COWORK_TO_BRIDGE,
+            ),
+        ]
     }
 }
 
