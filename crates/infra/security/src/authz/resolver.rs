@@ -30,7 +30,7 @@ pub fn resolve(
     {
         return Decision::Deny {
             reason: format!("user-level deny: {user_id}"),
-            justification: nonempty(&rule.justification),
+            justification: rule.justification.clone(),
         };
     }
     if rules
@@ -45,7 +45,7 @@ pub fn resolve(
     {
         return Decision::Deny {
             reason: format!("role deny: {}", rule.rule_value),
-            justification: nonempty(&rule.justification),
+            justification: rule.justification.clone(),
         };
     }
     if rules
@@ -60,7 +60,7 @@ pub fn resolve(
     {
         return Decision::Deny {
             reason: format!("department deny: {department}"),
-            justification: nonempty(&rule.justification),
+            justification: rule.justification.clone(),
         };
     }
     if rules
@@ -78,14 +78,6 @@ pub fn resolve(
     }
 }
 
-fn nonempty(s: &str) -> Option<String> {
-    if s.is_empty() {
-        None
-    } else {
-        Some(s.to_string())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,7 +89,7 @@ mod tests {
             rule_value: value.into(),
             access,
             default_included: false,
-            justification: String::new(),
+            justification: None,
         }
     }
 

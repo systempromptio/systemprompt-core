@@ -30,8 +30,9 @@ pub struct UpsertRuleParams<'a> {
     pub access: Access,
     /// Operator-supplied note explaining *why* this rule exists.
     /// Surfaced in the matrix tooltip and in the audit row's
-    /// `evaluated_rules` JSON when the rule decides.
-    pub justification: &'a str,
+    /// `evaluated_rules` JSON when the rule decides. `None` means
+    /// the operator declined to give a reason.
+    pub justification: Option<&'a str>,
 }
 
 #[derive(Clone, Debug)]
@@ -63,8 +64,7 @@ impl AccessControlRepository {
     ) -> AuthzResult<Vec<AccessRule>> {
         let rows = sqlx::query!(
             r#"
-            SELECT id, rule_type, rule_value, access, default_included,
-                   COALESCE(justification, '') AS "justification!"
+            SELECT id, rule_type, rule_value, access, default_included, justification
             FROM access_control_rules
             WHERE entity_type = $1 AND entity_id = $2
             ORDER BY rule_type, rule_value
@@ -107,8 +107,7 @@ impl AccessControlRepository {
 
         let rows = sqlx::query!(
             r#"
-            SELECT entity_id, id, rule_type, rule_value, access, default_included,
-                   COALESCE(justification, '') AS "justification!"
+            SELECT entity_id, id, rule_type, rule_value, access, default_included, justification
             FROM access_control_rules
             WHERE entity_type = $1 AND entity_id = ANY($2)
             ORDER BY entity_id, rule_type, rule_value
@@ -148,10 +147,9 @@ impl AccessControlRepository {
             ON CONFLICT (entity_type, entity_id, rule_type, rule_value)
             DO UPDATE SET
                 access = EXCLUDED.access,
-                justification = COALESCE(NULLIF(EXCLUDED.justification, ''), access_control_rules.justification),
+                justification = COALESCE(EXCLUDED.justification, access_control_rules.justification),
                 updated_at = NOW()
-            RETURNING id, rule_type, rule_value, access, default_included,
-                      COALESCE(justification, '') AS "justification!"
+            RETURNING id, rule_type, rule_value, access, default_included, justification
             "#,
             id.as_str(),
             params.entity_type.as_str(),
@@ -174,11 +172,12 @@ impl AccessControlRepository {
         })
     }
 
-    /// Update only the justification on an existing rule.
+    /// Update only the justification on an existing rule. Pass `None` to
+    /// clear the operator note.
     pub async fn set_justification(
         &self,
         rule_id: &RuleId,
-        justification: &str,
+        justification: Option<&str>,
     ) -> AuthzResult<bool> {
         let result = sqlx::query!(
             r#"UPDATE access_control_rules SET justification = $2, updated_at = NOW() WHERE id = $1"#,
