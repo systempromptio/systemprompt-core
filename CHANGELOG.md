@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-06
+
+### Added
+
+**Unified authorization decision plane (`crates/infra/security/src/authz/`)**
+
+- **`AuthzDecisionHook` async trait** — single extension point for both the gateway `/v1/messages` proxy and the MCP RBAC middleware. Both enforcement sites call `evaluate(AuthzRequest) -> AuthzDecision` via a process-global slot installed at server startup.
+- **`WebhookHook`** — fail-closed production implementation. POSTs `AuthzRequest` to an extension HTTP endpoint (e.g. the template's `POST /govern/authz`). Any transport error, non-2xx response, decode failure, or timeout denies the request and records the fault to the audit sink. There is no fail-open mode.
+- **`DenyAllHook`** — bootstrap default and `mode: disabled` implementation. Denies every request and records to the audit sink so outages remain observable.
+- **`AllowAllHook`** — dev/test only. Installed only when the operator passes the exact `unrestricted` acknowledgement in the profile; bootstrap fails otherwise. Every call logs an `ERROR` line and writes an audit row so unrestricted operation is never silent.
+- **`AccessControlRepository`** — typed queries against `access_control_rules` (`list_rules_for_entity`, `list_rules_bulk`, `upsert_rule`, `delete_rule`, `set_default_included`, `get_default_included`). Generic over `EntityKind`.
+- **`resolve(rules, user_id, roles, department, default_included) -> Decision`** — pure deny-overrides resolver with user > role > department > default specificity. Zero DB calls; suitable for unit testing.
+- **`EntityKind` enum** (`GatewayRoute`, `McpServer`) — typed entity references in `AuthzRequest`; serializes to `"gateway_route"` / `"mcp_server"` for JSON compatibility with the extension webhook.
+- **`GovernanceDecisionRepository` and `DbAuditSink`** — write every authorization decision (allow and deny) to the `governance_decisions` table with `entity_type`, `entity_id`, `user_id`, `tenant_id`, `decision`, and `evaluated_rules`. `NullAuditSink` for tests and pre-database bootstrap.
+- **`install_from_governance_config`** — reads `services/governance/config.yaml` (`mode: webhook | disabled | unrestricted`) and installs the process-global hook at startup. Called from `AppContextBuilder::build` after the database pool is created.
+- **Schema migrations** embedded via `AuthzExtension`: `access_control_rules` (entity × rule_type × access with deny-overrides precedence) and `governance_decisions` (unified audit log for all authorization decisions).
+- **`systemprompt-security-authz-tests` crate** (`crates/tests/unit/infra/security/authz/`) — bootstrap, hook-runtime, webhook-hook, and profile-governance unit tests.
+
+**JWT and profile changes**
+
+- **`JwtClaims.department: Option<String>`** and **`JwtClaims.tenant_id: Option<TenantId>`** — new optional claims skipped during serialization when absent. Populated by the token issuer at login; forwarded to `AuthzRequest` at both enforcement sites without a DB round-trip per request.
+- **`GovernanceConfig` and `AuthzMode`** profile types (`crates/shared/models/src/profile/governance.rs`). `AuthzMode` is `webhook | disabled | unrestricted`; `UNRESTRICTED_ACKNOWLEDGEMENT` is the sentinel string that must be set exactly for `AllowAllHook` to install.
+- **Stable `id` field on `GatewayRouteView`** (`crates/shared/models/src/profile/gateway.rs`) — slug+hash ID persisted in `profile.yaml`; backfill keeps legacy profiles working without migration.
+
+**External-agent catalog**
+
+- **`ExternalAgentConfig` and `ExternalAgentKind`** types (`crates/shared/models/src/services/external_agent.rs`). Catalog entry for native apps and CLI tools that connect via the bridge binary (Claude Desktop, Codex CLI, Claude Code). Intentionally distinct from `AgentConfig` (server-side A2A agents).
+- **`ExternalAgentId`** typed identifier (`crates/shared/identifiers/`).
+- **`external_agents` field** wired through `ConfigLoader` (`RootConfig`, `PartialServicesFile`, merge logic) with a `DuplicateExternalAgent` error on name collision across included service files.
+
+### Changed
+
+- **`/v1/messages` gateway enforcement** (`crates/entry/api/src/routes/gateway/messages/extract.rs`): `extract_request_context` refactored into `read_gateway_body` and `build_authz_request` (≤58 lines each); missing `tenant_id` in the JWT now returns 401 instead of constructing an empty `TenantId`; `AuthzDecisionHook::evaluate` is called after JWT/scope validation via `global_hook()`; requests are explicitly denied when no hook is installed.
+- **MCP RBAC middleware** (`crates/domain/mcp/src/middleware/rbac.rs`): missing `tenant_id` returns an authz-deny `McpError`; uses typed `EntityKind::McpServer`; `AuthzDecisionHook::evaluate` called after `enforce_rbac_from_registry` succeeds; explicitly denies when no hook is installed.
+
 ### Removed
 
 - **`just check-bans` and `just check-bans-crate` recipes** (`justfile`) and the matching `check-bans` job in `.github/workflows/quality.yml`. The recipes were grep-based stand-ins for three rules: raw `String` ID fields, `*Manager` type names, and out-of-allowlist `sqlx::query()`. Typed-ID discipline and the `*Manager` preference remain reviewer-enforced conventions (already documented as such in `CLAUDE.md` and `instructions/prompt/rust.md`); the sqlx allowlist is enforced by clippy and `ci/check-sqlx.sh`. Dropping the recipes removes a governance surface that was producing busywork (23 historical `*Manager` flags across MCP/scheduler/agent internals) without a corresponding bug class. Existing dated audit reports under `instructions/audits/` continue to reference these recipes as historical evidence and are intentionally left unchanged.

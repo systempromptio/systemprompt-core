@@ -6839,6 +6839,7 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-config",
  "systemprompt-extension",
+ "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.18",
  "tokio",

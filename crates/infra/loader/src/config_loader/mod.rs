@@ -92,7 +92,7 @@ impl ConfigLoader {
             plugins: root.plugins,
             skills: root.skills,
             content: root.content,
-            host_agents: root.host_agents,
+            external_agents: root.external_agents,
         };
 
         let mut visited: HashSet<PathBuf> = HashSet::new();

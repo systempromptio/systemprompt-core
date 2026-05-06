@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use systemprompt_identifiers::ExternalAgentId;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
-    AgentConfig, AiConfig, ContentConfig, HostAgentConfig, PartialServicesConfig, PluginConfig,
+    AgentConfig, AiConfig, ContentConfig, ExternalAgentConfig, PartialServicesConfig, PluginConfig,
     SchedulerConfig, ServicesConfig, Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
 
@@ -31,7 +32,7 @@ pub(super) struct RootConfig {
     #[serde(default)]
     pub content: ContentConfig,
     #[serde(default)]
-    pub host_agents: HashMap<String, HostAgentConfig>,
+    pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -56,7 +57,7 @@ pub(super) struct PartialServicesFile {
     #[serde(default)]
     pub content: ContentConfig,
     #[serde(default)]
-    pub host_agents: HashMap<String, HostAgentConfig>,
+    pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
 }
 
 impl PartialServicesFile {
@@ -70,7 +71,7 @@ impl PartialServicesFile {
             plugins: self.plugins,
             skills: self.skills,
             content: self.content,
-            host_agents: self.host_agents,
+            external_agents: self.external_agents,
         }
     }
 }

@@ -25,11 +25,11 @@ pub(super) fn merge_partial(
         target.mcp_servers.insert(name, mcp);
     }
 
-    for (name, host_agent) in partial.host_agents {
-        if target.host_agents.contains_key(&name) {
-            return Err(ConfigLoadError::DuplicateHostAgent(name));
+    for (name, external_agent) in partial.external_agents {
+        if target.external_agents.contains_key(&name) {
+            return Err(ConfigLoadError::DuplicateExternalAgent(name.into()));
         }
-        target.host_agents.insert(name, host_agent);
+        target.external_agents.insert(name, external_agent);
     }
 
     if partial.scheduler.is_some() && target.scheduler.is_none() {

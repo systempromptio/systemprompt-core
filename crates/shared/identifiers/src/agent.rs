@@ -1,7 +1,10 @@
-//! Agent identity newtypes: opaque [`AgentId`] (UUID-backed) and validated
-//! [`AgentName`] (non-empty, reserves `"unknown"`).
+//! Agent identity newtypes: opaque [`AgentId`] (UUID-backed), validated
+//! [`AgentName`] (non-empty, reserves `"unknown"`), and
+//! [`ExternalAgentId`] for off-platform "super-agents" (Claude Desktop,
+//! Codex CLI, Claude Code) that connect via the bridge binary.
 
 crate::define_id!(AgentId, generate, schema);
+crate::define_id!(ExternalAgentId, non_empty);
 
 use crate::error::IdValidationError;
 
