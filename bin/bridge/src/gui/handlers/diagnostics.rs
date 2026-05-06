@@ -8,7 +8,7 @@ use zip::write::SimpleFileOptions;
 
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::{GuiApp, ipc_runtime};
+use crate::gui::{GuiApp, emit, ipc_runtime};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_open_log_directory(app: &mut GuiApp, reply_to: ReplyId) {

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use systemprompt_identifiers::headers;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_oauth::services::{
-    CoworkAuthResult, exchange_cowork_session_code, issue_cowork_access,
+    BridgeAuthResult, exchange_bridge_session_code, issue_bridge_access,
 };
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{ApiKeyService, DeviceCertService};
@@ -18,8 +18,8 @@ pub struct AuthResponse {
     pub headers: HashMap<String, String>,
 }
 
-impl From<CoworkAuthResult> for AuthResponse {
-    fn from(r: CoworkAuthResult) -> Self {
+impl From<BridgeAuthResult> for AuthResponse {
+    fn from(r: BridgeAuthResult) -> Self {
         Self {
             token: r.token,
             ttl: r.ttl,
@@ -73,7 +73,7 @@ pub async fn pat(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or_else(|| (StatusCode::UNAUTHORIZED, "Invalid PAT".into()))?;
 
-    let result = issue_cowork_access(ctx.db_pool(), &record.user_id)
+    let result = issue_bridge_access(ctx.db_pool(), &record.user_id)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -88,7 +88,7 @@ pub async fn session(
         return Err((StatusCode::BAD_REQUEST, "missing exchange code".into()));
     }
 
-    let result = exchange_cowork_session_code(ctx.db_pool(), body.code.trim())
+    let result = exchange_bridge_session_code(ctx.db_pool(), body.code.trim())
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or_else(|| {
@@ -127,7 +127,7 @@ pub async fn mtls(
             )
         })?;
 
-    let result = issue_cowork_access(ctx.db_pool(), &record.user_id)
+    let result = issue_bridge_access(ctx.db_pool(), &record.user_id)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 

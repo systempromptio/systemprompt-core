@@ -4,7 +4,7 @@ use serde_json::json;
 
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::{GuiApp, ipc_runtime, window};
+use crate::gui::{GuiApp, emit, ipc_runtime, window};
 use crate::integration::find_host_by_id;
 
 pub(crate) fn on_uninstall(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {

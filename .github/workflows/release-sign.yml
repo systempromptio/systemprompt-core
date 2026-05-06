@@ -1,18 +1,18 @@
 name: Release (build + sign)
 
-# Tag scheme: cowork-v* is the canonical trigger. v* is retained for one cycle
+# Tag scheme: bridge-v* is the canonical trigger. v* is retained for one cycle
 # of backwards compatibility and will be removed once the next release ships
-# under the prefixed scheme. See documentation/cowork/versioning.md.
+# under the prefixed scheme. See documentation/bridge/versioning.md.
 
 on:
   push:
     tags:
-      - "cowork-v*"
+      - "bridge-v*"
       - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to (re)build and sign (e.g. cowork-v0.4.0)"
+        description: "Tag to (re)build and sign (e.g. bridge-v0.4.0)"
         required: true
 
 permissions:
@@ -50,11 +50,11 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Build systemprompt-cowork
+      - name: Build systemprompt-bridge
         shell: bash
         run: |
           cargo build \
-            --manifest-path bin/cowork/Cargo.toml \
+            --manifest-path bin/bridge/Cargo.toml \
             --release \
             --target ${{ matrix.target }}
 
@@ -62,11 +62,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          SRC="bin/cowork/target/${{ matrix.target }}/release/systemprompt-cowork${{ matrix.ext }}"
+          SRC="bin/bridge/target/${{ matrix.target }}/release/systemprompt-bridge${{ matrix.ext }}"
           if [ ! -f "$SRC" ]; then
-            SRC="target/${{ matrix.target }}/release/systemprompt-cowork${{ matrix.ext }}"
+            SRC="target/${{ matrix.target }}/release/systemprompt-bridge${{ matrix.ext }}"
           fi
-          cp "$SRC" "dist/systemprompt-cowork-${{ matrix.target }}${{ matrix.ext }}"
+          cp "$SRC" "dist/systemprompt-bridge-${{ matrix.target }}${{ matrix.ext }}"
 
       - name: Upload intermediate artifact
         uses: actions/upload-artifact@v4
@@ -136,11 +136,11 @@ jobs:
         working-directory: dist
         run: |
           tag="${{ steps.tag.outputs.tag }}"
-          notes="systemprompt-cowork $tag — signed binaries (Linux x86_64, Windows x86_64, macOS aarch64). Cowork CHANGELOG: bin/cowork/CHANGELOG.md. Intel Mac builds from source; see README."
+          notes="systemprompt-bridge $tag — signed binaries (Linux x86_64, Windows x86_64, macOS aarch64). Bridge CHANGELOG: bin/bridge/CHANGELOG.md. Intel Mac builds from source; see README."
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release delete "$tag" --yes
           fi
           gh release create "$tag" \
-            --title "systemprompt-cowork $tag" \
+            --title "systemprompt-bridge $tag" \
             --notes "$notes" \
             *

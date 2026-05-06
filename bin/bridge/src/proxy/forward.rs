@@ -5,10 +5,11 @@ use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, BodyStream, StreamBody};
 use hyper::body::{Frame, Incoming};
 use hyper::{HeaderMap, Request, Response, StatusCode};
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_identifiers::{ContextId, SessionId, ValidatedUrl, headers as sp_headers};
 use thiserror::Error;
 
 use crate::proxy::server::ProxyStats;
+use crate::proxy::session::{self, SessionContext};
 use crate::proxy::token_cache::TokenCache;
 use crate::proxy::usage;
 
@@ -46,18 +47,32 @@ pub enum ForwardError {
     Upstream(#[from] reqwest::Error),
     #[error("response build failed: {0}")]
     BuildResponse(#[from] http::Error),
+    #[error("request body read failed: {0}")]
+    ReadBody(#[source] hyper::Error),
 }
 
 pub type ForwardResult<T> = Result<T, ForwardError>;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-#[tracing::instrument(level = "debug", skip(req, client, gateway_base, token_cache, stats), fields(method = %req.method(), path = %req.uri().path()))]
+const BUFFERED_BODY_LIMIT: usize = 8 * 1024 * 1024;
+
+#[tracing::instrument(
+    level = "debug",
+    skip(req, client, gateway_base, token_cache, session_context, stats),
+    fields(
+        method = %req.method(),
+        path = %req.uri().path(),
+        session_id = %session_context.session_id(),
+        context_id = tracing::field::Empty,
+    )
+)]
 pub async fn forward(
     req: Request<Incoming>,
     client: reqwest::Client,
     gateway_base: &ValidatedUrl,
     token_cache: &TokenCache,
+    session_context: &SessionContext,
     stats: Arc<ProxyStats>,
 ) -> ForwardResult<Response<ProxyBody>> {
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
@@ -73,12 +88,15 @@ pub async fn forward(
         }
     })?;
 
-    let upstream_headers = build_upstream_headers(&parts.headers, token.token.expose())?;
-    let upstream_body = reqwest::Body::wrap_stream(
-        BodyStream::new(body)
-            .try_filter_map(|frame: Frame<Bytes>| async move { Ok(frame.into_data().ok()) })
-            .map_err(std::io::Error::other),
-    );
+    let (upstream_body, context_id) =
+        prepare_upstream_body(body, &request_path, session_context).await?;
+
+    let upstream_headers = build_upstream_headers(
+        &parts.headers,
+        token.token.expose(),
+        session_context.session_id(),
+        context_id.as_ref(),
+    )?;
 
     let upstream_response = client
         .request(method, &url)
@@ -90,6 +108,9 @@ pub async fn forward(
     let status = StatusCode::from_u16(upstream_response.status().as_u16())
         .unwrap_or(StatusCode::BAD_GATEWAY);
     if status.is_success() {
+        if usage::is_messages_path(&request_path) {
+            session_context.touch_activity();
+        }
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         tracing::warn!(upstream_status = status.as_u16(), %url, "upstream non-2xx");
@@ -137,8 +158,10 @@ fn build_upstream_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
 fn build_upstream_headers(
     src: &HeaderMap,
     bearer: &str,
+    session_id: &SessionId,
+    context_id: Option<&ContextId>,
 ) -> ForwardResult<reqwest::header::HeaderMap> {
-    let mut headers = reqwest::header::HeaderMap::with_capacity(src.len() + 2);
+    let mut headers = reqwest::header::HeaderMap::with_capacity(src.len() + 4);
     copy_request_headers(src, &mut headers);
 
     let bearer = reqwest::header::HeaderValue::try_from(format!("Bearer {bearer}"))
@@ -148,8 +171,59 @@ fn build_upstream_headers(
         reqwest::header::HeaderName::from_static("x-systemprompt-bridge"),
         reqwest::header::HeaderValue::from_static("1"),
     );
+    let session_value = reqwest::header::HeaderValue::try_from(session_id.as_str())
+        .map_err(|e| ForwardError::BadHeader(format!("{}: {e}", sp_headers::SESSION_ID)))?;
+    headers.insert(
+        reqwest::header::HeaderName::from_static(sp_headers::SESSION_ID),
+        session_value,
+    );
+    if let Some(context_id) = context_id {
+        let context_value = reqwest::header::HeaderValue::try_from(context_id.as_str())
+            .map_err(|e| ForwardError::BadHeader(format!("{}: {e}", sp_headers::CONTEXT_ID)))?;
+        headers.insert(
+            reqwest::header::HeaderName::from_static(sp_headers::CONTEXT_ID),
+            context_value,
+        );
+    }
 
     Ok(headers)
+}
+
+async fn prepare_upstream_body(
+    body: Incoming,
+    request_path: &str,
+    session_context: &SessionContext,
+) -> ForwardResult<(reqwest::Body, Option<ContextId>)> {
+    if !usage::is_messages_path(request_path) {
+        let stream_body = reqwest::Body::wrap_stream(
+            BodyStream::new(body)
+                .try_filter_map(|frame: Frame<Bytes>| async move { Ok(frame.into_data().ok()) })
+                .map_err(std::io::Error::other),
+        );
+        return Ok((stream_body, None));
+    }
+    let buffered = collect_body(body).await?;
+    let context_id = session::hash_conversation_prefix(&buffered)
+        .map(|h| session_context.context_for_prefix(h));
+    if let Some(ref c) = context_id {
+        tracing::Span::current().record("context_id", tracing::field::display(c));
+    }
+    Ok((reqwest::Body::from(buffered), context_id))
+}
+
+async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {
+    let collected = body
+        .collect()
+        .await
+        .map_err(ForwardError::ReadBody)?
+        .to_bytes();
+    if collected.len() > BUFFERED_BODY_LIMIT {
+        tracing::warn!(
+            bytes = collected.len(),
+            "messages-path body exceeds buffer limit; forwarding anyway"
+        );
+    }
+    Ok(collected)
 }
 
 fn copy_request_headers(src: &HeaderMap, dest: &mut reqwest::header::HeaderMap) {

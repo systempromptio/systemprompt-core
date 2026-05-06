@@ -14,7 +14,7 @@ use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, InsertToolCallParams, UpsertPayloadParams,
 };
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiRequestId, SessionId, TenantId, TraceId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TenantId, TraceId, UserId};
 
 use super::captures::{CapturedToolUse, CapturedUsage};
 use super::models::AnthropicGatewayRequest;
@@ -27,6 +27,7 @@ pub struct GatewayRequestContext {
     pub user_id: UserId,
     pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
+    pub context_id: Option<ContextId>,
     pub trace_id: Option<TraceId>,
     pub provider: String,
     pub model: String,
@@ -98,6 +99,9 @@ impl GatewayAudit {
         }
         if let Some(s) = &self.ctx.session_id {
             record = record.session_id(s.clone());
+        }
+        if let Some(c) = &self.ctx.context_id {
+            record = record.context_id(c.clone());
         }
         if let Some(t) = &self.ctx.trace_id {
             record = record.trace_id(t.clone());

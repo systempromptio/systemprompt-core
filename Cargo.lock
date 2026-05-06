@@ -5093,6 +5093,7 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-traits",
  "tar",
  "tempfile",

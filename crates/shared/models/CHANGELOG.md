@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed (BREAKING)
+
+- `JwtAudience::Cowork` → `JwtAudience::Bridge`; `as_str()` returns `"bridge"`. JWTs minted under the old name no longer validate.
+
 ## [0.4.3] - 2026-04-29
 
 ### Added

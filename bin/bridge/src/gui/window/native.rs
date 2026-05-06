@@ -50,7 +50,7 @@ impl SettingsWindow {
     ) -> GuiResult<Self> {
         let attrs = chrome_attributes(
             Window::default_attributes()
-                .with_title("systemprompt cowork")
+                .with_title("systemprompt bridge")
                 .with_inner_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
                 .with_min_inner_size(PhysicalSize::new(MIN_WIDTH, MIN_HEIGHT))
                 .with_visible(false)

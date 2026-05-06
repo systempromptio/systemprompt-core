@@ -1,7 +1,7 @@
 pub mod manifest;
 pub mod manifest_version;
 
-use crate::auth::types::{AuthResponse, CoworkProfile, MtlsRequest, SessionExchangeRequest};
+use crate::auth::types::{AuthResponse, BridgeProfile, MtlsRequest, SessionExchangeRequest};
 use crate::gateway::manifest::SignedManifest;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -59,9 +59,9 @@ pub enum GatewayError {
     WhoamiDecode(Box<reqwest::Error>),
     #[error("health check failed: {0}")]
     HealthCheck(Box<reqwest::Error>),
-    #[error("cowork profile fetch failed: {0}")]
+    #[error("bridge profile fetch failed: {0}")]
     ProfileFetch(Box<reqwest::Error>),
-    #[error("malformed cowork profile response: {0}")]
+    #[error("malformed bridge profile response: {0}")]
     ProfileDecode(Box<reqwest::Error>),
     #[error("gateway PAT request failed: {0}")]
     PatRequest(Box<reqwest::Error>),
@@ -133,7 +133,7 @@ impl GatewayClient {
             #[serde(default)]
             pubkey: Option<String>,
         }
-        let url = self.url("/v1/cowork/pubkey");
+        let url = self.url("/v1/bridge/pubkey");
         let started = Instant::now();
         let resp = self
             .http
@@ -161,7 +161,7 @@ impl GatewayClient {
         fields(endpoint = "manifest", status, latency_ms)
     )]
     pub async fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
-        let url = self.url("/v1/cowork/manifest");
+        let url = self.url("/v1/bridge/manifest");
         let started = Instant::now();
         let resp = self
             .http
@@ -196,7 +196,7 @@ impl GatewayClient {
         if relative_path.contains("..") || relative_path.starts_with('/') {
             return Err(GatewayError::UnsafePath(relative_path.to_string()));
         }
-        let url = self.url(&format!("/v1/cowork/plugins/{plugin_id}/{relative_path}"));
+        let url = self.url(&format!("/v1/bridge/plugins/{plugin_id}/{relative_path}"));
         let started = Instant::now();
         let resp = self
             .http
@@ -230,7 +230,7 @@ impl GatewayClient {
         fields(endpoint = "whoami", status, latency_ms)
     )]
     pub async fn fetch_whoami(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
-        let url = self.url("/v1/cowork/whoami");
+        let url = self.url("/v1/bridge/whoami");
         let started = Instant::now();
         let resp = self
             .http
@@ -256,8 +256,8 @@ impl GatewayClient {
         skip(self),
         fields(endpoint = "profile", status, latency_ms)
     )]
-    pub async fn fetch_bridge_profile(&self) -> Result<CoworkProfile, GatewayError> {
-        let url = self.url("/v1/cowork/profile");
+    pub async fn fetch_bridge_profile(&self) -> Result<BridgeProfile, GatewayError> {
+        let url = self.url("/v1/bridge/profile");
         let started = Instant::now();
         let resp = self
             .http
@@ -272,7 +272,7 @@ impl GatewayClient {
                 endpoint: "profile",
             });
         }
-        resp.json::<CoworkProfile>()
+        resp.json::<BridgeProfile>()
             .await
             .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))
     }
@@ -302,14 +302,14 @@ impl GatewayClient {
     }
 
     pub async fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/cowork/mtls", req, "mtls").await
+        self.post_json("/v1/auth/bridge/mtls", req, "mtls").await
     }
 
     pub async fn session_exchange(
         &self,
         req: &SessionExchangeRequest,
     ) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/cowork/session", req, "session")
+        self.post_json("/v1/auth/bridge/session", req, "session")
             .await
     }
 
@@ -319,7 +319,7 @@ impl GatewayClient {
         fields(endpoint = "pat", status, latency_ms)
     )]
     pub async fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
-        let url = self.url("/v1/auth/cowork/pat");
+        let url = self.url("/v1/auth/bridge/pat");
         let started = Instant::now();
         let resp = self
             .http

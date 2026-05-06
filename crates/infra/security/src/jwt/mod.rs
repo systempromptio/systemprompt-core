@@ -1,6 +1,6 @@
 //! JWT minting service.
 //!
-//! Produces administrator-scoped HS256 tokens for the cowork management
+//! Produces administrator-scoped HS256 tokens for the bridge management
 //! plane and CLI bootstrap flows. Session-scoped tokens are minted by
 //! [`crate::session::SessionGenerator`] instead.
 

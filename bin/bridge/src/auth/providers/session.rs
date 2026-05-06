@@ -81,7 +81,7 @@ impl AuthProvider for SessionProvider {
 fn build_auth_url(base: &str, callback: &str) -> String {
     let encoded = encode_component(callback);
     format!(
-        "{}/cowork/device-link?redirect={encoded}",
+        "{}/bridge/device-link?redirect={encoded}",
         base.trim_end_matches('/')
     )
 }

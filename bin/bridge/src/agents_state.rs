@@ -25,7 +25,8 @@ impl AgentsState {
     pub fn enabled_ids(&self) -> Vec<String> {
         self.enabled
             .iter()
-            .filter_map(|(k, v)| v.then(|| k.clone()))
+            .filter(|(_, v)| **v)
+            .map(|(k, _)| k.clone())
             .collect()
     }
 }

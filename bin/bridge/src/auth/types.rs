@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use systemprompt_identifiers::SessionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CoworkProfile {
+pub struct BridgeProfile {
     pub inference_gateway_base_url: String,
     pub auth_scheme: String,
     #[serde(default)]

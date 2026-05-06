@@ -59,6 +59,9 @@ fn build_rejection_record(
     if let Some(s) = &partial.session_id {
         builder = builder.session_id(s.clone());
     }
+    if let Some(c) = &partial.context_id {
+        builder = builder.context_id(c.clone());
+    }
     if let Some(t) = &partial.trace_id {
         builder = builder.trace_id(t.clone());
     }

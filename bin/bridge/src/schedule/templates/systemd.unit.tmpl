@@ -1,6 +1,6 @@
 # === systemprompt-bridge-sync.service ===
 [Unit]
-Description=systemprompt.io Cowork plugin + MCP allowlist sync
+Description=systemprompt.io Bridge plugin + MCP allowlist sync
 After=network-online.target
 
 [Service]
@@ -13,7 +13,7 @@ WantedBy=default.target
 
 # === systemprompt-bridge-sync.timer ===
 [Unit]
-Description=Periodic systemprompt-cowork sync
+Description=Periodic systemprompt-bridge sync
 
 [Timer]
 OnBootSec=2min

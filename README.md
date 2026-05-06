@@ -43,11 +43,11 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 <summary><strong>What's new</strong></summary>
 
 - **0.5.0** — `AppPaths` singleton removed (now threaded via `AppContext`); shared/models stripped of all I/O (bootstrap and profile-catalog loading moved to `systemprompt-config`); typed `OauthError`, `FilesError`, `McpDomainError`, `AgentError` enums at every domain boundary. See [`CHANGELOG.md`](CHANGELOG.md).
-- **0.4.x** — independent ed25519 manifest signing key, RFC 8785 (JCS) canonical JSON for signatures, distinct `JwtAudience::Cowork`, tenant-scoped plugin file route, structured `SyncSummary` / `ValidationReport` returns.
+- **0.4.x** — independent ed25519 manifest signing key, RFC 8785 (JCS) canonical JSON for signatures, distinct `JwtAudience::Bridge`, tenant-scoped plugin file route, structured `SyncSummary` / `ValidationReport` returns.
 - **0.3.x** — typed error enums via `thiserror` across the workspace, `tracing` in library code.
 - **0.2.x** — workspace published to crates.io as 30 `systemprompt-*` crates.
 
-The `bin/cowork` binary tracks an independent semver — see [`bin/cowork/README.md`](bin/cowork/README.md) and [`bin/cowork/CHANGELOG.md`](bin/cowork/CHANGELOG.md).
+The `bin/bridge` binary tracks an independent semver — see [`bin/bridge/README.md`](bin/bridge/README.md) and [`bin/bridge/CHANGELOG.md`](bin/bridge/CHANGELOG.md).
 
 </details>
 

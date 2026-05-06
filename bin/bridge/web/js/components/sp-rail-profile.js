@@ -31,7 +31,7 @@ export class SpRailProfile extends SpElement {
   render() {
     const id = (this.snapshot && this.snapshot.verified_identity) || null;
     const tenant = id && id.tenant_id;
-    const idLabel = (id && (id.email || id.user_id)) || "cowork workspace";
+    const idLabel = (id && (id.email || id.user_id)) || "bridge workspace";
     const subBase = this._baseVersion;
     const sub = tenant ? `${tenant} · ${subBase}` : subBase;
     return `

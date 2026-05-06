@@ -8,7 +8,7 @@ use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::{GuiApp, ipc_runtime};
+use crate::gui::{GuiApp, emit, ipc_runtime};
 use crate::integration::{
     GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProfileState, ProxyHealth,
     find_host_by_id, proxy_probe,

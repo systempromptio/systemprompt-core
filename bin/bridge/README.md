@@ -5,8 +5,8 @@ Credential helper, signed-manifest sync agent, and local inference proxy for Ant
 One binary, three roles:
 
 1. **Credential helper.** Emits a JSON envelope matching Anthropic's `inferenceCredentialHelper` contract — `{ "token": "...", "ttl": 3600, "headers": {} }` to stdout.
-2. **Sync agent.** Pulls the user's signed plugin + skill + agent + MCP allowlist manifest from the gateway into Cowork's `org-plugins/` mount.
-3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. Claude Desktop's profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; cowork swaps the bearer to a fresh JWT before forwarding upstream. JWT rotation never leaves the host.
+2. **Sync agent.** Pulls the user's signed plugin + skill + agent + MCP allowlist manifest from the gateway into Bridge's `org-plugins/` mount.
+3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. Claude Desktop's profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; bridge swaps the bearer to a fresh JWT before forwarding upstream. JWT rotation never leaves the host.
 
 Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on success.
 
@@ -42,7 +42,7 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sig
 | `gui` | Launch the native settings window (Windows + macOS) |
 | `login <sp-live-…> [--gateway <url>]` | Store a PAT securely |
 | `logout` | Remove the stored PAT |
-| `clean` | Wipe local cowork state (config + PAT + token cache) |
+| `clean` | Wipe local bridge state (config + PAT + token cache) |
 | `status` | Show config paths, cache state, last sync |
 | `whoami` | Print authenticated identity from the gateway |
 | `install [--apply] [--pubkey <base64>]` | Bootstrap integration; pin manifest signing pubkey |
@@ -56,8 +56,8 @@ Exit codes: `0` success, `2` emit error, `3` whoami error, `5` no credential sou
 
 ## Security posture
 
-- **Out-of-band manifest pubkey pinning.** `cowork install --apply --pubkey <base64>` writes the pin to `HKCU\SOFTWARE\Policies\Claude` (Windows) or the `com.anthropic.claudefordesktop` Managed Preferences plist (macOS) for MDM rollout. `cowork sync` is fail-closed without a pin unless `--allow-tofu`.
-- **Distinct JWT audience.** Cowork tokens are minted with `audience: Cowork`. A stolen cowork JWT cannot call generic API endpoints.
+- **Out-of-band manifest pubkey pinning.** `bridge install --apply --pubkey <base64>` writes the pin to `HKCU\SOFTWARE\Policies\Claude` (Windows) or the `com.anthropic.claudefordesktop` Managed Preferences plist (macOS) for MDM rollout. `bridge sync` is fail-closed without a pin unless `--allow-tofu`.
+- **Distinct JWT audience.** Bridge tokens are minted with `audience: Bridge`. A stolen bridge JWT cannot call generic API endpoints.
 - **Replay protection.** Manifests carry a signed `not_before` field; sync rejects `manifest_version` ≤ last applied or `not_before` outside ±5 min skew.
 - **RFC 8785 (JCS) canonical JSON** for signature input. Field-order stability is contract, not coincidence.
 - **Loopback proxy** validates a constant-time-compared shared secret on every inbound request and rejects non-loopback `Host` headers.
@@ -75,7 +75,7 @@ just build-bridge aarch64-apple-darwin         # cross target
 just build-bridge-all                          # mac arm+x86, windows x86_64, linux x86_64
 ```
 
-For the full build, release, versioning, and per-OS reference, see [`documentation/cowork/`](../../documentation/cowork/README.md).
+For the full build, release, versioning, and per-OS reference, see [`documentation/bridge/`](../../documentation/bridge/README.md).
 
 ---
 
@@ -106,4 +106,4 @@ Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 060
 
 ## Release
 
-Tag `cowork-vX.Y.Z` triggers `.github/workflows/cowork-release.yml`. Workspace CI is unaffected.
+Tag `bridge-vX.Y.Z` triggers `.github/workflows/bridge-release.yml`. Workspace CI is unaffected.

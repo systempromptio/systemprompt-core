@@ -4,7 +4,7 @@
 //!
 //! - [`AuthError`] — request validation, JWT decoding, claim extraction.
 //! - [`JwtError`] — JWT minting (admin tokens, session tokens).
-//! - [`ManifestSigningError`] — Ed25519 signing of cowork manifests.
+//! - [`ManifestSigningError`] — Ed25519 signing of bridge manifests.
 //!
 //! All three implement `std::error::Error` and can be composed into larger
 //! `thiserror` enums via `#[from]`.

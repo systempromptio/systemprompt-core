@@ -2,7 +2,9 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
-use systemprompt_identifiers::{SessionId, TenantId, TraceId, UserId, headers as sp_headers};
+use systemprompt_identifiers::{
+    ContextId, SessionId, TenantId, TraceId, UserId, headers as sp_headers,
+};
 use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 
 use crate::services::gateway::models::AnthropicGatewayRequest;
@@ -16,6 +18,7 @@ pub(super) struct RejectionPartial {
     pub user_id: Option<UserId>,
     pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
+    pub context_id: Option<ContextId>,
     pub trace_id: Option<TraceId>,
     pub provider: Option<String>,
     pub model: Option<String>,
@@ -30,6 +33,8 @@ pub(super) struct PreparedRequest {
     pub gateway_request: AnthropicGatewayRequest,
     pub provider: String,
     pub upstream_model: String,
+    pub session_id: SessionId,
+    pub context_id: ContextId,
 }
 
 pub(super) async fn extract_request_context(
@@ -59,9 +64,12 @@ pub(super) async fn extract_request_context(
         .map(|s| TenantId::new(s.to_string()));
     partial.tenant_id.clone_from(&tenant_id);
 
+    let (session_id, context_id) = require_conversation_binding(request.headers())?;
+    partial.session_id = Some(session_id.clone());
+    partial.context_id = Some(context_id.clone());
+
     let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx, tenant_id).await?;
     partial.user_id = Some(principal.user_id.clone());
-    partial.session_id.clone_from(&principal.session_id);
     partial.trace_id.clone_from(&principal.trace_id);
 
     let (body_bytes, gateway_request) = read_gateway_body(request, partial).await?;
@@ -88,7 +96,44 @@ pub(super) async fn extract_request_context(
         gateway_request,
         provider: route.provider.clone(),
         upstream_model,
+        session_id,
+        context_id,
     })
+}
+
+fn require_conversation_binding(
+    headers: &HeaderMap,
+) -> Result<(SessionId, ContextId), (StatusCode, String)> {
+    let session = require_typed_header(headers, sp_headers::SESSION_ID, SessionId::new)?;
+    let context = require_typed_header(headers, sp_headers::CONTEXT_ID, ContextId::new)?;
+    Ok((session, context))
+}
+
+fn require_typed_header<T>(
+    headers: &HeaderMap,
+    name: &'static str,
+    ctor: fn(String) -> T,
+) -> Result<T, (StatusCode, String)> {
+    let raw = headers
+        .get(name)
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("missing required {name} header"),
+            )
+        })?
+        .to_str()
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("invalid {name} header: {e}"),
+            )
+        })?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, format!("empty {name} header")));
+    }
+    Ok(ctor(trimmed.to_string()))
 }
 
 async fn read_gateway_body(
@@ -168,7 +213,7 @@ fn build_authz_request(
     }
 }
 
-pub(super) fn extract_credential(headers: &HeaderMap) -> Option<String> {
+pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
     let raw = headers
         .get("x-api-key")
         .or_else(|| headers.get("authorization"))

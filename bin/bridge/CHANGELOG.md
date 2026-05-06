@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking — `cowork` rename completed end-to-end.** Bridge sends canonical `x-session-id` / `x-context-id` headers (issued from the new `SessionContext`) and uses the renamed gateway routes (`/v1/bridge/*`, `/v1/auth/bridge/*`). Internal macros are now `bridge_define_id!` / `bridge_define_token!`. Env vars: `SP_COWORK_*` → `SP_BRIDGE_*`. Config file: `~/.config/systemprompt/systemprompt-cowork.toml` → `systemprompt-bridge.toml`. A `0.7.x` bridge cannot talk to a `0.8.0` gateway and vice versa.
+
+### Added
+
+- **Heartbeat loop (`proxy/heartbeat.rs`).** Spawned next to the token-refresh loop in `proxy/server.rs::start`; POSTs `/v1/bridge/heartbeat` every 30 s with `session_id`, `bridge_version`, OS, hostname, `last_activity_at`, and a snapshot of `ProxyStats` (forwarded count, tokens in/out). The gateway records the row in `bridge_sessions`, making this bridge visible to `systemprompt admin bridge list` even between inference requests. On `401` the token cache invalidates so the next tick re-authenticates.
+- `SessionContext::touch_activity()` is called on every successful messages-path forward, so the heartbeat distinguishes "alive but idle" from "alive and serving traffic".
+- Bridge sends canonical `x-session-id` and content-derived `x-context-id` headers on every `/v1/messages` forward, enforcing conversation grouping at the gateway.
+
 ### Fixed
 
 - **Tech-debt sweep on the per-agent enabled feature.**

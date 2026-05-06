@@ -51,7 +51,7 @@ fn validate_gateway(gateway: &str) -> Result<(), String> {
     {
         return Err(format!(
             "gateway url {gateway} uses http:// for a non-loopback host; \
-             Cowork rejects this. Use https:// or http://127.0.0.1:<port>."
+             Bridge rejects this. Use https:// or http://127.0.0.1:<port>."
         ));
     }
     Ok(())
@@ -122,13 +122,13 @@ fn apply_summary(dest_system: &str, dest_user: &str, user: &str, gateway: &str) 
         "Verify: defaults read /Library/Managed\\ Preferences/com.anthropic.claudefordesktop"
             .into(),
     );
-    summary.push("Fully quit Cowork (Cmd+Q) and relaunch to pick up the new policy.".into());
+    summary.push("Fully quit Bridge (Cmd+Q) and relaunch to pick up the new policy.".into());
     summary.push(String::new());
     summary.push("Next step — configure an upstream model at the gateway:".into());
-    summary.push("  Pointing Cowork at the gateway is half the flow. The gateway must also".into());
-    summary.push("  have a provider+model route that accepts the model id Cowork requests".into());
+    summary.push("  Pointing Bridge at the gateway is half the flow. The gateway must also".into());
+    summary.push("  have a provider+model route that accepts the model id Bridge requests".into());
     summary
-        .push("  (e.g. claude-sonnet-4-6). If the gateway rejects the model, Cowork shows:".into());
+        .push("  (e.g. claude-sonnet-4-6). If the gateway rejects the model, Bridge shows:".into());
     summary.push(
         "    \"There's an issue with the selected model (<id>). It may not exist...\"".into(),
     );
@@ -159,7 +159,7 @@ pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<Str
     summary.push(format!("payload identifier: {PAYLOAD_IDENTIFIER}"));
     match opened {
         Ok(s) if s.success() => summary.push(
-            "opened System Settings → Profiles — approve the profile there, then relaunch Cowork."
+            "opened System Settings → Profiles — approve the profile there, then relaunch Bridge."
                 .into(),
         ),
         _ => summary.push(format!(
