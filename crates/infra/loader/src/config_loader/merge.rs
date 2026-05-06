@@ -29,6 +29,9 @@ pub(super) fn merge_into(
     merge_no_dup(&mut target.plugins, include.plugins, |k| {
         ConfigLoadError::DuplicatePlugin(k)
     })?;
+    merge_no_dup(&mut target.marketplaces, include.marketplaces, |k| {
+        ConfigLoadError::DuplicateMarketplace(k.as_str().to_owned())
+    })?;
     merge_no_dup(&mut target.external_agents, include.external_agents, |k| {
         ConfigLoadError::DuplicateExternalAgent(k.as_str().to_owned())
     })?;

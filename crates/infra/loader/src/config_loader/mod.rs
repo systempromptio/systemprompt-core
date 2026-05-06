@@ -17,7 +17,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_models::services::{MarketplaceConfigFile, ServicesConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
@@ -107,6 +107,8 @@ impl ConfigLoader {
         resolve_system_prompt_includes(&self.base_path, &mut merged)?;
         resolve_skill_instruction_includes(&self.base_path, &mut merged)?;
 
+        discover_marketplaces(&self.base_path, &mut merged)?;
+
         merged.settings.apply_env_overrides();
 
         merged
@@ -149,4 +151,59 @@ impl ConfigLoader {
     pub fn base_path(&self) -> &Path {
         &self.base_path
     }
+}
+
+/// Walks `<services>/marketplaces/*/config.yaml`, parses each as a
+/// `MarketplaceConfigFile`, and inserts into `merged.marketplaces`.
+///
+/// `base_path` is the parent of the root `config.yaml` (i.e.
+/// `<services>/config`), so the marketplaces directory is its sibling.
+fn discover_marketplaces(base_path: &Path, merged: &mut ServicesConfig) -> ConfigLoadResult<()> {
+    let Some(services_dir) = base_path.parent() else {
+        return Ok(());
+    };
+    let marketplaces_dir = services_dir.join("marketplaces");
+    if !marketplaces_dir.exists() {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(&marketplaces_dir).map_err(|e| ConfigLoadError::Io {
+        path: marketplaces_dir.clone(),
+        source: e,
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| ConfigLoadError::Io {
+            path: marketplaces_dir.clone(),
+            source: e,
+        })?;
+        let dir = entry.path();
+        if !dir.is_dir() {
+            continue;
+        }
+        let config_path = dir.join("config.yaml");
+        if !config_path.exists() {
+            continue;
+        }
+
+        let content = fs::read_to_string(&config_path).map_err(|e| ConfigLoadError::Io {
+            path: config_path.clone(),
+            source: e,
+        })?;
+        let file: MarketplaceConfigFile =
+            serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
+                path: config_path.clone(),
+                source: e,
+            })?;
+
+        let id = file.marketplace.id.clone();
+        if merged.marketplaces.contains_key(&id) {
+            return Err(ConfigLoadError::DuplicateMarketplace(
+                id.as_str().to_owned(),
+            ));
+        }
+        merged.marketplaces.insert(id, file.marketplace);
+    }
+
+    Ok(())
 }

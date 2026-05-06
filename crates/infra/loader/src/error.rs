@@ -54,6 +54,9 @@ pub enum ConfigLoadError {
     #[error("duplicate plugin definition: {0}")]
     DuplicatePlugin(String),
 
+    #[error("duplicate marketplace definition: {0}")]
+    DuplicateMarketplace(String),
+
     #[error("duplicate skill definition: {0}")]
     DuplicateSkill(String),
 

@@ -101,7 +101,7 @@ impl RuntimeBuilder {
             web_assets: self.web_assets,
         };
         set_injected_extensions(config).map_err(|_| RuntimeError::ExtensionsAlreadyInjected)?;
-        systemprompt_cli::run()
+        Box::pin(systemprompt_cli::run())
             .await
             .map_err(|err| RuntimeError::Cli(err.into()))
     }

@@ -4,12 +4,22 @@ use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use std::path::PathBuf;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_runtime::AppContext;
+
+const DEFAULT_MARKETPLACE_FALLBACK: &str = "default";
 
 pub fn router() -> Router<AppContext> {
     Router::new()
-        .route("/marketplace.json", get(serve_marketplace))
+        .route("/marketplace.json", get(serve_default_marketplace_json))
+        .route("/marketplaces", get(list_marketplaces))
+        .route("/marketplaces/{id}", get(get_marketplace))
+        .route(
+            "/marketplaces/{id}/manifest.yaml",
+            get(get_marketplace_yaml),
+        )
         .route("/plugins/{plugin_id}/{*path}", get(serve_plugin_file))
 }
 
@@ -17,8 +27,8 @@ fn plugins_path(ctx: &AppContext) -> PathBuf {
     ctx.app_paths().system().services().join("plugins")
 }
 
-fn system_path(ctx: &AppContext) -> PathBuf {
-    ctx.app_paths().system().root().to_path_buf()
+fn marketplaces_path(ctx: &AppContext) -> PathBuf {
+    ctx.app_paths().system().services().join("marketplaces")
 }
 
 fn resolve_mime_type(path: &std::path::Path) -> &'static str {
@@ -32,21 +42,166 @@ fn resolve_mime_type(path: &std::path::Path) -> &'static str {
     }
 }
 
-async fn serve_marketplace(State(ctx): State<AppContext>) -> Result<impl IntoResponse, ApiError> {
-    let marketplace_path = system_path(&ctx)
-        .join(".claude-plugin")
-        .join("marketplace.json");
+#[allow(clippy::result_large_err)]
+fn load_services_config() -> Result<ServicesConfig, ApiError> {
+    ConfigLoader::load()
+        .map_err(|e| ApiError::internal_error(format!("Failed to load services config: {e}")))
+}
 
-    let content = tokio::fs::read(&marketplace_path).await.map_err(|_| {
+fn resolve_default_id(services: &ServicesConfig) -> Option<String> {
+    services
+        .settings
+        .default_marketplace_id
+        .clone()
+        .or_else(|| {
+            if services
+                .marketplaces
+                .keys()
+                .any(|k| k.as_str() == DEFAULT_MARKETPLACE_FALLBACK)
+            {
+                Some(DEFAULT_MARKETPLACE_FALLBACK.to_string())
+            } else {
+                None
+            }
+        })
+}
+
+fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> serde_json::Value {
+    let plugin_entries: Vec<serde_json::Value> = marketplace
+        .plugins
+        .include
+        .iter()
+        .map(|plugin_id| {
+            serde_json::json!({
+                "name": plugin_id,
+                "source": format!("./storage/files/plugins/{plugin_id}"),
+            })
+        })
+        .collect();
+
+    serde_json::json!({
+        "name": id,
+        "owner": { "name": marketplace.author.name.clone() },
+        "metadata": {
+            "description": marketplace.description.clone(),
+            "version": marketplace.version.clone(),
+        },
+        "plugins": plugin_entries,
+    })
+}
+
+async fn serve_default_marketplace_json(
+    State(_ctx): State<AppContext>,
+) -> Result<impl IntoResponse, ApiError> {
+    let services = load_services_config()?;
+
+    let id = resolve_default_id(&services).ok_or_else(|| {
         ApiError::not_found(
-            "Marketplace manifest not found. Run 'systemprompt core plugins generate' first.",
+            "No default marketplace configured. Set settings.default_marketplace_id or define a \
+             marketplace with id 'default'.",
         )
     })?;
+
+    let marketplace = services
+        .marketplaces
+        .iter()
+        .find(|(k, _)| k.as_str() == id)
+        .map(|(_, v)| v)
+        .ok_or_else(|| ApiError::not_found(format!("Default marketplace '{id}' is not defined")))?;
+
+    let body = serde_json::to_vec_pretty(&render_marketplace_json(&id, marketplace))
+        .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
     Ok((
         StatusCode::OK,
         [
             (header::CONTENT_TYPE, "application/json"),
+            (header::CACHE_CONTROL, "public, max-age=300"),
+        ],
+        body,
+    ))
+}
+
+async fn list_marketplaces(State(_ctx): State<AppContext>) -> Result<impl IntoResponse, ApiError> {
+    let services = load_services_config()?;
+
+    let entries: Vec<serde_json::Value> = services
+        .marketplaces
+        .iter()
+        .map(|(id, m)| {
+            serde_json::json!({
+                "id": id.as_str(),
+                "name": m.name,
+                "description": m.description,
+                "version": m.version,
+                "visibility": m.visibility,
+                "enabled": m.enabled,
+            })
+        })
+        .collect();
+
+    let body = serde_json::to_vec_pretty(&serde_json::json!({ "marketplaces": entries }))
+        .map_err(|e| ApiError::internal_error(e.to_string()))?;
+
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "application/json"),
+            (header::CACHE_CONTROL, "public, max-age=300"),
+        ],
+        body,
+    ))
+}
+
+async fn get_marketplace(
+    State(_ctx): State<AppContext>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<impl IntoResponse, ApiError> {
+    let services = load_services_config()?;
+
+    let marketplace = services
+        .marketplaces
+        .iter()
+        .find(|(k, _)| k.as_str() == id)
+        .map(|(_, v)| v)
+        .ok_or_else(|| ApiError::not_found(format!("Marketplace '{id}' not found")))?;
+
+    let body = serde_json::to_vec_pretty(&render_marketplace_json(&id, marketplace))
+        .map_err(|e| ApiError::internal_error(e.to_string()))?;
+
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "application/json"),
+            (header::CACHE_CONTROL, "public, max-age=300"),
+        ],
+        body,
+    ))
+}
+
+async fn get_marketplace_yaml(
+    State(ctx): State<AppContext>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<impl IntoResponse, ApiError> {
+    if id.contains('/') || id.contains("..") {
+        return Err(ApiError::forbidden("Invalid marketplace id"));
+    }
+
+    let path = marketplaces_path(&ctx).join(&id).join("config.yaml");
+    if !path.is_file() {
+        return Err(ApiError::not_found(format!(
+            "Marketplace '{id}' has no config.yaml"
+        )));
+    }
+
+    let content = tokio::fs::read(&path)
+        .await
+        .map_err(|e| ApiError::internal_error(e.to_string()))?;
+
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "text/yaml; charset=utf-8"),
             (header::CACHE_CONTROL, "public, max-age=300"),
         ],
         content,

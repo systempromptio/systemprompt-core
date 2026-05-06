@@ -6,6 +6,7 @@ pub mod content;
 pub mod external_agent;
 pub mod hooks;
 mod includable;
+pub mod marketplace;
 pub mod mcp;
 pub mod plugin;
 pub mod runtime;
@@ -30,6 +31,7 @@ pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
 };
+pub use marketplace::{MarketplaceConfig, MarketplaceConfigFile, MarketplaceVisibility};
 pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
@@ -48,7 +50,7 @@ use crate::errors::ConfigValidationError;
 use crate::mcp::{Deployment, McpServerType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use systemprompt_identifiers::ExternalAgentId;
+use systemprompt_identifiers::{ExternalAgentId, MarketplaceId};
 
 /// The single canonical shape of a services config file.
 ///
@@ -76,6 +78,8 @@ pub struct ServicesConfig {
     #[serde(default)]
     pub plugins: HashMap<String, PluginConfig>,
     #[serde(default)]
+    pub marketplaces: HashMap<MarketplaceId, MarketplaceConfig>,
+    #[serde(default)]
     pub skills: SkillsConfig,
     #[serde(default)]
     pub content: ContentConfig,
@@ -97,6 +101,53 @@ impl ServicesConfig {
         for (name, plugin) in &self.plugins {
             plugin.validate(name)?;
             self.validate_plugin_bindings(name, plugin)?;
+        }
+
+        for (id, marketplace) in &self.marketplaces {
+            marketplace.validate(id.as_str())?;
+            self.validate_marketplace_bindings(id.as_str(), marketplace)?;
+        }
+
+        Ok(())
+    }
+
+    fn validate_marketplace_bindings(
+        &self,
+        name: &str,
+        marketplace: &MarketplaceConfig,
+    ) -> Result<(), ConfigValidationError> {
+        for plugin_ref in &marketplace.plugins.include {
+            if !self.plugins.contains_key(plugin_ref) {
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "Marketplace '{name}': plugins.include references unknown plugin \
+                     '{plugin_ref}'"
+                )));
+            }
+        }
+
+        for skill_ref in &marketplace.skills.include {
+            let exists = self.skills.skills.keys().any(|k| k.as_str() == skill_ref);
+            if !exists {
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "Marketplace '{name}': skills.include references unknown skill '{skill_ref}'"
+                )));
+            }
+        }
+
+        for mcp_ref in &marketplace.mcp_servers {
+            if !self.mcp_servers.contains_key(mcp_ref) {
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "Marketplace '{name}': mcp_servers references unknown mcp_server '{mcp_ref}'"
+                )));
+            }
+        }
+
+        for agent_ref in &marketplace.agents.include {
+            if !self.agents.contains_key(agent_ref) {
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "Marketplace '{name}': agents.include references unknown agent '{agent_ref}'"
+                )));
+            }
         }
 
         Ok(())
