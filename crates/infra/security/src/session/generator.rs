@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
-use systemprompt_identifiers::{SessionId, SessionToken, UserId};
+use systemprompt_identifiers::{SessionId, SessionToken, TenantId, UserId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
@@ -16,6 +16,8 @@ pub struct SessionParams<'a> {
     pub user_type: UserType,
     pub permissions: Vec<Permission>,
     pub roles: Vec<String>,
+    pub department: Option<String>,
+    pub tenant_id: Option<TenantId>,
     pub rate_limit_tier: RateLimitTier,
 }
 
@@ -49,6 +51,8 @@ impl SessionGenerator {
             email: params.email.to_string(),
             user_type: params.user_type,
             roles: params.roles.clone(),
+            department: params.department.clone(),
+            tenant_id: params.tenant_id.clone(),
             client_id: None,
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),

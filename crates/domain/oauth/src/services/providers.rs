@@ -73,6 +73,8 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             email: params.username.clone(),
             roles: vec![],
             permissions: vec![],
+            department: None,
+            tenant_id: None,
         };
 
         let permissions: Vec<Permission> = params

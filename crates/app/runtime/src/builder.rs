@@ -14,7 +14,7 @@ use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, AppContextParts};
-use crate::error::RuntimeResult;
+use crate::error::{RuntimeError, RuntimeResult};
 use crate::registry::ModuleApiRegistry;
 
 #[derive(Debug, Default)]
@@ -55,6 +55,13 @@ impl AppContextBuilder {
             )
             .await?,
         );
+
+        let authz_audit_pool = database.write_pool_arc().ok();
+        systemprompt_security::authz::install_from_governance_config(
+            profile.governance.as_ref(),
+            authz_audit_pool,
+        )
+        .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
 
         systemprompt_logging::init_logging(Arc::clone(&database));
 

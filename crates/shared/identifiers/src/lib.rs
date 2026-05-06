@@ -104,3 +104,5 @@ pub use trace::TraceId;
 pub use url::ValidatedUrl;
 pub use user::UserId;
 pub use webhook::WebhookEndpointId;
+
+define_id!(RuleId, generate);

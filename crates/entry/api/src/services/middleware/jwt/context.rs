@@ -139,7 +139,7 @@ impl JwtContextExtractor {
     pub async fn extract_for_gateway(
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
-    ) -> Result<RequestContext, ContextExtractionError> {
+    ) -> Result<(RequestContext, JwtUserContext), ContextExtractionError> {
         let jwt_context = self
             .jwt_extractor
             .extract_user_context(jwt_token.as_str())
@@ -156,8 +156,9 @@ impl JwtContextExtractor {
 
         let session_id = jwt_context.session_id.clone();
         let user_id = jwt_context.user_id.clone();
+        let claims_snapshot = jwt_context.clone();
 
-        Ok(build_context(BuildContextParams {
+        let rc = build_context(BuildContextParams {
             jwt_context,
             session_id,
             user_id,
@@ -166,7 +167,8 @@ impl JwtContextExtractor {
             agent_name: AgentName::system(),
             task_id: None,
             auth_token: Some(jwt_token.as_str().to_string()),
-        }))
+        });
+        Ok((rc, claims_snapshot))
     }
 
     async fn extract_from_request_impl(

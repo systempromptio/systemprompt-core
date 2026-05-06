@@ -2,8 +2,8 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 use systemprompt_identifiers::{SessionId, TenantId, TraceId, UserId, headers as sp_headers};
+use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 
 use crate::services::gateway::models::AnthropicGatewayRequest;
 
@@ -125,7 +125,8 @@ async fn enforce_authz_for_route(
 ) -> Result<(), (StatusCode, String)> {
     let Some(hook) = systemprompt_security::authz::global_hook() else {
         tracing::error!(
-            "authz hook not installed — denying gateway request (bootstrap order bug: install_from_governance_config must run before serving traffic)"
+            "authz hook not installed — denying gateway request (bootstrap order bug: \
+             install_from_governance_config must run before serving traffic)"
         );
         return Err((
             StatusCode::FORBIDDEN,
@@ -169,10 +170,7 @@ fn build_authz_request(
         tenant_id,
         roles: principal.roles.clone(),
         department: principal.department.clone(),
-        trace_id: principal
-            .trace_id
-            .clone()
-            .unwrap_or_else(TraceId::generate),
+        trace_id: principal.trace_id.clone().unwrap_or_else(TraceId::generate),
         context: serde_json::json!({"model": model}),
     })
 }

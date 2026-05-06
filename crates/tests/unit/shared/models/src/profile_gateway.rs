@@ -1,8 +1,11 @@
 use std::collections::HashMap;
-use systemprompt_models::profile::{GatewayConfig, GatewayRoute};
+use systemprompt_models::profile::{
+    GatewayConfig, GatewayRoute, slugify_pattern, synthesize_route_id,
+};
 
 fn route(pattern: &str) -> GatewayRoute {
     GatewayRoute {
+        id: String::new(),
         model_pattern: pattern.to_string(),
         provider: "test".to_string(),
         endpoint: "https://example.com".to_string(),
@@ -34,6 +37,7 @@ fn route_finds_matching_model() {
     let config = GatewayConfig {
         enabled: true,
         routes: vec![GatewayRoute {
+            id: String::new(),
             model_pattern: "kimi-*".to_string(),
             provider: "moonshot".to_string(),
             endpoint: "https://api.moonshot.ai/v1".to_string(),
@@ -49,4 +53,38 @@ fn route_finds_matching_model() {
         matched.effective_upstream_model("kimi-latest"),
         "moonshot-v1-32k"
     );
+}
+
+#[test]
+fn slugify_replaces_star_and_non_alnum() {
+    assert_eq!(slugify_pattern("claude-*"), "claude-star");
+    assert_eq!(slugify_pattern("foo/bar baz!"), "foo-bar-baz");
+    assert_eq!(slugify_pattern("---"), "route");
+    assert_eq!(slugify_pattern(""), "route");
+    assert_eq!(slugify_pattern("Claude_3.7"), "claude-3-7");
+}
+
+#[test]
+fn synthesize_route_id_is_stable_and_input_dependent() {
+    let a = synthesize_route_id("claude-*", "anthropic", "https://api.anthropic.com");
+    let b = synthesize_route_id("claude-*", "anthropic", "https://api.anthropic.com");
+    assert_eq!(a, b, "synthesize_route_id must be deterministic");
+    assert!(a.starts_with("claude-star-"));
+
+    let c = synthesize_route_id("claude-*", "anthropic", "https://other.example");
+    assert_ne!(a, c, "endpoint change must produce a different id");
+
+    let d = synthesize_route_id("gpt-*", "anthropic", "https://api.anthropic.com");
+    assert_ne!(a, d, "model_pattern change must produce a different id");
+}
+
+#[test]
+fn ensure_id_backfills_empty_id() {
+    let mut r = route("claude-*");
+    assert!(r.id.is_empty());
+    r.ensure_id();
+    assert!(!r.id.is_empty());
+    let preserved = r.id.clone();
+    r.ensure_id();
+    assert_eq!(r.id, preserved, "ensure_id must be idempotent");
 }

@@ -11,6 +11,9 @@
 //!   [`systemprompt_models::execution::context::RequestContext`].
 //! - Cowork manifest signing ([`manifest_signing`]) with Ed25519 keys.
 //! - Lightweight scanner / bot detection ([`services`]).
+//! - Authorization decision plane ([`authz`]) — deny-overrides resolver,
+//!   `access_control_rules` repository, and `AuthzDecisionHook` extension
+//!   surface shared by the gateway and MCP enforcement sites.
 //!
 //! All public fallible APIs return typed errors from [`error`] — `anyhow`
 //! is not used in any public signature.
@@ -37,6 +40,7 @@
 //! ```
 
 pub mod auth;
+pub mod authz;
 pub mod error;
 pub mod extraction;
 pub mod jwt;

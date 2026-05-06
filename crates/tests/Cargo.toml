@@ -28,6 +28,7 @@ members = [
     "unit/infra/loader",
     "unit/infra/logging",
     "unit/infra/security",
+    "unit/infra/security/authz",
     # Unit tests - domain layer
     "unit/domain/agent",
     "unit/domain/ai",

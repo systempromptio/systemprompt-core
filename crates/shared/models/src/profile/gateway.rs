@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -144,6 +146,8 @@ pub struct GatewayModel {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayRoute {
+    #[serde(default)]
+    pub id: String,
     pub model_pattern: String,
     pub provider: String,
     pub endpoint: String,
@@ -162,6 +166,64 @@ impl GatewayRoute {
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
         self.upstream_model.as_deref().unwrap_or(requested)
     }
+
+    pub fn ensure_id(&mut self) {
+        if self.id.trim().is_empty() {
+            self.id = synthesize_route_id(&self.model_pattern, &self.provider, &self.endpoint);
+        }
+    }
+}
+
+/// Slugify a model pattern for use in a stable id.
+///
+/// Mirrors the template's historical implementation in
+/// `extensions/web/admin/.../gateway.rs`: `*` becomes `star`,
+/// non-alphanumeric runs collapse to a single `-`, leading/trailing `-`
+/// are trimmed, and an empty result becomes `route`.
+#[must_use]
+pub fn slugify_pattern(pattern: &str) -> String {
+    let mut out = String::with_capacity(pattern.len());
+    let mut last_dash = false;
+    for ch in pattern.chars() {
+        if ch == '*' {
+            out.push_str("star");
+            last_dash = false;
+        } else if ch.is_ascii_alphanumeric() {
+            for lc in ch.to_lowercase() {
+                out.push(lc);
+            }
+            last_dash = false;
+        } else if !last_dash && !out.is_empty() {
+            out.push('-');
+            last_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    while out.starts_with('-') {
+        out.remove(0);
+    }
+    if out.is_empty() {
+        out.push_str("route");
+    }
+    out
+}
+
+/// Build a stable route id from `(model_pattern, provider, endpoint)`.
+///
+/// The id is `<slug>-<6 hex chars>` where the hex digest is the first 6
+/// chars of `DefaultHasher` over the same triple. Mirrors the template
+/// logic so ids stay identical across the seam.
+#[must_use]
+pub fn synthesize_route_id(model_pattern: &str, provider: &str, endpoint: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    model_pattern.hash(&mut hasher);
+    provider.hash(&mut hasher);
+    endpoint.hash(&mut hasher);
+    let h = hasher.finish();
+    let hash6: String = format!("{h:016x}").chars().take(6).collect();
+    format!("{}-{}", slugify_pattern(model_pattern), hash6)
 }
 
 fn match_pattern(pattern: &str, model: &str) -> bool {

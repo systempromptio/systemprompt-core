@@ -14,6 +14,13 @@ pub enum ProfileError {
         source: std::io::Error,
     },
 
+    #[error("Failed to write profile {path}: {source}")]
+    WriteFile {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
     #[error("Failed to parse profile {path}: {source}")]
     ParseYaml {
         path: PathBuf,

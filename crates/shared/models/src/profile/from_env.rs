@@ -29,6 +29,7 @@ impl Profile {
             secrets: None,
             extensions: ExtensionsConfig::default(),
             gateway: None,
+            governance: None,
         })
     }
 }

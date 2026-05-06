@@ -25,6 +25,8 @@ fn create_test_params<'a>(user_id: &'a UserId, session_id: &'a SessionId) -> Ses
         user_type: UserType::User,
         permissions: vec![Permission::User],
         roles: vec!["user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     }
 }
@@ -126,6 +128,8 @@ fn test_generate_session_token_different_users() {
         user_type: UserType::User,
         permissions: vec![Permission::User],
         roles: vec!["user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 
@@ -137,6 +141,8 @@ fn test_generate_session_token_different_users() {
         user_type: UserType::User,
         permissions: vec![Permission::User],
         roles: vec!["user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 
@@ -204,6 +210,8 @@ fn test_generate_session_token_admin_user_type() {
         user_type: UserType::Admin,
         permissions: vec![Permission::Admin, Permission::User],
         roles: vec!["admin".to_string(), "user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::Admin,
     };
 
@@ -225,6 +233,8 @@ fn test_generate_session_token_short_duration() {
         user_type: UserType::User,
         permissions: vec![Permission::User],
         roles: vec!["user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 
@@ -246,6 +256,8 @@ fn test_generate_session_token_long_duration() {
         user_type: UserType::User,
         permissions: vec![Permission::User],
         roles: vec!["user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 
@@ -267,6 +279,8 @@ fn test_generate_session_token_multiple_permissions() {
         user_type: UserType::User,
         permissions: vec![Permission::User, Permission::Admin],
         roles: vec!["user".to_string(), "admin".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 
@@ -288,6 +302,8 @@ fn test_generate_session_token_empty_roles() {
         user_type: UserType::User,
         permissions: vec![Permission::User],
         roles: vec![],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 
@@ -309,6 +325,8 @@ fn test_generate_session_token_empty_permissions() {
         user_type: UserType::User,
         permissions: vec![],
         roles: vec!["user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 
@@ -340,6 +358,8 @@ fn test_session_params_all_rate_limit_tiers() {
             user_type: UserType::User,
             permissions: vec![Permission::User],
             roles: vec!["user".to_string()],
+            department: None,
+            tenant_id: None,
             rate_limit_tier: tier,
         };
 
@@ -365,6 +385,8 @@ fn test_session_params_all_user_types() {
             user_type,
             permissions: vec![Permission::User],
             roles: vec!["user".to_string()],
+            department: None,
+            tenant_id: None,
             rate_limit_tier: RateLimitTier::User,
         };
 
@@ -387,6 +409,8 @@ fn test_generate_session_token_special_email_characters() {
         user_type: UserType::User,
         permissions: vec![Permission::User],
         roles: vec!["user".to_string()],
+        department: None,
+        tenant_id: None,
         rate_limit_tier: RateLimitTier::User,
     };
 

@@ -9,8 +9,9 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Security infrastructure for systemprompt.io AI governance: JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret encryption, and the four-layer tool-call governance pipeline."
+description = "Security infrastructure for systemprompt.io AI governance: JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret encryption, the four-layer tool-call governance pipeline, and the unified authz decision plane (deny-overrides resolver + AuthzDecisionHook) shared by gateway and MCP enforcement."
 readme = "README.md"
+include = ["src/**/*", "Cargo.toml", "README.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
@@ -36,13 +37,22 @@ base64 = { workspace = true }
 serde = { workspace = true }
 serde_jcs = "0.1"
 
+# Authz module
+inventory = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+
 # systemprompt.io dependencies
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
-systemprompt-identifiers = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+wiremock = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

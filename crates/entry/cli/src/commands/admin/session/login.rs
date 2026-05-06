@@ -146,6 +146,8 @@ pub async fn login_for_profile(
             user_type: UserType::Admin,
             permissions: vec![Permission::Admin],
             roles: vec!["admin".to_string()],
+            department: None,
+            tenant_id: None,
             rate_limit_tier: RateLimitTier::Admin,
         })
         .context("Failed to generate session token")?;

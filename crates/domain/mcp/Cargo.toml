@@ -67,6 +67,7 @@ systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-security = { workspace = true }
 
 # Process management
 uuid = { workspace = true }

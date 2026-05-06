@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
-    AgentConfig, AiConfig, ContentConfig, PartialServicesConfig, PluginConfig, SchedulerConfig,
-    ServicesConfig, Settings as ServicesSettings, SkillsConfig, WebConfig,
+    AgentConfig, AiConfig, ContentConfig, HostAgentConfig, PartialServicesConfig, PluginConfig,
+    SchedulerConfig, ServicesConfig, Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
 
 #[derive(serde::Deserialize, Default)]
@@ -30,6 +30,8 @@ pub(super) struct RootConfig {
     pub skills: SkillsConfig,
     #[serde(default)]
     pub content: ContentConfig,
+    #[serde(default)]
+    pub host_agents: HashMap<String, HostAgentConfig>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -53,6 +55,8 @@ pub(super) struct PartialServicesFile {
     pub skills: SkillsConfig,
     #[serde(default)]
     pub content: ContentConfig,
+    #[serde(default)]
+    pub host_agents: HashMap<String, HostAgentConfig>,
 }
 
 impl PartialServicesFile {
@@ -66,6 +70,7 @@ impl PartialServicesFile {
             plugins: self.plugins,
             skills: self.skills,
             content: self.content,
+            host_agents: self.host_agents,
         }
     }
 }

@@ -5,12 +5,13 @@ use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
 use crate::services::middleware::JwtContextExtractor;
 
-#[allow(clippy::struct_field_names)]
 pub(super) struct AuthedPrincipal {
     pub user_id: UserId,
     pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
+    pub roles: Vec<String>,
+    pub department: String,
 }
 
 pub(super) async fn authenticate(
@@ -48,6 +49,8 @@ async fn authenticate_api_key(
             tenant_id,
             session_id: None,
             trace_id: Some(TraceId::generate()),
+            roles: Vec::new(),
+            department: String::new(),
         }),
         None => Err((
             StatusCode::UNAUTHORIZED,
@@ -59,13 +62,15 @@ async fn authenticate_api_key(
 async fn authenticate_jwt(
     credential: &str,
     jwt_extractor: &JwtContextExtractor,
-    tenant_id: Option<TenantId>,
+    header_tenant_id: Option<TenantId>,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     let jwt_token = JwtToken::new(credential);
-    let rc = jwt_extractor
+    let (rc, claims) = jwt_extractor
         .extract_for_gateway(&jwt_token)
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+
+    let tenant_id = header_tenant_id.or(claims.tenant_id);
 
     Ok(AuthedPrincipal {
         user_id: rc.auth.user_id.clone(),
@@ -76,5 +81,7 @@ async fn authenticate_jwt(
             Some(rc.request.session_id.clone())
         },
         trace_id: Some(rc.execution.trace_id),
+        roles: claims.roles,
+        department: claims.department.unwrap_or_default(),
     })
 }
