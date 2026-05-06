@@ -34,5 +34,11 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 
+[features]
+default = []
+# Exposes test-only entry points (e.g. `ConfigLoader::load_from_content`)
+# to dependent crates that exercise the loader from outside `cfg(test)`.
+test-support = []
+
 [package.metadata.docs.rs]
 all-features = true

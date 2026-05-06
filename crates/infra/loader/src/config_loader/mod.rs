@@ -44,21 +44,21 @@ impl ConfigLoader {
         }
     }
 
-    pub fn from_env() -> ConfigLoadResult<Self> {
-        let profile = ProfileBootstrap::get()
-            .map_err(|e| ConfigLoadError::ProfileBootstrap(e.to_string()))?;
+    pub fn for_active_profile() -> ConfigLoadResult<Self> {
+        let profile = ProfileBootstrap::get()?;
         let config_path = PathBuf::from(profile.paths.config());
         Ok(Self::new(config_path))
     }
 
     pub fn load() -> ConfigLoadResult<ServicesConfig> {
-        Self::from_env()?.run()
+        Self::for_active_profile()?.run()
     }
 
     pub fn load_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run()
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn load_from_content(content: &str, path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run_from_content(content)
     }
