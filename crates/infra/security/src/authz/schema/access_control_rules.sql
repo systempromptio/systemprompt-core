@@ -30,6 +30,10 @@ CREATE INDEX IF NOT EXISTS idx_acl_default ON access_control_rules(default_inclu
 -- Operator-supplied note explaining *why* the rule exists. Surfaced in the
 -- access matrix tooltip and copied into `governance_decisions.evaluated_rules`
 -- when a rule decides, so an auditor can see policy *intent* alongside the
--- rule that fired.
+-- rule that fired. NULL means "no operator reason given" — distinct from an
+-- empty string.
 ALTER TABLE access_control_rules
-    ADD COLUMN IF NOT EXISTS justification TEXT NOT NULL DEFAULT '';
+    ADD COLUMN IF NOT EXISTS justification TEXT;
+ALTER TABLE access_control_rules ALTER COLUMN justification DROP DEFAULT;
+ALTER TABLE access_control_rules ALTER COLUMN justification DROP NOT NULL;
+UPDATE access_control_rules SET justification = NULL WHERE justification = '';

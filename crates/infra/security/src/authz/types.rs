@@ -97,8 +97,12 @@ impl EntityKind {
             Self::Marketplace => "marketplace",
         }
     }
+}
 
-    pub fn from_str_strict(s: &str) -> Result<Self, AuthzError> {
+impl FromStr for EntityKind {
+    type Err = AuthzError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gateway_route" => Ok(Self::GatewayRoute),
             "mcp_server" => Ok(Self::McpServer),
@@ -125,8 +129,8 @@ pub struct AccessRule {
     pub rule_value: String,
     pub access: Access,
     pub default_included: bool,
-    #[serde(default)]
-    pub justification: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub justification: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
