@@ -3,8 +3,8 @@
 pub mod agent_config;
 pub mod ai;
 pub mod content;
-pub mod hooks;
 pub mod external_agent;
+pub mod hooks;
 mod includable;
 pub mod mcp;
 pub mod plugin;
@@ -25,11 +25,11 @@ pub use ai::{
     ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
 };
 pub use content::ContentConfig;
+pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
 };
-pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
