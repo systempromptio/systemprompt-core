@@ -4,7 +4,7 @@ pub mod agent_config;
 pub mod ai;
 pub mod content;
 pub mod hooks;
-pub mod host_agent;
+pub mod external_agent;
 mod includable;
 pub mod mcp;
 pub mod plugin;
@@ -29,7 +29,7 @@ pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
 };
-pub use host_agent::{HostAgentConfig, HostAgentKind};
+pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
@@ -48,6 +48,7 @@ use crate::errors::ConfigValidationError;
 use crate::mcp::{Deployment, McpServerType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use systemprompt_identifiers::ExternalAgentId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -69,7 +70,7 @@ pub struct PartialServicesConfig {
     #[serde(default)]
     pub content: ContentConfig,
     #[serde(default)]
-    pub host_agents: HashMap<String, HostAgentConfig>,
+    pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,7 +95,7 @@ pub struct ServicesConfig {
     #[serde(default)]
     pub content: ContentConfig,
     #[serde(default)]
-    pub host_agents: HashMap<String, HostAgentConfig>,
+    pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
 }
 
 impl ServicesConfig {

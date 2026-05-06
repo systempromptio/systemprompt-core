@@ -60,8 +60,8 @@ pub enum ConfigLoadError {
     #[error("duplicate content source definition: {0}")]
     DuplicateContentSource(String),
 
-    #[error("duplicate host agent definition: {0}")]
-    DuplicateHostAgent(String),
+    #[error("duplicate external agent definition: {0}")]
+    DuplicateExternalAgent(String),
 
     #[error("services config validation failed: {0}")]
     Validation(String),
