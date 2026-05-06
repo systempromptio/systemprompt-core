@@ -12,7 +12,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{RuleId, TenantId, TraceId, UserId};
+use systemprompt_identifiers::{RuleId, TraceId, UserId};
 
 use super::error::AuthzError;
 
@@ -149,7 +149,6 @@ pub struct AuthzRequest {
     pub entity_type: EntityKind,
     pub entity_id: String,
     pub user_id: UserId,
-    pub tenant_id: TenantId,
     #[serde(default)]
     pub roles: Vec<String>,
     #[serde(default)]

@@ -67,8 +67,8 @@ pub enum ConfigLoadError {
     Validation(String),
 
     #[error(
-        "include {path} sets `settings:` — settings are only valid in the root config file. \
-         Move the values to the root or remove them from the include."
+        "include {path} sets `settings:` — settings are only valid in the root config file. Move \
+         the values to the root or remove them from the include."
     )]
     IncludeMustNotSetGlobalSettings { path: PathBuf },
 }

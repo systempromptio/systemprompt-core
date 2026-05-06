@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::TenantId;
 use uuid::Uuid;
 
 use super::enums::UserType;
@@ -17,8 +16,6 @@ pub struct AuthenticatedUser {
     pub roles: Vec<String>,
     #[serde(default)]
     pub department: Option<String>,
-    #[serde(default)]
-    pub tenant_id: Option<TenantId>,
 }
 
 impl AuthenticatedUser {
@@ -35,7 +32,6 @@ impl AuthenticatedUser {
             permissions,
             roles: Vec::new(),
             department: None,
-            tenant_id: None,
         }
     }
 
@@ -53,7 +49,6 @@ impl AuthenticatedUser {
             permissions,
             roles,
             department: None,
-            tenant_id: None,
         }
     }
 
@@ -64,19 +59,8 @@ impl AuthenticatedUser {
     }
 
     #[must_use]
-    pub fn with_tenant_id(mut self, tenant_id: Option<TenantId>) -> Self {
-        self.tenant_id = tenant_id;
-        self
-    }
-
-    #[must_use]
     pub fn department(&self) -> Option<&str> {
         self.department.as_deref()
-    }
-
-    #[must_use]
-    pub const fn tenant_id(&self) -> Option<&TenantId> {
-        self.tenant_id.as_ref()
     }
 
     pub fn has_permission(&self, permission: Permission) -> bool {

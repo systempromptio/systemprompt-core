@@ -58,7 +58,7 @@ impl ConfigLoader {
         Self::new(path.to_path_buf()).run()
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(any(test, feature = "expose-internals"))]
     pub fn load_from_content(content: &str, path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run_from_content(content)
     }
