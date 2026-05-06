@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_identifiers::{TenantId, TraceId, UserId};
+use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_security::authz::audit::NullAuditSink;
 use systemprompt_security::authz::hook::DenyAllHook;
 use systemprompt_security::authz::{
@@ -15,7 +15,6 @@ fn fixture() -> AuthzRequest {
         entity_type: EntityKind::GatewayRoute,
         entity_id: "claude-3".into(),
         user_id: UserId::new("u1"),
-        tenant_id: TenantId::new("local"),
         roles: vec!["eng".into()],
         department: "platform".into(),
         trace_id: TraceId::new("trace-1"),

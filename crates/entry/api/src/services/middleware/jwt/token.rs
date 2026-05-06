@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 
-use systemprompt_identifiers::{ClientId, SessionId, TenantId, UserId};
+use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_oauth::models::JwtClaims;
 
@@ -14,7 +14,6 @@ pub struct JwtUserContext {
     pub client_id: Option<ClientId>,
     pub roles: Vec<String>,
     pub department: Option<String>,
-    pub tenant_id: Option<TenantId>,
 }
 
 pub struct JwtExtractor {
@@ -85,7 +84,6 @@ impl JwtExtractor {
             client_id,
             roles: token_data.claims.roles,
             department: token_data.claims.department,
-            tenant_id: token_data.claims.tenant_id,
         })
     }
 }

@@ -160,19 +160,11 @@ async fn enforce_authz_for_server(server_name: &str, claims: &JwtClaims) -> Resu
             None,
         ));
     };
-    let Some(tenant_id) = claims.tenant_id.clone() else {
-        tracing::warn!(server = %server_name, "authz denied: tenant_id missing from claims");
-        return Err(McpError::invalid_request(
-            "authz denied [missing_tenant]: tenant_id missing from claims".to_string(),
-            None,
-        ));
-    };
     let user_id = UserId::new(claims.sub.clone());
     let req = AuthzRequest {
         entity_type: EntityKind::McpServer,
         entity_id: server_name.to_string(),
         user_id,
-        tenant_id,
         roles: claims.roles.clone(),
         department: claims.department.clone().unwrap_or_default(),
         trace_id: TraceId::generate(),

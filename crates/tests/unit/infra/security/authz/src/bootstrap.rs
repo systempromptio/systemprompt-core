@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{TenantId, TraceId, UserId};
+use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
@@ -20,7 +20,6 @@ fn fixture() -> AuthzRequest {
         entity_type: EntityKind::GatewayRoute,
         entity_id: "claude-3".into(),
         user_id: UserId::new("u1"),
-        tenant_id: TenantId::new("local"),
         roles: vec!["eng".into()],
         department: "platform".into(),
         trace_id: TraceId::new("trace-1"),

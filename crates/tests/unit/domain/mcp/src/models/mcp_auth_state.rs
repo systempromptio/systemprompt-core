@@ -12,7 +12,6 @@ fn create_test_user() -> AuthenticatedUser {
         permissions: vec![Permission::Admin],
         roles: vec![],
         department: None,
-        tenant_id: None,
     }
 }
 

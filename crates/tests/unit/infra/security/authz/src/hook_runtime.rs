@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{TenantId, TraceId, UserId};
+use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_security::authz::{
     AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityKind,
     clear_global_hook, global_hook, install_global_hook,
@@ -25,7 +25,6 @@ fn fixture_request(entity: EntityKind) -> AuthzRequest {
         entity_type: entity,
         entity_id: "fixture".into(),
         user_id: UserId::new("u-test"),
-        tenant_id: TenantId::new("local"),
         roles: vec!["eng".into()],
         department: "platform".into(),
         trace_id: TraceId::new("trace-test"),

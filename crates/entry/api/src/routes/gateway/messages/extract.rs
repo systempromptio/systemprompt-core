@@ -133,7 +133,7 @@ async fn enforce_authz_for_route(
             "authz denied [authz_not_installed]: hook missing".to_string(),
         ));
     };
-    let req = build_authz_request(principal, route, model)?;
+    let req = build_authz_request(principal, route, model);
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
         AuthzDecision::Deny { reason, policy } => Err((
@@ -147,13 +147,7 @@ fn build_authz_request(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::profile::GatewayRoute,
     model: &str,
-) -> Result<AuthzRequest, (StatusCode, String)> {
-    let tenant_id = principal.tenant_id.clone().ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "tenant_id missing from claims".to_string(),
-        )
-    })?;
+) -> AuthzRequest {
     let entity_id = if route.id.trim().is_empty() {
         systemprompt_models::profile::synthesize_route_id(
             &route.model_pattern,
@@ -163,16 +157,15 @@ fn build_authz_request(
     } else {
         route.id.clone()
     };
-    Ok(AuthzRequest {
+    AuthzRequest {
         entity_type: EntityKind::GatewayRoute,
         entity_id,
         user_id: principal.user_id.clone(),
-        tenant_id,
         roles: principal.roles.clone(),
         department: principal.department.clone(),
         trace_id: principal.trace_id.clone().unwrap_or_else(TraceId::generate),
         context: serde_json::json!({"model": model}),
-    })
+    }
 }
 
 pub(super) fn extract_credential(headers: &HeaderMap) -> Option<String> {

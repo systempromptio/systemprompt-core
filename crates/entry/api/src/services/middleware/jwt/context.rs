@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 use systemprompt_security::TokenExtractor;
 use systemprompt_traits::AnalyticsProvider;
@@ -136,10 +136,15 @@ impl JwtContextExtractor {
         self.extract_standard(headers).await
     }
 
-    pub async fn extract_for_gateway(
+    /// Decode a JWT for the gateway authn path and confirm the user
+    /// still exists. Returns the parsed claim set; the caller assembles
+    /// whatever request-scoped struct it needs (the gateway builds an
+    /// `AuthedPrincipal` directly — there's no need to materialise a
+    /// full `RequestContext` at the auth/gate stage).
+    pub async fn decode_for_gateway(
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
-    ) -> Result<(RequestContext, JwtUserContext), ContextExtractionError> {
+    ) -> Result<JwtUserContext, ContextExtractionError> {
         let jwt_context = self
             .jwt_extractor
             .extract_user_context(jwt_token.as_str())
@@ -154,21 +159,7 @@ impl JwtContextExtractor {
 
         validate_user_exists(&self.db_pool, &jwt_context, "gateway").await?;
 
-        let session_id = jwt_context.session_id.clone();
-        let user_id = jwt_context.user_id.clone();
-        let claims_snapshot = jwt_context.clone();
-
-        let rc = build_context(BuildContextParams {
-            jwt_context,
-            session_id,
-            user_id,
-            trace_id: TraceId::generate(),
-            context_id: ContextId::new(String::new()),
-            agent_name: AgentName::system(),
-            task_id: None,
-            auth_token: Some(jwt_token.as_str().to_string()),
-        });
-        Ok((rc, claims_snapshot))
+        Ok(jwt_context)
     }
 
     async fn extract_from_request_impl(

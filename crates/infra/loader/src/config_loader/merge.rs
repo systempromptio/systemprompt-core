@@ -3,7 +3,9 @@ use std::fs;
 use std::hash::Hash;
 use std::path::Path;
 
-use systemprompt_models::services::{ContentConfig, IncludableString, ServicesConfig, SkillsConfig};
+use systemprompt_models::services::{
+    ContentConfig, IncludableString, ServicesConfig, SkillsConfig,
+};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 

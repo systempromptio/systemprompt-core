@@ -74,7 +74,6 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             roles: vec![],
             permissions: vec![],
             department: None,
-            tenant_id: None,
         };
 
         let permissions: Vec<Permission> = params

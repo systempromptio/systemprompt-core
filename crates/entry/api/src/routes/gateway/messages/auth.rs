@@ -65,22 +65,22 @@ async fn authenticate_jwt(
     header_tenant_id: Option<TenantId>,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     let jwt_token = JwtToken::new(credential);
-    let (rc, claims) = jwt_extractor
-        .extract_for_gateway(&jwt_token)
+    let claims = jwt_extractor
+        .decode_for_gateway(&jwt_token)
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
-    let tenant_id = header_tenant_id.or(claims.tenant_id);
+    let session_id = if claims.session_id.as_str().is_empty() {
+        None
+    } else {
+        Some(claims.session_id)
+    };
 
     Ok(AuthedPrincipal {
-        user_id: rc.auth.user_id.clone(),
-        tenant_id,
-        session_id: if rc.request.session_id.as_str().is_empty() {
-            None
-        } else {
-            Some(rc.request.session_id.clone())
-        },
-        trace_id: Some(rc.execution.trace_id),
+        user_id: claims.user_id,
+        tenant_id: header_tenant_id,
+        session_id,
+        trace_id: Some(TraceId::generate()),
         roles: claims.roles,
         department: claims.department.unwrap_or_default(),
     })
