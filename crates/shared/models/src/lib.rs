@@ -177,7 +177,7 @@ pub use services::{
     DEFAULT_AGENT_SYSTEM_PROMPT_FILE, DEFAULT_SKILL_CONTENT_FILE, DiskAgentConfig, DiskHookConfig,
     DiskSkillConfig, HOOK_CONFIG_FILENAME, HistoryConfig, HookAction, HookCategory, HookEvent,
     HookEventsConfig, HookMatcher, HookType, IncludableString, JobConfig, McpConfig,
-    OAuthConfig as AgentOAuthConfig, PartialServicesConfig, PluginAuthor, PluginComponentRef,
+    OAuthConfig as AgentOAuthConfig, PluginAuthor, PluginComponentRef,
     PluginConfig, PluginConfigFile, PluginScript, PluginVariableDef, RuntimeStatus,
     SKILL_CONFIG_FILENAME, SamplingConfig, SchedulerConfig, ServiceType, ServicesConfig,
     Settings as ServicesSettings, SkillConfig, SkillsConfig, ToolModelConfig, ToolModelSettings,

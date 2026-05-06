@@ -1,10 +1,12 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+use systemprompt_models::services::ServicesConfig;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
-use super::merge::{merge_partial, resolve_partial_includes};
-use super::types::{IncludeResolveCtx, PartialServicesFile};
+use super::merge::merge_into;
+use super::types::IncludeResolveCtx;
 
 pub(super) fn resolve_includes_recursively(
     base_path: &Path,
@@ -41,22 +43,49 @@ pub(super) fn resolve_includes_recursively(
         source: e,
     })?;
 
-    let partial_file: PartialServicesFile =
+    reject_settings_at_include(&content, &canonical)?;
+
+    let mut included: ServicesConfig =
         serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
             path: canonical.clone(),
             source: e,
         })?;
 
+    let nested_includes = std::mem::take(&mut included.includes);
+
     ctx.chain.push(canonical.clone());
-    for nested in &partial_file.includes {
+    for nested in &nested_includes {
         resolve_includes_recursively(base_path, nested, &canonical, ctx)?;
     }
     ctx.chain.pop();
 
-    let file_dir: PathBuf = canonical.parent().unwrap_or(base_path).to_path_buf();
-    let mut partial = partial_file.into_partial_config();
-    resolve_partial_includes(&mut partial, &file_dir)?;
-    merge_partial(ctx.merged, partial)?;
+    let file_dir = canonical.parent().unwrap_or(base_path).to_path_buf();
+    super::merge::resolve_system_prompt_includes(&file_dir, &mut included)?;
+    super::merge::resolve_skill_instruction_includes(&file_dir, &mut included)?;
+    merge_into(ctx.merged, included)?;
 
+    Ok(())
+}
+
+/// Sniff the YAML for a top-level `settings:` key before deserializing.
+///
+/// Settings are only meaningful at the root config; an include that sets
+/// them is almost certainly an operator error (the values would otherwise
+/// be silently ignored). Reject explicitly so the misconfiguration shows
+/// up at startup.
+fn reject_settings_at_include(content: &str, path: &Path) -> ConfigLoadResult<()> {
+    let value: serde_yaml::Value = match serde_yaml::from_str(content) {
+        Ok(v) => v,
+        // Defer the error to the typed deserialize path so callers get
+        // the structured Yaml error variant with the proper context.
+        Err(_) => return Ok(()),
+    };
+    if let serde_yaml::Value::Mapping(map) = value {
+        if map.contains_key(serde_yaml::Value::String("settings".into())) {
+            return Err(ConfigLoadError::IncludeMustNotSetGlobalSettings {
+                path: path.to_path_buf(),
+            });
+        }
+    }
     Ok(())
 }
