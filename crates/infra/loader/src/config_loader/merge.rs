@@ -1,80 +1,89 @@
+use std::collections::HashMap;
 use std::fs;
+use std::hash::Hash;
 use std::path::Path;
 
-use systemprompt_models::services::{
-    ContentConfig, IncludableString, PartialServicesConfig, ServicesConfig, SkillsConfig,
-};
+use systemprompt_models::services::{ContentConfig, IncludableString, ServicesConfig, SkillsConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
-pub(super) fn merge_partial(
+/// Merge an include into the running root config.
+///
+/// Maps overlap rules: duplicate keys across includes (or include-vs-root)
+/// are a hard error — there is no "last writer wins" so two includes
+/// silently shadowing each other is impossible. AI providers are
+/// accumulated; `web` and `scheduler` carry whichever side defined them
+/// (root has priority).
+pub(super) fn merge_into(
     target: &mut ServicesConfig,
-    partial: PartialServicesConfig,
+    include: ServicesConfig,
 ) -> ConfigLoadResult<()> {
-    for (name, agent) in partial.agents {
-        if target.agents.contains_key(&name) {
-            return Err(ConfigLoadError::DuplicateAgent(name));
-        }
-        target.agents.insert(name, agent);
+    merge_no_dup(&mut target.agents, include.agents, |k| {
+        ConfigLoadError::DuplicateAgent(k)
+    })?;
+    merge_no_dup(&mut target.mcp_servers, include.mcp_servers, |k| {
+        ConfigLoadError::DuplicateMcpServer(k)
+    })?;
+    merge_no_dup(&mut target.plugins, include.plugins, |k| {
+        ConfigLoadError::DuplicatePlugin(k)
+    })?;
+    merge_no_dup(&mut target.external_agents, include.external_agents, |k| {
+        ConfigLoadError::DuplicateExternalAgent(k.as_str().to_owned())
+    })?;
+
+    if include.scheduler.is_some() && target.scheduler.is_none() {
+        target.scheduler = include.scheduler;
     }
 
-    for (name, mcp) in partial.mcp_servers {
-        if target.mcp_servers.contains_key(&name) {
-            return Err(ConfigLoadError::DuplicateMcpServer(name));
-        }
-        target.mcp_servers.insert(name, mcp);
-    }
-
-    for (name, external_agent) in partial.external_agents {
-        if target.external_agents.contains_key(&name) {
-            return Err(ConfigLoadError::DuplicateExternalAgent(name.into()));
-        }
-        target.external_agents.insert(name, external_agent);
-    }
-
-    if partial.scheduler.is_some() && target.scheduler.is_none() {
-        target.scheduler = partial.scheduler;
-    }
-
-    if let Some(ai) = partial.ai {
-        if target.ai.providers.is_empty() && !ai.providers.is_empty() {
-            target.ai = ai;
+    if !include.ai.providers.is_empty() {
+        if target.ai.providers.is_empty() {
+            target.ai = include.ai;
         } else {
-            for (name, provider) in ai.providers {
+            for (name, provider) in include.ai.providers {
                 target.ai.providers.insert(name, provider);
             }
         }
     }
 
-    if partial.web.is_some() {
-        target.web = partial.web;
+    if include.web.is_some() {
+        target.web = include.web;
     }
 
-    for (name, plugin) in partial.plugins {
-        if target.plugins.contains_key(&name) {
-            return Err(ConfigLoadError::DuplicatePlugin(name));
-        }
-        target.plugins.insert(name, plugin);
-    }
-
-    merge_skills(target, partial.skills)?;
-    merge_content(&mut target.content, partial.content)?;
+    merge_skills(&mut target.skills, include.skills)?;
+    merge_content(&mut target.content, include.content)?;
 
     Ok(())
 }
 
-fn merge_skills(target: &mut ServicesConfig, partial: SkillsConfig) -> ConfigLoadResult<()> {
+fn merge_no_dup<K, V, E>(
+    target: &mut HashMap<K, V>,
+    other: HashMap<K, V>,
+    on_dup: impl Fn(K) -> E,
+) -> Result<(), E>
+where
+    K: Eq + Hash,
+{
+    for (key, value) in other {
+        if target.contains_key(&key) {
+            return Err(on_dup(key));
+        }
+        target.insert(key, value);
+    }
+    Ok(())
+}
+
+fn merge_skills(target: &mut SkillsConfig, partial: SkillsConfig) -> ConfigLoadResult<()> {
     if partial.auto_discover {
-        target.skills.auto_discover = true;
+        target.auto_discover = true;
     }
     if partial.skills_path.is_some() {
-        target.skills.skills_path = partial.skills_path;
+        target.skills_path = partial.skills_path;
     }
     for (id, skill) in partial.skills {
-        if target.skills.skills.contains_key(&id) {
+        if target.skills.contains_key(&id) {
             return Err(ConfigLoadError::DuplicateSkill(id));
         }
-        target.skills.skills.insert(id, skill);
+        target.skills.insert(id, skill);
     }
     Ok(())
 }
@@ -100,50 +109,6 @@ fn merge_content(target: &mut ContentConfig, partial: ContentConfig) -> ConfigLo
 
     if !partial.raw.metadata.default_author.is_empty() {
         target.raw.metadata = partial.raw.metadata;
-    }
-
-    Ok(())
-}
-
-pub(super) fn resolve_partial_includes(
-    partial: &mut PartialServicesConfig,
-    base_dir: &Path,
-) -> ConfigLoadResult<()> {
-    for (name, agent) in &mut partial.agents {
-        if let Some(ref system_prompt) = agent.metadata.system_prompt {
-            if let Some(include_path) = system_prompt.strip_prefix("!include ") {
-                let full_path = base_dir.join(include_path.trim());
-                let resolved = read_include(&full_path).map_err(|e| ConfigLoadError::Io {
-                    path: full_path.clone(),
-                    source: e,
-                })?;
-                tracing::debug!(
-                    agent = %name,
-                    path = %full_path.display(),
-                    "resolved system_prompt include"
-                );
-                agent.metadata.system_prompt = Some(resolved);
-            }
-        }
-    }
-
-    for (key, skill) in &mut partial.skills.skills {
-        let Some(instructions) = skill.instructions.as_ref() else {
-            continue;
-        };
-        if let IncludableString::Include { path } = instructions {
-            let full_path = base_dir.join(path.trim());
-            let resolved = read_include(&full_path).map_err(|e| ConfigLoadError::Io {
-                path: full_path.clone(),
-                source: e,
-            })?;
-            tracing::debug!(
-                skill = %key,
-                path = %full_path.display(),
-                "resolved skill instructions include"
-            );
-            skill.instructions = Some(IncludableString::Inline(resolved));
-        }
     }
 
     Ok(())

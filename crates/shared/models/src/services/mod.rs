@@ -50,38 +50,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use systemprompt_identifiers::ExternalAgentId;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PartialServicesConfig {
-    #[serde(default)]
-    pub agents: HashMap<String, AgentConfig>,
-    #[serde(default)]
-    pub mcp_servers: HashMap<String, Deployment>,
-    #[serde(default)]
-    pub scheduler: Option<SchedulerConfig>,
-    #[serde(default)]
-    pub ai: Option<AiConfig>,
-    #[serde(default)]
-    pub web: Option<WebConfig>,
-    #[serde(default)]
-    pub plugins: HashMap<String, PluginConfig>,
-    #[serde(default)]
-    pub skills: SkillsConfig,
-    #[serde(default)]
-    pub content: ContentConfig,
-    #[serde(default)]
-    pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// The single canonical shape of a services config file.
+///
+/// A root config file and an include file deserialize into the same struct.
+/// `settings` is meaningful only at the root; the loader rejects an include
+/// that sets it (`ConfigLoadError::IncludeMustNotSetGlobalSettings`) rather
+/// than silently ignoring the value.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServicesConfig {
     #[serde(default)]
+    pub includes: Vec<String>,
+    #[serde(default)]
+    pub settings: Settings,
+    #[serde(default)]
     pub agents: HashMap<String, AgentConfig>,
     #[serde(default)]
     pub mcp_servers: HashMap<String, Deployment>,
-    #[serde(default)]
-    pub settings: Settings,
     #[serde(default)]
     pub scheduler: Option<SchedulerConfig>,
     #[serde(default)]

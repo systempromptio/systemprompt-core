@@ -17,13 +17,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::services::{AiConfig, ServicesConfig};
+use systemprompt_models::services::ServicesConfig;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
 use includes::resolve_includes_recursively;
 use merge::{resolve_skill_instruction_includes, resolve_system_prompt_includes};
-use types::{IncludeResolveCtx, RootConfig};
+use types::IncludeResolveCtx;
 
 #[derive(Debug)]
 pub struct ConfigLoader {
@@ -76,24 +76,13 @@ impl ConfigLoader {
     }
 
     fn run_from_content(&self, content: &str) -> ConfigLoadResult<ServicesConfig> {
-        let root: RootConfig =
+        let mut merged: ServicesConfig =
             serde_yaml::from_str(content).map_err(|e| ConfigLoadError::Yaml {
                 path: self.config_path.clone(),
                 source: e,
             })?;
 
-        let mut merged = ServicesConfig {
-            agents: root.agents,
-            mcp_servers: root.mcp_servers,
-            settings: root.settings,
-            scheduler: root.scheduler,
-            ai: root.ai.unwrap_or_else(AiConfig::default),
-            web: root.web,
-            plugins: root.plugins,
-            skills: root.skills,
-            content: root.content,
-            external_agents: root.external_agents,
-        };
+        let includes = std::mem::take(&mut merged.includes);
 
         let mut visited: HashSet<PathBuf> = HashSet::new();
         if let Ok(canonical_root) = fs::canonicalize(&self.config_path) {
@@ -105,7 +94,7 @@ impl ConfigLoader {
                 merged: &mut merged,
                 chain: vec![self.config_path.clone()],
             };
-            for include_path in &root.includes {
+            for include_path in &includes {
                 resolve_includes_recursively(
                     &self.base_path,
                     include_path,
