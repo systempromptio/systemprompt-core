@@ -20,7 +20,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ConfigLoadError {
     #[error("profile bootstrap unavailable: {0}")]
-    ProfileBootstrap(String),
+    ProfileBootstrap(#[from] systemprompt_config::ProfileBootstrapError),
 
     #[error("io error at {path}: {source}")]
     Io {

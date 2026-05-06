@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-loader = { workspace = true }
+systemprompt-loader = { workspace = true, features = ["test-support"] }
 systemprompt-models = { workspace = true }
 serde = { workspace = true }
 tempfile = { workspace = true }
