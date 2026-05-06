@@ -21,6 +21,18 @@ pub enum AuthError {
 
     #[error("missing session_id in token")]
     MissingSessionId,
+
+    #[error("hook token: missing or non-`hook` audience")]
+    HookAudienceMissing,
+
+    #[error("hook token: required scope `{0}` not present")]
+    HookScopeMissing(&'static str),
+
+    #[error("hook token: missing `plugin_id` claim")]
+    HookPluginIdMissing,
+
+    #[error("hook token: plugin_id `{actual}` in claim does not match request plugin_id `{expected}`")]
+    HookPluginIdMismatch { expected: String, actual: String },
 }
 
 #[derive(Debug, Error)]

@@ -21,6 +21,8 @@ pub struct JwtConfig {
     pub expires_in_hours: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -36,6 +38,7 @@ impl Default for JwtConfig {
             audience: JwtAudience::standard(),
             expires_in_hours: Some(24),
             resource: None,
+            plugin_id: None,
         }
     }
 }
@@ -98,6 +101,7 @@ pub fn generate_jwt(
         auth_time: now,
         session_id: Some(session_id.to_string()),
         rate_limit_tier: Some(user_type.rate_tier()),
+        plugin_id: config.plugin_id,
     };
 
     let header = Header::new(Algorithm::HS256);
@@ -179,6 +183,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         auth_time: now,
         session_id: Some(session_id.to_string()),
         rate_limit_tier: Some(RateLimitTier::Anon),
+        plugin_id: None,
     };
 
     let header = Header::new(Algorithm::HS256);
@@ -246,6 +251,7 @@ pub fn generate_admin_jwt_with_expiry(
         auth_time: now,
         session_id: Some(session_id.to_string()),
         rate_limit_tier: Some(RateLimitTier::Admin),
+        plugin_id: None,
     };
 
     let header = Header::new(Algorithm::HS256);

@@ -8,7 +8,7 @@ pub use config::{
 };
 pub use container::{
     check_volume_exists, generate_admin_password, generate_shared_postgres_compose,
-    get_container_password, is_shared_container_running, nanoid, remove_shared_volume,
-    stop_shared_container, wait_for_postgres_healthy,
+    get_container_password, is_shared_container_running, nanoid, new_local_tenant_id,
+    remove_shared_volume, stop_shared_container, wait_for_postgres_healthy,
 };
 pub use database::{create_database_for_tenant, drop_database_for_tenant, ensure_admin_role};

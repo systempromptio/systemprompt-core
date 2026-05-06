@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
-use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
@@ -12,17 +12,25 @@ use systemprompt_traits::CreateSessionInput;
 
 use super::super::TokenResponse;
 
+#[derive(Debug, Default)]
+pub struct ClientTokenOptions<'a> {
+    pub scope: Option<&'a str>,
+    pub plugin_id: Option<&'a str>,
+    pub audience: Option<&'a str>,
+}
+
 pub async fn generate_client_tokens(
     repo: &OAuthRepository,
     client_id: &ClientId,
-    scope: Option<&str>,
     headers: &HeaderMap,
     state: &OAuthState,
+    options: ClientTokenOptions<'_>,
 ) -> Result<TokenResponse> {
     let expires_in = Config::get()?.jwt_access_token_expiration;
 
-    let scope_str =
-        scope.ok_or_else(|| anyhow::anyhow!("Scope is required for client credentials grant"))?;
+    let scope_str = options
+        .scope
+        .ok_or_else(|| anyhow::anyhow!("Scope is required for client credentials grant"))?;
 
     let requested_permissions = parse_permissions(scope_str)?;
 
@@ -36,10 +44,31 @@ pub async fn generate_client_tokens(
 
     let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
+
+    // Why: Resource audiences are intentionally open here. Capability is granted by `scope`,
+    // not audience; the audience claim is informational and does not authorize anything.
+    let audience_override = options
+        .audience
+        .map(|a| {
+            JwtAudience::from_str(a).map_err(|e| anyhow::anyhow!("Invalid audience '{a}': {e}"))
+        })
+        .transpose()?;
+    let audience = audience_override
+        .map_or_else(|| global_config.jwt_audiences.clone(), |aud| vec![aud]);
+
+    if permissions.iter().any(Permission::is_hook_scope)
+        && !audience.iter().any(|a| matches!(a, JwtAudience::Hook))
+    {
+        return Err(anyhow::anyhow!(
+            "Hook scopes require audience=hook on the token request"
+        ));
+    }
+
     let config = JwtConfig {
         permissions: permissions.clone(),
-        audience: global_config.jwt_audiences.clone(),
+        audience,
         expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
+        plugin_id: options.plugin_id.map(str::to_string),
         ..Default::default()
     };
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));

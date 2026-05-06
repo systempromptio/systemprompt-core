@@ -227,3 +227,11 @@ pub fn nanoid() -> String {
         .map_or(1, |d| d.as_millis());
     format!("{:x}", timestamp)
 }
+
+// `local_` prefix preserved so `is_local_trial()` predicates keep matching;
+// suffix is a real RFC-4122 v4 UUID because Cowork's
+// `deploymentOrganizationUuid` rejects non-UUID strings.
+#[must_use]
+pub fn new_local_tenant_id() -> String {
+    format!("local_{}", uuid::Uuid::new_v4())
+}

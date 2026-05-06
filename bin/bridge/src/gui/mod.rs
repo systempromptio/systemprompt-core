@@ -87,8 +87,8 @@ pub fn run() -> ExitCode {
         }
     } else {
         app.append_log(format!(
-            "local proxy FAILED to start on port {} — host requests will be refused. \
-             Another process may be bound to that port; check the log file for details.",
+            "local proxy FAILED to start on port {} — host requests will be refused. Another \
+             process may be bound to that port; check the log file for details.",
             crate::proxy::DEFAULT_PROXY_PORT
         ));
     }

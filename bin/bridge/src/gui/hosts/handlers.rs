@@ -114,7 +114,8 @@ fn state_change_line(
     next: &HostAppSnapshot,
 ) -> Option<String> {
     let prev = prev?;
-    let profile_changed = profile_state_kind(&prev.profile_state) != profile_state_kind(&next.profile_state);
+    let profile_changed =
+        profile_state_kind(&prev.profile_state) != profile_state_kind(&next.profile_state);
     let process_changed = prev.host_running != next.host_running;
     if !profile_changed && !process_changed {
         return None;
@@ -334,7 +335,8 @@ async fn generate_profile_for(
             source: std::io::Error::new(
                 std::io::ErrorKind::ConnectionRefused,
                 format!(
-                    "local proxy is not listening on port {}; cannot generate a profile that points to a dead endpoint",
+                    "local proxy is not listening on port {}; cannot generate a profile that \
+                     points to a dead endpoint",
                     crate::proxy::DEFAULT_PROXY_PORT
                 ),
             ),
@@ -348,7 +350,9 @@ async fn generate_profile_for(
         })?;
 
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = GatewayClient::new(gateway_base).fetch_bridge_profile().await?;
+    let server_profile = GatewayClient::new(gateway_base)
+        .fetch_bridge_profile()
+        .await?;
 
     let models = if server_profile.models.is_empty() {
         crate::integration::claude_desktop::default_models()

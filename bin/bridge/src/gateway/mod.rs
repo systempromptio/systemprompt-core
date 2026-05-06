@@ -1,82 +1,24 @@
+//! Gateway HTTP client and supporting wire types.
+//!
+//! `GatewayClient` is the single ingress for bridge → gateway traffic. The
+//! struct, shared `reqwest::Client` pool, and URL/tracing helpers live here;
+//! read-only fetches are in `fetch`, auth-mutating exchanges are in `auth`.
+//! Wire DTOs live in `types`, error taxonomy in `errors`. Manifest parsing
+//! and signature verification stay in the `manifest*` siblings.
+
+mod auth;
+pub mod errors;
+mod fetch;
 pub mod manifest;
 pub mod manifest_version;
+pub mod types;
 
-use crate::auth::types::{AuthResponse, BridgeProfile, MtlsRequest, SessionExchangeRequest};
-use crate::gateway::manifest::SignedManifest;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
-use systemprompt_identifiers::{TenantId, UserId, ValidatedUrl};
+use systemprompt_identifiers::ValidatedUrl;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WhoamiResponse {
-    #[serde(default)]
-    pub user_id: Option<UserId>,
-    #[serde(default)]
-    pub tenant_id: Option<TenantId>,
-    #[serde(default)]
-    pub email: Option<String>,
-    #[serde(default)]
-    pub display_name: Option<String>,
-    #[serde(default)]
-    pub provider: Option<String>,
-    #[serde(default)]
-    pub roles: Vec<String>,
-    #[serde(flatten)]
-    pub extra: BTreeMap<String, serde_json::Value>,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum GatewayError {
-    #[error("pubkey fetch failed: {0}")]
-    PubkeyFetch(Box<reqwest::Error>),
-    #[error("malformed pubkey response: {0}")]
-    PubkeyDecode(Box<reqwest::Error>),
-    #[error("pubkey field missing in response")]
-    PubkeyMissing,
-    #[error("manifest fetch failed: {0}")]
-    ManifestFetch(Box<reqwest::Error>),
-    #[error("malformed manifest response: {0}")]
-    ManifestDecode(Box<reqwest::Error>),
-    #[error("refused unsafe path: {0}")]
-    UnsafePath(String),
-    #[error("plugin fetch {plugin_id}:{path} failed: {source}")]
-    PluginFetch {
-        plugin_id: String,
-        path: String,
-        source: Box<reqwest::Error>,
-    },
-    #[error("plugin read {plugin_id}:{path} failed: {source}")]
-    PluginRead {
-        plugin_id: String,
-        path: String,
-        source: Box<reqwest::Error>,
-    },
-    #[error("whoami fetch failed: {0}")]
-    WhoamiFetch(Box<reqwest::Error>),
-    #[error("malformed whoami response: {0}")]
-    WhoamiDecode(Box<reqwest::Error>),
-    #[error("health check failed: {0}")]
-    HealthCheck(Box<reqwest::Error>),
-    #[error("bridge profile fetch failed: {0}")]
-    ProfileFetch(Box<reqwest::Error>),
-    #[error("malformed bridge profile response: {0}")]
-    ProfileDecode(Box<reqwest::Error>),
-    #[error("gateway PAT request failed: {0}")]
-    PatRequest(Box<reqwest::Error>),
-    #[error("gateway request failed: {0}")]
-    PostRequest(Box<reqwest::Error>),
-    #[error("malformed gateway response: {0}")]
-    AuthDecode(Box<reqwest::Error>),
-    #[error("gateway returned status {status} from {endpoint}")]
-    HttpStatus {
-        status: reqwest::StatusCode,
-        endpoint: &'static str,
-    },
-    #[error("serialize: {0}")]
-    Serialize(#[from] serde_json::Error),
-}
+pub use errors::GatewayError;
+pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
 static SHARED_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
@@ -118,261 +60,16 @@ impl GatewayClient {
         self.base_url.as_str()
     }
 
-    fn url(&self, path: &str) -> String {
+    pub(super) fn http(&self) -> &reqwest::Client {
+        &self.http
+    }
+
+    pub(super) fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url.as_str().trim_end_matches('/'), path)
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self),
-        fields(endpoint = "pubkey", status, latency_ms)
-    )]
-    pub async fn fetch_pubkey(&self) -> Result<String, GatewayError> {
-        #[derive(serde::Deserialize)]
-        struct PubkeyResponse {
-            #[serde(default)]
-            pubkey: Option<String>,
-        }
-        let url = self.url("/v1/bridge/pubkey");
-        let started = Instant::now();
-        let resp = self
-            .http
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| GatewayError::PubkeyFetch(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "pubkey",
-            });
-        }
-        let body: PubkeyResponse = resp
-            .json()
-            .await
-            .map_err(|e| GatewayError::PubkeyDecode(Box::new(e)))?;
-        body.pubkey.ok_or(GatewayError::PubkeyMissing)
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self, bearer),
-        fields(endpoint = "manifest", status, latency_ms)
-    )]
-    pub async fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
-        let url = self.url("/v1/bridge/manifest");
-        let started = Instant::now();
-        let resp = self
-            .http
-            .get(&url)
-            .bearer_auth(bearer)
-            .send()
-            .await
-            .map_err(|e| GatewayError::ManifestFetch(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "manifest",
-            });
-        }
-        resp.json::<SignedManifest>()
-            .await
-            .map_err(|e| GatewayError::ManifestDecode(Box::new(e)))
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self, bearer),
-        fields(plugin_id, path, status, latency_ms)
-    )]
-    pub async fn fetch_plugin_file(
-        &self,
-        bearer: &str,
-        plugin_id: &str,
-        relative_path: &str,
-    ) -> Result<Vec<u8>, GatewayError> {
-        if relative_path.contains("..") || relative_path.starts_with('/') {
-            return Err(GatewayError::UnsafePath(relative_path.to_string()));
-        }
-        let url = self.url(&format!("/v1/bridge/plugins/{plugin_id}/{relative_path}"));
-        let started = Instant::now();
-        let resp = self
-            .http
-            .get(&url)
-            .bearer_auth(bearer)
-            .send()
-            .await
-            .map_err(|e| GatewayError::PluginFetch {
-                plugin_id: plugin_id.to_string(),
-                path: relative_path.to_string(),
-                source: Box::new(e),
-            })?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "plugin",
-            });
-        }
-        let bytes = resp.bytes().await.map_err(|e| GatewayError::PluginRead {
-            plugin_id: plugin_id.to_string(),
-            path: relative_path.to_string(),
-            source: Box::new(e),
-        })?;
-        Ok(bytes.to_vec())
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self, bearer),
-        fields(endpoint = "whoami", status, latency_ms)
-    )]
-    pub async fn fetch_whoami(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
-        let url = self.url("/v1/bridge/whoami");
-        let started = Instant::now();
-        let resp = self
-            .http
-            .get(&url)
-            .bearer_auth(bearer)
-            .send()
-            .await
-            .map_err(|e| GatewayError::WhoamiFetch(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "whoami",
-            });
-        }
-        resp.json::<WhoamiResponse>()
-            .await
-            .map_err(|e| GatewayError::WhoamiDecode(Box::new(e)))
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self),
-        fields(endpoint = "profile", status, latency_ms)
-    )]
-    pub async fn fetch_bridge_profile(&self) -> Result<BridgeProfile, GatewayError> {
-        let url = self.url("/v1/bridge/profile");
-        let started = Instant::now();
-        let resp = self
-            .http
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| GatewayError::ProfileFetch(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "profile",
-            });
-        }
-        resp.json::<BridgeProfile>()
-            .await
-            .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self),
-        fields(endpoint = "health", status, latency_ms)
-    )]
-    pub async fn health(&self) -> Result<(), GatewayError> {
-        let url = self.url("/health");
-        let started = Instant::now();
-        let resp = self
-            .http
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| GatewayError::HealthCheck(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "health",
-            });
-        }
-        Ok(())
-    }
-
-    pub async fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/bridge/mtls", req, "mtls").await
-    }
-
-    pub async fn session_exchange(
-        &self,
-        req: &SessionExchangeRequest,
-    ) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/bridge/session", req, "session")
-            .await
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self, pat),
-        fields(endpoint = "pat", status, latency_ms)
-    )]
-    pub async fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
-        let url = self.url("/v1/auth/bridge/pat");
-        let started = Instant::now();
-        let resp = self
-            .http
-            .post(&url)
-            .bearer_auth(pat)
-            .header("content-type", "application/json")
-            .body("{}")
-            .send()
-            .await
-            .map_err(|e| GatewayError::PatRequest(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "pat",
-            });
-        }
-        resp.json::<AuthResponse>()
-            .await
-            .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
-    }
-
-    async fn post_json<T: serde::Serialize>(
-        &self,
-        path: &str,
-        body: &T,
-        endpoint: &'static str,
-    ) -> Result<AuthResponse, GatewayError> {
-        let url = self.url(path);
-        let payload = serde_json::to_vec(body)?;
-        let started = Instant::now();
-        let resp = self
-            .http
-            .post(&url)
-            .header("content-type", "application/json")
-            .body(payload)
-            .send()
-            .await
-            .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint,
-            });
-        }
-        resp.json::<AuthResponse>()
-            .await
-            .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
     }
 }
 
-fn record_span(resp: &reqwest::Response, started: Instant) {
+pub(super) fn record_span(resp: &reqwest::Response, started: Instant) {
     let span = tracing::Span::current();
     span.record("status", resp.status().as_u16());
     span.record(

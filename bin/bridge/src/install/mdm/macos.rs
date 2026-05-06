@@ -27,6 +27,7 @@ pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
     PREFS_PLIST_TMPL
         .replace("{gateway_esc}", &xml::escape(gateway))
         .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
+        .replace("{managed_mcp_block}", &managed_mcp_plist_block())
         .replace("{pubkey_block}", &pubkey_block)
 }
 
@@ -41,7 +42,44 @@ pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
         .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
         .replace("{gateway_esc}", &xml::escape(gateway))
         .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
+        .replace("{managed_mcp_block}", &managed_mcp_plist_block())
         .replace("{pubkey_block}", &pubkey_block)
+}
+
+// Empty `<dict/>` under `oauth` MUST be emitted — signals "needs OAuth,
+// do well-known discovery" to Cowork. Returns empty string when no servers
+// are registered (caller substitutes "" into the template).
+fn managed_mcp_plist_block() -> String {
+    let registry = crate::mcp_registry::snapshot();
+    if registry.is_empty() {
+        return String::new();
+    }
+    let mut slugs: Vec<&String> = registry.keys().collect();
+    slugs.sort();
+
+    let mut out = String::new();
+    out.push_str("  <key>managedMcpServers</key>\n");
+    out.push_str("  <array>\n");
+    for slug in slugs {
+        let Some(upstream) = registry.get(slug) else {
+            continue;
+        };
+        out.push_str("    <dict>\n");
+        out.push_str(&format!(
+            "      <key>name</key><string>{}</string>\n",
+            xml::escape(slug)
+        ));
+        out.push_str(&format!(
+            "      <key>url</key><string>{}</string>\n",
+            xml::escape(upstream.url.as_str())
+        ));
+        out.push_str("      <key>transport</key><string>http</string>\n");
+        out.push_str("      <key>oauth</key>\n");
+        out.push_str("      <dict/>\n");
+        out.push_str("    </dict>\n");
+    }
+    out.push_str("  </array>\n");
+    out
 }
 
 fn validate_gateway(gateway: &str) -> Result<(), String> {
@@ -109,13 +147,20 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
     Ok(apply_summary(dest_system, &dest_user, &user, gateway))
 }
 
-fn apply_summary(dest_system: &str, dest_user: &str, user: &str, gateway: &str) -> Vec<String> {
+fn apply_summary(
+    dest_system: &str,
+    dest_user: &str,
+    user: &str,
+    inference_base_url: &str,
+) -> Vec<String> {
     let mut summary = Vec::with_capacity(16);
     summary.push(format!("wrote: {dest_system}"));
     if !user.is_empty() {
         summary.push(format!("wrote: {dest_user}"));
     }
-    summary.push(format!("gateway:           {gateway}"));
+    summary.push(format!(
+        "inferenceGatewayBaseUrl: {inference_base_url}  (local proxy)"
+    ));
     summary.push("auth: inferenceGatewayApiKey = loopback secret (proxy-bound)".into());
     summary.push("restarted cfprefsd (managed prefs picked up on next app launch)".into());
     summary.push(

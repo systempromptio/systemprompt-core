@@ -1232,6 +1232,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dbus-secret-service"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "708b509edf7889e53d7efb0ffadd994cc6c2345ccb62f55cfd6b0682165e4fa6"
+dependencies = [
+ "dbus",
+ "zeroize",
+]
+
+[[package]]
 name = "deadpool"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2957,6 +2967,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyring"
+version = "3.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c"
+dependencies = [
+ "byteorder",
+ "dbus-secret-service",
+ "linux-keyutils",
+ "log",
+ "security-framework 2.11.1",
+ "security-framework 3.7.0",
+ "windows-sys 0.60.2",
+ "zeroize",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3076,6 +3102,16 @@ checksum = "db23b9e7e2b7831bbd8aac0bbeeeb7b68cbebc162b227e7052e8e55829a09212"
 dependencies = [
  "libc",
  "x11",
+]
+
+[[package]]
+name = "linux-keyutils"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83270a18e9f90d0707c41e9f35efada77b64c0e6f3f1810e71c8368a864d5590"
+dependencies = [
+ "bitflags 2.11.1",
+ "libc",
 ]
 
 [[package]]
@@ -5215,6 +5251,19 @@ dependencies = [
 
 [[package]]
 name = "security-framework"
+version = "2.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "897b2245f0b511c87893af39b033e5ca9cce68824c4d7e7630b5a1d339658d02"
+dependencies = [
+ "bitflags 2.11.1",
+ "core-foundation 0.9.4",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys",
+]
+
+[[package]]
+name = "security-framework"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7f4bc775c73d9a02cde8bf7b2ec4c9d12743edf609006c7facc23998404cd1d"
@@ -5410,6 +5459,12 @@ dependencies = [
  "cpufeatures 0.2.17",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "sha1_smol"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
 
 [[package]]
 name = "sha2"
@@ -6178,6 +6233,7 @@ dependencies = [
  "inventory",
  "jsonwebtoken",
  "nix",
+ "rand 0.10.1",
  "regex",
  "reqwest 0.12.28",
  "rmcp",
@@ -6262,6 +6318,7 @@ dependencies = [
  "hyper-util",
  "image",
  "is-terminal",
+ "keyring",
  "libc",
  "muda",
  "opener",
@@ -6269,12 +6326,13 @@ dependencies = [
  "rand 0.8.6",
  "raw-window-handle",
  "reqwest 0.12.28",
- "security-framework",
+ "security-framework 3.7.0",
  "serde",
  "serde_jcs",
  "serde_json",
  "sha2 0.10.9",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "thiserror 2.0.18",
  "time",
  "tokio",
@@ -6284,6 +6342,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "tray-icon",
+ "url",
  "uuid",
  "vergen",
  "windows-sys 0.59.0",
@@ -6315,6 +6374,7 @@ dependencies = [
 name = "systemprompt-bridge-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "serde_json",
  "systemprompt-bridge",
  "tempfile",
 ]
@@ -8254,6 +8314,7 @@ dependencies = [
  "getrandom 0.4.2",
  "js-sys",
  "serde_core",
+ "sha1_smol",
  "wasm-bindgen",
 ]
 

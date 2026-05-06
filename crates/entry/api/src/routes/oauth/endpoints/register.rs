@@ -1,7 +1,10 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bcrypt::hash;
 use chrono::Utc;
+use rand::Rng;
 use systemprompt_models::Config;
 use uuid::Uuid;
 
@@ -17,8 +20,8 @@ pub async fn register_client(
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> impl IntoResponse {
     let client_id = generate_client_id(&request);
-    let client_secret = Uuid::new_v4().to_string();
-    let registration_access_token = generate_registration_access_token();
+    let client_secret = generate_opaque_token(32);
+    let registration_access_token = format!("reg_{}", generate_opaque_token(32));
     let base_url = match Config::get() {
         Ok(c) => c.api_server_url.clone(),
         Err(e) => {
@@ -34,7 +37,7 @@ pub async fn register_client(
     };
     let registration_client_uri = format!("{base_url}/api/v1/core/oauth/register/{client_id}");
 
-    let client_secret_hash = match hash(&client_secret, 8) {
+    let client_secret_hash = match hash(&client_secret, 12) {
         Ok(hash) => hash,
         Err(e) => {
             return (
@@ -118,19 +121,7 @@ pub async fn register_client(
         },
     };
 
-    let token_endpoint_auth_method = match request.get_token_endpoint_auth_method() {
-        Ok(method) => method,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": "invalid_client_metadata",
-                    "error_description": e
-                })),
-            )
-                .into_response();
-        },
-    };
+    let token_endpoint_auth_method = request.get_token_endpoint_auth_method();
 
     let params = CreateClientParams {
         client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),
@@ -197,8 +188,10 @@ fn generate_client_id(_request: &DynamicRegistrationRequest) -> String {
     format!("client_{}", Uuid::new_v4().simple())
 }
 
-fn generate_registration_access_token() -> String {
-    format!("reg_{}", Uuid::new_v4().simple())
+fn generate_opaque_token(byte_len: usize) -> String {
+    let mut buf = vec![0u8; byte_len];
+    rand::rng().fill_bytes(&mut buf);
+    URL_SAFE_NO_PAD.encode(&buf)
 }
 
 fn determine_scopes(request: &DynamicRegistrationRequest) -> Result<Vec<String>, String> {

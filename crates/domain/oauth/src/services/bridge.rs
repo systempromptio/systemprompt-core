@@ -14,9 +14,10 @@ use systemprompt_identifiers::{
 use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
 
-use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
+use crate::repository::{CreateClientParams, CreateExchangeCodeParams, OAuthRepository};
 use crate::services::generation::{
-    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt,
+    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_client_secret, generate_jwt,
+    hash_client_secret,
 };
 
 const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
@@ -65,6 +66,7 @@ pub async fn issue_bridge_access_with(
         audience: vec![JwtAudience::Bridge],
         expires_in_hours: Some(ttl_hours),
         resource: None,
+        plugin_id: None,
     };
     let signing = JwtSigningParams {
         secret: jwt_secret,
@@ -136,6 +138,71 @@ pub async fn exchange_bridge_session_code(
     };
     let result = issue_bridge_access(pool, &user_id).await?;
     Ok(Some(result))
+}
+
+const BRIDGE_HOOK_CLIENT_SCOPES: &[&str] = &["hook:govern", "hook:track"];
+
+fn bridge_hook_client_id(user_id: &UserId) -> ClientId {
+    ClientId::new(format!("bridge:{}", user_id.as_str()))
+}
+
+/// Plaintext `client_secret` is returned only at creation/rotation time; the
+/// database stores only the bcrypt hash. The bridge MUST persist this secret
+/// on receipt — the server cannot re-emit it.
+#[derive(Debug, Clone, Serialize)]
+pub struct BridgeOAuthClient {
+    pub client_id: String,
+    pub client_secret: String,
+    pub scopes: Vec<String>,
+    pub token_endpoint: String,
+}
+
+/// Idempotently provision (or rotate) the bridge's per-tenant OAuth client.
+///
+/// Returns the new plaintext `client_secret`. The bridge calls this on first sync
+/// and may re-call to rotate; subsequent token mints use `client_credentials`
+/// against `/api/v1/core/oauth/token` with the returned secret.
+pub async fn provision_bridge_oauth_client(
+    pool: &DbPool,
+    user_id: &UserId,
+    token_endpoint: String,
+) -> Result<BridgeOAuthClient> {
+    let repo = OAuthRepository::new(pool)?;
+    let client_id = bridge_hook_client_id(user_id);
+    let secret = generate_client_secret();
+    let secret_hash = hash_client_secret(&secret)?;
+
+    let scopes: Vec<String> = BRIDGE_HOOK_CLIENT_SCOPES
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+
+    let existing = repo.find_client_by_id(&client_id).await?;
+    if existing.is_some() {
+        repo.update_client_secret(&client_id, &secret_hash).await?;
+    } else {
+        let params = CreateClientParams {
+            client_id: client_id.clone(),
+            client_secret_hash: secret_hash,
+            client_name: format!("bridge hook client for {}", user_id.as_str()),
+            redirect_uris: Vec::new(),
+            grant_types: Some(vec!["client_credentials".to_string()]),
+            response_types: Some(Vec::new()),
+            scopes: scopes.clone(),
+            token_endpoint_auth_method: Some("client_secret_post".to_string()),
+            client_uri: None,
+            logo_uri: None,
+            contacts: None,
+        };
+        repo.create_client(params).await?;
+    }
+
+    Ok(BridgeOAuthClient {
+        client_id: client_id.to_string(),
+        client_secret: secret,
+        scopes,
+        token_endpoint,
+    })
 }
 
 pub fn hash_exchange_code(code: &str) -> String {

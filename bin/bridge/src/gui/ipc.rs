@@ -36,7 +36,10 @@ pub struct BridgeError {
     pub scope: ErrorScope,
     pub code: ErrorCode,
     pub message: String,
-    #[cfg_attr(not(feature = "ts-export"), serde(skip_serializing_if = "Option::is_none"))]
+    #[cfg_attr(
+        not(feature = "ts-export"),
+        serde(skip_serializing_if = "Option::is_none")
+    )]
     #[cfg_attr(feature = "ts-export", ts(optional, type = "unknown"))]
     pub detail: Option<Value>,
 }
@@ -85,10 +88,16 @@ pub struct IpcRequest {
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct IpcReplyPayload {
     pub ok: bool,
-    #[cfg_attr(not(feature = "ts-export"), serde(skip_serializing_if = "Option::is_none"))]
+    #[cfg_attr(
+        not(feature = "ts-export"),
+        serde(skip_serializing_if = "Option::is_none")
+    )]
     #[cfg_attr(feature = "ts-export", ts(optional, type = "unknown"))]
     pub value: Option<Value>,
-    #[cfg_attr(not(feature = "ts-export"), serde(skip_serializing_if = "Option::is_none"))]
+    #[cfg_attr(
+        not(feature = "ts-export"),
+        serde(skip_serializing_if = "Option::is_none")
+    )]
     #[cfg_attr(feature = "ts-export", ts(optional))]
     pub error: Option<BridgeError>,
 }

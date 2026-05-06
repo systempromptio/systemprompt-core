@@ -103,6 +103,40 @@ fn probe_writable(path: &std::path::Path) -> bool {
     false
 }
 
+// `None` means no Cowork install detected — callers MUST treat as no-op,
+// not as an error.
+#[must_use]
+pub fn cowork3p_sessions_root() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        return std::env::var_os("LOCALAPPDATA").map(|p| {
+            PathBuf::from(p)
+                .join("Claude-3p")
+                .join("local-agent-mode-sessions")
+        });
+    }
+    #[cfg(target_os = "macos")]
+    {
+        return dirs::home_dir().map(|h| {
+            h.join("Library")
+                .join("Application Support")
+                .join("Claude-3p")
+                .join("local-agent-mode-sessions")
+        });
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
+            .map(|base| base.join("Claude-3p").join("local-agent-mode-sessions"))
+    }
+}
+
+pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
+
+pub const BRIDGE_MARKETPLACE_NAME: &str = "systemprompt-bridge-managed";
+
 #[must_use]
 pub fn metadata_dir(org_plugins: &std::path::Path) -> PathBuf {
     org_plugins.join(METADATA_DIR)

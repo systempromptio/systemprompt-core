@@ -158,7 +158,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.18", features = ["v4", "serde"] }
+uuid = { version = "1.18", features = ["v4", "v5", "serde"] }
 validator = { version = "0.20", features = ["derive"] }
 regex = "1.11"
 indexmap = { version = "2.0", features = ["serde"] }

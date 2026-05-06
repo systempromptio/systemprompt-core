@@ -229,10 +229,7 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
         .and_then(|s| s.strip_suffix(".css"))
         && let Some((_, src)) = CSS_FILES.iter().find(|(n, _)| *n == name)
     {
-        return Some(Asset::text(
-            "text/css; charset=utf-8",
-            (*src).to_string(),
-        ));
+        return Some(Asset::text("text/css; charset=utf-8", (*src).to_string()));
     }
     if let Some(name) = path
         .strip_prefix("/assets/js/")

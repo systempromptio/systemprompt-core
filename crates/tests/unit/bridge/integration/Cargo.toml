@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

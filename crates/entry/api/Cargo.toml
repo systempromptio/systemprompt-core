@@ -55,6 +55,7 @@ hex = { workspace = true }
 subtle = { workspace = true }
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 base64 = { workspace = true }
+rand = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }

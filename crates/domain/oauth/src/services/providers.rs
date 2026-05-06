@@ -97,6 +97,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             },
             expires_in_hours: params.expires_in_hours.map(i64::from),
             resource: None,
+            plugin_id: None,
         };
 
         let jti = generate_secure_token("jwt");

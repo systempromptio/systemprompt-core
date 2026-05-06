@@ -184,26 +184,21 @@ fn test_get_scopes_missing() {
 #[test]
 fn test_get_token_endpoint_auth_method_success() {
     let request = create_valid_request();
-    let result = request.get_token_endpoint_auth_method();
-    let val = result.expect("expected success");
-    assert_eq!(val, "client_secret_post");
+    assert_eq!(request.get_token_endpoint_auth_method(), "client_secret_post");
 }
 
 #[test]
-fn test_get_token_endpoint_auth_method_missing() {
+fn test_get_token_endpoint_auth_method_missing_defaults_to_basic() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    let result = request.get_token_endpoint_auth_method();
-    let err = result.unwrap_err();
-    assert!(err.contains("token_endpoint_auth_method is required"));
+    assert_eq!(request.get_token_endpoint_auth_method(), "client_secret_basic");
 }
 
 #[test]
-fn test_get_token_endpoint_auth_method_empty() {
+fn test_get_token_endpoint_auth_method_empty_defaults_to_basic() {
     let json = r#"{"token_endpoint_auth_method": ""}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    let result = request.get_token_endpoint_auth_method();
-    result.unwrap_err();
+    assert_eq!(request.get_token_endpoint_auth_method(), "client_secret_basic");
 }
 
 #[test]

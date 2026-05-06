@@ -14,11 +14,21 @@ pub enum Permission {
     A2a,
     Mcp,
     Service,
+    HookGovern,
+    HookTrack,
 }
 
 impl Permission {
-    pub const ALL_VARIANTS: &'static [&'static str] =
-        &["admin", "user", "anonymous", "a2a", "mcp", "service"];
+    pub const ALL_VARIANTS: &'static [&'static str] = &[
+        "admin",
+        "user",
+        "anonymous",
+        "a2a",
+        "mcp",
+        "service",
+        "hook:govern",
+        "hook:track",
+    ];
 
     pub const fn as_str(&self) -> &'static str {
         match self {
@@ -28,6 +38,8 @@ impl Permission {
             Self::A2a => "a2a",
             Self::Mcp => "mcp",
             Self::Service => "service",
+            Self::HookGovern => "hook:govern",
+            Self::HookTrack => "hook:track",
         }
     }
 
@@ -55,7 +67,7 @@ impl Permission {
             Self::User => UserType::User,
             Self::A2a => UserType::A2a,
             Self::Mcp => UserType::Mcp,
-            Self::Service => UserType::Service,
+            Self::Service | Self::HookGovern | Self::HookTrack => UserType::Service,
             Self::Anonymous => UserType::Anon,
         }
     }
@@ -76,7 +88,14 @@ impl Permission {
     }
 
     pub const fn is_service_scope(&self) -> bool {
-        matches!(self, Self::A2a | Self::Mcp | Self::Service)
+        matches!(
+            self,
+            Self::A2a | Self::Mcp | Self::Service | Self::HookGovern | Self::HookTrack
+        )
+    }
+
+    pub const fn is_hook_scope(&self) -> bool {
+        matches!(self, Self::HookGovern | Self::HookTrack)
     }
 
     pub const fn hierarchy_level(&self) -> u8 {
@@ -86,6 +105,7 @@ impl Permission {
             Self::Service => 40,
             Self::A2a => 30,
             Self::Mcp => 20,
+            Self::HookGovern | Self::HookTrack => 15,
             Self::Anonymous => 10,
         }
     }
@@ -120,6 +140,8 @@ impl FromStr for Permission {
             "a2a" => Ok(Self::A2a),
             "mcp" => Ok(Self::Mcp),
             "service" => Ok(Self::Service),
+            "hook:govern" => Ok(Self::HookGovern),
+            "hook:track" => Ok(Self::HookTrack),
             _ => Err(ParseEnumError::new("permission", s)),
         }
     }

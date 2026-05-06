@@ -171,13 +171,9 @@ fn auth_dispatch(
 ) -> Option<CommandOutcome> {
     Some(match cmd {
         "login" => match parse::<LoginArgs>(args) {
-            Ok(a) if a.token.expose().trim().is_empty() => {
-                CommandOutcome::Sync(Err(BridgeError::new(
-                    ErrorScope::Identity,
-                    ErrorCode::InvalidArgs,
-                    "PAT is empty",
-                )))
-            },
+            Ok(a) if a.token.expose().trim().is_empty() => CommandOutcome::Sync(Err(
+                BridgeError::new(ErrorScope::Identity, ErrorCode::InvalidArgs, "PAT is empty"),
+            )),
             Ok(a) => {
                 send(
                     app,
@@ -293,11 +289,7 @@ fn agent_dispatch(
     })
 }
 
-fn diagnostics_dispatch(
-    app: &mut GuiApp,
-    cmd: &str,
-    reply_id: ReplyId,
-) -> Option<CommandOutcome> {
+fn diagnostics_dispatch(app: &mut GuiApp, cmd: &str, reply_id: ReplyId) -> Option<CommandOutcome> {
     Some(match cmd {
         "diagnostics.openLogDirectory" | "openLogFolder" => {
             send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
@@ -336,12 +328,9 @@ fn cancel_scope(label: Option<&str>) -> Result<Option<CancelScope>, BridgeError>
 
 fn open_external_url(args: Value) -> CommandOutcome {
     match parse::<OpenExternalUrlArgs>(args) {
-        Ok(a) if !is_safe_external_url(&a.url) => {
-            CommandOutcome::Sync(Err(BridgeError::invalid_args(format!(
-                "refusing to open non-https url: {}",
-                a.url
-            ))))
-        },
+        Ok(a) if !is_safe_external_url(&a.url) => CommandOutcome::Sync(Err(
+            BridgeError::invalid_args(format!("refusing to open non-https url: {}", a.url)),
+        )),
         Ok(a) => match opener::open(&a.url) {
             Ok(()) => CommandOutcome::Sync(Ok(json!({}))),
             Err(e) => CommandOutcome::Sync(Err(BridgeError::new(

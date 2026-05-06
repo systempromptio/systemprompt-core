@@ -6,6 +6,7 @@ mod gui;
 mod install;
 mod login;
 mod logout;
+mod oauth_client;
 pub mod output;
 mod run;
 mod status;
@@ -33,6 +34,7 @@ pub fn run() -> ExitCode {
         Some("whoami") => whoami::cmd_whoami(),
         Some("install") => install::cmd_install(&args),
         Some("sync") => sync::cmd_sync(&args),
+        Some("oauth-client") => oauth_client::cmd_oauth_client(&args),
         Some("validate") => validate::cmd_validate(),
         Some("uninstall") => uninstall::cmd_uninstall(&args),
         Some("credential-helper") => credential_helper::cmd_credential_helper(&args),

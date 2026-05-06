@@ -1,12 +1,13 @@
-use crate::gateway::manifest_version::ManifestVersion;
-use crate::ids::{
-    ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName, ToolName,
-    ToolPolicy,
-};
 use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use serde::Serialize;
+
+pub use systemprompt_models::bridge::manifest::{
+    AgentEntry, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest, SkillEntry, UserInfo,
+};
+pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
+
+use crate::ids::ManifestSignature;
 pub use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, thiserror::Error)]
@@ -31,104 +32,14 @@ pub enum ManifestError {
     CanonicalSerialize(serde_json::Error),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignedManifest {
-    pub manifest_version: ManifestVersion,
-    pub issued_at: String,
-    pub not_before: String,
-    pub user_id: UserId,
-    pub tenant_id: Option<TenantId>,
-    #[serde(default)]
-    pub user: Option<UserInfo>,
-    pub plugins: Vec<PluginEntry>,
-    #[serde(default)]
-    pub skills: Vec<SkillEntry>,
-    #[serde(default)]
-    pub agents: Vec<AgentEntry>,
-    pub managed_mcp_servers: Vec<ManagedMcpServer>,
-    pub revocations: Vec<String>,
-    pub signature: ManifestSignature,
+// Extension trait because `SignedManifest` lives in `systemprompt-models`; the orphan rule
+// forbids the bridge from declaring an inherent impl on the foreign type.
+pub trait SignedManifestVerify {
+    fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UserInfo {
-    pub id: UserId,
-    pub name: String,
-    pub email: String,
-    #[serde(default)]
-    pub display_name: Option<String>,
-    #[serde(default)]
-    pub roles: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PluginEntry {
-    pub id: PluginId,
-    pub version: String,
-    pub sha256: Sha256Digest,
-    pub files: Vec<PluginFile>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PluginFile {
-    pub path: String,
-    pub sha256: Sha256Digest,
-    pub size: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillEntry {
-    pub id: SkillId,
-    pub name: SkillName,
-    pub description: String,
-    pub file_path: String,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    pub sha256: Sha256Digest,
-    pub instructions: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentEntry {
-    pub id: AgentId,
-    pub name: AgentName,
-    pub display_name: String,
-    pub description: String,
-    pub version: String,
-    pub endpoint: String,
-    pub enabled: bool,
-    pub is_default: bool,
-    pub is_primary: bool,
-    #[serde(default)]
-    pub provider: Option<String>,
-    #[serde(default)]
-    pub model: Option<String>,
-    #[serde(default)]
-    pub mcp_servers: Vec<String>,
-    #[serde(default)]
-    pub skills: Vec<String>,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    #[serde(default)]
-    pub system_prompt: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ManagedMcpServer {
-    pub name: ManagedMcpServerName,
-    pub url: ValidatedUrl,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transport: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub headers: Option<BTreeMap<String, String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub oauth: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
-}
-
-impl SignedManifest {
-    pub fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError> {
+impl SignedManifestVerify for SignedManifest {
+    fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError> {
         let pubkey_bytes = base64::engine::general_purpose::STANDARD
             .decode(pubkey_b64.trim())
             .map_err(ManifestError::PubkeyBase64)?;
@@ -159,31 +70,6 @@ impl SignedManifest {
     }
 }
 
-impl SignedManifest {
-    pub fn builder(
-        manifest_version: ManifestVersion,
-        issued_at: impl Into<String>,
-        not_before: impl Into<String>,
-        user_id: impl Into<UserId>,
-        signature: impl Into<ManifestSignature>,
-    ) -> SignedManifestBuilder {
-        SignedManifestBuilder {
-            manifest_version,
-            issued_at: issued_at.into(),
-            not_before: not_before.into(),
-            user_id: user_id.into(),
-            signature: signature.into(),
-            tenant_id: None,
-            user: None,
-            plugins: Vec::new(),
-            skills: Vec::new(),
-            agents: Vec::new(),
-            managed_mcp_servers: Vec::new(),
-            revocations: Vec::new(),
-        }
-    }
-}
-
 pub struct SignedManifestBuilder {
     manifest_version: ManifestVersion,
     issued_at: String,
@@ -200,6 +86,30 @@ pub struct SignedManifestBuilder {
 }
 
 impl SignedManifestBuilder {
+    #[must_use]
+    pub fn new(
+        manifest_version: ManifestVersion,
+        issued_at: impl Into<String>,
+        not_before: impl Into<String>,
+        user_id: impl Into<UserId>,
+        signature: impl Into<ManifestSignature>,
+    ) -> Self {
+        Self {
+            manifest_version,
+            issued_at: issued_at.into(),
+            not_before: not_before.into(),
+            user_id: user_id.into(),
+            signature: signature.into(),
+            tenant_id: None,
+            user: None,
+            plugins: Vec::new(),
+            skills: Vec::new(),
+            agents: Vec::new(),
+            managed_mcp_servers: Vec::new(),
+            revocations: Vec::new(),
+        }
+    }
+
     #[must_use]
     pub fn with_tenant_id(mut self, tenant_id: impl Into<TenantId>) -> Self {
         self.tenant_id = Some(tenant_id.into());

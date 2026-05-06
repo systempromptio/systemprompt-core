@@ -33,4 +33,6 @@ pub enum ApplyError {
         what: String,
         source: serde_json::Error,
     },
+    #[error("plugin hook token: {0}")]
+    PluginOAuth(#[from] crate::auth::plugin_oauth::PluginOAuthError),
 }

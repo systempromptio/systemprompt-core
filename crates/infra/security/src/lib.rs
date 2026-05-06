@@ -48,7 +48,7 @@ pub mod manifest_signing;
 pub mod services;
 pub mod session;
 
-pub use auth::{AuthMode, AuthValidationService};
+pub use auth::{AuthMode, AuthValidationService, HookTokenValidator, ValidatedHookClaims};
 pub use error::{
     AuthError, AuthResult, JwtError, JwtResult, ManifestSigningError, ManifestSigningResult,
 };

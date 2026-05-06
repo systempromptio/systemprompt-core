@@ -13,6 +13,7 @@ pub enum JwtAudience {
     Mcp,
     Internal,
     Bridge,
+    Hook,
     #[serde(untagged)]
     Resource(String),
 }
@@ -26,6 +27,7 @@ impl JwtAudience {
             Self::Mcp => "mcp",
             Self::Internal => "internal",
             Self::Bridge => "bridge",
+            Self::Hook => "hook",
             Self::Resource(s) => s.as_str(),
         }
     }
@@ -55,6 +57,7 @@ impl FromStr for JwtAudience {
             "mcp" => Ok(Self::Mcp),
             "internal" => Ok(Self::Internal),
             "bridge" => Ok(Self::Bridge),
+            "hook" => Ok(Self::Hook),
             _ => Ok(Self::Resource(s.to_string())),
         }
     }

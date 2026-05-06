@@ -16,16 +16,16 @@ struct PluginJson<'a> {
 #[derive(Serialize)]
 struct McpJson<'a> {
     #[serde(rename = "mcpServers")]
-    mcp_servers: BTreeMap<&'a str, McpServerEntry<'a>>,
+    mcp_servers: BTreeMap<String, McpServerEntry<'a>>,
 }
 
 #[derive(Serialize)]
 struct McpServerEntry<'a> {
     #[serde(rename = "type")]
     transport: &'a str,
-    url: &'a str,
+    url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    headers: Option<&'a std::collections::BTreeMap<String, String>>,
+    headers: Option<BTreeMap<&'a str, String>>,
 }
 
 #[tracing::instrument(level = "debug", skip(manifest))]
@@ -99,16 +99,28 @@ fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super
     })
 }
 
-fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), super::ApplyError> {
-    let mcp_servers: BTreeMap<&str, McpServerEntry<'_>> = servers
+fn write_mcp_json(
+    root: &Path,
+    servers: &[ManagedMcpServer],
+) -> Result<(), super::ApplyError> {
+    let slugs: Vec<String> = servers
         .iter()
-        .map(|s| {
+        .map(|s| crate::mcp_registry::normalize_key(s.name.as_str()))
+        .collect();
+    let mcp_servers: BTreeMap<String, McpServerEntry<'_>> = servers
+        .iter()
+        .zip(slugs.iter())
+        .map(|(s, slug)| {
+            let headers = s
+                .headers
+                .as_ref()
+                .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.clone())).collect());
             (
-                s.name.as_str(),
+                slug.clone(),
                 McpServerEntry {
                     transport: s.transport.as_deref().unwrap_or("http"),
-                    url: s.url.as_str(),
-                    headers: s.headers.as_ref(),
+                    url: s.url.as_str().to_string(),
+                    headers,
                 },
             )
         })

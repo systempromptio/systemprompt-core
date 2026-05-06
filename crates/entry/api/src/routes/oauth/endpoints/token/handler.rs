@@ -1,6 +1,6 @@
 use super::generation::{
-    TokenGenerationParams, convert_token_result_to_response, generate_client_tokens,
-    generate_tokens_by_user_id,
+    ClientTokenOptions, TokenGenerationParams, convert_token_result_to_response,
+    generate_client_tokens, generate_tokens_by_user_id,
 };
 use super::validation::{
     AuthCodeValidationParams, extract_required_field, validate_authorization_code,
@@ -250,12 +250,16 @@ async fn handle_client_credentials_grant(
             .await
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
-        let token_response =
-            generate_client_tokens(&repo, &client_id, request.scope.as_deref(), headers, state)
-                .await
-                .map_err(|e| TokenError::ServerError {
-                    message: e.to_string(),
-                })?;
+        let options = ClientTokenOptions {
+            scope: request.scope.as_deref(),
+            plugin_id: request.plugin_id.as_deref(),
+            audience: request.audience.as_deref(),
+        };
+        let token_response = generate_client_tokens(&repo, &client_id, headers, state, options)
+            .await
+        .map_err(|e| TokenError::ServerError {
+            message: e.to_string(),
+        })?;
 
         tracing::info!(
             grant_type = "client_credentials",

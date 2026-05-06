@@ -49,6 +49,7 @@ pub mod macros;
 pub mod a2a;
 pub mod admin;
 pub mod agui;
+pub mod bridge;
 pub mod ai;
 pub mod api;
 pub mod artifacts;

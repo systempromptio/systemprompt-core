@@ -16,7 +16,7 @@ use super::super::docker::{
     SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, check_volume_exists,
     create_database_for_tenant, ensure_admin_role, generate_admin_password,
     generate_shared_postgres_compose, get_container_password, is_shared_container_running,
-    load_shared_config, nanoid, remove_shared_volume, save_shared_config,
+    load_shared_config, nanoid, new_local_tenant_id, remove_shared_volume, save_shared_config,
     wait_for_postgres_healthy,
 };
 
@@ -66,7 +66,7 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
         SHARED_ADMIN_USER, config.admin_password, config.port, db_name
     );
 
-    let id = format!("local_{}", unique_suffix);
+    let id = new_local_tenant_id();
     let tenant =
         StoredTenant::new_local_shared(id, name.clone(), database_url.clone(), db_name.clone());
 
@@ -108,8 +108,7 @@ pub async fn create_external_tenant() -> Result<StoredTenant> {
     }
     CliService::success("Database connection verified");
 
-    let unique_suffix = nanoid();
-    let id = format!("local_{}", unique_suffix);
+    let id = new_local_tenant_id();
     let tenant = StoredTenant::new_local(id, name.clone(), database_url.clone());
 
     setup_local_profile(&tenant, &name, &database_url).await?;

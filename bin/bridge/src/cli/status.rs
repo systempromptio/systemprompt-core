@@ -36,11 +36,67 @@ pub(crate) fn cmd_status() -> ExitCode {
     status_line("secret file", s.paths.pat_file.display());
     status_indent("present", s.pat_present);
 
+    print_oauth_client_status(&s);
+
     if let Some(loc) = paths::org_plugins_effective() {
         print_org_plugins_status(&loc.path);
     }
 
+    print_cowork_status();
+
     ExitCode::SUCCESS
+}
+
+fn print_oauth_client_status(s: &setup::StatusReport) {
+    let path_display = s
+        .oauth_creds_path
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "(unresolvable)".into());
+    status_line("oauth client creds", path_display);
+    status_indent("present", s.oauth_creds_present);
+    if s.oauth_creds_present
+        && let Ok(Some(creds)) = crate::auth::plugin_oauth::load_creds()
+    {
+        status_indent("client_id", creds.client_id);
+        status_indent("token endpoint", creds.token_endpoint);
+        status_indent("scopes", creds.scopes.join(" "));
+    }
+}
+
+fn print_cowork_status() {
+    let target = crate::integration::cowork_plugins::resolve_target();
+    match target {
+        Some(t) => {
+            status_line("cowork session", t.session_org_dir.display());
+            let known = t
+                .cowork_plugins_dir
+                .join(crate::integration::cowork_plugins::KNOWN_MARKETPLACES_FILE);
+            status_indent(
+                "known_marketplaces.json",
+                if known.exists() {
+                    known.display().to_string()
+                } else {
+                    "(not written)".into()
+                },
+            );
+            let mp_dir = t
+                .cowork_plugins_dir
+                .join("marketplaces")
+                .join(paths::BRIDGE_MARKETPLACE_NAME);
+            status_indent(
+                "bridge marketplace",
+                if mp_dir.is_dir() {
+                    mp_dir.display().to_string()
+                } else {
+                    "(not registered)".into()
+                },
+            );
+        },
+        None => {
+            status_line("cowork session", "(not detected)");
+        },
+    }
 }
 
 fn print_org_plugins_status(plugins_path: &std::path::Path) {
