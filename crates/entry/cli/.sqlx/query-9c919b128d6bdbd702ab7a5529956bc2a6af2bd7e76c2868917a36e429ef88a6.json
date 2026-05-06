@@ -6,9 +6,9 @@
     "parameters": {
       "Left": [
         "Text",
-        "Varchar",
         "Text",
-        "Varchar",
+        "Text",
+        "Text",
         "Timestamptz"
       ]
     },

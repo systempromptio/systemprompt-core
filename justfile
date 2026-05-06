@@ -68,11 +68,11 @@ sqlx-prepare-publish:
     set -e
     echo "Generating per-crate .sqlx directories for crates.io publishing..."
     echo ""
-    for crate in crates/infra/database crates/infra/logging crates/domain/analytics \
-                 crates/domain/agent crates/domain/oauth crates/domain/users \
-                 crates/domain/content crates/domain/files crates/domain/ai \
-                 crates/domain/mcp crates/app/scheduler crates/app/sync \
-                 crates/entry/cli crates/entry/api; do
+    for crate in crates/infra/database crates/infra/logging crates/infra/security \
+                 crates/domain/analytics crates/domain/agent crates/domain/oauth \
+                 crates/domain/users crates/domain/content crates/domain/files \
+                 crates/domain/ai crates/domain/mcp crates/app/scheduler \
+                 crates/app/sync crates/entry/cli crates/entry/api; do
         echo "  Preparing $crate..."
         (cd "$crate" && cargo sqlx prepare)
     done
@@ -87,8 +87,8 @@ sqlx-verify-offline:
     set -e
     echo "Verifying offline compilation for all SQLx crates..."
     echo ""
-    for crate in systemprompt-database systemprompt-logging systemprompt-analytics \
-                 systemprompt-agent systemprompt-oauth systemprompt-users \
+    for crate in systemprompt-database systemprompt-logging systemprompt-security \
+                 systemprompt-analytics systemprompt-agent systemprompt-oauth systemprompt-users \
                  systemprompt-content systemprompt-files systemprompt-ai \
                  systemprompt-mcp systemprompt-scheduler systemprompt-sync \
                  systemprompt-cli systemprompt-api; do
