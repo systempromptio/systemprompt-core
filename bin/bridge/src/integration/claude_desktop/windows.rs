@@ -26,7 +26,8 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
     }
     out.source_path = read.source;
     for (name, value) in read.values {
-        out.keys.insert(name.clone(), redact_if_sensitive(&name, value));
+        out.keys
+            .insert(name.clone(), redact_if_sensitive(&name, value));
     }
     out
 }

@@ -37,6 +37,7 @@ pub fn create_valid_jwt(secret: &str, issuer: &str, session_id: Option<String>) 
         session_id,
         department: None,
         rate_limit_tier: Some(RateLimitTier::User),
+        plugin_id: None,
     };
 
     let header = Header::new(Algorithm::HS256);
@@ -70,6 +71,7 @@ pub fn create_admin_jwt(secret: &str, issuer: &str) -> String {
         session_id: Some("admin_session".to_string()),
         department: None,
         rate_limit_tier: Some(RateLimitTier::Admin),
+        plugin_id: None,
     };
 
     let header = Header::new(Algorithm::HS256);
@@ -103,6 +105,7 @@ pub fn create_expired_jwt(secret: &str, issuer: &str) -> String {
         session_id: Some("session_123".to_string()),
         department: None,
         rate_limit_tier: Some(RateLimitTier::User),
+        plugin_id: None,
     };
 
     let header = Header::new(Algorithm::HS256);

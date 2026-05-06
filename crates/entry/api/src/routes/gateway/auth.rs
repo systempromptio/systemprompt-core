@@ -3,13 +3,18 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use systemprompt_identifiers::headers;
+use std::sync::Arc;
+use systemprompt_identifiers::{JwtToken, UserId, headers};
+use systemprompt_models::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_oauth::services::{
-    BridgeAuthResult, exchange_bridge_session_code, issue_bridge_access,
+    BridgeAuthResult, BridgeOAuthClient, exchange_bridge_session_code, issue_bridge_access,
+    provision_bridge_oauth_client,
 };
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{ApiKeyService, DeviceCertService};
+
+use crate::services::middleware::JwtContextExtractor;
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
@@ -35,7 +40,7 @@ pub struct Capabilities {
 
 pub async fn capabilities() -> Json<Capabilities> {
     Json(Capabilities {
-        modes: vec!["pat", "session", "mtls"],
+        modes: vec!["pat", "session", "mtls", "oauth-client"],
     })
 }
 
@@ -99,6 +104,43 @@ pub async fn session(
         })?;
 
     Ok(Json(result.into()))
+}
+
+pub async fn provision_oauth_client(
+    jwt_extractor: Arc<JwtContextExtractor>,
+    ctx: AppContext,
+    request: Request,
+) -> Result<Json<BridgeOAuthClient>, (StatusCode, String)> {
+    let bearer = extract_bearer(request.headers()).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Missing Authorization: Bearer <bridge-jwt>".into(),
+        )
+    })?;
+
+    let claims = jwt_extractor
+        .decode_for_gateway(&JwtToken::new(bearer))
+        .await
+        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+
+    let user_id = UserId::new(claims.user_id.to_string());
+
+    let token_endpoint =
+        build_token_endpoint().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+    let result = provision_bridge_oauth_client(ctx.db_pool(), &user_id, token_endpoint)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(result))
+}
+
+fn build_token_endpoint() -> Result<String, String> {
+    let cfg = Config::get().map_err(|e| e.to_string())?;
+    Ok(format!(
+        "{}/api/v1/core/oauth/token",
+        cfg.api_external_url.trim_end_matches('/')
+    ))
 }
 
 pub async fn mtls(

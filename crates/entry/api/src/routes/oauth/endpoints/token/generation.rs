@@ -1,6 +1,6 @@
 mod client_credentials;
 
-pub use client_credentials::generate_client_tokens;
+pub use client_credentials::{ClientTokenOptions, generate_client_tokens};
 
 use super::{TokenError, TokenErrorResponse, TokenResponse, TokenResult};
 use anyhow::Result;
@@ -101,6 +101,7 @@ async fn create_jwt_and_refresh_token(
         audience: global_config.jwt_audiences.clone(),
         resource: params.resource.map(String::from),
         expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
+        plugin_id: None,
     };
     let signing = JwtSigningParams {
         secret: jwt_secret,

@@ -2,7 +2,7 @@ use std::sync::Once;
 
 use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest,
-    SkillEntry, TenantId, UserId, UserInfo, ValidatedUrl, canonical_payload,
+    SignedManifestVerify, SkillEntry, TenantId, UserId, UserInfo, ValidatedUrl, canonical_payload,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{

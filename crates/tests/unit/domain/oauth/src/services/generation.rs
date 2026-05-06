@@ -208,6 +208,7 @@ fn test_jwt_config_custom() {
         audience: vec![JwtAudience::Api],
         expires_in_hours: Some(48),
         resource: None,
+        plugin_id: None,
     };
 
     assert_eq!(config.permissions.len(), 2);
@@ -223,6 +224,7 @@ fn test_jwt_config_no_expiry() {
         audience: JwtAudience::standard(),
         expires_in_hours: None,
         resource: None,
+        plugin_id: None,
     };
 
     assert!(config.expires_in_hours.is_none());

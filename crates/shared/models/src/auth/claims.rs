@@ -44,6 +44,9 @@ pub struct JwtClaims {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate_limit_tier: Option<RateLimitTier>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_id: Option<String>,
 }
 
 fn serialize_audiences<S>(auds: &[JwtAudience], s: S) -> Result<S::Ok, S::Error>

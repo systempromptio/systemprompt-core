@@ -34,28 +34,38 @@ impl ConfigStore for WindowsRegistryStore {
         &self,
         keys: &[&str],
     ) -> Result<ManagedPolicyRead, ConfigStoreError> {
-        for (hive, hive_label) in [
-            (HKEY_LOCAL_MACHINE, "HKLM"),
-            (HKEY_CURRENT_USER, "HKCU"),
-        ] {
+        // Merge HKLM (machine-wide policy) and HKCU (per-user policy). HKCU is read
+        // last so per-user values override machine defaults — matches how the running
+        // GUI publishes its live `inferenceGatewayBaseUrl` to HKCU.
+        let mut values: BTreeMap<String, String> = BTreeMap::new();
+        let mut hives_with_data: Vec<&'static str> = Vec::new();
+        for (hive, hive_label) in [(HKEY_LOCAL_MACHINE, "HKLM"), (HKEY_CURRENT_USER, "HKCU")] {
             let Some(handle) = open_policy_key(hive)? else {
                 continue;
             };
-            let mut values: BTreeMap<String, String> = BTreeMap::new();
+            let mut hive_had_value = false;
             for key in keys {
                 if let Some(v) = read_string_value(handle.0, key)? {
                     values.insert((*key).to_string(), v);
+                    hive_had_value = true;
                 }
             }
             drop(handle);
-            if !values.is_empty() {
-                return Ok(ManagedPolicyRead {
-                    source: Some(format!(r"{hive_label}\{POLICY_SUBKEY}")),
-                    values,
-                });
+            if hive_had_value {
+                hives_with_data.push(hive_label);
             }
         }
-        Ok(ManagedPolicyRead::default())
+        if values.is_empty() {
+            return Ok(ManagedPolicyRead::default());
+        }
+        let source = match hives_with_data.as_slice() {
+            [single] => format!(r"{single}\{POLICY_SUBKEY}"),
+            multi => format!("{}\\{POLICY_SUBKEY}", multi.join("+")),
+        };
+        Ok(ManagedPolicyRead {
+            source: Some(source),
+            values,
+        })
     }
 }
 
@@ -70,7 +80,10 @@ impl Drop for OwnedKey {
 }
 
 fn open_policy_key(hive: HKEY) -> Result<Option<OwnedKey>, ConfigStoreError> {
-    let subkey: Vec<u16> = POLICY_SUBKEY.encode_utf16().chain(std::iter::once(0)).collect();
+    let subkey: Vec<u16> = POLICY_SUBKEY
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
     let mut handle: HKEY = std::ptr::null_mut();
     let status = unsafe {
         RegOpenKeyExW(

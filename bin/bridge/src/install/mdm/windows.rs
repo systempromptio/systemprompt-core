@@ -1,5 +1,38 @@
 #![cfg(target_os = "windows")]
 
+// Best-effort: errors return up but caller logs and ignores. Never abort
+// the calling sync flow on registry write failure.
+pub fn refresh_managed_mcp_servers() -> Result<String, String> {
+    let elevated = crate::winproc::is_elevated();
+    let key = if elevated {
+        r"HKLM\SOFTWARE\Policies\Claude"
+    } else {
+        r"HKCU\SOFTWARE\Policies\Claude"
+    };
+    let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_string());
+    let status = crate::winproc::reg_command()
+        .args([
+            "add",
+            key,
+            "/v",
+            "managedMcpServers",
+            "/t",
+            "REG_SZ",
+            "/d",
+            &value,
+            "/f",
+        ])
+        .status()
+        .map_err(|e| format!("reg add managedMcpServers: {e}"))?;
+    if !status.success() {
+        return Err(format!(
+            "reg add managedMcpServers exited with {}",
+            status.code().unwrap_or(-1)
+        ));
+    }
+    Ok(format!("{key} ← managedMcpServers"))
+}
+
 pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     let elevated = crate::winproc::is_elevated();
     let key = if elevated {

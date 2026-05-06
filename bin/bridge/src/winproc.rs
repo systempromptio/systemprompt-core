@@ -17,8 +17,8 @@ use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken}
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const DETACHED_PROCESS: u32 = 0x0000_0008;
 
-/// Spawn `reg.exe` for write-only registry operations (`reg add`, `reg import`).
-/// All read paths go through [`crate::config::store`] in-process FFI.
+// Write-only path. Reads must go through `crate::config::store` in-process FFI to avoid
+// reg.exe's quoting + Wow6432 redirection footguns.
 pub(crate) fn reg_command() -> Command {
     silenced_command(system32_path("reg.exe"))
 }

@@ -56,6 +56,7 @@ impl SessionGenerator {
             auth_time: now.timestamp(),
             session_id: Some(params.session_id.to_string()),
             rate_limit_tier: Some(params.rate_limit_tier),
+            plugin_id: None,
         };
 
         let header = Header::new(Algorithm::HS256);

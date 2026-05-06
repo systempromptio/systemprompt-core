@@ -10,20 +10,22 @@ pub mod agents_state;
 pub mod auth;
 pub mod cli;
 pub mod config;
+pub(crate) mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
 
+pub mod i18n;
+pub mod ids;
+pub mod install;
+pub mod integration;
+pub(crate) mod mcp_registry;
 #[cfg(all(
     feature = "ts-export",
     not(any(target_os = "windows", target_os = "macos"))
 ))]
 #[path = "gui/ipc.rs"]
 pub mod ipc_types;
-pub mod i18n;
-pub mod ids;
-pub mod install;
-pub mod integration;
 pub mod obs;
 pub mod proxy;
 pub mod schedule;
@@ -73,6 +75,10 @@ Commands (plugin + MCP sync):
                                           --allow-tofu opts back into trust-on-first-use
                                           pubkey fetch when no pinned key is available;
                                           required only if MDM rollout is unavailable.
+  oauth-client               Manage the per-tenant OAuth client used to mint
+                             plugin-scoped hook tokens
+    status                              Show locally-stashed creds (no secret echo)
+    rotate                              Force re-provision; new client_secret minted
   validate                   End-to-end self-check (paths, gateway, creds, signatures)
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
@@ -115,8 +121,8 @@ mod ts_export_tests {
     fn export_bindings() {
         assert!(
             std::env::var_os("TS_RS_EXPORT_DIR").is_some(),
-            "TS_RS_EXPORT_DIR must be set so ts-rs writes paths relative to the crate root. \
-             Run: TS_RS_EXPORT_DIR=. cargo test --features ts-export export_bindings -- --ignored"
+            "TS_RS_EXPORT_DIR must be set so ts-rs writes paths relative to the crate root. Run: \
+             TS_RS_EXPORT_DIR=. cargo test --features ts-export export_bindings -- --ignored"
         );
         BridgeError::export_all().expect("export BridgeError");
         ErrorScope::export_all().expect("export ErrorScope");

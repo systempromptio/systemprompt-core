@@ -1,29 +1,7 @@
-use std::fmt;
-
-#[derive(Debug, thiserror::Error)]
-pub enum IdValidationError {
-    #[error("{type_name} cannot be empty")]
-    Empty { type_name: &'static str },
-    #[error("{type_name} is invalid: {reason}")]
-    Invalid {
-        type_name: &'static str,
-        reason: String,
-    },
-}
-
-impl IdValidationError {
-    #[must_use]
-    pub fn empty(type_name: &'static str) -> Self {
-        Self::Empty { type_name }
-    }
-
-    pub fn invalid(type_name: &'static str, reason: impl Into<String>) -> Self {
-        Self::Invalid {
-            type_name,
-            reason: reason.into(),
-        }
-    }
-}
+pub use systemprompt_models::bridge::ids::{
+    IdValidationError, ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId,
+    SkillName, ToolName, ToolPolicy,
+};
 
 #[macro_export]
 macro_rules! bridge_define_id {
@@ -232,14 +210,8 @@ bridge_define_token!(PatToken);
 bridge_define_token!(BearerToken);
 bridge_define_token!(LoopbackSecret);
 bridge_define_token!(ProxySecret);
-bridge_define_token!(ManifestSignature);
 bridge_define_token!(PinnedPubKey);
 
-bridge_define_id!(PluginId, non_empty);
-bridge_define_id!(SkillId, non_empty);
-bridge_define_id!(SkillName, non_empty);
-bridge_define_id!(ManagedMcpServerName, non_empty);
-bridge_define_id!(ToolName, non_empty);
 bridge_define_id!(PrefsDomain, non_empty);
 bridge_define_id!(PrefsKey, non_empty);
 bridge_define_id!(ModelId, non_empty);
@@ -249,40 +221,3 @@ bridge_define_id!(QueryKey, non_empty);
 
 bridge_define_id!(PrefsValue);
 bridge_define_id!(QueryValue);
-
-bridge_define_id!(Sha256Digest, validated, |value: &str| {
-    if value.len() != 64 {
-        return Err(IdValidationError::invalid(
-            "Sha256Digest",
-            format!("expected 64 hex chars, got {}", value.len()),
-        ));
-    }
-    if !value
-        .bytes()
-        .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
-    {
-        return Err(IdValidationError::invalid(
-            "Sha256Digest",
-            "expected lowercase hex characters",
-        ));
-    }
-    Ok(())
-});
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ToolPolicy {
-    Allow,
-    Deny,
-    Prompt,
-}
-
-impl fmt::Display for ToolPolicy {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Allow => f.write_str("allow"),
-            Self::Deny => f.write_str("deny"),
-            Self::Prompt => f.write_str("prompt"),
-        }
-    }
-}

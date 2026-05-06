@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::TryStreamExt;
-use http_body_util::{BodyExt, BodyStream, StreamBody};
+use http_body_util::{BodyExt, BodyStream, Full, StreamBody};
 use hyper::body::{Frame, Incoming};
 use hyper::{HeaderMap, Request, Response, StatusCode};
 use systemprompt_identifiers::{ContextId, SessionId, ValidatedUrl, headers as sp_headers};
@@ -11,6 +12,7 @@ use thiserror::Error;
 use crate::proxy::server::ProxyStats;
 use crate::proxy::session::{self, SessionContext};
 use crate::proxy::token_cache::TokenCache;
+use crate::mcp_registry;
 use crate::proxy::usage;
 
 const HOP_BY_HOP: &[&str] = &[
@@ -79,7 +81,18 @@ pub async fn forward(
 
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_string();
-    let url = build_upstream_url(gateway_base, &parts.uri);
+
+    let route = match resolve_route(&parts.uri, gateway_base) {
+        RouteResolution::Gateway(url) => Route {
+            url,
+            extra_headers: BTreeMap::new(),
+        },
+        RouteResolution::Mcp(route) => route,
+        RouteResolution::UnknownMcp(name) => {
+            tracing::warn!(server = %name, "unknown managed MCP server requested");
+            return not_found_response(&format!("unknown managed MCP server: {name}\n"));
+        },
+    };
 
     let method = reqwest::Method::from_bytes(parts.method.as_str().as_bytes()).map_err(|e| {
         ForwardError::BadMethod {
@@ -96,10 +109,11 @@ pub async fn forward(
         token.token.expose(),
         session_context.session_id(),
         context_id.as_ref(),
+        &route.extra_headers,
     )?;
 
     let upstream_response = client
-        .request(method, &url)
+        .request(method, &route.url)
         .headers(upstream_headers)
         .body(upstream_body)
         .send()
@@ -113,7 +127,7 @@ pub async fn forward(
         }
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
-        tracing::warn!(upstream_status = status.as_u16(), %url, "upstream non-2xx");
+        tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
         if status == StatusCode::UNAUTHORIZED {
             token_cache.invalidate().await;
         }
@@ -142,7 +156,38 @@ pub async fn forward(
     Ok(response_builder.body(body)?)
 }
 
-fn build_upstream_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
+struct Route {
+    url: String,
+    extra_headers: BTreeMap<String, String>,
+}
+
+enum RouteResolution {
+    Gateway(String),
+    Mcp(Route),
+    UnknownMcp(String),
+}
+
+fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolution {
+    if let Some(name) = parse_mcp_path(uri.path()) {
+        let registry = mcp_registry::snapshot();
+        return match registry.get(name) {
+            Some(entry) => RouteResolution::Mcp(Route {
+                url: entry.url.as_str().to_string(),
+                extra_headers: entry.headers.clone(),
+            }),
+            None => RouteResolution::UnknownMcp(name.to_string()),
+        };
+    }
+    RouteResolution::Gateway(build_gateway_url(gateway_base, uri))
+}
+
+fn parse_mcp_path(path: &str) -> Option<&str> {
+    let stripped = path.strip_prefix("/mcp/")?;
+    let name = stripped.split('/').next()?;
+    if name.is_empty() { None } else { Some(name) }
+}
+
+fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     let path_and_query = uri.path_and_query().map_or("/", |p| p.as_str());
     let separator = if path_and_query.starts_with('/') {
         ""
@@ -155,13 +200,23 @@ fn build_upstream_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     )
 }
 
+fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {
+    let bytes = Bytes::copy_from_slice(body.as_bytes());
+    let body: ProxyBody = Full::new(bytes).map_err(|never| match never {}).boxed();
+    Ok(Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .header(http::header::CONTENT_TYPE, "text/plain")
+        .body(body)?)
+}
+
 fn build_upstream_headers(
     src: &HeaderMap,
     bearer: &str,
     session_id: &SessionId,
     context_id: Option<&ContextId>,
+    extra: &BTreeMap<String, String>,
 ) -> ForwardResult<reqwest::header::HeaderMap> {
-    let mut headers = reqwest::header::HeaderMap::with_capacity(src.len() + 4);
+    let mut headers = reqwest::header::HeaderMap::with_capacity(src.len() + 4 + extra.len());
     copy_request_headers(src, &mut headers);
 
     let bearer = reqwest::header::HeaderValue::try_from(format!("Bearer {bearer}"))
@@ -186,6 +241,14 @@ fn build_upstream_headers(
         );
     }
 
+    for (k, v) in extra {
+        let name = reqwest::header::HeaderName::from_bytes(k.as_bytes())
+            .map_err(|e| ForwardError::BadHeader(format!("{k}: {e}")))?;
+        let value = reqwest::header::HeaderValue::try_from(v)
+            .map_err(|e| ForwardError::BadHeader(format!("{k}: {e}")))?;
+        headers.insert(name, value);
+    }
+
     Ok(headers)
 }
 
@@ -203,8 +266,8 @@ async fn prepare_upstream_body(
         return Ok((stream_body, None));
     }
     let buffered = collect_body(body).await?;
-    let context_id = session::hash_conversation_prefix(&buffered)
-        .map(|h| session_context.context_for_prefix(h));
+    let context_id =
+        session::hash_conversation_prefix(&buffered).map(|h| session_context.context_for_prefix(h));
     if let Some(ref c) = context_id {
         tracing::Span::current().record("context_id", tracing::field::display(c));
     }

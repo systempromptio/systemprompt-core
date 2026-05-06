@@ -67,6 +67,9 @@ pub fn logout() -> Result<PathLayout, SetupError> {
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
+    if let Err(e) = crate::auth::plugin_oauth::delete_creds() {
+        return Err(SetupError::Io(format!("clear oauth client creds: {e}")));
+    }
     if paths.config_file.exists() {
         match fs::read_to_string(&paths.config_file) {
             Ok(existing) => {
@@ -93,6 +96,12 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
+    let oauth_creds_removed = crate::auth::plugin_oauth::creds_path()
+        .map(|p| p.exists())
+        .unwrap_or(false);
+    if let Err(e) = crate::auth::plugin_oauth::delete_creds() {
+        return Err(SetupError::Io(format!("clear oauth client creds: {e}")));
+    }
     if let Err(e) = crate::agents_state::delete() {
         return Err(SetupError::Io(format!("clear agents state: {e}")));
     }
@@ -100,6 +109,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
         paths,
         pat_removed,
         config_removed,
+        oauth_creds_removed,
     })
 }
 
@@ -107,16 +117,24 @@ pub struct CleanReport {
     pub paths: PathLayout,
     pub pat_removed: bool,
     pub config_removed: bool,
+    pub oauth_creds_removed: bool,
 }
 
 pub fn status() -> Result<StatusReport, SetupError> {
     let paths = resolve_paths()?;
     let config_present = paths.config_file.exists();
     let pat_present = paths.pat_file.exists();
+    let oauth_creds_path = crate::auth::plugin_oauth::creds_path();
+    let oauth_creds_present = oauth_creds_path
+        .as_ref()
+        .map(|p| p.exists())
+        .unwrap_or(false);
     Ok(StatusReport {
         paths,
         config_present,
         pat_present,
+        oauth_creds_path,
+        oauth_creds_present,
     })
 }
 
@@ -124,6 +142,8 @@ pub struct StatusReport {
     pub paths: PathLayout,
     pub config_present: bool,
     pub pat_present: bool,
+    pub oauth_creds_path: Option<std::path::PathBuf>,
+    pub oauth_creds_present: bool,
 }
 
 fn validate_token(token: &str) -> Result<(), SetupError> {

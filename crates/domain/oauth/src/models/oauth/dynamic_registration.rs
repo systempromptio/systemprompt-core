@@ -87,13 +87,12 @@ impl DynamicRegistrationRequest {
         })
     }
 
-    pub fn get_token_endpoint_auth_method(&self) -> Result<String, String> {
+    pub fn get_token_endpoint_auth_method(&self) -> String {
         self.token_endpoint_auth_method
             .as_ref()
             .filter(|m| !m.is_empty())
-            .ok_or_else(|| {
-                "token_endpoint_auth_method is required for client registration".to_string()
-            })
             .cloned()
+            // RFC 7591 §2: server defaults this when client omits it; client_secret_basic is the spec default.
+            .unwrap_or_else(|| "client_secret_basic".to_string())
     }
 }

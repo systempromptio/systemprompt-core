@@ -121,5 +121,7 @@ async fn run_probe() -> GatewayProbeOutcome {
 }
 
 async fn obtain_live_token(cfg: &config::Config) -> Option<crate::auth::secret::Secret> {
-    crate::auth::obtain_live_token(cfg).await.map(|out| out.token)
+    crate::auth::obtain_live_token(cfg)
+        .await
+        .map(|out| out.token)
 }

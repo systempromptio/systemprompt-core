@@ -1,6 +1,7 @@
 pub mod cache;
 pub mod keystore;
 pub mod loopback;
+pub mod plugin_oauth;
 pub mod providers;
 pub mod secret;
 pub mod setup;

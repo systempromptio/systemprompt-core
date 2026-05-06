@@ -15,6 +15,17 @@ pub fn os_label(os: Os) -> &'static str {
     }
 }
 
+pub fn refresh_managed_mcp_servers() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        return windows::refresh_managed_mcp_servers();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok("managedMcpServers refresh skipped (non-Windows)".into())
+    }
+}
+
 pub fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     match os {
         #[cfg(target_os = "windows")]
@@ -36,34 +47,72 @@ pub fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<Stri
 
 #[must_use]
 pub fn windows_policy_values(
-    gateway: &str,
+    _gateway: &str,
     pubkey: Option<&str>,
 ) -> Vec<(&'static str, &'static str, String)> {
-    let api_key = crate::proxy::secret::for_profile()
-        .map(crate::ids::LoopbackSecret::into_inner)
-        .unwrap_or_default();
+    // Stable, MDM-deployable policy only. `inferenceGatewayBaseUrl` and
+    // `inferenceGatewayApiKey` are runtime values owned by the running GUI
+    // (it writes them to HKCU when it binds the live proxy port and mints
+    // the loopback secret). Writing them here would pin a stale port/key
+    // and collide with the GUI's HKCU values.
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
-        ("inferenceGatewayBaseUrl", "REG_SZ", gateway.into()),
-        ("inferenceGatewayApiKey", "REG_SZ", api_key),
         ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
         ("disableEssentialTelemetry", "REG_SZ", "true".into()),
         ("disableNonessentialTelemetry", "REG_SZ", "true".into()),
         ("disableNonessentialServices", "REG_SZ", "true".into()),
         ("disableAutoUpdates", "REG_SZ", "true".into()),
         ("disableDeploymentModeChooser", "REG_SZ", "true".into()),
+        // MCP-server lockdown: managed-only source, loopback-only egress. The
+        // `managedMcpServers` value itself is filled in below; these two flags
+        // make Cowork ignore user-added MCP servers and refuse non-loopback
+        // egress so all traffic flows through the bridge proxy.
+        ("isLocalDevMcpEnabled", "REG_SZ", "false".into()),
+        (
+            "coworkEgressAllowedHosts",
+            "REG_SZ",
+            r#"["127.0.0.1"]"#.into(),
+        ),
     ];
+    let managed = managed_mcp_servers_json().unwrap_or_else(|| "[]".to_string());
+    values.push(("managedMcpServers", "REG_SZ", managed));
     if let Some(pk) = pubkey {
         values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_string()));
     }
     values
 }
 
+// `oauth: {}` (empty object) MUST be emitted — it signals "needs OAuth,
+// do well-known discovery" to Cowork. The bridge does NOT inject a bearer
+// token here; Cowork performs the MCP-spec OAuth dance itself.
+#[must_use]
+pub fn managed_mcp_servers_json() -> Option<String> {
+    let registry = crate::mcp_registry::snapshot();
+    if registry.is_empty() {
+        return Some("[]".to_string());
+    }
+    let mut slugs: Vec<&String> = registry.keys().collect();
+    slugs.sort();
+    let entries: Vec<serde_json::Value> = slugs
+        .iter()
+        .filter_map(|slug| {
+            let upstream = registry.get(*slug)?;
+            Some(serde_json::json!({
+                "name": slug,
+                "url": upstream.url.as_str(),
+                "transport": "http",
+                "oauth": {},
+            }))
+        })
+        .collect();
+    serde_json::to_string(&entries).ok()
+}
+
 pub fn snippet(os: Os, gateway_url: Option<&str>) -> String {
     let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
     match os {
         Os::Mac => MDM_MACOS_SNIPPET_TMPL.replace("{gateway}", gateway),
-        Os::Windows => format!(
+        Os::Windows => {
             r#"Registry key: HKLM\SOFTWARE\Policies\Claude (machine-wide; HKCU as per-user fallback)
 Format: .reg — distribute via Group Policy, Intune, or any MDM that imports .reg files
 
@@ -71,16 +120,17 @@ Windows Registry Editor Version 5.00
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]
 "inferenceProvider"="gateway"
-"inferenceGatewayBaseUrl"="{gateway}"
-"inferenceGatewayApiKey"="<loopback-secret-from-%APPDATA%\\systemprompt\\bridge-loopback.key>"
 "inferenceGatewayAuthScheme"="bearer"
 "disableEssentialTelemetry"="true"
 "disableNonessentialTelemetry"="true"
 "disableNonessentialServices"="true"
 "disableAutoUpdates"="true"
 "disableDeploymentModeChooser"="true"
+; inferenceGatewayBaseUrl and inferenceGatewayApiKey are written to HKCU by the
+; running Bridge GUI when it binds the loopback proxy. Do not pin them here.
 "#
-        ),
+            .to_string()
+        },
         Os::Linux => format!(
             r"Anthropic does not document an MDM format for Linux.
 Environment-based configuration (user shell profile or systemd-user Environment=):

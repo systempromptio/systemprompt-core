@@ -53,7 +53,10 @@ fn copy_app_string(key: &str) -> Option<String> {
     let key_cf = CFString::new(key);
     let domain_cf = CFString::new(POLICY_DOMAIN);
     let raw: CFPropertyListRef = unsafe {
-        CFPreferencesCopyAppValue(key_cf.as_concrete_TypeRef(), domain_cf.as_concrete_TypeRef())
+        CFPreferencesCopyAppValue(
+            key_cf.as_concrete_TypeRef(),
+            domain_cf.as_concrete_TypeRef(),
+        )
     };
     if raw.is_null() {
         return None;
@@ -63,8 +66,7 @@ fn copy_app_string(key: &str) -> Option<String> {
         unsafe { release_unknown(raw) };
         return None;
     }
-    let cf_string: CFString =
-        unsafe { TCFType::wrap_under_create_rule(raw as CFStringRef) };
+    let cf_string: CFString = unsafe { TCFType::wrap_under_create_rule(raw as CFStringRef) };
     Some(cf_string.to_string())
 }
 

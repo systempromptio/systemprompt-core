@@ -193,9 +193,7 @@ fn dispatch_ipc(app: &mut GuiApp, event: UiEvent) {
         UiEvent::IpcEmit { channel, payload } => {
             crate::gui::emit::send_emit(app, channel, &payload)
         },
-        UiEvent::IpcReply { id, payload, ok } => {
-            crate::gui::emit::send_reply(app, id, payload, ok)
-        },
+        UiEvent::IpcReply { id, payload, ok } => crate::gui::emit::send_reply(app, id, payload, ok),
         UiEvent::CancelInFlight { scope, reply_to } => {
             handlers::cancel::on_cancel_in_flight(app, scope, reply_to)
         },

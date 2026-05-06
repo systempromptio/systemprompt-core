@@ -1,4 +1,6 @@
 use super::super::hash::{normalise_relative, safe_plugin_id, sha256_hex};
+use super::hooks::{ensure_plugin_json_hooks_field, materialize_hook_token, write_hooks_json};
+use crate::auth::plugin_oauth::global_cache;
 use crate::config::paths;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{PluginEntry, SignedManifest};
@@ -47,6 +49,12 @@ pub async fn apply_plugins(
 
     let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
     let removed = remove_stale(root, &expected)?;
+    if !removed.is_empty() {
+        let cache = global_cache().await;
+        for id in &removed {
+            cache.invalidate(id);
+        }
+    }
 
     Ok(PluginApplyOutcome {
         installed,
@@ -92,6 +100,10 @@ async fn sync_one_plugin(
         context: format!("rename stage→target for {}", plugin.id),
         source: e,
     })?;
+
+    materialize_hook_token(client, bearer, plugin.id.as_str(), &target).await?;
+    write_hooks_json(client.base_url_str(), plugin.id.as_str(), &target)?;
+    ensure_plugin_json_hooks_field(&target)?;
 
     Ok(Some(if was_present {
         PluginChange::Updated(plugin.id.to_string())

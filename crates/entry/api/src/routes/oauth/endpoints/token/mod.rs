@@ -19,6 +19,8 @@ pub struct TokenRequest {
     pub scope: Option<String>,
     pub code_verifier: Option<String>,
     pub resource: Option<String>,
+    pub plugin_id: Option<String>,
+    pub audience: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

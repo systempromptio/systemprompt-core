@@ -30,6 +30,11 @@ pub(crate) fn cmd_clean() -> ExitCode {
                 ));
             }
             output::print_line("Token cache cleared.");
+            if report.oauth_creds_removed {
+                output::print_line("OAuth client credentials cleared.");
+            } else {
+                output::print_line("No OAuth client credentials (already clean).");
+            }
             output::print_line("Bridge is back to a fresh splash on next launch.");
             ExitCode::SUCCESS
         },

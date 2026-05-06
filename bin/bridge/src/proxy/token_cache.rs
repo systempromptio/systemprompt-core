@@ -11,9 +11,8 @@ use crate::{auth, config};
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub type RefreshFn = Arc<
-    dyn Fn(u64) -> Pin<Box<dyn Future<Output = Option<HelperOutput>> + Send>> + Send + Sync,
->;
+pub type RefreshFn =
+    Arc<dyn Fn(u64) -> Pin<Box<dyn Future<Output = Option<HelperOutput>> + Send>> + Send + Sync>;
 
 struct CachedEntry {
     token: HelperOutput,

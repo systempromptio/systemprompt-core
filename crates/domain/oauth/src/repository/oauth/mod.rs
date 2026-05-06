@@ -193,6 +193,16 @@ impl OAuthRepository {
         updated.ok_or_else(|| OauthError::Validation("Client not found".to_string()))
     }
 
+    pub async fn update_client_secret(
+        &self,
+        client_id: &ClientId,
+        client_secret_hash: &str,
+    ) -> OauthResult<Option<OAuthClient>> {
+        self.client_repo
+            .update_secret(client_id, client_secret_hash)
+            .await
+    }
+
     pub async fn update_client_full(&self, client: &OAuthClient) -> OauthResult<OAuthClient> {
         let client_repo = &self.client_repo;
         let params = UpdateClientParams {

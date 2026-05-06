@@ -84,7 +84,11 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let ctx_session = ctx.clone();
     let ctx_mtls = ctx.clone();
     let ctx_heartbeat = ctx.clone();
+    let ctx_manifest = ctx.clone();
+    let ctx_oauth_client = ctx.clone();
     let jwt_heartbeat = Arc::clone(&jwt_extractor);
+    let jwt_manifest = Arc::clone(&jwt_extractor);
+    let jwt_oauth_client = Arc::clone(&jwt_extractor);
 
     let router = Router::new()
         .route(
@@ -116,9 +120,25 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
                 async move { auth::mtls(context, request).await }
             }),
         )
+        .route(
+            "/auth/bridge/oauth-client",
+            post(move |request| {
+                let extractor = Arc::clone(&jwt_oauth_client);
+                let context = ctx_oauth_client.clone();
+                async move { auth::provision_oauth_client(extractor, context, request).await }
+            }),
+        )
         .route("/auth/bridge/capabilities", get(auth::capabilities))
         .route("/bridge/pubkey", get(bridge::pubkey))
         .route("/bridge/profile", get(bridge::profile))
+        .route(
+            "/bridge/manifest",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_manifest);
+                let context = ctx_manifest.clone();
+                async move { bridge::manifest(extractor, context, headers).await }
+            }),
+        )
         .route(
             "/bridge/heartbeat",
             post(move |headers, body| {

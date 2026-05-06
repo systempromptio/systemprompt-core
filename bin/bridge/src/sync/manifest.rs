@@ -2,7 +2,7 @@ use super::error::SyncError;
 use crate::auth::secret::Secret;
 use crate::config;
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::SignedManifest;
+use crate::gateway::manifest::{SignedManifest, SignedManifestVerify};
 use crate::ids::PinnedPubKey;
 
 pub struct ManifestFetch {
