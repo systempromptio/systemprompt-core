@@ -20,6 +20,8 @@ pub struct Settings {
     pub config_path: Option<String>,
     #[serde(default = "default_true")]
     pub marketplace_public: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_marketplace_id: Option<String>,
 }
 
 impl Default for Settings {
@@ -34,6 +36,7 @@ impl Default for Settings {
             skills_path: None,
             config_path: None,
             marketplace_public: true,
+            default_marketplace_id: None,
         }
     }
 }

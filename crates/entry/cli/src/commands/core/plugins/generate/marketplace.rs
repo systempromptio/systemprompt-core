@@ -1,75 +1,79 @@
 use anyhow::Result;
 use std::path::Path;
-use systemprompt_models::{PluginConfig, PluginConfigFile};
+use systemprompt_loader::ConfigLoader;
+use systemprompt_models::services::ServicesConfig;
+use systemprompt_models::{MarketplaceConfig, PluginConfig};
 
-pub fn generate_marketplace_json(plugins_path: &Path, system_path: &Path) -> Result<()> {
-    if !plugins_path.exists() {
+pub fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path) -> Result<()> {
+    let services = match ConfigLoader::load() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to load services config; skipping marketplace generation");
+            return Ok(());
+        },
+    };
+
+    if services.marketplaces.is_empty() {
+        tracing::info!(
+            "No marketplaces declared in services config; skipping marketplace.json generation"
+        );
         return Ok(());
     }
-
-    let mut plugin_entries = Vec::new();
-
-    for entry in std::fs::read_dir(plugins_path)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-
-        let config_path = path.join("config.yaml");
-        if !config_path.exists() {
-            continue;
-        }
-
-        let content = match std::fs::read_to_string(&config_path) {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::warn!(path = %config_path.display(), error = %e, "Failed to read plugin config");
-                continue;
-            },
-        };
-
-        let plugin_file: PluginConfigFile = match serde_yaml::from_str(&content) {
-            Ok(f) => f,
-            Err(e) => {
-                tracing::warn!(path = %config_path.display(), error = %e, "Failed to parse plugin config");
-                continue;
-            },
-        };
-
-        let plugin = &plugin_file.plugin;
-        if !plugin.enabled {
-            continue;
-        }
-
-        let dir_name = entry.file_name().to_string_lossy().to_string();
-
-        plugin_entries.push(serde_json::json!({
-            "name": plugin.id,
-            "source": format!("./storage/files/plugins/{}", dir_name),
-            "description": plugin.description,
-            "version": plugin.version
-        }));
-    }
-
-    let marketplace = serde_json::json!({
-        "name": "systemprompt-marketplace",
-        "owner": { "name": "systemprompt.io" },
-        "metadata": {
-            "description": "systemprompt.io plugin marketplace",
-            "version": env!("CARGO_PKG_VERSION")
-        },
-        "plugins": plugin_entries
-    });
 
     let marketplace_dir = system_path.join(".claude-plugin");
     std::fs::create_dir_all(&marketplace_dir)?;
 
-    let marketplace_path = marketplace_dir.join("marketplace.json");
-    let content = serde_json::to_string_pretty(&marketplace)?;
-    std::fs::write(&marketplace_path, content)?;
+    let default_id = services.settings.default_marketplace_id.as_deref();
+
+    for (id, marketplace) in &services.marketplaces {
+        if !marketplace.enabled {
+            continue;
+        }
+
+        let json = render_marketplace(id.as_str(), marketplace, &services);
+        let content = serde_json::to_string_pretty(&json)?;
+
+        let file_name = format!("marketplace-{}.json", id.as_str());
+        std::fs::write(marketplace_dir.join(&file_name), &content)?;
+
+        let is_default = default_id.map_or_else(|| id.as_str() == "default", |d| d == id.as_str());
+        if is_default {
+            std::fs::write(marketplace_dir.join("marketplace.json"), &content)?;
+        }
+    }
 
     Ok(())
+}
+
+fn render_marketplace(
+    id: &str,
+    marketplace: &MarketplaceConfig,
+    services: &ServicesConfig,
+) -> serde_json::Value {
+    let plugin_entries: Vec<serde_json::Value> = marketplace
+        .plugins
+        .include
+        .iter()
+        .map(|plugin_id| {
+            let plugin = services.plugins.get(plugin_id);
+            serde_json::json!({
+                "name": plugin_id,
+                "source": format!("./storage/files/plugins/{plugin_id}"),
+                "description": plugin.map(|p| p.description.clone()).unwrap_or_default(),
+                "version": plugin.map(|p| p.version.clone()).unwrap_or_default(),
+            })
+        })
+        .collect();
+
+    serde_json::json!({
+        "name": id,
+        "owner": { "name": marketplace.author.name.clone() },
+        "metadata": {
+            "description": marketplace.description.clone(),
+            "version": marketplace.version.clone(),
+        },
+        "plugins": plugin_entries,
+    })
 }
 
 pub fn generate_plugin_json(

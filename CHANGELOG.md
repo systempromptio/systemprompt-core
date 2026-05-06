@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Marketplaces as first-class YAML-defined services.** Curated bundles of plugins, skills, MCP servers, and agents are now declared in YAML and validated at startup, mirroring the existing `PluginConfig` pattern.
+  - New `MarketplaceConfig` model (`crates/shared/models/src/services/marketplace.rs`) with `MarketplaceConfigFile` wrapper and `MarketplaceVisibility` enum (`Public | Private | Org`). Aggregates plugins/skills/MCP servers/agents by reference only — never inlines them.
+  - New typed `MarketplaceId` identifier (`crates/shared/identifiers/src/marketplace.rs`).
+  - `ServicesConfig` gains a `marketplaces: HashMap<MarketplaceId, MarketplaceConfig>` field. `validate_marketplace_bindings()` resolves every `plugins.include`, `skills.include`, `mcp_servers`, and `agents.include` reference against the rest of the config and emits `ConfigValidationError::unknown_reference` on misses, so a typo in a marketplace YAML fails fast at startup.
+  - Loader auto-discovers `<services>/marketplaces/<id>/config.yaml`, parses each as `MarketplaceConfigFile`, and inserts into `ServicesConfig.marketplaces` with duplicate detection (`ConfigLoadError::DuplicateMarketplace`). Inline declarations in includes also flow through `merge_no_dup`.
+  - `Settings::default_marketplace_id: Option<String>` controls which marketplace `/marketplace.json` resolves to (fallback `"default"`).
+  - API: `GET /marketplace.json` now serves the typed default marketplace; new `GET /marketplaces`, `GET /marketplaces/{id}`, `GET /marketplaces/{id}/manifest.yaml` for listing, resolved bundles, and raw YAML.
+  - CLI: `systemprompt core plugins generate marketplace` is driven from `ServicesConfig.marketplaces` — emits `marketplace-<id>.json` per declared marketplace plus `marketplace.json` for the default.
+
 ### Changed
 
 - **Breaking — `cowork` is renamed to `bridge` everywhere.** Clean cutover, no compatibility shims. A `0.7.x` bridge cannot authenticate against a `0.8.0` gateway and vice versa.

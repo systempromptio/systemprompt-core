@@ -55,6 +55,10 @@ impl PathsConfig {
         format!("{}/plugins", self.services)
     }
 
+    pub fn marketplaces(&self) -> String {
+        format!("{}/marketplaces", self.services)
+    }
+
     pub fn hooks(&self) -> String {
         format!("{}/hooks", self.services)
     }

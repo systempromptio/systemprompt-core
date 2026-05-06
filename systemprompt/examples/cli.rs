@@ -18,7 +18,7 @@ async fn main() {
         "starting CLI"
     );
 
-    if let Err(err) = run().await {
+    if let Err(err) = Box::pin(run()).await {
         tracing::error!(error = %err, "cli exited with error");
         std::process::exit(1);
     }

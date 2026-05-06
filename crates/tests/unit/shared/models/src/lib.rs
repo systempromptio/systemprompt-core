@@ -63,3 +63,6 @@ mod routing;
 
 #[cfg(test)]
 mod modules;
+
+#[cfg(test)]
+mod marketplace;
