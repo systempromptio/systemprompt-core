@@ -85,6 +85,7 @@ audit.log
 audit.json
 audit/
 .audit/
+!crates/infra/security/src/authz/audit/
 
 # Service implementations (moved to implementation repos)
 /crates/services/
