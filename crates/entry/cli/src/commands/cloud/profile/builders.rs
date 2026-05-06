@@ -115,6 +115,7 @@ impl LocalProfileBuilder {
             }),
             extensions: ExtensionsConfig::default(),
             gateway: None,
+            governance: None,
         }
     }
 }
@@ -227,6 +228,7 @@ impl CloudProfileBuilder {
             }),
             extensions: ExtensionsConfig::default(),
             gateway: None,
+            governance: None,
         }
     }
 }

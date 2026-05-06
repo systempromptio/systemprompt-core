@@ -5,6 +5,7 @@ mod database;
 mod error;
 mod from_env;
 mod gateway;
+mod governance;
 mod info;
 mod paths;
 mod rate_limits;
@@ -21,7 +22,10 @@ pub use database::DatabaseConfig;
 pub use error::{ProfileError, ProfileResult};
 pub use gateway::{
     GatewayCatalog, GatewayConfig, GatewayModel, GatewayProfileError, GatewayProvider,
-    GatewayResult, GatewayRoute,
+    GatewayResult, GatewayRoute, slugify_pattern, synthesize_route_id,
+};
+pub use governance::{
+    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
@@ -128,6 +132,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub gateway: Option<GatewayConfig>,
+
+    #[serde(default)]
+    pub governance: Option<GovernanceConfig>,
 }
 
 impl Profile {

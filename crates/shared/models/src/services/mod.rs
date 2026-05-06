@@ -4,6 +4,7 @@ pub mod agent_config;
 pub mod ai;
 pub mod content;
 pub mod hooks;
+pub mod host_agent;
 mod includable;
 pub mod mcp;
 pub mod plugin;
@@ -28,6 +29,7 @@ pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
 };
+pub use host_agent::{HostAgentConfig, HostAgentKind};
 pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
@@ -66,6 +68,8 @@ pub struct PartialServicesConfig {
     pub skills: SkillsConfig,
     #[serde(default)]
     pub content: ContentConfig,
+    #[serde(default)]
+    pub host_agents: HashMap<String, HostAgentConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +93,8 @@ pub struct ServicesConfig {
     pub skills: SkillsConfig,
     #[serde(default)]
     pub content: ContentConfig,
+    #[serde(default)]
+    pub host_agents: HashMap<String, HostAgentConfig>,
 }
 
 impl ServicesConfig {

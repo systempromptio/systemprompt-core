@@ -5,11 +5,11 @@
 
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
+use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 
 use super::{extract_bearer_token, extract_request_context};
 
@@ -149,10 +149,7 @@ pub async fn enforce_rbac_from_registry(
     Ok(AuthResult::Authenticated(authenticated_context))
 }
 
-async fn enforce_authz_for_server(
-    server_name: &str,
-    claims: &JwtClaims,
-) -> Result<(), McpError> {
+async fn enforce_authz_for_server(server_name: &str, claims: &JwtClaims) -> Result<(), McpError> {
     let Some(hook) = systemprompt_security::authz::global_hook() else {
         tracing::error!(
             server = %server_name,
@@ -189,7 +186,7 @@ async fn enforce_authz_for_server(
                 format!("authz denied [{policy}]: {reason}"),
                 None,
             ))
-        }
+        },
     }
 }
 

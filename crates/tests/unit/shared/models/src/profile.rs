@@ -65,6 +65,7 @@ fn make_profile(name: &str) -> Profile {
         secrets: None,
         extensions: ExtensionsConfig::default(),
         gateway: None,
+        governance: None,
     }
 }
 

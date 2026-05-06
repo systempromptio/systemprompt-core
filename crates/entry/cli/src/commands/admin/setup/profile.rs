@@ -120,6 +120,7 @@ pub fn build(
         }),
         extensions: ExtensionsConfig::default(),
         gateway: None,
+        governance: None,
     };
 
     validate_profile(&profile)?;

@@ -11,6 +11,8 @@ fn create_test_user() -> AuthenticatedUser {
         email: "test@example.com".to_string(),
         permissions: vec![Permission::Admin],
         roles: vec![],
+        department: None,
+        tenant_id: None,
     }
 }
 

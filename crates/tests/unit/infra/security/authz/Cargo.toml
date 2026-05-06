@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-security-authz-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit and integration tests for the authz module of systemprompt-security (resolver, hook plumbing, runtime install)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-security = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }
