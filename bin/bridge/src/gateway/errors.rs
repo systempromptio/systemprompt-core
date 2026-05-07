@@ -41,6 +41,10 @@ pub enum GatewayError {
     ProfileFetch(Box<reqwest::Error>),
     #[error("malformed bridge profile response: {0}")]
     ProfileDecode(Box<reqwest::Error>),
+    #[error("bridge profile usage fetch failed: {0}")]
+    ProfileUsageFetch(Box<reqwest::Error>),
+    #[error("malformed bridge profile usage response: {0}")]
+    ProfileUsageDecode(Box<reqwest::Error>),
     #[error("gateway PAT request failed: {0}")]
     PatRequest(Box<reqwest::Error>),
     #[error("gateway oauth-client provisioning failed: {0}")]

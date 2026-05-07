@@ -24,6 +24,7 @@ fn request_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
         UiEvent::SetEnabledHostRequested { .. } => "SetEnabledHostRequested",
+        UiEvent::ProfileFetchRequested { .. } => "ProfileFetchRequested",
         _ => return None,
     })
 }
@@ -38,6 +39,7 @@ fn finish_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::SetGatewayFinished { .. } => "SetGatewayFinished",
         UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
         UiEvent::SetEnabledHostFinished { .. } => "SetEnabledHostFinished",
+        UiEvent::ProfileFetchFinished { .. } => "ProfileFetchFinished",
         _ => return None,
     })
 }
@@ -145,6 +147,9 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
             enabled,
             reply_to,
         } => handlers::agents::on_set_enabled_host_requested(app, host_id, enabled, reply_to),
+        UiEvent::ProfileFetchRequested { reply_to } => {
+            handlers::profile::on_profile_fetch_requested(app, reply_to)
+        },
         other => return Err(other),
     }
     Ok(())
@@ -177,6 +182,9 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
             reply_to,
         } => {
             handlers::agents::on_set_enabled_host_finished(app, host_id, enabled, result, reply_to)
+        },
+        UiEvent::ProfileFetchFinished { result, reply_to } => {
+            handlers::profile::on_profile_fetch_finished(app, result, reply_to)
         },
         other => return Err(other),
     }

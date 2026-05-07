@@ -60,6 +60,7 @@ export const bridge = {
   sync:                 ()                  => invoke("sync"),
   validate:             ()                  => invoke("validate"),
   marketplaceList:      ()                  => invoke("marketplace.list"),
+  profileFetch:         ()                  => invoke("profile.fetch"),
   hostProbe:            (hostId)            => invoke("host.probe", { hostId }),
   agentsSetEnabled:     (hostId, enabled)   => invoke("agents.setEnabled", { hostId, enabled }),
   hostProfileGenerate:  (hostId)            => invoke("host.profile.generate", { hostId }),

@@ -3,6 +3,7 @@ pub mod auth;
 pub mod cancel;
 pub mod diagnostics;
 pub mod gateway_probe;
+pub mod profile;
 pub mod quit;
 pub mod settings;
 pub mod state;

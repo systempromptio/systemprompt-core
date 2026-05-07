@@ -8,6 +8,8 @@
 
 use std::time::Instant;
 
+use systemprompt_models::api::cloud::BridgeProfileUsage;
+
 use crate::auth::types::BridgeProfile;
 use crate::gateway::errors::GatewayError;
 use crate::gateway::manifest::SignedManifest;
@@ -168,6 +170,36 @@ impl GatewayClient {
         resp.json::<BridgeProfile>()
             .await
             .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip(self, bearer),
+        fields(endpoint = "profile_usage", status, latency_ms)
+    )]
+    pub async fn fetch_profile_usage(
+        &self,
+        bearer: &str,
+    ) -> Result<BridgeProfileUsage, GatewayError> {
+        let url = self.url("/v1/bridge/profile/usage");
+        let started = Instant::now();
+        let resp = self
+            .http()
+            .get(&url)
+            .bearer_auth(bearer)
+            .send()
+            .await
+            .map_err(|e| GatewayError::ProfileUsageFetch(Box::new(e)))?;
+        record_span(&resp, started);
+        if !resp.status().is_success() {
+            return Err(GatewayError::HttpStatus {
+                status: resp.status(),
+                endpoint: "profile_usage",
+            });
+        }
+        resp.json::<BridgeProfileUsage>()
+            .await
+            .map_err(|e| GatewayError::ProfileUsageDecode(Box::new(e)))
     }
 
     #[tracing::instrument(

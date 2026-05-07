@@ -72,6 +72,14 @@ pub enum UiEvent {
     },
     StateRefreshed,
 
+    ProfileFetchRequested {
+        reply_to: ReplyId,
+    },
+    ProfileFetchFinished {
+        result: Result<Value, Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+
     AgentUninstall {
         host_id: String,
         reply_to: ReplyId,

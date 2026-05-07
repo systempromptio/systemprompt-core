@@ -22,6 +22,7 @@ import "/assets/js/components/sp-activity-log.js";
 import "/assets/js/components/sp-host-card.js";
 import "/assets/js/components/sp-hosts-list.js";
 import "/assets/js/components/sp-settings.js";
+import "/assets/js/components/sp-profile.js";
 import "/assets/js/components/sp-marketplace.js";
 import "/assets/js/components/sp-marketplace-list.js";
 import "/assets/js/components/sp-marketplace-detail.js";
