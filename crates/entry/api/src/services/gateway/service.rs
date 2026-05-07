@@ -13,11 +13,13 @@ use systemprompt_identifiers::{AiRequestId, ContextId};
 use systemprompt_models::profile::GatewayConfig;
 
 use super::audit::{GatewayAudit, GatewayRequestContext};
-use super::models::AnthropicGatewayRequest;
 use super::policy::{GatewayPolicySpec, PolicyResolver};
+use super::protocol::canonical::CanonicalRequest;
+use super::protocol::canonical_response::CanonicalResponse;
+use super::protocol::inbound::InboundAdapter;
+use super::protocol::outbound::{OutboundCtx, OutboundOutcome};
 use super::registry::GatewayUpstreamRegistry;
 use super::safety::{HeuristicScanner, SafetyScanner};
-use super::upstream::{UpstreamCtx, UpstreamOutcome, build_response};
 use super::{parse, quota, stream_tap};
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
@@ -28,9 +30,10 @@ pub struct GatewayService;
 impl GatewayService {
     pub async fn dispatch(
         config: &GatewayConfig,
-        request: AnthropicGatewayRequest,
+        request: CanonicalRequest,
         raw_body: Bytes,
         ctx: GatewayRequestContext,
+        inbound: Arc<dyn InboundAdapter>,
         db: &DbPool,
     ) -> Result<Response<Body>> {
         if ctx.context_id.as_ref().is_none_or(ContextId::is_empty) || ctx.session_id.is_none() {
@@ -57,7 +60,7 @@ impl GatewayService {
             .get(&route.provider)
             .ok_or_else(|| anyhow!("Gateway provider '{}' is not registered", route.provider))?;
 
-        let is_streaming = request.stream.unwrap_or(false);
+        let is_streaming = request.stream;
         let ai_request_id = ctx.ai_request_id.clone();
 
         tracing::info!(
@@ -67,6 +70,7 @@ impl GatewayService {
             model = %request.model,
             provider = %route.provider,
             upstream = %route.endpoint,
+            wire_protocol = %ctx.wire_protocol,
             streaming = is_streaming,
             "Gateway request dispatched"
         );
@@ -121,15 +125,15 @@ impl GatewayService {
 
         run_request_safety_scan(db, &ai_request_id, &request).await;
 
-        let upstream_ctx = UpstreamCtx {
+        let upstream_model = route.effective_upstream_model(&request.model).to_string();
+        let outbound_ctx = OutboundCtx {
             route,
             api_key: upstream_api_key,
-            raw_body,
             request: &request,
-            is_streaming,
+            upstream_model: &upstream_model,
         };
 
-        let outcome = match upstream.proxy(upstream_ctx).await {
+        let outcome = match upstream.send(outbound_ctx).await {
             Ok(o) => o,
             Err(e) => {
                 if let Err(audit_err) = audit.fail(&e.to_string()).await {
@@ -145,6 +149,8 @@ impl GatewayService {
             db.clone(),
             ai_request_id.clone(),
             policy,
+            inbound,
+            request.model.clone(),
         )
         .await;
         Ok(attach_request_id(response, &ai_request_id))
@@ -163,66 +169,56 @@ pub struct QuotaExceeded {
 }
 
 async fn finalize(
-    outcome: UpstreamOutcome,
+    outcome: OutboundOutcome,
     audit: Arc<GatewayAudit>,
     db: DbPool,
     ai_request_id: AiRequestId,
     policy: GatewayPolicySpec,
+    inbound: Arc<dyn InboundAdapter>,
+    request_model: String,
 ) -> Response<Body> {
     match outcome {
-        UpstreamOutcome::Buffered {
-            status,
-            content_type,
-            body,
-            served_model,
-        } => {
-            let body_clone = body.clone();
+        OutboundOutcome::Buffered(canonical) => {
+            let body_bytes = inbound.render_response(&canonical);
             let audit_clone = Arc::clone(&audit);
-            let served_model_clone = served_model.clone();
+            let canonical_for_task = canonical.clone();
+            let body_for_task = body_bytes.clone();
             tokio::spawn(async move {
-                if status.is_success() {
-                    if let Some(model) = served_model_clone.as_deref() {
-                        audit_clone.set_served_model(model).await;
-                    }
-                    let (usage, tool_calls) = parse::extract_from_anthropic_response(&body_clone);
-                    if let Err(e) = audit_clone.complete(usage, tool_calls, &body_clone).await {
-                        tracing::warn!(error = %e, "buffered audit complete failed");
-                    }
-                    quota::post_update_tokens(
-                        &db,
-                        quota::PostUpdateParams {
-                            tenant_id: audit_clone.ctx.tenant_id.as_ref(),
-                            user_id: &audit_clone.ctx.user_id,
-                            windows: &policy.quota_windows,
-                            input_tokens: usage.input_tokens,
-                            output_tokens: usage.output_tokens,
-                        },
-                    )
-                    .await;
-                    run_response_safety_scan(&db, &ai_request_id, &body_clone).await;
-                } else {
-                    let err_msg = format!(
-                        "upstream status {}: {}",
-                        status.as_u16(),
-                        String::from_utf8_lossy(&body_clone)
-                    );
-                    if let Err(e) = audit_clone.fail(&err_msg).await {
-                        tracing::warn!(error = %e, "buffered audit fail update failed");
-                    }
+                let served_model = canonical_for_task.model.clone();
+                if !served_model.is_empty() {
+                    audit_clone.set_served_model(&served_model).await;
                 }
+                let (usage, tool_calls) = parse::extract_from_canonical(&canonical_for_task);
+                if let Err(e) = audit_clone
+                    .complete(usage, tool_calls, &canonical_for_task, &body_for_task)
+                    .await
+                {
+                    tracing::warn!(error = %e, "buffered audit complete failed");
+                }
+                quota::post_update_tokens(
+                    &db,
+                    quota::PostUpdateParams {
+                        tenant_id: audit_clone.ctx.tenant_id.as_ref(),
+                        user_id: &audit_clone.ctx.user_id,
+                        windows: &policy.quota_windows,
+                        input_tokens: usage.input_tokens,
+                        output_tokens: usage.output_tokens,
+                    },
+                )
+                .await;
+                run_response_safety_scan(&db, &ai_request_id, &canonical_for_task).await;
             });
-            build_response(UpstreamOutcome::Buffered {
-                status,
-                content_type,
-                body,
-                served_model,
-            })
-        },
-        UpstreamOutcome::Streaming { status, stream } => {
-            let body = stream_tap::tap(stream, Arc::clone(&audit));
             Response::builder()
-                .status(status)
-                .header(http::header::CONTENT_TYPE, "text/event-stream")
+                .status(http::StatusCode::OK)
+                .header(http::header::CONTENT_TYPE, "application/json")
+                .body(Body::from(body_bytes))
+                .unwrap_or_else(|_| Response::new(Body::empty()))
+        },
+        OutboundOutcome::Streaming(stream) => {
+            let body = stream_tap::tap(stream, Arc::clone(&inbound), request_model, audit);
+            Response::builder()
+                .status(http::StatusCode::OK)
+                .header(http::header::CONTENT_TYPE, inbound.streaming_content_type())
                 .header("cache-control", "no-cache")
                 .header("x-accel-buffering", "no")
                 .body(body)
@@ -234,7 +230,7 @@ async fn finalize(
 async fn run_request_safety_scan(
     db: &DbPool,
     ai_request_id: &AiRequestId,
-    request: &AnthropicGatewayRequest,
+    request: &CanonicalRequest,
 ) {
     let scanner = HeuristicScanner;
     let findings = scanner.scan_request(request).await;
@@ -244,9 +240,13 @@ async fn run_request_safety_scan(
     persist_findings(db, ai_request_id, findings).await;
 }
 
-async fn run_response_safety_scan(db: &DbPool, ai_request_id: &AiRequestId, body: &[u8]) {
+async fn run_response_safety_scan(
+    db: &DbPool,
+    ai_request_id: &AiRequestId,
+    response: &CanonicalResponse,
+) {
     let scanner = HeuristicScanner;
-    let findings = scanner.scan_response_final(body).await;
+    let findings = scanner.scan_response_final(response).await;
     if findings.is_empty() {
         return;
     }

@@ -3,13 +3,17 @@
 // Best-effort: errors return up but caller logs and ignores. Never abort
 // the calling sync flow on registry write failure.
 pub fn refresh_managed_mcp_servers() -> Result<String, String> {
+    let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_string());
+    write_managed_mcp_servers_value(&value)
+}
+
+pub fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
     let elevated = crate::winproc::is_elevated();
     let key = if elevated {
         r"HKLM\SOFTWARE\Policies\Claude"
     } else {
         r"HKCU\SOFTWARE\Policies\Claude"
     };
-    let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_string());
     let status = crate::winproc::reg_command()
         .args([
             "add",
@@ -19,7 +23,7 @@ pub fn refresh_managed_mcp_servers() -> Result<String, String> {
             "/t",
             "REG_SZ",
             "/d",
-            &value,
+            value,
             "/f",
         ])
         .status()

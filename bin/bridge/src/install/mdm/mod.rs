@@ -26,6 +26,65 @@ pub fn refresh_managed_mcp_servers() -> Result<String, String> {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn write_empty_managed_mcp_servers() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        windows::write_managed_mcp_servers_value("[]")
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok("managedMcpServers clear skipped (non-Windows)".into())
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub struct ClaudeDesktopMdmSync;
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+impl crate::sync::host_sync::HostSync for ClaudeDesktopMdmSync {
+    fn host_id(&self) -> &'static str {
+        "claude-desktop"
+    }
+
+    fn apply(
+        &self,
+        _ctx: &crate::sync::host_sync::HostSyncCtx<'_>,
+    ) -> Result<(), crate::sync::ApplyError> {
+        match refresh_managed_mcp_servers() {
+            Ok(line) => {
+                tracing::info!(
+                    target: "bridge::mdm",
+                    written = %line,
+                    "managedMcpServers policy value refreshed"
+                );
+                Ok(())
+            },
+            Err(e) => Err(crate::sync::ApplyError::Io {
+                context: format!("mdm refresh: {e}"),
+                source: std::io::Error::other(e),
+            }),
+        }
+    }
+
+    fn clear(&self) -> Result<(), crate::sync::ApplyError> {
+        match write_empty_managed_mcp_servers() {
+            Ok(line) => {
+                tracing::info!(
+                    target: "bridge::mdm",
+                    written = %line,
+                    "managedMcpServers policy cleared"
+                );
+                Ok(())
+            },
+            Err(e) => Err(crate::sync::ApplyError::Io {
+                context: format!("mdm clear: {e}"),
+                source: std::io::Error::other(e),
+            }),
+        }
+    }
+}
+
 pub fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     match os {
         #[cfg(target_os = "windows")]

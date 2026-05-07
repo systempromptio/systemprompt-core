@@ -3,21 +3,20 @@
 //! Operations on the bridge's per-tenant OAuth client used to mint plugin-
 //! scoped hook tokens:
 //!
-//! - `status` — print the locally-stashed credentials (client_id, scopes,
-//!   token endpoint). The plaintext secret is never echoed.
+//! - `status` — print the locally-stashed credentials (client_id, scopes, token
+//!   endpoint). The plaintext secret is never echoed.
 //! - `rotate` — call `/v1/auth/bridge/oauth-client` to obtain a fresh
-//!   client_secret, persist it, and overwrite the cached value. Used when
-//!   the local creds file is suspected lost or the tenant operator wants
-//!   to invalidate any in-flight hook tokens.
+//!   client_secret, persist it, and overwrite the cached value. Used when the
+//!   local creds file is suspected lost or the tenant operator wants to
+//!   invalidate any in-flight hook tokens.
 
 use std::process::ExitCode;
 
-use crate::auth;
 use crate::auth::plugin_oauth;
 use crate::cli::output;
-use crate::config;
 use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
+use crate::{auth, config};
 
 pub(crate) fn cmd_oauth_client(args: &[String]) -> ExitCode {
     match args.get(2).map(String::as_str) {
@@ -25,9 +24,7 @@ pub(crate) fn cmd_oauth_client(args: &[String]) -> ExitCode {
         Some("rotate") => cmd_rotate(),
         Some(other) => {
             diag(&format!("unknown oauth-client subcommand: {other}"));
-            output::eprint_str(
-                "usage: systemprompt-bridge oauth-client [status | rotate]\n",
-            );
+            output::eprint_str("usage: systemprompt-bridge oauth-client [status | rotate]\n");
             ExitCode::from(64)
         },
     }
@@ -50,7 +47,9 @@ fn cmd_status() -> ExitCode {
             ExitCode::SUCCESS
         },
         Ok(None) => {
-            output::print_line("status: not provisioned (run `bridge sync` once or `oauth-client rotate`)");
+            output::print_line(
+                "status: not provisioned (run `bridge sync` once or `oauth-client rotate`)",
+            );
             ExitCode::SUCCESS
         },
         Err(e) => {

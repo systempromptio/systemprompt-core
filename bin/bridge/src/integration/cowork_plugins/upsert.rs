@@ -11,12 +11,12 @@ use serde_json::Value;
 
 use crate::fsutil;
 
+use super::emit::{CoworkTarget, EmitError};
 use super::{
     COWORK_SETTINGS_FILE, CoworkPluginsError, INSTALLED_PLUGINS_FILE, InstalledPluginEntry,
     KNOWN_MARKETPLACES_FILE, KnownMarketplaceEntry, LocalSource, MergeReport, enable_plugin,
     parse_root, parse_settings, render_settings, upsert_installed_plugin, upsert_known_marketplace,
 };
-use super::emit::{CoworkTarget, EmitError};
 
 pub(super) fn upsert_known(
     target: &CoworkTarget,

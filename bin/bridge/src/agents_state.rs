@@ -56,28 +56,15 @@ pub fn load() -> AgentsState {
     serde_json::from_slice(&bytes).unwrap_or_default()
 }
 
-pub fn store_exists() -> bool {
-    store_path().is_some_and(|p| p.exists())
-}
-
-pub fn migrate_from_existing_profiles() -> (AgentsState, Vec<String>) {
+pub fn save_from_manifest(enabled_hosts: &[String]) -> io::Result<()> {
     let mut state = AgentsState::default();
-    let mut migrated: Vec<String> = Vec::new();
-    for host in crate::integration::host_apps() {
-        let snap = host.probe();
-        let installed = matches!(
-            snap.profile_state,
-            crate::integration::ProfileState::Installed
-        );
-        if installed {
-            state.set_enabled(host.id(), true);
-            migrated.push(host.id().to_string());
-        }
+    for host in enabled_hosts {
+        state.set_enabled(host, true);
     }
-    (state, migrated)
+    save(&state)
 }
 
-pub fn save(state: &AgentsState) -> io::Result<()> {
+pub(crate) fn save(state: &AgentsState) -> io::Result<()> {
     let path = store_path()
         .ok_or_else(|| io::Error::other("no OS config directory available on this platform"))?;
     if let Some(parent) = path.parent() {

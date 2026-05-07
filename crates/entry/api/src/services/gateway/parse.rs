@@ -1,71 +1,35 @@
-use serde_json::Value;
-
 use super::captures::{CapturedToolUse, CapturedUsage};
+use super::protocol::canonical::CanonicalContent;
+use super::protocol::canonical_response::CanonicalResponse;
 
-pub fn extract_from_anthropic_response(bytes: &[u8]) -> (CapturedUsage, Vec<CapturedToolUse>) {
-    let Ok(value) = serde_json::from_slice::<Value>(bytes) else {
-        return (CapturedUsage::default(), Vec::new());
+pub fn extract_from_canonical(response: &CanonicalResponse) -> (CapturedUsage, Vec<CapturedToolUse>) {
+    let usage = CapturedUsage {
+        input_tokens: response.usage.input_tokens,
+        output_tokens: response.usage.output_tokens,
     };
-    extract_from_anthropic_value(&value)
+    let mut tool_calls = Vec::new();
+    for part in &response.content {
+        if let CanonicalContent::ToolUse { id, name, input } = part {
+            tool_calls.push(CapturedToolUse {
+                ai_tool_call_id: id.clone(),
+                tool_name: name.clone(),
+                tool_input: serde_json::to_string(input).unwrap_or_default(),
+            });
+        }
+    }
+    (usage, tool_calls)
 }
 
-pub fn extract_assistant_text(bytes: &[u8]) -> Option<String> {
-    let value = serde_json::from_slice::<Value>(bytes).ok()?;
-    let content = value.get("content")?.as_array()?;
+pub fn extract_assistant_text(response: &CanonicalResponse) -> Option<String> {
     let mut out = String::new();
-    for block in content {
-        if block.get("type").and_then(Value::as_str) == Some("text") {
-            if let Some(text) = block.get("text").and_then(Value::as_str) {
-                if !out.is_empty() {
-                    out.push('\n');
-                }
-                out.push_str(text);
+    for part in &response.content {
+        if let CanonicalContent::Text(t) = part {
+            if !out.is_empty() {
+                out.push('\n');
             }
+            out.push_str(t);
         }
     }
     if out.is_empty() { None } else { Some(out) }
 }
 
-pub fn extract_from_anthropic_value(value: &Value) -> (CapturedUsage, Vec<CapturedToolUse>) {
-    let usage = CapturedUsage {
-        input_tokens: value
-            .get("usage")
-            .and_then(|u| u.get("input_tokens"))
-            .and_then(Value::as_u64)
-            .unwrap_or(0) as u32,
-        output_tokens: value
-            .get("usage")
-            .and_then(|u| u.get("output_tokens"))
-            .and_then(Value::as_u64)
-            .unwrap_or(0) as u32,
-    };
-
-    let mut tool_calls = Vec::new();
-    if let Some(content) = value.get("content").and_then(Value::as_array) {
-        for block in content {
-            if block.get("type").and_then(Value::as_str) == Some("tool_use") {
-                let id = block
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_string();
-                let name = block
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_string();
-                let input = block
-                    .get("input")
-                    .map(|v| serde_json::to_string(v).unwrap_or_default())
-                    .unwrap_or_default();
-                tool_calls.push(CapturedToolUse {
-                    ai_tool_call_id: id,
-                    tool_name: name,
-                    tool_input: input,
-                });
-            }
-        }
-    }
-
-    (usage, tool_calls)
-}

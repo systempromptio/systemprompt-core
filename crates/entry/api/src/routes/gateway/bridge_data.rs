@@ -32,6 +32,44 @@ pub async fn load_revocations(ctx: &AppContext, user_id: &UserId) -> anyhow::Res
     Ok(ids)
 }
 
+pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> anyhow::Result<Vec<String>> {
+    let pool = ctx.db_pool().pool_arc()?;
+    let rows = sqlx::query!(
+        r#"
+        SELECT host_id FROM bridge_user_host_prefs
+        WHERE user_id = $1 AND enabled = true
+        ORDER BY host_id
+        "#,
+        user_id.as_str()
+    )
+    .fetch_all(&*pool)
+    .await?;
+    Ok(rows.into_iter().map(|r| r.host_id).collect())
+}
+
+pub async fn upsert_host_pref(
+    ctx: &AppContext,
+    user_id: &UserId,
+    host_id: &str,
+    enabled: bool,
+) -> anyhow::Result<()> {
+    let pool = ctx.db_pool().write_pool_arc()?;
+    sqlx::query!(
+        r#"
+        INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled, updated_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id, host_id)
+        DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = CURRENT_TIMESTAMP
+        "#,
+        user_id.as_str(),
+        host_id,
+        enabled,
+    )
+    .execute(&*pool)
+    .await?;
+    Ok(())
+}
+
 pub fn load_services_config() -> anyhow::Result<ServicesConfig> {
     ConfigLoader::load().map_err(|e| anyhow::anyhow!("services config load: {e}"))
 }

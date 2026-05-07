@@ -3,6 +3,7 @@ import { bridge } from "/assets/js/bridge.js";
 import { probeErrorMessage, isPendingResolved, renderGatewayForm } from "/assets/js/utils/gateway.js";
 
 const PERSIST_DEBOUNCE_MS = 600;
+const PENDING_TIMEOUT_MS = 15000;
 
 export class SpSetupGateway extends SpElement {
   constructor() {
@@ -16,6 +17,7 @@ export class SpSetupGateway extends SpElement {
     this._lastSavedGateway = "";
     this._debounce = null;
     this._pendingSince = 0;
+    this._pendingTimer = null;
     this.registerAction("connect", () => this._connect());
     this.registerAction("edit-pat", () => this._editPat());
     this.registerAction("input:gateway", (t) => this._onGatewayInput(t));
@@ -38,7 +40,18 @@ export class SpSetupGateway extends SpElement {
     this.bridgeSubscribe("state.changed", (s) => this._applySnapshot(s));
   }
 
-  onDisconnect() { if (this._debounce) { clearTimeout(this._debounce); } }
+  onDisconnect() {
+    if (this._debounce) { clearTimeout(this._debounce); }
+    this._clearPendingTimer();
+  }
+
+  _clearPendingTimer() {
+    if (this._pendingTimer) { clearTimeout(this._pendingTimer); this._pendingTimer = null; }
+  }
+
+  _resolvePending() {
+    this.pending = false; this._pendingSince = 0; this._clearPendingTimer();
+  }
 
   _applySnapshot(snap) {
     this.snapshot = snap;
@@ -54,7 +67,7 @@ export class SpSetupGateway extends SpElement {
       this.pat = ""; this.patSaved = false;
     }
     if (this.pending && isPendingResolved(snap, this._pendingSince)) {
-      this.pending = false; this._pendingSince = 0;
+      this._resolvePending();
     }
     const newError = probeErrorMessage(snap);
     if (newError) { this.error = newError; }
@@ -90,16 +103,23 @@ export class SpSetupGateway extends SpElement {
     if (!/^https?:\/\//i.test(gw)) { this.error = "Gateway URL must start with http:// or https://"; this.invalidate(); return; }
     this._lastSavedGateway = gw;
     this.pending = true; this._pendingSince = Date.now(); this.error = ""; this.invalidate();
+    this._clearPendingTimer();
+    this._pendingTimer = setTimeout(() => {
+      if (!this.pending) { return; }
+      this._resolvePending();
+      if (!this.error) { this.error = "Connection attempt timed out."; }
+      this.invalidate();
+    }, PENDING_TIMEOUT_MS);
     try {
       if (this.patSaved) { await bridge.gatewayProbe(); }
       else {
         const token = (this.pat || "").trim();
-        if (!token) { this.error = "Paste your personal access token."; this.pending = false; this._pendingSince = 0; this.invalidate(); return; }
+        if (!token) { this.error = "Paste your personal access token."; this._resolvePending(); this.invalidate(); return; }
         await bridge.login(token, gw);
       }
     } catch (err) {
       this.error = `${this.patSaved ? "Probe" : "Login"} failed: ${(err && err.message) || err}`;
-      this.pending = false; this._pendingSince = 0; this.invalidate();
+      this._resolvePending(); this.invalidate();
     }
   }
 

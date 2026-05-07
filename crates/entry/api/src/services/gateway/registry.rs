@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
-use super::upstream::{
-    AnthropicCompatibleUpstream, GatewayUpstream, GatewayUpstreamRegistration,
-    OpenAiCompatibleUpstream,
-};
+use super::protocol::outbound::anthropic::AnthropicOutbound;
+use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
+use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
+use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
 
 pub struct GatewayUpstreamRegistry {
-    entries: HashMap<String, Arc<dyn GatewayUpstream>>,
+    entries: HashMap<String, Arc<dyn OutboundAdapter>>,
 }
 
 impl std::fmt::Debug for GatewayUpstreamRegistry {
@@ -24,7 +24,7 @@ impl GatewayUpstreamRegistry {
         REGISTRY.get_or_init(Self::build)
     }
 
-    pub fn get(&self, tag: &str) -> Option<&Arc<dyn GatewayUpstream>> {
+    pub fn get(&self, tag: &str) -> Option<&Arc<dyn OutboundAdapter>> {
         self.entries.get(tag)
     }
 
@@ -33,18 +33,20 @@ impl GatewayUpstreamRegistry {
     }
 
     fn build() -> Self {
-        let mut entries: HashMap<String, Arc<dyn GatewayUpstream>> = HashMap::new();
+        let mut entries: HashMap<String, Arc<dyn OutboundAdapter>> = HashMap::new();
 
-        let anthropic: Arc<dyn GatewayUpstream> = Arc::new(AnthropicCompatibleUpstream);
-        let openai: Arc<dyn GatewayUpstream> = Arc::new(OpenAiCompatibleUpstream);
+        let anthropic: Arc<dyn OutboundAdapter> = Arc::new(AnthropicOutbound);
+        let openai: Arc<dyn OutboundAdapter> = Arc::new(OpenAiChatOutbound);
+        let responses: Arc<dyn OutboundAdapter> = Arc::new(OpenAiResponsesOutbound);
 
         entries.insert("anthropic".to_string(), Arc::clone(&anthropic));
         entries.insert("minimax".to_string(), Arc::clone(&anthropic));
         entries.insert("openai".to_string(), Arc::clone(&openai));
         entries.insert("moonshot".to_string(), Arc::clone(&openai));
         entries.insert("qwen".to_string(), Arc::clone(&openai));
+        entries.insert("openai-responses".to_string(), Arc::clone(&responses));
 
-        for registration in inventory::iter::<GatewayUpstreamRegistration> {
+        for registration in inventory::iter::<OutboundAdapterRegistration> {
             let tag = registration.tag.to_string();
             if entries.contains_key(&tag) {
                 tracing::warn!(

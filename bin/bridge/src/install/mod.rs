@@ -2,7 +2,7 @@ mod apply;
 mod bootstrap;
 mod builders;
 mod error;
-mod mdm;
+pub(crate) mod mdm;
 mod schedule_emit;
 mod summary;
 #[cfg(target_os = "macos")]

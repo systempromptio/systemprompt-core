@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::Response;
 
 use crate::services::gateway::GatewayService;
 use crate::services::gateway::audit::GatewayRequestContext;
+use crate::services::gateway::protocol::inbound::InboundAdapter;
 
 use super::RequestContext;
 use super::extract::PreparedRequest;
 
 pub(super) async fn dispatch_to_provider(
     rc: &RequestContext<'_>,
+    inbound: Arc<dyn InboundAdapter>,
     prepared: PreparedRequest,
 ) -> Result<Response<Body>, (StatusCode, String)> {
     let PreparedRequest {
@@ -23,7 +27,7 @@ pub(super) async fn dispatch_to_provider(
     } = prepared;
 
     let max_tokens = gateway_request.max_tokens;
-    let is_streaming = gateway_request.stream.unwrap_or(false);
+    let is_streaming = gateway_request.stream;
 
     let gateway_ctx = GatewayRequestContext {
         ai_request_id: rc.ai_request_id.clone(),
@@ -36,6 +40,7 @@ pub(super) async fn dispatch_to_provider(
         model: upstream_model,
         max_tokens: Some(max_tokens),
         is_streaming,
+        wire_protocol: inbound.wire_name().to_string(),
     };
 
     let gateway_config = rc
@@ -49,6 +54,7 @@ pub(super) async fn dispatch_to_provider(
         gateway_request,
         body_bytes,
         gateway_ctx,
+        inbound,
         rc.ctx.db_pool(),
     )
     .await

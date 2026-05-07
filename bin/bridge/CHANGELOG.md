@@ -4,6 +4,16 @@
 
 ### Added
 
+- **`HostSync` trait + central dispatcher (`sync/host_sync.rs`).** Every bridge integration that materialises manifest data on disk (Cowork synthetic plugin, Codex managed resources, Windows MDM, …) implements one `HostSync` trait with `apply` / `clear` methods. The dispatcher in `sync::apply` walks the static `registry()`, decides per-host whether to call `apply` or `clear` based on the manifest's `enabled_hosts` field, and uniformly logs each outcome — emitter authors no longer reinvent the toggle-and-cleanup gate. Replaces the imperative pile of "call `cowork::publish` then `mdm::reconcile` then …" in `sync::apply::mod`.
+- **Codex CLI host emitter (`integration/codex_cli/managed_resources.rs`).** Implements `HostSync` for Codex: writes manifest-supplied MCP servers as `[mcp_servers.sp_<slug>]` blocks into the host's managed config TOML (preserving non-MCP keys like `model_provider`, `otel`, `analytics`), and skills as `~/.codex/skills/sp-<id>/SKILL.md`. The bridge owns every `sp_` (TOML) / `sp-` (skills) prefix and rewrites the full set on each sync; user-authored entries without those prefixes are left untouched.
+- **GUI: per-host enable toggle posts to gateway (`gui/handlers/agents.rs::on_set_enabled_host_requested`).** New IPC entrypoint sends `POST /v1/bridge/enabled-hosts` with the host id and desired state, then emits `UiEvent::SetEnabledHostFinished`. The GUI no longer mutates local `agents.json` directly — host enable state is a profile fact owned by the gateway and arrives back through the next signed manifest. Matches the broader rule that host enable state lives in the user profile, not local toggles.
+
+### Changed
+
+- **`agents_state` simplified.** `migrate_from_existing_profiles` (which probed every registered host on startup) and `store_exists` are gone. Replaced by `save_from_manifest(enabled_hosts: &[String])`, called from `sync::apply` whenever a new signed manifest is applied. `save` is now `pub(crate)`. The first-run "auto-enable everything that looks installed" migration is no longer needed because the manifest is authoritative.
+
+### Added
+
 - **Cowork plugin sync (`integration/cowork_plugins/`).** Per-plugin marketplace publish into the active `<session>/<org>/cowork_plugins/` tree: marketplace upsert, installed-plugin upsert, enabled-settings upsert (foreign-entry preservation throughout), plus a per-plugin `claude-plugin/plugin.json` patch that wires `hooks/hooks.json`. Reverse `unpublish` path included.
 - **OAuth hook-token client (`auth/plugin_oauth.rs`).** Per-tenant OAuth client + plugin-scoped hook-token cache. `client_secret` is stored in the OS keystore (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux) via the `keyring` crate; only `client_id`, `token_endpoint`, and `scopes` remain on disk. Legacy 0600 JSON files containing `client_secret` are transparently migrated into the keystore on first read.
 - **Typed `hooks.json` schema (`sync/apply/hooks_schema.rs`).** `HooksFile`/`HookEntry`/`HookKind` replace the prior `serde_json::json!` literal in `sync/apply/hooks.rs::write_hooks_json`.

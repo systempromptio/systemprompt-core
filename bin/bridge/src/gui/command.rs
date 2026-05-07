@@ -258,7 +258,7 @@ fn agent_dispatch(
     reply_id: ReplyId,
 ) -> Option<CommandOutcome> {
     Some(match cmd {
-        "agents.setEnabled" => agents_set_enabled(app, args),
+        "agents.setEnabled" => agents_set_enabled(app, args, reply_id),
         "agent.uninstall" => match parse::<HostIdArgs>(args) {
             Ok(a) => {
                 send(
@@ -402,7 +402,7 @@ fn host_profile_install(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> Com
     }
 }
 
-fn agents_set_enabled(app: &mut GuiApp, args: Value) -> CommandOutcome {
+fn agents_set_enabled(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     let a = match parse::<AgentEnabledArgs>(args) {
         Ok(a) => a,
         Err(e) => return CommandOutcome::Sync(Err(e)),
@@ -414,37 +414,15 @@ fn agents_set_enabled(app: &mut GuiApp, args: Value) -> CommandOutcome {
             format!("unknown host: {}", a.host_id),
         )));
     }
-    if app.state.is_host_enabled(&a.host_id) == a.enabled {
-        return CommandOutcome::Sync(Ok(
-            json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": false }),
-        ));
-    }
-    if let Err(e) = app.state.set_host_enabled(&a.host_id, a.enabled) {
-        return CommandOutcome::Sync(Err(BridgeError::new(
-            ErrorScope::Internal,
-            ErrorCode::Internal,
-            format!("persist agents state: {e}"),
-        )));
-    }
-    app.append_log(format!(
-        "[{}] agent {}",
-        a.host_id,
-        if a.enabled { "enabled" } else { "disabled" }
-    ));
-    if a.enabled {
-        send(
-            app,
-            UiEvent::Host(HostUiEvent::ProbeRequested {
-                host_id: a.host_id.clone(),
-                cause: ProbeCause::Manual,
-                reply_to: None,
-            }),
-        );
-    }
-    crate::gui::emit::emit_state(app);
-    CommandOutcome::Sync(Ok(
-        json!({ "hostId": a.host_id, "enabled": a.enabled, "changed": true }),
-    ))
+    send(
+        app,
+        UiEvent::SetEnabledHostRequested {
+            host_id: a.host_id,
+            enabled: a.enabled,
+            reply_to: reply_id,
+        },
+    );
+    CommandOutcome::Async
 }
 
 fn parse<T: serde::de::DeserializeOwned>(args: Value) -> Result<T, BridgeError> {

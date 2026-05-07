@@ -53,8 +53,12 @@ export class SpMarketplace extends SpElement {
     this.registerAction("input:search", (trigger) => {
       this.search = trigger.value || "";
       this.selectedId = null;
+      this._pushChildState();
     });
-    this.addEventListener("mkt-select", (e) => { this.selectedId = e.detail.id; });
+    this.addEventListener("mkt-select", (e) => {
+      this.selectedId = e.detail.id;
+      this._pushChildState();
+    });
   }
 
   onConnect() {
@@ -68,6 +72,10 @@ export class SpMarketplace extends SpElement {
   }
 
   afterRender() {
+    this._pushChildState();
+  }
+
+  _pushChildState() {
     const list = this.querySelector("sp-marketplace-list");
     const detail = this.querySelector("sp-marketplace-detail");
     const items = (this.listing && this.listing[this.kind]) || [];
@@ -134,5 +142,5 @@ export class SpMarketplace extends SpElement {
   }
 }
 
-reactive(SpMarketplace.prototype, ["snapshot", "listing", "kind", "selectedId", "search"]);
+reactive(SpMarketplace.prototype, ["snapshot", "listing", "kind"]);
 customElements.define("sp-marketplace", SpMarketplace);

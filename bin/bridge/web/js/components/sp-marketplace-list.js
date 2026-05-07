@@ -31,6 +31,22 @@ export class SpMarketplaceList extends SpElement {
     });
   }
 
+  set selectedId(v) {
+    if (this._selectedId === v) { return; }
+    this._selectedId = v;
+    this._syncSelection();
+  }
+  get selectedId() { return this._selectedId; }
+
+  _syncSelection() {
+    const id = this._selectedId;
+    for (const li of this.querySelectorAll(".sp-mkt-item")) {
+      li.setAttribute("aria-selected", li.dataset.id === id ? "true" : "false");
+    }
+  }
+
+  afterRender() { this._syncSelection(); }
+
   render() {
     const items = filterItems(this.items || [], this.search);
     if (items.length === 0) {
@@ -38,13 +54,12 @@ export class SpMarketplaceList extends SpElement {
       return `<ul class="sp-mkt-items"><li class="sp-mkt-empty--with-sync"><span class="sp-mkt-empty__title">${escapeHtml(title)}</span></li></ul>`;
     }
     return `<ul class="sp-mkt-items">${items.map((it, i) => {
-      const selected = it.id === this.selectedId ? "true" : "false";
       const sourceChip = it.source
         ? `<span class="sp-mkt-chip" data-tone="${it.source === "local" ? "" : "accent"}">${escapeHtml(it.source)}</span>`
         : "";
       const meta = it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
       return `
-        <li class="sp-mkt-item" data-id="${escapeHtml(it.id)}" aria-selected="${selected}" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
+        <li class="sp-mkt-item" data-id="${escapeHtml(it.id)}" aria-selected="false" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
           <div class="sp-mkt-item__row">
             <span class="sp-mkt-item__name">${escapeHtml(it.name || it.id)}</span>
             ${sourceChip}
@@ -56,5 +71,5 @@ export class SpMarketplaceList extends SpElement {
   }
 }
 
-reactive(SpMarketplaceList.prototype, ["items", "search", "selectedId", "kind"]);
+reactive(SpMarketplaceList.prototype, ["items", "search", "kind"]);
 customElements.define("sp-marketplace-list", SpMarketplaceList);

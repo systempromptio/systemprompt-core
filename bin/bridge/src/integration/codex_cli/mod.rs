@@ -1,6 +1,9 @@
 mod config;
 mod install;
+mod managed_resources;
 mod probe;
+
+pub use managed_resources::CodexCliSync;
 
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,

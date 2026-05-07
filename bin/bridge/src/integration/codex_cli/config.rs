@@ -10,9 +10,9 @@ pub(super) const PROVIDER_AUTH_REFRESH: &str =
     "model_providers.systemprompt.auth.refresh_interval_ms";
 pub(super) const PROVIDER_HEADER_TENANT: &str =
     "model_providers.systemprompt.http_headers.x-tenant";
-pub(super) const OTEL_EXPORTER: &str = "otel.exporter";
 pub(super) const OTEL_LOG_USER_PROMPT: &str = "otel.log_user_prompt";
-pub(super) const OTEL_ENDPOINT: &str = "otel.exporter.systemprompt.endpoint";
+pub(super) const OTEL_ENDPOINT: &str = "otel.exporter.otlp-http.endpoint";
+pub(super) const OTEL_PROTOCOL: &str = "otel.exporter.otlp-http.protocol";
 pub(super) const ANALYTICS_ENABLED: &str = "analytics.enabled";
 pub(super) const TOP_MODEL_PROVIDER: &str = "model_provider";
 
@@ -22,9 +22,9 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     PROVIDER_AUTH_COMMAND,
     PROVIDER_AUTH_REFRESH,
     PROVIDER_HEADER_TENANT,
-    OTEL_EXPORTER,
     OTEL_LOG_USER_PROMPT,
     OTEL_ENDPOINT,
+    OTEL_PROTOCOL,
     ANALYTICS_ENABLED,
     TOP_MODEL_PROVIDER,
 ];

@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::Path;
 
 use super::config::{
-    self, ANALYTICS_ENABLED, OTEL_ENDPOINT, OTEL_EXPORTER, OTEL_LOG_USER_PROMPT,
+    self, ANALYTICS_ENABLED, OTEL_ENDPOINT, OTEL_LOG_USER_PROMPT, OTEL_PROTOCOL,
     PROVIDER_AUTH_COMMAND, PROVIDER_AUTH_REFRESH, PROVIDER_BASE_URL, PROVIDER_HEADER_TENANT,
     PROVIDER_WIRE_API, TOP_MODEL_PROVIDER,
 };
@@ -149,11 +149,6 @@ fn render_managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String> {
     }
     write_dotted(
         &mut value,
-        OTEL_EXPORTER,
-        toml::Value::String("otlp-http".to_string()),
-    );
-    write_dotted(
-        &mut value,
         OTEL_LOG_USER_PROMPT,
         toml::Value::Boolean(false),
     );
@@ -164,7 +159,7 @@ fn render_managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String> {
     );
     write_dotted(
         &mut value,
-        "otel.exporter.systemprompt.protocol",
+        OTEL_PROTOCOL,
         toml::Value::String("binary".to_string()),
     );
     write_dotted(&mut value, ANALYTICS_ENABLED, toml::Value::Boolean(false));

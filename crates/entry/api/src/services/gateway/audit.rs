@@ -17,8 +17,9 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TenantId, TraceId, UserId};
 
 use super::captures::{CapturedToolUse, CapturedUsage};
-use super::models::AnthropicGatewayRequest;
 use super::pricing;
+use super::protocol::canonical::{CanonicalContent, CanonicalRequest, Role};
+use super::protocol::canonical_response::CanonicalResponse;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -33,6 +34,7 @@ pub struct GatewayRequestContext {
     pub model: String,
     pub max_tokens: Option<u32>,
     pub is_streaming: bool,
+    pub wire_protocol: String,
 }
 
 #[allow(missing_debug_implementations)]
@@ -114,7 +116,7 @@ impl GatewayAudit {
 
     pub async fn open(
         &self,
-        request: &AnthropicGatewayRequest,
+        request: &CanonicalRequest,
         request_body: &Bytes,
     ) -> Result<()> {
         let record = self.build_record()?;
@@ -144,13 +146,13 @@ impl GatewayAudit {
         Ok(())
     }
 
-    async fn persist_request_messages(&self, request: &AnthropicGatewayRequest) {
+    async fn persist_request_messages(&self, request: &CanonicalRequest) {
         let mut seq = 0i32;
-        if let Some(system) = request.system.as_ref() {
-            if let Some(text) = super::flatten::flatten_system_prompt(system) {
+        if let Some(system) = &request.system {
+            if !system.is_empty() {
                 if let Err(e) = self
                     .requests
-                    .insert_message(&self.ctx.ai_request_id, "system", &text, seq)
+                    .insert_message(&self.ctx.ai_request_id, "system", system, seq)
                     .await
                 {
                     tracing::warn!(error = %e, "insert system message failed");
@@ -159,10 +161,16 @@ impl GatewayAudit {
             }
         }
         for msg in &request.messages {
-            let text = super::flatten::flatten_message_content(&msg.content);
+            let role = match msg.role {
+                Role::System => "system",
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::Tool => "tool",
+            };
+            let text = flatten_message_content(&msg.content);
             if let Err(e) = self
                 .requests
-                .insert_message(&self.ctx.ai_request_id, &msg.role, &text, seq)
+                .insert_message(&self.ctx.ai_request_id, role, &text, seq)
                 .await
             {
                 tracing::warn!(error = %e, seq, "insert message failed");
@@ -175,6 +183,7 @@ impl GatewayAudit {
         &self,
         usage: CapturedUsage,
         tool_calls: Vec<CapturedToolUse>,
+        response: &CanonicalResponse,
         response_body: &Bytes,
     ) -> Result<()> {
         let latency_ms = self.started_at.elapsed().as_millis().min(i32::MAX as u128) as i32;
@@ -213,7 +222,7 @@ impl GatewayAudit {
             tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "payload insert (response) failed");
         }
 
-        if let Some(assistant_text) = super::parse::extract_assistant_text(response_body) {
+        if let Some(assistant_text) = super::parse::extract_assistant_text(response) {
             if let Err(e) = self
                 .requests
                 .add_response_message(&self.ctx.ai_request_id, &assistant_text)
@@ -228,6 +237,7 @@ impl GatewayAudit {
             user_id = %self.ctx.user_id,
             provider = %self.ctx.provider,
             model = %effective_model,
+            wire_protocol = %self.ctx.wire_protocol,
             input_tokens = usage.input_tokens,
             output_tokens = usage.output_tokens,
             cost_microdollars = cost,
@@ -276,4 +286,36 @@ impl GatewayAudit {
         );
         Ok(())
     }
+}
+
+fn flatten_message_content(parts: &[CanonicalContent]) -> String {
+    let mut out = String::new();
+    for part in parts {
+        match part {
+            CanonicalContent::Text(t) => push_with_sep(&mut out, t),
+            CanonicalContent::Thinking { text, .. } => push_with_sep(&mut out, text),
+            CanonicalContent::ToolUse { name, input, .. } => {
+                push_with_sep(&mut out, &format!("[tool_use:{name} {input}]"));
+            },
+            CanonicalContent::ToolResult { content, .. } => {
+                for inner in content {
+                    if let CanonicalContent::Text(t) = inner {
+                        push_with_sep(&mut out, t);
+                    }
+                }
+            },
+            CanonicalContent::Image(_) => {},
+        }
+    }
+    out
+}
+
+fn push_with_sep(out: &mut String, fragment: &str) {
+    if fragment.is_empty() {
+        return;
+    }
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out.push_str(fragment);
 }

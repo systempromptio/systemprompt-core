@@ -53,6 +53,7 @@ pub(crate) fn on_gateway_probe_finished(
     app.state.apply_probe(outcome);
     app.refresh_ui();
     emit::emit_gateway_changed(app);
+    emit::emit_state(app);
 
     let Some(id) = reply_to else {
         if let Err(err) = bridge_result {

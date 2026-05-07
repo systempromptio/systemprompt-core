@@ -3,7 +3,8 @@ pub mod null;
 
 use async_trait::async_trait;
 
-use super::models::AnthropicGatewayRequest;
+use super::protocol::canonical::CanonicalRequest;
+use super::protocol::canonical_response::CanonicalResponse;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
@@ -34,8 +35,8 @@ pub struct Finding {
 #[async_trait]
 pub trait SafetyScanner: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn scan_request(&self, req: &AnthropicGatewayRequest) -> Vec<Finding>;
-    async fn scan_response_final(&self, body: &[u8]) -> Vec<Finding>;
+    async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding>;
+    async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding>;
 }
 
 pub use heuristic::HeuristicScanner;

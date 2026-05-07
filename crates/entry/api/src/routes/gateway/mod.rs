@@ -17,6 +17,10 @@ use systemprompt_database::DbPool;
 use systemprompt_logging::{LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::AppContext;
 
+use crate::services::gateway::protocol::inbound::{
+    InboundAdapter, anthropic_messages::AnthropicMessagesInbound,
+    openai_responses::OpenAiResponsesInbound,
+};
 use crate::services::middleware::JwtContextExtractor;
 
 async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Next) -> Response {
@@ -81,15 +85,22 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let jwt_extractor = Arc::new(JwtContextExtractor::new(jwt_secret, ctx.db_pool()));
 
     let ctx_messages = ctx.clone();
+    let ctx_responses = ctx.clone();
     let ctx_pat = ctx.clone();
     let ctx_session = ctx.clone();
     let ctx_mtls = ctx.clone();
     let ctx_heartbeat = ctx.clone();
     let ctx_manifest = ctx.clone();
     let ctx_oauth_client = ctx.clone();
+    let ctx_enabled_hosts = ctx.clone();
     let jwt_heartbeat = Arc::clone(&jwt_extractor);
     let jwt_manifest = Arc::clone(&jwt_extractor);
     let jwt_oauth_client = Arc::clone(&jwt_extractor);
+    let jwt_enabled_hosts = Arc::clone(&jwt_extractor);
+    let jwt_responses = Arc::clone(&jwt_extractor);
+
+    let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
+    let responses_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiResponsesInbound);
 
     let router = Router::new()
         .route(
@@ -97,7 +108,17 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             post(move |request| {
                 let extractor = Arc::clone(&jwt_extractor);
                 let context = ctx_messages.clone();
-                async move { messages::handle(extractor, context, request).await }
+                let inbound = Arc::clone(&anthropic_inbound);
+                async move { messages::handle(inbound, extractor, context, request).await }
+            }),
+        )
+        .route(
+            "/responses",
+            post(move |request| {
+                let extractor = Arc::clone(&jwt_responses);
+                let context = ctx_responses.clone();
+                let inbound = Arc::clone(&responses_inbound);
+                async move { messages::handle(inbound, extractor, context, request).await }
             }),
         )
         .route(
@@ -138,6 +159,14 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
                 let extractor = Arc::clone(&jwt_manifest);
                 let context = ctx_manifest.clone();
                 async move { bridge::manifest(extractor, context, headers).await }
+            }),
+        )
+        .route(
+            "/bridge/profile/enabled_hosts",
+            post(move |headers, body| {
+                let extractor = Arc::clone(&jwt_enabled_hosts);
+                let context = ctx_enabled_hosts.clone();
+                async move { bridge::set_enabled_host(extractor, context, headers, body).await }
             }),
         )
         .route(

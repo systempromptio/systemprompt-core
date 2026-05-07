@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use serde_json::{Value, json};
 
 use crate::gui::GuiApp;
@@ -64,9 +66,16 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
     send_emit(app, "sync.progress", &value);
 }
 
-pub(crate) fn emit_state(app: &GuiApp) {
+pub(crate) fn emit_state(app: &mut GuiApp) {
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::snapshot_value(&snap);
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    value.to_string().hash(&mut hasher);
+    let hash = hasher.finish();
+    if app.last_state_hash == Some(hash) {
+        return;
+    }
+    app.last_state_hash = Some(hash);
     send_emit(app, "state.changed", &value);
 }
 

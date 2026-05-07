@@ -4,7 +4,7 @@ use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use chrono::{Duration, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use systemprompt_agent::repository::content::{AgentRepository, SkillRepository};
@@ -22,6 +22,46 @@ use uuid::Uuid;
 use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
+
+#[derive(Debug, Deserialize)]
+pub struct EnabledHostsRequest {
+    pub host_id: String,
+    pub enabled: bool,
+}
+
+pub async fn set_enabled_host(
+    jwt_extractor: Arc<JwtContextExtractor>,
+    ctx: AppContext,
+    headers: HeaderMap,
+    Json(body): Json<EnabledHostsRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let credential = extract_credential(&headers).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Missing Authorization or x-api-key credential".to_string(),
+        )
+    })?;
+    let claims = jwt_extractor
+        .decode_for_gateway(&JwtToken::new(credential))
+        .await
+        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+
+    if !KNOWN_HOSTS.iter().any(|h| *h == body.host_id) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("unknown host: {}", body.host_id),
+        ));
+    }
+
+    bridge_data::upsert_host_pref(&ctx, &claims.user_id, &body.host_id, body.enabled)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(json!({
+        "host_id": body.host_id,
+        "enabled": body.enabled,
+    })))
+}
 
 pub async fn pubkey() -> impl IntoResponse {
     match manifest_signing::pubkey_b64() {
@@ -107,6 +147,13 @@ struct CanonicalView<'a> {
     agents: &'a [AgentEntry],
     managed_mcp_servers: &'a [ManagedMcpServer],
     revocations: &'a [String],
+    enabled_hosts: &'a [String],
+}
+
+const KNOWN_HOSTS: &[&str] = &["claude-code", "claude-desktop", "cowork", "codex-cli"];
+
+fn default_enabled_hosts() -> Vec<String> {
+    KNOWN_HOSTS.iter().map(|s| (*s).to_string()).collect()
 }
 
 pub async fn manifest(
@@ -196,6 +243,18 @@ pub async fn manifest(
         },
     };
 
+    let enabled_hosts = match bridge_data::load_enabled_hosts(&ctx, &claims.user_id).await {
+        Ok(rows) if rows.is_empty() => default_enabled_hosts(),
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "manifest: enabled_hosts load failed; defaulting to all known hosts"
+            );
+            default_enabled_hosts()
+        },
+    };
+
     let canonical = CanonicalView {
         manifest_version: &manifest_version,
         issued_at: &issued_at,
@@ -208,6 +267,7 @@ pub async fn manifest(
         agents: &agents,
         managed_mcp_servers: &managed_mcp_servers,
         revocations: &revocations,
+        enabled_hosts: &enabled_hosts,
     };
 
     let signature = manifest_signing::sign_value(&canonical).map_err(|e| {
@@ -230,6 +290,7 @@ pub async fn manifest(
         agents,
         managed_mcp_servers,
         revocations,
+        enabled_hosts,
         signature: ManifestSignature::new(signature),
     }))
 }

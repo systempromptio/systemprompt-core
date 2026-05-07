@@ -53,8 +53,8 @@ pub fn snapshot() -> Arc<McpRegistry> {
     slot().load_full()
 }
 
-// Must be stable + deterministic so the synthetic plugin writer and the proxy router agree on
-// the key for `/mcp/<slug>` routing.
+// Must be stable + deterministic so the synthetic plugin writer and the proxy
+// router agree on the key for `/mcp/<slug>` routing.
 #[must_use]
 pub fn normalize_key(name: &str) -> String {
     let mut out = String::with_capacity(name.len());

@@ -1,3 +1,10 @@
+sp-marketplace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-6);
+  flex: 1;
+  min-height: 0;
+}
 .sp-mkt {
   display: grid;
   grid-template-columns: 208px 288px minmax(0, 1fr);
