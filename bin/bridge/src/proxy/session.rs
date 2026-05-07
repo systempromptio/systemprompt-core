@@ -101,8 +101,25 @@ struct ProbeMessage {
 
 impl PrefixProbe {
     fn first_turn(&self) -> Option<(Option<String>, String, String)> {
-        let system = system_text(self.system.as_ref()).or_else(|| self.instructions.clone());
         let messages = self.messages.as_deref().or(self.input.as_deref())?;
+        let inline_system = messages
+            .iter()
+            .filter(|m| {
+                m.role
+                    .as_deref()
+                    .is_some_and(|r| r.eq_ignore_ascii_case("system"))
+            })
+            .map(|m| content_text(m.content.as_ref()))
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>();
+        let inline_system = if inline_system.is_empty() {
+            None
+        } else {
+            Some(inline_system.join("\n"))
+        };
+        let system = system_text(self.system.as_ref())
+            .or_else(|| self.instructions.clone())
+            .or(inline_system);
         let first = messages.iter().find(|m| {
             m.role
                 .as_deref()

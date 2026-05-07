@@ -12,6 +12,7 @@ fn route(pattern: &str) -> GatewayRoute {
         api_key_secret: "secret".to_string(),
         upstream_model: None,
         extra_headers: HashMap::new(),
+        pricing: None,
     }
 }
 
@@ -44,6 +45,7 @@ fn route_finds_matching_model() {
             api_key_secret: "moonshot".to_string(),
             upstream_model: Some("moonshot-v1-32k".to_string()),
             extra_headers: HashMap::new(),
+            pricing: None,
         }],
         ..GatewayConfig::default()
     };
