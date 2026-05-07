@@ -30,10 +30,7 @@ impl std::fmt::Debug for AppContextBuilder {
         f.debug_struct("AppContextBuilder")
             .field("extension_registry", &self.extension_registry.is_some())
             .field("show_startup_warnings", &self.show_startup_warnings)
-            .field(
-                "marketplace_filter",
-                &self.marketplace_filter.is_some(),
-            )
+            .field("marketplace_filter", &self.marketplace_filter.is_some())
             .finish()
     }
 }
@@ -149,7 +146,9 @@ impl AppContextBuilder {
     }
 }
 
-fn build_marketplace_filter(database: &systemprompt_database::DbPool) -> Arc<dyn MarketplaceFilter> {
+fn build_marketplace_filter(
+    database: &systemprompt_database::DbPool,
+) -> Arc<dyn MarketplaceFilter> {
     for reg in discover_filters() {
         match (reg.factory)(database) {
             Ok(filter) => {
