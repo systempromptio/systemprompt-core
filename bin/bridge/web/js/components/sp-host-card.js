@@ -1,6 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
+import { fmtRelative } from "/assets/js/utils/format.js";
 
 function chooseBadge(installed, partial, proxyState) {
   if (!installed) { return { text: t("host-badge-not-installed") || "not installed", cls: "sp-badge--warn" }; }
@@ -22,7 +23,7 @@ export class SpHostCard extends SpElement {
     });
     this.registerAction("install", async () => {
       if (this.host && this.host.last_generated_profile) {
-        try { await bridge.hostProfileInstall(this.host.id, this.host.last_generated_profile); } catch (e) { console.warn("install", e); }
+        try { await bridge.hostProfileInstall(this.host.id, this.host.last_generated_profile.path); } catch (e) { console.warn("install", e); }
       }
     });
     this.registerAction("reverify", async () => {
@@ -66,9 +67,46 @@ export class SpHostCard extends SpElement {
     const showJwtWarn = snap.cached_token && snap.cached_token.ttl_seconds < 600 && installed;
     const jwtWarnText = showJwtWarn ? (t("host-jwt-warn", { ttl: snap.cached_token.ttl_seconds }) || `JWT expires in ${snap.cached_token.ttl_seconds}s`) : "";
 
-    const installDisabled = !host.last_generated_profile;
-    const installTitle = installDisabled ? "Generate first" : (host.last_generated_profile || "");
+    const lastGen = host.last_generated_profile || null;
+    const installDisabled = !lastGen;
+    const installTitle = installDisabled ? "Generate first" : (lastGen.path || "");
     const jwtBlock = showJwtWarn ? `<div class="sp-claude__warn">${escapeHtml(jwtWarnText)}</div>` : "";
+
+    const processLines = (hs && Array.isArray(hs.host_processes) && hs.host_processes.length)
+      ? hs.host_processes.map((p) => escapeHtml(p)).join("<br>")
+      : escapeHtml(runningDetail);
+
+    const missingRow = partial && missing.length
+      ? `<tr><th>${escapeHtml(t("host-missing-keys") || "Missing required keys")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(missing.join(", "))}</div></td></tr>`
+      : "";
+
+    const probedRow = hs && hs.probed_at_unix
+      ? `<tr><th>${escapeHtml(t("host-last-probed") || "Last probed")}</th><td colspan="2"><div class="sp-status__detail">${escapeHtml(fmtRelative(hs.probed_at_unix))}</div></td></tr>`
+      : "";
+
+    const lastGenRow = lastGen
+      ? `<tr><th>${escapeHtml(t("host-last-generated") || "Last generated")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.path)}</div><div class="sp-status__detail sp-u-muted">${escapeHtml((lastGen.bytes / 1024).toFixed(1))} KB</div></td></tr>`
+      : "";
+
+    const profileUuidRow = lastGen && lastGen.profile_uuid
+      ? `<tr><th>${escapeHtml(t("host-profile-uuid") || "Profile UUID")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.profile_uuid)}</div></td></tr>`
+      : "";
+
+    const payloadUuidRow = lastGen && lastGen.payload_uuid
+      ? `<tr><th>${escapeHtml(t("host-payload-uuid") || "Payload UUID")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.payload_uuid)}</div></td></tr>`
+      : "";
+
+    const hostKindRow = host.kind
+      ? `<tr><th>${escapeHtml(t("host-kind") || "Host kind")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(host.kind)}</div></td></tr>`
+      : "";
+
+    const configFormatRow = host.config_format
+      ? `<tr><th>${escapeHtml(t("host-config-format") || "Config format")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(host.config_format)}</div></td></tr>`
+      : "";
+
+    const installLabelRow = host.install_action_label
+      ? `<tr><th>${escapeHtml(t("host-install-label") || "Install action")}</th><td colspan="2"><div class="sp-status__detail">${escapeHtml(host.install_action_label)}</div></td></tr>`
+      : "";
 
     return `
       <article class="sp-host-card">
@@ -93,10 +131,18 @@ export class SpHostCard extends SpElement {
             <th>Process</th>
             <td>
               <div class="sp-status__row"><span class="sp-dot ${runningDot}" aria-hidden="true"></span><span>${escapeHtml(runningText)}</span></div>
-              <div class="sp-status__detail sp-u-mono ${running ? "" : "sp-u-muted"}">${escapeHtml(runningDetail)}</div>
+              <div class="sp-status__detail sp-u-mono ${running ? "" : "sp-u-muted"}">${processLines}</div>
             </td>
             <td class="sp-status__actions"></td>
           </tr>
+          ${missingRow}
+          ${probedRow}
+          ${lastGenRow}
+          ${profileUuidRow}
+          ${payloadUuidRow}
+          ${hostKindRow}
+          ${configFormatRow}
+          ${installLabelRow}
         </tbody></table>
         <details class="sp-status__prefs">
           <summary>Resolved profile keys</summary>
