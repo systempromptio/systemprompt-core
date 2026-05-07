@@ -28,6 +28,7 @@ fn version(s: &str) -> ManifestVersion {
 fn last(v: &str) -> LastSyncState {
     LastSyncState {
         last_applied_manifest_version: Some(version(v)),
+        ..LastSyncState::default()
     }
 }
 
