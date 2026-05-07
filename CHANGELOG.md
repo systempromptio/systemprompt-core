@@ -4,6 +4,15 @@
 
 ### Added
 
+- **Signed bridge manifest endpoint (`GET /v1/bridge/manifest`).** Returns a typed `SignedManifest` (moved from `bin/bridge/src/gateway/manifest.rs` to `crates/shared/models/src/bridge/`) populated from real data: skills via `SkillRepository::list_enabled`, agents via `AgentRepository::list_enabled`, plugins from on-disk `<system>/services/plugins/<id>/` walks (per-file sha256 + aggregate), managed MCP servers from `ServicesConfig.mcp_servers` filtered by `enabled`, revocations from `user_api_keys` rows where `revoked_at IS NOT NULL`, and `user` via `UserRepository::find_by_id`. Signed via `systemprompt_security::manifest_signing::sign_value` over a JCS canonical view that matches the bridge-side verifier byte-for-byte.
+- **OAuth hook-token minting via `client_credentials`.** New `Permission::HookGovern` / `Permission::HookTrack` (hierarchy slot 15), `JwtAudience::Hook`, `JwtClaims.plugin_id`. New `systemprompt_security::auth::hook_token::HookTokenValidator` enforces signature + scope + `plugin_id` for `/api/public/hooks/{govern,track}`. Token endpoint accepts `plugin_id` and `audience` request fields via `ClientTokenOptions`; hook-scoped clients are pinned to `audience=hook`.
+- **`POST /v1/bridge/oauth-client`** provisions or rotates the per-tenant OAuth client used for hook-token minting. Returns plaintext `client_secret` once at creation/rotation time. Backed by `provision_bridge_oauth_client` in `crates/domain/oauth/src/services/bridge.rs`.
+
+### Changed
+
+- **Dynamic registration default for `token_endpoint_auth_method`.** `DynamicRegistrationRequest::get_token_endpoint_auth_method` now defaults to `client_secret_basic` per RFC 7591 §2 instead of returning `Result<_, String>`. Missing/empty values are accepted and defaulted instead of rejected with HTTP 400.
+- **Dynamic registration `client_secret` + `registration_access_token` upgraded** from UUID-v4 strings (~122 bits of entropy) to 32-byte URL-safe random (~256 bits).
+
 - **Marketplaces as first-class YAML-defined services.** Curated bundles of plugins, skills, MCP servers, and agents are now declared in YAML and validated at startup, mirroring the existing `PluginConfig` pattern.
   - New `MarketplaceConfig` model (`crates/shared/models/src/services/marketplace.rs`) with `MarketplaceConfigFile` wrapper and `MarketplaceVisibility` enum (`Public | Private | Org`). Aggregates plugins/skills/MCP servers/agents by reference only — never inlines them.
   - New typed `MarketplaceId` identifier (`crates/shared/identifiers/src/marketplace.rs`).

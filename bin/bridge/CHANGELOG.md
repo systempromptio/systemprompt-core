@@ -2,7 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Cowork plugin sync (`integration/cowork_plugins/`).** Per-plugin marketplace publish into the active `<session>/<org>/cowork_plugins/` tree: marketplace upsert, installed-plugin upsert, enabled-settings upsert (foreign-entry preservation throughout), plus a per-plugin `claude-plugin/plugin.json` patch that wires `hooks/hooks.json`. Reverse `unpublish` path included.
+- **OAuth hook-token client (`auth/plugin_oauth.rs`).** Per-tenant OAuth client + plugin-scoped hook-token cache. `client_secret` is stored in the OS keystore (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux) via the `keyring` crate; only `client_id`, `token_endpoint`, and `scopes` remain on disk. Legacy 0600 JSON files containing `client_secret` are transparently migrated into the keystore on first read.
+- **Typed `hooks.json` schema (`sync/apply/hooks_schema.rs`).** `HooksFile`/`HookEntry`/`HookKind` replace the prior `serde_json::json!` literal in `sync/apply/hooks.rs::write_hooks_json`.
+- **`fsutil` module.** Single owner of `atomic_write_0600` (parent dir 0o700, fsync before rename), `copy_dir_recursive`, and `read_optional`. Removes three duplicate implementations across `auth/`, `sync/`, and `integration/`.
+- **`mcp_registry` (top-level).** Cross-cutting registry consumed by `proxy::forward`, `install::mdm::*`, and `sync::apply` — relocated from `proxy::mcp_servers` because `proxy::` mis-suggested ownership.
+
 ### Changed
+
+- **`gateway/` split.** `gateway/mod.rs` (489 → 79 lines) into `mod` (client) + `errors` + `types` + `fetch` + `auth`.
+- **`integration/cowork_plugins/emit.rs` split** (411 → 245 lines) into `emit` (publish/unpublish orchestration) + `upsert` (registry/settings file plumbing). Visibility narrowed: `mod {emit, marketplace, registry, settings}` are now `pub(crate)`; only `KNOWN_MARKETPLACES_FILE`, `publish`, `resolve_target`, `unpublish`, and the test surface stay `pub`.
+- **`install/mod.rs` split** (313 → 170 lines) by extracting orchestration glue (`bootstrap_install`, `run_apply*`, `resolve_*`) to `install/apply.rs`.
+- **`sync/apply/plugin.rs` split** (322 → 184 lines) by moving `materialize_hook_token`, `write_hooks_json`, and `ensure_plugin_json_hooks_field` to `sync/apply/hooks.rs`.
+- **`sync/apply/mod.rs::rewrite_loopback_urls`** uses `url::Url::set_host`/`set_scheme` against `Host::Ipv4`/`Host::Ipv6` loopback checks instead of string-splitting helpers (`split_url`, `split_origin`, `is_loopback_host` deleted).
+- **`SignedManifest` family moved to shared crate.** `SignedManifest`, `UserInfo`, `PluginEntry`, `PluginFile`, `SkillEntry`, `AgentEntry`, `ManagedMcpServer`, `ManifestVersion`, plus the manifest-scoped typed IDs (`PluginId`, `SkillId`, `Sha256Digest`, `ManifestSignature`, `ToolPolicy`, etc.) now live in `systemprompt_models::bridge::*`. Bridge re-exports preserve every existing call site; the bridge-side ed25519 `verify(...)` is provided via the new `SignedManifestVerify` extension trait (orphan-rule workaround).
+
+### Fixed
+
+- **`///` rustdoc and TODO/FIXME flags purged from binary modules** (`bin/bridge/**` is a binary — `///` is banned). ~50 paraphrase blocks removed; ~20 load-bearing why-lines preserved as `//`. The `obs.rs` panic-hook ordering note is retained as a `// Why:` comment; the `gui/server.rs` focus-IPC FIXME was reworded as a deliberate-trade-off explanation (TCP+CSRF works identically across all three platforms in <100 lines).
 
 - **Breaking — `cowork` rename completed end-to-end.** Bridge sends canonical `x-session-id` / `x-context-id` headers (issued from the new `SessionContext`) and uses the renamed gateway routes (`/v1/bridge/*`, `/v1/auth/bridge/*`). Internal macros are now `bridge_define_id!` / `bridge_define_token!`. Env vars: `SP_COWORK_*` → `SP_BRIDGE_*`. Config file: `~/.config/systemprompt/systemprompt-cowork.toml` → `systemprompt-bridge.toml`. A `0.7.x` bridge cannot talk to a `0.8.0` gateway and vice versa.
 
