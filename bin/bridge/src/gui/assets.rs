@@ -95,6 +95,10 @@ const JS_MODULES: &[(&str, &str)] = &[
         include_str!("../../web/js/components/sp-agents-summary.js"),
     ),
     (
+        "components/sp-agents-status",
+        include_str!("../../web/js/components/sp-agents-status.js"),
+    ),
+    (
         "components/sp-overall-badge",
         include_str!("../../web/js/components/sp-overall-badge.js"),
     ),
