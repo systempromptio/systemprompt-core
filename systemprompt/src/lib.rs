@@ -222,6 +222,16 @@ pub mod analytics {
     pub use systemprompt_analytics::*;
 }
 
+/// Marketplace filtering domain from `systemprompt-marketplace` — the
+/// `MarketplaceFilter` trait that gates per-user visibility of
+/// plugins, skills, agents, and managed MCP servers in the bridge
+/// manifest.
+#[cfg(feature = "full")]
+#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+pub mod marketplace {
+    pub use systemprompt_marketplace::*;
+}
+
 /// Background-job scheduler from `systemprompt-scheduler`.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]

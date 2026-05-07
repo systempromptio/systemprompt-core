@@ -1,0 +1,25 @@
+[package]
+name = "systemprompt-marketplace"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Per-user marketplace filtering for systemprompt.io. Defines the MarketplaceFilter trait that decides which plugins, skills, agents, and managed MCP servers a given user is permitted to see in the bridge manifest."
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }

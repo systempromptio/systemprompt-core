@@ -138,6 +138,31 @@
 .sp-mkt-chip[data-tone="warn"] { color: var(--sp-warn); border-color: color-mix(in srgb, var(--sp-warn) 50%, transparent); background: color-mix(in srgb, var(--sp-warn) 14%, transparent); }
 .sp-mkt-chip--mono { font-family: var(--sp-font-mono); font-size: 10px; letter-spacing: 0; text-transform: none; }
 
+.sp-mkt-chip--change[data-change="installed"] {
+  color: var(--sp-ok);
+  border-color: color-mix(in srgb, var(--sp-ok) 50%, transparent);
+  background: color-mix(in srgb, var(--sp-ok) 14%, transparent);
+}
+.sp-mkt-chip--change[data-change="updated"] {
+  color: var(--sp-accent);
+  background: var(--sp-accent-soft);
+  border-color: var(--sp-accent-ring);
+}
+.sp-mkt-chip--change[data-change="removed"] {
+  color: var(--sp-warn);
+  border-color: color-mix(in srgb, var(--sp-warn) 50%, transparent);
+  background: color-mix(in srgb, var(--sp-warn) 14%, transparent);
+}
+
+.sp-mkt-item--removed { opacity: 0.55; }
+.sp-mkt-item--removed .sp-mkt-item__name { text-decoration: line-through; }
+
+.sp-mkt-actions__diff {
+  margin-left: var(--sp-space-1);
+  color: var(--sp-muted);
+  font-size: 12px;
+}
+
 .sp-mkt-empty--with-sync, .sp-mkt-empty {
   padding: var(--sp-space-7) var(--sp-space-4-5);
   font-size: 13px;

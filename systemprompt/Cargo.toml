@@ -81,6 +81,7 @@ full = [
     "dep:systemprompt-users",
     "dep:systemprompt-content",
     "dep:systemprompt-analytics",
+    "dep:systemprompt-marketplace",
     "dep:systemprompt-scheduler",
     "dep:systemprompt-generator",
     "logging",
@@ -129,6 +130,7 @@ systemprompt-oauth = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }
 systemprompt-content = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
+systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-scheduler = { workspace = true, optional = true }
 systemprompt-files = { workspace = true, optional = true }
 

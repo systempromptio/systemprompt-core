@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 use systemprompt_agent::repository::content::{AgentRepository, SkillRepository};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{AgentName, JwtToken, TenantId, UserId};
+use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_models::bridge::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
@@ -116,6 +117,24 @@ pub async fn manifest(
             default_enabled_hosts()
         },
     };
+
+    let filtered = ctx
+        .marketplace_filter()
+        .filter(
+            &claims.user_id,
+            MarketplaceCandidate::new(plugins, skills, agents, managed_mcp_servers),
+        )
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "manifest: marketplace filter rejected request");
+            (StatusCode::FORBIDDEN, format!("marketplace filter: {e}"))
+        })?;
+    let MarketplaceCandidate {
+        plugins,
+        skills,
+        agents,
+        managed_mcp_servers,
+    } = filtered;
 
     let canonical = CanonicalView {
         manifest_version: &manifest_version,

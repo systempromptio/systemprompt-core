@@ -41,6 +41,7 @@ systemprompt-analytics = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

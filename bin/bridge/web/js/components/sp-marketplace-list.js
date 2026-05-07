@@ -8,6 +8,17 @@ const KIND_EMPTY_TITLE = {
   agents: "No agents yet",
 };
 
+const CHANGE_LABEL = {
+  installed: "NEW",
+  updated: "UPDATED",
+  removed: "REMOVED",
+};
+
+function changeBadge(change) {
+  if (!change || !CHANGE_LABEL[change]) { return ""; }
+  return `<span class="sp-mkt-chip sp-mkt-chip--change" data-change="${change}">${CHANGE_LABEL[change]}</span>`;
+}
+
 function filterItems(items, search) {
   if (!search) { return items; }
   const q = search.toLowerCase();
@@ -57,11 +68,14 @@ export class SpMarketplaceList extends SpElement {
       const sourceChip = it.source
         ? `<span class="sp-mkt-chip" data-tone="${it.source === "local" ? "" : "accent"}">${escapeHtml(it.source)}</span>`
         : "";
+      const changeChip = changeBadge(it.change);
       const meta = it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
+      const removedClass = it.change === "removed" ? " sp-mkt-item--removed" : "";
       return `
-        <li class="sp-mkt-item" data-id="${escapeHtml(it.id)}" aria-selected="false" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
+        <li class="sp-mkt-item${removedClass}" data-id="${escapeHtml(it.id)}" aria-selected="false" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
           <div class="sp-mkt-item__row">
             <span class="sp-mkt-item__name">${escapeHtml(it.name || it.id)}</span>
+            ${changeChip}
             ${sourceChip}
           </div>
           ${meta}

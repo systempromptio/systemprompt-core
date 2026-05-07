@@ -4382,6 +4382,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
+ "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
@@ -4562,6 +4563,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
+ "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
@@ -4941,6 +4943,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-marketplace"
+version = "0.7.0"
+dependencies = [
+ "async-trait",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "systemprompt-mcp"
 version = "0.7.0"
 dependencies = [
@@ -5088,6 +5100,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
+ "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-traits",

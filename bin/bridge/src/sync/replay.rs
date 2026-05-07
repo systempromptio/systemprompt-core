@@ -10,6 +10,14 @@ pub const SKEW_WINDOW_MINUTES: i64 = 5;
 pub struct LastSyncState {
     #[serde(default)]
     pub last_applied_manifest_version: Option<ManifestVersion>,
+    #[serde(default)]
+    pub last_applied_at: Option<String>,
+    #[serde(default)]
+    pub installed_plugins: Vec<String>,
+    #[serde(default)]
+    pub updated_plugins: Vec<String>,
+    #[serde(default)]
+    pub removed_plugins: Vec<String>,
 }
 
 #[derive(Debug, thiserror::Error)]

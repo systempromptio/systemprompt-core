@@ -10,6 +10,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::Database;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
@@ -17,10 +18,24 @@ use crate::context::{AppContext, AppContextParts};
 use crate::error::{RuntimeError, RuntimeResult};
 use crate::registry::ModuleApiRegistry;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
     show_startup_warnings: bool,
+    marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
+}
+
+impl std::fmt::Debug for AppContextBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppContextBuilder")
+            .field("extension_registry", &self.extension_registry.is_some())
+            .field("show_startup_warnings", &self.show_startup_warnings)
+            .field(
+                "marketplace_filter",
+                &self.marketplace_filter.is_some(),
+            )
+            .finish()
+    }
 }
 
 impl AppContextBuilder {
@@ -38,6 +53,12 @@ impl AppContextBuilder {
     #[must_use]
     pub const fn with_startup_warnings(mut self, show: bool) -> Self {
         self.show_startup_warnings = show;
+        self
+    }
+
+    #[must_use]
+    pub fn with_marketplace_filter(mut self, filter: Arc<dyn MarketplaceFilter>) -> Self {
+        self.marketplace_filter = Some(filter);
         self
     }
 
@@ -107,6 +128,11 @@ impl AppContextBuilder {
             },
         };
 
+        let marketplace_filter = self.marketplace_filter.unwrap_or_else(|| {
+            let f: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
+            f
+        });
+
         Ok(AppContext::from_parts(AppContextParts {
             config,
             database,
@@ -119,6 +145,7 @@ impl AppContextBuilder {
             fingerprint_repo,
             user_service,
             app_paths,
+            marketplace_filter,
         }))
     }
 }

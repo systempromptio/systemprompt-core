@@ -21,6 +21,16 @@ const KIND_GLYPH = {
   agents: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
 };
 
+function diffSummary(diff) {
+  if (!diff) { return ""; }
+  const parts = [];
+  if (diff.installed && diff.installed.length) { parts.push(`${diff.installed.length} added`); }
+  if (diff.updated && diff.updated.length) { parts.push(`${diff.updated.length} updated`); }
+  if (diff.removed && diff.removed.length) { parts.push(`${diff.removed.length} removed`); }
+  if (parts.length === 0) { return "no changes since last sync"; }
+  return parts.join(", ");
+}
+
 function badgeView(snap) {
   if (!snap.signed_in) { return { text: t("marketplace-badge-signin") || "sign in", cls: "sp-badge--warn" }; }
   if (snap.sync_in_flight) { return { text: t("marketplace-badge-syncing") || "syncing", cls: "sp-badge--warn" }; }
@@ -109,6 +119,8 @@ export class SpMarketplace extends SpElement {
     `).join("");
     const syncDisabled = snap.sync_in_flight || !snap.signed_in;
     const mktState = snap.last_sync_summary ? "ok" : "never";
+    const diff = (this.listing && this.listing.last_sync_diff) || null;
+    const diffLine = diff ? diffSummary(diff) : "";
     return `
       <header class="sp-tab__header">
         <h1 data-l10n-id="marketplace-heading">Marketplace</h1>
@@ -136,6 +148,7 @@ export class SpMarketplace extends SpElement {
         <span class="sp-mkt-actions__meta" data-state="${mktState}" title="${escapeHtml(snap.last_sync_summary || "—")}">
           <span class="sp-dot" aria-hidden="true"></span>
           <span data-l10n-id="last-sync-never">${escapeHtml(snap.last_sync_summary || "never synced")}</span>
+          ${diffLine ? `<span class="sp-mkt-actions__diff">· ${escapeHtml(diffLine)}</span>` : ""}
         </span>
       </footer>
     `;
