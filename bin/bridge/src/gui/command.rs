@@ -191,6 +191,10 @@ fn auth_dispatch(
             send(app, UiEvent::LogoutRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        "profile.fetch" => {
+            send(app, UiEvent::ProfileFetchRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
         _ => return None,
     })
 }

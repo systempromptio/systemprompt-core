@@ -1,6 +1,7 @@
-export const TAB_KEYS = { "1": "marketplace", "2": "agents", "3": "status", "4": "settings" };
+export const TAB_KEYS = { "1": "profile", "2": "marketplace", "3": "agents", "4": "status", "5": "settings" };
 
 export const TAB_GLYPHS = {
+  profile: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3.2"/><path d="M5.5 19a7 7 0 0 1 13 0"/></svg>`,
   marketplace: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7l9-4.5z"/><path d="M3 7l9 4.5L21 7"/><path d="M12 11.5V21.5"/></svg>`,
   agents: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
   status: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>`,
@@ -8,15 +9,16 @@ export const TAB_GLYPHS = {
 };
 
 export const TAB_DEFS = [
-  { name: "marketplace", label: "Marketplace", l10n: "nav-marketplace", shortcut: "⌘1", showCount: true, countFor: "marketplaceCount" },
-  { name: "agents", label: "Agents", l10n: "nav-agents", shortcut: "⌘2", showCount: true, countFor: "agentCount" },
-  { name: "status", label: "Status", l10n: "nav-status", shortcut: "⌘3", showCount: false },
-  { name: "settings", label: "Settings", l10n: "nav-settings", shortcut: "⌘4", showCount: false },
+  { name: "profile", label: "Profile", l10n: "nav-profile", shortcut: "⌘1", showCount: false },
+  { name: "marketplace", label: "Marketplace", l10n: "nav-marketplace", shortcut: "⌘2", showCount: true, countFor: "marketplaceCount" },
+  { name: "agents", label: "Agents", l10n: "nav-agents", shortcut: "⌘3", showCount: true, countFor: "agentCount" },
+  { name: "status", label: "Status", l10n: "nav-status", shortcut: "⌘4", showCount: false },
+  { name: "settings", label: "Settings", l10n: "nav-settings", shortcut: "⌘5", showCount: false },
 ];
 
 export function readInitialTab() {
-  try { return localStorage.getItem("bridge.tab") || "marketplace"; }
-  catch (_) { return "marketplace"; }
+  try { return localStorage.getItem("bridge.tab") || "profile"; }
+  catch (_) { return "profile"; }
 }
 
 export function persistTab(name) {

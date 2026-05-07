@@ -41,6 +41,10 @@
     <sp-rail data-version="v__VERSION__"></sp-rail>
 
     <div class="sp-content">
+      <section class="sp-tab__panel" data-tab="profile" role="tabpanel" hidden>
+        <sp-profile></sp-profile>
+      </section>
+
       <section class="sp-tab__panel" data-tab="marketplace" role="tabpanel" hidden>
         <sp-marketplace></sp-marketplace>
       </section>
@@ -65,24 +69,33 @@
 
         <section class="sp-status-group" data-group="cloud">
           <header class="sp-status-group__header">
-            <h2 data-l10n-id="status-cloud-heading">systemprompt cloud</h2>
-            <p class="sp-status-group__caption" data-l10n-id="status-cloud-caption">The hosted control plane systemprompt bridge talks to. Identity and PAT live here.</p>
+            <div>
+              <h2 data-l10n-id="status-cloud-heading">systemprompt cloud</h2>
+              <p class="sp-status-group__caption" data-l10n-id="status-cloud-caption">The hosted control plane systemprompt bridge talks to. Identity and PAT live here.</p>
+            </div>
+            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
           </header>
           <sp-cloud-status></sp-cloud-status>
         </section>
 
         <section class="sp-status-group" data-group="proxy">
           <header class="sp-status-group__header">
-            <h2 data-l10n-id="status-proxy-heading">Local proxy</h2>
-            <p class="sp-status-group__caption" data-l10n-id="status-proxy-caption">The 127.0.0.1 endpoint host apps call instead of the Anthropic API.</p>
+            <div>
+              <h2 data-l10n-id="status-proxy-heading">Local proxy</h2>
+              <p class="sp-status-group__caption" data-l10n-id="status-proxy-caption">The 127.0.0.1 endpoint host apps call instead of the Anthropic API.</p>
+            </div>
+            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
           </header>
           <sp-proxy-status></sp-proxy-status>
         </section>
 
         <section class="sp-status-group" data-group="agents-summary">
           <header class="sp-status-group__header">
-            <h2 data-l10n-id="status-agents-heading">Agents</h2>
-            <p class="sp-status-group__caption"><span data-l10n-id="status-agents-caption-prefix">Coding agents routed through systemprompt bridge. Manage them in the</span> <a href="#" data-jump-tab="agents" data-l10n-id="status-agents-tab-link">Agents tab</a>.</p>
+            <div>
+              <h2 data-l10n-id="status-agents-heading">Agents</h2>
+              <p class="sp-status-group__caption"><span data-l10n-id="status-agents-caption-prefix">Coding agents routed through systemprompt bridge. Manage them in the</span> <a href="#" data-jump-tab="agents" data-l10n-id="status-agents-tab-link">Agents tab</a>.</p>
+            </div>
+            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
           </header>
           <sp-agents-summary></sp-agents-summary>
         </section>

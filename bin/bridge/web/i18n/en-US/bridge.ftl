@@ -85,10 +85,22 @@ footer-licensing = licensing
 footer-tabs-hint = tabs
 
 # Topbar / navigation ---------------------------------------------------------
+nav-profile = Profile
 nav-marketplace = Marketplace
 nav-agents = Agents
 nav-status = Status
 nav-settings = Settings
+
+# Profile tab ----------------------------------------------------------------
+profile-heading = Profile
+profile-refresh = Refresh
+profile-section-identity = Identity
+profile-section-usage = Token usage
+profile-section-models = Favorite models
+profile-section-conversations = Conversations
+profile-section-agents = Available agents
+profile-section-plan = Plan & gateway
+profile-error-fetch = Could not load profile.
 nav-section-navigate = Navigate
 brand-workspace-pill = bridge workspace
 

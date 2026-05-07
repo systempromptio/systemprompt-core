@@ -69,6 +69,28 @@ pub struct CostBreakdownRow {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
+pub struct ContextSummaryRow {
+    pub conversations: i64,
+    pub ai_requests: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ContextGroupRow {
+    pub name: String,
+    pub conversations: i64,
+    pub ai_requests: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct RecentContextRow {
+    pub context_id: String,
+    pub last_activity: DateTime<Utc>,
+    pub ai_requests: i64,
+    pub model: Option<String>,
+    pub agent_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct CostTrendRow {
     pub created_at: DateTime<Utc>,
     pub cost_microdollars: Option<i64>,
