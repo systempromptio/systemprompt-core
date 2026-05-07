@@ -1,6 +1,8 @@
 #![cfg(target_os = "windows")]
 
 use std::io::Write;
+use std::path::PathBuf;
+use std::process::Command;
 
 use super::shared::{
     DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, now_unix,
@@ -77,6 +79,31 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
         )));
     }
     Ok(())
+}
+
+pub(super) fn open_host() -> std::io::Result<()> {
+    let exe = resolve_claude_exe();
+    let target = exe
+        .as_deref()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Claude.exe".to_string());
+    let status = Command::new("cmd")
+        .args(["/C", "start", "", target.as_str()])
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "start exited with {}",
+            status.code().unwrap_or(-1)
+        )))
+    }
+}
+
+fn resolve_claude_exe() -> Option<PathBuf> {
+    let local = std::env::var_os("LOCALAPPDATA")?;
+    let candidate = PathBuf::from(local).join("AnthropicClaude").join("Claude.exe");
+    if candidate.exists() { Some(candidate) } else { None }
 }
 
 fn render_reg(inputs: &ProfileGenInputs) -> String {

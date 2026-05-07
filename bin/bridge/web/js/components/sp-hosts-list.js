@@ -2,6 +2,7 @@ import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-elemen
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import "/assets/js/components/sp-host-card.js";
+import "/assets/js/components/sp-overall-badge.js";
 
 export class SpHostsList extends SpElement {
   constructor() {
@@ -9,6 +10,21 @@ export class SpHostsList extends SpElement {
     this.hostsById = new Map();
     this.order = [];
     this.snapshot = null;
+    this.registerAction("generate-all", async () => {
+      await Promise.allSettled(this.order.map((id) => bridge.hostProfileGenerate(id)));
+    });
+    this.registerAction("install-all", async () => {
+      const tasks = [];
+      for (const id of this.order) {
+        const host = this.hostsById.get(id);
+        const path = host && host.last_generated_profile && host.last_generated_profile.path;
+        if (path) { tasks.push(bridge.hostProfileInstall(id, path)); }
+      }
+      await Promise.allSettled(tasks);
+    });
+    this.registerAction("reverify-all", async () => {
+      await Promise.allSettled(this.order.map((id) => bridge.hostProbe(id)));
+    });
   }
 
   onConnect() {
@@ -42,10 +58,29 @@ export class SpHostsList extends SpElement {
   }
 
   render() {
+    const anyHasGenerated = this.order.some((id) => {
+      const h = this.hostsById.get(id);
+      return h && h.last_generated_profile && h.last_generated_profile.path;
+    });
+    const installDisabledAttr = anyHasGenerated ? "" : "disabled";
+    const headerMarkup = `
+      <header class="sp-hosts__header">
+        <div class="sp-hosts__header-meta">
+          <h1 data-l10n-id="agents-heading">${escapeHtml(t("agents-heading") || "Agents")}</h1>
+          <sp-overall-badge></sp-overall-badge>
+        </div>
+        <div class="sp-hosts__header-actions">
+          <button class="sp-btn-primary" type="button" data-action="generate-all">${escapeHtml(t("agents-action-generate-all") || "Generate")}</button>
+          <button class="sp-btn-ghost" type="button" data-action="install-all" ${installDisabledAttr}>${escapeHtml(t("agents-action-install-all") || "Install")}</button>
+          <button class="sp-btn-ghost" type="button" data-action="reverify-all">${escapeHtml(t("agents-action-reverify-all") || "Re-verify")}</button>
+        </div>
+      </header>
+    `;
     if (this.order.length === 0) {
-      return `<div class="sp-u-muted sp-host-list__empty">${escapeHtml(t("hosts-empty") || "No host apps detected.")}</div>`;
+      return `${headerMarkup}<div class="sp-u-muted sp-host-list__empty">${escapeHtml(t("hosts-empty") || "No host apps detected.")}</div>`;
     }
-    return this.order.map((id) => `<sp-host-card data-host-id="${escapeHtml(id)}"></sp-host-card>`).join("");
+    const cardsMarkup = this.order.map((id) => `<sp-host-card data-host-id="${escapeHtml(id)}"></sp-host-card>`).join("");
+    return `${headerMarkup}${cardsMarkup}`;
   }
 
   afterRender() {

@@ -88,6 +88,10 @@ pub enum UiEvent {
         host_id: String,
         reply_to: ReplyId,
     },
+    AgentOpen {
+        host_id: String,
+        reply_to: ReplyId,
+    },
     SetupComplete,
 
     Host(HostUiEvent),

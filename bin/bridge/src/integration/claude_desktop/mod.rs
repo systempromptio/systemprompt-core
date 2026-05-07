@@ -62,6 +62,10 @@ impl HostApp for ClaudeDesktopHost {
         os::install_profile(path)
     }
 
+    fn open(&self) -> std::io::Result<()> {
+        os::open_host()
+    }
+
     fn install_action_label(&self) -> &'static str {
         if cfg!(target_os = "windows") {
             "imported into Windows Registry"
