@@ -257,9 +257,9 @@ async fn handle_client_credentials_grant(
         };
         let token_response = generate_client_tokens(&repo, &client_id, headers, state, options)
             .await
-        .map_err(|e| TokenError::ServerError {
-            message: e.to_string(),
-        })?;
+            .map_err(|e| TokenError::ServerError {
+                message: e.to_string(),
+            })?;
 
         tracing::info!(
             grant_type = "client_credentials",

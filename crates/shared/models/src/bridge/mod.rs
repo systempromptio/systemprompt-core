@@ -9,13 +9,13 @@
 //!
 //! # Modules
 //!
-//! - [`manifest`] — the signed manifest envelope and its sub-entries
-//!   (plugins, skills, agents, managed MCP servers, user info).
-//! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version
-//!   identifier carried inside every manifest.
-//! - [`ids`] — typed newtypes for manifest-scoped identifiers (plugin
-//!   id, sha256 digest, signature, tool policy, …) so wire fields
-//!   carry their semantics through every layer.
+//! - [`manifest`] — the signed manifest envelope and its sub-entries (plugins,
+//!   skills, agents, managed MCP servers, user info).
+//! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version identifier
+//!   carried inside every manifest.
+//! - [`ids`] — typed newtypes for manifest-scoped identifiers (plugin id,
+//!   sha256 digest, signature, tool policy, …) so wire fields carry their
+//!   semantics through every layer.
 //!
 //! Signing, signature verification, and manifest construction
 //! (builders) deliberately live in the bridge crate alongside the

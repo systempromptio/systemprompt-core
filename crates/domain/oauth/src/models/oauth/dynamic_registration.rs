@@ -92,7 +92,8 @@ impl DynamicRegistrationRequest {
             .as_ref()
             .filter(|m| !m.is_empty())
             .cloned()
-            // RFC 7591 §2: server defaults this when client omits it; client_secret_basic is the spec default.
+            // RFC 7591 §2: server defaults this when client omits it; client_secret_basic is the
+            // spec default.
             .unwrap_or_else(|| "client_secret_basic".to_string())
     }
 }

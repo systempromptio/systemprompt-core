@@ -31,7 +31,9 @@ pub enum AuthError {
     #[error("hook token: missing `plugin_id` claim")]
     HookPluginIdMissing,
 
-    #[error("hook token: plugin_id `{actual}` in claim does not match request plugin_id `{expected}`")]
+    #[error(
+        "hook token: plugin_id `{actual}` in claim does not match request plugin_id `{expected}`"
+    )]
     HookPluginIdMismatch { expected: String, actual: String },
 }
 

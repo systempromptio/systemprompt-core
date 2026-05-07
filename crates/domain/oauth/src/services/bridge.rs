@@ -159,9 +159,10 @@ pub struct BridgeOAuthClient {
 
 /// Idempotently provision (or rotate) the bridge's per-tenant OAuth client.
 ///
-/// Returns the new plaintext `client_secret`. The bridge calls this on first sync
-/// and may re-call to rotate; subsequent token mints use `client_credentials`
-/// against `/api/v1/core/oauth/token` with the returned secret.
+/// Returns the new plaintext `client_secret`. The bridge calls this on first
+/// sync and may re-call to rotate; subsequent token mints use
+/// `client_credentials` against `/api/v1/core/oauth/token` with the returned
+/// secret.
 pub async fn provision_bridge_oauth_client(
     pool: &DbPool,
     user_id: &UserId,

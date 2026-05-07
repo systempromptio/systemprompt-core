@@ -9,10 +9,10 @@ use crate::gui::server_util::{constant_time_eq, mint_csrf_token};
 use crate::gui::state::AppState;
 use crate::obs::output::diag;
 
-// FIXME(focus-ipc): replace this 127.0.0.1 TCP listener with Unix domain
-// sockets (Linux/macOS) and a named pipe (Windows). The kernel-enforced
-// per-user namespace would obviate the CSRF token. Kept as TCP+CSRF for now
-// because it works identically across all three platforms in <100 lines.
+// Why: a 127.0.0.1 TCP listener + per-process CSRF token works identically on
+// all three platforms in <100 lines. A platform-native IPC (Unix sockets +
+// named pipe) would let the kernel's per-user namespace replace the CSRF
+// token, but the matrix isn't worth it for the single-instance focus channel.
 #[derive(Clone)]
 pub struct Server {
     port: u16,

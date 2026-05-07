@@ -45,16 +45,17 @@ pub async fn generate_client_tokens(
     let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
 
-    // Why: Resource audiences are intentionally open here. Capability is granted by `scope`,
-    // not audience; the audience claim is informational and does not authorize anything.
+    // Why: Resource audiences are intentionally open here. Capability is granted by
+    // `scope`, not audience; the audience claim is informational and does not
+    // authorize anything.
     let audience_override = options
         .audience
         .map(|a| {
             JwtAudience::from_str(a).map_err(|e| anyhow::anyhow!("Invalid audience '{a}': {e}"))
         })
         .transpose()?;
-    let audience = audience_override
-        .map_or_else(|| global_config.jwt_audiences.clone(), |aud| vec![aud]);
+    let audience =
+        audience_override.map_or_else(|| global_config.jwt_audiences.clone(), |aud| vec![aud]);
 
     if permissions.iter().any(Permission::is_hook_scope)
         && !audience.iter().any(|a| matches!(a, JwtAudience::Hook))
