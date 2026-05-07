@@ -243,9 +243,13 @@ impl AppState {
     }
 
 
-    pub fn set_last_generated_profile(&self, host_id: &str, path: String) {
+    pub fn set_last_generated_profile(
+        &self,
+        host_id: &str,
+        profile: crate::integration::GeneratedProfile,
+    ) {
         let mut guard = self.inner.write();
-        guard.hosts.entry(host_id).last_generated_profile = Some(path);
+        guard.hosts.entry(host_id).last_generated_profile = Some(profile);
     }
 
 
