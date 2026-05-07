@@ -132,7 +132,7 @@ fn agents_summary(snapshot: &AppStateSnapshot) -> Value {
             "display_name": host.display_name(),
             "kind": host.kind(),
             "host_running": probe.map(|p| p.host_running).unwrap_or(false),
-            "profile_state": probe.map(|p| p.profile_state),
+            "profile_state": probe.map(|p| &p.profile_state),
         }));
     }
     json!({

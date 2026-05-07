@@ -32,15 +32,6 @@ pub(crate) fn on_probe_requested(
         finish(app, Err(err), reply_to);
         return;
     };
-    if cause == ProbeCause::Manual && !app.state.is_host_enabled(host_id) {
-        let err = BridgeError::new(
-            ErrorScope::Host,
-            ErrorCode::Conflict,
-            format!("host '{host_id}' is disabled"),
-        );
-        finish(app, Err(err), reply_to);
-        return;
-    }
     if !app.state.mark_host_probing(host_id) {
         if cause == ProbeCause::Manual {
             app.append_log(format!("[{host_id}] re-verify already in flight"));

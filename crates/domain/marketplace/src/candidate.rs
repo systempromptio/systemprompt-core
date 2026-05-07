@@ -19,7 +19,7 @@ pub struct MarketplaceCandidate {
 
 impl MarketplaceCandidate {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         plugins: Vec<PluginEntry>,
         skills: Vec<SkillEntry>,
         agents: Vec<AgentEntry>,

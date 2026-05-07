@@ -39,6 +39,7 @@ members = [
     "unit/domain/oauth",
     "unit/domain/users",
     "unit/domain/templates",
+    "unit/domain/marketplace",
     # Unit tests - app layer
     "unit/app/generator",
     "unit/app/runtime",
@@ -185,6 +186,7 @@ systemprompt-mcp = { path = "../domain/mcp" }
 systemprompt-ai = { path = "../domain/ai" }
 systemprompt-agent = { path = "../domain/agent" }
 systemprompt-templates = { path = "../domain/templates" }
+systemprompt-marketplace = { path = "../domain/marketplace" }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-generator = { path = "../app/generator" }

@@ -128,18 +128,9 @@ impl AppContextBuilder {
             },
         };
 
-        let marketplace_filter = self.marketplace_filter.unwrap_or_else(|| {
-            if let Some(reg) = discover_filters().first() {
-                tracing::info!(
-                    priority = reg.priority,
-                    "marketplace filter registered via inventory; using highest-priority impl",
-                );
-                (reg.factory)(&database)
-            } else {
-                let f: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
-                f
-            }
-        });
+        let marketplace_filter = self
+            .marketplace_filter
+            .unwrap_or_else(|| build_marketplace_filter(&database));
 
         Ok(AppContext::from_parts(AppContextParts {
             config,
@@ -156,6 +147,29 @@ impl AppContextBuilder {
             marketplace_filter,
         }))
     }
+}
+
+fn build_marketplace_filter(database: &systemprompt_database::DbPool) -> Arc<dyn MarketplaceFilter> {
+    for reg in discover_filters() {
+        match (reg.factory)(database) {
+            Ok(filter) => {
+                tracing::info!(
+                    priority = reg.priority,
+                    "marketplace filter registered via inventory; using highest-priority impl",
+                );
+                return filter;
+            },
+            Err(err) => {
+                tracing::error!(
+                    priority = reg.priority,
+                    error = %err,
+                    "marketplace filter factory failed; trying next candidate",
+                );
+            },
+        }
+    }
+    let fallback: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
+    fallback
 }
 
 fn content_routing_from(
