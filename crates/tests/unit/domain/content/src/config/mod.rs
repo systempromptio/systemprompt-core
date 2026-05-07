@@ -224,7 +224,6 @@ fn test_source_determination_unknown() {
 
 #[test]
 fn test_validation_result_pattern() {
-
     type TestResult = Result<String, String>;
 
     let success: TestResult = Ok("validated config".to_string());

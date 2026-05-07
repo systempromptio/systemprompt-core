@@ -3,8 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_security::authz::{
-    AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityKind,
-    clear_global_hook, global_hook, install_global_hook,
+    AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityKind, clear_global_hook,
+    global_hook, install_global_hook,
 };
 
 #[derive(Debug)]

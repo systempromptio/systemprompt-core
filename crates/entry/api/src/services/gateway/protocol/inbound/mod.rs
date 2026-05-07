@@ -14,13 +14,10 @@ pub enum InboundParseError {
     #[error("missing required field: {0}")]
     MissingField(&'static str),
     #[error("unsupported value for {field}: {detail}")]
-    Unsupported {
-        field: &'static str,
-        detail: String,
-    },
+    Unsupported { field: &'static str, detail: String },
 }
 
-pub trait InboundAdapter: Send + Sync {
+pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
     fn wire_name(&self) -> &'static str;
     fn parse_request(&self, raw: &Bytes) -> Result<CanonicalRequest, InboundParseError>;
     fn render_response(&self, response: &CanonicalResponse) -> Bytes;

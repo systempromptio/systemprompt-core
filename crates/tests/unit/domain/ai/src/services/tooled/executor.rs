@@ -57,8 +57,7 @@ mod response_strategy_tests {
             ResponseStrategy::from_response(content, tool_calls.clone(), tool_results.clone());
 
         match strategy {
-            ResponseStrategy::ToolsOnly { .. } | ResponseStrategy::ArtifactsProvided { .. } => {
-            },
+            ResponseStrategy::ToolsOnly { .. } | ResponseStrategy::ArtifactsProvided { .. } => {},
             ResponseStrategy::ContentProvided { content: c, .. } => {
                 assert!(c.trim().is_empty() || !c.is_empty());
             },

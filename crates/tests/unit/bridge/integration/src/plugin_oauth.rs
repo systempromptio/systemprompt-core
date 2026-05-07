@@ -60,7 +60,10 @@ fn cache_invalidate_drops_specific_plugin() {
 
     assert!(cache.get("plugin-a", 60).is_none());
     assert_eq!(
-        cache.get("plugin-b", 60).expect("b still cached").access_token,
+        cache
+            .get("plugin-b", 60)
+            .expect("b still cached")
+            .access_token,
         "jwt.b"
     );
 }

@@ -37,16 +37,14 @@ pub async fn handle(
 ) -> Response<Body> {
     let ai_request_id = AiRequestId::generate();
     let mut partial = RejectionPartial::default();
-    match handle_inner(
-        Arc::clone(&inbound),
-        &jwt_extractor,
-        &ctx,
-        request,
-        &ai_request_id,
-        &mut partial,
-    )
-    .await
-    {
+    let inner = HandleInner {
+        inbound: Arc::clone(&inbound),
+        jwt_extractor: &jwt_extractor,
+        ctx: &ctx,
+        ai_request_id: &ai_request_id,
+        partial: &mut partial,
+    };
+    match inner.run(request).await {
         Ok(resp) => resp,
         Err((status, message)) => {
             tracing::warn!(
@@ -67,26 +65,30 @@ pub async fn handle(
     }
 }
 
-async fn handle_inner(
+struct HandleInner<'a> {
     inbound: Arc<dyn InboundAdapter>,
-    jwt_extractor: &JwtContextExtractor,
-    ctx: &AppContext,
-    request: Request<Body>,
-    ai_request_id: &AiRequestId,
-    partial: &mut RejectionPartial,
-) -> Result<Response<Body>, (StatusCode, String)> {
-    let profile = ProfileBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Profile not ready: {e}"),
-        )
-    })?;
-    let request_ctx = RequestContext {
-        jwt_extractor,
-        ctx,
-        profile,
-        ai_request_id,
-    };
-    let prepared = extract_request_context(&request_ctx, &inbound, request, partial).await?;
-    dispatch_to_provider(&request_ctx, inbound, prepared).await
+    jwt_extractor: &'a JwtContextExtractor,
+    ctx: &'a AppContext,
+    ai_request_id: &'a AiRequestId,
+    partial: &'a mut RejectionPartial,
+}
+
+impl HandleInner<'_> {
+    async fn run(self, request: Request<Body>) -> Result<Response<Body>, (StatusCode, String)> {
+        let profile = ProfileBootstrap::get().map_err(|e| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                format!("Profile not ready: {e}"),
+            )
+        })?;
+        let request_ctx = RequestContext {
+            jwt_extractor: self.jwt_extractor,
+            ctx: self.ctx,
+            profile,
+            ai_request_id: self.ai_request_id,
+        };
+        let prepared =
+            extract_request_context(&request_ctx, &self.inbound, request, self.partial).await?;
+        dispatch_to_provider(&request_ctx, self.inbound, prepared).await
+    }
 }

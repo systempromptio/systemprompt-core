@@ -60,7 +60,10 @@ rules:
         .validate()
         .expect_err("rule with neither roles nor departments must fail");
     let msg = err.to_string();
-    assert!(msg.contains("roles[]") && msg.contains("departments[]"), "got: {msg}");
+    assert!(
+        msg.contains("roles[]") && msg.contains("departments[]"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -77,7 +80,8 @@ rules:
     let cfg: AccessControlConfig = serde_yaml::from_str(bad).expect("yaml parses");
     let err = cfg.validate().expect_err("undeclared department must fail");
     assert!(
-        err.to_string().contains("undeclared department 'Marketing'"),
+        err.to_string()
+            .contains("undeclared department 'Marketing'"),
         "got: {err}"
     );
 }

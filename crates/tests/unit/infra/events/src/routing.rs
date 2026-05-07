@@ -157,7 +157,8 @@ async fn test_route_system_with_registered_connection() {
 #[tokio::test]
 async fn test_route_agui_broadcasts_to_context() {
     let user_id = UserId::new("cross-route-user");
-    let (context_sender, mut context_receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (context_sender, mut context_receiver) =
+        tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
         .register(&user_id, "context-only-conn", context_sender)
@@ -180,7 +181,8 @@ async fn test_route_agui_broadcasts_to_context() {
 #[tokio::test]
 async fn test_route_a2a_broadcasts_to_context() {
     let user_id = UserId::new("a2a-cross-route-user");
-    let (context_sender, mut context_receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (context_sender, mut context_receiver) =
+        tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
         .register(&user_id, "a2a-context-conn", context_sender)

@@ -2,7 +2,9 @@ use super::captures::{CapturedToolUse, CapturedUsage};
 use super::protocol::canonical::CanonicalContent;
 use super::protocol::canonical_response::CanonicalResponse;
 
-pub fn extract_from_canonical(response: &CanonicalResponse) -> (CapturedUsage, Vec<CapturedToolUse>) {
+pub fn extract_from_canonical(
+    response: &CanonicalResponse,
+) -> (CapturedUsage, Vec<CapturedToolUse>) {
     let usage = CapturedUsage {
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
@@ -32,4 +34,3 @@ pub fn extract_assistant_text(response: &CanonicalResponse) -> Option<String> {
     }
     if out.is_empty() { None } else { Some(out) }
 }
-

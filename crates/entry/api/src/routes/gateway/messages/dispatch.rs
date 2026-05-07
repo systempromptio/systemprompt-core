@@ -4,9 +4,9 @@ use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::Response;
 
-use crate::services::gateway::GatewayService;
 use crate::services::gateway::audit::GatewayRequestContext;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
+use crate::services::gateway::service::{DispatchInputs, GatewayService};
 
 use super::RequestContext;
 use super::extract::PreparedRequest;
@@ -51,11 +51,13 @@ pub(super) async fn dispatch_to_provider(
 
     match GatewayService::dispatch(
         gateway_config,
-        gateway_request,
-        body_bytes,
-        gateway_ctx,
-        inbound,
         rc.ctx.db_pool(),
+        DispatchInputs {
+            request: gateway_request,
+            raw_body: body_bytes,
+            ctx: gateway_ctx,
+            inbound,
+        },
     )
     .await
     {

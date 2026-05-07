@@ -25,8 +25,7 @@ fn openai_responses_shape_hashes() {
 
 #[test]
 fn anthropic_array_content_hashes() {
-    let body =
-        br#"{"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}"#;
+    let body = br#"{"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}"#;
     let h = derive_context_id(body).expect("anthropic array content should hash");
     assert_ne!(h, 0);
 }
@@ -96,7 +95,10 @@ fn openai_responses_instructions_align_with_anthropic_system() {
 fn role_changes_hash() {
     let user_first = br#"{"messages":[{"role":"user","content":"hi"}]}"#;
     let assistant_first = br#"{"messages":[{"role":"assistant","content":"hi"}]}"#;
-    assert_ne!(derive_context_id(user_first), derive_context_id(assistant_first));
+    assert_ne!(
+        derive_context_id(user_first),
+        derive_context_id(assistant_first)
+    );
 }
 
 #[test]
@@ -128,7 +130,8 @@ fn array_content_concatenates_text_parts() {
 
 #[test]
 fn multiple_system_messages_concatenate() {
-    let one = br#"{"messages":[{"role":"system","content":"a\nb"},{"role":"user","content":"hi"}]}"#;
+    let one =
+        br#"{"messages":[{"role":"system","content":"a\nb"},{"role":"user","content":"hi"}]}"#;
     let two = br#"{"messages":[{"role":"system","content":"a"},{"role":"system","content":"b"},{"role":"user","content":"hi"}]}"#;
     assert_eq!(
         derive_context_id(one),

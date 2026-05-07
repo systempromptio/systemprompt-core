@@ -27,15 +27,30 @@ pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayService;
 
+/// Per-request inputs to [`GatewayService::dispatch`].
+///
+/// Bundles `request`, `raw_body`, `ctx`, and `inbound` so that the
+/// surrounding env (`config`, `db`) stays as explicit arguments.
+#[derive(Debug)]
+pub struct DispatchInputs {
+    pub request: CanonicalRequest,
+    pub raw_body: Bytes,
+    pub ctx: GatewayRequestContext,
+    pub inbound: Arc<dyn InboundAdapter>,
+}
+
 impl GatewayService {
     pub async fn dispatch(
         config: &GatewayConfig,
-        request: CanonicalRequest,
-        raw_body: Bytes,
-        ctx: GatewayRequestContext,
-        inbound: Arc<dyn InboundAdapter>,
         db: &DbPool,
+        inputs: DispatchInputs,
     ) -> Result<Response<Body>> {
+        let DispatchInputs {
+            request,
+            raw_body,
+            ctx,
+            inbound,
+        } = inputs;
         if ctx.context_id.as_ref().is_none_or(ContextId::is_empty) || ctx.session_id.is_none() {
             return Err(anyhow!(
                 "gateway dispatch missing conversation binding (session_id + context_id)"
@@ -145,16 +160,27 @@ impl GatewayService {
 
         let response = finalize(
             outcome,
-            Arc::clone(&audit),
-            db.clone(),
-            ai_request_id.clone(),
-            policy,
-            inbound,
-            request.model.clone(),
+            FinalizeCtx {
+                audit: Arc::clone(&audit),
+                db: db.clone(),
+                ai_request_id: ai_request_id.clone(),
+                policy,
+                inbound,
+                request_model: request.model.clone(),
+            },
         )
         .await;
         Ok(attach_request_id(response, &ai_request_id))
     }
+}
+
+struct FinalizeCtx {
+    audit: Arc<GatewayAudit>,
+    db: DbPool,
+    ai_request_id: AiRequestId,
+    policy: GatewayPolicySpec,
+    inbound: Arc<dyn InboundAdapter>,
+    request_model: String,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -168,22 +194,22 @@ pub struct QuotaExceeded {
     pub retry_after_seconds: i32,
 }
 
-async fn finalize(
-    outcome: OutboundOutcome,
-    audit: Arc<GatewayAudit>,
-    db: DbPool,
-    ai_request_id: AiRequestId,
-    policy: GatewayPolicySpec,
-    inbound: Arc<dyn InboundAdapter>,
-    request_model: String,
-) -> Response<Body> {
+async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Response<Body> {
+    let FinalizeCtx {
+        audit,
+        db,
+        ai_request_id,
+        policy,
+        inbound,
+        request_model,
+    } = fctx;
     match outcome {
         OutboundOutcome::Buffered(canonical) => {
             let body_bytes = inbound.render_response(&canonical);
             let audit_clone = Arc::clone(&audit);
-            let canonical_for_task = canonical.clone();
             let body_for_task = body_bytes.clone();
             tokio::spawn(async move {
+                let canonical_for_task = canonical;
                 let served_model = canonical_for_task.model.clone();
                 if !served_model.is_empty() {
                     audit_clone.set_served_model(&served_model).await;

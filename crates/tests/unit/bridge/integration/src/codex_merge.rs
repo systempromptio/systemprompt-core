@@ -1,8 +1,8 @@
 use std::fs;
 use std::sync::{Mutex, MutexGuard};
 
-use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 use systemprompt_bridge::integration::find_host_by_id;
+use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -71,7 +71,9 @@ fn install_on_writable_target_writes_managed_config() {
         return;
     }
     if !cfg!(target_os = "windows") {
-        if !std::path::Path::new("/etc/codex").exists() && std::env::var("USER").as_deref() != Ok("root") {
+        if !std::path::Path::new("/etc/codex").exists()
+            && std::env::var("USER").as_deref() != Ok("root")
+        {
             return;
         }
     }
@@ -93,7 +95,10 @@ fn install_on_writable_target_writes_managed_config() {
 
 fn extract_base64_from_mobileconfig(xml: &str) -> String {
     let needle = "<key>config_toml_base64</key>";
-    let after = xml.split(needle).nth(1).expect("mobileconfig has config_toml_base64");
+    let after = xml
+        .split(needle)
+        .nth(1)
+        .expect("mobileconfig has config_toml_base64");
     let start = after.find("<string>").expect("string open") + "<string>".len();
     let end = after[start..].find("</string>").expect("string close");
     let b64 = &after[start..start + end];

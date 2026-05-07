@@ -69,7 +69,7 @@ async fn webhook_returns_deny_decision() {
         AuthzDecision::Deny { reason, policy } => {
             assert_eq!(reason, "policy violation");
             assert_eq!(policy, "test_policy");
-        }
+        },
         AuthzDecision::Allow => panic!("expected deny decision"),
     }
 }

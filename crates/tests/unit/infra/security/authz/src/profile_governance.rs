@@ -1,6 +1,4 @@
-use systemprompt_models::profile::{
-    AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
-};
+use systemprompt_models::profile::{AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT};
 
 #[test]
 fn governance_config_default_has_no_authz_block() {

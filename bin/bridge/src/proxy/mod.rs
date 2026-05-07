@@ -1,3 +1,4 @@
+pub mod dispatch;
 pub mod forward;
 pub mod heartbeat;
 pub mod secret;

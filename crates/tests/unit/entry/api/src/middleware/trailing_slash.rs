@@ -37,7 +37,6 @@ fn test_api_paths_are_distinct() {
 
 #[test]
 fn test_trailing_slash_redirect_conditions_documented() {
-
     let should_redirect = vec!["/api/users/", "/api/v1/agents/"];
 
     for path in should_redirect {
@@ -73,7 +72,6 @@ fn test_trailing_slash_no_redirect_conditions_documented() {
 
 #[test]
 fn test_query_string_preservation_documented() {
-
     let _path_with_query = "/api/users/";
     let query = "page=1&limit=10";
     let expected_new_path = "/api/users";

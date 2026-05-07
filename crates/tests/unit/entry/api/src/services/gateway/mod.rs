@@ -1,1 +1,2 @@
+mod pricing;
 mod registry;

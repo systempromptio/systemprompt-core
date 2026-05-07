@@ -45,6 +45,8 @@ pub mod tracing_init {
             install_file_writer();
             let filter = EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("info,systemprompt_bridge::proxy=debug"));
+            // Why: try_init only fails if a global subscriber is already installed,
+            // which is benign — the existing subscriber stays.
             if json_format_requested() {
                 let _ = tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
@@ -97,6 +99,8 @@ pub mod tracing_init {
             },
         };
         let (writer, guard) = tracing_appender::non_blocking(appender);
+        // Why: OnceLock::set is idempotent — only fails if already initialised,
+        // which is benign during re-init in tests / subsequent calls.
         let _ = GUARD.set(guard);
         let _ = FILE_WRITER.set(writer);
     }
@@ -150,6 +154,8 @@ pub mod tracing_init {
             let dump =
                 format!("panic at {location}\npayload: {payload}\n\nbacktrace:\n{backtrace:?}\n");
             if let Some(dir) = log_dir() {
+                // Why: panic hook is a best-effort dump path — recursing into tracing
+                // on a filesystem failure would itself become the failure mode.
                 let _ = std::fs::create_dir_all(&dir);
                 let path = dir.join(format!("bridge-crash-{ts}.log"));
                 let _ = std::fs::write(&path, &dump);
@@ -189,18 +195,24 @@ pub mod tracing_init {
     }
 
     impl Write for TeeWriterImpl {
+        // Why: prefer file-only output when the rolling log is available — stderr
+        // tee was too noisy in the terminal once proxy=debug request logging
+        // landed. Fall back to stderr only when no file sink exists, so early
+        // bootstrap errors before `install_file_writer` are still visible.
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            let _ = io::stderr().write_all(buf);
             if let Some(file) = self.file.as_mut() {
                 let _ = file.write_all(buf);
+            } else {
+                let _ = io::stderr().write_all(buf);
             }
             Ok(buf.len())
         }
 
         fn flush(&mut self) -> io::Result<()> {
-            let _ = io::stderr().flush();
             if let Some(file) = self.file.as_mut() {
                 let _ = file.flush();
+            } else {
+                let _ = io::stderr().flush();
             }
             Ok(())
         }

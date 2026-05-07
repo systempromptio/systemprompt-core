@@ -137,7 +137,9 @@ fn context_id_format_is_stable_lowercase_hex() {
         assert!(s.starts_with("ctx_"), "missing prefix: {s}");
         assert_eq!(s.len(), 4 + 16, "wrong length: {s}");
         assert!(
-            s[4..].chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+            s[4..]
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
             "non-lowercase-hex tail: {s}"
         );
     }

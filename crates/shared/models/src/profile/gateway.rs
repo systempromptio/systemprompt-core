@@ -1,3 +1,4 @@
+use crate::services::ai::ModelPricing;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
@@ -142,6 +143,8 @@ pub struct GatewayModel {
     pub display_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pricing: Option<ModelPricing>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,6 +159,8 @@ pub struct GatewayRoute {
     pub upstream_model: Option<String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub extra_headers: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pricing: Option<ModelPricing>,
 }
 
 impl GatewayRoute {

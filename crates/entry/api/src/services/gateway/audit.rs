@@ -114,11 +114,7 @@ impl GatewayAudit {
         record.build().map_err(anyhow::Error::from)
     }
 
-    pub async fn open(
-        &self,
-        request: &CanonicalRequest,
-        request_body: &Bytes,
-    ) -> Result<()> {
+    pub async fn open(&self, request: &CanonicalRequest, request_body: &Bytes) -> Result<()> {
         let record = self.build_record()?;
 
         self.requests
@@ -188,7 +184,9 @@ impl GatewayAudit {
     ) -> Result<()> {
         let latency_ms = self.started_at.elapsed().as_millis().min(i32::MAX as u128) as i32;
         let effective_model = self.effective_model();
-        let pricing_rates = pricing::lookup(&self.ctx.provider, &effective_model);
+        let profile = systemprompt_config::ProfileBootstrap::get().ok();
+        let gateway = profile.as_ref().and_then(|p| p.gateway.as_ref());
+        let pricing_rates = pricing::resolve(&self.ctx.provider, &effective_model, gateway);
         let cost =
             pricing::cost_microdollars(pricing_rates, usage.input_tokens, usage.output_tokens);
 
