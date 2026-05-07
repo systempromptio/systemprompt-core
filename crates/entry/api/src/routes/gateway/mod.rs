@@ -3,6 +3,7 @@ pub mod bridge;
 pub mod bridge_data;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
+pub mod bridge_profile_usage;
 pub mod messages;
 pub mod models;
 pub mod otel;
@@ -94,12 +95,14 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let ctx_manifest = ctx.clone();
     let ctx_oauth_client = ctx.clone();
     let ctx_enabled_hosts = ctx.clone();
+    let ctx_profile_usage = ctx.clone();
     let ctx_otel = ctx.clone();
     let ctx_otel_rest = ctx.clone();
     let jwt_heartbeat = Arc::clone(&jwt_extractor);
     let jwt_manifest = Arc::clone(&jwt_extractor);
     let jwt_oauth_client = Arc::clone(&jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(&jwt_extractor);
+    let jwt_profile_usage = Arc::clone(&jwt_extractor);
     let jwt_responses = Arc::clone(&jwt_extractor);
 
     let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
@@ -170,6 +173,14 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
                 let extractor = Arc::clone(&jwt_enabled_hosts);
                 let context = ctx_enabled_hosts.clone();
                 async move { bridge::set_enabled_host(extractor, context, headers, body).await }
+            }),
+        )
+        .route(
+            "/bridge/profile/usage",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_profile_usage);
+                let context = ctx_profile_usage.clone();
+                async move { bridge_profile_usage::handle(extractor, context, headers).await }
             }),
         )
         .route(

@@ -29,7 +29,9 @@
 mod candidate;
 mod error;
 mod filter;
+mod registry;
 
 pub use candidate::MarketplaceCandidate;
 pub use error::MarketplaceFilterError;
 pub use filter::{AllowAllFilter, MarketplaceFilter};
+pub use registry::{MarketplaceFilterRegistration, discover_filters};

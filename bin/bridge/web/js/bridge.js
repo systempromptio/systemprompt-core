@@ -62,7 +62,6 @@ export const bridge = {
   marketplaceList:      ()                  => invoke("marketplace.list"),
   profileFetch:         ()                  => invoke("profile.fetch"),
   hostProbe:            (hostId)            => invoke("host.probe", { hostId }),
-  agentsSetEnabled:     (hostId, enabled)   => invoke("agents.setEnabled", { hostId, enabled }),
   hostProfileGenerate:  (hostId)            => invoke("host.profile.generate", { hostId }),
   hostProfileInstall:   (hostId, path)      => invoke("host.profile.install", { hostId, path }),
   hostProxyProbe:       ()                  => invoke("host.proxy.probe"),

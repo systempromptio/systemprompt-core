@@ -204,37 +204,6 @@ impl GatewayClient {
 
     #[tracing::instrument(
         level = "debug",
-        skip(self, bearer),
-        fields(endpoint = "set_enabled_host", host_id, enabled, status, latency_ms)
-    )]
-    pub async fn set_enabled_host(
-        &self,
-        bearer: &str,
-        host_id: &str,
-        enabled: bool,
-    ) -> Result<(), GatewayError> {
-        let url = self.url("/v1/bridge/profile/enabled_hosts");
-        let started = Instant::now();
-        let resp = self
-            .http()
-            .post(&url)
-            .bearer_auth(bearer)
-            .json(&serde_json::json!({ "host_id": host_id, "enabled": enabled }))
-            .send()
-            .await
-            .map_err(|e| GatewayError::ManifestFetch(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "set_enabled_host",
-            });
-        }
-        Ok(())
-    }
-
-    #[tracing::instrument(
-        level = "debug",
         skip(self),
         fields(endpoint = "health", status, latency_ms)
     )]

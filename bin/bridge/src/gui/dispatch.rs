@@ -23,7 +23,6 @@ fn request_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
-        UiEvent::SetEnabledHostRequested { .. } => "SetEnabledHostRequested",
         UiEvent::ProfileFetchRequested { .. } => "ProfileFetchRequested",
         _ => return None,
     })
@@ -38,7 +37,6 @@ fn finish_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::LogoutFinished { .. } => "LogoutFinished",
         UiEvent::SetGatewayFinished { .. } => "SetGatewayFinished",
         UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
-        UiEvent::SetEnabledHostFinished { .. } => "SetEnabledHostFinished",
         UiEvent::ProfileFetchFinished { .. } => "ProfileFetchFinished",
         _ => return None,
     })
@@ -142,11 +140,6 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
         UiEvent::GatewayProbeRequested { reply_to } => {
             handlers::gateway_probe::on_gateway_probe_requested(app, reply_to)
         },
-        UiEvent::SetEnabledHostRequested {
-            host_id,
-            enabled,
-            reply_to,
-        } => handlers::agents::on_set_enabled_host_requested(app, host_id, enabled, reply_to),
         UiEvent::ProfileFetchRequested { reply_to } => {
             handlers::profile::on_profile_fetch_requested(app, reply_to)
         },
@@ -174,14 +167,6 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
         },
         UiEvent::GatewayProbeFinished { outcome, reply_to } => {
             handlers::gateway_probe::on_gateway_probe_finished(app, outcome, reply_to)
-        },
-        UiEvent::SetEnabledHostFinished {
-            host_id,
-            enabled,
-            result,
-            reply_to,
-        } => {
-            handlers::agents::on_set_enabled_host_finished(app, host_id, enabled, result, reply_to)
         },
         UiEvent::ProfileFetchFinished { result, reply_to } => {
             handlers::profile::on_profile_fetch_finished(app, result, reply_to)
