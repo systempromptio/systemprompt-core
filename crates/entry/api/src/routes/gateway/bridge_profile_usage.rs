@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
-use systemprompt_analytics::CostAnalyticsRepository;
+use systemprompt_analytics::{AnalyticsResult, CostAnalyticsRepository};
 use systemprompt_identifiers::JwtToken;
 use systemprompt_models::api::cloud::{
     BridgeProfileUsage, ConversationGroup, ConversationSummary, ModelShare,
@@ -53,7 +53,7 @@ pub async fn handle(
         window(&repo, user_id, d7_start, now, Duration::days(7)),
         window(&repo, user_id, d30_start, now, Duration::days(30)),
     )
-    .map_err(|e: sqlx::Error| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let model_breakdown = repo
         .get_breakdown_by_model_for_user(user_id, d30_start, now, TOP_MODELS_LIMIT)
@@ -95,7 +95,7 @@ async fn window(
     start: chrono::DateTime<Utc>,
     end: chrono::DateTime<Utc>,
     span: Duration,
-) -> Result<UsageWindow, sqlx::Error> {
+) -> AnalyticsResult<UsageWindow> {
     let summary = repo.get_summary_for_user(user_id, start, end).await?;
     let prev_start = start - span;
     let prev = repo
@@ -114,7 +114,7 @@ async fn conversation_summary(
     user_id: &str,
     start: chrono::DateTime<Utc>,
     end: chrono::DateTime<Utc>,
-) -> Result<ConversationSummary, sqlx::Error> {
+) -> AnalyticsResult<ConversationSummary> {
     let total = repo.get_context_summary_for_user(user_id, start, end).await?;
     let by_model = repo
         .get_contexts_by_model_for_user(user_id, start, end, TOP_GROUPS_LIMIT)
@@ -126,11 +126,17 @@ async fn conversation_summary(
         .get_recent_contexts_for_user(user_id, end, RECENT_LIMIT)
         .await?;
 
+    let to_group = |r: systemprompt_analytics::ContextGroupRow| ConversationGroup {
+        name: r.name,
+        conversations: r.conversations,
+        ai_requests: r.ai_requests,
+    };
+
     Ok(ConversationSummary {
         total_conversations: total.conversations,
         total_ai_requests: total.ai_requests,
-        by_model: by_model.into_iter().map(group_row).collect(),
-        by_agent: by_agent.into_iter().map(group_row).collect(),
+        by_model: by_model.into_iter().map(to_group).collect(),
+        by_agent: by_agent.into_iter().map(to_group).collect(),
         recent: recent
             .into_iter()
             .map(|r| RecentConversationSummary {
@@ -142,12 +148,4 @@ async fn conversation_summary(
             })
             .collect(),
     })
-}
-
-fn group_row(r: systemprompt_analytics::ContextGroupRow) -> ConversationGroup {
-    ConversationGroup {
-        name: r.name,
-        conversations: r.conversations,
-        ai_requests: r.ai_requests,
-    }
 }
