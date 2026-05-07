@@ -16,6 +16,8 @@
   <template id="tpl-mkt-glyph-mcp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01"/><path d="M7 17h.01"/></svg></template>
   <template id="tpl-mkt-glyph-agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></template>
   <template id="tpl-mkt-glyph-folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></template>
+  <template id="tpl-host-logo-claude-desktop"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg></template>
+  <template id="tpl-host-logo-codex-cli"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="4"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(120 12 12)"/></svg></template>
   <template id="tpl-mkt-empty-sub-detail">Pick from the list, or use <span class="sp-kbd">⌘F</span> to search.</template>
 
   <header class="sp-topbar" role="banner">
@@ -50,10 +52,6 @@
       </section>
 
       <section class="sp-tab__panel" data-tab="agents" role="tabpanel" hidden>
-        <header class="sp-tab__header">
-          <h1 data-l10n-id="agents-heading">Agents</h1>
-          <sp-overall-badge></sp-overall-badge>
-        </header>
         <p class="sp-tab__lede sp-u-muted" data-l10n-id="agents-lede">
           systemprompt bridge routes any number of coding agents through a single local proxy.
           Install the configuration profile for each agent you want governed; they all run simultaneously.

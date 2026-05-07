@@ -67,6 +67,7 @@ export const bridge = {
   hostProxyProbe:       ()                  => invoke("host.proxy.probe"),
   agentUninstall:       (hostId)            => invoke("agent.uninstall", { hostId }),
   agentOpenConfig:      (hostId)            => invoke("agent.openConfig", { hostId }),
+  agentOpen:            (hostId)            => invoke("agent.open", { hostId }),
   setupComplete:        ()                  => invoke("setup.complete"),
   openConfigFolder:     ()                  => invoke("openConfigFolder"),
   openLogFolder:        ()                  => invoke("openLogFolder"),
