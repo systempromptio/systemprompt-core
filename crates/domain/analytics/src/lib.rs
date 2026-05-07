@@ -26,14 +26,15 @@ pub use error::{AnalyticsError, Result, Result as AnalyticsResult};
 pub use models::{
     ActivityTrend, AnalyticsEvent, AnalyticsEventBatchResponse, AnalyticsEventCreated,
     AnalyticsEventType, AnalyticsSession, BotTrafficStats, BrowserBreakdown, ContentStat,
-    ConversationByAgent, ConversationSummary, ConversationTrend, ConversionEventData, CostOverview,
-    CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput, CreateEngagementEventInput,
-    CreateFunnelInput, CreateFunnelStepInput, DeviceBreakdown, EngagementEvent,
-    EngagementEventData, EngagementOptionalMetrics, ErrorSummary, FingerprintAnalysisResult,
-    FingerprintReputation, FlagReason, Funnel, FunnelMatchType, FunnelProgress, FunnelStats,
-    FunnelStep, FunnelStepStats, FunnelWithSteps, GeographicBreakdown, LinkClickEventData,
-    PlatformOverview, RecentConversation, ScrollEventData, TopAgent, TopTool, TopUser,
-    TrafficSource, TrafficSummary, UserMetricsWithTrends,
+    ContextGroupRow, ContextSummaryRow, ConversationByAgent, ConversationSummary,
+    ConversationTrend, ConversionEventData, CostOverview, CreateAnalyticsEventBatchInput,
+    CreateAnalyticsEventInput, CreateEngagementEventInput, CreateFunnelInput,
+    CreateFunnelStepInput, DeviceBreakdown, EngagementEvent, EngagementEventData,
+    EngagementOptionalMetrics, ErrorSummary, FingerprintAnalysisResult, FingerprintReputation,
+    FlagReason, Funnel, FunnelMatchType, FunnelProgress, FunnelStats, FunnelStep, FunnelStepStats,
+    FunnelWithSteps, GeographicBreakdown, LinkClickEventData, PlatformOverview, RecentContextRow,
+    RecentConversation, ScrollEventData, TopAgent, TopTool, TopUser, TrafficSource, TrafficSummary,
+    UserMetricsWithTrends,
 };
 pub use repository::{
     ABUSE_THRESHOLD_FOR_BAN, AgentAnalyticsRepository, AnalyticsEventsRepository,
