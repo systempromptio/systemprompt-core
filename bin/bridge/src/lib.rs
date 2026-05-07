@@ -6,7 +6,6 @@
 )]
 
 pub mod activity;
-pub mod agents_state;
 pub mod auth;
 pub mod cli;
 pub mod config;
@@ -103,7 +102,26 @@ pub fn run() -> ExitCode {
     obs::install_panic_hook();
     obs::tracing_init::init();
     activity::install_persistent_writer();
+    purge_legacy_agents_state();
     cli::run()
+}
+
+// One-shot cleanup of the pre-0.x per-host enable/disable file. Host enable
+// state now lives in the user's profile, not on local disk; remove the stale
+// file so it stops shadowing manifest-driven state. Drop this call once
+// fleets are confidently past the deprecation.
+fn purge_legacy_agents_state() {
+    let Some(base) = dirs::config_dir() else {
+        return;
+    };
+    let path = base.join("systemprompt").join("agents.json");
+    match std::fs::remove_file(&path) {
+        Ok(()) => tracing::info!(path = %path.display(), "purged legacy agents state file"),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+        Err(e) => {
+            tracing::warn!(path = %path.display(), error = %e, "purge legacy agents state failed")
+        },
+    }
 }
 
 #[cfg(all(test, feature = "ts-export"))]

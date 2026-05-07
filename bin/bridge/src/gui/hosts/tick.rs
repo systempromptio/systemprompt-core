@@ -7,9 +7,6 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
     let snap = app.state.snapshot();
     for host in crate::integration::host_apps() {
         let id = host.id();
-        if !snap.agents.is_enabled(id) {
-            continue;
-        }
         let st = snap.hosts.get(id);
         if let Some(state) = st {
             if state.probe_in_flight {
@@ -48,11 +45,7 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
 }
 
 pub(crate) fn request_initial_probe(app: &GuiApp) {
-    let snap = app.state.snapshot();
     for host in crate::integration::host_apps() {
-        if !snap.agents.is_enabled(host.id()) {
-            continue;
-        }
         let _ = app
             .proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {

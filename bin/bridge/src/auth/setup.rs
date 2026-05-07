@@ -102,9 +102,6 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     if let Err(e) = crate::auth::plugin_oauth::delete_creds() {
         return Err(SetupError::Io(format!("clear oauth client creds: {e}")));
     }
-    if let Err(e) = crate::agents_state::delete() {
-        return Err(SetupError::Io(format!("clear agents state: {e}")));
-    }
     Ok(CleanReport {
         paths,
         pat_removed,

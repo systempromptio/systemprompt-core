@@ -76,17 +76,6 @@ pub enum UiEvent {
         host_id: String,
         reply_to: ReplyId,
     },
-    SetEnabledHostRequested {
-        host_id: String,
-        enabled: bool,
-        reply_to: ReplyId,
-    },
-    SetEnabledHostFinished {
-        host_id: String,
-        enabled: bool,
-        result: Result<(), Arc<GuiError>>,
-        reply_to: ReplyId,
-    },
     AgentOpenConfig {
         host_id: String,
         reply_to: ReplyId,
