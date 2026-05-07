@@ -35,4 +35,18 @@ pub enum ApplyError {
     },
     #[error("plugin hook token: {0}")]
     PluginOAuth(#[from] crate::auth::plugin_oauth::PluginOAuthError),
+    #[error("toml {what}: {source}")]
+    Toml {
+        what: String,
+        #[source]
+        source: TomlError,
+    },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum TomlError {
+    #[error(transparent)]
+    Serialize(#[from] toml::ser::Error),
+    #[error(transparent)]
+    Deserialize(#[from] toml::de::Error),
 }

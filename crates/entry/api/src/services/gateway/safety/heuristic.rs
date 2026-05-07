@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use serde_json::Value;
 
+use super::super::protocol::canonical::{CanonicalContent, CanonicalRequest};
+use super::super::protocol::canonical_response::CanonicalResponse;
 use super::{Finding, SafetyScanner, Severity};
-use crate::services::gateway::models::AnthropicGatewayRequest;
 
 const JAILBREAK_PHRASES: &[&str] = &[
     "ignore previous instructions",
@@ -26,62 +26,24 @@ impl SafetyScanner for HeuristicScanner {
         "heuristic"
     }
 
-    async fn scan_request(&self, req: &AnthropicGatewayRequest) -> Vec<Finding> {
+    async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let mut text = String::new();
-        if let Some(system) = &req.system {
-            collect_text(system, &mut text);
-        }
-        for msg in &req.messages {
-            collect_text(&msg.content, &mut text);
-        }
+        let text = req.flatten_text();
         scan_text("request", &text, &mut findings);
         findings
     }
 
-    async fn scan_response_final(&self, body: &[u8]) -> Vec<Finding> {
-        let Ok(value) = serde_json::from_slice::<Value>(body) else {
-            return Vec::new();
-        };
+    async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding> {
         let mut text = String::new();
-        if let Some(content) = value.get("content").and_then(Value::as_array) {
-            for block in content {
-                if block.get("type").and_then(Value::as_str) == Some("text") {
-                    if let Some(t) = block.get("text").and_then(Value::as_str) {
-                        text.push_str(t);
-                        text.push('\n');
-                    }
-                }
+        for part in &response.content {
+            if let CanonicalContent::Text(t) = part {
+                text.push_str(t);
+                text.push('\n');
             }
         }
         let mut findings = Vec::new();
         scan_text("response", &text, &mut findings);
         findings
-    }
-}
-
-fn collect_text(v: &Value, out: &mut String) {
-    match v {
-        Value::String(s) => {
-            out.push_str(s);
-            out.push('\n');
-        },
-        Value::Array(a) => {
-            for item in a {
-                collect_text(item, out);
-            }
-        },
-        Value::Object(obj) => {
-            if let Some(Value::String(s)) = obj.get("text") {
-                out.push_str(s);
-                out.push('\n');
-            }
-            if let Some(Value::String(s)) = obj.get("content") {
-                out.push_str(s);
-                out.push('\n');
-            }
-        },
-        _ => {},
     }
 }
 

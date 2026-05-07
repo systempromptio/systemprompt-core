@@ -11,10 +11,9 @@
 // doesn't break the parallel-agent merge train.
 #![allow(dead_code)]
 
-use std::fs;
-use std::io;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{fs, io};
 
 pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     if let Some(parent) = path.parent()
@@ -54,7 +53,7 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
         Err(e) => {
             let _ = fs::remove_file(&tmp);
             Err(e)
-        }
+        },
     }
 }
 
@@ -128,7 +127,10 @@ fn temp_path_for(path: &Path) -> std::path::PathBuf {
         .unwrap_or(0);
     let pid = std::process::id();
     let suffix = format!("tmp.{pid}.{nanos}");
-    let mut name = path.file_name().map(std::ffi::OsString::from).unwrap_or_default();
+    let mut name = path
+        .file_name()
+        .map(std::ffi::OsString::from)
+        .unwrap_or_default();
     name.push(".");
     name.push(suffix);
     match path.parent() {

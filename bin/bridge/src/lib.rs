@@ -19,13 +19,13 @@ pub mod i18n;
 pub mod ids;
 pub mod install;
 pub mod integration;
-pub(crate) mod mcp_registry;
 #[cfg(all(
     feature = "ts-export",
     not(any(target_os = "windows", target_os = "macos"))
 ))]
 #[path = "gui/ipc.rs"]
 pub mod ipc_types;
+pub(crate) mod mcp_registry;
 pub mod obs;
 pub mod proxy;
 pub mod schedule;

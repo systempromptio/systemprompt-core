@@ -9,10 +9,10 @@ use hyper::{HeaderMap, Request, Response, StatusCode};
 use systemprompt_identifiers::{ContextId, SessionId, ValidatedUrl, headers as sp_headers};
 use thiserror::Error;
 
+use crate::mcp_registry;
 use crate::proxy::server::ProxyStats;
 use crate::proxy::session::{self, SessionContext};
 use crate::proxy::token_cache::TokenCache;
-use crate::mcp_registry;
 use crate::proxy::usage;
 
 const HOP_BY_HOP: &[&str] = &[

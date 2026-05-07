@@ -2,15 +2,16 @@ mod error;
 mod hooks;
 pub(crate) mod hooks_schema;
 mod plugin;
-mod synthetic_plugin;
+pub(crate) mod synthetic_plugin;
 
-pub use error::ApplyError;
+pub use error::{ApplyError, TomlError};
 pub use synthetic_plugin::write_synthetic_plugin;
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::config::{self as config};
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
+use crate::sync::host_sync::{self, HostSyncCtx};
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
@@ -41,73 +42,39 @@ pub async fn apply_manifest(
 
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
     let manifest_for_write = manifest_with_servers(manifest, mcp_servers.clone());
-    synthetic_plugin::write_synthetic_plugin(root, &manifest_for_write)?;
     write_user(&meta_dir, manifest.user.as_ref())?;
 
     crate::mcp_registry::publish(&mcp_servers);
 
-    refresh_mdm_managed_mcp();
-    emit_to_cowork(root, &manifest_for_write);
+    // Manifest carries cloud-driven host enablement; persist it locally so the
+    // GUI snapshot reflects what the cloud said before dispatching emitters.
+    if let Err(e) = crate::agents_state::save_from_manifest(&manifest_for_write.enabled_hosts) {
+        tracing::warn!(
+            target: "bridge::sync::host",
+            error = %e,
+            "persist agents state from manifest failed (non-fatal)"
+        );
+    }
+
+    let ctx = HostSyncCtx {
+        manifest: &manifest_for_write,
+        org_plugins_root: root,
+    };
+    for emitter in host_sync::registry() {
+        let host_id = emitter.host_id();
+        let enabled = manifest_for_write
+            .enabled_hosts
+            .iter()
+            .any(|h| h == host_id);
+        let outcome = if enabled {
+            emitter.apply(&ctx)
+        } else {
+            emitter.clear()
+        };
+        host_sync::log_outcome(host_id, enabled, outcome);
+    }
 
     Ok(report)
-}
-
-// Best-effort: errors log but never fail the sync — MDM refresh is not on
-// the critical path for plugin install.
-fn refresh_mdm_managed_mcp() {
-    match crate::install::refresh_managed_mcp_servers() {
-        Ok(line) => tracing::info!(
-            target: "bridge::mdm",
-            written = %line,
-            "managedMcpServers policy value refreshed"
-        ),
-        Err(e) => tracing::warn!(
-            target: "bridge::mdm",
-            error = %e,
-            "managedMcpServers policy refresh failed (non-fatal)"
-        ),
-    }
-}
-
-fn emit_to_cowork(org_plugins_root: &Path, manifest: &SignedManifest) {
-    if std::env::var("SP_BRIDGE_NO_COWORK_EMIT").is_ok() {
-        tracing::info!(
-            target: "bridge::cowork",
-            "SP_BRIDGE_NO_COWORK_EMIT set; skipping Cowork marketplace emit"
-        );
-        return;
-    }
-    let Some(target) = crate::integration::cowork_plugins::resolve_target() else {
-        tracing::info!(
-            target: "bridge::cowork",
-            "no Cowork install detected; skipping marketplace emit"
-        );
-        return;
-    };
-    let plugin_name = paths::SYNTHETIC_PLUGIN_NAME;
-    let version = manifest.manifest_version.as_str();
-    match crate::integration::cowork_plugins::publish(
-        &target,
-        org_plugins_root,
-        plugin_name,
-        version,
-        Some("Skills, agents, and MCP servers managed by your organization."),
-    ) {
-        Ok(report) => tracing::info!(
-            target: "bridge::cowork",
-            session_org = ?report.target,
-            copied = report.plugin_copied,
-            registered_marketplace = report.marketplace_registered,
-            registered_plugin = report.plugin_installed_registered,
-            enabled = report.enabled,
-            "Cowork marketplace emit complete"
-        ),
-        Err(e) => tracing::warn!(
-            target: "bridge::cowork",
-            error = %e,
-            "Cowork marketplace emit failed (non-fatal)"
-        ),
-    }
 }
 
 // Manifests can carry loopback URLs (the gateway encodes its own
@@ -147,8 +114,9 @@ fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> 
             if parsed.set_host(Some(gw_host)).is_err() {
                 return s.clone();
             }
-            // Why: set_port returns Err for cannot-be-a-base URLs; for http(s) this only fails on
-            // truly invalid input. Mirror gateway port (None clears the explicit port).
+            // Why: set_port returns Err for cannot-be-a-base URLs; for http(s) this only
+            // fails on truly invalid input. Mirror gateway port (None clears
+            // the explicit port).
             if parsed.set_port(gw_port).is_err() {
                 return s.clone();
             }

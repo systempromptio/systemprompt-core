@@ -32,8 +32,9 @@ pub enum ManifestError {
     CanonicalSerialize(serde_json::Error),
 }
 
-// Extension trait because `SignedManifest` lives in `systemprompt-models`; the orphan rule
-// forbids the bridge from declaring an inherent impl on the foreign type.
+// Extension trait because `SignedManifest` lives in `systemprompt-models`; the
+// orphan rule forbids the bridge from declaring an inherent impl on the foreign
+// type.
 pub trait SignedManifestVerify {
     fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError>;
 }
@@ -83,6 +84,7 @@ pub struct SignedManifestBuilder {
     agents: Vec<AgentEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
     revocations: Vec<String>,
+    enabled_hosts: Vec<String>,
 }
 
 impl SignedManifestBuilder {
@@ -107,7 +109,14 @@ impl SignedManifestBuilder {
             agents: Vec::new(),
             managed_mcp_servers: Vec::new(),
             revocations: Vec::new(),
+            enabled_hosts: Vec::new(),
         }
+    }
+
+    #[must_use]
+    pub fn with_enabled_hosts(mut self, hosts: Vec<String>) -> Self {
+        self.enabled_hosts = hosts;
+        self
     }
 
     #[must_use]
@@ -166,6 +175,7 @@ impl SignedManifestBuilder {
             agents: self.agents,
             managed_mcp_servers: self.managed_mcp_servers,
             revocations: self.revocations,
+            enabled_hosts: self.enabled_hosts,
             signature: self.signature,
         }
     }
@@ -184,6 +194,7 @@ struct CanonicalView<'a> {
     agents: &'a [AgentEntry],
     managed_mcp_servers: &'a [ManagedMcpServer],
     revocations: &'a [String],
+    enabled_hosts: &'a [String],
 }
 
 pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
@@ -199,6 +210,7 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
         agents: &m.agents,
         managed_mcp_servers: &m.managed_mcp_servers,
         revocations: &m.revocations,
+        enabled_hosts: &m.enabled_hosts,
     };
     serde_jcs::to_string(&view).map_err(ManifestError::CanonicalSerialize)
 }

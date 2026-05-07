@@ -3,16 +3,16 @@
 //! Per-tenant `client_credentials` client exchanged for plugin-scoped JWTs via
 //! `/api/v1/core/oauth/token`. Storage split: `client_secret` lives in the OS
 //! keystore (Keychain / Credential Manager / Secret Service); non-secret fields
-//! live in a 0600 JSON file at `~/.cache/systemprompt-bridge/oauth_client.json`.
+//! live in a 0600 JSON file at
+//! `~/.cache/systemprompt-bridge/oauth_client.json`.
 
 use crate::gateway::{BridgeOAuthClientResponse, GatewayClient, GatewayError, HookTokenResponse};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
-use std::io;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{fs, io};
 use tokio::sync::OnceCell;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
@@ -175,7 +175,8 @@ pub fn delete_creds() -> io::Result<()> {
     }
 }
 
-// Provisioning rotates the secret server-side, so only call when local state is missing.
+// Provisioning rotates the secret server-side, so only call when local state is
+// missing.
 pub async fn ensure_creds(
     gateway: &GatewayClient,
     pat: &str,
@@ -272,7 +273,8 @@ async fn mint(
         .await
 }
 
-// On 401 from the gateway, rotates the per-tenant client secret and retries once.
+// On 401 from the gateway, rotates the per-tenant client secret and retries
+// once.
 pub async fn mint_or_refresh_plugin_token(
     gateway: &GatewayClient,
     pat: &str,
@@ -286,7 +288,10 @@ pub async fn mint_or_refresh_plugin_token(
     let response = match mint(gateway, &creds, plugin_id).await {
         Ok(r) => r,
         Err(GatewayError::HttpStatus { status, .. }) if status.as_u16() == 401 => {
-            tracing::warn!(plugin_id, "hook token mint 401; rotating client secret and retrying");
+            tracing::warn!(
+                plugin_id,
+                "hook token mint 401; rotating client secret and retrying"
+            );
             let creds = refresh_creds(gateway, pat).await?;
             mint(gateway, &creds, plugin_id).await?
         },

@@ -230,17 +230,6 @@ impl AppState {
         self.inner.read().agents.is_enabled(host_id)
     }
 
-    pub fn set_host_enabled(&self, host_id: &str, flag: bool) -> std::io::Result<()> {
-        let mut guard = self.inner.write();
-        guard.agents.set_enabled(host_id, flag);
-        if !flag {
-            guard.hosts.by_id.remove(host_id);
-        }
-        let snapshot = guard.agents.clone();
-        drop(guard);
-        agents_state::save(&snapshot)
-    }
-
     pub fn enabled_host_ids(&self) -> Vec<String> {
         self.inner.read().agents.enabled_ids()
     }

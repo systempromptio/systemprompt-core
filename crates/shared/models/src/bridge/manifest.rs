@@ -40,6 +40,8 @@ pub struct SignedManifest {
     pub agents: Vec<AgentEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub revocations: Vec<String>,
+    #[serde(default)]
+    pub enabled_hosts: Vec<String>,
     /// Detached ed25519 signature of the canonicalised payload (every
     /// field above this one). Always present on the wire even for
     /// unsigned manifests, where it is the empty string.

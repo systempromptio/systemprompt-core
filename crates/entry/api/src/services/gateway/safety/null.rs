@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 
+use super::super::protocol::canonical::CanonicalRequest;
+use super::super::protocol::canonical_response::CanonicalResponse;
 use super::{Finding, SafetyScanner};
-use crate::services::gateway::models::AnthropicGatewayRequest;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NullScanner;
@@ -11,10 +12,10 @@ impl SafetyScanner for NullScanner {
     fn name(&self) -> &'static str {
         "null"
     }
-    async fn scan_request(&self, _req: &AnthropicGatewayRequest) -> Vec<Finding> {
+    async fn scan_request(&self, _req: &CanonicalRequest) -> Vec<Finding> {
         Vec::new()
     }
-    async fn scan_response_final(&self, _body: &[u8]) -> Vec<Finding> {
+    async fn scan_response_final(&self, _response: &CanonicalResponse) -> Vec<Finding> {
         Vec::new()
     }
 }

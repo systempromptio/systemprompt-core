@@ -43,8 +43,8 @@ pub mod tracing_init {
     pub fn init() {
         INIT.call_once(|| {
             install_file_writer();
-            let filter =
-                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+            let filter = EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("info,systemprompt_bridge::proxy=debug"));
             if json_format_requested() {
                 let _ = tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
@@ -208,20 +208,49 @@ pub mod tracing_init {
 
     struct BridgeFormat;
 
-    struct MessageVisitor<'a>(&'a mut String);
+    #[derive(Default)]
+    struct EventVisitor {
+        message: String,
+        fields: String,
+    }
 
-    impl Visit for MessageVisitor<'_> {
-        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-            if field.name() == "message" {
-                self.0.push_str(value);
+    impl EventVisitor {
+        fn write_field(&mut self, name: &str, value: fmt::Arguments<'_>) {
+            use std::fmt::Write as _;
+            if name == "message" {
+                let _ = write!(self.message, "{value}");
+            } else {
+                if !self.fields.is_empty() {
+                    self.fields.push(' ');
+                }
+                let _ = write!(self.fields, "{name}={value}");
             }
+        }
+    }
+
+    impl Visit for EventVisitor {
+        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+            self.write_field(field.name(), format_args!("{value}"));
         }
 
         fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
-            if field.name() == "message" {
-                use std::fmt::Write as _;
-                let _ = write!(self.0, "{value:?}");
-            }
+            self.write_field(field.name(), format_args!("{value:?}"));
+        }
+
+        fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
+            self.write_field(field.name(), format_args!("{value}"));
+        }
+
+        fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+            self.write_field(field.name(), format_args!("{value}"));
+        }
+
+        fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
+            self.write_field(field.name(), format_args!("{value}"));
+        }
+
+        fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
+            self.write_field(field.name(), format_args!("{value}"));
         }
     }
 
@@ -236,11 +265,19 @@ pub mod tracing_init {
             mut writer: Writer<'_>,
             event: &Event<'_>,
         ) -> fmt::Result {
-            let mut message = String::new();
-            let mut visitor = MessageVisitor(&mut message);
+            let mut visitor = EventVisitor::default();
             event.record(&mut visitor);
-            let unquoted = strip_debug_quotes(&message);
-            writeln!(writer, "[systemprompt-bridge] {unquoted}")
+            let level = event.metadata().level();
+            let unquoted = strip_debug_quotes(&visitor.message);
+            if visitor.fields.is_empty() {
+                writeln!(writer, "[systemprompt-bridge] {level} {unquoted}")
+            } else {
+                writeln!(
+                    writer,
+                    "[systemprompt-bridge] {level} {unquoted} {}",
+                    visitor.fields
+                )
+            }
         }
     }
 

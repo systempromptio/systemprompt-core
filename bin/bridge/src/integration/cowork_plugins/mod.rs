@@ -36,6 +36,61 @@ pub(crate) const COWORK_SETTINGS_FILE: &str = "cowork_settings.json";
 
 use thiserror::Error;
 
+use crate::config::paths;
+use crate::sync::ApplyError;
+use crate::sync::host_sync::{HostSync, HostSyncCtx};
+
+pub struct CoworkSync;
+
+impl HostSync for CoworkSync {
+    fn host_id(&self) -> &'static str {
+        "cowork"
+    }
+
+    fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+        let Some(target) = resolve_target() else {
+            tracing::info!(
+                target: "bridge::cowork",
+                "no Cowork install detected; skipping marketplace emit"
+            );
+            return Ok(());
+        };
+        let plugin_name = paths::SYNTHETIC_PLUGIN_NAME;
+        let version = ctx.manifest.manifest_version.as_str();
+        let report = publish(
+            &target,
+            ctx.org_plugins_root,
+            plugin_name,
+            version,
+            Some("Skills, agents, and MCP servers managed by your organization."),
+        )
+        .map_err(|e| ApplyError::Io {
+            context: format!("cowork publish: {e}"),
+            source: std::io::Error::other(e.to_string()),
+        })?;
+        tracing::info!(
+            target: "bridge::cowork",
+            session_org = ?report.target,
+            copied = report.plugin_copied,
+            registered_marketplace = report.marketplace_registered,
+            registered_plugin = report.plugin_installed_registered,
+            enabled = report.enabled,
+            "Cowork marketplace emit complete"
+        );
+        Ok(())
+    }
+
+    fn clear(&self) -> Result<(), ApplyError> {
+        let Some(target) = resolve_target() else {
+            return Ok(());
+        };
+        unpublish(&target, paths::SYNTHETIC_PLUGIN_NAME).map_err(|e| ApplyError::Io {
+            context: format!("cowork unpublish: {e}"),
+            source: std::io::Error::other(e.to_string()),
+        })
+    }
+}
+
 pub const KNOWN_MARKETPLACES_FILE: &str = "known_marketplaces.json";
 
 pub(crate) const INSTALLED_PLUGINS_FILE: &str = "installed_plugins.json";

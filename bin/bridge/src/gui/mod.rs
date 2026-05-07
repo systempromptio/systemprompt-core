@@ -110,6 +110,7 @@ pub(crate) struct GuiApp {
     pub(crate) runtime: Handle,
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
+    pub(crate) last_state_hash: Option<u64>,
 }
 
 impl GuiApp {
@@ -129,6 +130,7 @@ impl GuiApp {
             runtime,
             settings_window: None,
             last_proxy_stats_tick: Instant::now(),
+            last_state_hash: None,
         }
     }
 
@@ -193,7 +195,6 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             .proxy
             .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
 
-        run_agents_migration_if_needed(self);
         hosts::tick::request_initial_probe(self);
     }
 
@@ -245,22 +246,4 @@ impl ApplicationHandler<UiEvent> for GuiApp {
 
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));
     }
-}
-
-fn run_agents_migration_if_needed(app: &GuiApp) {
-    if crate::agents_state::store_exists() {
-        return;
-    }
-    let (state, migrated) = crate::agents_state::migrate_from_existing_profiles();
-    if let Err(e) = crate::agents_state::save(&state) {
-        tracing::warn!(error = %e, "agents migration: failed to write initial agents.json");
-        return;
-    }
-    if !migrated.is_empty() {
-        app.append_log(format!(
-            "agents migration: auto-enabled {} based on existing installed profile(s)",
-            migrated.join(", ")
-        ));
-    }
-    app.state.reload();
 }

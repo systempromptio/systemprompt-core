@@ -12,7 +12,7 @@ use std::time::Instant;
 use crate::auth::types::{AuthResponse, MtlsRequest, SessionExchangeRequest};
 use crate::gateway::errors::GatewayError;
 use crate::gateway::types::{BridgeOAuthClientResponse, HookTokenResponse};
-use crate::gateway::{record_span, GatewayClient};
+use crate::gateway::{GatewayClient, record_span};
 
 impl GatewayClient {
     pub async fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
@@ -56,8 +56,8 @@ impl GatewayClient {
             .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
     }
 
-    // Plaintext `client_secret` is only returned once per call; callers must persist it to the
-    // bridge's secret store immediately.
+    // Plaintext `client_secret` is only returned once per call; callers must
+    // persist it to the bridge's secret store immediately.
     #[tracing::instrument(
         level = "debug",
         skip(self, pat),

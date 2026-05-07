@@ -2,12 +2,14 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
+use std::sync::Arc;
 use systemprompt_identifiers::{
     ContextId, SessionId, TenantId, TraceId, UserId, headers as sp_headers,
 };
 use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 
-use crate::services::gateway::models::AnthropicGatewayRequest;
+use crate::services::gateway::protocol::canonical::CanonicalRequest;
+use crate::services::gateway::protocol::inbound::InboundAdapter;
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
@@ -30,7 +32,7 @@ pub(super) struct RejectionPartial {
 pub(super) struct PreparedRequest {
     pub principal: AuthedPrincipal,
     pub body_bytes: Bytes,
-    pub gateway_request: AnthropicGatewayRequest,
+    pub gateway_request: CanonicalRequest,
     pub provider: String,
     pub upstream_model: String,
     pub session_id: SessionId,
@@ -39,6 +41,7 @@ pub(super) struct PreparedRequest {
 
 pub(super) async fn extract_request_context(
     rc: &RequestContext<'_>,
+    inbound: &Arc<dyn InboundAdapter>,
     request: Request<Body>,
     partial: &mut RejectionPartial,
 ) -> Result<PreparedRequest, (StatusCode, String)> {
@@ -72,7 +75,7 @@ pub(super) async fn extract_request_context(
     partial.user_id = Some(principal.user_id.clone());
     partial.trace_id.clone_from(&principal.trace_id);
 
-    let (body_bytes, gateway_request) = read_gateway_body(request, partial).await?;
+    let (body_bytes, gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
     let route = gateway_config
         .find_route(&gateway_request.model)
@@ -137,9 +140,10 @@ fn require_typed_header<T>(
 }
 
 async fn read_gateway_body(
+    inbound: &Arc<dyn InboundAdapter>,
     request: Request<Body>,
     partial: &mut RejectionPartial,
-) -> Result<(Bytes, AnthropicGatewayRequest), (StatusCode, String)> {
+) -> Result<(Bytes, CanonicalRequest), (StatusCode, String)> {
     let body_bytes = axum::body::to_bytes(request.into_body(), 8 * 1024 * 1024)
         .await
         .map_err(|e| {
@@ -150,17 +154,13 @@ async fn read_gateway_body(
         })?;
     partial.body = Some(body_bytes.clone());
 
-    let gateway_request: AnthropicGatewayRequest =
-        serde_json::from_slice(&body_bytes).map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("Invalid request body: {e}"),
-            )
-        })?;
-    partial.model = Some(gateway_request.model.clone());
-    partial.max_tokens = Some(gateway_request.max_tokens);
-    partial.is_streaming = gateway_request.stream.unwrap_or(false);
-    Ok((body_bytes, gateway_request))
+    let canonical = inbound
+        .parse_request(&body_bytes)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid request body: {e}")))?;
+    partial.model = Some(canonical.model.clone());
+    partial.max_tokens = Some(canonical.max_tokens);
+    partial.is_streaming = canonical.stream;
+    Ok((body_bytes, canonical))
 }
 
 async fn enforce_authz_for_route(

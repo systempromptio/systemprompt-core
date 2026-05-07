@@ -15,7 +15,7 @@ body:not(.is-setup-mode) .sp-setup { display: none; }
   display: flex;
   flex-direction: column;
 }
-.sp-tab__panel { display: flex; flex-direction: column; gap: var(--sp-space-4-5); min-height: 0; flex: 1; }
+.sp-tab__panel { display: flex; flex-direction: column; gap: var(--sp-space-6); min-height: 0; flex: 1; }
 .sp-tab__panel[hidden] { display: none; }
 .sp-tab__header {
   display: flex;

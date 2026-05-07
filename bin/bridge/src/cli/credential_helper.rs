@@ -2,10 +2,8 @@
 
 use std::process::ExitCode;
 
-use chrono::{SecondsFormat, Utc};
-
 use crate::auth::ChainError;
-use crate::{auth, config};
+use crate::{auth, config, proxy};
 
 pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
     let host = parse_host(args);
@@ -17,8 +15,19 @@ pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
         },
     };
 
+    match host.as_str() {
+        "codex-cli" => emit_codex(),
+        "claude-desktop" => emit_claude_via_chain(),
+        other => {
+            eprintln!("{}", error_json(&format!("unknown host id: {other}")));
+            ExitCode::from(64)
+        },
+    }
+}
+
+fn emit_claude_via_chain() -> ExitCode {
     let cfg = config::load();
-    let acquired = match crate::proxy::block_on(auth::acquire_bearer(&cfg)) {
+    let acquired = match proxy::block_on(auth::acquire_bearer(&cfg)) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("{}", error_json(&format!("runtime init failed: {e}")));
@@ -42,33 +51,35 @@ pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
             return ExitCode::from(5);
         },
     };
-
-    match host.as_str() {
-        "claude-desktop" => emit_claude(&out),
-        "codex-cli" => emit_codex(&out),
-        other => {
-            eprintln!("{}", error_json(&format!("unknown host id: {other}")));
-            ExitCode::from(64)
-        },
-    }
+    emit_claude(&out)
 }
 
-fn emit_codex(out: &auth::types::HelperOutput) -> ExitCode {
-    let expires_at = expires_at_rfc3339(out.ttl);
-    let body = serde_json::json!({
-        "token": out.token.expose(),
-        "expires_at": expires_at,
-    });
-    match serde_json::to_string(&body) {
-        Ok(s) => {
-            println!("{s}");
-            ExitCode::SUCCESS
-        },
+fn emit_codex() -> ExitCode {
+    // Codex talks to the local loopback proxy, not the upstream gateway. The
+    // proxy validator (proxy/server.rs) compares Authorization against the
+    // loopback secret, so the helper must hand Codex that same secret. Upstream
+    // gateway auth is the proxy's concern, attached during forward::forward().
+    let secret = match proxy::secret::for_profile() {
+        Ok(s) => s,
         Err(e) => {
-            eprintln!("{}", error_json(&format!("serialize failed: {e}")));
-            ExitCode::from(3)
+            eprintln!(
+                "{}",
+                error_json(&format!(
+                    "loopback secret unavailable: {e}; start the bridge once to mint it"
+                ))
+            );
+            return ExitCode::from(70);
         },
-    }
+    };
+    // Why: Codex's `auth.command` integration treats the helper's stdout as the
+    // raw bearer value and stuffs it directly into `Authorization: Bearer
+    // <stdout>`. It does NOT parse a JSON envelope — emitting
+    // `{"token":"...","expires_at":null}` here causes Codex to send
+    // `Authorization: Bearer {"token":"...","expires_at":null}`,
+    // which the proxy rejects as a bad loopback secret. The helper must print the
+    // bare secret followed by a newline.
+    println!("{}", secret.as_str());
+    ExitCode::SUCCESS
 }
 
 fn emit_claude(out: &auth::types::HelperOutput) -> ExitCode {
@@ -95,14 +106,6 @@ fn parse_host(args: &[String]) -> Option<String> {
         }
     }
     None
-}
-
-fn expires_at_rfc3339(ttl_secs: u64) -> Option<String> {
-    if ttl_secs == 0 {
-        return None;
-    }
-    let expiry = Utc::now() + chrono::Duration::seconds(ttl_secs as i64);
-    Some(expiry.to_rfc3339_opts(SecondsFormat::Secs, true))
 }
 
 fn error_json(msg: &str) -> String {

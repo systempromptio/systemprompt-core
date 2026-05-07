@@ -15,6 +15,7 @@ use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::Profile;
 use systemprompt_runtime::AppContext;
 
+use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::middleware::JwtContextExtractor;
 
 use dispatch::{build_error_response, dispatch_to_provider};
@@ -29,28 +30,45 @@ pub(super) struct RequestContext<'a> {
 }
 
 pub async fn handle(
+    inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     request: Request<Body>,
 ) -> Response<Body> {
     let ai_request_id = AiRequestId::generate();
     let mut partial = RejectionPartial::default();
-    match handle_inner(&jwt_extractor, &ctx, request, &ai_request_id, &mut partial).await {
+    match handle_inner(
+        Arc::clone(&inbound),
+        &jwt_extractor,
+        &ctx,
+        request,
+        &ai_request_id,
+        &mut partial,
+    )
+    .await
+    {
         Ok(resp) => resp,
         Err((status, message)) => {
             tracing::warn!(
                 status = %status,
                 message = %message,
                 ai_request_id = %ai_request_id,
+                wire = inbound.wire_name(),
                 "Gateway request rejected",
             );
             persist_rejection(&ctx, &ai_request_id, &partial, status, &message).await;
-            build_error_response(status, &message)
+            let body = inbound.render_error(status, &message);
+            Response::builder()
+                .status(status)
+                .header("content-type", "application/json")
+                .body(Body::from(body))
+                .unwrap_or_else(|_| build_error_response(status, &message))
         },
     }
 }
 
 async fn handle_inner(
+    inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: &JwtContextExtractor,
     ctx: &AppContext,
     request: Request<Body>,
@@ -69,6 +87,6 @@ async fn handle_inner(
         profile,
         ai_request_id,
     };
-    let prepared = extract_request_context(&request_ctx, request, partial).await?;
-    dispatch_to_provider(&request_ctx, prepared).await
+    let prepared = extract_request_context(&request_ctx, &inbound, request, partial).await?;
+    dispatch_to_provider(&request_ctx, inbound, prepared).await
 }

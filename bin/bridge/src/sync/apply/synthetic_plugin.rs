@@ -1,10 +1,38 @@
 use super::super::hash::safe_id_segment;
 use crate::config::paths;
 use crate::gateway::manifest::{AgentEntry, ManagedMcpServer, SignedManifest, SkillEntry};
+use crate::sync::host_sync::{HostSync, HostSyncCtx};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+pub struct ClaudeCodePluginSync;
+
+impl HostSync for ClaudeCodePluginSync {
+    fn host_id(&self) -> &'static str {
+        "claude-code"
+    }
+
+    fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), super::ApplyError> {
+        write_synthetic_plugin(ctx.org_plugins_root, ctx.manifest)
+    }
+
+    fn clear(&self) -> Result<(), super::ApplyError> {
+        let location = match crate::config::paths::org_plugins_effective() {
+            Some(loc) => loc,
+            None => return Ok(()),
+        };
+        let root = location.path.join(paths::SYNTHETIC_PLUGIN_NAME);
+        if root.exists() {
+            fs::remove_dir_all(&root).map_err(|e| super::ApplyError::Io {
+                context: format!("remove {}", root.display()),
+                source: e,
+            })?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(Serialize)]
 struct PluginJson<'a> {
@@ -99,10 +127,7 @@ fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super
     })
 }
 
-fn write_mcp_json(
-    root: &Path,
-    servers: &[ManagedMcpServer],
-) -> Result<(), super::ApplyError> {
+fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), super::ApplyError> {
     let slugs: Vec<String> = servers
         .iter()
         .map(|s| crate::mcp_registry::normalize_key(s.name.as_str()))

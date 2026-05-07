@@ -1,11 +1,13 @@
-mod apply;
+pub(crate) mod apply;
 mod error;
 mod hash;
+pub(crate) mod host_sync;
 mod manifest;
 mod replay;
 
-pub use apply::{ApplyError, write_synthetic_plugin};
+pub use apply::{ApplyError, TomlError, write_synthetic_plugin};
 pub use error::SyncError;
+pub(crate) use hash::safe_id_segment;
 pub use replay::{
     LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,
 };
