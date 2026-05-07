@@ -1,11 +1,12 @@
 pub(crate) mod apply;
 mod error;
 mod hash;
-pub(crate) mod host_sync;
+pub mod host_sync;
 mod manifest;
 mod replay;
 
 pub use apply::{ApplyError, TomlError, write_synthetic_plugin};
+pub use host_sync::{HostSync, HostSyncCtx};
 pub use error::SyncError;
 pub(crate) use hash::safe_id_segment;
 pub use replay::{

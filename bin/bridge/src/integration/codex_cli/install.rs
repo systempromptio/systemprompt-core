@@ -55,20 +55,23 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        atomic_copy(generated_path.as_ref(), &target)
+        merge_install(generated_path.as_ref(), &target)
     } else {
         let target = config::managed_config_path();
         if let Some(parent) = target.parent() {
             if std::fs::create_dir_all(parent).is_ok() && writable(parent) {
-                atomic_copy(generated_path.as_ref(), &target)?;
-                Ok(())
+                merge_install(generated_path.as_ref(), &target)
             } else {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::PermissionDenied,
                     format!(
-                        "/etc/codex is admin-owned. Copy as root: sudo install -m 0644 \
-                         {generated_path} {}",
-                        target.display()
+                        "{} is admin-owned. Re-run as root: sudo {} bridge codex install",
+                        parent.display(),
+                        std::env::current_exe()
+                            .ok()
+                            .as_deref()
+                            .map(|p| p.display().to_string())
+                            .unwrap_or_else(|| "systemprompt".into()),
                     ),
                 ))
             }
@@ -76,11 +79,89 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
             Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 format!(
-                    "cannot create /etc/codex. Copy as root: sudo install -D -m 0644 \
-                     {generated_path} {}",
+                    "cannot create parent for {}; re-run as root",
                     target.display()
                 ),
             ))
+        }
+    }
+}
+
+/// Bridge-owned top-level scalar keys (overwritten on each install).
+const OWNED_SCALAR_KEYS: &[&str] = &["model_provider"];
+/// Bridge-owned top-level tables (stripped wholesale on each install before
+/// the freshly generated values are merged in).
+const OWNED_TABLES: &[&str] = &["otel", "analytics"];
+/// Bridge-owned nested table to strip — the systemprompt model provider
+/// entry. Other entries under `model_providers.*` are user-authored and
+/// preserved.
+const OWNED_PROVIDER: &str = "systemprompt";
+
+fn merge_install(source: &Path, target: &Path) -> std::io::Result<()> {
+    let source_text = std::fs::read_to_string(source)?;
+    let source_value: toml::Value = toml::from_str(&source_text)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+    let existing_text = match std::fs::read_to_string(target) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(e),
+    };
+    let mut merged: toml::Value = if existing_text.is_empty() {
+        toml::Value::Table(toml::map::Map::new())
+    } else {
+        toml::from_str(&existing_text)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
+    };
+
+    strip_owned_keys(&mut merged);
+    deep_merge(&mut merged, &source_value);
+
+    let rendered = toml::to_string_pretty(&merged)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let tmp = target.with_extension(format!(
+        "{}.tmp.{}",
+        target
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("toml"),
+        std::process::id()
+    ));
+    std::fs::write(&tmp, rendered)?;
+    std::fs::rename(&tmp, target)?;
+    Ok(())
+}
+
+fn strip_owned_keys(target: &mut toml::Value) {
+    let toml::Value::Table(top) = target else {
+        return;
+    };
+    for k in OWNED_SCALAR_KEYS {
+        top.remove(*k);
+    }
+    for k in OWNED_TABLES {
+        top.remove(*k);
+    }
+    if let Some(toml::Value::Table(providers)) = top.get_mut("model_providers") {
+        providers.remove(OWNED_PROVIDER);
+        if providers.is_empty() {
+            top.remove("model_providers");
+        }
+    }
+}
+
+fn deep_merge(target: &mut toml::Value, source: &toml::Value) {
+    let (toml::Value::Table(t), toml::Value::Table(s)) = (target, source) else {
+        return;
+    };
+    for (k, v) in s {
+        match (t.get_mut(k), v) {
+            (Some(existing @ toml::Value::Table(_)), toml::Value::Table(_)) => {
+                deep_merge(existing, v);
+            },
+            _ => {
+                t.insert(k.clone(), v.clone());
+            },
         }
     }
 }
@@ -196,20 +277,6 @@ fn derive_otel_endpoint(gateway: &str) -> String {
         return format!("http://{}/otel", host_part.trim_end_matches('/'));
     }
     format!("{gateway}/otel")
-}
-
-fn atomic_copy(source: &Path, target: &Path) -> std::io::Result<()> {
-    let pid = std::process::id();
-    let tmp = target.with_extension(format!(
-        "{}.tmp.{pid}",
-        target
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("toml")
-    ));
-    std::fs::copy(source, &tmp)?;
-    std::fs::rename(&tmp, target)?;
-    Ok(())
 }
 
 fn writable(path: &Path) -> bool {

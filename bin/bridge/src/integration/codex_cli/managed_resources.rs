@@ -1,30 +1,42 @@
 //! Codex CLI sync emitter.
 //!
-//! Writes manifest-supplied MCP servers and skills into Codex's native config
-//! locations on every `apply_manifest` run, alongside the existing Cowork
+//! Writes manifest-supplied skills and MCP servers as a single Codex plugin
+//! bundle on every `apply_manifest` run, alongside the existing Cowork
 //! synthetic-plugin and Windows MDM emitters.
 //!
-//! - MCP servers land as `[mcp_servers.sp_<slug>]` blocks in the host's managed
-//!   config TOML, preserving any non-MCP keys (model_provider, otel, analytics)
-//!   the install step previously wrote.
-//! - Skills land as `~/.codex/skills/sp-<id>/SKILL.md` files.
+//! Layout matches Codex's documented plugin cache shape
+//! (developers.openai.com/codex/plugins/build):
 //!
-//! The bridge owns every entry whose key/dir starts with the `sp_` (TOML) /
-//! `sp-` (skills) prefix and rewrites the full set on each sync; user-authored
-//! entries without that prefix are left untouched.
+//! ```text
+//! ~/.codex/plugins/cache/<MARKETPLACE>/<PLUGIN>/<VERSION>/
+//!   .codex-plugin/plugin.json
+//!   skills/<id>/SKILL.md
+//!   .mcp.json
+//! ```
+//!
+//! `~/.codex/config.toml` gets a `[plugins."<PLUGIN>@<MARKETPLACE>"]` block
+//! with `enabled = true`, so the user can disable the whole bundle in one
+//! place. Every other key in `config.toml` is preserved.
 
+use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::gateway::manifest::{ManagedMcpServer, SkillEntry};
+use serde::Serialize;
+
+use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, SkillEntry};
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 use crate::sync::{ApplyError, TomlError, safe_id_segment};
 
-use super::config::{codex_home, managed_config_path};
+use super::config::{codex_home, user_config_path};
 use super::probe::write_dotted;
 
-const MCP_KEY_PREFIX: &str = "sp_";
-const SKILL_DIR_PREFIX: &str = "sp-";
+const MARKETPLACE: &str = "systemprompt";
+const PLUGIN_NAME: &str = "systemprompt-managed";
+// Why: Codex caches plugins under .../plugins/cache/<mp>/<plugin>/<version>/.
+// We rewrite the bundle on each apply, so a single fixed slot is enough; the
+// real semantic version travels in plugin.json.
+const PLUGIN_VERSION_DIR: &str = "current";
 
 pub struct CodexCliSync;
 
@@ -34,175 +46,159 @@ impl HostSync for CodexCliSync {
     }
 
     fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        write_managed_mcp_servers(&ctx.manifest.managed_mcp_servers)?;
-        write_managed_skills(&ctx.manifest.skills)?;
+        write_plugin_bundle(ctx.manifest)?;
+        write_plugin_block(true)?;
         Ok(())
     }
 
     fn clear(&self) -> Result<(), ApplyError> {
-        write_managed_mcp_servers(&[])?;
-        write_managed_skills(&[])?;
+        remove_plugin_bundle()?;
+        write_plugin_block(false)?;
         Ok(())
     }
 }
 
-fn write_managed_mcp_servers(servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
-    let path = managed_config_path();
-    let mut value = read_or_empty_toml(&path)?;
-    strip_managed_mcp_blocks(&mut value);
+fn plugin_id() -> String {
+    format!("{PLUGIN_NAME}@{MARKETPLACE}")
+}
 
-    for server in servers {
-        let slug = format!(
-            "{MCP_KEY_PREFIX}{}",
-            crate::mcp_registry::normalize_key(server.name.as_str())
-        );
-        emit_server(&mut value, &slug, server);
-    }
+fn plugin_root() -> PathBuf {
+    codex_home()
+        .join("plugins")
+        .join("cache")
+        .join(MARKETPLACE)
+        .join(PLUGIN_NAME)
+        .join(PLUGIN_VERSION_DIR)
+}
 
-    let rendered = toml::to_string_pretty(&value).map_err(|e| ApplyError::Toml {
-        what: format!("serialize {}", path.display()),
-        source: TomlError::from(e),
-    })?;
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| ApplyError::Io {
-            context: format!("create {}", parent.display()),
+fn write_plugin_bundle(manifest: &SignedManifest) -> Result<(), ApplyError> {
+    let root = plugin_root();
+    if root.exists() {
+        fs::remove_dir_all(&root).map_err(|e| ApplyError::Io {
+            context: format!("clear {}", root.display()),
             source: e,
         })?;
     }
-    fs::write(&path, rendered).map_err(|e| ApplyError::Io {
-        context: format!("write {}", path.display()),
+    let has_content =
+        !manifest.skills.is_empty() || !manifest.managed_mcp_servers.is_empty();
+    if !has_content {
+        return Ok(());
+    }
+    fs::create_dir_all(&root).map_err(|e| ApplyError::Io {
+        context: format!("create {}", root.display()),
         source: e,
     })?;
+
+    write_plugin_json(&root, manifest)?;
+    if !manifest.managed_mcp_servers.is_empty() {
+        write_mcp_json(&root, &manifest.managed_mcp_servers)?;
+    }
+    for skill in &manifest.skills {
+        write_skill(&root, skill)?;
+    }
     Ok(())
 }
 
-fn read_or_empty_toml(path: &Path) -> Result<toml::Value, ApplyError> {
-    let raw = match fs::read_to_string(path) {
-        Ok(s) => s,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-        Err(e) => {
-            return Err(ApplyError::Io {
-                context: format!("read {}", path.display()),
-                source: e,
-            });
-        },
-    };
-    if raw.is_empty() {
-        return Ok(toml::Value::Table(toml::map::Map::new()));
+fn remove_plugin_bundle() -> Result<(), ApplyError> {
+    let root = plugin_root();
+    if root.exists() {
+        fs::remove_dir_all(&root).map_err(|e| ApplyError::Io {
+            context: format!("remove {}", root.display()),
+            source: e,
+        })?;
     }
-    toml::from_str::<toml::Value>(&raw).map_err(|e| ApplyError::Toml {
-        what: format!("parse {}", path.display()),
-        source: TomlError::from(e),
+    Ok(())
+}
+
+#[derive(Serialize)]
+struct PluginJson<'a> {
+    name: &'a str,
+    version: &'a str,
+    description: &'a str,
+}
+
+fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), ApplyError> {
+    let dir = root.join(".codex-plugin");
+    fs::create_dir_all(&dir).map_err(|e| ApplyError::Io {
+        context: format!("create {}", dir.display()),
+        source: e,
+    })?;
+    let pj = PluginJson {
+        name: PLUGIN_NAME,
+        version: manifest.manifest_version.as_str(),
+        description: "Skills and MCP servers managed by your systemprompt.io organization.",
+    };
+    let bytes = serde_json::to_vec_pretty(&pj).map_err(|e| ApplyError::Serialize {
+        what: "codex plugin.json".into(),
+        source: e,
+    })?;
+    let path = dir.join("plugin.json");
+    fs::write(&path, bytes).map_err(|e| ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
     })
 }
 
-fn strip_managed_mcp_blocks(root: &mut toml::Value) {
-    let toml::Value::Table(top) = root else {
-        return;
-    };
-    let Some(toml::Value::Table(servers)) = top.get_mut("mcp_servers") else {
-        return;
-    };
-    servers.retain(|k, _| !k.starts_with(MCP_KEY_PREFIX));
-    if servers.is_empty() {
-        top.remove("mcp_servers");
-    }
+#[derive(Serialize)]
+struct McpJson<'a> {
+    #[serde(rename = "mcpServers")]
+    mcp_servers: BTreeMap<String, McpServerEntry<'a>>,
 }
 
-fn emit_server(root: &mut toml::Value, slug: &str, server: &ManagedMcpServer) {
-    let url_key = format!("mcp_servers.{slug}.url");
-    write_dotted(
-        root,
-        &url_key,
-        toml::Value::String(server.url.as_str().to_string()),
-    );
-
-    if let Some(headers) = &server.headers
-        && !headers.is_empty()
-    {
-        let mut table = toml::map::Map::new();
-        for (k, v) in headers {
-            table.insert(k.clone(), toml::Value::String(v.clone()));
-        }
-        let key = format!("mcp_servers.{slug}.http_headers");
-        write_dotted(root, &key, toml::Value::Table(table));
-    }
-
-    write_dotted(
-        root,
-        &format!("mcp_servers.{slug}.enabled"),
-        toml::Value::Boolean(true),
-    );
-    write_dotted(
-        root,
-        &format!("mcp_servers.{slug}.startup_timeout_sec"),
-        toml::Value::Integer(10),
-    );
-    write_dotted(
-        root,
-        &format!("mcp_servers.{slug}.tool_timeout_sec"),
-        toml::Value::Integer(60),
-    );
+#[derive(Serialize)]
+struct McpServerEntry<'a> {
+    #[serde(rename = "type")]
+    transport: &'a str,
+    url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    headers: Option<BTreeMap<&'a str, String>>,
 }
 
-fn write_managed_skills(skills: &[SkillEntry]) -> Result<(), ApplyError> {
-    let skills_root = codex_home().join("skills");
-    fs::create_dir_all(&skills_root).map_err(|e| ApplyError::Io {
-        context: format!("create {}", skills_root.display()),
+fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+    let mcp_servers: BTreeMap<String, McpServerEntry<'_>> = servers
+        .iter()
+        .map(|s| {
+            let slug = crate::mcp_registry::normalize_key(s.name.as_str());
+            let headers = s
+                .headers
+                .as_ref()
+                .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.clone())).collect());
+            (
+                slug,
+                McpServerEntry {
+                    transport: s.transport.as_deref().unwrap_or("http"),
+                    url: s.url.as_str().to_string(),
+                    headers,
+                },
+            )
+        })
+        .collect();
+    let payload = McpJson { mcp_servers };
+    let bytes = serde_json::to_vec_pretty(&payload).map_err(|e| ApplyError::Serialize {
+        what: "codex .mcp.json".into(),
         source: e,
     })?;
-
-    clear_managed_skill_dirs(&skills_root)?;
-
-    for skill in skills {
-        if !safe_id_segment(skill.id.as_str()) {
-            return Err(ApplyError::UnsafeSkillId(skill.id.clone()));
-        }
-        let dir_name = format!("{SKILL_DIR_PREFIX}{}", skill.id.as_str());
-        let dir = skills_root.join(&dir_name);
-        fs::create_dir_all(&dir).map_err(|e| ApplyError::Io {
-            context: format!("create {}", dir.display()),
-            source: e,
-        })?;
-        let path = dir.join("SKILL.md");
-        fs::write(&path, skill_markdown(skill)).map_err(|e| ApplyError::Io {
-            context: format!("write {}", path.display()),
-            source: e,
-        })?;
-    }
-    Ok(())
+    let path = root.join(".mcp.json");
+    fs::write(&path, bytes).map_err(|e| ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
+    })
 }
 
-fn clear_managed_skill_dirs(skills_root: &Path) -> Result<(), ApplyError> {
-    let entries = match fs::read_dir(skills_root) {
-        Ok(e) => e,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => {
-            return Err(ApplyError::Io {
-                context: format!("read_dir {}", skills_root.display()),
-                source: e,
-            });
-        },
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name_str) = name.to_str() else {
-            continue;
-        };
-        if !name_str.starts_with(SKILL_DIR_PREFIX) {
-            continue;
-        }
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        fs::remove_dir_all(&path).map_err(|e| ApplyError::Io {
-            context: format!("remove {}", path.display()),
-            source: e,
-        })?;
+fn write_skill(root: &Path, skill: &SkillEntry) -> Result<(), ApplyError> {
+    if !safe_id_segment(skill.id.as_str()) {
+        return Err(ApplyError::UnsafeSkillId(skill.id.clone()));
     }
-    Ok(())
+    let dir = root.join("skills").join(skill.id.as_str());
+    fs::create_dir_all(&dir).map_err(|e| ApplyError::Io {
+        context: format!("create {}", dir.display()),
+        source: e,
+    })?;
+    let path = dir.join("SKILL.md");
+    fs::write(&path, skill_markdown(skill)).map_err(|e| ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
+    })
 }
 
 fn skill_markdown(skill: &SkillEntry) -> String {
@@ -238,4 +234,64 @@ fn yaml_scalar(s: &str) -> String {
     }
     let escaped = s.replace('"', "\\\"");
     format!("\"{escaped}\"")
+}
+
+fn write_plugin_block(enabled: bool) -> Result<(), ApplyError> {
+    let path = user_config_path();
+    let mut value = read_or_empty_toml(&path)?;
+    strip_managed_plugin_block(&mut value);
+    write_dotted(
+        &mut value,
+        &format!("plugins.\"{}\".enabled", plugin_id()),
+        toml::Value::Boolean(enabled),
+    );
+
+    let rendered = toml::to_string_pretty(&value).map_err(|e| ApplyError::Toml {
+        what: format!("serialize {}", path.display()),
+        source: TomlError::from(e),
+    })?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| ApplyError::Io {
+            context: format!("create {}", parent.display()),
+            source: e,
+        })?;
+    }
+    fs::write(&path, rendered).map_err(|e| ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
+    })?;
+    Ok(())
+}
+
+fn read_or_empty_toml(path: &Path) -> Result<toml::Value, ApplyError> {
+    let raw = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => {
+            return Err(ApplyError::Io {
+                context: format!("read {}", path.display()),
+                source: e,
+            });
+        },
+    };
+    if raw.is_empty() {
+        return Ok(toml::Value::Table(toml::map::Map::new()));
+    }
+    toml::from_str::<toml::Value>(&raw).map_err(|e| ApplyError::Toml {
+        what: format!("parse {}", path.display()),
+        source: TomlError::from(e),
+    })
+}
+
+fn strip_managed_plugin_block(root: &mut toml::Value) {
+    let toml::Value::Table(top) = root else {
+        return;
+    };
+    let Some(toml::Value::Table(plugins)) = top.get_mut("plugins") else {
+        return;
+    };
+    plugins.remove(&plugin_id());
+    if plugins.is_empty() {
+        top.remove("plugins");
+    }
 }
