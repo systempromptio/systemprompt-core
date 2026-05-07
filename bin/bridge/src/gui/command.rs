@@ -269,6 +269,19 @@ fn agent_dispatch(
             },
             Err(e) => CommandOutcome::Sync(Err(e)),
         },
+        "agent.open" => match parse::<HostIdArgs>(args) {
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::AgentOpen {
+                        host_id: a.host_id,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
         _ => return None,
     })
 }

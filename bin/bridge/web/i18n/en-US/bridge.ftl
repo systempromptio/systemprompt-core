@@ -44,6 +44,10 @@ last-sync = Last sync: { $summary }
 # Agents tab ------------------------------------------------------------------
 agents-heading = Agents
 agents-lede = systemprompt bridge routes any number of coding agents through a single local proxy. Install the configuration profile for each agent you want governed; they all run simultaneously.
+agents-action-generate-all = Generate
+agents-action-install-all = Install
+agents-action-reverify-all = Re-verify
+host-action-open = Open
 
 # Status tab ------------------------------------------------------------------
 status-heading = Status

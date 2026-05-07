@@ -274,7 +274,33 @@ sp-host-card { display: block; }
 }
 .sp-host-card__name { margin: 0; font-size: 14px; font-weight: 600; }
 .sp-host-card__head .sp-host-card__name { flex: 1; }
-.sp-host-card__toggle-btn { margin-left: var(--sp-space-2-5); }
+.sp-host-card__logo {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  color: var(--sp-muted-strong);
+  margin-right: var(--sp-space-2-5);
+}
+.sp-host-card__open-btn { margin-left: var(--sp-space-2-5); }
+.sp-hosts__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-3-5);
+  margin-bottom: var(--sp-space-3-5);
+}
+.sp-hosts__header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-3);
+}
+.sp-hosts__header-meta h1 { margin: 0; }
+.sp-hosts__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-2-5);
+  margin-left: auto;
+}
 .sp-host-card .sp-status__prefs { padding: 0 var(--sp-space-4-5) var(--sp-space-2-5); }
 .sp-host-card .sp-claude__warn { margin: 0 var(--sp-space-4-5) var(--sp-space-3-5); }
 .sp-host-card--disabled { opacity: 0.7; }
