@@ -32,10 +32,12 @@ pub(crate) fn on_probe_requested(
         finish(app, Err(err), reply_to);
         return;
     };
-    if !app.state.mark_host_probing(host_id) {
-        if cause == ProbeCause::Manual {
-            app.append_log(format!("[{host_id}] re-verify already in flight"));
-        }
+    if cause == ProbeCause::Manual {
+        // User re-verify always wins: skip the in-flight gate so a click never gets dropped.
+        // Worst case we issue one redundant HEAD; the manual result lands last and overwrites
+        // the tick result, which is the desired "user action is authoritative" semantic.
+        app.append_log(format!("[{host_id}] re-verifying profile and process"));
+    } else if !app.state.mark_host_probing(host_id) {
         if let Some(id) = reply_to {
             let err = BridgeError::new(
                 ErrorScope::Host,
@@ -45,9 +47,6 @@ pub(crate) fn on_probe_requested(
             emit::send_reply_payload(app, id, &IpcReplyPayload::err(err));
         }
         return;
-    }
-    if cause == ProbeCause::Manual {
-        app.append_log(format!("[{host_id}] re-verifying profile and process"));
     }
     let host_id_owned = host_id.to_string();
     let proxy = app.proxy.clone();

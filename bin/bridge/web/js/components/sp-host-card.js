@@ -32,9 +32,11 @@ export class SpHostCard extends SpElement {
     const installed = profileState.kind === "installed";
     const partial = profileState.kind === "partial";
     const proxyState = ((snap.local_proxy && snap.local_proxy.state) || "Unknown").toString();
+    const probing = !!host.probe_in_flight;
     const badge = hs
       ? chooseBadge(installed, partial, proxyState)
       : { text: "probing…", cls: "sp-badge--muted" };
+    const spinnerMarkup = probing && hs ? `<span class="sp-spinner" aria-hidden="true"></span>` : "";
 
     let profileDot = "sp-dot--err";
     let profileText = t("host-profile-not-installed") || "not installed";
@@ -109,6 +111,7 @@ export class SpHostCard extends SpElement {
           ${logoMarkup}
           <h3 class="sp-host-card__name">${escapeHtml(host.display_name || "—")}</h3>
           <span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>
+          ${spinnerMarkup}
           <button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="open">${openLabel}</button>
         </header>
         <table class="sp-status__board"><tbody>

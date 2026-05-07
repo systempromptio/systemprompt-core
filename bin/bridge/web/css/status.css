@@ -282,6 +282,20 @@ sp-host-card { display: block; }
   margin-right: var(--sp-space-2-5);
 }
 .sp-host-card__open-btn { margin-left: var(--sp-space-2-5); }
+.sp-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: var(--sp-space-2);
+  border: 2px solid var(--sp-line);
+  border-top-color: var(--sp-muted-strong);
+  border-radius: 50%;
+  animation: sp-spinner-rotate 0.8s linear infinite;
+  vertical-align: middle;
+}
+@keyframes sp-spinner-rotate {
+  to { transform: rotate(360deg); }
+}
 .sp-hosts__header {
   display: flex;
   align-items: center;
