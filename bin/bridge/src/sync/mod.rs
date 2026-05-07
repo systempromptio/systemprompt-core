@@ -6,9 +6,9 @@ mod manifest;
 mod replay;
 
 pub use apply::{ApplyError, TomlError, write_synthetic_plugin};
-pub use host_sync::{HostSync, HostSyncCtx};
 pub use error::SyncError;
 pub(crate) use hash::safe_id_segment;
+pub use host_sync::{HostSync, HostSyncCtx};
 pub use replay::{
     LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,
 };
@@ -129,8 +129,11 @@ fn persist_last_sync(
     report: &apply::ApplyReport,
     now: chrono::DateTime<chrono::Utc>,
 ) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Some(parent) = path.parent()
+        && let Err(e) = fs::create_dir_all(parent)
+    {
+        tracing::warn!(error = %e, dir = %parent.display(), "sync: sentinel parent mkdir failed");
+        return;
     }
     let sentinel = LastSyncSentinel {
         synced_at: current_iso8601(),
@@ -144,9 +147,18 @@ fn persist_last_sync(
         skill_count: manifest.skills.len(),
         agent_count: manifest.agents.len(),
         user: manifest.user.as_ref().map(|u| u.email.as_str()),
+        enabled_hosts: &manifest.enabled_hosts,
     };
-    let bytes = serde_json::to_vec_pretty(&sentinel).unwrap_or_default();
-    let _ = fs::write(path, bytes);
+    let bytes = match serde_json::to_vec_pretty(&sentinel) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(error = %e, "sync: sentinel serialize failed");
+            return;
+        },
+    };
+    if let Err(e) = fs::write(path, bytes) {
+        tracing::warn!(error = %e, path = %path.display(), "sync: sentinel write failed");
+    }
 }
 
 fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncSummary {
@@ -181,6 +193,7 @@ struct LastSyncSentinel<'a> {
     skill_count: usize,
     agent_count: usize,
     user: Option<&'a str>,
+    enabled_hosts: &'a [String],
 }
 
 fn current_iso8601() -> String {

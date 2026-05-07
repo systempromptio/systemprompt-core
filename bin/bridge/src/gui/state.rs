@@ -29,6 +29,8 @@ struct LastSyncRecord {
     synced_at: Option<String>,
     #[serde(default)]
     manifest_version: Option<String>,
+    #[serde(default)]
+    enabled_hosts: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -86,6 +88,7 @@ pub struct AppStateSnapshot {
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,
+    pub enabled_hosts: Vec<String>,
 
     pub hosts: HostsState,
 }
@@ -314,6 +317,7 @@ impl AppState {
         snap.agent_count = None;
         snap.plugin_count = None;
         snap.malformed_plugin_count = None;
+        snap.enabled_hosts.clear();
         if crate::auth::has_credential_source(&cfg) {
             snap.cached_token = cache::read_valid().map(|out| CachedToken {
                 ttl_seconds: out.ttl,
@@ -337,6 +341,7 @@ impl AppState {
                 let when = record.synced_at.as_deref().unwrap_or("unknown");
                 let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
                 snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
+                snap.enabled_hosts = record.enabled_hosts;
             }
 
             let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);

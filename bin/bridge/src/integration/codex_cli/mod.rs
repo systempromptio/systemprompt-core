@@ -51,7 +51,8 @@ impl HostApp for CodexCliHost {
         install::install_profile(path)
     }
 
-    /// Codex is a CLI; "open" launches a terminal so the user can run `codex` interactively.
+    /// Codex is a CLI; "open" launches a terminal so the user can run `codex`
+    /// interactively.
     fn open(&self) -> std::io::Result<()> {
         open_terminal()
     }

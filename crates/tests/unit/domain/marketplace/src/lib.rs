@@ -38,8 +38,16 @@ async fn allow_all_filter_returns_input_unchanged() {
         .expect("AllowAllFilter must never error");
     assert_eq!(after.plugins.len(), before.plugins.len());
     assert_eq!(
-        after.plugins.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(),
-        before.plugins.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(),
+        after
+            .plugins
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect::<Vec<_>>(),
+        before
+            .plugins
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect::<Vec<_>>(),
     );
 }
 
@@ -96,6 +104,8 @@ async fn errors_propagate() {
         }
     }
 
-    let result = Failing.filter(&UserId::new("u-1"), sample_candidate()).await;
+    let result = Failing
+        .filter(&UserId::new("u-1"), sample_candidate())
+        .await;
     assert!(matches!(result, Err(MarketplaceFilterError::Backend(_))));
 }

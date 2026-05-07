@@ -11,6 +11,9 @@
 
 ### Changed
 
+- **`integration/codex_cli/install.rs` (326 lines, hand-rolled base64) split into `install/{mod,merge,render}.rs`.** `mod.rs` keeps `write_profile` / `install_profile` / `writable`; `merge.rs` owns `merge::install` plus the `OWNED_*` constants for bridge-owned keys; `render.rs` owns TOML + mobileconfig rendering. The 93-line `render_managed_toml` is now 16 lines, dispatching to `write_provider_block` / `write_otel_block` / `write_models_block`. Hand-rolled `base64_encode` replaced with `base64::engine::general_purpose::STANDARD`. WHAT-doc-comments on `OWNED_*` consts collapsed into a single module-level `//!` block.
+- **Silent error sites in `sync/mod.rs::persist_last_sync` and `integration/codex_cli/probe.rs::parse_into_keys` now log via `tracing::warn!`.** Three `let _ = …` / `.unwrap_or_default()` discards in `persist_last_sync` and one `.ok()?` on TOML parse in `probe::parse_into_keys` previously dropped errors silently; each now logs context (path, dir, source) before the best-effort fallback.
+- **Bridge codex tests no longer use `unsafe { env::set_var }`.** `crates/tests/unit/bridge/{sync,integration}/src/codex_*` rewritten on top of the `temp-env` crate (added as workspace dev-dep) — each test scopes `CODEX_HOME` / `CODEX_SYSTEM_CONFIG` via `temp_env::with_var(s)` instead of mutating process env, removing the manual `Mutex<()>` lock and the `unsafe` block.
 - **`agents_state` simplified.** `migrate_from_existing_profiles` (which probed every registered host on startup) and `store_exists` are gone. Replaced by `save_from_manifest(enabled_hosts: &[String])`, called from `sync::apply` whenever a new signed manifest is applied. `save` is now `pub(crate)`. The first-run "auto-enable everything that looks installed" migration is no longer needed because the manifest is authoritative.
 
 ### Added

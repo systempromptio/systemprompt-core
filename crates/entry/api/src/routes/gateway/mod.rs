@@ -4,6 +4,7 @@ pub mod bridge_data;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
 pub mod bridge_profile_usage;
+pub mod bridge_whoami;
 pub mod messages;
 pub mod models;
 pub mod otel;
@@ -96,6 +97,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let ctx_oauth_client = ctx.clone();
     let ctx_enabled_hosts = ctx.clone();
     let ctx_profile_usage = ctx.clone();
+    let ctx_whoami = ctx.clone();
     let ctx_otel = ctx.clone();
     let ctx_otel_rest = ctx.clone();
     let jwt_heartbeat = Arc::clone(&jwt_extractor);
@@ -103,6 +105,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let jwt_oauth_client = Arc::clone(&jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(&jwt_extractor);
     let jwt_profile_usage = Arc::clone(&jwt_extractor);
+    let jwt_whoami = Arc::clone(&jwt_extractor);
     let jwt_responses = Arc::clone(&jwt_extractor);
 
     let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
@@ -159,6 +162,14 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         .route("/auth/bridge/capabilities", get(auth::capabilities))
         .route("/bridge/pubkey", get(bridge::pubkey))
         .route("/bridge/profile", get(bridge::profile))
+        .route(
+            "/bridge/whoami",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_whoami);
+                let context = ctx_whoami.clone();
+                async move { bridge_whoami::handle(extractor, context, headers).await }
+            }),
+        )
         .route(
             "/bridge/manifest",
             get(move |headers| {

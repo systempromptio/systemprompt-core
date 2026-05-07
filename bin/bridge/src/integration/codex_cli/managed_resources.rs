@@ -79,8 +79,7 @@ fn write_plugin_bundle(manifest: &SignedManifest) -> Result<(), ApplyError> {
             source: e,
         })?;
     }
-    let has_content =
-        !manifest.skills.is_empty() || !manifest.managed_mcp_servers.is_empty();
+    let has_content = !manifest.skills.is_empty() || !manifest.managed_mcp_servers.is_empty();
     if !has_content {
         return Ok(());
     }

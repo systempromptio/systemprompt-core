@@ -18,12 +18,12 @@ pub type MarketplaceFilterFactory =
 
 /// Inventory submission slot for [`MarketplaceFilter`] implementations.
 ///
-/// Extensions register a filter at compile time by calling
-/// [`register_marketplace_filter!`]. The runtime builder collects every
-/// submission and selects the one with the highest [`priority`] field —
-/// ties resolve by submission order, which is deterministic per build.
-/// If no extension registers a filter, the runtime falls back to
-/// [`crate::AllowAllFilter`].
+/// Extensions register a filter at compile time by calling the
+/// `register_marketplace_filter!` macro at the crate root. The runtime
+/// builder collects every submission and selects the one with the
+/// highest [`priority`] field — ties resolve by submission order, which
+/// is deterministic per build. If no extension registers a filter, the
+/// runtime falls back to [`crate::AllowAllFilter`].
 ///
 /// [`priority`]: MarketplaceFilterRegistration::priority
 #[derive(Debug, Clone, Copy)]
