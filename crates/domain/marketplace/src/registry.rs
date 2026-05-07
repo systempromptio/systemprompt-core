@@ -38,7 +38,7 @@ inventory::collect!(MarketplaceFilterRegistration);
 pub fn discover_filters() -> Vec<&'static MarketplaceFilterRegistration> {
     let mut all: Vec<&MarketplaceFilterRegistration> =
         inventory::iter::<MarketplaceFilterRegistration>().collect();
-    all.sort_by(|a, b| b.priority.cmp(&a.priority));
+    all.sort_by_key(|reg| std::cmp::Reverse(reg.priority));
     all
 }
 

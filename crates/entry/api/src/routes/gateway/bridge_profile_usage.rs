@@ -115,7 +115,9 @@ async fn conversation_summary(
     start: chrono::DateTime<Utc>,
     end: chrono::DateTime<Utc>,
 ) -> AnalyticsResult<ConversationSummary> {
-    let total = repo.get_context_summary_for_user(user_id, start, end).await?;
+    let total = repo
+        .get_context_summary_for_user(user_id, start, end)
+        .await?;
     let by_model = repo
         .get_contexts_by_model_for_user(user_id, start, end, TOP_GROUPS_LIMIT)
         .await?;
