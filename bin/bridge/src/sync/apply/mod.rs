@@ -46,16 +46,6 @@ pub async fn apply_manifest(
 
     crate::mcp_registry::publish(&mcp_servers);
 
-    // Manifest carries cloud-driven host enablement; persist it locally so the
-    // GUI snapshot reflects what the cloud said before dispatching emitters.
-    if let Err(e) = crate::agents_state::save_from_manifest(&manifest_for_write.enabled_hosts) {
-        tracing::warn!(
-            target: "bridge::sync::host",
-            error = %e,
-            "persist agents state from manifest failed (non-fatal)"
-        );
-    }
-
     let ctx = HostSyncCtx {
         manifest: &manifest_for_write,
         org_plugins_root: root,

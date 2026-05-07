@@ -49,27 +49,8 @@ struct OpenExternalUrlArgs {
     url: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct AgentEnabledArgs {
-    #[serde(rename = "hostId")]
-    host_id: String,
-    enabled: bool,
-}
-
 fn is_safe_external_url(url: &str) -> bool {
     url.starts_with("https://")
-}
-
-fn require_enabled(app: &GuiApp, host_id: &str) -> Result<(), BridgeError> {
-    if app.state.is_host_enabled(host_id) {
-        Ok(())
-    } else {
-        Err(BridgeError::new(
-            ErrorScope::Host,
-            ErrorCode::Conflict,
-            format!("host '{host_id}' is disabled"),
-        ))
-    }
 }
 
 pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> CommandOutcome {
@@ -258,7 +239,6 @@ fn agent_dispatch(
     reply_id: ReplyId,
 ) -> Option<CommandOutcome> {
     Some(match cmd {
-        "agents.setEnabled" => agents_set_enabled(app, args, reply_id),
         "agent.uninstall" => match parse::<HostIdArgs>(args) {
             Ok(a) => {
                 send(
@@ -346,9 +326,6 @@ fn open_external_url(args: Value) -> CommandOutcome {
 fn host_probe(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostIdArgs>(args) {
         Ok(a) => {
-            if let Err(err) = require_enabled(app, &a.host_id) {
-                return CommandOutcome::Sync(Err(err));
-            }
             send(
                 app,
                 UiEvent::Host(HostUiEvent::ProbeRequested {
@@ -366,9 +343,6 @@ fn host_probe(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcom
 fn host_profile_generate(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostIdArgs>(args) {
         Ok(a) => {
-            if let Err(err) = require_enabled(app, &a.host_id) {
-                return CommandOutcome::Sync(Err(err));
-            }
             send(
                 app,
                 UiEvent::Host(HostUiEvent::ProfileGenerateRequested {
@@ -385,9 +359,6 @@ fn host_profile_generate(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> Co
 fn host_profile_install(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostInstallArgs>(args) {
         Ok(a) => {
-            if let Err(err) = require_enabled(app, &a.host_id) {
-                return CommandOutcome::Sync(Err(err));
-            }
             send(
                 app,
                 UiEvent::Host(HostUiEvent::ProfileInstallRequested {
@@ -400,29 +371,6 @@ fn host_profile_install(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> Com
         },
         Err(e) => CommandOutcome::Sync(Err(e)),
     }
-}
-
-fn agents_set_enabled(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
-    let a = match parse::<AgentEnabledArgs>(args) {
-        Ok(a) => a,
-        Err(e) => return CommandOutcome::Sync(Err(e)),
-    };
-    if crate::integration::find_host_by_id(&a.host_id).is_none() {
-        return CommandOutcome::Sync(Err(BridgeError::new(
-            ErrorScope::Host,
-            ErrorCode::NotFound,
-            format!("unknown host: {}", a.host_id),
-        )));
-    }
-    send(
-        app,
-        UiEvent::SetEnabledHostRequested {
-            host_id: a.host_id,
-            enabled: a.enabled,
-            reply_to: reply_id,
-        },
-    );
-    CommandOutcome::Async
 }
 
 fn parse<T: serde::de::DeserializeOwned>(args: Value) -> Result<T, BridgeError> {

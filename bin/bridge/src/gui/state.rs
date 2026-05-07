@@ -13,7 +13,6 @@ use tokio_util::sync::CancellationToken;
 
 pub use jwt::decode_jwt_identity_unverified;
 
-use crate::agents_state::{self, AgentsState};
 use crate::auth::{cache, setup};
 use crate::config::{self, paths};
 
@@ -87,7 +86,6 @@ pub struct AppStateSnapshot {
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,
-    pub agents: AgentsState,
 
     pub hosts: HostsState,
 }
@@ -226,21 +224,8 @@ impl AppState {
         self.inner.write().agents_onboarded = flag;
     }
 
-    pub fn is_host_enabled(&self, host_id: &str) -> bool {
-        self.inner.read().agents.is_enabled(host_id)
-    }
-
-    pub fn enabled_host_ids(&self) -> Vec<String> {
-        self.inner.read().agents.enabled_ids()
-    }
-
-
     pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
         let mut guard = self.inner.write();
-        if !guard.agents.is_enabled(host_id) {
-            guard.hosts.by_id.remove(host_id);
-            return;
-        }
         let entry = guard.hosts.entry(host_id);
         entry.snapshot = Some(snap);
         entry.probe_in_flight = false;
@@ -302,7 +287,6 @@ impl AppState {
     fn reload_into(snap: &mut AppStateSnapshot) {
         let cfg = config::load();
         snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
-        snap.agents = agents_state::load();
 
         match setup::status() {
             Ok(s) => {
