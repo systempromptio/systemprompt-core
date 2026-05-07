@@ -11,6 +11,9 @@ fn fresh_codex_home() -> (std::path::PathBuf, MutexGuard<'static, ()>) {
     let dir = tempfile::tempdir().expect("tempdir").keep();
     unsafe {
         std::env::set_var("CODEX_HOME", &dir);
+        // Why: managed_config_path() honours CODEX_SYSTEM_CONFIG so install
+        // tests can target a tempfile instead of /etc/codex/config.toml.
+        std::env::set_var("CODEX_SYSTEM_CONFIG", dir.join("system_config.toml"));
     }
     (dir, guard)
 }
@@ -66,31 +69,114 @@ fn generated_managed_toml_includes_organization_tenant_header() {
 }
 
 #[test]
-fn install_on_writable_target_writes_managed_config() {
+fn install_merges_into_codex_system_config() {
     if cfg!(target_os = "macos") {
         return;
-    }
-    if !cfg!(target_os = "windows") {
-        if !std::path::Path::new("/etc/codex").exists()
-            && std::env::var("USER").as_deref() != Ok("root")
-        {
-            return;
-        }
     }
     let (home, _lock) = fresh_codex_home();
     let host = find_host_by_id("codex-cli").expect("codex host registered");
     let profile = host.generate_profile(&codex_inputs()).expect("generate");
-    if let Err(e) = host.install_profile(&profile.path) {
-        if e.kind() == std::io::ErrorKind::PermissionDenied {
-            return;
-        }
-        panic!("install: {e}");
+    host.install_profile(&profile.path).expect("install");
+
+    let target = if cfg!(target_os = "windows") {
+        home.join("managed_config.toml")
+    } else {
+        home.join("system_config.toml")
+    };
+    let written = fs::read_to_string(&target)
+        .unwrap_or_else(|e| panic!("read {}: {e}", target.display()));
+    assert!(
+        written.contains("model_provider = \"systemprompt\""),
+        "missing model_provider in: {written}"
+    );
+    assert!(
+        written.contains("base_url = \"https://gateway.systemprompt.io/v1\""),
+        "missing base_url in: {written}"
+    );
+}
+
+#[test]
+fn install_preserves_existing_unrelated_keys_in_target() {
+    if cfg!(target_os = "macos") {
+        return;
     }
-    if cfg!(target_os = "windows") {
-        let written =
-            fs::read_to_string(home.join("managed_config.toml")).expect("managed_config exists");
-        assert!(written.contains("model_provider = \"systemprompt\""));
+    let (home, _lock) = fresh_codex_home();
+    let target = if cfg!(target_os = "windows") {
+        home.join("managed_config.toml")
+    } else {
+        home.join("system_config.toml")
+    };
+    fs::write(
+        &target,
+        "preserved_top = \"keep\"\n\
+         [unrelated_section]\n\
+         keep_me = true\n\
+         [model_providers.openai]\n\
+         name = \"openai\"\n",
+    )
+    .unwrap();
+
+    let host = find_host_by_id("codex-cli").expect("codex host registered");
+    let profile = host.generate_profile(&codex_inputs()).expect("generate");
+    host.install_profile(&profile.path).expect("install");
+
+    let written = fs::read_to_string(&target).expect("read merged target");
+    assert!(
+        written.contains("preserved_top = \"keep\""),
+        "user scalar wiped: {written}"
+    );
+    assert!(
+        written.contains("[unrelated_section]"),
+        "user table wiped: {written}"
+    );
+    assert!(
+        written.contains("keep_me = true"),
+        "user nested key wiped: {written}"
+    );
+    assert!(
+        written.contains("[model_providers.openai]"),
+        "sibling provider entry wiped: {written}"
+    );
+    assert!(written.contains("[model_providers.systemprompt]"));
+    assert!(written.contains("model_provider = \"systemprompt\""));
+}
+
+#[test]
+fn install_overwrites_stale_systemprompt_provider_entry() {
+    if cfg!(target_os = "macos") {
+        return;
     }
+    let (home, _lock) = fresh_codex_home();
+    let target = if cfg!(target_os = "windows") {
+        home.join("managed_config.toml")
+    } else {
+        home.join("system_config.toml")
+    };
+    fs::write(
+        &target,
+        "[model_providers.systemprompt]\n\
+         base_url = \"https://stale.example/v1\"\n\
+         wire_api = \"chat\"\n",
+    )
+    .unwrap();
+
+    let host = find_host_by_id("codex-cli").expect("codex host registered");
+    let profile = host.generate_profile(&codex_inputs()).expect("generate");
+    host.install_profile(&profile.path).expect("install");
+
+    let written = fs::read_to_string(&target).expect("read merged target");
+    assert!(
+        !written.contains("https://stale.example/v1"),
+        "stale base_url survived: {written}"
+    );
+    assert!(
+        written.contains("base_url = \"https://gateway.systemprompt.io/v1\""),
+        "fresh base_url missing: {written}"
+    );
+    assert!(
+        written.contains("wire_api = \"responses\""),
+        "wire_api not overwritten: {written}"
+    );
 }
 
 fn extract_base64_from_mobileconfig(xml: &str) -> String {

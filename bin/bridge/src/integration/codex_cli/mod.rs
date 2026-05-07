@@ -60,9 +60,9 @@ impl HostApp for CodexCliHost {
         if cfg!(target_os = "macos") {
             "loaded into managed preferences (com.openai.codex)"
         } else if cfg!(target_os = "windows") {
-            "written to %USERPROFILE%\\.codex\\managed_config.toml"
+            "merged into %USERPROFILE%\\.codex\\managed_config.toml"
         } else {
-            "written to /etc/codex/managed_config.toml"
+            "merged into /etc/codex/config.toml"
         }
     }
 
