@@ -3,7 +3,8 @@
 //! Hook tokens are minted by the OAuth `client_credentials` grant with
 //! `audience=hook`, `scope=hook:govern hook:track`, and a custom `plugin_id`
 //! claim. Cowork hook subprocesses present them on `Authorization: Bearer …`
-//! when `POSTing` to the gateway's `/api/public/hooks/{govern,track}` endpoints.
+//! when `POSTing` to the gateway's `/api/public/hooks/{govern,track}`
+//! endpoints.
 //!
 //! [`HookTokenValidator`] enforces, in this order:
 //!
@@ -47,7 +48,12 @@ impl HookTokenValidator {
         token: &str,
         request_plugin_id: Option<&str>,
     ) -> AuthResult<ValidatedHookClaims> {
-        self.validate(token, Permission::HookGovern, "hook:govern", request_plugin_id)
+        self.validate(
+            token,
+            Permission::HookGovern,
+            "hook:govern",
+            request_plugin_id,
+        )
     }
 
     /// Validate a hook token for the `/api/public/hooks/track` endpoint.
@@ -56,7 +62,12 @@ impl HookTokenValidator {
         token: &str,
         request_plugin_id: Option<&str>,
     ) -> AuthResult<ValidatedHookClaims> {
-        self.validate(token, Permission::HookTrack, "hook:track", request_plugin_id)
+        self.validate(
+            token,
+            Permission::HookTrack,
+            "hook:track",
+            request_plugin_id,
+        )
     }
 
     fn validate(

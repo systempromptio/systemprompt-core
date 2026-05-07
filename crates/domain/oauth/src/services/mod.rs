@@ -14,8 +14,8 @@ pub mod webauthn;
 
 pub use bridge::{
     BridgeAuthResult, BridgeExchangeCode, BridgeOAuthClient, exchange_bridge_session_code,
-    hash_exchange_code, issue_bridge_access, issue_bridge_access_with,
-    issue_bridge_exchange_code, provision_bridge_oauth_client,
+    hash_exchange_code, issue_bridge_access, issue_bridge_access_with, issue_bridge_exchange_code,
+    provision_bridge_oauth_client,
 };
 pub use http::is_browser_request;
 pub use jwt::{AuthService, TokenValidator, extract_bearer_token, extract_cookie_token};

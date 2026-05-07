@@ -12,13 +12,14 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{AgentName, JwtToken, TenantId, UserId};
 use systemprompt_models::bridge::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry,
+    AgentEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;
 
+use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
 
@@ -100,7 +101,7 @@ struct CanonicalView<'a> {
     not_before: &'a str,
     user_id: &'a UserId,
     tenant_id: Option<&'a TenantId>,
-    user: Option<&'a systemprompt_models::bridge::manifest::UserInfo>,
+    user: Option<&'a UserInfo>,
     plugins: &'a [PluginEntry],
     skills: &'a [SkillEntry],
     agents: &'a [AgentEntry],
@@ -142,11 +143,7 @@ pub async fn manifest(
     let issued_at = now.to_rfc3339();
     let not_before = (now - Duration::seconds(60)).to_rfc3339();
     let ts_millis = u64::try_from(now.timestamp_millis()).unwrap_or(0);
-    let manifest_version_raw = format!(
-        "{}-{:016x}",
-        now.format("%Y-%m-%dT%H:%M:%SZ"),
-        ts_millis
-    );
+    let manifest_version_raw = format!("{}-{:016x}", now.format("%Y-%m-%dT%H:%M:%SZ"), ts_millis);
     let manifest_version = ManifestVersion::try_new(manifest_version_raw).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -156,30 +153,48 @@ pub async fn manifest(
 
     let skills = load_skills(&ctx).await.map_err(|e| {
         tracing::warn!(error = %e, "manifest: skill load failed");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("skills: {e}"),
-        )
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("skills: {e}"))
     })?;
 
     let agents = load_agents(&ctx, &profile.server.api_external_url)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, "manifest: agent load failed");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("agents: {e}"),
-            )
+            (StatusCode::INTERNAL_SERVER_ERROR, format!("agents: {e}"))
         })?;
 
-    // Plugins, managed MCP servers, and revocations are not yet sourced from
-    // server-side state: plugin sha256/files are computed by the bridge at
-    // upload time, the services-config `Deployment` shape carries no public
-    // URL, and revocations have no DB representation. Emitting empty arrays
-    // keeps the wire contract honest until those data paths land.
-    let plugins: Vec<PluginEntry> = Vec::new();
-    let managed_mcp_servers: Vec<ManagedMcpServer> = Vec::new();
-    let revocations: Vec<String> = Vec::new();
+    let services = bridge_data::load_services_config().map_err(|e| {
+        tracing::warn!(error = %e, "manifest: services config load failed");
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
+    })?;
+
+    let plugins = bridge_data::load_plugins(&ctx, &services);
+
+    let managed_mcp_servers =
+        bridge_data::load_managed_mcp_servers(&services, &profile.server.api_external_url)
+            .map_err(|e| {
+                tracing::warn!(error = %e, "manifest: managed mcp load failed");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("managed mcp: {e}"),
+                )
+            })?;
+
+    let user = match bridge_data::load_user(&ctx, &claims.user_id).await {
+        Ok(u) => u,
+        Err(e) => {
+            tracing::warn!(error = %e, "manifest: user load failed; continuing without user");
+            None
+        },
+    };
+
+    let revocations = match bridge_data::load_revocations(&ctx, &claims.user_id).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(error = %e, "manifest: revocation load failed; continuing empty");
+            Vec::new()
+        },
+    };
 
     let canonical = CanonicalView {
         manifest_version: &manifest_version,
@@ -187,7 +202,7 @@ pub async fn manifest(
         not_before: &not_before,
         user_id: &claims.user_id,
         tenant_id: tenant_id.as_ref(),
-        user: None,
+        user: user.as_ref(),
         plugins: &plugins,
         skills: &skills,
         agents: &agents,
@@ -209,7 +224,7 @@ pub async fn manifest(
         not_before,
         user_id: claims.user_id,
         tenant_id,
-        user: None,
+        user,
         plugins,
         skills,
         agents,
@@ -243,23 +258,19 @@ async fn load_skills(ctx: &AppContext) -> anyhow::Result<Vec<SkillEntry>> {
     Ok(out)
 }
 
-async fn load_agents(
-    ctx: &AppContext,
-    api_external_url: &str,
-) -> anyhow::Result<Vec<AgentEntry>> {
+async fn load_agents(ctx: &AppContext, api_external_url: &str) -> anyhow::Result<Vec<AgentEntry>> {
     let repo = AgentRepository::new(ctx.db_pool())?;
     let rows = repo.list_enabled().await?;
     let base = api_external_url.trim_end_matches('/');
     let mut out = Vec::with_capacity(rows.len());
     for agent in rows {
         let name = AgentName::try_new(agent.name.clone())?;
-        let endpoint = if agent.endpoint.starts_with("http://")
-            || agent.endpoint.starts_with("https://")
-        {
-            agent.endpoint.clone()
-        } else {
-            format!("{base}{}", agent.endpoint)
-        };
+        let endpoint =
+            if agent.endpoint.starts_with("http://") || agent.endpoint.starts_with("https://") {
+                agent.endpoint.clone()
+            } else {
+                format!("{base}{}", agent.endpoint)
+            };
         out.push(AgentEntry {
             id: agent.id,
             name,

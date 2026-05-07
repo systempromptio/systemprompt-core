@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod bridge;
+pub mod bridge_data;
 pub mod bridge_heartbeat;
 pub mod messages;
 pub mod models;

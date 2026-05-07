@@ -89,6 +89,21 @@ impl UserRepository {
         Ok(result.rows_affected() > 0)
     }
 
+    pub async fn list_revoked_api_key_ids_for_user(&self, user_id: &UserId) -> Result<Vec<String>> {
+        let rows = sqlx::query_scalar!(
+            r#"
+            SELECT id
+            FROM user_api_keys
+            WHERE user_id = $1 AND revoked_at IS NOT NULL
+            ORDER BY revoked_at DESC
+            "#,
+            user_id.as_str(),
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     pub async fn touch_api_key_usage(&self, id: &ApiKeyId) -> Result<()> {
         sqlx::query!(
             r#"

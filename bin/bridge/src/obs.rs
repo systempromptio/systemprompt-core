@@ -101,13 +101,10 @@ pub mod tracing_init {
         let _ = FILE_WRITER.set(writer);
     }
 
-    /// Returns the directory holding rotating log files and crash dumps.
     pub fn log_dir() -> Option<PathBuf> {
         platform_log_dir()
     }
 
-    /// Returns today's rotated log file path. Used by support tooling that
-    /// wants a single file.
     pub fn log_file_path() -> Option<PathBuf> {
         let dir = log_dir()?;
         let day = chrono::Utc::now().format("%Y-%m-%d");
@@ -133,9 +130,8 @@ pub mod tracing_init {
             .map(|base| base.join("systemprompt-bridge"))
     }
 
-    /// Installs a panic hook that writes a crash dump alongside rotating logs
-    /// and emits a tracing error event. Must be called before [`init`] so
-    /// panics during subscriber setup are still captured.
+    // Why: must be installed before `init` so panics during subscriber setup
+    // are captured rather than lost to the default stderr handler.
     pub fn install_panic_hook() {
         std::panic::set_hook(Box::new(|info| {
             let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
