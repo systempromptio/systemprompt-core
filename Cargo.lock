@@ -4947,6 +4947,8 @@ name = "systemprompt-marketplace"
 version = "0.7.0"
 dependencies = [
  "async-trait",
+ "inventory",
+ "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.18",

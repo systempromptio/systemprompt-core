@@ -10,7 +10,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::Database;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
+use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
@@ -129,8 +129,16 @@ impl AppContextBuilder {
         };
 
         let marketplace_filter = self.marketplace_filter.unwrap_or_else(|| {
-            let f: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
-            f
+            if let Some(reg) = discover_filters().first() {
+                tracing::info!(
+                    priority = reg.priority,
+                    "marketplace filter registered via inventory; using highest-priority impl",
+                );
+                (reg.factory)(&database)
+            } else {
+                let f: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
+                f
+            }
         });
 
         Ok(AppContext::from_parts(AppContextParts {

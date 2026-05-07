@@ -10,10 +10,8 @@ export class SpSetupAgents extends SpElement {
       const id = trigger.dataset.hostId;
       if (!id) { return; }
       trigger.disabled = true;
-      let stage = "enable";
+      let stage = "generate";
       try {
-        await bridge.agentsSetEnabled(id, true);
-        stage = "generate";
         const gen = await bridge.hostProfileGenerate(id);
         const path = gen && (gen.path || gen.profile_path);
         if (!path) {

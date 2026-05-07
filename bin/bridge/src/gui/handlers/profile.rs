@@ -123,27 +123,20 @@ fn identity_value(
 
 fn agents_summary(snapshot: &AppStateSnapshot) -> Value {
     let mut entries = Vec::new();
-    let mut enabled_count = 0usize;
     for host in crate::integration::host_apps() {
         let id = host.id();
-        let enabled = snapshot.agents.is_enabled(id);
-        if enabled {
-            enabled_count += 1;
-        }
         let st = snapshot.hosts.get(id);
         let probe = st.and_then(|s| s.snapshot.as_ref());
         entries.push(json!({
             "id": id,
             "display_name": host.display_name(),
             "kind": host.kind(),
-            "enabled": enabled,
             "host_running": probe.map(|p| p.host_running).unwrap_or(false),
             "profile_state": probe.map(|p| p.profile_state),
         }));
     }
     json!({
         "total": entries.len(),
-        "enabled": enabled_count,
         "items": entries,
     })
 }
