@@ -3,6 +3,7 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import "/assets/js/components/sp-host-card.js";
 import "/assets/js/components/sp-overall-badge.js";
+import "/assets/js/components/sp-agents-status.js";
 
 export class SpHostsList extends SpElement {
   constructor() {
@@ -76,11 +77,12 @@ export class SpHostsList extends SpElement {
         </div>
       </header>
     `;
+    const statusStrip = `<sp-agents-status></sp-agents-status>`;
     if (this.order.length === 0) {
-      return `${headerMarkup}<div class="sp-u-muted sp-host-list__empty">${escapeHtml(t("hosts-empty") || "No host apps detected.")}</div>`;
+      return `${headerMarkup}${statusStrip}<div class="sp-u-muted sp-host-list__empty">${escapeHtml(t("hosts-empty") || "No host apps detected.")}</div>`;
     }
     const cardsMarkup = this.order.map((id) => `<sp-host-card data-host-id="${escapeHtml(id)}"></sp-host-card>`).join("");
-    return `${headerMarkup}${cardsMarkup}`;
+    return `${headerMarkup}${statusStrip}${cardsMarkup}`;
   }
 
   afterRender() {
