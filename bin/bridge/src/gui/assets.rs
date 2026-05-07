@@ -30,6 +30,7 @@ const CSS_FILES: &[(&str, &str)] = &[
     ("settings", include_str!("../../web/css/settings.css")),
     ("setup", include_str!("../../web/css/setup.css")),
     ("agents", include_str!("../../web/css/agents.css")),
+    ("profile", include_str!("../../web/css/profile.css")),
     ("log", include_str!("../../web/css/log.css")),
     ("footer", include_str!("../../web/css/footer.css")),
     ("responsive", include_str!("../../web/css/responsive.css")),
@@ -64,6 +65,10 @@ const JS_MODULES: &[(&str, &str)] = &[
     (
         "utils/gateway",
         include_str!("../../web/js/utils/gateway.js"),
+    ),
+    (
+        "utils/format",
+        include_str!("../../web/js/utils/format.js"),
     ),
     (
         "components/log-virtual",
@@ -132,6 +137,10 @@ const JS_MODULES: &[(&str, &str)] = &[
     (
         "components/sp-settings",
         include_str!("../../web/js/components/sp-settings.js"),
+    ),
+    (
+        "components/sp-profile",
+        include_str!("../../web/js/components/sp-profile.js"),
     ),
     (
         "components/sp-marketplace",
