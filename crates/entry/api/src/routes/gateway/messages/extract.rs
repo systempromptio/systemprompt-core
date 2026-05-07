@@ -67,15 +67,26 @@ pub(super) async fn extract_request_context(
         .map(|s| TenantId::new(s.to_string()));
     partial.tenant_id.clone_from(&tenant_id);
 
-    let (session_id, context_id) = require_conversation_binding(request.headers())?;
+    let session_id = require_session_id(request.headers())?;
     partial.session_id = Some(session_id.clone());
-    partial.context_id = Some(context_id.clone());
+    let header_context = optional_context_id(request.headers())?;
 
     let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx, tenant_id).await?;
     partial.user_id = Some(principal.user_id.clone());
     partial.trace_id.clone_from(&principal.trace_id);
 
     let (body_bytes, gateway_request) = read_gateway_body(inbound, request, partial).await?;
+
+    let context_id = match header_context {
+        Some(c) => c,
+        None => gateway_request.derived_context_id().ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                "request body has no messages; cannot derive context id".to_string(),
+            )
+        })?,
+    };
+    partial.context_id = Some(context_id.clone());
 
     let route = gateway_config
         .find_route(&gateway_request.model)
@@ -104,12 +115,12 @@ pub(super) async fn extract_request_context(
     })
 }
 
-fn require_conversation_binding(
-    headers: &HeaderMap,
-) -> Result<(SessionId, ContextId), (StatusCode, String)> {
-    let session = require_typed_header(headers, sp_headers::SESSION_ID, SessionId::new)?;
-    let context = require_typed_header(headers, sp_headers::CONTEXT_ID, ContextId::new)?;
-    Ok((session, context))
+fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, String)> {
+    require_typed_header(headers, sp_headers::SESSION_ID, SessionId::new)
+}
+
+fn optional_context_id(headers: &HeaderMap) -> Result<Option<ContextId>, (StatusCode, String)> {
+    optional_typed_header(headers, sp_headers::CONTEXT_ID, ContextId::new)
 }
 
 fn require_typed_header<T>(
@@ -139,6 +150,27 @@ fn require_typed_header<T>(
     Ok(ctor(trimmed.to_string()))
 }
 
+fn optional_typed_header<T>(
+    headers: &HeaderMap,
+    name: &'static str,
+    ctor: fn(String) -> T,
+) -> Result<Option<T>, (StatusCode, String)> {
+    let Some(raw) = headers.get(name) else {
+        return Ok(None);
+    };
+    let raw = raw.to_str().map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("invalid {name} header: {e}"),
+        )
+    })?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(ctor(trimmed.to_string())))
+}
+
 async fn read_gateway_body(
     inbound: &Arc<dyn InboundAdapter>,
     request: Request<Body>,
@@ -154,9 +186,12 @@ async fn read_gateway_body(
         })?;
     partial.body = Some(body_bytes.clone());
 
-    let canonical = inbound
-        .parse_request(&body_bytes)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid request body: {e}")))?;
+    let canonical = inbound.parse_request(&body_bytes).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid request body: {e}"),
+        )
+    })?;
     partial.model = Some(canonical.model.clone());
     partial.max_tokens = Some(canonical.max_tokens);
     partial.is_streaming = canonical.stream;

@@ -61,6 +61,7 @@ pub mod errors;
 pub mod events;
 pub mod execution;
 pub mod extension;
+pub mod gateway_hash;
 pub mod mcp;
 pub mod modules;
 pub mod net;

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use systemprompt_identifiers::{ContextId, SessionId};
+use systemprompt_models::gateway_hash::{context_id_from_prefix_hash, conversation_prefix_hash};
 
 const CONTEXT_CACHE_CAP: usize = 1024;
 
@@ -59,30 +59,87 @@ impl SessionContext {
         if map.len() >= CONTEXT_CACHE_CAP {
             map.clear();
         }
-        let ctx = ContextId::generate();
+        let ctx = context_id_from_prefix_hash(hash);
         map.insert(hash, ctx.clone());
         ctx
     }
 }
 
+/// Compute a stable conversation-prefix hash from a request body.
+///
+/// Recognises Anthropic Messages (`{system, messages}`), OpenAI Chat
+/// Completions (`{messages}`) and OpenAI Responses (`{instructions,
+/// input}`) shapes. Returns `None` when the body is not parseable JSON
+/// or has no first turn — callers fall back to letting the gateway
+/// derive the context id from the canonical request.
 #[must_use]
-pub fn hash_conversation_prefix(body: &[u8]) -> Option<u64> {
+pub fn derive_context_id(body: &[u8]) -> Option<u64> {
     let probe: PrefixProbe = serde_json::from_slice(body).ok()?;
-    let first_message = probe.messages.first()?;
-    let mut hasher = DefaultHasher::new();
-    if let Some(system) = probe.system.as_ref() {
-        b"system".hash(&mut hasher);
-        system.get().as_bytes().hash(&mut hasher);
-    }
-    b"messages[0]".hash(&mut hasher);
-    first_message.get().as_bytes().hash(&mut hasher);
-    Some(hasher.finish())
+    let (system, role, content) = probe.first_turn()?;
+    Some(conversation_prefix_hash(system.as_deref(), &role, &content))
 }
 
 #[derive(serde::Deserialize)]
-struct PrefixProbe<'a> {
-    #[serde(default, borrow)]
-    system: Option<&'a serde_json::value::RawValue>,
-    #[serde(default, borrow)]
-    messages: Vec<&'a serde_json::value::RawValue>,
+struct PrefixProbe {
+    #[serde(default)]
+    system: Option<serde_json::Value>,
+    #[serde(default)]
+    instructions: Option<String>,
+    #[serde(default)]
+    messages: Option<Vec<ProbeMessage>>,
+    #[serde(default)]
+    input: Option<Vec<ProbeMessage>>,
+}
+
+#[derive(serde::Deserialize)]
+struct ProbeMessage {
+    #[serde(default)]
+    role: Option<String>,
+    #[serde(default)]
+    content: Option<serde_json::Value>,
+}
+
+impl PrefixProbe {
+    fn first_turn(&self) -> Option<(Option<String>, String, String)> {
+        let system = system_text(self.system.as_ref()).or_else(|| self.instructions.clone());
+        let messages = self.messages.as_deref().or(self.input.as_deref())?;
+        let first = messages.iter().find(|m| {
+            m.role
+                .as_deref()
+                .is_none_or(|r| !r.eq_ignore_ascii_case("system"))
+        })?;
+        let role = first.role.clone().unwrap_or_else(|| "user".to_string());
+        let content = content_text(first.content.as_ref());
+        Some((system, role, content))
+    }
+}
+
+fn system_text(value: Option<&serde_json::Value>) -> Option<String> {
+    let v = value?;
+    Some(match v {
+        serde_json::Value::String(s) => s.clone(),
+        _ => v.to_string(),
+    })
+}
+
+fn content_text(value: Option<&serde_json::Value>) -> String {
+    let Some(v) = value else {
+        return String::new();
+    };
+    match v {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(items) => items
+            .iter()
+            .filter_map(|item| match item {
+                serde_json::Value::String(s) => Some(s.clone()),
+                serde_json::Value::Object(map) => map
+                    .get("text")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+        _ => v.to_string(),
+    }
 }

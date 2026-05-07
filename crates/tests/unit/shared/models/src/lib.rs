@@ -66,3 +66,6 @@ mod modules;
 
 #[cfg(test)]
 mod marketplace;
+
+#[cfg(test)]
+mod gateway_hash;

@@ -1,4 +1,6 @@
 use serde_json::Value;
+use systemprompt_identifiers::ContextId;
+use systemprompt_models::gateway_hash::{context_id_from_prefix_hash, conversation_prefix_hash};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
@@ -36,7 +38,7 @@ pub enum CanonicalContent {
     },
     ToolResult {
         tool_use_id: String,
-        content: Vec<CanonicalContent>,
+        content: Vec<Self>,
         is_error: bool,
     },
     Thinking {
@@ -67,7 +69,7 @@ pub enum CanonicalToolChoice {
     Tool(String),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ThinkingConfig {
     pub enabled: bool,
     pub budget_tokens: Option<u32>,
@@ -102,6 +104,20 @@ impl CanonicalRequest {
             }
         }
         out
+    }
+
+    /// Deterministic `ContextId` derived from the system prompt and
+    /// first message in the canonical request. Returns `None` only when
+    /// the request has no messages at all (which the gateway already
+    /// rejects upstream as malformed).
+    pub fn derived_context_id(&self) -> Option<ContextId> {
+        let first = self.messages.first()?;
+        let mut content = String::new();
+        for part in &first.content {
+            flatten_part(&mut content, part);
+        }
+        let hash = conversation_prefix_hash(self.system.as_deref(), first.role.as_str(), &content);
+        Some(context_id_from_prefix_hash(hash))
     }
 
     pub fn flatten_message_text(&self, role: Role) -> Option<String> {
