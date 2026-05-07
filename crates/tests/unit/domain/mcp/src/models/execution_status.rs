@@ -41,4 +41,3 @@ fn test_execution_status_display_success() {
 fn test_execution_status_display_failed() {
     assert_eq!(ExecutionStatus::Failed.to_string(), "failed");
 }
-

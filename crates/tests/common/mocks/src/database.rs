@@ -144,7 +144,11 @@ impl DatabaseProvider for MockDatabaseProvider {
         true
     }
 
-    async fn execute(&self, _query: &dyn QuerySelector, _params: &[&dyn ToDbValue]) -> DatabaseResult<u64> {
+    async fn execute(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
         self.record_call("execute");
         match self.next_response() {
             Some(MockDbResponse::Execute(result)) => convert_result(result),

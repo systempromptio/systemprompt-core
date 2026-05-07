@@ -194,10 +194,29 @@ fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     } else {
         "/"
     };
+    let rewritten = rewrite_otel_to_v1(path_and_query);
+    let path_and_query = rewritten.as_deref().unwrap_or(path_and_query);
     format!(
         "{base}{separator}{path_and_query}",
         base = gateway_base.as_str().trim_end_matches('/'),
     )
+}
+
+// Why: OTLP exporters (Codex telemetry) POST to `/otel` without the `/v1`
+// prefix every other gateway path uses. The gateway router is nested under
+// `/v1`, so we have to add it here or the exporter sees a 404 for every
+// batch.
+fn rewrite_otel_to_v1(path_and_query: &str) -> Option<String> {
+    let (path, suffix) = path_and_query
+        .split_once('?')
+        .map_or((path_and_query, None), |(p, q)| (p, Some(q)));
+    if path != "/otel" && !path.starts_with("/otel/") {
+        return None;
+    }
+    Some(match suffix {
+        Some(q) => format!("/v1{path}?{q}"),
+        None => format!("/v1{path}"),
+    })
 }
 
 fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {

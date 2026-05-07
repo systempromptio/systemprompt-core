@@ -129,7 +129,10 @@ async fn post_enabled_host(host_id: &str, enabled: bool) -> Result<(), std::io::
     client
         .set_enabled_host(bearer.expose(), host_id, enabled)
         .await
-        .map_err(|e| std::io::Error::other(e.to_string()))
+        .map_err(|e| {
+            tracing::error!(host_id = %host_id, enabled, error = %e, "set enabled host failed");
+            std::io::Error::other(e.to_string())
+        })
 }
 
 pub(crate) fn on_set_enabled_host_finished(

@@ -24,6 +24,7 @@ fn canonical_payload_excludes_signature() {
         agents: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
+        enabled_hosts: vec![],
         signature: ManifestSignature::new("SHOULD-NOT-APPEAR"),
     };
     let payload = canonical_payload(&m).unwrap();
@@ -75,6 +76,7 @@ fn canonical_payload_includes_user_skills_agents() {
         }],
         managed_mcp_servers: vec![],
         revocations: vec![],
+        enabled_hosts: vec![],
         signature: ManifestSignature::new("x"),
     };
     let payload = canonical_payload(&m).unwrap();
@@ -97,6 +99,7 @@ fn canonical_payload_includes_not_before() {
         agents: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
+        enabled_hosts: vec![],
         signature: ManifestSignature::new(""),
     };
     let payload = canonical_payload(&m).unwrap();

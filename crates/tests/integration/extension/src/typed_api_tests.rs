@@ -48,7 +48,6 @@ impl ApiExtensionTyped for AuthenticatedApiExtension {
     fn base_path(&self) -> &'static str {
         "/api/v1/protected"
     }
-
 }
 
 impl ApiExtensionTypedDyn for AuthenticatedApiExtension {

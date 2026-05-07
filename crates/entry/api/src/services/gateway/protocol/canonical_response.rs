@@ -18,21 +18,18 @@ pub enum CanonicalStopReason {
 impl CanonicalStopReason {
     pub const fn anthropic_str(self) -> &'static str {
         match self {
-            Self::EndTurn => "end_turn",
             Self::MaxTokens => "max_tokens",
             Self::StopSequence => "stop_sequence",
             Self::ToolUse => "tool_use",
-            Self::Other => "end_turn",
+            Self::EndTurn | Self::Other => "end_turn",
         }
     }
 
     pub const fn openai_str(self) -> &'static str {
         match self {
-            Self::EndTurn => "stop",
             Self::MaxTokens => "length",
-            Self::StopSequence => "stop",
             Self::ToolUse => "tool_calls",
-            Self::Other => "stop",
+            Self::EndTurn | Self::StopSequence | Self::Other => "stop",
         }
     }
 
@@ -93,6 +90,7 @@ pub enum CanonicalEvent {
     },
     UsageDelta(CanonicalUsage),
     MessageStop {
+        id: String,
         stop_reason: Option<CanonicalStopReason>,
     },
     Error(String),
@@ -101,11 +99,6 @@ pub enum CanonicalEvent {
 #[derive(Debug, Clone)]
 pub enum ContentBlockKind {
     Text,
-    Thinking {
-        signature: Option<String>,
-    },
-    ToolUse {
-        id: String,
-        name: String,
-    },
+    Thinking { signature: Option<String> },
+    ToolUse { id: String, name: String },
 }

@@ -55,8 +55,7 @@ impl DatabaseHandle for MockDatabase {
 struct MockEventBus;
 
 impl UserEventPublisher for MockEventBus {
-    fn publish_user_event(&self, _event: UserEvent) {
-    }
+    fn publish_user_event(&self, _event: UserEvent) {}
 }
 
 #[test]

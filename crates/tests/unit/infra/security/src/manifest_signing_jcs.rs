@@ -98,6 +98,7 @@ fn sample_manifest() -> SignedManifest {
             tool_policy: None,
         }],
         revocations: vec!["revoked_one".into()],
+        enabled_hosts: vec![],
         signature: ManifestSignature::new(""),
     }
 }
@@ -115,6 +116,7 @@ fn signing_view(m: &SignedManifest) -> serde_json::Value {
         "agents": m.agents,
         "managed_mcp_servers": m.managed_mcp_servers,
         "revocations": m.revocations,
+        "enabled_hosts": m.enabled_hosts,
     })
 }
 

@@ -227,4 +227,3 @@ fn test_image_generation_info_serialize_with_optionals() {
     assert!(json.contains("\"resolution\":\"2048x2048\""));
     assert!(json.contains("\"generation_time_ms\":10000"));
 }
-

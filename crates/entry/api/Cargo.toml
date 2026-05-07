@@ -104,5 +104,9 @@ nix = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
 
+# OTel ingest (OTLP/HTTP Protobuf)
+prost = "0.13"
+opentelemetry-proto = { version = "0.27", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
+
 [lints]
 workspace = true

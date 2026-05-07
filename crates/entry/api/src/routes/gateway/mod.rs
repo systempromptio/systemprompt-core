@@ -2,8 +2,10 @@ pub mod auth;
 pub mod bridge;
 pub mod bridge_data;
 pub mod bridge_heartbeat;
+pub mod bridge_manifest;
 pub mod messages;
 pub mod models;
+pub mod otel;
 
 use axum::extract::{Request, State};
 use axum::middleware::Next;
@@ -17,10 +19,9 @@ use systemprompt_database::DbPool;
 use systemprompt_logging::{LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::AppContext;
 
-use crate::services::gateway::protocol::inbound::{
-    InboundAdapter, anthropic_messages::AnthropicMessagesInbound,
-    openai_responses::OpenAiResponsesInbound,
-};
+use crate::services::gateway::protocol::inbound::InboundAdapter;
+use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use crate::services::middleware::JwtContextExtractor;
 
 async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Next) -> Response {
@@ -93,6 +94,8 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let ctx_manifest = ctx.clone();
     let ctx_oauth_client = ctx.clone();
     let ctx_enabled_hosts = ctx.clone();
+    let ctx_otel = ctx.clone();
+    let ctx_otel_rest = ctx.clone();
     let jwt_heartbeat = Arc::clone(&jwt_extractor);
     let jwt_manifest = Arc::clone(&jwt_extractor);
     let jwt_oauth_client = Arc::clone(&jwt_extractor);
@@ -158,7 +161,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_manifest);
                 let context = ctx_manifest.clone();
-                async move { bridge::manifest(extractor, context, headers).await }
+                async move { bridge_manifest::manifest(extractor, context, headers).await }
             }),
         )
         .route(
@@ -175,6 +178,20 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
                 let extractor = Arc::clone(&jwt_heartbeat);
                 let context = ctx_heartbeat.clone();
                 async move { bridge_heartbeat::handle(extractor, context, headers, body).await }
+            }),
+        )
+        .route(
+            "/otel",
+            post(move |request| {
+                let pool = Arc::clone(ctx_otel.db_pool());
+                async move { otel::handle(pool, request).await }
+            }),
+        )
+        .route(
+            "/otel/{*rest}",
+            post(move |request| {
+                let pool = Arc::clone(ctx_otel_rest.db_pool());
+                async move { otel::handle(pool, request).await }
             }),
         )
         .route("/models", get(models::list))

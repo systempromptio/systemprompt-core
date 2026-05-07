@@ -13,8 +13,8 @@ pub mod stream_tap;
 pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::{CapturedToolUse, CapturedUsage};
 pub use protocol::{
-    CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter,
-    OutboundAdapter, OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
+    CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter, OutboundAdapter,
+    OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
 };
 pub use registry::GatewayUpstreamRegistry;
-pub use service::{GatewayService, REQUEST_ID_HEADER};
+pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};

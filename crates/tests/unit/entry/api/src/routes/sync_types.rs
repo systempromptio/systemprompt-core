@@ -9,7 +9,6 @@
 
 #[test]
 fn test_export_response_format_documented() {
-
     let expected_fields = vec![
         "services",
         "skills",
@@ -23,7 +22,6 @@ fn test_export_response_format_documented() {
 
 #[test]
 fn test_import_request_format_documented() {
-
     let expected_fields = vec!["services", "skills", "contexts", "merge_strategy"];
 
     assert!(!expected_fields.is_empty());
@@ -31,7 +29,6 @@ fn test_import_request_format_documented() {
 
 #[test]
 fn test_import_response_format_documented() {
-
     let table_result_fields = vec!["created", "updated", "skipped", "deleted"];
 
     assert_eq!(table_result_fields.len(), 4);
@@ -39,7 +36,6 @@ fn test_import_response_format_documented() {
 
 #[test]
 fn test_export_error_format_documented() {
-
     let error_field = "error";
     assert!(!error_field.is_empty());
 }

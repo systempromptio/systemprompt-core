@@ -83,7 +83,9 @@ fn services_config_validates_marketplace_with_known_plugin() {
     let mp_id = MarketplaceId::new("enterprise");
     let mut refs = PluginComponentRef::default();
     refs.include = vec![plugin_id];
-    services.marketplaces.insert(mp_id, marketplace("enterprise", refs));
+    services
+        .marketplaces
+        .insert(mp_id, marketplace("enterprise", refs));
 
     services.validate().expect("should validate");
 }
@@ -94,7 +96,9 @@ fn services_config_rejects_marketplace_with_unknown_plugin() {
     let mp_id = MarketplaceId::new("enterprise");
     let mut refs = PluginComponentRef::default();
     refs.include = vec!["nonexistent".to_string()];
-    services.marketplaces.insert(mp_id, marketplace("enterprise", refs));
+    services
+        .marketplaces
+        .insert(mp_id, marketplace("enterprise", refs));
 
     let err = services.validate().expect_err("should fail");
     assert!(err.to_string().contains("nonexistent"));

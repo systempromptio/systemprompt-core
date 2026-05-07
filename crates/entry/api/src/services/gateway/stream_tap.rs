@@ -29,8 +29,15 @@ struct TapState {
 #[derive(Clone)]
 enum BlockAccumulator {
     Text(String),
-    Thinking { text: String, signature: Option<String> },
-    ToolUse { id: String, name: String, partial: String },
+    Thinking {
+        text: String,
+        signature: Option<String>,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        partial: String,
+    },
 }
 
 pub fn tap(
@@ -106,7 +113,7 @@ impl TappedStream {
             return Poll::Ready(None);
         };
 
-        spawn_audit_complete(self.audit.clone(), self.request_model.clone(), summary);
+        spawn_audit_complete(Arc::clone(&self.audit), self.request_model.clone(), summary);
         Poll::Ready(None)
     }
 }
@@ -231,9 +238,9 @@ fn build_response(state: &TapState) -> CanonicalResponse {
 fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
     match event {
         CanonicalEvent::MessageStart { id, model, usage } => {
-            state.response_id = id.clone();
+            state.response_id.clone_from(id);
             if !model.is_empty() {
-                state.served_model = model.clone();
+                state.served_model.clone_from(model);
             }
             state.usage = *usage;
         },
@@ -268,7 +275,10 @@ fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
                 buf.push_str(text);
             }
         },
-        CanonicalEvent::ToolUseDelta { index, partial_json } => {
+        CanonicalEvent::ToolUseDelta {
+            index,
+            partial_json,
+        } => {
             if let Some(BlockAccumulator::ToolUse { partial, .. }) =
                 state.blocks.get_mut(*index as usize)
             {
@@ -284,7 +294,7 @@ fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
                 state.usage.output_tokens = u.output_tokens;
             }
         },
-        CanonicalEvent::MessageStop { stop_reason } => {
+        CanonicalEvent::MessageStop { stop_reason, .. } => {
             state.final_stop_reason = stop_reason.or(Some(
                 super::protocol::canonical_response::CanonicalStopReason::EndTurn,
             ));
@@ -304,18 +314,16 @@ fn spawn_audit_complete(audit: Arc<GatewayAudit>, _request_model: String, summar
             if let Err(e) = audit.fail(&err).await {
                 tracing::warn!(error = %e, "stream audit fail failed");
             }
-        } else {
-            if let Err(e) = audit
-                .complete(
-                    summary.usage,
-                    summary.tool_calls,
-                    &summary.response,
-                    &summary.final_bytes,
-                )
-                .await
-            {
-                tracing::warn!(error = %e, "stream audit complete failed");
-            }
+        } else if let Err(e) = audit
+            .complete(
+                summary.usage,
+                summary.tool_calls,
+                &summary.response,
+                &summary.final_bytes,
+            )
+            .await
+        {
+            tracing::warn!(error = %e, "stream audit complete failed");
         }
     });
 }

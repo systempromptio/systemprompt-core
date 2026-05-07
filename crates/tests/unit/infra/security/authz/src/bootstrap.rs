@@ -11,8 +11,8 @@ use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 use systemprompt_security::authz::{
-    AuthzBootstrapError, AuthzDecision, AuthzError, AuthzRequest, EntityKind,
-    clear_global_hook, global_hook, install_from_governance_config,
+    AuthzBootstrapError, AuthzDecision, AuthzError, AuthzRequest, EntityKind, clear_global_hook,
+    global_hook, install_from_governance_config,
 };
 
 fn fixture() -> AuthzRequest {
@@ -128,11 +128,7 @@ async fn unrestricted_with_correct_acknowledgement_installs_allow_all() {
 #[tokio::test]
 async fn webhook_mode_with_url_installs_webhook_hook() {
     clear_global_hook();
-    let cfg = governance_with(
-        AuthzMode::Webhook,
-        Some("http://127.0.0.1:1/authz"),
-        None,
-    );
+    let cfg = governance_with(AuthzMode::Webhook, Some("http://127.0.0.1:1/authz"), None);
     install_from_governance_config(Some(&cfg), None).expect("install ok");
     let hook = global_hook().expect("hook installed");
     let decision = hook.evaluate(fixture()).await;
@@ -140,7 +136,7 @@ async fn webhook_mode_with_url_installs_webhook_hook() {
         AuthzDecision::Deny { reason, policy } => {
             assert_eq!(reason, "authz hook unreachable");
             assert_eq!(policy, "authz_hook_fault");
-        }
+        },
         AuthzDecision::Allow => panic!("unreachable webhook must deny, got Allow"),
     }
     let _ = Arc::new(()); // silence unused import warning for the Arc import

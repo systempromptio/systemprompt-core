@@ -91,7 +91,12 @@ fn enable_plugin_adds_compound_key_preserving_others() {
     }"#;
     let mut root = parse_settings(raw).unwrap();
 
-    let r = enable_plugin(&mut root, "systemprompt-managed", "systemprompt-bridge-managed").unwrap();
+    let r = enable_plugin(
+        &mut root,
+        "systemprompt-managed",
+        "systemprompt-bridge-managed",
+    )
+    .unwrap();
     assert!(r.set);
     assert!(!r.already);
 
