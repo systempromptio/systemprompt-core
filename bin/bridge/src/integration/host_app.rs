@@ -95,7 +95,8 @@ pub trait HostApp: Send + Sync + 'static {
     fn install_profile(&self, path: &str) -> std::io::Result<()>;
     fn install_action_label(&self) -> &'static str;
 
-    /// Launch or focus the host on the user's machine; semantics differ per platform impl.
+    /// Launch or focus the host on the user's machine; semantics differ per
+    /// platform impl.
     fn open(&self) -> std::io::Result<()> {
         Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,

@@ -282,9 +282,9 @@ async fn insert_request_with_context(
     let id = format!("req_{}_{}", fx.tag, Uuid::new_v4().simple());
     let created_at = fx.window_start + Duration::minutes(offset_minutes);
     sqlx::query(
-        "INSERT INTO ai_requests (id, request_id, user_id, context_id, task_id, provider, \
-         model, cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, \
-         $3, $4, $5, 'test-provider', $6, $7, $8, 'completed', $9, $9)",
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, task_id, provider, model, \
+         cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, $3, $4, \
+         $5, 'test-provider', $6, $7, $8, 'completed', $9, $9)",
     )
     .bind(&id)
     .bind(&id)

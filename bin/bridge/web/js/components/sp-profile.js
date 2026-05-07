@@ -128,7 +128,6 @@ export class SpProfile extends SpElement {
         ${this._renderUsage()}
         ${this._renderModels()}
         ${this._renderConversations()}
-        ${this._renderAgents()}
         ${this._renderPlan()}
       </div>
     `;
@@ -279,26 +278,6 @@ export class SpProfile extends SpElement {
     `;
   }
 
-  _renderAgents() {
-    const a = this.profile.agents || { items: [], total: 0, enabled: 0 };
-    const items = (a.items || []).map((it) => `
-      <li class="sp-profile-agent" data-enabled="${it.enabled ? "true" : "false"}">
-        <span class="sp-profile-agent__dot sp-dot ${it.enabled ? "sp-dot--ok" : "sp-dot--unknown"}"></span>
-        <span class="sp-profile-agent__name">${escapeHtml(it.display_name || it.id)}</span>
-        <span class="sp-profile-agent__state">${escapeHtml(it.host_running ? "running" : "idle")}</span>
-      </li>
-    `).join("");
-    return `
-      <article class="sp-profile-card sp-profile-card--agents">
-        <header>
-          <h2 data-l10n-id="profile-section-agents">Available agents</h2>
-          <span class="sp-profile-card__count">${escapeHtml(String(a.enabled))}/${escapeHtml(String(a.total))} enabled</span>
-        </header>
-        <ul class="sp-profile-agents">${items}</ul>
-      </article>
-    `;
-  }
-
   _renderPlan() {
     const bp = this.profile.bridge_profile;
     if (!bp) {
@@ -329,7 +308,6 @@ export class SpProfile extends SpElement {
         <article class="sp-profile-card" data-state="probing"><header><h2>Identity</h2></header><p class="sp-u-muted">loading…</p></article>
         <article class="sp-profile-card" data-state="probing"><header><h2>Token usage</h2></header><p class="sp-u-muted">loading…</p></article>
         <article class="sp-profile-card" data-state="probing"><header><h2>Conversations</h2></header><p class="sp-u-muted">loading…</p></article>
-        <article class="sp-profile-card" data-state="probing"><header><h2>Available agents</h2></header><p class="sp-u-muted">loading…</p></article>
       </div>
     `;
   }

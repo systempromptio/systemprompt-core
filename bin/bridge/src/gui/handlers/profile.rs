@@ -79,64 +79,46 @@ async fn build_profile(snapshot: AppStateSnapshot) -> Result<Value, GuiError> {
             ))
         })?;
 
-    let whoami = client
-        .fetch_whoami(&bearer)
-        .await
-        .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string())))?;
+    let whoami = match client.fetch_whoami(&bearer).await {
+        Ok(w) => Some(w),
+        Err(e) => {
+            tracing::warn!(error = %e, "whoami enrichment failed; falling back to snapshot identity");
+            None
+        },
+    };
 
     let bridge_profile = client.fetch_bridge_profile().await.ok();
 
     let usage = client.fetch_profile_usage(&bearer).await.ok();
 
-    let agents = agents_summary(&snapshot);
-    let identity = identity_value(&snapshot, &whoami);
+    let identity = identity_value(&snapshot, whoami.as_ref());
 
     Ok(json!({
         "gateway": gateway_url,
         "identity": identity,
         "bridge_profile": bridge_profile,
         "usage": usage,
-        "agents": agents,
     }))
 }
 
 fn identity_value(
     snapshot: &AppStateSnapshot,
-    whoami: &crate::gateway::types::WhoamiResponse,
+    whoami: Option<&crate::gateway::types::WhoamiResponse>,
 ) -> Value {
     let id = snapshot.verified_identity.as_ref();
     json!({
-        "email": whoami.email.clone().or_else(|| id.and_then(|i| i.email.clone())),
-        "user_id": whoami.user_id.as_ref().map(|u| u.as_str().to_string())
+        "email": whoami.and_then(|w| w.email.clone())
+            .or_else(|| id.and_then(|i| i.email.clone())),
+        "user_id": whoami.and_then(|w| w.user_id.as_ref().map(|u| u.as_str().to_string()))
             .or_else(|| id.and_then(|i| i.user_id.clone())),
-        "tenant_id": whoami.tenant_id.as_ref().map(|t| t.as_str().to_string())
+        "tenant_id": whoami.and_then(|w| w.tenant_id.as_ref().map(|t| t.as_str().to_string()))
             .or_else(|| id.and_then(|i| i.tenant_id.clone())),
-        "display_name": whoami.display_name,
-        "provider": whoami.provider,
-        "roles": whoami.roles,
+        "display_name": whoami.and_then(|w| w.display_name.clone()),
+        "provider": whoami.and_then(|w| w.provider.clone()),
+        "roles": whoami.map(|w| w.roles.clone()).unwrap_or_default(),
         "exp_unix": id.and_then(|i| i.exp_unix),
         "verified_at_unix": id.map(|i| i.verified_at_unix),
         "token_length": snapshot.cached_token.as_ref().map(|t| t.length),
         "token_ttl_seconds": snapshot.cached_token.as_ref().map(|t| t.ttl_seconds),
-    })
-}
-
-fn agents_summary(snapshot: &AppStateSnapshot) -> Value {
-    let mut entries = Vec::new();
-    for host in crate::integration::host_apps() {
-        let id = host.id();
-        let st = snapshot.hosts.get(id);
-        let probe = st.and_then(|s| s.snapshot.as_ref());
-        entries.push(json!({
-            "id": id,
-            "display_name": host.display_name(),
-            "kind": host.kind(),
-            "host_running": probe.map(|p| p.host_running).unwrap_or(false),
-            "profile_state": probe.map(|p| &p.profile_state),
-        }));
-    }
-    json!({
-        "total": entries.len(),
-        "items": entries,
     })
 }

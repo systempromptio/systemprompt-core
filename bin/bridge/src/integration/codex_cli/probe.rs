@@ -28,7 +28,11 @@ pub(super) fn read_config() -> DomainRead {
 }
 
 fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
-    let value: toml::Value = toml::from_str(text).ok()?;
+    let value: toml::Value = toml::from_str(text)
+        .map_err(|e| {
+            tracing::warn!(error = %e, source = %source, "codex probe: TOML parse failed");
+        })
+        .ok()?;
     let mut out = DomainRead {
         source_path: Some(source.to_string()),
         keys: BTreeMap::new(),

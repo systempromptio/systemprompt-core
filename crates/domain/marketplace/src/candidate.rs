@@ -2,7 +2,8 @@ use systemprompt_models::bridge::manifest::{
     AgentEntry, ManagedMcpServer, PluginEntry, SkillEntry,
 };
 
-/// Mutable bundle of marketplace items presented to a [`MarketplaceFilter`].
+/// Mutable bundle of marketplace items presented to a
+/// [`crate::MarketplaceFilter`].
 ///
 /// The filter receives ownership and returns the (possibly reduced) set
 /// the gateway should sign and emit. Filters may shrink the vectors,

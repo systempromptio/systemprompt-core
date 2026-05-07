@@ -21,6 +21,7 @@ pub(crate) struct HostEntryPayload<'a> {
     pub config_format: ConfigFormat,
     pub install_action_label: &'a str,
     pub probe_in_flight: bool,
+    pub enabled: bool,
     pub last_generated_profile: Option<&'a GeneratedProfile>,
     pub snapshot: Option<&'a HostAppSnapshot>,
 }
@@ -44,6 +45,7 @@ pub(crate) fn single_host_payload<'a>(
                 config_format: host.config_format(),
                 install_action_label: host.install_action_label(),
                 probe_in_flight: st.map(|s| s.probe_in_flight).unwrap_or(false),
+                enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
                 last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
                 snapshot: st.and_then(|s| s.snapshot.as_ref()),
             }
@@ -63,6 +65,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
             config_format: host.config_format(),
             install_action_label: host.install_action_label(),
             probe_in_flight: st.map(|s| s.probe_in_flight).unwrap_or(false),
+            enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
             last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
             snapshot: st.and_then(|s| s.snapshot.as_ref()),
         });

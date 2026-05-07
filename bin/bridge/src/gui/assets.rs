@@ -66,10 +66,7 @@ const JS_MODULES: &[(&str, &str)] = &[
         "utils/gateway",
         include_str!("../../web/js/utils/gateway.js"),
     ),
-    (
-        "utils/format",
-        include_str!("../../web/js/utils/format.js"),
-    ),
+    ("utils/format", include_str!("../../web/js/utils/format.js")),
     (
         "components/log-virtual",
         include_str!("../../web/js/components/log-virtual.js"),

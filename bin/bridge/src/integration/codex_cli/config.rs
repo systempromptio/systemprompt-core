@@ -56,8 +56,7 @@ pub(super) fn user_config_path() -> PathBuf {
 }
 
 // Why: Codex's documented system-scope config path is /etc/codex/config.toml
-// (admin-locked via /etc/codex/requirements.toml). The previous
-// /etc/codex/managed_config.toml path was undocumented. `CODEX_SYSTEM_CONFIG`
+// (admin-locked via /etc/codex/requirements.toml). `CODEX_SYSTEM_CONFIG`
 // overrides for hermetic tests; Windows keeps the user-scope managed_config
 // under CODEX_HOME because there is no equivalent admin path.
 pub(super) fn managed_config_path() -> PathBuf {

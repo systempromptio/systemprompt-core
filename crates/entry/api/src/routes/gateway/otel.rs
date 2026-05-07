@@ -36,7 +36,10 @@ pub async fn handle(pool: DbPool, request: Request<Body>) -> Response<Body> {
     }
 
     let repo = match LoggingRepository::new(&pool) {
-        Ok(r) => r,
+        // Why: otel ingest is a high-volume background path; keep it strictly
+        // database-backed and out of stderr so it cannot drown the operator's
+        // terminal or recurse into tracing's own subscriber.
+        Ok(r) => r.with_terminal(false).with_database(true),
         Err(e) => {
             tracing::warn!(error = %e, "otel: logging repo unavailable");
             return accepted();

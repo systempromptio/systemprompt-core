@@ -102,8 +102,14 @@ pub(super) fn open_host() -> std::io::Result<()> {
 
 fn resolve_claude_exe() -> Option<PathBuf> {
     let local = std::env::var_os("LOCALAPPDATA")?;
-    let candidate = PathBuf::from(local).join("AnthropicClaude").join("Claude.exe");
-    if candidate.exists() { Some(candidate) } else { None }
+    let candidate = PathBuf::from(local)
+        .join("AnthropicClaude")
+        .join("Claude.exe");
+    if candidate.exists() {
+        Some(candidate)
+    } else {
+        None
+    }
 }
 
 fn render_reg(inputs: &ProfileGenInputs) -> String {

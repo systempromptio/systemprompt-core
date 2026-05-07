@@ -33,9 +33,10 @@ pub(crate) fn on_probe_requested(
         return;
     };
     if cause == ProbeCause::Manual {
-        // User re-verify always wins: skip the in-flight gate so a click never gets dropped.
-        // Worst case we issue one redundant HEAD; the manual result lands last and overwrites
-        // the tick result, which is the desired "user action is authoritative" semantic.
+        // User re-verify always wins: skip the in-flight gate so a click never gets
+        // dropped. Worst case we issue one redundant HEAD; the manual result
+        // lands last and overwrites the tick result, which is the desired "user
+        // action is authoritative" semantic.
         app.append_log(format!("[{host_id}] re-verifying profile and process"));
     } else if !app.state.mark_host_probing(host_id) {
         if let Some(id) = reply_to {
