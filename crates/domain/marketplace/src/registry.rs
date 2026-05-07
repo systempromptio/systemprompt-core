@@ -2,14 +2,19 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 
+use crate::error::MarketplaceFilterError;
 use crate::filter::MarketplaceFilter;
 
 /// Factory function passed to [`register_marketplace_filter!`].
 ///
 /// Receives the live database pool so implementations can hold a
 /// repository, connection cache, or any other DB-backed handle they
-/// need to evaluate ACL at request time.
-pub type MarketplaceFilterFactory = fn(&DbPool) -> Arc<dyn MarketplaceFilter>;
+/// need to evaluate ACL at request time. Construction may fail (for
+/// example if the pool is not Postgres) — failures are surfaced as
+/// [`MarketplaceFilterError`] and the runtime logs them and falls back
+/// to [`crate::AllowAllFilter`].
+pub type MarketplaceFilterFactory =
+    fn(&DbPool) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError>;
 
 /// Inventory submission slot for [`MarketplaceFilter`] implementations.
 ///

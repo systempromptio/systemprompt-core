@@ -1,0 +1,18 @@
+[package]
+name = "systemprompt-marketplace-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-marketplace crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-marketplace = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+async-trait = { workspace = true }
