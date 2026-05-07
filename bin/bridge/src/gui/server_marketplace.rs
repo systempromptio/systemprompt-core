@@ -1,8 +1,18 @@
 use crate::config::paths;
+use crate::sync::{LastSyncState, read_last_sync};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 const README_MAX_BYTES: usize = 32 * 1024;
+
+#[derive(Serialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum ChangeKind {
+    Installed,
+    Updated,
+    Removed,
+}
 
 #[derive(Serialize)]
 #[serde(untagged)]
@@ -21,7 +31,18 @@ struct MarketplaceItem {
     path: String,
     summary: Option<String>,
     readme: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    change: Option<ChangeKind>,
     extra: MarketplaceExtra,
+}
+
+#[derive(Serialize, Default)]
+pub struct MarketplaceDiff {
+    installed: Vec<String>,
+    updated: Vec<String>,
+    removed: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_applied_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -32,6 +53,7 @@ pub struct MarketplaceListing {
     mcp: Vec<MarketplaceItem>,
     agents: Vec<MarketplaceItem>,
     plugins_dir: Option<String>,
+    last_sync_diff: MarketplaceDiff,
 }
 
 #[derive(Deserialize, Serialize, Default)]
@@ -80,7 +102,12 @@ pub fn build_listing() -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
 
-    let (plugins, skills, hooks, mcp, agents) = match loc {
+    let last_sync = loc.as_ref().and_then(|l| {
+        let path = paths::metadata_dir(&l.path).join(paths::LAST_SYNC_SENTINEL);
+        read_last_sync(&path).ok().flatten()
+    });
+
+    let (mut plugins, skills, hooks, mcp, agents) = match loc {
         Some(loc) => {
             let plugins = list_plugins(&loc.path);
             let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);
@@ -93,6 +120,11 @@ pub fn build_listing() -> MarketplaceListing {
         None => (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
     };
 
+    let last_sync_diff = match last_sync.as_ref() {
+        Some(state) => annotate_plugins_with_diff(&mut plugins, state),
+        None => MarketplaceDiff::default(),
+    };
+
     MarketplaceListing {
         plugins,
         skills,
@@ -100,6 +132,49 @@ pub fn build_listing() -> MarketplaceListing {
         mcp,
         agents,
         plugins_dir,
+        last_sync_diff,
+    }
+}
+
+fn annotate_plugins_with_diff(
+    plugins: &mut Vec<MarketplaceItem>,
+    state: &LastSyncState,
+) -> MarketplaceDiff {
+    let installed: BTreeSet<&str> = state.installed_plugins.iter().map(String::as_str).collect();
+    let updated: BTreeSet<&str> = state.updated_plugins.iter().map(String::as_str).collect();
+    let removed: BTreeSet<&str> = state.removed_plugins.iter().map(String::as_str).collect();
+
+    for item in plugins.iter_mut() {
+        if installed.contains(item.id.as_str()) {
+            item.change = Some(ChangeKind::Installed);
+        } else if updated.contains(item.id.as_str()) {
+            item.change = Some(ChangeKind::Updated);
+        }
+    }
+
+    let present: BTreeSet<String> = plugins.iter().map(|p| p.id.clone()).collect();
+    for removed_id in &state.removed_plugins {
+        if !present.contains(removed_id) {
+            plugins.push(MarketplaceItem {
+                id: removed_id.clone(),
+                name: removed_id.clone(),
+                source: "tenant",
+                path: String::new(),
+                summary: Some("Removed in last sync".to_string()),
+                readme: None,
+                change: Some(ChangeKind::Removed),
+                extra: MarketplaceExtra::None,
+            });
+        }
+    }
+
+    plugins.sort_by(|a, b| a.name.cmp(&b.name));
+
+    MarketplaceDiff {
+        installed: state.installed_plugins.clone(),
+        updated: state.updated_plugins.clone(),
+        removed: state.removed_plugins.clone(),
+        last_applied_at: state.last_applied_at.clone(),
     }
 }
 
@@ -149,6 +224,7 @@ fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             path: path.display().to_string(),
             summary,
             readme,
+            change: None,
             extra,
         });
     }
@@ -190,6 +266,7 @@ fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
             path: entry.path().display().to_string(),
             summary,
             readme: body,
+            change: None,
             extra,
         });
     }
@@ -230,6 +307,7 @@ fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
             path: path.display().to_string(),
             summary,
             readme: body,
+            change: None,
             extra,
         });
     }
@@ -287,6 +365,7 @@ fn list_managed_mcp(path: &Path) -> Vec<MarketplaceItem> {
             path: path.display().to_string(),
             summary,
             readme: None,
+            change: None,
             extra: MarketplaceExtra::Mcp(entry),
         });
     }

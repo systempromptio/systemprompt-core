@@ -26,6 +26,7 @@ members = [
     "crates/domain/ai",
     "crates/domain/agent",
     "crates/domain/templates",
+    "crates/domain/marketplace",
     # Application layer
     "crates/app/runtime",
     "crates/app/scheduler",
@@ -255,6 +256,7 @@ systemprompt-mcp = { path = "crates/domain/mcp", version = "0.7.0" }
 systemprompt-ai = { path = "crates/domain/ai", version = "0.7.0" }
 systemprompt-agent = { path = "crates/domain/agent", version = "0.7.0" }
 systemprompt-templates = { path = "crates/domain/templates", version = "0.7.0" }
+systemprompt-marketplace = { path = "crates/domain/marketplace", version = "0.7.0" }
 systemprompt-runtime = { path = "crates/app/runtime", version = "0.7.0" }
 systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.7.0" }
 systemprompt-generator = { path = "crates/app/generator", version = "0.7.0" }

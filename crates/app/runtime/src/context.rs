@@ -9,6 +9,7 @@ use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_users::UserService;
 
@@ -30,6 +31,7 @@ pub struct AppContext {
     pub(crate) fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub(crate) user_service: Option<Arc<UserService>>,
     pub(crate) app_paths: Arc<AppPaths>,
+    pub(crate) marketplace_filter: Arc<dyn MarketplaceFilter>,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -46,6 +48,7 @@ impl std::fmt::Debug for AppContext {
             .field("fingerprint_repo", &self.fingerprint_repo.is_some())
             .field("user_service", &self.user_service.is_some())
             .field("app_paths", &"AppPaths")
+            .field("marketplace_filter", &self.marketplace_filter)
             .finish()
     }
 }
@@ -63,6 +66,7 @@ pub struct AppContextParts {
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
     pub app_paths: Arc<AppPaths>,
+    pub marketplace_filter: Arc<dyn MarketplaceFilter>,
 }
 
 impl AppContext {
@@ -88,6 +92,7 @@ impl AppContext {
             fingerprint_repo: parts.fingerprint_repo,
             user_service: parts.user_service,
             app_paths: parts.app_paths,
+            marketplace_filter: parts.marketplace_filter,
         }
     }
 
@@ -166,5 +171,9 @@ impl AppContext {
 
     pub const fn app_paths_arc(&self) -> &Arc<AppPaths> {
         &self.app_paths
+    }
+
+    pub fn marketplace_filter(&self) -> &Arc<dyn MarketplaceFilter> {
+        &self.marketplace_filter
     }
 }

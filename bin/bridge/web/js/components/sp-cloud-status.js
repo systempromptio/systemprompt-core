@@ -1,40 +1,45 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
-
-function fmtRelative(unix) {
-  if (!unix) { return "never"; }
-  const delta = Math.max(0, Math.floor(Date.now() / 1000) - unix);
-  if (delta < 5) { return "just now"; }
-  if (delta < 60) { return `${delta}s ago`; }
-  if (delta < 3600) { return `${Math.floor(delta / 60)}m ago`; }
-  return `${Math.floor(delta / 3600)}h ago`;
-}
+import { fmtRelative, publishSectionState } from "/assets/js/utils/format.js";
 
 function reachabilityView(status) {
   if (status.state === "reachable") {
-    return { dot: "sp-dot--ok", label: `reachable · ${status.latency_ms}ms` };
+    return { state: "ok", dot: "sp-dot--ok", value: String(status.latency_ms ?? "?"), unit: "ms", label: "reachable" };
   }
   if (status.state === "probing") {
-    return { dot: "sp-dot--probing", label: "probing…" };
+    return { state: "probing", dot: "sp-dot--probing", value: "…", unit: "", label: "probing" };
   }
   if (status.state === "unreachable") {
-    return { dot: "sp-dot--err", label: `unreachable · ${status.reason || "unknown error"}` };
+    return { state: "err", dot: "sp-dot--err", value: "—", unit: "", label: "unreachable", reason: status.reason || "unknown error" };
   }
-  return { dot: "sp-dot--unknown", label: "unknown" };
+  return { state: "unknown", dot: "sp-dot--unknown", value: "—", unit: "", label: "unknown" };
 }
 
 function identityView(snap, reachable) {
   const id = snap.verified_identity;
   if (!reachable) {
-    return { dot: "sp-dot--unknown", label: "(gateway unreachable)", muted: true };
+    return { state: "unknown", dot: "sp-dot--unknown", value: "—", label: "gateway unreachable", muted: true };
   }
   if (id && (id.email || id.user_id)) {
-    return { dot: "sp-dot--ok", label: id.email || id.user_id, muted: false };
+    return { state: "ok", dot: "sp-dot--ok", value: id.email || id.user_id, label: "signed in", muted: false };
   }
   if (snap.pat_present) {
-    return { dot: "sp-dot--probing", label: "(verifying credentials…)", muted: true };
+    return { state: "probing", dot: "sp-dot--probing", value: "…", label: "verifying credentials", muted: true };
   }
-  return { dot: "sp-dot--warn", label: "(not signed in)", muted: true };
+  return { state: "warn", dot: "sp-dot--warn", value: "—", label: "not signed in", muted: true };
+}
+
+function rollUp(a, b) {
+  const order = { err: 4, warn: 3, probing: 2, unknown: 1, ok: 0 };
+  return (order[a] >= order[b]) ? a : b;
+}
+
+function sectionLabel(state) {
+  if (state === "ok") { return "healthy"; }
+  if (state === "warn") { return "attention"; }
+  if (state === "err") { return "down"; }
+  if (state === "probing") { return "checking…"; }
+  return "unknown";
 }
 
 export class SpCloudStatus extends SpElement {
@@ -72,53 +77,113 @@ export class SpCloudStatus extends SpElement {
   render() {
     const snap = this.snapshot;
     if (!snap) {
-      return `
-        <table class="sp-status__board"><tbody>
-          <tr><th>Reachability</th>
-            <td><div class="sp-status__row"><span class="sp-dot sp-dot--probing" aria-hidden="true"></span><span>probing…</span></div></td>
-            <td class="sp-status__actions"></td>
-          </tr>
-        </tbody></table>
-      `;
+      return this._skeleton();
     }
     const status = snap.gateway_status || { state: "unknown" };
     const reach = reachabilityView(status);
     const ident = identityView(snap, status.state === "reachable");
-    const id = snap.verified_identity;
-    const tokenState = snap.cached_token
-      ? `cached JWT • ${snap.cached_token.length} bytes • ttl ${snap.cached_token.ttl_seconds}s`
-      : (snap.pat_present ? "PAT stored — JWT will refresh on next probe" : "no token");
-    const recheckErr = this.recheckError ? `<div class="sp-status__detail sp-u-muted">${escapeHtml(this.recheckError)}</div>` : "";
-    const logoutErr = this.logoutError ? `<div class="sp-status__detail sp-u-muted">${escapeHtml(this.logoutError)}</div>` : "";
+    const id = snap.verified_identity || {};
+    const tokenPrimary = snap.cached_token
+      ? `JWT · ${snap.cached_token.ttl_seconds}s`
+      : (snap.pat_present ? "PAT stored" : "no token");
     const gw = snap.gateway_url || "—";
+    const probedAt = fmtRelative(snap.last_probe_at_unix);
+
+    const reachDetailsRows = [
+      ["gateway", escapeHtml(gw)],
+      reach.reason ? ["error", escapeHtml(reach.reason)] : null,
+      ["last probe", escapeHtml(probedAt)],
+    ].filter(Boolean);
+
+    const identDetailsRows = [
+      ["user_id",   escapeHtml(id.user_id   || "—")],
+      ["tenant_id", escapeHtml(id.tenant_id || "—")],
+      snap.cached_token
+        ? ["token", `JWT · ${snap.cached_token.length} bytes · ttl ${snap.cached_token.ttl_seconds}s`]
+        : (snap.pat_present
+            ? ["token", "PAT stored — JWT will refresh on next probe"]
+            : ["token", "none"]),
+    ];
 
     return `
-      <table class="sp-status__board"><tbody>
-        <tr>
-          <th>Reachability</th>
-          <td>
-            <div class="sp-status__row"><span class="sp-dot ${reach.dot}" aria-hidden="true"></span><span>${escapeHtml(reach.label)}</span></div>
-            <div class="sp-status__detail sp-u-mono ${snap.gateway_url ? "" : "sp-u-muted"}">${escapeHtml(gw)}</div>
-            <div class="sp-status__detail sp-u-muted">last probe <span>${escapeHtml(fmtRelative(snap.last_probe_at_unix))}</span></div>
-            ${recheckErr}
-          </td>
-          <td class="sp-status__actions">
-            <button class="sp-btn-ghost" type="button" data-action="recheck">Re-check</button>
-          </td>
-        </tr>
-        <tr>
-          <th>Identity</th>
-          <td>
-            <div class="sp-status__row"><span class="sp-dot ${ident.dot}" aria-hidden="true"></span><span class="sp-value ${ident.muted ? "sp-u-muted" : ""}">${escapeHtml(ident.label)}</span></div>
-            <div class="sp-status__detail sp-u-muted">user <span class="sp-u-mono">${escapeHtml((id && id.user_id) || "—")}</span> · tenant <span class="sp-u-mono">${escapeHtml((id && id.tenant_id) || "—")}</span></div>
-            <div class="sp-status__detail sp-u-muted">token <span>${escapeHtml(tokenState)}</span></div>
-            ${logoutErr}
-          </td>
-          <td class="sp-status__actions">
-            <button class="sp-btn-ghost" type="button" data-action="logout">Log out</button>
-          </td>
-        </tr>
-      </tbody></table>
+      <div class="sp-kpi-grid">
+        <article class="sp-kpi-card" data-state="${reach.state}">
+          <div class="sp-kpi-card__head">
+            <span data-l10n-id="status-cloud-reach-label">Reachability</span>
+            <span class="sp-dot ${reach.dot}" aria-hidden="true"></span>
+          </div>
+          <div class="sp-kpi-card__value">
+            <span>${escapeHtml(reach.value)}</span>
+            ${reach.unit ? `<span class="sp-kpi-card__unit">${escapeHtml(reach.unit)}</span>` : ""}
+          </div>
+          <div class="sp-kpi-card__label">${escapeHtml(reach.label)}</div>
+          ${this.recheckError ? `<p class="sp-kpi-card__error">${escapeHtml(this.recheckError)}</p>` : ""}
+          <details>
+            <summary>Details</summary>
+            <dl class="sp-kpi-card__details">
+              ${reachDetailsRows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${v}</dd>`).join("")}
+            </dl>
+          </details>
+          <div class="sp-kpi-card__foot">
+            <span class="sp-kpi-card__foot-meta">probed ${escapeHtml(probedAt)}</span>
+            <button class="sp-btn-ghost" type="button" data-action="recheck" data-l10n-id="status-cloud-recheck">Re-check</button>
+          </div>
+        </article>
+
+        <article class="sp-kpi-card" data-state="${ident.state}">
+          <div class="sp-kpi-card__head">
+            <span data-l10n-id="status-cloud-identity-label">Identity</span>
+            <span class="sp-dot ${ident.dot}" aria-hidden="true"></span>
+          </div>
+          <div class="sp-kpi-card__value sp-kpi-card__value--text${ident.muted ? " sp-kpi-card__value--muted" : ""}">
+            <span>${escapeHtml(ident.value)}</span>
+          </div>
+          <div class="sp-kpi-card__label">${escapeHtml(ident.label)}</div>
+          ${this.logoutError ? `<p class="sp-kpi-card__error">${escapeHtml(this.logoutError)}</p>` : ""}
+          <details>
+            <summary>Details</summary>
+            <dl class="sp-kpi-card__details">
+              ${identDetailsRows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${typeof v === "string" ? escapeHtml(v) : v}</dd>`).join("")}
+            </dl>
+          </details>
+          <div class="sp-kpi-card__foot">
+            <span class="sp-kpi-card__foot-meta">${escapeHtml(tokenPrimary)}</span>
+            ${id.email || id.user_id || snap.pat_present
+              ? `<button class="sp-btn-ghost" type="button" data-action="logout" data-l10n-id="status-cloud-logout">Log out</button>`
+              : ""}
+          </div>
+        </article>
+      </div>
+    `;
+  }
+
+  afterRender() {
+    const snap = this.snapshot;
+    if (!snap) {
+      publishSectionState(this, "probing", "checking…");
+      return;
+    }
+    const status = snap.gateway_status || { state: "unknown" };
+    const reach = reachabilityView(status);
+    const ident = identityView(snap, status.state === "reachable");
+    const overall = rollUp(reach.state, ident.state);
+    publishSectionState(this, overall, sectionLabel(overall));
+  }
+
+  _skeleton() {
+    return `
+      <div class="sp-kpi-grid">
+        <article class="sp-kpi-card" data-state="probing">
+          <div class="sp-kpi-card__head"><span>Reachability</span><span class="sp-dot sp-dot--probing" aria-hidden="true"></span></div>
+          <div class="sp-kpi-card__value sp-kpi-card__value--muted"><span>…</span></div>
+          <div class="sp-kpi-card__label">probing</div>
+        </article>
+        <article class="sp-kpi-card" data-state="probing">
+          <div class="sp-kpi-card__head"><span>Identity</span><span class="sp-dot sp-dot--probing" aria-hidden="true"></span></div>
+          <div class="sp-kpi-card__value sp-kpi-card__value--muted sp-kpi-card__value--text"><span>checking…</span></div>
+          <div class="sp-kpi-card__label">verifying credentials</div>
+        </article>
+      </div>
     `;
   }
 }

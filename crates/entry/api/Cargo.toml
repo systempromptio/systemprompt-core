@@ -85,6 +85,7 @@ systemprompt-events = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 
 # API registry
 inventory = { workspace = true }
