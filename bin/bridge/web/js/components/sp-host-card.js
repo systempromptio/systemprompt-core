@@ -16,19 +16,9 @@ export class SpHostCard extends SpElement {
     super();
     this.host = null;
     this.snapshot = null;
-    this.registerAction("generate", async () => {
+    this.registerAction("open", async () => {
       if (this.host) {
-        try { await bridge.hostProfileGenerate(this.host.id); } catch (e) { console.warn("generate", e); }
-      }
-    });
-    this.registerAction("install", async () => {
-      if (this.host && this.host.last_generated_profile) {
-        try { await bridge.hostProfileInstall(this.host.id, this.host.last_generated_profile.path); } catch (e) { console.warn("install", e); }
-      }
-    });
-    this.registerAction("reverify", async () => {
-      if (this.host) {
-        try { await bridge.hostProbe(this.host.id); } catch (e) { console.warn("reverify", e); }
+        try { await bridge.agentOpen(this.host.id); } catch (e) { console.warn("open", e); }
       }
     });
   }
@@ -66,53 +56,60 @@ export class SpHostCard extends SpElement {
 
     const showJwtWarn = snap.cached_token && snap.cached_token.ttl_seconds < 600 && installed;
     const jwtWarnText = showJwtWarn ? (t("host-jwt-warn", { ttl: snap.cached_token.ttl_seconds }) || `JWT expires in ${snap.cached_token.ttl_seconds}s`) : "";
+    const jwtBlock = showJwtWarn ? `<div class="sp-claude__warn">${escapeHtml(jwtWarnText)}</div>` : "";
 
     const lastGen = host.last_generated_profile || null;
-    const installDisabled = !lastGen;
-    const installTitle = installDisabled ? "Generate first" : (lastGen.path || "");
-    const jwtBlock = showJwtWarn ? `<div class="sp-claude__warn">${escapeHtml(jwtWarnText)}</div>` : "";
 
     const processLines = (hs && Array.isArray(hs.host_processes) && hs.host_processes.length)
       ? hs.host_processes.map((p) => escapeHtml(p)).join("<br>")
       : escapeHtml(runningDetail);
 
     const missingRow = partial && missing.length
-      ? `<tr><th>${escapeHtml(t("host-missing-keys") || "Missing required keys")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(missing.join(", "))}</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-missing-keys") || "Missing required keys")}</th><td><div class="sp-status__detail sp-u-mono">${escapeHtml(missing.join(", "))}</div></td></tr>`
       : "";
 
     const probedRow = hs && hs.probed_at_unix
-      ? `<tr><th>${escapeHtml(t("host-last-probed") || "Last probed")}</th><td colspan="2"><div class="sp-status__detail">${escapeHtml(fmtRelative(hs.probed_at_unix))}</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-last-probed") || "Last probed")}</th><td><div class="sp-status__detail">${escapeHtml(fmtRelative(hs.probed_at_unix))}</div></td></tr>`
       : "";
 
     const lastGenRow = lastGen
-      ? `<tr><th>${escapeHtml(t("host-last-generated") || "Last generated")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.path)}</div><div class="sp-status__detail sp-u-muted">${escapeHtml((lastGen.bytes / 1024).toFixed(1))} KB</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-last-generated") || "Last generated")}</th><td><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.path)}</div><div class="sp-status__detail sp-u-muted">${escapeHtml((lastGen.bytes / 1024).toFixed(1))} KB</div></td></tr>`
       : "";
 
     const profileUuidRow = lastGen && lastGen.profile_uuid
-      ? `<tr><th>${escapeHtml(t("host-profile-uuid") || "Profile UUID")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.profile_uuid)}</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-profile-uuid") || "Profile UUID")}</th><td><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.profile_uuid)}</div></td></tr>`
       : "";
 
     const payloadUuidRow = lastGen && lastGen.payload_uuid
-      ? `<tr><th>${escapeHtml(t("host-payload-uuid") || "Payload UUID")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.payload_uuid)}</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-payload-uuid") || "Payload UUID")}</th><td><div class="sp-status__detail sp-u-mono">${escapeHtml(lastGen.payload_uuid)}</div></td></tr>`
       : "";
 
     const hostKindRow = host.kind
-      ? `<tr><th>${escapeHtml(t("host-kind") || "Host kind")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(host.kind)}</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-kind") || "Host kind")}</th><td><div class="sp-status__detail sp-u-mono">${escapeHtml(host.kind)}</div></td></tr>`
       : "";
 
     const configFormatRow = host.config_format
-      ? `<tr><th>${escapeHtml(t("host-config-format") || "Config format")}</th><td colspan="2"><div class="sp-status__detail sp-u-mono">${escapeHtml(host.config_format)}</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-config-format") || "Config format")}</th><td><div class="sp-status__detail sp-u-mono">${escapeHtml(host.config_format)}</div></td></tr>`
       : "";
 
     const installLabelRow = host.install_action_label
-      ? `<tr><th>${escapeHtml(t("host-install-label") || "Install action")}</th><td colspan="2"><div class="sp-status__detail">${escapeHtml(host.install_action_label)}</div></td></tr>`
+      ? `<tr><th>${escapeHtml(t("host-install-label") || "Install action")}</th><td><div class="sp-status__detail">${escapeHtml(host.install_action_label)}</div></td></tr>`
       : "";
+
+    const iconId = host.icon || host.id || "";
+    const openLabel = escapeHtml(t("host-action-open") || "Open");
+    const logoTpl = document.getElementById(`tpl-host-logo-${iconId}`);
+    const logoMarkup = logoTpl && logoTpl.content && logoTpl.content.firstElementChild
+      ? logoTpl.content.firstElementChild.outerHTML.replace(/^<svg/, '<svg class="sp-host-card__logo"')
+      : `<svg class="sp-host-card__logo" aria-hidden="true" viewBox="0 0 24 24"></svg>`;
 
     return `
       <article class="sp-host-card">
         <header class="sp-host-card__head">
+          ${logoMarkup}
           <h3 class="sp-host-card__name">${escapeHtml(host.display_name || "—")}</h3>
           <span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>
+          <button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="open">${openLabel}</button>
         </header>
         <table class="sp-status__board"><tbody>
           <tr>
@@ -121,11 +118,6 @@ export class SpHostCard extends SpElement {
               <div class="sp-status__row"><span class="sp-dot ${profileDot}" aria-hidden="true"></span><span>${escapeHtml(profileText)}</span></div>
               <div class="sp-status__detail sp-u-mono ${profileSource === "—" ? "sp-u-muted" : ""}">${escapeHtml(profileSource)}</div>
             </td>
-            <td class="sp-status__actions">
-              <button class="sp-btn-primary" type="button" data-action="generate">Generate</button>
-              <button class="sp-btn-ghost" type="button" ${installDisabled ? "disabled" : ""} title="${escapeHtml(installTitle)}" data-action="install">Install</button>
-              <button class="sp-btn-ghost" type="button" data-action="reverify">Re-verify</button>
-            </td>
           </tr>
           <tr>
             <th>Process</th>
@@ -133,7 +125,6 @@ export class SpHostCard extends SpElement {
               <div class="sp-status__row"><span class="sp-dot ${runningDot}" aria-hidden="true"></span><span>${escapeHtml(runningText)}</span></div>
               <div class="sp-status__detail sp-u-mono ${running ? "" : "sp-u-muted"}">${processLines}</div>
             </td>
-            <td class="sp-status__actions"></td>
           </tr>
           ${missingRow}
           ${probedRow}

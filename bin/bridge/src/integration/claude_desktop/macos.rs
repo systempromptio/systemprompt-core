@@ -89,6 +89,20 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+pub(super) fn open_host() -> std::io::Result<()> {
+    let status = Command::new("/usr/bin/open")
+        .args(["-a", "Claude"])
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "open -a Claude exited with {}",
+            status.code().unwrap_or(-1)
+        )))
+    }
+}
+
 fn candidates(domain: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(user) = std::env::var("USER") {

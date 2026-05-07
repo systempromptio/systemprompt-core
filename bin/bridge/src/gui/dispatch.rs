@@ -48,6 +48,7 @@ fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::StateRefreshed => "StateRefreshed",
         UiEvent::AgentUninstall { .. } => "AgentUninstall",
         UiEvent::AgentOpenConfig { .. } => "AgentOpenConfig",
+        UiEvent::AgentOpen { .. } => "AgentOpen",
         UiEvent::SetupComplete => "SetupComplete",
         UiEvent::FocusWindow => "FocusWindow",
         UiEvent::Host(_) => "Host",
@@ -186,6 +187,9 @@ fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
         },
         UiEvent::AgentOpenConfig { host_id, reply_to } => {
             handlers::agents::on_open_config(app, &host_id, reply_to)
+        },
+        UiEvent::AgentOpen { host_id, reply_to } => {
+            handlers::agents::on_open(app, &host_id, reply_to)
         },
         UiEvent::SetupComplete => handlers::agents::on_setup_complete(app),
         UiEvent::Host(e) => crate::gui::hosts::dispatch::handle(app, e),

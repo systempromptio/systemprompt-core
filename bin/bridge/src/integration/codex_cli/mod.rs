@@ -51,6 +51,11 @@ impl HostApp for CodexCliHost {
         install::install_profile(path)
     }
 
+    /// Codex is a CLI; "open" launches a terminal so the user can run `codex` interactively.
+    fn open(&self) -> std::io::Result<()> {
+        open_terminal()
+    }
+
     fn install_action_label(&self) -> &'static str {
         if cfg!(target_os = "macos") {
             "loaded into managed preferences (com.openai.codex)"
@@ -77,4 +82,42 @@ impl HostApp for CodexCliHost {
     fn config_format(&self) -> ConfigFormat {
         ConfigFormat::Toml
     }
+}
+
+#[cfg(target_os = "macos")]
+fn open_terminal() -> std::io::Result<()> {
+    let status = std::process::Command::new("/usr/bin/open")
+        .args(["-a", "Terminal"])
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "open -a Terminal exited with {}",
+            status.code().unwrap_or(-1)
+        )))
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn open_terminal() -> std::io::Result<()> {
+    let status = std::process::Command::new("cmd")
+        .args(["/C", "start", "cmd", "/K", "codex"])
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "start cmd exited with {}",
+            status.code().unwrap_or(-1)
+        )))
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn open_terminal() -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "open not supported on this platform",
+    ))
 }

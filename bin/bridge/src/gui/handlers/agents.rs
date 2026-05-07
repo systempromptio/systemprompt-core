@@ -61,6 +61,31 @@ pub(crate) fn on_open_config(app: &mut GuiApp, host_id: &str, reply_to: ReplyId)
     finish(app, result, reply_to);
 }
 
+pub(crate) fn on_open(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
+    let result = match find_host_by_id(host_id) {
+        Some(host) => match host.open() {
+            Ok(()) => {
+                app.append_log(format!("opened host {}", host.display_name()));
+                Ok(json!({}))
+            },
+            Err(err) => {
+                let msg = format!("open host {} failed: {err}", host.display_name());
+                app.append_log(&msg);
+                Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, msg))
+            },
+        },
+        None => {
+            app.append_log(format!("open: unknown host {host_id}"));
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::NotFound,
+                format!("unknown host: {host_id}"),
+            ))
+        },
+    };
+    finish(app, result, reply_to);
+}
+
 pub(crate) fn on_setup_complete(app: &mut GuiApp) {
     app.state.set_agents_onboarded(true);
     app.append_log("setup marked complete by user");
