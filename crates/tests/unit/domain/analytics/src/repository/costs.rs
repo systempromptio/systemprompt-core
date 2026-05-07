@@ -226,6 +226,182 @@ async fn unattributed_row_survives_limit() -> Result<()> {
     Ok(())
 }
 
+async fn make_other_user(fx: &Fixture) -> Result<String> {
+    let other_id = format!("test_user_other_{}", fx.tag);
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
+        .bind(&other_id)
+        .bind(&other_id)
+        .bind(format!("{other_id}@test.invalid"))
+        .execute(&fx.pool)
+        .await?;
+    let other_ctx = format!("test_ctx_other_{}", fx.tag);
+    sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, $3)")
+        .bind(&other_ctx)
+        .bind(&other_id)
+        .bind(format!("ctx-other-{}", fx.tag))
+        .execute(&fx.pool)
+        .await?;
+    let id = format!("req_other_{}", Uuid::new_v4().simple());
+    let created_at = fx.window_start + Duration::minutes(2);
+    sqlx::query(
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, \
+         cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, $3, $4, \
+         'test-provider', 'other-model', 99_999_999, 9_999, 'completed', $5, $5)",
+    )
+    .bind(&id)
+    .bind(&id)
+    .bind(&other_id)
+    .bind(&other_ctx)
+    .bind(created_at)
+    .execute(&fx.pool)
+    .await?;
+    Ok(other_id)
+}
+
+async fn cleanup_other(fx: &Fixture, other_id: &str) -> Result<()> {
+    sqlx::query("DELETE FROM ai_requests WHERE user_id = $1")
+        .bind(other_id)
+        .execute(&fx.pool)
+        .await?;
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(other_id)
+        .execute(&fx.pool)
+        .await?;
+    Ok(())
+}
+
+async fn insert_request_with_context(
+    fx: &Fixture,
+    context_id: &str,
+    task_id: Option<&str>,
+    model: &str,
+    cost: i64,
+    tokens: i32,
+    offset_minutes: i64,
+) -> Result<()> {
+    let id = format!("req_{}_{}", fx.tag, Uuid::new_v4().simple());
+    let created_at = fx.window_start + Duration::minutes(offset_minutes);
+    sqlx::query(
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, task_id, provider, \
+         model, cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, \
+         $3, $4, $5, 'test-provider', $6, $7, $8, 'completed', $9, $9)",
+    )
+    .bind(&id)
+    .bind(&id)
+    .bind(&fx.user_id)
+    .bind(context_id)
+    .bind(task_id)
+    .bind(model)
+    .bind(cost)
+    .bind(tokens)
+    .bind(created_at)
+    .execute(&fx.pool)
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn summary_for_user_isolates_by_user_id() -> Result<()> {
+    let fx = Fixture::new().await?;
+    let other = make_other_user(&fx).await?;
+    fx.insert_ai_request(None, 1_000, 100, 0).await?;
+    fx.insert_ai_request(None, 2_500, 250, 1).await?;
+
+    let repo = fx.repo()?;
+    let summary = repo
+        .get_summary_for_user(&fx.user_id, fx.window_start, fx.window_end)
+        .await?;
+    assert_eq!(summary.requests, 2);
+    assert_eq!(summary.cost, Some(3_500));
+
+    let other_summary = repo
+        .get_summary_for_user(&other, fx.window_start, fx.window_end)
+        .await?;
+    assert_eq!(other_summary.requests, 1);
+    assert_eq!(other_summary.cost, Some(99_999_999));
+
+    cleanup_other(&fx, &other).await?;
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn breakdown_by_model_for_user_only_includes_self() -> Result<()> {
+    let fx = Fixture::new().await?;
+    let other = make_other_user(&fx).await?;
+    insert_request_with_context(&fx, &fx.context_id, None, "model-x", 1_000, 100, 0).await?;
+    insert_request_with_context(&fx, &fx.context_id, None, "model-y", 5_000, 500, 1).await?;
+
+    let repo = fx.repo()?;
+    let rows = repo
+        .get_breakdown_by_model_for_user(&fx.user_id, fx.window_start, fx.window_end, 10)
+        .await?;
+    let names: std::collections::HashSet<&str> = rows.iter().map(|r| r.name.as_str()).collect();
+    assert!(names.contains("model-x"));
+    assert!(names.contains("model-y"));
+    assert!(
+        !names.contains("other-model"),
+        "must not leak rows from another user"
+    );
+
+    cleanup_other(&fx, &other).await?;
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn context_summary_counts_distinct_contexts() -> Result<()> {
+    let fx = Fixture::new().await?;
+    let ctx2 = format!("test_ctx2_{}", fx.tag);
+    sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, $3)")
+        .bind(&ctx2)
+        .bind(&fx.user_id)
+        .bind("ctx2")
+        .execute(&fx.pool)
+        .await?;
+    insert_request_with_context(&fx, &fx.context_id, None, "model-a", 100, 10, 0).await?;
+    insert_request_with_context(&fx, &fx.context_id, None, "model-a", 100, 10, 1).await?;
+    insert_request_with_context(&fx, &ctx2, None, "model-a", 100, 10, 2).await?;
+
+    let repo = fx.repo()?;
+    let summary = repo
+        .get_context_summary_for_user(&fx.user_id, fx.window_start, fx.window_end)
+        .await?;
+    assert_eq!(summary.conversations, 2);
+    assert_eq!(summary.ai_requests, 3);
+
+    sqlx::query("DELETE FROM user_contexts WHERE context_id = $1")
+        .bind(&ctx2)
+        .execute(&fx.pool)
+        .await?;
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn contexts_by_agent_groups_by_agent_name() -> Result<()> {
+    let fx = Fixture::new().await?;
+    let agent_a = format!("agent-a-{}", fx.tag);
+    let agent_b = format!("agent-b-{}", fx.tag);
+    let task_a = fx.insert_task(Some(&agent_a)).await?;
+    let task_b = fx.insert_task(Some(&agent_b)).await?;
+    insert_request_with_context(&fx, &fx.context_id, Some(&task_a), "m", 100, 10, 0).await?;
+    insert_request_with_context(&fx, &fx.context_id, Some(&task_a), "m", 100, 10, 1).await?;
+    insert_request_with_context(&fx, &fx.context_id, Some(&task_b), "m", 100, 10, 2).await?;
+
+    let repo = fx.repo()?;
+    let rows = repo
+        .get_contexts_by_agent_for_user(&fx.user_id, fx.window_start, fx.window_end, 10)
+        .await?;
+    let by_name: std::collections::HashMap<&str, &_> =
+        rows.iter().map(|r| (r.name.as_str(), r)).collect();
+    assert!(by_name.contains_key(agent_a.as_str()));
+    assert!(by_name.contains_key(agent_b.as_str()));
+
+    fx.cleanup().await?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn empty_window_returns_no_rows() -> Result<()> {
     let fx = Fixture::new().await?;
