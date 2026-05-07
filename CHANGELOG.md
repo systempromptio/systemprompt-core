@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Gateway context-id is now guaranteed for every request, on every protocol.** Before this change, the bridge proxy only derived an `x-context-id` header for paths matching `/messages` or `/v1/messages` and only when the body parsed as Anthropic-shaped JSON; the gateway then hard-rejected anything that arrived without the header. OpenAI Responses traffic via `/responses` (Codex CLI, Gemini-shape clients) and any direct-to-gateway client therefore failed with `400 missing required x-context-id header`.
+  - New shared module `systemprompt_models::gateway_hash` (FNV-1a 64-bit, length-prefixed, label-disambiguated) provides `conversation_prefix_hash` and `context_id_from_prefix_hash`. The bridge and the gateway compute the same `ContextId` for the same first turn, deterministically across processes.
+  - Gateway `CanonicalRequest::derived_context_id()` flattens `system + first message` into the shared hash, so every inbound adapter (Anthropic Messages, OpenAI Responses, future shapes) gets identical derivation for free.
+  - `routes/gateway/messages/extract.rs` switched from hard-fail `require_conversation_binding` to a header-or-derive policy: body parses first, then `x-context-id` is taken from the header if present, otherwise derived from canonical. The defence-in-depth invariant at `services/gateway/service.rs:39` is unchanged.
+  - Bridge `proxy/forward.rs` no longer gates context derivation on path. `proxy/session.rs` `PrefixProbe` now recognises Anthropic Messages, OpenAI Chat Completions, and OpenAI Responses shapes and flattens array `content` parts. The bridge cache uses the same shared hash, so bridge-derived and gateway-derived ids never disagree for the same conversation.
+  - Tests: `crates/tests/unit/shared/models/gateway_hash.rs` (9 tests, hash determinism + boundary disambiguation) and `crates/tests/unit/bridge/proxy/derive_context_id.rs` (10 tests, all three protocol shapes + the "second turn rehashes to same id" invariant).
+
 ### Added
 
 - **Per-user host enable preferences (`bridge_user_host_prefs`).** New table (schema in `crates/domain/oauth/schema/bridge_user_host_prefs.sql`) records which bridge-managed hosts (`claude-code`, `claude-desktop`, `cowork`, `codex-cli`) the user has enabled. `POST /v1/bridge/enabled-hosts` (`routes/gateway/bridge.rs::set_enabled_host`) upserts a row; `GET /v1/bridge/manifest` reads the rows and includes them as `enabled_hosts` in the signed manifest (when no rows exist, all known hosts default to enabled). Bridge-side `agents.json` is now derived from this manifest field on each apply, replacing the previous probe-based migration path.

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::TryStreamExt;
-use http_body_util::{BodyExt, BodyStream, Full, StreamBody};
+use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming};
 use hyper::{HeaderMap, Request, Response, StatusCode};
 use systemprompt_identifiers::{ContextId, SessionId, ValidatedUrl, headers as sp_headers};
@@ -254,20 +254,12 @@ fn build_upstream_headers(
 
 async fn prepare_upstream_body(
     body: Incoming,
-    request_path: &str,
+    _request_path: &str,
     session_context: &SessionContext,
 ) -> ForwardResult<(reqwest::Body, Option<ContextId>)> {
-    if !usage::is_messages_path(request_path) {
-        let stream_body = reqwest::Body::wrap_stream(
-            BodyStream::new(body)
-                .try_filter_map(|frame: Frame<Bytes>| async move { Ok(frame.into_data().ok()) })
-                .map_err(std::io::Error::other),
-        );
-        return Ok((stream_body, None));
-    }
     let buffered = collect_body(body).await?;
     let context_id =
-        session::hash_conversation_prefix(&buffered).map(|h| session_context.context_for_prefix(h));
+        session::derive_context_id(&buffered).map(|hash| session_context.context_for_prefix(hash));
     if let Some(ref c) = context_id {
         tracing::Span::current().record("context_id", tracing::field::display(c));
     }

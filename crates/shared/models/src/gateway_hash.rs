@@ -1,0 +1,72 @@
+//! Stable conversation-prefix hash used to mint deterministic gateway
+//! `ContextId`s on both sides of the bridge boundary.
+//!
+//! The hash is FNV-1a 64-bit over a length-prefixed sequence of
+//! `(label, bytes)` segments. It is **not** cryptographic — it is a
+//! collision-resistant cache key that the bridge proxy and the gateway
+//! `InboundAdapter`s can compute independently and arrive at the same
+//! `ContextId` for the same first turn of a conversation.
+
+use systemprompt_identifiers::ContextId;
+
+const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+
+/// Hash an ordered list of labelled byte segments with FNV-1a 64.
+///
+/// Each segment is mixed in as `label || 0x00 || len_le_u32 || bytes || 0xFF`
+/// so that distinct segment boundaries cannot collide.
+#[must_use]
+pub fn fnv1a_segments(parts: &[(&str, &[u8])]) -> u64 {
+    let mut hash = FNV_OFFSET;
+    for (label, bytes) in parts {
+        for b in label.as_bytes() {
+            hash ^= u64::from(*b);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        hash ^= 0;
+        hash = hash.wrapping_mul(FNV_PRIME);
+        let len = u32::try_from(bytes.len()).unwrap_or(u32::MAX);
+        for b in len.to_le_bytes() {
+            hash ^= u64::from(b);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        for b in *bytes {
+            hash ^= u64::from(*b);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        hash ^= 0xFF;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
+}
+
+/// Compute the canonical conversation-prefix hash from a system prompt
+/// (optional) and the role + content of the first user-visible message.
+///
+/// Returns `None` when there is no first message — callers should treat
+/// that as "no derivable context yet" and either fall back to a
+/// generated id or skip header injection.
+#[must_use]
+pub fn conversation_prefix_hash(
+    system: Option<&str>,
+    first_role: &str,
+    first_content: &str,
+) -> u64 {
+    let mut parts: Vec<(&str, &[u8])> = Vec::with_capacity(3);
+    if let Some(sys) = system.filter(|s| !s.is_empty()) {
+        parts.push(("system", sys.as_bytes()));
+    }
+    parts.push(("role", first_role.as_bytes()));
+    parts.push(("content", first_content.as_bytes()));
+    fnv1a_segments(&parts)
+}
+
+/// Mint a deterministic `ContextId` from a prefix hash.
+///
+/// The resulting id is `ctx_<16 lowercase hex>` and stable across
+/// processes, hosts, and Rust versions.
+#[must_use]
+pub fn context_id_from_prefix_hash(hash: u64) -> ContextId {
+    ContextId::new(format!("ctx_{hash:016x}"))
+}
