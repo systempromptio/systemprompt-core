@@ -47,6 +47,17 @@ agents-lede = systemprompt bridge routes any number of coding agents through a s
 agents-action-generate-all = Generate
 agents-action-install-all = Install
 agents-action-reverify-all = Re-verify
+agents-status-cloud-signed-in = signed in as { $email }
+agents-status-cloud-signed-out = signed out
+agents-status-cloud-unreachable = cloud unreachable
+agents-status-proxy-listening = Listening · { $latency }ms · { $status }
+agents-status-proxy-refused = proxy refused
+agents-status-proxy-timeout = proxy timed out
+agents-status-proxy-http-error = proxy http error
+agents-status-proxy-unconfigured = proxy unconfigured
+agents-status-token-ok = JWT ok · expires in { $ttl }
+agents-status-token-expiring = JWT expires in { $ttl }
+agents-status-token-missing = no token
 host-action-open = Open
 
 # Status tab ------------------------------------------------------------------
