@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use crate::integration::{HostAppSnapshot, ProxyHealth};
+use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
 #[derive(Debug, Clone, Default)]
 pub struct HostState {
     pub snapshot: Option<HostAppSnapshot>,
     pub probe_in_flight: bool,
-    pub last_generated_profile: Option<String>,
+    pub last_generated_profile: Option<GeneratedProfile>,
 }
 
 #[derive(Debug, Clone, Default)]

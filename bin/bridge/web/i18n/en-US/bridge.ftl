@@ -134,6 +134,14 @@ host-badge-disabled = disabled
 host-toggle-enable = Enable
 host-toggle-disable = Disable
 host-disabled-lede = This agent is disabled. Enable it to probe configuration and route inference through the local proxy.
+host-missing-keys = Missing required keys
+host-last-probed = Last probed
+host-last-generated = Last generated
+host-profile-uuid = Profile UUID
+host-payload-uuid = Payload UUID
+host-kind = Host kind
+host-config-format = Config format
+host-install-label = Install action
 
 # Agents (tab summary + setup) ------------------------------------------------
 setup-agents-empty = No agents available on this platform.

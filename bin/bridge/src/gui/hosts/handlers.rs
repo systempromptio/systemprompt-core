@@ -221,13 +221,13 @@ pub(crate) fn on_profile_generate_finished(
 ) {
     let bridge_result = match result {
         Ok(p) => {
-            app.state
-                .set_last_generated_profile(host_id, p.path.clone());
             app.append_log(format!(
                 "[{host_id}] profile written: {} ({} bytes)",
                 p.path, p.bytes
             ));
-            Ok(json!({ "path": p.path, "bytes": p.bytes }))
+            let response = json!({ "path": p.path, "bytes": p.bytes });
+            app.state.set_last_generated_profile(host_id, p);
+            Ok(response)
         },
         Err(e) => {
             let line = format!("[{host_id}] profile generation failed: {e}");
