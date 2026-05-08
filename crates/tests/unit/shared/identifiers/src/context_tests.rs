@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{ContextId, DbValue, ToDbValue};
+use systemprompt_identifiers::{ContextId, DbValue, GatewayConversationId, ToDbValue};
 
 #[test]
 fn generate_produces_uuid_format() {
@@ -69,6 +69,33 @@ fn serde_round_trip() {
 fn serde_rejects_malformed_string() {
     let result: Result<ContextId, _> = serde_json::from_str("\"not-a-uuid\"");
     assert!(result.is_err());
+}
+
+#[test]
+fn derived_from_gateway_conversation_is_a_valid_uuid() {
+    let gw = GatewayConversationId::from_prefix_hash(0xdead_beef_cafe_f00d);
+    let ctx = ContextId::derived_from_gateway_conversation(&gw);
+    assert_eq!(ctx.as_str().len(), 36);
+    uuid::Uuid::parse_str(ctx.as_str()).expect("derivation must yield a parseable UUID");
+}
+
+#[test]
+fn derived_from_gateway_conversation_is_deterministic() {
+    let gw = GatewayConversationId::from_prefix_hash(0x1234_5678_9abc_def0);
+    let a = ContextId::derived_from_gateway_conversation(&gw);
+    let b = ContextId::derived_from_gateway_conversation(&gw);
+    assert_eq!(a, b);
+}
+
+#[test]
+fn derived_from_gateway_conversation_diverges_on_input() {
+    let a = ContextId::derived_from_gateway_conversation(&GatewayConversationId::from_prefix_hash(
+        0,
+    ));
+    let b = ContextId::derived_from_gateway_conversation(&GatewayConversationId::from_prefix_hash(
+        1,
+    ));
+    assert_ne!(a, b);
 }
 
 #[test]

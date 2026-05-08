@@ -151,13 +151,13 @@ fn test_log_row_to_log_entry_with_context_id() {
         session_id: None,
         task_id: None,
         trace_id: None,
-        context_id: Some("context-klmno".to_string()),
+        context_id: Some("00000000-0000-4000-8000-00000000ab01".to_string()),
         client_id: None,
     };
 
     let entry: LogEntry = row.into();
     let context_id = entry.context_id.expect("context_id should be set");
-    assert_eq!(context_id.as_str(), "context-klmno");
+    assert_eq!(context_id.as_str(), "00000000-0000-4000-8000-00000000ab01");
 }
 
 #[test]
@@ -239,7 +239,7 @@ fn test_log_row_to_log_entry_full_conversion() {
         session_id: Some("session-full".to_string()),
         task_id: Some("task-full".to_string()),
         trace_id: Some("trace-full".to_string()),
-        context_id: Some("context-full".to_string()),
+        context_id: Some("00000000-0000-4000-8000-00000000ab02".to_string()),
         client_id: Some("client-full".to_string()),
     };
 

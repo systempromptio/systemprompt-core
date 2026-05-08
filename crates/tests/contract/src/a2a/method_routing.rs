@@ -18,7 +18,7 @@ fn minimal_message_params() -> serde_json::Value {
             "role": "ROLE_USER",
             "parts": [{"text": "hello"}],
             "messageId": "msg-1",
-            "contextId": "ctx-1"
+            "contextId": "00000000-0000-4000-8000-000000000001"
         }
     })
 }

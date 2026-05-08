@@ -51,9 +51,9 @@ impl GatewayService {
             ctx,
             inbound,
         } = inputs;
-        if ctx.context_id.is_none() || ctx.session_id.is_none() {
+        if ctx.session_id.is_none() {
             return Err(anyhow!(
-                "gateway dispatch missing conversation binding (session_id + context_id)"
+                "gateway dispatch missing conversation binding (session_id)"
             ));
         }
 

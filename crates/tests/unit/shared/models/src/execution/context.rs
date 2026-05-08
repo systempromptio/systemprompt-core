@@ -299,4 +299,3 @@ fn context_extraction_error_invalid_header_value() {
     assert!(msg.contains("x-test"));
     assert!(msg.contains("bad encoding"));
 }
-

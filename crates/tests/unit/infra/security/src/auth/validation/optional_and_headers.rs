@@ -96,13 +96,16 @@ fn test_validate_request_extracts_context_id() {
     );
     headers.insert(
         "x-context-id",
-        HeaderValue::from_static("custom-context-id"),
+        HeaderValue::from_static("00000000-0000-4000-8000-00000000c0c0"),
     );
 
     let context = service
         .validate_request(&headers, AuthMode::Required)
         .expect("Should extract context id from headers");
-    assert_eq!(context.execution.context_id.as_str(), "custom-context-id");
+    assert_eq!(
+        context.execution.context_id.as_str(),
+        "00000000-0000-4000-8000-00000000c0c0"
+    );
 }
 
 #[test]
@@ -153,14 +156,20 @@ fn test_validate_request_anonymous_extracts_headers() {
     let service = create_test_service();
     let mut headers = HeaderMap::new();
     headers.insert("x-trace-id", HeaderValue::from_static("anon-trace"));
-    headers.insert("x-context-id", HeaderValue::from_static("anon-context"));
+    headers.insert(
+        "x-context-id",
+        HeaderValue::from_static("00000000-0000-4000-8000-00000000c0c1"),
+    );
     headers.insert("x-agent-name", HeaderValue::from_static("anon-agent"));
 
     let context = service
         .validate_request(&headers, AuthMode::Optional)
         .expect("Anonymous should extract headers");
     assert_eq!(context.execution.trace_id.as_str(), "anon-trace");
-    assert_eq!(context.execution.context_id.as_str(), "anon-context");
+    assert_eq!(
+        context.execution.context_id.as_str(),
+        "00000000-0000-4000-8000-00000000c0c1"
+    );
     assert_eq!(context.execution.agent_name.as_str(), "anon-agent");
 }
 

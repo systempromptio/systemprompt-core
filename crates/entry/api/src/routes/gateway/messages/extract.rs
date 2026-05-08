@@ -37,7 +37,7 @@ pub(super) struct PreparedRequest {
     pub provider: String,
     pub upstream_model: String,
     pub session_id: SessionId,
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub gateway_conversation_id: GatewayConversationId,
 }
 
@@ -71,7 +71,6 @@ pub(super) async fn extract_request_context(
 
     let session_id = require_session_id(request.headers())?;
     partial.session_id = Some(session_id.clone());
-    let header_context = optional_context_id(request.headers())?;
     let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
     let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx, tenant_id).await?;
@@ -92,7 +91,8 @@ pub(super) async fn extract_request_context(
                 )
             })?,
     };
-    partial.context_id.clone_from(&header_context);
+    let context_id = ContextId::derived_from_gateway_conversation(&gateway_conversation_id);
+    partial.context_id = Some(context_id.clone());
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
 
     let route = gateway_config
@@ -118,30 +118,13 @@ pub(super) async fn extract_request_context(
         provider: route.provider.clone(),
         upstream_model,
         session_id,
-        context_id: header_context,
+        context_id,
         gateway_conversation_id,
     })
 }
 
 fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, String)> {
     require_typed_header(headers, sp_headers::SESSION_ID, SessionId::new)
-}
-
-fn optional_context_id(headers: &HeaderMap) -> Result<Option<ContextId>, (StatusCode, String)> {
-    let Some(raw) = headers.get(sp_headers::CONTEXT_ID) else {
-        return Ok(None);
-    };
-    let raw = raw.to_str().map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("invalid {} header: {e}", sp_headers::CONTEXT_ID),
-        )
-    })?;
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Ok(None);
-    }
-    Ok(ContextId::try_new(trimmed.to_string()).ok())
 }
 
 fn optional_gateway_conversation_id(

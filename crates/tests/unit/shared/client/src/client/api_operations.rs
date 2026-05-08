@@ -20,7 +20,7 @@ async fn test_list_contexts_success() {
     let response_body = serde_json::json!({
         "data": [
             {
-                "context_id": "ctx-123",
+                "context_id": "00000000-0000-4000-8000-000000000001",
                 "user_id": "user-456",
                 "name": "Test Context",
                 "created_at": "2024-01-01T00:00:00Z",
