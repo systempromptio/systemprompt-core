@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use axum::Json;
@@ -5,15 +6,19 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use systemprompt_agent::repository::content::{AgentRepository, SkillRepository};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{AgentName, JwtToken, TenantId, UserId};
+use systemprompt_identifiers::{AgentId, AgentName, HookId, JwtToken, TenantId, UserId};
 use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_models::bridge::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
+use systemprompt_models::services::hooks::HOOK_CONFIG_FILENAME;
+use systemprompt_models::services::{
+    AgentConfig, DiskHookConfig, DiskSkillConfig, SKILL_CONFIG_FILENAME, ServicesConfig,
+    strip_frontmatter,
+};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::manifest_signing;
 
@@ -62,21 +67,23 @@ pub async fn manifest(
 
     let (manifest_version, issued_at, not_before) = build_version()?;
 
-    let skills = load_skills(&ctx).await.map_err(|e| {
+    let services = bridge_data::load_services_config().map_err(|e| {
+        tracing::warn!(error = %e, "manifest: services config load failed");
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
+    })?;
+
+    let services_root = ctx.app_paths().system().services();
+
+    let skills = load_skills(services_root).map_err(|e| {
         tracing::warn!(error = %e, "manifest: skill load failed");
         (StatusCode::INTERNAL_SERVER_ERROR, format!("skills: {e}"))
     })?;
 
-    let agents = load_agents(&ctx, &profile.server.api_external_url)
-        .await
-        .map_err(|e| {
-            tracing::warn!(error = %e, "manifest: agent load failed");
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("agents: {e}"))
-        })?;
+    let agents = load_agents(&services, &profile.server.api_external_url);
 
-    let services = bridge_data::load_services_config().map_err(|e| {
-        tracing::warn!(error = %e, "manifest: services config load failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
+    let hooks = load_hooks(services_root).map_err(|e| {
+        tracing::warn!(error = %e, "manifest: hook load failed");
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("hooks: {e}"))
     })?;
 
     let plugins = bridge_data::load_plugins(&ctx, &services);
@@ -118,8 +125,6 @@ pub async fn manifest(
             default_enabled_hosts()
         },
     };
-
-    let hooks: Vec<HookEntry> = Vec::new();
 
     let filtered = ctx
         .marketplace_filter()
@@ -227,60 +232,229 @@ fn build_version() -> Result<(ManifestVersion, String, String), (StatusCode, Str
     Ok((version, issued_at, not_before))
 }
 
-async fn load_skills(ctx: &AppContext) -> anyhow::Result<Vec<SkillEntry>> {
-    let repo = SkillRepository::new(ctx.db_pool())?;
-    let rows = repo.list_enabled().await?;
-    let mut out = Vec::with_capacity(rows.len());
-    for skill in rows {
-        let mut hasher = Sha256::new();
-        hasher.update(skill.instructions.as_bytes());
-        let digest = hex::encode(hasher.finalize());
-        let sha256 = Sha256Digest::try_new(digest)?;
-        let id = SkillId::try_new(skill.id.as_str())?;
-        let name = SkillName::try_new(skill.name.clone())?;
-        out.push(SkillEntry {
-            id,
-            name,
-            description: skill.description,
-            file_path: skill.file_path,
-            tags: skill.tags,
-            sha256,
-            instructions: skill.instructions,
-        });
+fn load_skills(services_root: &Path) -> anyhow::Result<Vec<SkillEntry>> {
+    let skills_dir = services_root.join("skills");
+    if !skills_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
+    for entry in std::fs::read_dir(&skills_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let config_path = path.join(SKILL_CONFIG_FILENAME);
+        if !config_path.exists() {
+            continue;
+        }
+        entries.push((dir_name.to_string(), path));
+    }
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut out = Vec::with_capacity(entries.len());
+    for (dir_name, skill_dir) in entries {
+        match build_skill_entry(&dir_name, &skill_dir) {
+            Ok(Some(entry)) => out.push(entry),
+            Ok(None) => {},
+            Err(e) => {
+                tracing::warn!(
+                    skill_dir = %skill_dir.display(),
+                    error = %e,
+                    "manifest: failed to build skill entry; skipping"
+                );
+            },
+        }
     }
     Ok(out)
 }
 
-async fn load_agents(ctx: &AppContext, api_external_url: &str) -> anyhow::Result<Vec<AgentEntry>> {
-    let repo = AgentRepository::new(ctx.db_pool())?;
-    let rows = repo.list_enabled().await?;
+fn build_skill_entry(dir_name: &str, skill_dir: &Path) -> anyhow::Result<Option<SkillEntry>> {
+    let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
+    let config_text = std::fs::read_to_string(&config_path)?;
+    let config: DiskSkillConfig = serde_yaml::from_str(&config_text)
+        .map_err(|e| anyhow::anyhow!("parse {}: {e}", config_path.display()))?;
+
+    if !config.enabled {
+        return Ok(None);
+    }
+
+    let id = if config.id.as_str().is_empty() {
+        SkillId::try_new(dir_name.replace('-', "_"))?
+    } else {
+        SkillId::try_new(config.id.as_str())?
+    };
+    let display_name = if config.name.is_empty() {
+        dir_name.replace('_', " ")
+    } else {
+        config.name.clone()
+    };
+    let name = SkillName::try_new(display_name)?;
+
+    let content_path = skill_dir.join(config.content_file());
+    let instructions = if content_path.exists() {
+        let raw = std::fs::read_to_string(&content_path)?;
+        strip_frontmatter(&raw)
+    } else {
+        String::new()
+    };
+
+    let mut hasher = Sha256::new();
+    hasher.update(instructions.as_bytes());
+    let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))?;
+
+    Ok(Some(SkillEntry {
+        id,
+        name,
+        description: config.description,
+        file_path: content_path.to_string_lossy().into_owned(),
+        tags: config.tags,
+        sha256,
+        instructions,
+    }))
+}
+
+fn load_agents(services: &ServicesConfig, api_external_url: &str) -> Vec<AgentEntry> {
     let base = api_external_url.trim_end_matches('/');
-    let mut out = Vec::with_capacity(rows.len());
-    for agent in rows {
-        let name = AgentName::try_new(agent.name.clone())?;
-        let endpoint =
-            if agent.endpoint.starts_with("http://") || agent.endpoint.starts_with("https://") {
-                agent.endpoint.clone()
-            } else {
-                format!("{base}{}", agent.endpoint)
-            };
-        out.push(AgentEntry {
-            id: agent.id,
-            name,
-            display_name: agent.display_name,
-            description: agent.description,
-            version: agent.version,
-            endpoint,
-            enabled: agent.enabled,
-            is_default: agent.is_default,
-            is_primary: agent.is_primary,
-            provider: agent.provider,
-            model: agent.model,
-            mcp_servers: agent.mcp_servers,
-            skills: agent.skills,
-            tags: agent.tags,
-            system_prompt: agent.system_prompt,
-        });
+    let mut keys: Vec<&String> = services
+        .agents
+        .iter()
+        .filter(|(_, cfg)| cfg.enabled)
+        .map(|(k, _)| k)
+        .collect();
+    keys.sort();
+
+    let mut out = Vec::with_capacity(keys.len());
+    for key in keys {
+        let cfg = &services.agents[key];
+        match build_agent_entry(key, cfg, base) {
+            Ok(entry) => out.push(entry),
+            Err(e) => {
+                tracing::warn!(
+                    agent = %key,
+                    error = %e,
+                    "manifest: failed to build agent entry; skipping"
+                );
+            },
+        }
+    }
+    out
+}
+
+fn build_agent_entry(key: &str, cfg: &AgentConfig, base: &str) -> anyhow::Result<AgentEntry> {
+    let id = AgentId::new(key);
+    let name = AgentName::try_new(cfg.name.clone())?;
+    let endpoint = if cfg.endpoint.starts_with("http://") || cfg.endpoint.starts_with("https://") {
+        cfg.endpoint.clone()
+    } else if cfg.endpoint.is_empty() {
+        format!("{base}/api/v1/agents/{}", cfg.name)
+    } else {
+        format!("{base}{}", cfg.endpoint)
+    };
+
+    let display_name = cfg.card.display_name.clone();
+    let description = cfg.card.description.clone();
+    let version = cfg.card.version.clone();
+
+    Ok(AgentEntry {
+        id,
+        name,
+        display_name,
+        description,
+        version,
+        endpoint,
+        enabled: cfg.enabled,
+        is_default: cfg.default,
+        is_primary: cfg.is_primary,
+        provider: cfg.metadata.provider.clone(),
+        model: cfg.metadata.model.clone(),
+        mcp_servers: cfg.metadata.mcp_servers.clone(),
+        skills: cfg.metadata.skills.clone(),
+        tags: cfg.tags.clone(),
+        system_prompt: cfg.metadata.system_prompt.clone(),
+    })
+}
+
+fn load_hooks(services_root: &Path) -> anyhow::Result<Vec<HookEntry>> {
+    let hooks_dir = services_root.join("hooks");
+    if !hooks_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
+    for entry in std::fs::read_dir(&hooks_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let config_path = path.join(HOOK_CONFIG_FILENAME);
+        if !config_path.exists() {
+            continue;
+        }
+        entries.push((dir_name.to_string(), config_path));
+    }
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut out = Vec::with_capacity(entries.len());
+    for (dir_name, config_path) in entries {
+        match build_hook_entry(&dir_name, &config_path) {
+            Ok(Some(entry)) => out.push(entry),
+            Ok(None) => {},
+            Err(e) => {
+                tracing::warn!(
+                    hook_dir = %dir_name,
+                    error = %e,
+                    "manifest: failed to build hook entry; skipping"
+                );
+            },
+        }
     }
     Ok(out)
+}
+
+fn build_hook_entry(dir_name: &str, config_path: &Path) -> anyhow::Result<Option<HookEntry>> {
+    let config_text = std::fs::read_to_string(config_path)?;
+    let config: DiskHookConfig = serde_yaml::from_str(&config_text)
+        .map_err(|e| anyhow::anyhow!("parse {}: {e}", config_path.display()))?;
+
+    if !config.enabled {
+        return Ok(None);
+    }
+
+    let id = if config.id.as_str().is_empty() {
+        HookId::new(dir_name.replace('-', "_"))
+    } else {
+        HookId::new(config.id.as_str())
+    };
+    let name = if config.name.is_empty() {
+        dir_name.replace('_', " ")
+    } else {
+        config.name.clone()
+    };
+
+    let mut hasher = Sha256::new();
+    hasher.update(config_text.as_bytes());
+    let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))?;
+
+    Ok(Some(HookEntry {
+        id,
+        name,
+        description: config.description,
+        version: config.version,
+        event: config.event,
+        matcher: config.matcher,
+        command: config.command,
+        is_async: config.is_async,
+        category: config.category,
+        tags: config.tags,
+        sha256,
+    }))
 }
