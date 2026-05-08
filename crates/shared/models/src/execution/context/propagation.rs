@@ -42,9 +42,8 @@ impl InjectContextHeaders for RequestContext {
             self.execution.agent_name.as_str(),
         );
 
-        let context_id = self.execution.context_id.as_str();
-        if !context_id.is_empty() {
-            insert_header(hdrs, headers::CONTEXT_ID, context_id);
+        if let Some(context_id) = self.execution.context_id.as_ref() {
+            insert_header(hdrs, headers::CONTEXT_ID, context_id.as_str());
         }
 
         insert_header_if_present(
@@ -107,10 +106,7 @@ impl ContextPropagation for RequestContext {
         let context_id = hdrs
             .get(headers::CONTEXT_ID)
             .and_then(|v| v.to_str().ok())
-            .map_or_else(
-                || ContextId::new(String::new()),
-                |s| ContextId::new(s.to_string()),
-            );
+            .map(|s| ContextId::new(s.to_string()));
 
         let agent_name = hdrs
             .get(headers::AGENT_NAME)
