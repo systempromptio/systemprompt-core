@@ -16,14 +16,14 @@ pub struct TaskStatusUpdateEvent {
 impl TaskStatusUpdateEvent {
     pub fn new(
         task_id: impl Into<TaskId>,
-        context_id: impl Into<ContextId>,
+        context_id: ContextId,
         status: TaskStatus,
         is_final: bool,
     ) -> Self {
         Self {
             kind: "status-update".to_string(),
             task_id: task_id.into(),
-            context_id: context_id.into(),
+            context_id,
             status,
             is_final,
         }
@@ -51,14 +51,14 @@ pub struct TaskArtifactUpdateEvent {
 impl TaskArtifactUpdateEvent {
     pub fn new(
         task_id: impl Into<TaskId>,
-        context_id: impl Into<ContextId>,
+        context_id: ContextId,
         artifact: Artifact,
         is_final: bool,
     ) -> Self {
         Self {
             kind: "artifact-update".to_string(),
             task_id: task_id.into(),
-            context_id: context_id.into(),
+            context_id,
             artifact,
             is_final,
         }

@@ -49,18 +49,18 @@ fn create_failed_status() -> TaskStatus {
 #[test]
 fn test_task_status_update_event_new() {
     let status = create_working_status();
-    let event = TaskStatusUpdateEvent::new("task-123", "ctx-456", status, false);
+    let event = TaskStatusUpdateEvent::new("task-123", ContextId::new(TEST_CONTEXT_ID_A), status, false);
 
     assert_eq!(event.kind, "status-update");
     assert_eq!(event.task_id, "task-123");
-    assert_eq!(event.context_id, "ctx-456");
+    assert_eq!(event.context_id.as_str(), TEST_CONTEXT_ID_A);
     assert!(!event.is_final);
 }
 
 #[test]
 fn test_task_status_update_event_final() {
     let status = create_completed_status();
-    let event = TaskStatusUpdateEvent::new("task-abc", "ctx-def", status, true);
+    let event = TaskStatusUpdateEvent::new("task-abc", ContextId::new(TEST_CONTEXT_ID_A), status, true);
 
     assert!(event.is_final);
     assert!(matches!(event.status.state, TaskState::Completed));
@@ -69,7 +69,7 @@ fn test_task_status_update_event_final() {
 #[test]
 fn test_task_status_update_event_serialize() {
     let status = create_failed_status();
-    let event = TaskStatusUpdateEvent::new("task-1", "ctx-1", status, true);
+    let event = TaskStatusUpdateEvent::new("task-1", ContextId::new(TEST_CONTEXT_ID_A), status, true);
     let json = serde_json::to_string(&event).unwrap();
 
     assert!(json.contains("status-update"));
@@ -81,7 +81,7 @@ fn test_task_status_update_event_serialize() {
 #[test]
 fn test_task_status_update_event_to_jsonrpc_response() {
     let status = TaskStatus::default();
-    let event = TaskStatusUpdateEvent::new("t1", "c1", status, false);
+    let event = TaskStatusUpdateEvent::new("t1", ContextId::new(TEST_CONTEXT_ID_A), status, false);
     let response = event.to_jsonrpc_response();
 
     assert_eq!(response["jsonrpc"], "2.0");
@@ -91,11 +91,11 @@ fn test_task_status_update_event_to_jsonrpc_response() {
 #[test]
 fn test_task_artifact_update_event_new() {
     let artifact = create_test_artifact("art-1");
-    let event = TaskArtifactUpdateEvent::new("task-1", "ctx-1", artifact, false);
+    let event = TaskArtifactUpdateEvent::new("task-1", ContextId::new(TEST_CONTEXT_ID_A), artifact, false);
 
     assert_eq!(event.kind, "artifact-update");
     assert_eq!(event.task_id, "task-1");
-    assert_eq!(event.context_id, "ctx-1");
+    assert_eq!(event.context_id.as_str(), TEST_CONTEXT_ID_A);
     assert!(!event.is_final);
 }
 
@@ -106,7 +106,7 @@ fn test_task_artifact_update_event_with_parts() {
         text: "Some content".to_string(),
     })];
 
-    let event = TaskArtifactUpdateEvent::new("task-2", "ctx-2", artifact, true);
+    let event = TaskArtifactUpdateEvent::new("task-2", ContextId::new(TEST_CONTEXT_ID_A), artifact, true);
 
     assert!(event.is_final);
     assert_eq!(event.artifact.parts.len(), 1);
@@ -115,7 +115,7 @@ fn test_task_artifact_update_event_with_parts() {
 #[test]
 fn test_task_artifact_update_event_serialize() {
     let artifact = create_test_artifact("art-3");
-    let event = TaskArtifactUpdateEvent::new("t1", "c1", artifact, false);
+    let event = TaskArtifactUpdateEvent::new("t1", ContextId::new(TEST_CONTEXT_ID_A), artifact, false);
     let json = serde_json::to_string(&event).unwrap();
 
     assert!(json.contains("artifact-update"));
@@ -126,7 +126,7 @@ fn test_task_artifact_update_event_serialize() {
 #[test]
 fn test_task_artifact_update_event_to_jsonrpc_response() {
     let artifact = create_test_artifact("art-4");
-    let event = TaskArtifactUpdateEvent::new("t", "c", artifact, true);
+    let event = TaskArtifactUpdateEvent::new("t", ContextId::new(TEST_CONTEXT_ID_A), artifact, true);
     let response = event.to_jsonrpc_response();
 
     assert_eq!(response["jsonrpc"], "2.0");
