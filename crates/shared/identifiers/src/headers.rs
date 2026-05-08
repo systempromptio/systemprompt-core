@@ -3,6 +3,8 @@
 
 pub const TRACE_ID: &str = "x-trace-id";
 pub const CONTEXT_ID: &str = "x-context-id";
+pub const GATEWAY_CONVERSATION_ID: &str = "x-gateway-conversation-id";
+pub const PROVIDER_REQUEST_ID: &str = "x-provider-request-id";
 pub const SESSION_ID: &str = "x-session-id";
 pub const USER_ID: &str = "x-user-id";
 pub const USER_TYPE: &str = "x-user-type";

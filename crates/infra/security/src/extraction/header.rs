@@ -1,7 +1,10 @@
 use axum::http::{HeaderMap, HeaderValue};
 use std::error::Error;
 use std::fmt;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId, headers};
+use systemprompt_identifiers::{
+    AgentName, ContextId, GatewayConversationId, ProviderRequestId, SessionId, TaskId, TraceId,
+    UserId, headers,
+};
 use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +31,18 @@ impl HeaderExtractor {
         Self::extract_header(headers, headers::CONTEXT_ID)
             .filter(|s| !s.is_empty())
             .map_or_else(ContextId::empty, ContextId::new)
+    }
+
+    pub fn extract_gateway_conversation_id(headers: &HeaderMap) -> Option<GatewayConversationId> {
+        Self::extract_header(headers, headers::GATEWAY_CONVERSATION_ID)
+            .filter(|s| !s.is_empty())
+            .and_then(|s| GatewayConversationId::try_new(s).ok())
+    }
+
+    pub fn extract_provider_request_id(headers: &HeaderMap) -> Option<ProviderRequestId> {
+        Self::extract_header(headers, headers::PROVIDER_REQUEST_ID)
+            .filter(|s| !s.is_empty())
+            .and_then(|s| ProviderRequestId::try_new(s).ok())
     }
 
     pub fn extract_task_id(headers: &HeaderMap) -> Option<TaskId> {
@@ -87,6 +102,20 @@ impl HeaderInjector {
             return Ok(());
         }
         Self::inject_header(headers, headers::CONTEXT_ID, context_id.as_str())
+    }
+
+    pub fn inject_gateway_conversation_id(
+        headers: &mut HeaderMap,
+        id: &GatewayConversationId,
+    ) -> Result<(), HeaderInjectionError> {
+        Self::inject_header(headers, headers::GATEWAY_CONVERSATION_ID, id.as_str())
+    }
+
+    pub fn inject_provider_request_id(
+        headers: &mut HeaderMap,
+        id: &ProviderRequestId,
+    ) -> Result<(), HeaderInjectionError> {
+        Self::inject_header(headers, headers::PROVIDER_REQUEST_ID, id.as_str())
     }
 
     pub fn inject_task_id(

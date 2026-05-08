@@ -14,7 +14,9 @@ use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, InsertToolCallParams, UpsertPayloadParams,
 };
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TenantId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiRequestId, ContextId, GatewayConversationId, SessionId, TenantId, TraceId, UserId,
+};
 
 use super::captures::{CapturedToolUse, CapturedUsage};
 use super::pricing;
@@ -29,6 +31,7 @@ pub struct GatewayRequestContext {
     pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
+    pub gateway_conversation_id: Option<GatewayConversationId>,
     pub trace_id: Option<TraceId>,
     pub provider: String,
     pub model: String,
@@ -104,6 +107,9 @@ impl GatewayAudit {
         }
         if let Some(c) = &self.ctx.context_id {
             record = record.context_id(c.clone());
+        }
+        if let Some(g) = &self.ctx.gateway_conversation_id {
+            record = record.gateway_conversation_id(g.clone());
         }
         if let Some(t) = &self.ctx.trace_id {
             record = record.trace_id(t.clone());

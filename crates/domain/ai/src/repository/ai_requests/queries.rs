@@ -1,7 +1,10 @@
 use crate::error::RepositoryError;
 use crate::models::{AiRequest, ProviderUsage, UserAiUsage};
 use chrono::Utc;
-use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiRequestId, ContextId, GatewayConversationId, ProviderRequestId, SessionId, TaskId, TraceId,
+    UserId,
+};
 
 use super::AiRequestRepository;
 
@@ -17,6 +20,8 @@ impl AiRequestRepository {
                    session_id as "session_id: SessionId",
                    task_id as "task_id: TaskId",
                    context_id as "context_id: ContextId",
+                   gateway_conversation_id as "gateway_conversation_id: GatewayConversationId",
+                   provider_request_id as "provider_request_id: ProviderRequestId",
                    trace_id as "trace_id: TraceId",
                    provider, model, temperature, top_p, max_tokens, tokens_used,
                    input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,

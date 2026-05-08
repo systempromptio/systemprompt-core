@@ -24,6 +24,7 @@ pub(super) async fn dispatch_to_provider(
         upstream_model,
         session_id,
         context_id,
+        gateway_conversation_id,
     } = prepared;
 
     let max_tokens = gateway_request.max_tokens;
@@ -34,7 +35,8 @@ pub(super) async fn dispatch_to_provider(
         user_id: principal.user_id,
         tenant_id: principal.tenant_id,
         session_id: Some(session_id),
-        context_id: Some(context_id),
+        context_id,
+        gateway_conversation_id: Some(gateway_conversation_id),
         trace_id: principal.trace_id,
         provider,
         model: upstream_model,

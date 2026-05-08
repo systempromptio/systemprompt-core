@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS logs (
     task_id VARCHAR(255),
     trace_id VARCHAR(255),
     context_id VARCHAR(255),
+    gateway_conversation_id VARCHAR(255),
+    provider_request_id VARCHAR(255),
     client_id VARCHAR(255),
     CONSTRAINT log_level_check CHECK (level IN ('ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'))
 );
@@ -22,6 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_session_id ON logs(session_id);
 CREATE INDEX IF NOT EXISTS idx_logs_task_id ON logs(task_id);
 CREATE INDEX IF NOT EXISTS idx_logs_trace_id ON logs(trace_id);
 CREATE INDEX IF NOT EXISTS idx_logs_context_id ON logs(context_id);
+CREATE INDEX IF NOT EXISTS idx_logs_gateway_conversation_id ON logs(gateway_conversation_id);
+CREATE INDEX IF NOT EXISTS idx_logs_provider_request_id ON logs(provider_request_id);
 CREATE INDEX IF NOT EXISTS idx_logs_user_timestamp ON logs(user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_session_timestamp ON logs(session_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_context_timestamp ON logs(context_id, timestamp DESC);

@@ -1,5 +1,6 @@
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, McpExecutionId, SessionId, TaskId, TenantId, TraceId, UserId,
+    AiRequestId, ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId,
+    TaskId, TenantId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -41,6 +42,8 @@ pub struct AiRequestRecord {
     pub session_id: Option<SessionId>,
     pub task_id: Option<TaskId>,
     pub context_id: Option<ContextId>,
+    pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub provider: String,
@@ -68,6 +71,8 @@ impl AiRequestRecord {
             session_id: None,
             task_id: None,
             context_id: None,
+            gateway_conversation_id: None,
+            provider_request_id: None,
             trace_id: None,
             mcp_execution_id: None,
             provider: "unknown".to_string(),
@@ -92,6 +97,8 @@ pub struct AiRequestRecordBuilder {
     session_id: Option<SessionId>,
     task_id: Option<TaskId>,
     context_id: Option<ContextId>,
+    gateway_conversation_id: Option<GatewayConversationId>,
+    provider_request_id: Option<ProviderRequestId>,
     trace_id: Option<TraceId>,
     mcp_execution_id: Option<McpExecutionId>,
     provider: Option<String>,
@@ -115,6 +122,8 @@ impl AiRequestRecordBuilder {
             session_id: None,
             task_id: None,
             context_id: None,
+            gateway_conversation_id: None,
+            provider_request_id: None,
             trace_id: None,
             mcp_execution_id: None,
             provider: None,
@@ -147,6 +156,16 @@ impl AiRequestRecordBuilder {
 
     pub fn context_id(mut self, context_id: ContextId) -> Self {
         self.context_id = Some(context_id);
+        self
+    }
+
+    pub fn gateway_conversation_id(mut self, id: GatewayConversationId) -> Self {
+        self.gateway_conversation_id = Some(id);
+        self
+    }
+
+    pub fn provider_request_id(mut self, id: ProviderRequestId) -> Self {
+        self.provider_request_id = Some(id);
         self
     }
 
@@ -236,6 +255,8 @@ impl AiRequestRecordBuilder {
             session_id: self.session_id,
             task_id: self.task_id,
             context_id: self.context_id,
+            gateway_conversation_id: self.gateway_conversation_id,
+            provider_request_id: self.provider_request_id,
             trace_id: self.trace_id,
             mcp_execution_id: self.mcp_execution_id,
             provider,

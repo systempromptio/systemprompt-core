@@ -75,11 +75,18 @@ impl Extension for AiExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(
-            1,
-            "gateway_governance",
-            include_str!("../schema/migrations/001_gateway_governance.sql"),
-        )]
+        vec![
+            Migration::new(
+                1,
+                "gateway_governance",
+                include_str!("../schema/migrations/001_gateway_governance.sql"),
+            ),
+            Migration::new(
+                2,
+                "split_context_id",
+                include_str!("../schema/migrations/002_split_context_id.sql"),
+            ),
+        ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

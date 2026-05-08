@@ -91,6 +91,35 @@ macro_rules! define_id {
         $crate::__define_id_common!($name);
     };
 
+    ($name:ident, validated, schema, $validator:expr) => {
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, schemars::JsonSchema)]
+        #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+        #[cfg_attr(feature = "sqlx", sqlx(transparent))]
+        #[serde(transparent)]
+        pub struct $name(String);
+
+        impl $name {
+            pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
+                let value = value.into();
+                let validator: fn(&str) -> Result<(), $crate::error::IdValidationError> = $validator;
+                validator(&value)?;
+                Ok(Self(value))
+            }
+
+            #[allow(clippy::expect_used)]
+            pub fn new(value: impl Into<String>) -> Self {
+                Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
+            }
+
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+
+        $crate::__define_id_validated_conversions!($name);
+        $crate::__define_id_common!($name);
+    };
+
     ($name:ident, generate) => {
         $crate::define_id!($name);
 

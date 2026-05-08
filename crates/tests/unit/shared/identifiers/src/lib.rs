@@ -28,6 +28,12 @@ mod email_tests;
 mod execution_tests;
 
 #[cfg(test)]
+mod gateway_conversation_tests;
+
+#[cfg(test)]
+mod provider_request_tests;
+
+#[cfg(test)]
 mod jobs_tests;
 
 #[cfg(test)]

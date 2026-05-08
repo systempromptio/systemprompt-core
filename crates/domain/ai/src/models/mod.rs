@@ -8,7 +8,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+    AiRequestId, AiToolCallId, ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId,
+    SessionId, TaskId, TraceId, UserId,
 };
 
 pub use systemprompt_models::ai as ai_models;
@@ -39,6 +40,8 @@ pub struct AiRequest {
     pub session_id: Option<SessionId>,
     pub task_id: Option<TaskId>,
     pub context_id: Option<ContextId>,
+    pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
     pub provider: String,
     pub model: String,

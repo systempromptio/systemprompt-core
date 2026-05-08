@@ -1,13 +1,12 @@
-//! Stable conversation-prefix hash used to mint deterministic gateway
-//! `ContextId`s on both sides of the bridge boundary.
+//! Stable conversation-prefix hash used to mint deterministic
+//! [`GatewayConversationId`](systemprompt_identifiers::GatewayConversationId)s
+//! on both sides of the bridge boundary.
 //!
 //! The hash is FNV-1a 64-bit over a length-prefixed sequence of
 //! `(label, bytes)` segments. It is **not** cryptographic — it is a
 //! collision-resistant cache key that the bridge proxy and the gateway
 //! `InboundAdapter`s can compute independently and arrive at the same
-//! `ContextId` for the same first turn of a conversation.
-
-use systemprompt_identifiers::ContextId;
+//! gateway conversation id for the same first turn of a conversation.
 
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
@@ -60,13 +59,4 @@ pub fn conversation_prefix_hash(
     parts.push(("role", first_role.as_bytes()));
     parts.push(("content", first_content.as_bytes()));
     fnv1a_segments(&parts)
-}
-
-/// Mint a deterministic `ContextId` from a prefix hash.
-///
-/// The resulting id is `ctx_<16 lowercase hex>` and stable across
-/// processes, hosts, and Rust versions.
-#[must_use]
-pub fn context_id_from_prefix_hash(hash: u64) -> ContextId {
-    ContextId::new(format!("ctx_{hash:016x}"))
 }

@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS analytics_events (
     user_id VARCHAR(255) NOT NULL,
     session_id TEXT,
     context_id VARCHAR(255),
+    gateway_conversation_id VARCHAR(255),
+    provider_request_id VARCHAR(255),
     event_type VARCHAR(255) NOT NULL,
     event_category TEXT NOT NULL,
     severity TEXT NOT NULL,
@@ -23,6 +25,8 @@ CREATE TABLE IF NOT EXISTS analytics_events (
 CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_session_id ON analytics_events(session_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_context_id ON analytics_events(context_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_gateway_conversation_id ON analytics_events(gateway_conversation_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_provider_request_id ON analytics_events(provider_request_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_type ON analytics_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_category ON analytics_events(event_category);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_timestamp ON analytics_events(timestamp);
