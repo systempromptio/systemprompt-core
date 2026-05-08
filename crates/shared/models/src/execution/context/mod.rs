@@ -223,11 +223,6 @@ impl RequestContext {
 
     pub fn is_system(&self) -> bool {
         self.auth.user_id.is_system()
-            && self
-                .execution
-                .context_id
-                .as_ref()
-                .is_some_and(ContextId::is_system)
     }
 
     pub fn elapsed(&self) -> Duration {
