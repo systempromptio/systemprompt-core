@@ -1,5 +1,4 @@
 mod agents;
-mod hooks;
 mod marketplace;
 mod mcp;
 mod skills;
@@ -129,7 +128,6 @@ fn generate_plugin(
     skills::generate_skills(plugin, ctx.skills_path, &output_dir, &mut files_generated)?;
     agents::generate_agents(plugin, ctx.services_path, &output_dir, &mut files_generated)?;
     mcp::generate_mcp_json(plugin, ctx.services_path, &output_dir, &mut files_generated)?;
-    hooks::generate_hooks_json(&plugin.hooks, &output_dir, &mut files_generated)?;
     marketplace::copy_scripts(
         plugin,
         ctx.plugins_path,

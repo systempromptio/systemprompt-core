@@ -5,7 +5,6 @@ use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::{AgentConfig, ServicesConfig};
-use tokio::sync::RwLock;
 
 use crate::error::{AgentError, AgentResult};
 
@@ -18,35 +17,41 @@ use std::path::Path;
 
 #[derive(Clone, Debug)]
 pub struct AgentRegistry {
-    config: Arc<RwLock<ServicesConfig>>,
+    config: Arc<ServicesConfig>,
 }
 
 impl AgentRegistry {
     pub fn new() -> AgentResult<Self> {
         let config = ConfigLoader::load()?;
         Ok(Self {
-            config: Arc::new(RwLock::new(config)),
+            config: Arc::new(config),
         })
     }
 
+    // The lookup methods below are `async` for caller-surface compatibility
+    // with `AgentRegistryProvider` (which is `#[async_trait]`) and historical
+    // callers that `.await` them. Since the snapshot is now `Arc<ServicesConfig>`
+    // with no lock, the bodies are pure synchronous lookups.
+
+    #[allow(clippy::unused_async)]
     pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
-        let config = self.config.read().await;
-        config
+        self.config
             .agents
             .get(name)
             .cloned()
             .ok_or_else(|| AgentError::NotFound(name.to_string()))
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        let config = self.config.read().await;
-        Ok(config.agents.values().cloned().collect())
+        Ok(self.config.agents.values().cloned().collect())
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        let config = self.config.read().await;
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
-        Ok(config
+        Ok(self
+            .config
             .agents
             .values()
             .filter(|a| a.enabled && !(a.dev_only && is_cloud))
@@ -54,10 +59,10 @@ impl AgentRegistry {
             .collect())
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
-        let config = self.config.read().await;
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
-        config
+        self.config
             .agents
             .values()
             .find(|a| a.default && a.enabled && !(a.dev_only && is_cloud))
@@ -130,14 +135,6 @@ impl AgentRegistry {
             security,
             signatures: None,
         })
-    }
-
-    pub async fn reload(&self) -> AgentResult<()> {
-        let new_config = ConfigLoader::load()?;
-        let mut config = self.config.write().await;
-        *config = new_config;
-        drop(config);
-        Ok(())
     }
 
     pub async fn get_mcp_servers(&self, agent_name: &str) -> AgentResult<Vec<String>> {

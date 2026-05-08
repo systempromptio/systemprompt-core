@@ -4,7 +4,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::PluginId;
 
-use super::hooks::HookEventsConfig;
 use crate::errors::ConfigValidationError;
 
 const fn default_true() -> bool {
@@ -79,8 +78,6 @@ pub struct PluginConfig {
     pub mcp_servers: Vec<String>,
     #[serde(default)]
     pub content_sources: Vec<String>,
-    #[serde(default)]
-    pub hooks: HookEventsConfig,
     #[serde(default)]
     pub scripts: Vec<PluginScript>,
 }
@@ -158,7 +155,6 @@ impl PluginConfig {
 
         Self::validate_component_ref(&self.skills, key, "skills")?;
         Self::validate_component_ref(&self.agents, key, "agents")?;
-        self.hooks.validate()?;
 
         Ok(())
     }
