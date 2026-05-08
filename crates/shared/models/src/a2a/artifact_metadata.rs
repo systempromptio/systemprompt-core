@@ -8,7 +8,6 @@ use systemprompt_traits::validation::{
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ArtifactMetadata {
     pub artifact_type: String,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub context_id: Option<ContextId>,
     pub created_at: String,
     pub task_id: TaskId,

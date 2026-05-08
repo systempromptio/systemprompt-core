@@ -9,13 +9,15 @@ use systemprompt_models::{
     SystemEvent,
 };
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 fn test_user_id() -> UserId {
     UserId::new("test-router-user")
 }
 
 fn test_agui_event() -> AgUiEvent {
     AgUiEventBuilder::run_started(
-        ContextId::new("test-context"),
+        ContextId::new(TEST_CONTEXT_ID_A),
         TaskId::new("test-task"),
         None,
     )
@@ -24,7 +26,7 @@ fn test_agui_event() -> AgUiEvent {
 fn test_a2a_event() -> A2AEvent {
     A2AEventBuilder::task_status_update(
         TaskId::new("test-task"),
-        ContextId::new("test-context"),
+        ContextId::new(TEST_CONTEXT_ID_A),
         TaskState::Working,
         Some("test message".to_string()),
     )

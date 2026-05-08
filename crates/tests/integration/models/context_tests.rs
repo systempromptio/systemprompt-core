@@ -3,12 +3,14 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::{CallSource, RequestContext};
 use systemprompt_traits::ContextPropagation;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 #[test]
 fn test_round_trip_basic() {
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new("ctx_789".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent".to_string()),
     )
     .with_user_id(UserId::new("user_123".to_string()));
@@ -40,7 +42,7 @@ fn test_round_trip_with_optional_fields() {
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new("ctx_789".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent".to_string()),
     )
     .with_user_id(UserId::new("user_123".to_string()))
@@ -70,7 +72,7 @@ fn test_inject_headers_includes_all_fields() {
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new("ctx_789".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent".to_string()),
     )
     .with_user_id(UserId::new("user_123".to_string()))
@@ -88,21 +90,21 @@ fn test_inject_headers_includes_all_fields() {
 }
 
 #[test]
-fn test_empty_context_id_not_injected() {
-    use systemprompt_traits::InjectContextHeaders;
-    use axum::http::HeaderMap;
-
-    let ctx = RequestContext::new(
-        SessionId::new("sess_123".to_string()),
-        TraceId::new("trace_456".to_string()),
-        ContextId::new(String::new()),
-        AgentName::new("test-agent".to_string()),
+fn test_empty_context_id_is_invalid_uuid() {
+    assert!(
+        ContextId::try_new(String::new()).is_err(),
+        "empty string must not construct a ContextId"
     );
+}
 
-    let mut headers = HeaderMap::new();
-    ctx.inject_headers(&mut headers);
-
-    assert!(!headers.contains_key("x-context-id"));
+#[test]
+fn test_malformed_context_id_rejected() {
+    for bad in &["ctx-1", "not-a-uuid", "ctx_789", "12345"] {
+        assert!(
+            ContextId::try_new(bad.to_string()).is_err(),
+            "non-UUID value {bad:?} must not construct a ContextId"
+        );
+    }
 }
 
 #[test]
@@ -110,7 +112,7 @@ fn test_accessor_methods() {
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new("ctx_789".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent".to_string()),
     )
     .with_user_id(UserId::new("user_123".to_string()));
@@ -118,7 +120,7 @@ fn test_accessor_methods() {
     assert_eq!(ctx.session_id().as_str(), "sess_123");
     assert_eq!(ctx.trace_id().as_str(), "trace_456");
     assert_eq!(ctx.user_id().as_str(), "user_123");
-    assert_eq!(ctx.context_id().as_str(), "ctx_789");
+    assert_eq!(ctx.context_id().as_str(), TEST_CONTEXT_ID_A);
     assert_eq!(ctx.agent_name().as_str(), "test-agent");
 }
 
@@ -127,7 +129,7 @@ fn test_validation_methods() {
     let ctx_without_task = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new("ctx_789".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent".to_string()),
     );
 
@@ -157,7 +159,7 @@ fn test_component_separation() {
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new("ctx_789".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent".to_string()),
     )
     .with_user_id(UserId::new("user_123".to_string()))
@@ -173,7 +175,7 @@ fn test_component_separation() {
         "client_123"
     );
     assert_eq!(ctx.execution.trace_id.as_str(), "trace_456");
-    assert_eq!(ctx.execution.context_id.as_str(), "ctx_789");
+    assert_eq!(ctx.execution.context_id.as_str(), TEST_CONTEXT_ID_A);
     assert_eq!(ctx.execution.agent_name.as_str(), "test-agent");
     assert_eq!(ctx.execution.task_id.as_ref().unwrap().as_str(), "task_456");
 }

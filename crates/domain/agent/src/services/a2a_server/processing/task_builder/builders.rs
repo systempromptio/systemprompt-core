@@ -50,7 +50,7 @@ pub fn build_submitted_task(
 ) -> Task {
     Task {
         id: task_id,
-        context_id,
+        context_id: Some(context_id),
         status: TaskStatus {
             state: TaskState::Submitted,
             message: None,
@@ -100,7 +100,7 @@ pub fn build_multiturn_task(params: BuildMultiturnTaskParams) -> Task {
 
     Task {
         id: task_id.clone(),
-        context_id: ctx_id.clone(),
+        context_id: Some(ctx_id.clone()),
         status: TaskStatus {
             state: TaskState::Completed,
             message: Some(Message {
@@ -110,7 +110,7 @@ pub fn build_multiturn_task(params: BuildMultiturnTaskParams) -> Task {
                 })],
                 message_id: MessageId::generate(),
                 task_id: Some(task_id),
-                context_id: ctx_id,
+                context_id: Some(ctx_id),
                 metadata: None,
                 extensions: None,
                 reference_task_ids: None,
@@ -176,7 +176,7 @@ fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
             })],
             message_id: MessageId::generate(),
             task_id: Some(task_id.clone()),
-            context_id: ctx_id.clone(),
+            context_id: Some(ctx_id.clone()),
             metadata: Some(json!({
                 "iteration": iteration,
                 "tool_calls": iteration_calls.iter().map(|tc| {
@@ -205,7 +205,7 @@ fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
             parts: vec![Part::Text(TextPart { text: results_text })],
             message_id: MessageId::generate(),
             task_id: Some(task_id.clone()),
-            context_id: ctx_id.clone(),
+            context_id: Some(ctx_id.clone()),
             metadata: Some(json!({
                 "iteration": iteration,
                 "tool_results": true
@@ -225,7 +225,7 @@ fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
         })],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
-        context_id: ctx_id.clone(),
+        context_id: Some(ctx_id.clone()),
         metadata: Some(json!({
             "iteration": iteration,
             "final_synthesis": true
@@ -277,7 +277,7 @@ fn build_artifacts(
                 extensions: vec![],
                 metadata: ArtifactMetadata::new(
                     "tool_execution".to_string(),
-                    ctx_id.clone(),
+                    Some(ctx_id.clone()),
                     task_id.clone(),
                 )
                 .with_mcp_execution_id(call_id.to_string())

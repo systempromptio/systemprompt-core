@@ -94,7 +94,20 @@ pub async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> Result<Stre
     detect_mcp_server_and_update_context(&agent_name, &mut context, &state);
 
     let task_id = resolve_task_id(&message);
-    let context_id = message.context_id.clone();
+    let Some(context_id) = message.context_id.clone() else {
+        tracing::error!("Message missing required context_id");
+        if tx
+            .try_send(create_jsonrpc_error_event(
+                -32603,
+                "Message missing required context_id",
+                &request_id,
+            ))
+            .is_err()
+        {
+            tracing::trace!("Failed to send error event, channel closed");
+        }
+        return Err(());
+    };
     let message_id = MessageId::new(Uuid::new_v4().to_string());
 
     tracing::info!(

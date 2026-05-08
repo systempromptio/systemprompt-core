@@ -87,23 +87,25 @@ impl TaskRepository {
             )));
         }
 
-        let upload_ctx = self
-            .file_upload_provider
-            .as_ref()
-            .map(|svc| FileUploadContext {
-                upload_provider: svc,
-                context_id: &task.context_id,
-                user_id,
-                session_id: Some(session_id),
-                trace_id: Some(trace_id),
-            });
+        let context_id_ref = task.context_id.as_ref();
+        let upload_ctx =
+            self.file_upload_provider
+                .as_ref()
+                .zip(context_id_ref)
+                .map(|(svc, ctx_id)| FileUploadContext {
+                    upload_provider: svc,
+                    context_id: ctx_id,
+                    user_id,
+                    session_id: Some(session_id),
+                    trace_id: Some(trace_id),
+                });
 
         let user_seq = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
         persist_message_sqlx(PersistMessageSqlxParams {
             tx: &mut tx,
             message: user_message,
             task_id: &task.id,
-            context_id: &task.context_id,
+            context_id: context_id_ref,
             sequence_number: user_seq,
             user_id,
             session_id,
@@ -117,7 +119,7 @@ impl TaskRepository {
             tx: &mut tx,
             message: agent_message,
             task_id: &task.id,
-            context_id: &task.context_id,
+            context_id: context_id_ref,
             sequence_number: agent_seq,
             user_id,
             session_id,

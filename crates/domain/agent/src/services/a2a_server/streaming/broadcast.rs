@@ -89,7 +89,7 @@ pub async fn broadcast_task_completed(task: &Task, user_id: &UserId, token: &str
     let payload = json!({
         "event_type": "task_completed",
         "entity_id": task.id.as_str(),
-        "context_id": task.context_id.as_str(),
+        "context_id": task.context_id.as_ref().map(|c| c.as_str()),
         "user_id": user_id.as_str(),
         "task_data": task_data
     });
@@ -128,7 +128,7 @@ fn build_event_task(
 ) -> Task {
     Task {
         id: task_id.clone(),
-        context_id: context_id.clone(),
+        context_id: Some(context_id.clone()),
         status: TaskStatus {
             state: TaskState::Submitted,
             message: None,

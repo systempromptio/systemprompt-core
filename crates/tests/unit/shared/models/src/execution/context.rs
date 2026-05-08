@@ -3,15 +3,18 @@ use systemprompt_identifiers::{
     UserId,
 };
 use systemprompt_models::auth::UserType;
+
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 use systemprompt_models::execution::{
-    CallSource, ContextExtractionError, ContextIdSource, RequestContext, TASK_BASED_CONTEXT_MARKER,
+    CallSource, ContextExtractionError, ContextIdSource, RequestContext,
 };
 
 fn test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("sess-1"),
         TraceId::new("trace-1"),
-        ContextId::new("ctx-1"),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent"),
     )
 }
@@ -31,7 +34,7 @@ fn request_context_new_sets_trace_id() {
 #[test]
 fn request_context_new_sets_context_id() {
     let ctx = test_context();
-    assert_eq!(ctx.context_id().as_str(), "ctx-1");
+    assert_eq!(ctx.context_id().as_str(), TEST_CONTEXT_ID_A);
 }
 
 #[test]
@@ -102,8 +105,8 @@ fn request_context_with_agent_name() {
 
 #[test]
 fn request_context_with_context_id() {
-    let ctx = test_context().with_context_id(ContextId::new("new-ctx"));
-    assert_eq!(ctx.context_id().as_str(), "new-ctx");
+    let ctx = test_context().with_context_id(ContextId::new(TEST_CONTEXT_ID_B));
+    assert_eq!(ctx.context_id().as_str(), TEST_CONTEXT_ID_B);
 }
 
 #[test]
@@ -201,17 +204,11 @@ fn request_context_validate_task_execution_fails_without_task_id() {
 }
 
 #[test]
-fn request_context_validate_task_execution_fails_with_empty_context_id() {
-    let ctx = RequestContext::new(
-        SessionId::new("sess-1"),
-        TraceId::new("trace-1"),
-        ContextId::new(""),
-        AgentName::new("agent"),
-    )
-    .with_task_id(TaskId::new("task-1"));
-    let result = ctx.validate_task_execution();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("context_id"));
+fn request_context_validate_task_execution_empty_context_id_is_invalid_uuid() {
+    assert!(
+        ContextId::try_new("").is_err(),
+        "empty string must not construct a ContextId"
+    );
 }
 
 #[test]

@@ -7,6 +7,9 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_content::models::{CreateLinkParams, RecordClickParams, TrackClickParams};
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
+
 use systemprompt_identifiers::{
     CampaignId, ContentId, ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId,
 };
@@ -220,9 +223,12 @@ fn test_record_click_params_with_context_id() {
         SessionId::new("session"),
         clicked_at,
     )
-    .with_context_id(Some(ContextId::new("ctx-456")));
+    .with_context_id(Some(ContextId::new(TEST_CONTEXT_ID_A)));
 
-    assert_eq!(params.context_id.as_ref().unwrap().as_str(), "ctx-456");
+    assert_eq!(
+        params.context_id.as_ref().unwrap().as_str(),
+        TEST_CONTEXT_ID_A
+    );
 }
 
 #[test]
@@ -370,9 +376,12 @@ fn test_track_click_params_with_user_id() {
 #[test]
 fn test_track_click_params_with_context_id() {
     let params = TrackClickParams::new(LinkId::new("link"), SessionId::new("session"))
-        .with_context_id(Some(ContextId::new("ctx")));
+        .with_context_id(Some(ContextId::new(TEST_CONTEXT_ID_A)));
 
-    assert_eq!(params.context_id.as_ref().unwrap().as_str(), "ctx");
+    assert_eq!(
+        params.context_id.as_ref().unwrap().as_str(),
+        TEST_CONTEXT_ID_A
+    );
 }
 
 #[test]
@@ -387,7 +396,7 @@ fn test_track_click_params_with_task_id() {
 fn test_track_click_params_full_builder() {
     let params = TrackClickParams::new(LinkId::new("full-link"), SessionId::new("full-session"))
         .with_user_id(Some(UserId::new("u")))
-        .with_context_id(Some(ContextId::new("c")))
+        .with_context_id(Some(ContextId::new(TEST_CONTEXT_ID_B)))
         .with_task_id(Some(TaskId::new("t")))
         .with_referrer_page(Some("/ref".to_string()))
         .with_referrer_url(Some("https://ref.com".to_string()))

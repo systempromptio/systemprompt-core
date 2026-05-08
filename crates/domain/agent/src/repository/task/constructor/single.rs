@@ -75,7 +75,7 @@ async fn construct_task_from_row(
 
     Ok(Task {
         id: task_id,
-        context_id: row.context_id.clone(),
+        context_id: Some(row.context_id.clone()),
         status: TaskStatus {
             state: task_state,
             message: None,
@@ -229,7 +229,7 @@ fn build_message_from_row(msg_row: TaskMessage, parts: Vec<Part>) -> Message {
         parts,
         message_id: msg_row.message_id,
         task_id: Some(msg_row.task_id),
-        context_id: msg_row.context_id.unwrap_or_else(ContextId::empty),
+        context_id: msg_row.context_id,
         metadata: if final_metadata == serde_json::json!({}) {
             None
         } else {

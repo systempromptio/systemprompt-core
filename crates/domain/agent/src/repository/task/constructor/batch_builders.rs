@@ -5,7 +5,7 @@ use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
 };
 use std::collections::HashMap;
-use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{ArtifactId, MessageId, TaskId};
 use systemprompt_models::a2a::ArtifactMetadata;
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
 
@@ -98,7 +98,7 @@ pub fn build_messages(
             parts,
             message_id: msg_row.message_id.clone(),
             task_id: Some(msg_row.task_id.clone()),
-            context_id: msg_row.context_id.clone().unwrap_or_else(ContextId::empty),
+            context_id: msg_row.context_id.clone(),
             metadata: if final_metadata == serde_json::json!({}) {
                 None
             } else {
@@ -152,7 +152,7 @@ fn build_artifact(
 
     let metadata = ArtifactMetadata {
         artifact_type: row.artifact_type.clone(),
-        context_id: row.context_id.clone().unwrap_or_else(ContextId::empty),
+        context_id: row.context_id.clone(),
         created_at: row.created_at.to_rfc3339(),
         task_id: row.task_id.clone(),
         rendering_hints: metadata_value.get("rendering_hints").cloned(),

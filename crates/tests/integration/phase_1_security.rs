@@ -4,6 +4,8 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_models::auth::{JwtClaims, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 #[tokio::test]
 async fn test_admin_jwt_generation_at_startup() {
     let ctx = AppContext::new().await.unwrap();
@@ -67,16 +69,9 @@ async fn test_admin_token_has_correct_claims() {
 
 #[test]
 fn test_context_id_patterns() {
-    let ctx = RequestContext::new(
-        SessionId::new("sess_123".to_string()),
-        TraceId::new("trace_456".to_string()),
-        ContextId::new(String::new()),
-        AgentName::new("agent".to_string()),
-    );
-
     assert!(
-        ctx.execution.context_id.as_str().is_empty(),
-        "User-level context should have empty context_id"
+        ContextId::try_new(String::new()).is_err(),
+        "empty string must not construct a ContextId — use None or a UUID"
     );
 
     let conversation_id = uuid::Uuid::new_v4().to_string();
@@ -92,32 +87,18 @@ fn test_context_id_patterns() {
         conversation_id,
         "Conversation context should have UUID context_id"
     );
-
-    println!("✅ Context ID patterns work correctly");
 }
 
 #[test]
 fn test_context_id_should_not_be_system() {
-
-    let ctx = RequestContext::new(
-        SessionId::new("test".to_string()),
-        TraceId::new("trace".to_string()),
-        ContextId::new(String::new()),  // Empty string, NOT "system"
-        AgentName::new("agent".to_string()),
-    );
-
     assert!(
-        ctx.execution.context_id.as_str().is_empty(),
-        "User-level context should use empty string, not 'system'"
+        ContextId::try_new(String::new()).is_err(),
+        "empty string must not construct a ContextId"
     );
-
-    assert_ne!(
-        ctx.execution.context_id.as_str(),
-        "system",
-        "Context ID should NEVER be 'system'"
+    assert!(
+        ContextId::try_new("system".to_string()).is_err(),
+        "literal 'system' must not construct a ContextId"
     );
-
-    println!("✅ Context IDs correctly avoid 'system' hardcoded value");
 }
 
 #[tokio::test]
@@ -127,7 +108,7 @@ async fn test_admin_token_used_for_system_operations() {
     let req_ctx = RequestContext::new(
         SessionId::new("system".to_string()),
         TraceId::new(format!("trace_{}", uuid::Uuid::new_v4())),
-        ContextId::new(String::new()),  // User-level (no conversation)
+        ContextId::generate(),
         AgentName::new("system-agent".to_string()),
     )
     .with_auth_token(app_ctx.admin_auth_token().as_str())
@@ -214,7 +195,7 @@ fn test_context_structure_separation() {
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new("ctx_789".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("agent".to_string()),
     );
 
@@ -225,7 +206,7 @@ fn test_context_structure_separation() {
 
     assert_eq!(ctx.session_id().as_str(), "sess_123");
     assert_eq!(ctx.trace_id().as_str(), "trace_456");
-    assert_eq!(ctx.context_id().as_str(), "ctx_789");
+    assert_eq!(ctx.context_id().as_str(), TEST_CONTEXT_ID_A);
     assert_eq!(ctx.agent_name().as_str(), "agent");
 
     println!("✅ Context structure properly separated into logical components");

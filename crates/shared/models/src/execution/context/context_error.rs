@@ -1,8 +1,6 @@
 use systemprompt_identifiers::TaskId;
 use thiserror::Error;
 
-pub const TASK_BASED_CONTEXT_MARKER: &str = "__task_based__";
-
 #[derive(Debug, Clone)]
 pub enum ContextIdSource {
     Direct(String),

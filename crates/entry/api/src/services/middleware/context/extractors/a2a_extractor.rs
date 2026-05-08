@@ -7,7 +7,7 @@ use systemprompt_models::execution::{ContextExtractionError, RequestContext};
 
 use super::traits::ContextExtractor;
 use crate::services::middleware::context::sources::{
-    ContextIdSource, HeaderSource, PayloadSource, TASK_BASED_CONTEXT_MARKER,
+    ContextIdSource, HeaderSource, PayloadSource,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -25,10 +25,17 @@ impl A2aContextExtractor {
         let context_id = HeaderSource::extract_required(headers, "x-context-id")?;
         let agent_name = HeaderSource::extract_required(headers, "x-agent-name")?;
 
+        let context_id = ContextId::try_new(context_id).map_err(|e| {
+            ContextExtractionError::InvalidHeaderValue {
+                header: "x-context-id".to_string(),
+                reason: e.to_string(),
+            }
+        })?;
+
         let mut context = RequestContext::new(
             SessionId::new(session_id),
             TraceId::new(trace_id),
-            ContextId::new(context_id),
+            context_id,
             AgentName::new(agent_name),
         )
         .with_user_id(UserId::new(user_id));
@@ -65,10 +72,16 @@ impl A2aContextExtractor {
 
         let (context_id, task_id) = match context_source {
             ContextIdSource::Direct(id) => {
+                let id = ContextId::try_new(id).map_err(|e| {
+                    ContextExtractionError::InvalidHeaderValue {
+                        header: "contextId".to_string(),
+                        reason: e.to_string(),
+                    }
+                })?;
                 (id, HeaderSource::extract_optional(headers, "x-task-id"))
             },
             ContextIdSource::FromTask { task_id } => (
-                TASK_BASED_CONTEXT_MARKER.to_string(),
+                ContextId::generate(),
                 Some(task_id.as_str().to_string()),
             ),
         };
@@ -76,7 +89,7 @@ impl A2aContextExtractor {
         let mut context = RequestContext::new(
             SessionId::new(session_id),
             TraceId::new(trace_id),
-            ContextId::new(context_id),
+            context_id,
             AgentName::new(agent_name),
         )
         .with_user_id(UserId::new(user_id));

@@ -103,6 +103,7 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
     }
 
     let event = AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
+
     if let Err(e) = webhook_context.broadcast_agui(event).await {
         tracing::error!(error = %e, "Failed to broadcast RUN_STARTED");
     }

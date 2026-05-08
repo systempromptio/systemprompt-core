@@ -89,7 +89,6 @@ impl HookMatcher {
             hooks: vec![entry],
         }
     }
-
 }
 
 impl HooksFile {

@@ -8,6 +8,8 @@ use systemprompt_analytics::{
 };
 use systemprompt_identifiers::{ContextId, UserId};
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 mod top_entity_tests {
     use super::*;
 
@@ -119,7 +121,7 @@ mod recent_conversation_tests {
     fn recent_conversation_stores_values() {
         let now = Utc::now();
         let conv = RecentConversation {
-            context_id: ContextId::new("ctx_123".to_string()),
+            context_id: ContextId::new(TEST_CONTEXT_ID_A.to_string()),
             agent_name: "assistant".to_string(),
             user_name: "John".to_string(),
             status: "active".to_string(),
@@ -127,7 +129,7 @@ mod recent_conversation_tests {
             started_at: now,
         };
 
-        assert_eq!(conv.context_id.as_str(), "ctx_123");
+        assert_eq!(conv.context_id.as_str(), TEST_CONTEXT_ID_A);
         assert_eq!(conv.agent_name, "assistant");
         assert_eq!(conv.user_name, "John");
         assert_eq!(conv.status, "active");

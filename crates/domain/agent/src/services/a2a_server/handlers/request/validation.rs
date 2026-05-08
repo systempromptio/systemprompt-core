@@ -6,7 +6,10 @@ pub async fn validate_message_context(
     user_id: Option<&UserId>,
     db_pool: &systemprompt_database::DbPool,
 ) -> Result<(), String> {
-    let context_id = &message.context_id;
+    let context_id = message
+        .context_id
+        .as_ref()
+        .ok_or_else(|| "Message missing required context_id".to_string())?;
 
     let user_id =
         user_id.ok_or_else(|| "User authentication required for message processing".to_string())?;

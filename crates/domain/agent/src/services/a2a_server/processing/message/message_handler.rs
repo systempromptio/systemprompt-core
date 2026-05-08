@@ -26,20 +26,25 @@ impl MessageProcessor {
 
         let agent_runtime = self.load_agent_runtime(agent_name).await?;
 
+        let context_id = message
+            .context_id
+            .as_ref()
+            .ok_or_else(|| anyhow!("Message missing required context_id"))?;
+
         self.context_repo
-            .get_context(&message.context_id, context.user_id())
+            .get_context(context_id, context.user_id())
             .await
             .map_err(|e| {
                 anyhow!(
                     "Context validation failed - context_id: {}, user_id: {}, error: {}",
-                    message.context_id,
+                    context_id,
                     context.user_id(),
                     e
                 )
             })?;
 
         tracing::info!(
-            context_id = %message.context_id,
+            context_id = %context_id,
             user_id = %context.user_id(),
             "Context validated"
         );
@@ -60,7 +65,7 @@ impl MessageProcessor {
 
         let task = Task {
             id: task_id.clone(),
-            context_id: message.context_id.clone(),
+            context_id: Some(context_id.clone()),
             status: TaskStatus {
                 state: TaskState::Submitted,
                 message: None,
@@ -91,7 +96,7 @@ impl MessageProcessor {
 
         broadcast_task_created(BroadcastTaskCreatedParams {
             task_id: &task_id,
-            context_id: &message.context_id,
+            context_id,
             user_id: context.user_id().as_str(),
             user_message: &message,
             agent_name,
@@ -162,7 +167,7 @@ impl MessageProcessor {
 
         let task = build_completed_task(
             task_id,
-            message.context_id.clone(),
+            context_id.clone(),
             response_text.clone(),
             message.clone(),
             tool_artifacts,
@@ -193,7 +198,7 @@ impl MessageProcessor {
 
         if context.user_type() == systemprompt_models::auth::UserType::Anon {
             tracing::warn!(
-                context_id = %message.context_id,
+                context_id = %context_id,
                 session_id = %context.session_id(),
                 "Saving messages for anonymous user"
             );
@@ -229,11 +234,11 @@ impl MessageProcessor {
 
         let user_id = context.user_id();
         let auth_token = context.auth_token().as_str();
-        let context_id = task.context_id.clone();
         let task_id = task.id.clone();
         let message_id = agent_message.message_id.clone();
 
-        let start_event = AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
+        let start_event =
+            AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
         if let Err(e) = broadcast_agui_event(user_id, start_event, auth_token).await {
             tracing::debug!(error = %e, "Failed to broadcast run_started event");
         }
@@ -261,7 +266,7 @@ impl MessageProcessor {
             "text": response_text,
             "artifacts": task.artifacts,
         });
-        let finish_event = AgUiEventBuilder::run_finished(context_id, task_id, Some(result));
+        let finish_event = AgUiEventBuilder::run_finished(context_id.clone(), task_id, Some(result));
         if let Err(e) = broadcast_agui_event(user_id, finish_event, auth_token).await {
             tracing::debug!(error = %e, "Failed to broadcast run_finished event");
         }

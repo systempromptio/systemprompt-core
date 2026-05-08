@@ -10,6 +10,14 @@ use systemprompt_agent::models::context::{ContextDetail, ContextMessage, Context
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, UserId};
 use systemprompt_models::UserContext;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
+const TEST_CONTEXT_ID_C: &str = "00000000-0000-4000-8000-000000000003";
+const TEST_CONTEXT_ID_D: &str = "00000000-0000-4000-8000-000000000004";
+const TEST_CONTEXT_ID_E: &str = "00000000-0000-4000-8000-000000000005";
+const TEST_CONTEXT_ID_F: &str = "00000000-0000-4000-8000-000000000006";
+const TEST_CONTEXT_ID_G: &str = "00000000-0000-4000-8000-000000000007";
+
 #[test]
 fn test_context_message_serialize() {
     let message = ContextMessage {
@@ -78,7 +86,7 @@ fn test_context_message_clone() {
 fn test_context_detail_serialize() {
     let detail = ContextDetail {
         context: UserContext {
-            context_id: ContextId::new("ctx-123"),
+            context_id: ContextId::new(TEST_CONTEXT_ID_A),
             name: "Test Context".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -88,7 +96,7 @@ fn test_context_detail_serialize() {
     };
 
     let json = serde_json::to_string(&detail).unwrap();
-    assert!(json.contains("ctx-123"));
+    assert!(json.contains(TEST_CONTEXT_ID_A));
     assert!(json.contains("Test Context"));
 }
 
@@ -96,7 +104,7 @@ fn test_context_detail_serialize() {
 fn test_context_detail_with_messages() {
     let detail = ContextDetail {
         context: UserContext {
-            context_id: ContextId::new("ctx-456"),
+            context_id: ContextId::new(TEST_CONTEXT_ID_B),
             name: "Conversation".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -128,7 +136,7 @@ fn test_context_detail_with_messages() {
 #[test]
 fn test_context_state_event_tool_execution_completed_context_id() {
     let event = ContextStateEvent::ToolExecutionCompleted {
-        context_id: ContextId::new("ctx-tool-exec"),
+        context_id: ContextId::new(TEST_CONTEXT_ID_C),
         execution_id: McpExecutionId::new("exec-123"),
         tool_name: "search".to_string(),
         server_name: "brave".to_string(),
@@ -138,26 +146,26 @@ fn test_context_state_event_tool_execution_completed_context_id() {
         timestamp: Utc::now(),
     };
 
-    assert_eq!(event.context_id(), Some("ctx-tool-exec"));
+    assert_eq!(event.context_id(), Some(TEST_CONTEXT_ID_C));
 }
 
 #[test]
 fn test_context_state_event_task_status_changed_context_id() {
     let event = ContextStateEvent::TaskStatusChanged {
         task: systemprompt_agent::Task::default(),
-        context_id: ContextId::new("ctx-task-status"),
+        context_id: ContextId::new(TEST_CONTEXT_ID_D),
         timestamp: Utc::now(),
     };
 
-    assert_eq!(event.context_id(), Some("ctx-task-status"));
+    assert_eq!(event.context_id(), Some(TEST_CONTEXT_ID_D));
 }
 
 #[test]
 fn test_context_state_event_context_created() {
     let event = ContextStateEvent::ContextCreated {
-        context_id: ContextId::new("ctx-new"),
+        context_id: ContextId::new(TEST_CONTEXT_ID_E),
         context: UserContext {
-            context_id: ContextId::new("ctx-new"),
+            context_id: ContextId::new(TEST_CONTEXT_ID_E),
             name: "New Context".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -166,28 +174,28 @@ fn test_context_state_event_context_created() {
         timestamp: Utc::now(),
     };
 
-    assert_eq!(event.context_id(), Some("ctx-new"));
+    assert_eq!(event.context_id(), Some(TEST_CONTEXT_ID_E));
 }
 
 #[test]
 fn test_context_state_event_context_updated() {
     let event = ContextStateEvent::ContextUpdated {
-        context_id: ContextId::new("ctx-updated"),
+        context_id: ContextId::new(TEST_CONTEXT_ID_F),
         name: "Updated Name".to_string(),
         timestamp: Utc::now(),
     };
 
-    assert_eq!(event.context_id(), Some("ctx-updated"));
+    assert_eq!(event.context_id(), Some(TEST_CONTEXT_ID_F));
 }
 
 #[test]
 fn test_context_state_event_context_deleted() {
     let event = ContextStateEvent::ContextDeleted {
-        context_id: ContextId::new("ctx-deleted"),
+        context_id: ContextId::new(TEST_CONTEXT_ID_G),
         timestamp: Utc::now(),
     };
 
-    assert_eq!(event.context_id(), Some("ctx-deleted"));
+    assert_eq!(event.context_id(), Some(TEST_CONTEXT_ID_G));
 }
 
 #[test]
@@ -202,12 +210,12 @@ fn test_context_state_event_heartbeat_no_context_id() {
 #[test]
 fn test_context_state_event_current_agent() {
     let event = ContextStateEvent::CurrentAgent {
-        context_id: ContextId::new("ctx-current-agent"),
+        context_id: ContextId::new(TEST_CONTEXT_ID_A),
         agent_name: Some("test-agent".to_string()),
         timestamp: Utc::now(),
     };
 
-    assert_eq!(event.context_id(), Some("ctx-current-agent"));
+    assert_eq!(event.context_id(), Some(TEST_CONTEXT_ID_A));
 }
 
 #[test]
@@ -222,13 +230,13 @@ fn test_context_state_event_timestamp() {
 #[test]
 fn test_context_state_event_serialize() {
     let event = ContextStateEvent::ContextUpdated {
-        context_id: ContextId::new("ctx-serialize"),
+        context_id: ContextId::new(TEST_CONTEXT_ID_B),
         name: "Serialized".to_string(),
         timestamp: Utc::now(),
     };
 
     let json = serde_json::to_string(&event).unwrap();
     assert!(json.contains("context_updated"));
-    assert!(json.contains("ctx-serialize"));
+    assert!(json.contains(TEST_CONTEXT_ID_B));
     assert!(json.contains("Serialized"));
 }

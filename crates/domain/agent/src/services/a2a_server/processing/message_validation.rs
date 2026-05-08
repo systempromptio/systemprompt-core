@@ -43,10 +43,15 @@ impl MessageValidationService {
 
         let has_tools = !agent_runtime.mcp_servers.is_empty();
 
+        let context_id = message
+            .context_id
+            .clone()
+            .ok_or_else(|| anyhow!("Message missing required context_id"))?;
+
         Ok(ValidatedMessageRequest {
             message: message.clone(),
             agent_name: agent_name.to_string(),
-            context_id: message.context_id.clone(),
+            context_id,
             task_id,
             agent_runtime,
             has_tools,
@@ -70,13 +75,18 @@ impl MessageValidationService {
     ) -> Result<()> {
         let context_repo = ContextRepository::new(&self.db_pool)?;
 
+        let context_id = message
+            .context_id
+            .as_ref()
+            .ok_or_else(|| anyhow!("Message missing required context_id"))?;
+
         context_repo
-            .get_context(&message.context_id, context.user_id())
+            .get_context(context_id, context.user_id())
             .await
             .map_err(|e| {
                 anyhow!(
                     "Context validation failed - context_id: {}, user_id: {}, error: {}",
-                    message.context_id,
+                    context_id,
                     context.user_id(),
                     e
                 )

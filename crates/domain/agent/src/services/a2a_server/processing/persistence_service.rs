@@ -89,11 +89,12 @@ impl PersistenceService {
             .map_err(|e| anyhow!("Failed to update task and save messages: {}", e))?;
 
         if !artifacts_already_published {
-            if let Some(ref artifacts) = task.artifacts {
+            if let (Some(artifacts), Some(context_id)) = (&task.artifacts, &task.context_id)
+            {
                 let publishing_service = ArtifactPublishingService::new(&self.db_pool)?;
                 for artifact in artifacts {
                     publishing_service
-                        .publish_from_a2a(artifact, &task.id, &task.context_id)
+                        .publish_from_a2a(artifact, &task.id, context_id)
                         .await
                         .map_err(|e| {
                             anyhow!("Failed to publish artifact {}: {}", artifact.id, e)
@@ -110,7 +111,7 @@ impl PersistenceService {
 
         tracing::info!(
             task_id = %task.id,
-            context_id = %task.context_id,
+            context_id = ?task.context_id,
             user_id = %context.user_id(),
             "Persisted task"
         );
@@ -127,7 +128,7 @@ impl PersistenceService {
 
         Task {
             id: task_id,
-            context_id,
+            context_id: Some(context_id),
             status: TaskStatus {
                 state: TaskState::Submitted,
                 message: None,

@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-use crate::models::cli::{ConversationListRow, TimestampRow};
+use crate::models::cli::{ConversationListRow, GatewaySessionListRow, TimestampRow};
 
 #[derive(Debug)]
 pub struct ConversationAnalyticsRepository {
@@ -17,7 +17,7 @@ impl ConversationAnalyticsRepository {
         Ok(Self { pool })
     }
 
-    pub async fn list_conversations(
+    pub async fn list_agent_contexts(
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
@@ -26,50 +26,53 @@ impl ConversationAnalyticsRepository {
         sqlx::query_as!(
             ConversationListRow,
             r#"
-            WITH agent_convs AS (
-                SELECT
-                    uc.context_id,
-                    uc.name,
-                    (SELECT COUNT(*) FROM agent_tasks at WHERE at.context_id = uc.context_id)::bigint as task_count,
-                    (SELECT COUNT(*) FROM task_messages tm
-                     JOIN agent_tasks at ON at.task_id = tm.task_id
-                     WHERE at.context_id = uc.context_id)::bigint as message_count,
-                    uc.created_at,
-                    uc.updated_at
-                FROM user_contexts uc
-                WHERE uc.created_at >= $1 AND uc.created_at < $2
-            ),
-            gateway_convs AS (
-                SELECT
-                    ar.session_id as context_id,
-                    NULL::text as name,
-                    0::bigint as task_count,
-                    COUNT(arm.id)::bigint as message_count,
-                    MIN(ar.created_at) as created_at,
-                    MAX(ar.created_at) as updated_at
-                FROM ai_requests ar
-                LEFT JOIN ai_request_messages arm ON arm.request_id = ar.id
-                WHERE ar.task_id IS NULL
-                  AND ar.session_id IS NOT NULL
-                  AND ar.created_at >= $1 AND ar.created_at < $2
-                  AND NOT EXISTS (
-                      SELECT 1 FROM user_contexts uc2 WHERE uc2.context_id = ar.session_id
-                  )
-                GROUP BY ar.session_id
-            )
             SELECT
-                context_id as "context_id!",
-                name,
-                task_count as "task_count!",
-                message_count as "message_count!",
-                created_at as "created_at!",
-                updated_at as "updated_at!"
-            FROM (
-                SELECT * FROM agent_convs
-                UNION ALL
-                SELECT * FROM gateway_convs
-            ) combined
-            ORDER BY updated_at DESC
+                uc.context_id as "context_id!: systemprompt_identifiers::ContextId",
+                uc.name as "name?",
+                (SELECT COUNT(*) FROM agent_tasks at WHERE at.context_id = uc.context_id)::bigint as "task_count!",
+                (SELECT COUNT(*) FROM task_messages tm
+                 JOIN agent_tasks at ON at.task_id = tm.task_id
+                 WHERE at.context_id = uc.context_id)::bigint as "message_count!",
+                uc.created_at as "created_at!",
+                uc.updated_at as "updated_at!"
+            FROM user_contexts uc
+            WHERE uc.created_at >= $1 AND uc.created_at < $2
+            ORDER BY uc.updated_at DESC
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn list_gateway_sessions(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<GatewaySessionListRow>> {
+        sqlx::query_as!(
+            GatewaySessionListRow,
+            r#"
+            SELECT
+                ar.session_id as "session_id!: systemprompt_identifiers::SessionId",
+                COUNT(arm.id)::bigint as "message_count!",
+                MIN(ar.created_at) as "created_at!",
+                MAX(ar.created_at) as "updated_at!"
+            FROM ai_requests ar
+            LEFT JOIN ai_request_messages arm ON arm.request_id = ar.id
+            WHERE ar.task_id IS NULL
+              AND ar.session_id IS NOT NULL
+              AND ar.created_at >= $1 AND ar.created_at < $2
+              AND NOT EXISTS (
+                  SELECT 1 FROM user_contexts uc2 WHERE uc2.context_id::text = ar.session_id
+              )
+            GROUP BY ar.session_id
+            ORDER BY MAX(ar.created_at) DESC
             LIMIT $3
             "#,
             start,

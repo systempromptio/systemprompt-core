@@ -7,6 +7,8 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::HeaderInjector;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 #[test]
 fn test_header_session_id_constant() {
     assert_eq!(headers::SESSION_ID, "x-session-id");
@@ -71,23 +73,31 @@ fn test_inject_trace_id_success() {
 #[test]
 fn test_inject_context_id_success() {
     let mut headers = HeaderMap::new();
-    let context_id = ContextId::new("context_abc".to_string());
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A.to_string());
 
     HeaderInjector::inject_context_id(&mut headers, &context_id).expect("Should inject context id");
     assert_eq!(
         headers.get("x-context-id").unwrap().to_str().unwrap(),
-        "context_abc"
+        TEST_CONTEXT_ID_A
     );
 }
 
 #[test]
-fn test_inject_context_id_empty_skips() {
-    let mut headers = HeaderMap::new();
-    let context_id = ContextId::new(String::new());
+fn test_inject_context_id_empty_rejected() {
+    assert!(
+        ContextId::try_new(String::new()).is_err(),
+        "empty string must not construct a ContextId"
+    );
+}
 
-    HeaderInjector::inject_context_id(&mut headers, &context_id)
-        .expect("Should succeed for empty context id");
-    assert!(headers.get("x-context-id").is_none());
+#[test]
+fn test_inject_context_id_malformed_rejected() {
+    for bad in &["not-a-uuid", "ctx-1", "12345"] {
+        assert!(
+            ContextId::try_new(bad.to_string()).is_err(),
+            "non-UUID value {bad:?} must not construct a ContextId"
+        );
+    }
 }
 
 #[test]
@@ -124,7 +134,7 @@ fn test_inject_from_request_context_success() {
     let ctx = RequestContext::new(
         SessionId::new("ctx_session".to_string()),
         TraceId::new("ctx_trace".to_string()),
-        ContextId::new("ctx_context".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("ctx_agent".to_string()),
     )
     .with_user_id(UserId::new("ctx_user".to_string()))
@@ -147,7 +157,7 @@ fn test_inject_from_request_context_success() {
     );
     assert_eq!(
         headers.get("x-context-id").unwrap().to_str().unwrap(),
-        "ctx_context"
+        TEST_CONTEXT_ID_A
     );
     assert_eq!(
         headers.get("x-agent-name").unwrap().to_str().unwrap(),
@@ -156,34 +166,11 @@ fn test_inject_from_request_context_success() {
 }
 
 #[test]
-fn test_inject_from_request_context_empty_context_id() {
-    let mut headers = HeaderMap::new();
-
-    let ctx = RequestContext::new(
-        SessionId::new("session".to_string()),
-        TraceId::new("trace".to_string()),
-        ContextId::new(String::new()),
-        AgentName::new("agent".to_string()),
-    )
-    .with_user_id(UserId::new("user".to_string()))
-    .with_user_type(UserType::User);
-
-    HeaderInjector::inject_from_request_context(&mut headers, &ctx)
-        .expect("Should inject from request context with empty context id");
-
-    headers
-        .get("x-session-id")
-        .expect("Should have session id header");
-    headers
-        .get("x-user-id")
-        .expect("Should have user id header");
-    headers
-        .get("x-trace-id")
-        .expect("Should have trace id header");
-    assert!(headers.get("x-context-id").is_none());
-    headers
-        .get("x-agent-name")
-        .expect("Should have agent name header");
+fn test_inject_from_request_context_empty_context_id_rejected() {
+    assert!(
+        ContextId::try_new(String::new()).is_err(),
+        "empty string must not construct a ContextId"
+    );
 }
 
 #[test]
@@ -226,15 +213,10 @@ fn test_inject_underscore_id() {
 }
 
 #[test]
-fn test_inject_hyphenated_id() {
-    let mut headers = HeaderMap::new();
-    let context_id = ContextId::new("context-with-hyphens-456".to_string());
-
-    HeaderInjector::inject_context_id(&mut headers, &context_id)
-        .expect("Should inject hyphenated context id");
-    assert_eq!(
-        headers.get("x-context-id").unwrap().to_str().unwrap(),
-        "context-with-hyphens-456"
+fn test_inject_hyphenated_context_id_rejected() {
+    assert!(
+        ContextId::try_new("context-with-hyphens-456".to_string()).is_err(),
+        "non-UUID hyphenated value must not construct a ContextId"
     );
 }
 

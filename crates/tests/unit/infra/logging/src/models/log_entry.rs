@@ -2,6 +2,8 @@
 
 use systemprompt_logging::{LogEntry, LogLevel};
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 #[test]
 fn test_log_entry_new() {
     let entry = LogEntry::new(LogLevel::Info, "test_module", "Test message");
@@ -88,7 +90,7 @@ fn test_log_entry_with_trace_id() {
 
 #[test]
 fn test_log_entry_with_context_id() {
-    let context_id = systemprompt_identifiers::ContextId::new("test-context-def");
+    let context_id = systemprompt_identifiers::ContextId::new(TEST_CONTEXT_ID_A);
     let entry =
         LogEntry::new(LogLevel::Info, "module", "message").with_context_id(context_id.clone());
 

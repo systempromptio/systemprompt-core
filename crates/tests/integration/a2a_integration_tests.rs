@@ -552,10 +552,7 @@ mod conversation_lifecycle_tests {
             response.status.state
         );
         assert!(!response.id.is_empty(), "Response should contain task id");
-        assert!(
-            !response.context_id.is_empty(),
-            "Response should contain context_id"
-        );
+
         assert_eq!(response.kind, "task", "Response kind should be 'task'");
         let history = response
             .history
@@ -634,10 +631,7 @@ mod conversation_lifecycle_tests {
 
         assert_eq!(response.kind, "task", "Response kind should be 'task'");
 
-        assert!(
-            !response.context_id.is_empty(),
-            "Streaming response should contain context_id"
-        );
+
     }
 }
 

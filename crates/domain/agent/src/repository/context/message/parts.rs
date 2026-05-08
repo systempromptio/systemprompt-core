@@ -189,7 +189,7 @@ async fn try_upload_file(
         .unwrap_or("application/octet-stream");
 
     let bytes = file_part.file.bytes.as_deref()?;
-    let mut input = FileUploadInput::new(mime_type, bytes, ctx.context_id.clone());
+    let mut input = FileUploadInput::new(mime_type, bytes, Some(ctx.context_id.clone()));
 
     if let Some(name) = &file_part.file.name {
         input = input.with_name(name);
