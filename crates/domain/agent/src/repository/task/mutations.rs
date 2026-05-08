@@ -50,7 +50,7 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
 
     let status = task_state_to_db_string(task.status.state);
     let task_id_str = task.id.as_str();
-    let context_id_str = task.context_id.as_ref().map(|c| c.as_str()).unwrap_or("");
+    let context_id_str = task.context_id.as_str();
     let user_id_str = user_id.as_ref();
     let session_id_str = session_id.as_ref();
     let trace_id_str = trace_id.as_ref();

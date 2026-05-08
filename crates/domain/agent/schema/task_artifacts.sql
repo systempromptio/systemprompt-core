@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS task_artifacts (
 
     task_id TEXT NOT NULL,
 
-    context_id TEXT,
+    context_id TEXT NOT NULL,
 
     artifact_id TEXT NOT NULL,
 

@@ -122,17 +122,7 @@ pub async fn handle_agent_request(
     let mut enriched_context = context.clone();
     match &a2a_request {
         A2aRequestParams::SendMessage(params) | A2aRequestParams::SendStreamingMessage(params) => {
-            let Some(msg_context_id) = params.message.context_id.as_ref() else {
-                let error_response = JsonRpcErrorBuilder::invalid_params()
-                    .with_data(json!({
-                        "error": "contextId cannot be empty",
-                        "message": "contextId must be a valid non-empty string. Please create a context first using POST /api/v1/core/contexts"
-                    }))
-                    .log_error("Rejected request with missing contextId".to_string())
-                    .build(&request_id);
-                return (StatusCode::BAD_REQUEST, Json(error_response)).into_response();
-            };
-            enriched_context = enriched_context.with_context_id(msg_context_id.clone());
+            enriched_context = enriched_context.with_context_id(params.message.context_id.clone());
         },
         _ => {},
     }

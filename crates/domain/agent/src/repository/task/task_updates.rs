@@ -87,14 +87,13 @@ impl TaskRepository {
             )));
         }
 
-        let context_id_ref = task.context_id.as_ref();
+        let context_id_ref = &task.context_id;
         let upload_ctx =
             self.file_upload_provider
                 .as_ref()
-                .zip(context_id_ref)
-                .map(|(svc, ctx_id)| FileUploadContext {
+                .map(|svc| FileUploadContext {
                     upload_provider: svc,
-                    context_id: ctx_id,
+                    context_id: context_id_ref,
                     user_id,
                     session_id: Some(session_id),
                     trace_id: Some(trace_id),
