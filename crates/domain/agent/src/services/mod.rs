@@ -35,7 +35,7 @@ pub use external_integrations::{
 
 pub use agents::{AgentEntityService, AgentIngestionService};
 
-pub use skills::{SkillIngestionService, SkillMetadata, SkillService};
+pub use skills::{SkillMetadata, SkillService};
 
 pub use artifact_publishing::ArtifactPublishingService;
 

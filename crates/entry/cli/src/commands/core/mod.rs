@@ -42,7 +42,7 @@ pub async fn execute(cmd: CoreCommands, config: &CliConfig) -> Result<()> {
         CoreCommands::Content(cmd) => content::execute(cmd).await,
         CoreCommands::Files(cmd) => files::execute(cmd, config).await,
         CoreCommands::Contexts(cmd) => contexts::execute(cmd, config).await,
-        CoreCommands::Skills(cmd) => skills::execute(cmd).await,
+        CoreCommands::Skills(cmd) => skills::execute(cmd),
         CoreCommands::Plugins(cmd) => plugins::execute(cmd),
         CoreCommands::Hooks(cmd) => hooks::execute(cmd),
     }

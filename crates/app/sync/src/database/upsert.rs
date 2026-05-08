@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use super::{ContextExport, SkillExport, UserExport};
+use super::{ContextExport, UserExport};
 use crate::error::SyncResult;
 
 pub(super) async fn upsert_user(pool: &PgPool, user: &UserExport) -> SyncResult<(usize, usize)> {
@@ -57,45 +57,6 @@ pub(super) async fn upsert_user(pool: &PgPool, user: &UserExport) -> SyncResult<
     .await?;
 
     if result.rows_affected() > 0 && user.created_at == user.updated_at {
-        Ok((1, 0))
-    } else if result.rows_affected() > 0 {
-        Ok((0, 1))
-    } else {
-        Ok((0, 0))
-    }
-}
-
-pub(super) async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, usize)> {
-    let result = sqlx::query!(
-        r#"INSERT INTO agent_skills (skill_id, file_path, name, description, instructions,
-                                     enabled, tags, category_id, source_id, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-           ON CONFLICT (skill_id) DO UPDATE SET
-             file_path = EXCLUDED.file_path,
-             name = EXCLUDED.name,
-             description = EXCLUDED.description,
-             instructions = EXCLUDED.instructions,
-             enabled = EXCLUDED.enabled,
-             tags = EXCLUDED.tags,
-             category_id = EXCLUDED.category_id,
-             source_id = EXCLUDED.source_id,
-             updated_at = EXCLUDED.updated_at"#,
-        skill.skill_id.as_str(),
-        skill.file_path,
-        skill.name,
-        skill.description,
-        skill.instructions,
-        skill.enabled,
-        skill.tags.as_deref(),
-        skill.category_id,
-        skill.source_id.as_str(),
-        skill.created_at,
-        skill.updated_at
-    )
-    .execute(pool)
-    .await?;
-
-    if result.rows_affected() > 0 && skill.created_at == skill.updated_at {
         Ok((1, 0))
     } else if result.rows_affected() > 0 {
         Ok((0, 1))

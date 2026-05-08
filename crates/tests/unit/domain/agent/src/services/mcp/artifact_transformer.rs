@@ -408,7 +408,7 @@ fn build_metadata_text_type_no_hints() {
         artifact_type: &ArtifactType::Text,
         schema: None,
         mcp_execution_id: None,
-        context_id: "ctx-1",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-1",
         tool_name: "summarize",
     });
@@ -424,7 +424,7 @@ fn build_metadata_table_with_schema_hints() {
         artifact_type: &ArtifactType::Table,
         schema: Some(&schema),
         mcp_execution_id: Some("exec-1".to_string()),
-        context_id: "ctx-2",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-2",
         tool_name: "list-users",
     });
@@ -446,7 +446,7 @@ fn build_metadata_table_infers_hints_from_items() {
         artifact_type: &ArtifactType::Table,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "ctx-3",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-3",
         tool_name: "query-table",
     });
@@ -462,7 +462,7 @@ fn build_metadata_form_with_schema_hints() {
         artifact_type: &ArtifactType::Form,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "ctx-4",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-4",
         tool_name: "create-form",
     });
@@ -481,7 +481,7 @@ fn build_metadata_form_infers_fields_from_properties() {
         artifact_type: &ArtifactType::Form,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "ctx-5",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-5",
         tool_name: "edit-profile",
     });
@@ -494,7 +494,7 @@ fn build_metadata_chart_default_hints() {
         artifact_type: &ArtifactType::Chart,
         schema: None,
         mcp_execution_id: None,
-        context_id: "ctx-6",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-6",
         tool_name: "chart-tool",
     });
@@ -507,7 +507,7 @@ fn build_metadata_presentation_card_default_hints() {
         artifact_type: &ArtifactType::PresentationCard,
         schema: None,
         mcp_execution_id: None,
-        context_id: "ctx-7",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-7",
         tool_name: "card-tool",
     });
@@ -520,7 +520,7 @@ fn build_metadata_dashboard_default_hints() {
         artifact_type: &ArtifactType::Dashboard,
         schema: None,
         mcp_execution_id: None,
-        context_id: "ctx-8",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-8",
         tool_name: "dashboard-tool",
     });
@@ -533,7 +533,7 @@ fn build_metadata_with_mcp_execution_id() {
         artifact_type: &ArtifactType::Text,
         schema: None,
         mcp_execution_id: Some("exec-abc".to_string()),
-        context_id: "ctx-9",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-9",
         tool_name: "text-tool",
     })
@@ -548,7 +548,7 @@ fn build_metadata_with_schema_attaches_mcp_schema() {
         artifact_type: &ArtifactType::Text,
         schema: Some(&schema),
         mcp_execution_id: None,
-        context_id: "ctx-10",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-10",
         tool_name: "text-tool",
     });
@@ -561,7 +561,7 @@ fn build_metadata_image_type_no_special_hints() {
         artifact_type: &ArtifactType::Image,
         schema: None,
         mcp_execution_id: None,
-        context_id: "ctx-11",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-11",
         tool_name: "gen-image",
     });
@@ -575,7 +575,7 @@ fn build_metadata_custom_type() {
         artifact_type: &custom,
         schema: None,
         mcp_execution_id: None,
-        context_id: "ctx-12",
+        context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-12",
         tool_name: "heatmap-tool",
     });

@@ -169,9 +169,6 @@ impl DescribeCommand for Commands {
                 ),
             ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
             Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
-            Self::Core(core::CoreCommands::Skills(core::skills::SkillsCommands::Create(_))) => {
-                CommandDescriptor::FULL.with_skip_validation()
-            },
             Self::Infra(infrastructure::InfraCommands::Services(_)) => {
                 CommandDescriptor::PROFILE_SECRETS_AND_PATHS
             },

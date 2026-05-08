@@ -83,8 +83,6 @@ impl Extension for AgentExtension {
             .with_required_columns(vec!["id".into(), "task_id".into()]),
             SchemaDefinition::inline("agents", include_str!("../schema/agents.sql"))
                 .with_required_columns(vec!["agent_id".into(), "name".into(), "enabled".into()]),
-            SchemaDefinition::inline("agent_skills", include_str!("../schema/agent_skills.sql"))
-                .with_required_columns(vec!["skill_id".into(), "name".into()]),
             SchemaDefinition::inline(
                 "task_execution_steps",
                 include_str!("../schema/task_execution_steps.sql"),
@@ -133,6 +131,11 @@ impl Extension for AgentExtension {
                 5,
                 "add_task_version",
                 include_str!("../schema/migrations/005_add_task_version.sql"),
+            ),
+            Migration::new(
+                6,
+                "drop_agent_skills",
+                include_str!("../schema/migrations/006_drop_agent_skills.sql"),
             ),
         ]
     }

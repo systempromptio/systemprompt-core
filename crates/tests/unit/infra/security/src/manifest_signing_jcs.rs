@@ -89,6 +89,7 @@ fn sample_manifest() -> SignedManifest {
             tags: vec!["prod".into()],
             system_prompt: Some("be helpful".into()),
         }],
+        hooks: vec![],
         managed_mcp_servers: vec![ManagedMcpServer {
             name: ManagedMcpServerName::try_new("github").unwrap(),
             url: ValidatedUrl::try_from("https://mcp.example.com/github").unwrap(),
@@ -114,6 +115,7 @@ fn signing_view(m: &SignedManifest) -> serde_json::Value {
         "plugins": m.plugins,
         "skills": m.skills,
         "agents": m.agents,
+        "hooks": m.hooks,
         "managed_mcp_servers": m.managed_mcp_servers,
         "revocations": m.revocations,
         "enabled_hosts": m.enabled_hosts,

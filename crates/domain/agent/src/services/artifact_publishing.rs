@@ -3,9 +3,9 @@ use serde_json::json;
 use std::sync::Arc;
 
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
-use crate::repository::content::{ArtifactRepository, SkillRepository};
+use crate::repository::content::ArtifactRepository;
 use crate::repository::execution::ExecutionStepRepository;
-use crate::services::MessageService;
+use crate::services::{MessageService, SkillService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
@@ -24,7 +24,7 @@ pub struct PublishFromMcpParams<'a> {
 
 pub struct ArtifactPublishingService {
     artifact_repo: ArtifactRepository,
-    skill_repo: SkillRepository,
+    skill_service: SkillService,
     message_service: MessageService,
     execution_repo: Option<Arc<ExecutionStepRepository>>,
 }
@@ -48,7 +48,7 @@ impl ArtifactPublishingService {
 
         Ok(Self {
             artifact_repo: ArtifactRepository::new(db_pool)?,
-            skill_repo: SkillRepository::new(db_pool)?,
+            skill_service: SkillService::new()?,
             message_service: MessageService::new(db_pool)?,
             execution_repo,
         })
@@ -95,9 +95,13 @@ impl ArtifactPublishingService {
 
         if let Some(skill_id) = &enriched.metadata.skill_id {
             if enriched.metadata.skill_name.is_none() {
-                let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
-                if let Ok(Some(skill)) = self.skill_repo.get_by_skill_id(&skill_id_typed).await {
-                    enriched.metadata.skill_name = Some(skill.name);
+                match self.skill_service.load_skill_metadata(skill_id).await {
+                    Ok(meta) => enriched.metadata.skill_name = Some(meta.name),
+                    Err(e) => tracing::debug!(
+                        skill_id = %skill_id,
+                        error = %e,
+                        "skill metadata not available; leaving skill_name empty"
+                    ),
                 }
             }
         }

@@ -1,14 +1,16 @@
-use crate::repository::content::SkillRepository;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::streaming::webhook_client::{WebhookError, broadcast_agui_event};
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use systemprompt_database::DbPool;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::AgUiEventBuilder;
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_models::{
+    AgUiEventBuilder, DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillMetadata {
@@ -18,49 +20,54 @@ pub struct SkillMetadata {
 
 #[derive(Clone)]
 pub struct SkillService {
-    skill_repo: Arc<SkillRepository>,
-    db_pool: DbPool,
+    skills_root: Arc<PathBuf>,
+    execution_step_repo: Option<Arc<ExecutionStepRepository>>,
 }
 
 impl std::fmt::Debug for SkillService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SkillService")
-            .field("skill_repo", &"<SkillRepository>")
+            .field("skills_root", &self.skills_root)
+            .field(
+                "execution_step_repo",
+                &self
+                    .execution_step_repo
+                    .as_ref()
+                    .map_or("<None>", |_| "<ExecutionStepRepository>"),
+            )
             .finish()
     }
 }
 
 impl SkillService {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
+    pub fn new() -> Result<Self> {
+        let skills_root = resolve_skills_root()?;
         Ok(Self {
-            skill_repo: Arc::new(SkillRepository::new(db_pool)?),
-            db_pool: Arc::clone(db_pool),
+            skills_root: Arc::new(skills_root),
+            execution_step_repo: None,
         })
     }
 
-    pub async fn load_skill(&self, skill_id: &SkillId, ctx: &RequestContext) -> Result<String> {
-        let skill = self
-            .skill_repo
-            .get_by_skill_id(skill_id)
-            .await?
-            .ok_or_else(|| {
-                anyhow!(
-                    "Skill not found in database: {} (ensure skill is synced via \
-                     SkillIngestionService)",
-                    skill_id
-                )
-            })?;
+    /// Inject the execution-step repository so per-task `track_skill_usage`
+    /// can run without round-tripping the database from the disk-only loader.
+    pub fn with_execution_step_repo(mut self, repo: Arc<ExecutionStepRepository>) -> Self {
+        self.execution_step_repo = Some(repo);
+        self
+    }
 
-        tracing::info!(skill_id = %skill.id, "Loaded skill");
+    pub async fn load_skill(&self, skill_id: &SkillId, ctx: &RequestContext) -> Result<String> {
+        let loaded = load_disk_skill(self.skills_root.as_ref(), skill_id)?;
+
+        tracing::info!(skill_id = %loaded.skill_id, "Loaded skill from disk");
 
         let event = AgUiEventBuilder::skill_loaded(
-            skill.id.clone(),
-            skill.name.clone(),
-            Some(skill.description.clone()),
+            loaded.skill_id.clone(),
+            loaded.name.clone(),
+            Some(loaded.description.clone()),
             ctx.task_id().cloned(),
         );
 
-        tracing::info!(skill_id = %skill.id, "Broadcasting skill_loaded event");
+        tracing::info!(skill_id = %loaded.skill_id, "Broadcasting skill_loaded event");
 
         if let Err(e) = broadcast_skill_event(ctx, event).await {
             tracing::error!(error = %e, "Failed to broadcast skill_loaded");
@@ -69,16 +76,16 @@ impl SkillService {
         if let Some(task_id) = ctx.task_id() {
             tracing::info!(task_id = %task_id.as_str(), "Tracking skill usage for task");
 
-            let execution_step_repo = match ExecutionStepRepository::new(&self.db_pool) {
-                Ok(repo) => Arc::new(repo),
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to create ExecutionStepRepository");
-                    return Ok(skill.instructions);
-                },
+            let Some(execution_step_repo) = self.execution_step_repo.as_ref() else {
+                tracing::warn!(
+                    "ExecutionStepRepository not injected; skill usage will not be tracked"
+                );
+                return Ok(loaded.instructions);
             };
-            let tracking = ExecutionTrackingService::new(execution_step_repo);
+
+            let tracking = ExecutionTrackingService::new(Arc::clone(execution_step_repo));
             match tracking
-                .track_skill_usage(task_id.clone(), skill.id.clone(), skill.name.clone())
+                .track_skill_usage(task_id.clone(), loaded.skill_id.clone(), loaded.name.clone())
                 .await
             {
                 Ok(step) => {
@@ -98,34 +105,134 @@ impl SkillService {
             tracing::warn!("No task_id in context - skill usage not tracked");
         }
 
-        Ok(skill.instructions)
+        Ok(loaded.instructions)
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn list_skill_ids(&self) -> Result<Vec<String>> {
-        let skills = self.skill_repo.list_enabled().await?;
-        Ok(skills.into_iter().map(|s| s.id.to_string()).collect())
+        list_enabled_skill_ids(self.skills_root.as_ref())
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn load_skill_metadata(&self, skill_id: &SkillId) -> Result<SkillMetadata> {
-        let skill = self
-            .skill_repo
-            .get_by_skill_id(skill_id)
-            .await?
-            .ok_or_else(|| {
-                anyhow!(
-                    "Skill not found in database: {} (ensure skill is synced via \
-                     SkillIngestionService)",
-                    skill_id
-                )
-            })?;
-
-        tracing::info!(skill_id = %skill.id, "Loaded skill metadata");
-
+        let loaded = load_disk_skill(self.skills_root.as_ref(), skill_id)?;
+        tracing::info!(skill_id = %loaded.skill_id, "Loaded skill metadata from disk");
         Ok(SkillMetadata {
-            skill_id: skill.id,
-            name: skill.name,
+            skill_id: loaded.skill_id,
+            name: loaded.name,
         })
     }
+}
+
+struct LoadedDiskSkill {
+    skill_id: SkillId,
+    name: String,
+    description: String,
+    instructions: String,
+}
+
+fn resolve_skills_root() -> Result<PathBuf> {
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| anyhow!("Profile not initialized for SkillService: {e}"))?;
+    Ok(PathBuf::from(profile.paths.skills()))
+}
+
+fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskSkill> {
+    let id_str = skill_id.as_str();
+    let skill_dir = skills_root.join(id_str);
+    let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
+
+    if !config_path.exists() {
+        return Err(anyhow!(
+            "Skill not found on disk: {} ({} missing at {})",
+            id_str,
+            SKILL_CONFIG_FILENAME,
+            config_path.display()
+        ));
+    }
+
+    let config_text = std::fs::read_to_string(&config_path)
+        .with_context(|| format!("Failed to read {}", config_path.display()))?;
+    let config: DiskSkillConfig = serde_yaml::from_str(&config_text)
+        .with_context(|| format!("Invalid YAML in {}", config_path.display()))?;
+
+    let resolved_id = if config.id.as_str().is_empty() {
+        skill_id.clone()
+    } else {
+        config.id.clone()
+    };
+
+    let content_path = skill_dir.join(config.content_file());
+    let instructions = if content_path.exists() {
+        let raw = std::fs::read_to_string(&content_path)
+            .with_context(|| format!("Failed to read {}", content_path.display()))?;
+        strip_frontmatter(&raw)
+    } else {
+        String::new()
+    };
+
+    let name = if config.name.is_empty() {
+        id_str.to_string()
+    } else {
+        config.name
+    };
+
+    Ok(LoadedDiskSkill {
+        skill_id: resolved_id,
+        name,
+        description: config.description,
+        instructions,
+    })
+}
+
+fn list_enabled_skill_ids(skills_root: &Path) -> Result<Vec<String>> {
+    if !skills_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut ids: Vec<String> = Vec::new();
+    for entry in std::fs::read_dir(skills_root)
+        .with_context(|| format!("Failed to read skills dir {}", skills_root.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let config_path = path.join(SKILL_CONFIG_FILENAME);
+        if !config_path.exists() {
+            continue;
+        }
+        let config_text = match std::fs::read_to_string(&config_path) {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::warn!(path = %config_path.display(), error = %e, "skill: read failed; skipping");
+                continue;
+            },
+        };
+        let config: DiskSkillConfig = match serde_yaml::from_str(&config_text) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(path = %config_path.display(), error = %e, "skill: invalid YAML; skipping");
+                continue;
+            },
+        };
+        if !config.enabled {
+            continue;
+        }
+        let dir_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| anyhow!("Invalid skill dir entry under {}", skills_root.display()))?;
+        let id = if config.id.as_str().is_empty() {
+            dir_name.to_string()
+        } else {
+            config.id.as_str().to_string()
+        };
+        ids.push(id);
+    }
+    ids.sort();
+    Ok(ids)
 }
 
 async fn broadcast_skill_event(

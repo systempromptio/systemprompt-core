@@ -1,10 +1,11 @@
 //! Tests for sync models
 
-use systemprompt_identifiers::{SkillId, SourceId};
+use systemprompt_identifiers::SourceId;
 use systemprompt_sync::{
     ContentDiffItem, ContentDiffResult, DiffStatus, LocalSyncDirection, LocalSyncResult,
-    SkillDiffItem, SkillsDiffResult, compute_content_hash,
+    compute_content_hash,
 };
+
 
 mod diff_status_tests {
     use super::*;
@@ -123,84 +124,6 @@ mod content_diff_result_tests {
         let result = empty_result();
         let debug = format!("{:?}", result);
         assert!(debug.contains("ContentDiffResult"));
-    }
-}
-
-mod skills_diff_result_tests {
-    use super::*;
-
-    fn empty_result() -> SkillsDiffResult {
-        SkillsDiffResult {
-            added: vec![],
-            removed: vec![],
-            modified: vec![],
-            unchanged: 0,
-        }
-    }
-
-    fn skill_item() -> SkillDiffItem {
-        SkillDiffItem {
-            skill_id: SkillId::new("skill-1"),
-            file_path: "skills/skill.md".to_string(),
-            status: DiffStatus::Added,
-            disk_hash: Some("hash".to_string()),
-            db_hash: None,
-            name: Some("Test Skill".to_string()),
-        }
-    }
-
-    #[test]
-    fn empty_result_has_no_changes() {
-        let result = empty_result();
-        assert!(!result.has_changes());
-    }
-
-    #[test]
-    fn result_with_added_has_changes() {
-        let mut result = empty_result();
-        result.added.push(skill_item());
-        assert!(result.has_changes());
-    }
-
-    #[test]
-    fn result_with_removed_has_changes() {
-        let mut result = empty_result();
-        result.removed.push(skill_item());
-        assert!(result.has_changes());
-    }
-
-    #[test]
-    fn result_with_modified_has_changes() {
-        let mut result = empty_result();
-        result.modified.push(skill_item());
-        assert!(result.has_changes());
-    }
-
-    #[test]
-    fn result_with_unchanged_only_has_no_changes() {
-        let mut result = empty_result();
-        result.unchanged = 5;
-        assert!(!result.has_changes());
-    }
-
-    #[test]
-    fn default_has_no_changes() {
-        let result = SkillsDiffResult::default();
-        assert!(!result.has_changes());
-    }
-
-    #[test]
-    fn result_is_serializable() {
-        let result = empty_result();
-        let json = serde_json::to_string(&result).unwrap();
-        assert!(json.contains("added"));
-    }
-
-    #[test]
-    fn result_is_debug() {
-        let result = empty_result();
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("SkillsDiffResult"));
     }
 }
 

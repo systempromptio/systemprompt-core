@@ -9,7 +9,6 @@
 //! - [`external_integrations`] — descriptors for downstream MCP / OAuth
 //!   integrations
 //! - [`runtime`] — runtime metadata describing a live agent process
-//! - [`skill`] — skill definitions and metadata
 //! - [`web`] — request/response DTOs for the HTTP admin surface
 
 pub mod a2a;
@@ -19,7 +18,6 @@ pub mod context;
 pub(crate) mod database_rows;
 pub mod external_integrations;
 pub mod runtime;
-pub mod skill;
 pub mod web;
 
 pub use a2a::{
@@ -38,15 +36,13 @@ pub use context::{
 
 pub use agent::Agent;
 
-pub use skill::{Skill, SkillMetadata};
-
 pub use systemprompt_models::{
     ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType, TrackedStep,
 };
 
 pub(crate) use database_rows::{
-    AgentRow, ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, SkillRow,
-    TaskMessage, TaskRow,
+    AgentRow, ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
+    TaskRow,
 };
 
 pub use web::*;
