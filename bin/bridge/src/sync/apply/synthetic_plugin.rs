@@ -1,7 +1,10 @@
 use super::super::hash::safe_id_segment;
+use super::hooks::{ensure_plugin_json_hooks_field, materialize_hook_token, write_hooks_json};
 use crate::config::paths;
+use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{AgentEntry, ManagedMcpServer, SignedManifest, SkillEntry};
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use async_trait::async_trait;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;
@@ -9,13 +12,14 @@ use std::path::{Path, PathBuf};
 
 pub struct ClaudeCodePluginSync;
 
+#[async_trait]
 impl HostSync for ClaudeCodePluginSync {
     fn host_id(&self) -> &'static str {
         "claude-code"
     }
 
-    fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), super::ApplyError> {
-        write_synthetic_plugin(ctx.org_plugins_root, ctx.manifest)
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), super::ApplyError> {
+        write_synthetic_plugin(ctx.client, ctx.bearer, ctx.org_plugins_root, ctx.manifest).await
     }
 
     fn clear(&self) -> Result<(), super::ApplyError> {
@@ -56,8 +60,10 @@ struct McpServerEntry<'a> {
     headers: Option<BTreeMap<&'a str, String>>,
 }
 
-#[tracing::instrument(level = "debug", skip(manifest))]
-pub fn write_synthetic_plugin(
+#[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
+pub async fn write_synthetic_plugin(
+    client: &GatewayClient,
+    bearer: &str,
     org_plugins_root: &Path,
     manifest: &SignedManifest,
 ) -> Result<(), super::ApplyError> {
@@ -65,7 +71,8 @@ pub fn write_synthetic_plugin(
 
     let has_content = !manifest.skills.is_empty()
         || !manifest.agents.is_empty()
-        || !manifest.managed_mcp_servers.is_empty();
+        || !manifest.managed_mcp_servers.is_empty()
+        || !manifest.hooks.is_empty();
 
     if !has_content {
         if root.exists() {
@@ -101,6 +108,11 @@ pub fn write_synthetic_plugin(
     for agent in &manifest.agents {
         write_agent(&root, agent)?;
     }
+
+    let synthetic_id = paths::SYNTHETIC_PLUGIN_NAME;
+    materialize_hook_token(client, bearer, synthetic_id, &root).await?;
+    write_hooks_json(client.base_url_str(), synthetic_id, &root, &manifest.hooks)?;
+    ensure_plugin_json_hooks_field(&root)?;
 
     Ok(())
 }

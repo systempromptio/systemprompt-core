@@ -49,6 +49,8 @@ pub async fn apply_manifest(
     let ctx = HostSyncCtx {
         manifest: &manifest_for_write,
         org_plugins_root: root,
+        client,
+        bearer,
     };
     for emitter in host_sync::registry() {
         let host_id = emitter.host_id();
@@ -57,7 +59,7 @@ pub async fn apply_manifest(
             .iter()
             .any(|h| h == host_id);
         let outcome = if enabled {
-            emitter.apply(&ctx)
+            emitter.apply(&ctx).await
         } else {
             emitter.clear()
         };

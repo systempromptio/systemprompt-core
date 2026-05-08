@@ -1,8 +1,9 @@
 use super::ApplyError;
-use super::hooks_schema::HooksFile;
+use super::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 use crate::auth::plugin_oauth::mint_or_refresh_plugin_token;
 use crate::fsutil;
 use crate::gateway::GatewayClient;
+use crate::gateway::manifest::HookEntry as ManifestHookEntry;
 use std::fs;
 use std::path::Path;
 
@@ -10,7 +11,7 @@ const PLUGIN_TOKEN_ENV_VAR: &str = "SYSTEMPROMPT_PLUGIN_TOKEN";
 
 // Atomic 0600 write — the file holds a bearer token, must not leak between
 // users on multi-tenant hosts.
-pub(super) async fn materialize_hook_token(
+pub(crate) async fn materialize_hook_token(
     client: &GatewayClient,
     bearer: &str,
     plugin_id: &str,
@@ -25,10 +26,11 @@ pub(super) async fn materialize_hook_token(
     })
 }
 
-pub(super) fn write_hooks_json(
+pub(crate) fn write_hooks_json(
     gateway_base: &str,
     plugin_id: &str,
     plugin_dir: &Path,
+    user_hooks: &[ManifestHookEntry],
 ) -> Result<(), ApplyError> {
     let hooks_dir = plugin_dir.join("hooks");
     fs::create_dir_all(&hooks_dir).map_err(|e| ApplyError::Io {
@@ -38,7 +40,15 @@ pub(super) fn write_hooks_json(
     let base = gateway_base.trim_end_matches('/');
     let govern_url = format!("{base}/api/public/hooks/govern?plugin_id={plugin_id}");
     let track_url = format!("{base}/api/public/hooks/track?plugin_id={plugin_id}");
-    let body = HooksFile::new(govern_url, &track_url, PLUGIN_TOKEN_ENV_VAR);
+    let mut body = HooksFile::new(govern_url, &track_url, PLUGIN_TOKEN_ENV_VAR);
+    for hook in user_hooks {
+        let entry = WireHookEntry::user_command(
+            hook.command.clone(),
+            hook.event.as_str(),
+            hook.is_async,
+        );
+        body.append_user_hook(hook.event.as_str().to_string(), hook.matcher.clone(), entry);
+    }
     let bytes = serde_json::to_vec_pretty(&body).map_err(|e| ApplyError::Serialize {
         what: format!("hooks.json for {plugin_id}"),
         source: e,
@@ -51,7 +61,7 @@ pub(super) fn write_hooks_json(
     Ok(())
 }
 
-pub(super) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), ApplyError> {
+pub(crate) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), ApplyError> {
     let path = plugin_dir.join("claude-plugin").join("plugin.json");
     if !path.is_file() {
         return Ok(());

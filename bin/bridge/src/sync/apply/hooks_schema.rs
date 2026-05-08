@@ -6,9 +6,11 @@
 //! public hook endpoints. The shape is camelCase on the wire; field names here
 //! are snake_case with `#[serde(rename_all = "camelCase")]`.
 //!
-//! Wired into the call site in Stage 3B; allow-dead-code until then.
-
-#![allow(dead_code)]
+//! Two variants share the file: `Http` entries are gateway-issued govern/track
+//! proxies; `Command` entries are user-defined hooks sourced from
+//! `services/hooks/` YAML in the manifest. The `type` discriminant on
+//! `HookEntry` keeps the existing HTTP wire shape byte-identical and adds a
+//! sibling shape for command hooks.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -25,30 +27,31 @@ pub struct HookMatcher {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HookEntry {
-    #[serde(rename = "type")]
-    pub kind: HookKind,
-    pub url: String,
-    pub headers: BTreeMap<String, String>,
-    pub allowed_env_vars: Vec<String>,
-    pub timeout: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub r#async: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub event: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum HookKind {
-    Http,
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum HookEntry {
+    Http {
+        url: String,
+        headers: BTreeMap<String, String>,
+        #[serde(rename = "allowedEnvVars")]
+        allowed_env_vars: Vec<String>,
+        timeout: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        r#async: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        event: Option<String>,
+    },
+    Command {
+        command: String,
+        timeout: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        r#async: Option<bool>,
+        event: String,
+    },
 }
 
 impl HookEntry {
     pub fn govern(url: String, token_env_var: &str) -> Self {
-        Self {
-            kind: HookKind::Http,
+        Self::Http {
             url,
             headers: bearer_header(token_env_var),
             allowed_env_vars: vec![token_env_var.to_string()],
@@ -59,14 +62,22 @@ impl HookEntry {
     }
 
     pub fn track(url: String, token_env_var: &str, event: &str) -> Self {
-        Self {
-            kind: HookKind::Http,
+        Self::Http {
             url,
             headers: bearer_header(token_env_var),
             allowed_env_vars: vec![token_env_var.to_string()],
             timeout: DEFAULT_TIMEOUT_SECS,
             r#async: Some(true),
             event: Some(event.to_string()),
+        }
+    }
+
+    pub fn user_command(command: String, event: &str, is_async: bool) -> Self {
+        Self::Command {
+            command,
+            timeout: DEFAULT_TIMEOUT_SECS,
+            r#async: if is_async { Some(true) } else { None },
+            event: event.to_string(),
         }
     }
 }
@@ -78,6 +89,7 @@ impl HookMatcher {
             hooks: vec![entry],
         }
     }
+
 }
 
 impl HooksFile {
@@ -101,6 +113,19 @@ impl HooksFile {
             );
         }
         Self { hooks }
+    }
+
+    pub fn append_user_hook(&mut self, event: String, matcher: String, entry: HookEntry) {
+        let bucket = self.hooks.entry(event).or_default();
+        let m = if matcher.is_empty() {
+            WILDCARD_MATCHER.to_string()
+        } else {
+            matcher
+        };
+        bucket.push(HookMatcher {
+            matcher: m,
+            hooks: vec![entry],
+        });
     }
 }
 

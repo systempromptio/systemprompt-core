@@ -3,7 +3,7 @@ use super::hooks::{ensure_plugin_json_hooks_field, materialize_hook_token, write
 use crate::auth::plugin_oauth::global_cache;
 use crate::config::paths;
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::{PluginEntry, SignedManifest};
+use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::ids::Sha256Digest;
 use std::collections::HashSet;
 use std::fs;
@@ -32,7 +32,9 @@ pub async fn apply_plugins(
         if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
         }
-        if let Some(change) = sync_one_plugin(client, bearer, plugin, root, staging_root).await? {
+        if let Some(change) =
+            sync_one_plugin(client, bearer, plugin, &manifest.hooks, root, staging_root).await?
+        {
             match change {
                 PluginChange::Installed(id) => installed.push(id),
                 PluginChange::Updated(id) => updated.push(id),
@@ -81,6 +83,7 @@ async fn sync_one_plugin(
     client: &GatewayClient,
     bearer: &str,
     plugin: &PluginEntry,
+    user_hooks: &[HookEntry],
     root: &Path,
     staging_root: &Path,
 ) -> Result<Option<PluginChange>, super::ApplyError> {
@@ -102,7 +105,12 @@ async fn sync_one_plugin(
     })?;
 
     materialize_hook_token(client, bearer, plugin.id.as_str(), &target).await?;
-    write_hooks_json(client.base_url_str(), plugin.id.as_str(), &target)?;
+    write_hooks_json(
+        client.base_url_str(),
+        plugin.id.as_str(),
+        &target,
+        user_hooks,
+    )?;
     ensure_plugin_json_hooks_field(&target)?;
 
     Ok(Some(if was_present {

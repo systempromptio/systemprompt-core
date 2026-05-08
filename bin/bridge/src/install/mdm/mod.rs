@@ -42,12 +42,13 @@ fn write_empty_managed_mcp_servers() -> Result<String, String> {
 pub struct ClaudeDesktopMdmSync;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+#[async_trait::async_trait]
 impl crate::sync::host_sync::HostSync for ClaudeDesktopMdmSync {
     fn host_id(&self) -> &'static str {
         "claude-desktop"
     }
 
-    fn apply(
+    async fn apply(
         &self,
         _ctx: &crate::sync::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::sync::ApplyError> {
