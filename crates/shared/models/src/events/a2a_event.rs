@@ -167,11 +167,7 @@ impl A2AEventBuilder {
         }
     }
 
-    pub fn input_required(
-        task_id: TaskId,
-        context_id: ContextId,
-        prompt: String,
-    ) -> A2AEvent {
+    pub fn input_required(task_id: TaskId, context_id: ContextId, prompt: String) -> A2AEvent {
         A2AEvent::InputRequired {
             timestamp: Utc::now(),
             payload: InputRequiredPayload {
@@ -182,11 +178,7 @@ impl A2AEventBuilder {
         }
     }
 
-    pub fn auth_required(
-        task_id: TaskId,
-        context_id: ContextId,
-        auth_url: String,
-    ) -> A2AEvent {
+    pub fn auth_required(task_id: TaskId, context_id: ContextId, auth_url: String) -> A2AEvent {
         A2AEvent::AuthRequired {
             timestamp: Utc::now(),
             payload: AuthRequiredPayload {

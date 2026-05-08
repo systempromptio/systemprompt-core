@@ -234,8 +234,7 @@ impl MessageProcessor {
         let task_id = task.id.clone();
         let message_id = agent_message.message_id.clone();
 
-        let start_event =
-            AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
+        let start_event = AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
         if let Err(e) = broadcast_agui_event(user_id, start_event, auth_token).await {
             tracing::debug!(error = %e, "Failed to broadcast run_started event");
         }
@@ -263,7 +262,8 @@ impl MessageProcessor {
             "text": response_text,
             "artifacts": task.artifacts,
         });
-        let finish_event = AgUiEventBuilder::run_finished(context_id.clone(), task_id, Some(result));
+        let finish_event =
+            AgUiEventBuilder::run_finished(context_id.clone(), task_id, Some(result));
         if let Err(e) = broadcast_agui_event(user_id, finish_event, auth_token).await {
             tracing::debug!(error = %e, "Failed to broadcast run_finished event");
         }
