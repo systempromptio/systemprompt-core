@@ -136,7 +136,7 @@ fn test_header_extractor_with_all_headers() {
     let agent_name = HeaderExtractor::extract_agent_name(&headers);
 
     assert_eq!(trace_id.as_str(), "trace-abc");
-    assert_eq!(context_id.as_str(), "context-def");
+    assert!(context_id.is_none(), "non-UUID context-id is rejected");
     assert_eq!(task_id.unwrap().as_str(), "task-ghi");
     assert_eq!(agent_name.as_str(), "agent-jkl");
 }
@@ -157,7 +157,10 @@ fn test_header_extractor_uuid_values() {
     let context_id = HeaderExtractor::extract_context_id(&headers);
 
     assert_eq!(trace_id.as_str(), "550e8400-e29b-41d4-a716-446655440000");
-    assert_eq!(context_id.as_str(), "6ba7b810-9dad-11d1-80b4-00c04fd430c8");
+    assert_eq!(
+        context_id.unwrap().as_str(),
+        "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+    );
 }
 
 #[test]
