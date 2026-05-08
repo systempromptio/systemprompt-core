@@ -35,7 +35,12 @@ pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Tas
 
     Ok(TaskInfo {
         task_id: TaskId::new(row.task_id),
-        context_id: ContextId::new(row.context_id),
+        context_id: ContextId::try_new(&row.context_id)
+            .map_err(|e| {
+                tracing::warn!(error = %e, raw = %row.context_id, "Non-UUID context_id from agent_tasks row");
+                e
+            })
+            .unwrap_or_else(|_| ContextId::generate()),
         agent_name: row.agent_name,
         status: row.status,
         created_at: row.created_at,

@@ -48,7 +48,7 @@ impl ToolUsageRepository {
 
         let id = Uuid::new_v4().to_string();
         let mcp_execution_id = McpExecutionId::new(id.clone());
-        let context_id = request.context.context_id().to_string();
+        let context_id = request.context.context_id().map(ToString::to_string);
         let user_id = request.context.user_id().to_string();
         let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
         let input_str = serde_json::to_string(&request.input)?;
@@ -131,7 +131,7 @@ impl ToolUsageRepository {
         let id = Uuid::new_v4().to_string();
         let mcp_execution_id = McpExecutionId::new(id.clone());
         let status = ExecutionStatus::from_error(result.error_message.is_some()).as_str();
-        let context_id = request.context.context_id().to_string();
+        let context_id = request.context.context_id().map(ToString::to_string);
         let user_id = request.context.user_id().to_string();
         let task_id = request.context.task_id().map(ToString::to_string);
         let session_id = request.context.session_id().to_string();
@@ -202,7 +202,14 @@ impl ToolUsageRepository {
             mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
             tool_name: r.tool_name,
             server_name: r.server_name,
-            context_id: r.context_id.map(ContextId::new),
+            context_id: r.context_id.and_then(|s| {
+                ContextId::try_new(&s)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from mcp_tool_executions row");
+                        e
+                    })
+                    .ok()
+            }),
             ai_tool_call_id: r.ai_tool_call_id.map(AiToolCallId::new),
             user_id: UserId::new(r.user_id),
             status: r.status,

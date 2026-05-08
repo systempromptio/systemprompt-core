@@ -4,11 +4,13 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 fn create_test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("test_session".to_string()),
         TraceId::new("test_trace".to_string()),
-        ContextId::new("test_context".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A.to_string()),
         AgentName::new("test_agent".to_string()),
     )
 }

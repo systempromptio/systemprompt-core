@@ -4,12 +4,14 @@ use chrono::Utc;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
 use systemprompt_mcp::models::ToolExecution;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 fn create_test_execution() -> ToolExecution {
     ToolExecution {
         mcp_execution_id: McpExecutionId::new("exec-123".to_string()),
         tool_name: "test-tool".to_string(),
         server_name: "test-server".to_string(),
-        context_id: Some(ContextId::new("ctx-456".to_string())),
+        context_id: Some(ContextId::new(TEST_CONTEXT_ID_A.to_string())),
         ai_tool_call_id: Some(AiToolCallId::new("call-789".to_string())),
         user_id: UserId::new("user-abc".to_string()),
         status: "success".to_string(),

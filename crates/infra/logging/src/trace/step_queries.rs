@@ -97,7 +97,14 @@ pub async fn fetch_mcp_execution_events(
                 user_id: Some(UserId::new(row.user_id)),
                 session_id: row.session_id.map(SessionId::new),
                 task_id: row.task_id.map(TaskId::new),
-                context_id: row.context_id.map(ContextId::new),
+                context_id: row.context_id.and_then(|s| {
+                    ContextId::try_new(&s)
+                        .map_err(|e| {
+                            tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from mcp_tool_executions row");
+                            e
+                        })
+                        .ok()
+                }),
                 metadata: Some(metadata.to_string()),
             }
         })
@@ -209,7 +216,12 @@ pub async fn fetch_execution_step_events(
                 user_id: row.user_id.map(UserId::new),
                 session_id: row.session_id.map(SessionId::new),
                 task_id: Some(TaskId::new(row.task_id)),
-                context_id: Some(ContextId::new(row.context_id)),
+                context_id: ContextId::try_new(&row.context_id)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, raw = %row.context_id, "Skipping non-UUID context_id from task_execution_steps join row");
+                        e
+                    })
+                    .ok(),
                 metadata: Some(metadata.to_string()),
             }
         })
