@@ -22,6 +22,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use async_trait::async_trait;
 use serde::Serialize;
 
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, SkillEntry};
@@ -40,12 +41,13 @@ const PLUGIN_VERSION_DIR: &str = "current";
 
 pub struct CodexCliSync;
 
+#[async_trait]
 impl HostSync for CodexCliSync {
     fn host_id(&self) -> &'static str {
         "codex-cli"
     }
 
-    fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         write_plugin_bundle(ctx.manifest)?;
         write_plugin_block(true)?;
         Ok(())

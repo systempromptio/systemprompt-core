@@ -27,6 +27,7 @@ pub struct SyncSummary {
     pub plugin_count: usize,
     pub skill_count: usize,
     pub agent_count: usize,
+    pub hook_count: usize,
     pub mcp_count: usize,
     pub installed: Vec<String>,
     pub updated: Vec<String>,
@@ -48,7 +49,7 @@ impl SyncSummary {
         };
         format!(
             "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} \
-             MCP — manifest {}{}",
+             hooks, {} MCP — manifest {}{}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
@@ -56,6 +57,7 @@ impl SyncSummary {
             self.removed.len(),
             self.skill_count,
             self.agent_count,
+            self.hook_count,
             self.mcp_count,
             self.manifest_version,
             malformed_suffix,
@@ -146,6 +148,7 @@ fn persist_last_sync(
         mcp_server_count: manifest.managed_mcp_servers.len(),
         skill_count: manifest.skills.len(),
         agent_count: manifest.agents.len(),
+        hook_count: manifest.hooks.len(),
         user: manifest.user.as_ref().map(|u| u.email.as_str()),
         enabled_hosts: &manifest.enabled_hosts,
     };
@@ -172,6 +175,7 @@ fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncS
         plugin_count: manifest.plugins.len(),
         skill_count: manifest.skills.len(),
         agent_count: manifest.agents.len(),
+        hook_count: manifest.hooks.len(),
         mcp_count: manifest.managed_mcp_servers.len(),
         installed: report.installed,
         updated: report.updated,
@@ -192,6 +196,7 @@ struct LastSyncSentinel<'a> {
     mcp_server_count: usize,
     skill_count: usize,
     agent_count: usize,
+    hook_count: usize,
     user: Option<&'a str>,
     enabled_hosts: &'a [String],
 }

@@ -36,18 +36,21 @@ pub(crate) const COWORK_SETTINGS_FILE: &str = "cowork_settings.json";
 
 use thiserror::Error;
 
+use async_trait::async_trait;
+
 use crate::config::paths;
 use crate::sync::ApplyError;
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 
 pub struct CoworkSync;
 
+#[async_trait]
 impl HostSync for CoworkSync {
     fn host_id(&self) -> &'static str {
         "cowork"
     }
 
-    fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(target) = resolve_target() else {
             tracing::info!(
                 target: "bridge::cowork",

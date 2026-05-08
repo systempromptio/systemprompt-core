@@ -6,9 +6,11 @@
 //! the manifest's `enabled_hosts` list, and uniformly logs the outcome — so
 //! emitter authors never re-implement the toggle-and-cleanup gate.
 
+use async_trait::async_trait;
 use std::path::Path;
 use std::sync::LazyLock;
 
+use crate::gateway::GatewayClient;
 use crate::gateway::manifest::SignedManifest;
 
 use super::apply::ApplyError;
@@ -16,11 +18,16 @@ use super::apply::ApplyError;
 pub struct HostSyncCtx<'a> {
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,
+    pub client: &'a GatewayClient,
+    pub bearer: &'a str,
 }
 
+// `dyn HostSync` is needed by the static registry, so this trait must be
+// dyn-compatible — `#[async_trait]` boxes the future to satisfy that.
+#[async_trait]
 pub trait HostSync: Send + Sync + 'static {
     fn host_id(&self) -> &'static str;
-    fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
     fn clear(&self) -> Result<(), ApplyError>;
 }
 
