@@ -31,7 +31,7 @@ fn test_cli_session_builder_new() {
     assert_eq!(session.profile_name.as_str(), "test-profile");
     assert_eq!(session.session_token.as_str(), "test-token");
     assert_eq!(session.session_id.as_str(), "session-123");
-    assert_eq!(session.context_id.as_str(), "context-456");
+    assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_A);
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn test_cli_session_expires_at() {
 #[test]
 fn test_cli_session_context_id() {
     let session = create_test_builder().build();
-    assert_eq!(session.context_id().as_str(), "context-456");
+    assert_eq!(session.context_id().as_str(), TEST_CONTEXT_ID_A);
 }
 
 #[test]

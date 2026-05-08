@@ -195,4 +195,3 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
 
     Ok(())
 }
-

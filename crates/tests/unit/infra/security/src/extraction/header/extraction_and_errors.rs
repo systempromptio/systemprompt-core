@@ -46,7 +46,9 @@ fn test_header_extractor_extract_context_id_present() {
 
     let context_id = HeaderExtractor::extract_context_id(&headers);
     assert_eq!(
-        context_id.as_ref().map(systemprompt_identifiers::ContextId::as_str),
+        context_id
+            .as_ref()
+            .map(systemprompt_identifiers::ContextId::as_str),
         Some(TEST_CTX)
     );
 }
@@ -77,10 +79,7 @@ fn test_header_extractor_extract_context_id_empty_value() {
     headers.insert("x-context-id", HeaderValue::from_static(""));
 
     let context_id = HeaderExtractor::extract_context_id(&headers);
-    assert!(
-        context_id.is_none(),
-        "Empty header value rejects as None"
-    );
+    assert!(context_id.is_none(), "Empty header value rejects as None");
 }
 
 #[test]

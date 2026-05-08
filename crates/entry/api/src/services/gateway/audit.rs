@@ -30,7 +30,7 @@ pub struct GatewayRequestContext {
     pub user_id: UserId,
     pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub trace_id: Option<TraceId>,
     pub provider: String,
@@ -105,9 +105,7 @@ impl GatewayAudit {
         if let Some(s) = &self.ctx.session_id {
             record = record.session_id(s.clone());
         }
-        if let Some(c) = &self.ctx.context_id {
-            record = record.context_id(c.clone());
-        }
+        record = record.context_id(self.ctx.context_id.clone());
         if let Some(g) = &self.ctx.gateway_conversation_id {
             record = record.gateway_conversation_id(g.clone());
         }

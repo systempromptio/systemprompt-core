@@ -85,7 +85,11 @@ impl SkillService {
 
             let tracking = ExecutionTrackingService::new(Arc::clone(execution_step_repo));
             match tracking
-                .track_skill_usage(task_id.clone(), loaded.skill_id.clone(), loaded.name.clone())
+                .track_skill_usage(
+                    task_id.clone(),
+                    loaded.skill_id.clone(),
+                    loaded.name.clone(),
+                )
                 .await
             {
                 Ok(step) => {
