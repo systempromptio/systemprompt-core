@@ -127,7 +127,7 @@ pub async fn ensure_task_exists(
 
     let task = Task {
         id: task_id.clone(),
-        context_id: Some(context_id.clone()),
+        context_id: context_id.clone(),
         status: TaskStatus {
             state: TaskState::Submitted,
             message: None,

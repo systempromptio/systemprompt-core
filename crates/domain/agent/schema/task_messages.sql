@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS task_messages (
     client_message_id TEXT,
     role TEXT NOT NULL CHECK (role IN ('user', 'agent')),
 
-    context_id TEXT,
+    context_id TEXT NOT NULL,
 
     user_id TEXT,
     session_id TEXT,

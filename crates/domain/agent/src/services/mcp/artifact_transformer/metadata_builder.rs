@@ -40,7 +40,7 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
 
     let mut metadata = ArtifactMetadata::new_validated(
         artifact_type_to_string(artifact_type),
-        Some(context_id_typed),
+        context_id_typed,
         task_id_typed,
     )
     .map_err(|e| ArtifactError::MetadataValidation(format!("{e}")))?;

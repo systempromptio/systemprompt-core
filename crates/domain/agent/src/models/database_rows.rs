@@ -81,7 +81,7 @@ pub struct TaskMessage {
     pub message_id: MessageId,
     pub client_message_id: Option<String>,
     pub role: String,
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
@@ -127,7 +127,7 @@ pub struct SkillRow {
 pub struct ArtifactRow {
     pub artifact_id: ArtifactId,
     pub task_id: TaskId,
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub name: Option<String>,
     pub description: Option<String>,
     pub artifact_type: String,

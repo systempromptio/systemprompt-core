@@ -21,7 +21,7 @@ impl ArtifactRepository {
             r#"SELECT
                 artifact_id as "artifact_id!: ArtifactId",
                 task_id as "task_id!: TaskId",
-                context_id as "context_id?: ContextId",
+                context_id as "context_id!: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
@@ -57,7 +57,7 @@ impl ArtifactRepository {
             r#"SELECT
                 artifact_id as "artifact_id!: ArtifactId",
                 task_id as "task_id!: TaskId",
-                context_id as "context_id?: ContextId",
+                context_id as "context_id!: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
@@ -95,7 +95,7 @@ impl ArtifactRepository {
             r#"SELECT
                 a.artifact_id as "artifact_id!: ArtifactId",
                 a.task_id as "task_id!: TaskId",
-                a.context_id as "context_id?: ContextId",
+                a.context_id as "context_id!: ContextId",
                 a.name,
                 a.description,
                 a.artifact_type as "artifact_type!",
@@ -134,7 +134,7 @@ impl ArtifactRepository {
             r#"SELECT
                 artifact_id as "artifact_id!: ArtifactId",
                 task_id as "task_id!: TaskId",
-                context_id as "context_id?: ContextId",
+                context_id as "context_id!: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
@@ -175,7 +175,7 @@ impl ArtifactRepository {
             r#"SELECT
                 artifact_id as "artifact_id!: ArtifactId",
                 task_id as "task_id!: TaskId",
-                context_id as "context_id?: ContextId",
+                context_id as "context_id!: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
@@ -204,7 +204,6 @@ async fn row_to_artifact(
     pool: &Arc<PgPool>,
     row: ArtifactRow,
 ) -> Result<Artifact, RepositoryError> {
-    let context_id = row.context_id.clone().unwrap_or_else(|| ContextId::new(""));
-    let parts = get_artifact_parts(pool, &row.artifact_id, &context_id).await?;
+    let parts = get_artifact_parts(pool, &row.artifact_id, &row.context_id).await?;
     Ok(row_to_artifact_with_parts(row, parts))
 }

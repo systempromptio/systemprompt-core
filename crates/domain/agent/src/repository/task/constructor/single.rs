@@ -75,7 +75,7 @@ async fn construct_task_from_row(
 
     Ok(Task {
         id: task_id,
-        context_id: Some(row.context_id.clone()),
+        context_id: row.context_id.clone(),
         status: TaskStatus {
             state: task_state,
             message: None,
@@ -104,7 +104,7 @@ async fn load_task_messages(
             message_id as "message_id!: MessageId",
             client_message_id,
             role as "role!",
-            context_id as "context_id?: ContextId",
+            context_id as "context_id!: ContextId",
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
             trace_id as "trace_id?: TraceId",

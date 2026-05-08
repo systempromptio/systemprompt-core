@@ -97,7 +97,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
 
     let complete_task = Task {
         id: task_id.clone(),
-        context_id: Some(context_id.clone()),
+        context_id: context_id.clone(),
         status: TaskStatus {
             state: TaskState::Completed,
             message: Some(Message {
@@ -107,7 +107,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
                 })],
                 message_id: MessageId::new(message_id.to_string()),
                 task_id: Some(task_id.clone()),
-                context_id: Some(context_id.clone()),
+                context_id: context_id.clone(),
                 metadata: None,
                 extensions: None,
                 reference_task_ids: None,
@@ -123,7 +123,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
                 })],
                 message_id: MessageId::generate(),
                 task_id: Some(task_id.clone()),
-                context_id: Some(context_id.clone()),
+                context_id: context_id.clone(),
                 metadata: None,
                 extensions: None,
                 reference_task_ids: None,
@@ -202,7 +202,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
                     })],
                     message_id: MessageId::new(message_id.to_string()),
                     task_id: Some(task_id.clone()),
-                    context_id: Some(context_id.clone()),
+                    context_id: context_id.clone(),
                     metadata: None,
                     extensions: None,
                     reference_task_ids: None,

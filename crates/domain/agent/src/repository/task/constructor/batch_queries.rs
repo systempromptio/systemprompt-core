@@ -50,7 +50,7 @@ pub async fn fetch_messages(
             message_id as "message_id!: MessageId",
             client_message_id,
             role as "role!",
-            context_id as "context_id?: ContextId",
+            context_id as "context_id!: ContextId",
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
             trace_id as "trace_id?: TraceId",
@@ -103,7 +103,7 @@ pub async fn fetch_artifacts(
         r#"SELECT
             artifact_id as "artifact_id!: ArtifactId",
             task_id as "task_id!: TaskId",
-            context_id as "context_id?: ContextId",
+            context_id as "context_id!: ContextId",
             name,
             description,
             artifact_type as "artifact_type!",

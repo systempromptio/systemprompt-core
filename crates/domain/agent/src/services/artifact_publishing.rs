@@ -193,7 +193,7 @@ impl ArtifactPublishingService {
                 role: MessageRole::Agent,
                 message_id: MessageId::generate(),
                 task_id: Some(task_id.clone()),
-                context_id: Some(context_id.clone()),
+                context_id: context_id.clone(),
                 parts: vec![Part::Text(TextPart {
                     text: format!(
                         "Tool execution completed successfully.\n\nCreated artifact: {} (type: {})",

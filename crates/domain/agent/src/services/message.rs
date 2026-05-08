@@ -183,7 +183,7 @@ impl MessageService {
             role: MessageRole::User,
             message_id: MessageId::new(message_id.clone()),
             task_id: Some(task_id.clone()),
-            context_id: Some(context_id.clone()),
+            context_id: context_id.clone(),
             parts: vec![Part::Text(TextPart {
                 text: format!(
                     "Executed MCP tool: {} with arguments:\n{}\n\nExecution ID: {} at {}",
