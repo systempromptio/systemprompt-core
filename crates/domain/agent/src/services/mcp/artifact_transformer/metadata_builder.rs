@@ -34,12 +34,13 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
         _ => json!(null),
     };
 
-    let context_id_typed = ContextId::new(context_id);
+    let context_id_typed = ContextId::try_new(context_id)
+        .map_err(|e| ArtifactError::MetadataValidation(format!("{e}")))?;
     let task_id_typed = TaskId::new(task_id);
 
     let mut metadata = ArtifactMetadata::new_validated(
         artifact_type_to_string(artifact_type),
-        context_id_typed,
+        Some(context_id_typed),
         task_id_typed,
     )
     .map_err(|e| ArtifactError::MetadataValidation(format!("{e}")))?;
