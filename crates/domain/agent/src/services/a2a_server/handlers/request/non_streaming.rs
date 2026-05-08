@@ -66,14 +66,7 @@ pub async fn handle_non_streaming_request(
             let task_id = params.id.clone();
 
             match task_repo.get_task(&task_id).await {
-                Ok(Some(task)) => {
-                    let context_id = task.context_id.ok_or_else(
-                        || -> Box<dyn std::error::Error + Send + Sync> {
-                            format!("Task {} has no context_id", params.id).into()
-                        },
-                    )?;
-                    Ok(build_canceled_task(params.id, context_id))
-                },
+                Ok(Some(task)) => Ok(build_canceled_task(params.id, task.context_id)),
                 Ok(None) => Err(format!("Task not found: {}", params.id).into()),
                 Err(e) => Err(format!("Failed to look up task: {e}").into()),
             }

@@ -8,7 +8,7 @@ use systemprompt_traits::validation::{
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ArtifactMetadata {
     pub artifact_type: String,
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub created_at: String,
     pub task_id: TaskId,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -34,7 +34,7 @@ pub struct ArtifactMetadata {
 }
 
 impl ArtifactMetadata {
-    pub fn new(artifact_type: String, context_id: Option<ContextId>, task_id: TaskId) -> Self {
+    pub fn new(artifact_type: String, context_id: ContextId, task_id: TaskId) -> Self {
         Self {
             artifact_type,
             context_id,
@@ -111,7 +111,7 @@ impl ArtifactMetadata {
 
     pub fn new_validated(
         artifact_type: String,
-        context_id: Option<ContextId>,
+        context_id: ContextId,
         task_id: TaskId,
     ) -> ValidationResult<Self> {
         if artifact_type.is_empty() {
