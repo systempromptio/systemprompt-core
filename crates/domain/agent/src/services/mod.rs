@@ -2,11 +2,10 @@
 //!
 //! Submodules group runtime services by responsibility: the embedded A2A HTTP
 //! server, orchestration of agent processes, MCP tool bridging, registry,
-//! skills ingestion, message and context services, and shared helpers.
+//! disk-backed skills, message and context services, and shared helpers.
 
 pub mod a2a_server;
 pub mod agent_orchestration;
-pub mod agents;
 pub mod artifact_publishing;
 pub mod context;
 pub mod context_provider;
@@ -32,8 +31,6 @@ pub use external_integrations::{
     IntegrationError, IntegrationResult, RegisteredMcpServer, ToolExecutionResult, WebhookEndpoint,
     WebhookService,
 };
-
-pub use agents::{AgentEntityService, AgentIngestionService};
 
 pub use skills::{SkillMetadata, SkillService};
 

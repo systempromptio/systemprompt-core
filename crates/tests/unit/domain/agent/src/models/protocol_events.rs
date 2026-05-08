@@ -74,7 +74,7 @@ fn test_task_status_update_event_serialize() {
 
     assert!(json.contains("status-update"));
     assert!(json.contains("task-1"));
-    assert!(json.contains("ctx-1"));
+    assert!(json.contains(TEST_CONTEXT_ID_A));
     assert!(json.contains("TASK_STATE_FAILED"));
 }
 
@@ -120,7 +120,7 @@ fn test_task_artifact_update_event_serialize() {
 
     assert!(json.contains("artifact-update"));
     assert!(json.contains("t1"));
-    assert!(json.contains("c1"));
+    assert!(json.contains(TEST_CONTEXT_ID_A));
 }
 
 #[test]

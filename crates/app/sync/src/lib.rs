@@ -9,9 +9,8 @@
 //! - [`SyncService`], [`SyncConfig`], [`SyncConfigBuilder`] — high-level façade
 //!   that wires everything together for `cloud sync` commands.
 //! - [`SyncApiClient`] — low-level HTTP client for the cloud API.
-//! - [`AgentsLocalSync`], [`ContentLocalSync`] — disk ↔
-//!   database sync for each domain.
-//! - [`AgentsDiffCalculator`], [`ContentDiffCalculator`] — pure diff computation.
+//! - [`ContentLocalSync`] — disk ↔ database sync for content.
+//! - [`ContentDiffCalculator`] — pure diff computation.
 //! - [`SyncError`] / [`SyncResult`] — typed error returned by every public
 //!   function in this crate.
 //!
@@ -39,21 +38,18 @@ use systemprompt_identifiers::TenantId;
 
 pub use api_client::SyncApiClient;
 pub use database::{ContextExport, DatabaseExport, DatabaseSyncService};
-pub use diff::{AgentsDiffCalculator, ContentDiffCalculator, compute_content_hash};
+pub use diff::{ContentDiffCalculator, compute_content_hash};
 pub use error::{SyncError, SyncResult};
-pub use export::{
-    escape_yaml, export_agent_to_disk, export_content_to_file, generate_agent_config,
-    generate_agent_system_prompt, generate_content_markdown,
-};
+pub use export::{escape_yaml, export_content_to_file, generate_content_markdown};
 pub use files::{
     FileBundle, FileDiffStatus, FileEntry, FileManifest, FileSyncService, PullDownload,
     SyncDiffEntry, SyncDiffResult,
 };
 pub use jobs::{AccessControlSyncJob, ContentSyncJob};
-pub use local::{AccessControlLocalSync, AgentsLocalSync, ContentDiffEntry, ContentLocalSync};
+pub use local::{AccessControlLocalSync, ContentDiffEntry, ContentLocalSync};
 pub use models::{
-    AgentDiffItem, AgentsDiffResult, ContentDiffItem, ContentDiffResult, DiffStatus, DiskAgent,
-    DiskContent, LocalSyncDirection, LocalSyncResult,
+    ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent, LocalSyncDirection,
+    LocalSyncResult,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

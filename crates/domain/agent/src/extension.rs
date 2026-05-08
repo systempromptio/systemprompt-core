@@ -81,8 +81,6 @@ impl Extension for AgentExtension {
                 include_str!("../schema/task_push_notification_configs.sql"),
             )
             .with_required_columns(vec!["id".into(), "task_id".into()]),
-            SchemaDefinition::inline("agents", include_str!("../schema/agents.sql"))
-                .with_required_columns(vec!["agent_id".into(), "name".into(), "enabled".into()]),
             SchemaDefinition::inline(
                 "task_execution_steps",
                 include_str!("../schema/task_execution_steps.sql"),
@@ -136,6 +134,11 @@ impl Extension for AgentExtension {
                 6,
                 "drop_agent_skills",
                 include_str!("../schema/migrations/006_drop_agent_skills.sql"),
+            ),
+            Migration::new(
+                7,
+                "drop_agents",
+                include_str!("../schema/migrations/007_drop_agents.sql"),
             ),
         ]
     }

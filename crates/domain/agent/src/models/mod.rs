@@ -3,7 +3,6 @@
 //! Submodules:
 //! - [`a2a`] — A2A JSON-RPC protocol types (requests, responses, tasks,
 //!   artifacts)
-//! - [`agent`] — high-level `Agent` aggregate
 //! - [`agent_info`] — lightweight directory listing record
 //! - [`context`] — conversational contexts and per-user views
 //! - [`external_integrations`] — descriptors for downstream MCP / OAuth
@@ -12,7 +11,6 @@
 //! - [`web`] — request/response DTOs for the HTTP admin surface
 
 pub mod a2a;
-pub mod agent;
 pub mod agent_info;
 pub mod context;
 pub(crate) mod database_rows;
@@ -34,15 +32,12 @@ pub use context::{
     UserContextWithStats,
 };
 
-pub use agent::Agent;
-
 pub use systemprompt_models::{
     ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType, TrackedStep,
 };
 
 pub(crate) use database_rows::{
-    AgentRow, ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
-    TaskRow,
+    ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage, TaskRow,
 };
 
 pub use web::*;

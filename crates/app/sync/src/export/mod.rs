@@ -2,10 +2,8 @@
 //! Each submodule emits the YAML config + Markdown body layout expected by
 //! the matching `*Local Sync`.
 
-mod agents;
 mod content;
 
-pub use agents::{export_agent_to_disk, generate_agent_config, generate_agent_system_prompt};
 pub use content::{export_content_to_file, generate_content_markdown};
 
 pub fn escape_yaml(s: &str) -> String {
