@@ -53,7 +53,7 @@ async fn execute_internal(
     repo: &ConversationAnalyticsRepository,
 ) -> Result<CommandResult<ConversationListOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let rows = repo.list_conversations(start, end, args.limit).await?;
+    let rows = repo.list_agent_contexts(start, end, args.limit).await?;
 
     let conversations: Vec<ConversationListRow> = rows
         .into_iter()

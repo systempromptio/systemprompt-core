@@ -44,7 +44,7 @@ pub fn create_request_context(ctx: &ToolContext) -> Result<RequestContext, ToolP
             )
         })?;
 
-    let mut request_ctx = RequestContext::new(session_id, trace_id, Some(context_id), agent_name)
+    let mut request_ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)
         .with_auth_token(ctx.auth_token.clone());
 
     if let Some(user_id) = ctx.headers.get("x-user-id").filter(|s| !s.is_empty()) {
