@@ -3,15 +3,15 @@ use std::sync::atomic::{AtomicI64, Ordering};
 
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
-use systemprompt_identifiers::{ContextId, SessionId};
-use systemprompt_models::gateway_hash::{context_id_from_prefix_hash, conversation_prefix_hash};
+use systemprompt_identifiers::{GatewayConversationId, SessionId};
+use systemprompt_models::gateway_hash::conversation_prefix_hash;
 
 const CONTEXT_CACHE_CAP: usize = 1024;
 
 #[derive(Debug)]
 pub struct SessionContext {
     session_id: SessionId,
-    contexts: Mutex<HashMap<u64, ContextId>>,
+    contexts: Mutex<HashMap<u64, GatewayConversationId>>,
     last_activity_unix_ms: AtomicI64,
 }
 
@@ -51,7 +51,7 @@ impl SessionContext {
         }
     }
 
-    pub fn context_for_prefix(&self, hash: u64) -> ContextId {
+    pub fn context_for_prefix(&self, hash: u64) -> GatewayConversationId {
         let mut map = self.contexts.lock();
         if let Some(existing) = map.get(&hash) {
             return existing.clone();
@@ -59,7 +59,7 @@ impl SessionContext {
         if map.len() >= CONTEXT_CACHE_CAP {
             map.clear();
         }
-        let ctx = context_id_from_prefix_hash(hash);
+        let ctx = GatewayConversationId::from_prefix_hash(hash);
         map.insert(hash, ctx.clone());
         ctx
     }
@@ -71,9 +71,9 @@ impl SessionContext {
 /// Completions (`{messages}`) and OpenAI Responses (`{instructions,
 /// input}`) shapes. Returns `None` when the body is not parseable JSON
 /// or has no first turn — callers fall back to letting the gateway
-/// derive the context id from the canonical request.
+/// derive the conversation id from the canonical request.
 #[must_use]
-pub fn derive_context_id(body: &[u8]) -> Option<u64> {
+pub fn derive_gateway_conversation_id(body: &[u8]) -> Option<u64> {
     let probe: PrefixProbe = serde_json::from_slice(body).ok()?;
     let (system, role, content) = probe.first_turn()?;
     Some(conversation_prefix_hash(system.as_deref(), &role, &content))

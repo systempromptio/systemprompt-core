@@ -6,7 +6,9 @@ use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming};
 use hyper::{HeaderMap, Request, Response, StatusCode};
-use systemprompt_identifiers::{ContextId, SessionId, ValidatedUrl, headers as sp_headers};
+use systemprompt_identifiers::{
+    GatewayConversationId, SessionId, ValidatedUrl, headers as sp_headers,
+};
 use thiserror::Error;
 
 use crate::mcp_registry;
@@ -66,7 +68,7 @@ const BUFFERED_BODY_LIMIT: usize = 8 * 1024 * 1024;
         method = %req.method(),
         path = %req.uri().path(),
         session_id = %session_context.session_id(),
-        context_id = tracing::field::Empty,
+        gateway_conversation_id = tracing::field::Empty,
     )
 )]
 pub async fn forward(
@@ -101,14 +103,14 @@ pub async fn forward(
         }
     })?;
 
-    let (upstream_body, context_id) =
+    let (upstream_body, gateway_conversation_id) =
         prepare_upstream_body(body, &request_path, session_context).await?;
 
     let upstream_headers = build_upstream_headers(
         &parts.headers,
         token.token.expose(),
         session_context.session_id(),
-        context_id.as_ref(),
+        gateway_conversation_id.as_ref(),
         &route.extra_headers,
     )?;
 
@@ -232,7 +234,7 @@ fn build_upstream_headers(
     src: &HeaderMap,
     bearer: &str,
     session_id: &SessionId,
-    context_id: Option<&ContextId>,
+    gateway_conversation_id: Option<&GatewayConversationId>,
     extra: &BTreeMap<String, String>,
 ) -> ForwardResult<reqwest::header::HeaderMap> {
     let mut headers = reqwest::header::HeaderMap::with_capacity(src.len() + 4 + extra.len());
@@ -251,12 +253,13 @@ fn build_upstream_headers(
         reqwest::header::HeaderName::from_static(sp_headers::SESSION_ID),
         session_value,
     );
-    if let Some(context_id) = context_id {
-        let context_value = reqwest::header::HeaderValue::try_from(context_id.as_str())
-            .map_err(|e| ForwardError::BadHeader(format!("{}: {e}", sp_headers::CONTEXT_ID)))?;
+    if let Some(id) = gateway_conversation_id {
+        let value = reqwest::header::HeaderValue::try_from(id.as_str()).map_err(|e| {
+            ForwardError::BadHeader(format!("{}: {e}", sp_headers::GATEWAY_CONVERSATION_ID))
+        })?;
         headers.insert(
-            reqwest::header::HeaderName::from_static(sp_headers::CONTEXT_ID),
-            context_value,
+            reqwest::header::HeaderName::from_static(sp_headers::GATEWAY_CONVERSATION_ID),
+            value,
         );
     }
 
@@ -275,14 +278,14 @@ async fn prepare_upstream_body(
     body: Incoming,
     _request_path: &str,
     session_context: &SessionContext,
-) -> ForwardResult<(reqwest::Body, Option<ContextId>)> {
+) -> ForwardResult<(reqwest::Body, Option<GatewayConversationId>)> {
     let buffered = collect_body(body).await?;
-    let context_id =
-        session::derive_context_id(&buffered).map(|hash| session_context.context_for_prefix(hash));
-    if let Some(ref c) = context_id {
-        tracing::Span::current().record("context_id", tracing::field::display(c));
+    let id = session::derive_gateway_conversation_id(&buffered)
+        .map(|hash| session_context.context_for_prefix(hash));
+    if let Some(ref c) = id {
+        tracing::Span::current().record("gateway_conversation_id", tracing::field::display(c));
     }
-    Ok((reqwest::Body::from(buffered), context_id))
+    Ok((reqwest::Body::from(buffered), id))
 }
 
 async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {

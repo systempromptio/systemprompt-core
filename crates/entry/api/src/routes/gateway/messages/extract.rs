@@ -4,7 +4,7 @@ use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
 use std::sync::Arc;
 use systemprompt_identifiers::{
-    ContextId, SessionId, TenantId, TraceId, UserId, headers as sp_headers,
+    ContextId, GatewayConversationId, SessionId, TenantId, TraceId, UserId, headers as sp_headers,
 };
 use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 
@@ -21,6 +21,7 @@ pub(super) struct RejectionPartial {
     pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
+    pub gateway_conversation_id: Option<GatewayConversationId>,
     pub trace_id: Option<TraceId>,
     pub provider: Option<String>,
     pub model: Option<String>,
@@ -36,7 +37,8 @@ pub(super) struct PreparedRequest {
     pub provider: String,
     pub upstream_model: String,
     pub session_id: SessionId,
-    pub context_id: ContextId,
+    pub context_id: Option<ContextId>,
+    pub gateway_conversation_id: GatewayConversationId,
 }
 
 pub(super) async fn extract_request_context(
@@ -70,6 +72,7 @@ pub(super) async fn extract_request_context(
     let session_id = require_session_id(request.headers())?;
     partial.session_id = Some(session_id.clone());
     let header_context = optional_context_id(request.headers())?;
+    let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
     let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx, tenant_id).await?;
     partial.user_id = Some(principal.user_id.clone());
@@ -77,16 +80,20 @@ pub(super) async fn extract_request_context(
 
     let (body_bytes, gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
-    let context_id = match header_context {
+    let gateway_conversation_id = match header_gateway_conversation {
         Some(c) => c,
-        None => gateway_request.derived_context_id().ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                "request body has no messages; cannot derive context id".to_string(),
-            )
-        })?,
+        None => gateway_request
+            .derived_gateway_conversation_id()
+            .ok_or_else(|| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    "request body has no messages; cannot derive gateway conversation id"
+                        .to_string(),
+                )
+            })?,
     };
-    partial.context_id = Some(context_id.clone());
+    partial.context_id.clone_from(&header_context);
+    partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
 
     let route = gateway_config
         .find_route(&gateway_request.model)
@@ -111,7 +118,8 @@ pub(super) async fn extract_request_context(
         provider: route.provider.clone(),
         upstream_model,
         session_id,
-        context_id,
+        context_id: header_context,
+        gateway_conversation_id,
     })
 }
 
@@ -121,6 +129,38 @@ fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, Str
 
 fn optional_context_id(headers: &HeaderMap) -> Result<Option<ContextId>, (StatusCode, String)> {
     optional_typed_header(headers, sp_headers::CONTEXT_ID, ContextId::new)
+}
+
+fn optional_gateway_conversation_id(
+    headers: &HeaderMap,
+) -> Result<Option<GatewayConversationId>, (StatusCode, String)> {
+    let Some(raw) = headers.get(sp_headers::GATEWAY_CONVERSATION_ID) else {
+        return Ok(None);
+    };
+    let raw = raw.to_str().map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!(
+                "invalid {} header: {e}",
+                sp_headers::GATEWAY_CONVERSATION_ID
+            ),
+        )
+    })?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    GatewayConversationId::try_new(trimmed.to_string())
+        .map(Some)
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "invalid {} header: {e}",
+                    sp_headers::GATEWAY_CONVERSATION_ID
+                ),
+            )
+        })
 }
 
 fn require_typed_header<T>(

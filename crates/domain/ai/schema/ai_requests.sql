@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     session_id VARCHAR(255),
     task_id TEXT,
     context_id VARCHAR(255),
+    gateway_conversation_id VARCHAR(255),
+    provider_request_id VARCHAR(255),
     trace_id VARCHAR(255),
     mcp_execution_id VARCHAR(255),
     provider TEXT NOT NULL,
@@ -37,6 +39,8 @@ CREATE INDEX IF NOT EXISTS idx_ai_requests_user_id ON ai_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_session_id ON ai_requests(session_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_task_id ON ai_requests(task_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_context_id ON ai_requests(context_id);
+CREATE INDEX IF NOT EXISTS idx_ai_requests_gateway_conversation_id ON ai_requests(gateway_conversation_id);
+CREATE INDEX IF NOT EXISTS idx_ai_requests_provider_request_id ON ai_requests(provider_request_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_trace_id ON ai_requests(trace_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_mcp_execution_id ON ai_requests(mcp_execution_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_cost ON ai_requests(cost_microdollars);

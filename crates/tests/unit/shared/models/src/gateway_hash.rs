@@ -1,6 +1,9 @@
-use systemprompt_models::gateway_hash::{
-    context_id_from_prefix_hash, conversation_prefix_hash, fnv1a_segments,
-};
+use systemprompt_identifiers::GatewayConversationId;
+use systemprompt_models::gateway_hash::{conversation_prefix_hash, fnv1a_segments};
+
+fn context_id_from_prefix_hash(hash: u64) -> GatewayConversationId {
+    GatewayConversationId::from_prefix_hash(hash)
+}
 
 #[test]
 fn fnv1a_is_deterministic() {

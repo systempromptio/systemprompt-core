@@ -1,6 +1,9 @@
 use crate::error::RepositoryError;
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
-use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiRequestId, ContextId, GatewayConversationId, ProviderRequestId, SessionId, TaskId, TraceId,
+    UserId,
+};
 
 use super::AiRequestRepository;
 
@@ -34,6 +37,8 @@ impl AiRequestRepository {
                       session_id as "session_id: SessionId",
                       task_id as "task_id: TaskId",
                       context_id as "context_id: ContextId",
+                      gateway_conversation_id as "gateway_conversation_id: GatewayConversationId",
+                      provider_request_id as "provider_request_id: ProviderRequestId",
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
@@ -72,6 +77,8 @@ impl AiRequestRepository {
                       session_id as "session_id: SessionId",
                       task_id as "task_id: TaskId",
                       context_id as "context_id: ContextId",
+                      gateway_conversation_id as "gateway_conversation_id: GatewayConversationId",
+                      provider_request_id as "provider_request_id: ProviderRequestId",
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
@@ -111,7 +118,8 @@ impl AiRequestRepository {
         record: &AiRequestRecord,
     ) -> Result<AiRequestId, RepositoryError> {
         use systemprompt_identifiers::{
-            ContextId, McpExecutionId, SessionId, TaskId, TenantId, TraceId,
+            ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId, TaskId,
+            TenantId, TraceId,
         };
 
         let status = record.status.as_str();
@@ -124,7 +132,8 @@ impl AiRequestRepository {
         sqlx::query!(
             r#"
             INSERT INTO ai_requests (
-                id, request_id, user_id, tenant_id, session_id, task_id, context_id, trace_id,
+                id, request_id, user_id, tenant_id, session_id, task_id, context_id,
+                gateway_conversation_id, provider_request_id, trace_id,
                 mcp_execution_id, provider, model, max_tokens, tokens_used, input_tokens, output_tokens,
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
                 cost_microdollars, latency_ms, status, error_message,
@@ -132,9 +141,9 @@ impl AiRequestRepository {
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                $15, $16, $17, $18, $19, $20, $21, $22, $23,
+                $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                CASE WHEN $24 THEN CURRENT_TIMESTAMP ELSE NULL END
+                CASE WHEN $26 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
             "#,
             id.as_str(),
@@ -144,6 +153,8 @@ impl AiRequestRepository {
             record.session_id.as_ref().map(SessionId::as_str),
             record.task_id.as_ref().map(TaskId::as_str),
             record.context_id.as_ref().map(ContextId::as_str),
+            record.gateway_conversation_id.as_ref().map(GatewayConversationId::as_str),
+            record.provider_request_id.as_ref().map(ProviderRequestId::as_str),
             record.trace_id.as_ref().map(TraceId::as_str),
             record.mcp_execution_id.as_ref().map(McpExecutionId::as_str),
             record.provider,
