@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.0] - 2026-05-08
+
+### Changed
+
+- **Marketplace consolidation: skills, agents, and hooks become file-driven first-class entities.** Three new categories (in addition to plugins and MCP servers) are now sourced directly from `<services_root>/{skills,agents,hooks}/<id>/config.yaml` and validated at startup. The DB ingestion hop has been removed and the corresponding tables dropped. RBAC grants for skills and hooks live in `access_control_rules` (the `entity_type` CHECK already accepts `'skill'` and `'hook'`).
+  - **Skills →  disk.** `SkillService` now reads `<services_root>/skills/<id>/{config.yaml, SKILL.md}` directly. The A2A processing layer wires `SkillService::new()` with no DB pool; tracking is injected via `with_execution_step_repo`. Deleted: `SkillRepository`, `SkillIngestionService`, `agent::models::Skill`, `agent_skills.sql`, all `app/sync/{local,diff,export}/skills*` modules, and `cli/commands/cloud/sync/skills.rs`. CLI `core/skills/{create,delete,edit,sync,status,…}` are gone; only `list` and `show` remain. Migration `006_drop_agent_skills.sql` drops the table; `task_execution_steps.step_content` keeps `skill_id` as opaque text in JSONB with no FK, so the drop is safe.
+  - **Marketplace agents → disk.** `AgentRegistry` (already YAML-driven) is now the sole source of truth for marketplace/persona agents. Deleted: `AgentRepository`, `AgentEntityService`, `AgentIngestionService`, `agent::models::Agent`, `database_rows::AgentRow`, `agents.sql`, all `app/sync/{local,diff,export}/agents*` modules, and `cli/commands/cloud/sync/agents.rs`. CLI core agents subcommand is removed. Migration `007_drop_agents.sql` drops the table; runtime tables (`services`, `agent_tasks`, `task_messages`, `context_agents`) keep `agent_name` as opaque text without FK, so the drop is safe. **A2A runtime agents are unchanged** — they are routed via `AgentRegistry` and never queried the dropped catalog table.
+  - **Hooks → first-class.** `bridge_manifest::load_hooks` and the synthetic-plugin writer already read disk hooks; the CLI `core/hooks/{list,validate}` commands are now wired the same way (via `DiskHookConfig`) instead of walking `PluginConfig.hooks`. The `hooks: HookEventsConfig` sub-field has been removed from `PluginConfig` and the offline `plugin generate` no longer emits `hooks/hooks.json` (the bridge writes it from disk + manifest). Existing plugin `config.yaml` files with a `hooks:` section continue to deserialize cleanly — the unknown field is ignored.
+- **`AgentRegistry` snapshot is now lock-free.** Replaces `Arc<RwLock<ServicesConfig>>` with `Arc<ServicesConfig>` and removes the unused `reload()` machinery. The lookup methods stay `async` for `AgentRegistryProvider` trait compatibility but their bodies are pure synchronous lookups.
+
+### Added
+
+- **`ContextId::derived_from_gateway_conversation`.** Stable UUID v5 derivation lets the gateway boundary mint a UUID-shaped `ContextId` per conversation without trusting upstream client `x-context-id` headers (which carry client-specific non-UUID values).
+
+### Removed
+
+- `crates/domain/agent/src/{repository/content/{skill,agent}.rs, services/{skills/ingestion,agents/{ingestion,agent_entity}}.rs, models/{skill,agent}.rs, database_rows::AgentRow, schema/{agent_skills,agents}.sql}`
+- `crates/app/sync/src/{local/{skills_sync,agents_sync},diff/{skills,agents},export/{skills,agents}}.rs` and the corresponding `pub use` re-exports (`SkillsLocalSync`, `AgentsLocalSync`, `AgentsDiffCalculator`, `AgentDiffItem`, `AgentsDiffResult`, `DiskAgent`).
+- `crates/entry/cli/src/commands/{cloud/sync/{skills,agents}.rs, core/skills/{create,create_files,create_prompts,delete,edit,status,sync}.rs, core/plugins/generate/hooks.rs}`.
+- `PluginConfig.hooks` and the corresponding `hooks_count` field on the CLI `plugin show` output.
+
 ## [0.8.0] - 2026-05-07
 
 ### Added
