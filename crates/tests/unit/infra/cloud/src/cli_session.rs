@@ -11,12 +11,15 @@ use systemprompt_identifiers::{
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
+
 fn create_test_builder() -> CliSessionBuilder {
     CliSessionBuilder::new(
         ProfileName::new("test-profile"),
         SessionToken::new("test-token"),
         SessionId::new("session-123"),
-        ContextId::new("context-456"),
+        ContextId::new(TEST_CONTEXT_ID_A),
     )
 }
 
@@ -161,9 +164,9 @@ fn test_cli_session_set_context_id() {
     let original_last_used = session.last_used;
 
     std::thread::sleep(std::time::Duration::from_millis(10));
-    session.set_context_id(ContextId::new("new-context"));
+    session.set_context_id(ContextId::new(TEST_CONTEXT_ID_B));
 
-    assert_eq!(session.context_id.as_str(), "new-context");
+    assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_B);
     assert!(session.last_used > original_last_used);
 }
 
@@ -211,7 +214,7 @@ fn test_cli_session_has_valid_credentials_false_empty_token() {
         ProfileName::new("profile"),
         SessionToken::new(""),
         SessionId::new("session"),
-        ContextId::new("context"),
+        ContextId::new(TEST_CONTEXT_ID_A),
     )
     .build();
 
@@ -397,7 +400,7 @@ fn test_cli_session_builder_method() {
         ProfileName::new("p"),
         SessionToken::new("t"),
         SessionId::new("s"),
-        ContextId::new("c"),
+        ContextId::new(TEST_CONTEXT_ID_A),
     );
     let session = builder.build();
 

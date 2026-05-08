@@ -69,7 +69,7 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
             profile_name: session.profile_name.as_str().to_string(),
             user_email: session.user_email.as_str().to_string(),
             session_id: Some(session.session_id.clone()),
-            context_id: Some(session.context_id.clone()),
+            context_id: session.context_id.clone(),
             is_active,
             is_expired: session.is_expired(),
             expires_in,

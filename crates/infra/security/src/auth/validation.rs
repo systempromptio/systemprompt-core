@@ -1,5 +1,5 @@
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
@@ -10,7 +10,6 @@ use crate::session::ValidatedSessionClaims;
 const ANONYMOUS_SESSION_ID: &str = "anonymous";
 const TEST_SESSION_ID: &str = "test";
 const TEST_TRACE_ID: &str = "test-trace";
-const TEST_CONTEXT_ID: &str = "test-context";
 const TEST_AGENT_NAME: &str = "test-agent";
 const TEST_USER_ID: &str = "test-user";
 const BEARER_PREFIX: &str = "Bearer ";
@@ -158,7 +157,7 @@ impl AuthValidationService {
         RequestContext::new(
             SessionId::new(TEST_SESSION_ID.to_string()),
             TraceId::new(TEST_TRACE_ID.to_string()),
-            ContextId::new(TEST_CONTEXT_ID.to_string()),
+            None,
             AgentName::new(TEST_AGENT_NAME.to_string()),
         )
         .with_user_id(UserId::new(TEST_USER_ID.to_string()))

@@ -27,10 +27,17 @@ impl HeaderExtractor {
             .map_or_else(TraceId::generate, TraceId::new)
     }
 
-    pub fn extract_context_id(headers: &HeaderMap) -> ContextId {
+    pub fn extract_context_id(headers: &HeaderMap) -> Option<ContextId> {
         Self::extract_header(headers, headers::CONTEXT_ID)
             .filter(|s| !s.is_empty())
-            .map_or_else(ContextId::empty, ContextId::new)
+            .and_then(|s| {
+                ContextId::try_new(s)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Invalid context_id header value, ignoring");
+                        e
+                    })
+                    .ok()
+            })
     }
 
     pub fn extract_gateway_conversation_id(headers: &HeaderMap) -> Option<GatewayConversationId> {
@@ -98,9 +105,6 @@ impl HeaderInjector {
         headers: &mut HeaderMap,
         context_id: &ContextId,
     ) -> Result<(), HeaderInjectionError> {
-        if context_id.as_str().is_empty() {
-            return Ok(());
-        }
         Self::inject_header(headers, headers::CONTEXT_ID, context_id.as_str())
     }
 
@@ -139,7 +143,9 @@ impl HeaderInjector {
         Self::inject_session_id(headers, &ctx.request.session_id)?;
         Self::inject_user_id(headers, &ctx.auth.user_id)?;
         Self::inject_trace_id(headers, &ctx.execution.trace_id)?;
-        Self::inject_context_id(headers, &ctx.execution.context_id)?;
+        if let Some(context_id) = &ctx.execution.context_id {
+            Self::inject_context_id(headers, context_id)?;
+        }
         Self::inject_agent_name(headers, ctx.execution.agent_name.as_str())?;
         Ok(())
     }

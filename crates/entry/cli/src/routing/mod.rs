@@ -12,7 +12,7 @@ pub enum ExecutionTarget {
     Remote {
         hostname: String,
         token: String,
-        context: ContextId,
+        context: Option<ContextId>,
     },
 }
 

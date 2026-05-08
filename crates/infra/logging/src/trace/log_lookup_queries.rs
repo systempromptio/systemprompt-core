@@ -41,7 +41,14 @@ fn row_to_entry(r: LogRow) -> LogEntry {
         session_id: SessionId::new(r.session_id),
         task_id: r.task_id.map(TaskId::new),
         trace_id: TraceId::new(r.trace_id),
-        context_id: r.context_id.map(ContextId::new),
+        context_id: r.context_id.and_then(|s| {
+            ContextId::try_new(&s)
+                .map_err(|e| {
+                    tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from log row");
+                    e
+                })
+                .ok()
+        }),
         client_id: r.client_id.map(ClientId::new),
     }
 }

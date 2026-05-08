@@ -82,9 +82,10 @@ pub async fn execute(
         .unwrap_or(&session_ctx.profile.server.api_external_url);
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
-    let context_id: ContextId = args
+    let context_id: Option<ContextId> = args
         .context
-        .map_or_else(|| session_ctx.context_id().clone(), ContextId::new);
+        .and_then(|s| ContextId::try_new(s).ok())
+        .or_else(|| session_ctx.context_id().cloned());
     let auth_token = session_ctx.session_token().as_str();
 
     let task_id: Option<TaskId> = args.task.map(TaskId::new);

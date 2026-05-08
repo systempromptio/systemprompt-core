@@ -43,7 +43,14 @@ pub async fn fetch_log_events(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<
             user_id: row.user_id.map(UserId::new),
             session_id: row.session_id.map(SessionId::new),
             task_id: row.task_id.map(TaskId::new),
-            context_id: row.context_id.map(ContextId::new),
+            context_id: row.context_id.and_then(|s| {
+                ContextId::try_new(&s)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from logs row");
+                        e
+                    })
+                    .ok()
+            }),
             metadata: row.metadata,
         })
         .collect())
@@ -138,7 +145,14 @@ pub async fn fetch_ai_request_events(
                 user_id: Some(UserId::new(row.user_id)),
                 session_id: row.session_id.map(SessionId::new),
                 task_id: row.task_id.map(TaskId::new),
-                context_id: row.context_id.map(ContextId::new),
+                context_id: row.context_id.and_then(|s| {
+                    ContextId::try_new(&s)
+                        .map_err(|e| {
+                            tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from ai_requests row");
+                            e
+                        })
+                        .ok()
+                }),
                 metadata: Some(metadata.to_string()),
             }
         })

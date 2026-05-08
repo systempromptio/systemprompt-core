@@ -9,12 +9,15 @@ use systemprompt_identifiers::{
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
+
 fn test_builder(profile: &str) -> CliSessionBuilder {
     CliSessionBuilder::new(
         ProfileName::new(profile),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new("ctx-001"),
+        ContextId::new(TEST_CONTEXT_ID_A),
     )
 }
 
@@ -124,7 +127,7 @@ fn get_valid_session_returns_none_for_empty_token() {
         ProfileName::new("no-creds"),
         SessionToken::new(""),
         SessionId::new("sid"),
-        ContextId::new("ctx"),
+        ContextId::new(TEST_CONTEXT_ID_A),
     )
     .build();
     store.upsert_session(&key, session);
@@ -139,10 +142,10 @@ fn get_valid_session_mut_returns_mutable_ref() {
     store.upsert_session(&key, build_session("mutable"));
 
     let session = store.get_valid_session_mut(&key).unwrap();
-    session.set_context_id(ContextId::new("updated-ctx"));
+    session.set_context_id(ContextId::new(TEST_CONTEXT_ID_B));
 
     let retrieved = store.get_session(&key).unwrap();
-    assert_eq!(retrieved.context_id.as_str(), "updated-ctx");
+    assert_eq!(retrieved.context_id.as_str(), TEST_CONTEXT_ID_B);
 }
 
 #[test]

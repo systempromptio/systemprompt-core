@@ -6,11 +6,13 @@ use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, SessionId, Tr
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 fn create_test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("test-session".to_string()),
         TraceId::new("test-trace".to_string()),
-        ContextId::new("test-context".to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A.to_string()),
         AgentName::new("test-agent".to_string()),
     )
 }
