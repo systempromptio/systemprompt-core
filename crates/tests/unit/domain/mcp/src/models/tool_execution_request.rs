@@ -12,7 +12,7 @@ fn create_test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("test-session".to_string()),
         TraceId::new("test-trace".to_string()),
-        ContextId::new(TEST_CONTEXT_ID_A.to_string()),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent".to_string()),
     )
 }

@@ -50,21 +50,30 @@ fn no_first_user_returns_none() {
 fn same_first_turn_hashes_stably() {
     let a = br#"{"system":"s","messages":[{"role":"user","content":"hello"}]}"#;
     let b = br#"{"system":"s","messages":[{"role":"user","content":"hello"}]}"#;
-    assert_eq!(derive_gateway_conversation_id(a), derive_gateway_conversation_id(b));
+    assert_eq!(
+        derive_gateway_conversation_id(a),
+        derive_gateway_conversation_id(b)
+    );
 }
 
 #[test]
 fn second_turn_does_not_change_hash() {
     let first = br#"{"system":"s","messages":[{"role":"user","content":"hello"}]}"#;
     let after_reply = br#"{"system":"s","messages":[{"role":"user","content":"hello"},{"role":"assistant","content":"hi"},{"role":"user","content":"again"}]}"#;
-    assert_eq!(derive_gateway_conversation_id(first), derive_gateway_conversation_id(after_reply));
+    assert_eq!(
+        derive_gateway_conversation_id(first),
+        derive_gateway_conversation_id(after_reply)
+    );
 }
 
 #[test]
 fn different_first_turns_hash_differently() {
     let a = br#"{"messages":[{"role":"user","content":"alpha"}]}"#;
     let b = br#"{"messages":[{"role":"user","content":"beta"}]}"#;
-    assert_ne!(derive_gateway_conversation_id(a), derive_gateway_conversation_id(b));
+    assert_ne!(
+        derive_gateway_conversation_id(a),
+        derive_gateway_conversation_id(b)
+    );
 }
 
 #[test]
@@ -172,5 +181,8 @@ fn extra_unknown_fields_dont_affect_hash() {
     let bare = br#"{"messages":[{"role":"user","content":"hi"}]}"#;
     let with_extras =
         br#"{"model":"x","temperature":0.7,"max_tokens":100,"messages":[{"role":"user","content":"hi"}]}"#;
-    assert_eq!(derive_gateway_conversation_id(bare), derive_gateway_conversation_id(with_extras));
+    assert_eq!(
+        derive_gateway_conversation_id(bare),
+        derive_gateway_conversation_id(with_extras)
+    );
 }

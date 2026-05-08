@@ -6,6 +6,8 @@ use systemprompt_ai::models::{
 };
 use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 mod token_info_tests {
     use super::*;
 
@@ -140,7 +142,7 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_context_id() {
-        let context_id = ContextId::new("ctx-abc");
+        let context_id = ContextId::new(TEST_CONTEXT_ID_A);
         let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
@@ -301,7 +303,7 @@ mod ai_request_record_builder_tests {
     fn builder_chain_all_methods() {
         let session_id = SessionId::new("session");
         let task_id = TaskId::new("task");
-        let context_id = ContextId::new("context");
+        let context_id = ContextId::new(TEST_CONTEXT_ID_A);
         let trace_id = TraceId::new("trace");
 
         let record = AiRequestRecordBuilder::new(AiRequestId::new("req-full"), test_user_id())

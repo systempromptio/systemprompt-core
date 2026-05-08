@@ -6,7 +6,7 @@ use crate::repository::task::constructor::batch_queries;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{ArtifactId, ContextId};
+use systemprompt_identifiers::ArtifactId;
 use systemprompt_traits::RepositoryError;
 
 pub async fn rows_to_artifacts_batch(
@@ -79,7 +79,7 @@ fn convert_artifact_part_row(
 }
 
 pub fn row_to_artifact_with_parts(row: ArtifactRow, parts: Vec<Part>) -> Artifact {
-    let context_id = row.context_id.clone().unwrap_or_else(|| ContextId::new(""));
+    let context_id = row.context_id.clone();
     let (rendering_hints, mcp_schema, is_internal, execution_index) =
         extract_metadata_fields(row.metadata.as_ref());
 

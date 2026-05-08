@@ -10,9 +10,8 @@ use crate::execution::context::RequestContext;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExecutionMetadata {
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    #[schemars(with = "Option<String>")]
-    pub context_id: Option<ContextId>,
+    #[schemars(with = "String")]
+    pub context_id: ContextId,
 
     #[schemars(with = "String")]
     pub trace_id: TraceId,
@@ -50,7 +49,7 @@ pub struct ExecutionMetadata {
 impl Default for ExecutionMetadata {
     fn default() -> Self {
         Self {
-            context_id: None,
+            context_id: ContextId::generate(),
             trace_id: TraceId::new("default"),
             session_id: SessionId::new("default"),
             user_id: UserId::new("default"),
@@ -67,7 +66,7 @@ impl Default for ExecutionMetadata {
 
 #[derive(Debug)]
 pub struct ExecutionMetadataBuilder {
-    context_id: Option<ContextId>,
+    context_id: ContextId,
     trace_id: TraceId,
     session_id: SessionId,
     user_id: UserId,
@@ -83,7 +82,7 @@ pub struct ExecutionMetadataBuilder {
 impl ExecutionMetadataBuilder {
     pub fn new(ctx: &RequestContext) -> Self {
         Self {
-            context_id: ctx.context_id().cloned(),
+            context_id: ctx.context_id().clone(),
             trace_id: ctx.trace_id().clone(),
             session_id: ctx.session_id().clone(),
             user_id: ctx.user_id().clone(),

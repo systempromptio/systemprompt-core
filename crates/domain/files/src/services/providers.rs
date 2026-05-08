@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use systemprompt_identifiers::ContextId;
 use systemprompt_traits::{
     FileUploadInput, FileUploadProvider, FileUploadProviderError, FileUploadResult,
     UploadedFileInfo,
@@ -13,8 +14,9 @@ impl FileUploadProvider for FileUploadService {
     }
 
     async fn upload_file(&self, input: FileUploadInput) -> FileUploadResult<UploadedFileInfo> {
+        let context_id = input.context_id.unwrap_or_else(ContextId::generate);
         let mut builder =
-            FileUploadRequest::builder(&input.mime_type, &input.bytes_base64, input.context_id);
+            FileUploadRequest::builder(&input.mime_type, &input.bytes_base64, context_id);
 
         if let Some(name) = input.name {
             builder = builder.with_name(&name);

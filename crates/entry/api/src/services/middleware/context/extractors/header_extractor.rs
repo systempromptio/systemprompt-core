@@ -55,10 +55,17 @@ impl ContextExtractor for HeaderContextExtractor {
         let context_id_str = Self::extract_required_header(headers, "x-context-id")?;
         let agent_name_str = Self::extract_required_header(headers, "x-agent-name")?;
 
+        let context_id = ContextId::try_new(context_id_str).map_err(|e| {
+            ContextExtractionError::InvalidHeaderValue {
+                header: "x-context-id".to_string(),
+                reason: e.to_string(),
+            }
+        })?;
+
         let mut context = RequestContext::new(
             SessionId::new(session_id_str),
             TraceId::new(trace_id_str),
-            ContextId::new(context_id_str),
+            context_id,
             AgentName::new(agent_name_str),
         )
         .with_user_id(UserId::new(user_id_str));
@@ -82,7 +89,7 @@ impl ContextExtractor for HeaderContextExtractor {
         let context = RequestContext::new(
             SessionId::new(session_id_str),
             TraceId::new(trace_id_str),
-            ContextId::new(String::new()),
+            ContextId::generate(),
             AgentName::new(agent_name_str),
         )
         .with_user_id(UserId::new(user_id_str))

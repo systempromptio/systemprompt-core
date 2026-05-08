@@ -8,16 +8,14 @@ use crate::api::contexts::UserContextWithStats;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContextCreatedPayload {
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContextUpdatedPayload {
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
@@ -25,15 +23,13 @@ pub struct ContextUpdatedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContextDeletedPayload {
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ContextSummary {
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -44,7 +40,7 @@ pub struct ContextSummary {
 impl From<UserContextWithStats> for ContextSummary {
     fn from(c: UserContextWithStats) -> Self {
         Self {
-            context_id: Some(c.context_id),
+            context_id: c.context_id,
             name: c.name,
             created_at: c.created_at,
             updated_at: c.updated_at,
@@ -57,7 +53,7 @@ impl From<UserContextWithStats> for ContextSummary {
 impl From<&UserContextWithStats> for ContextSummary {
     fn from(c: &UserContextWithStats) -> Self {
         Self {
-            context_id: Some(c.context_id.clone()),
+            context_id: c.context_id.clone(),
             name: c.name.clone(),
             created_at: c.created_at,
             updated_at: c.updated_at,
@@ -70,7 +66,7 @@ impl From<&UserContextWithStats> for ContextSummary {
 impl From<ContextWithStats> for ContextSummary {
     fn from(c: ContextWithStats) -> Self {
         Self {
-            context_id: Some(ContextId::new(c.context_id)),
+            context_id: ContextId::new(c.context_id),
             name: c.name,
             created_at: c.created_at,
             updated_at: c.updated_at,
@@ -83,7 +79,7 @@ impl From<ContextWithStats> for ContextSummary {
 impl From<&ContextWithStats> for ContextSummary {
     fn from(c: &ContextWithStats) -> Self {
         Self {
-            context_id: Some(ContextId::new(&c.context_id)),
+            context_id: ContextId::new(&c.context_id),
             name: c.name.clone(),
             created_at: c.created_at,
             updated_at: c.updated_at,

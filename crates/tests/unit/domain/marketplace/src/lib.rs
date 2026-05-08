@@ -1,11 +1,17 @@
+#[cfg(test)]
 use async_trait::async_trait;
+#[cfg(test)]
 use systemprompt_identifiers::UserId;
+#[cfg(test)]
 use systemprompt_marketplace::{
     AllowAllFilter, MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
+#[cfg(test)]
 use systemprompt_models::bridge::ids::{PluginId, Sha256Digest};
+#[cfg(test)]
 use systemprompt_models::bridge::manifest::PluginEntry;
 
+#[cfg(test)]
 fn plugin(id: &str) -> PluginEntry {
     PluginEntry {
         id: PluginId::try_new(id).expect("non-empty id"),
@@ -18,9 +24,11 @@ fn plugin(id: &str) -> PluginEntry {
     }
 }
 
+#[cfg(test)]
 fn sample_candidate() -> MarketplaceCandidate {
     MarketplaceCandidate::new(
         vec![plugin("alpha"), plugin("beta")],
+        vec![],
         vec![],
         vec![],
         vec![],
@@ -62,9 +70,11 @@ async fn empty_candidate_round_trips() {
     assert!(after.is_empty());
 }
 
+#[cfg(test)]
 #[derive(Debug)]
 struct DropAllFilter;
 
+#[cfg(test)]
 #[async_trait]
 impl MarketplaceFilter for DropAllFilter {
     async fn filter(

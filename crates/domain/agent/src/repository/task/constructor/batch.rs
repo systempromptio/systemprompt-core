@@ -102,7 +102,7 @@ fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErr
 
         tasks.push(Task {
             id: row.task_id.clone(),
-            context_id: row.context_id.clone(),
+            context_id: Some(row.context_id.clone()),
             status: TaskStatus {
                 state: task_state,
                 message: None,

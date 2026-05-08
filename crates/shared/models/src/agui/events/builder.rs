@@ -21,7 +21,7 @@ pub struct AgUiEventBuilder;
 
 impl AgUiEventBuilder {
     pub fn run_started(
-        context_id: Option<ContextId>,
+        context_id: ContextId,
         task_id: TaskId,
         input: Option<Value>,
     ) -> AgUiEvent {
@@ -36,7 +36,7 @@ impl AgUiEventBuilder {
     }
 
     pub fn run_finished(
-        context_id: Option<ContextId>,
+        context_id: ContextId,
         task_id: TaskId,
         result: Option<Value>,
     ) -> AgUiEvent {
@@ -188,7 +188,7 @@ impl AgUiEventBuilder {
     pub fn artifact(
         artifact: Artifact,
         task_id: TaskId,
-        context_id: Option<ContextId>,
+        context_id: ContextId,
     ) -> AgUiEvent {
         Self::custom(CustomPayload::Artifact(Box::new(ArtifactCustomPayload {
             artifact,
@@ -197,7 +197,7 @@ impl AgUiEventBuilder {
         })))
     }
 
-    pub fn execution_step(step: ExecutionStep, context_id: Option<ContextId>) -> AgUiEvent {
+    pub fn execution_step(step: ExecutionStep, context_id: ContextId) -> AgUiEvent {
         Self::custom(CustomPayload::ExecutionStep(Box::new(
             ExecutionStepCustomPayload { step, context_id },
         )))

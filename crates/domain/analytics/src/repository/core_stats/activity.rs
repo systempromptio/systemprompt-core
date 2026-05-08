@@ -57,7 +57,7 @@ impl CoreStatsRepository {
             RecentConversation,
             r#"
             SELECT
-                uc.context_id as "context_id!",
+                uc.context_id as "context_id!: systemprompt_identifiers::ContextId",
                 COALESCE(at.agent_name, 'unknown') as "agent_name!",
                 COALESCE(u.name, 'anonymous') as "user_name!",
                 COALESCE(at.status, 'unknown') as "status!",

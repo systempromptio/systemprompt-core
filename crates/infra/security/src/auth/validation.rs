@@ -1,5 +1,5 @@
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
@@ -134,7 +134,7 @@ impl AuthValidationService {
         RequestContext::new(
             session_id,
             HeaderExtractor::extract_trace_id(headers),
-            HeaderExtractor::extract_context_id(headers),
+            HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate),
             HeaderExtractor::extract_agent_name(headers),
         )
         .with_user_id(user_id)
@@ -146,7 +146,7 @@ impl AuthValidationService {
         RequestContext::new(
             SessionId::new(ANONYMOUS_SESSION_ID.to_string()),
             HeaderExtractor::extract_trace_id(headers),
-            HeaderExtractor::extract_context_id(headers),
+            HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate),
             HeaderExtractor::extract_agent_name(headers),
         )
         .with_user_id(UserId::anonymous())
@@ -157,7 +157,7 @@ impl AuthValidationService {
         RequestContext::new(
             SessionId::new(TEST_SESSION_ID.to_string()),
             TraceId::new(TEST_TRACE_ID.to_string()),
-            None,
+            ContextId::generate(),
             AgentName::new(TEST_AGENT_NAME.to_string()),
         )
         .with_user_id(UserId::new(TEST_USER_ID.to_string()))

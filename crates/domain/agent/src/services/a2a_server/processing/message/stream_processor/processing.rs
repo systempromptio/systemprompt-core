@@ -34,7 +34,10 @@ impl StreamProcessor {
         let agent_name_typed = AgentName::new(agent_name);
         let (user_text, user_parts) = Self::extract_message_content(a2a_message);
 
-        let context_id = &a2a_message.context_id;
+        let context_id = a2a_message
+            .context_id
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Message missing required context_id"))?;
         let conversation_history = self
             .context_service
             .load_conversation_history(context_id)

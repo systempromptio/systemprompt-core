@@ -5,6 +5,9 @@ use systemprompt_files::{
 };
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
+
 #[test]
 fn test_file_validation_error_display_uploads_disabled() {
     let err = FileValidationError::UploadsDisabled;
@@ -106,7 +109,7 @@ fn test_file_upload_error_display_path_validation() {
 
 #[test]
 fn test_file_upload_request_builder_new() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let builder = FileUploadRequestBuilder::new("image/png", "base64data==", context_id);
     let debug_str = format!("{:?}", builder);
     assert!(debug_str.contains("FileUploadRequestBuilder"));
@@ -114,12 +117,12 @@ fn test_file_upload_request_builder_new() {
 
 #[test]
 fn test_file_upload_request_builder_build() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id).build();
 
     assert_eq!(request.mime_type, "image/png");
     assert_eq!(request.bytes_base64, "base64data==");
-    assert_eq!(request.context_id.as_str(), "ctx_123");
+    assert_eq!(request.context_id.as_str(), TEST_CONTEXT_ID_A);
     assert!(request.name.is_none());
     assert!(request.user_id.is_none());
     assert!(request.session_id.is_none());
@@ -128,7 +131,7 @@ fn test_file_upload_request_builder_build() {
 
 #[test]
 fn test_file_upload_request_builder_with_name() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_name("myfile.png")
         .build();
@@ -138,7 +141,7 @@ fn test_file_upload_request_builder_with_name() {
 
 #[test]
 fn test_file_upload_request_builder_with_user_id() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let user_id = UserId::new("user_abc");
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_user_id(user_id)
@@ -150,7 +153,7 @@ fn test_file_upload_request_builder_with_user_id() {
 
 #[test]
 fn test_file_upload_request_builder_with_session_id() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let session_id = SessionId::new("sess_xyz");
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_session_id(session_id)
@@ -165,7 +168,7 @@ fn test_file_upload_request_builder_with_session_id() {
 
 #[test]
 fn test_file_upload_request_builder_with_trace_id() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let trace_id = TraceId::new("trace_def");
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_trace_id(trace_id)
@@ -180,7 +183,7 @@ fn test_file_upload_request_builder_with_trace_id() {
 
 #[test]
 fn test_file_upload_request_builder_full_chain() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let user_id = UserId::new("user_abc");
     let session_id = SessionId::new("sess_xyz");
     let trace_id = TraceId::new("trace_def");
@@ -194,7 +197,7 @@ fn test_file_upload_request_builder_full_chain() {
 
     assert_eq!(request.mime_type, "application/pdf");
     assert_eq!(request.bytes_base64, "pdfdata==");
-    assert_eq!(request.context_id.as_str(), "ctx_123");
+    assert_eq!(request.context_id.as_str(), TEST_CONTEXT_ID_A);
     assert_eq!(request.name, Some("document.pdf".to_string()));
     assert_eq!(request.user_id.as_ref().unwrap().as_str(), "user_abc");
     assert_eq!(request.session_id.as_ref().unwrap().as_str(), "sess_xyz");
@@ -203,7 +206,7 @@ fn test_file_upload_request_builder_full_chain() {
 
 #[test]
 fn test_file_upload_request_builder_static_method() {
-    let context_id = ContextId::new("ctx_456");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_B);
     let request = FileUploadRequest::builder("image/jpeg", "jpegdata==", context_id).build();
 
     assert_eq!(request.mime_type, "image/jpeg");
@@ -212,7 +215,7 @@ fn test_file_upload_request_builder_static_method() {
 
 #[test]
 fn test_file_upload_request_clone() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let request = FileUploadRequest::builder("image/png", "data==", context_id)
         .with_name("test.png")
         .build();
@@ -225,7 +228,7 @@ fn test_file_upload_request_clone() {
 
 #[test]
 fn test_file_upload_request_debug() {
-    let context_id = ContextId::new("ctx_123");
+    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
     let request = FileUploadRequest::builder("image/png", "data==", context_id).build();
 
     let debug_str = format!("{:?}", request);

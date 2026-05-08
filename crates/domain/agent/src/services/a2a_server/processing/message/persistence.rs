@@ -42,18 +42,18 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
         .map_err(|e| anyhow!("Failed to update task and save messages: {}", e))?;
 
     if !artifacts_already_published {
-        if let Some(ref artifacts) = task.artifacts {
+        if let (Some(artifacts), Some(context_id)) = (&task.artifacts, &task.context_id) {
             let publishing_service = ArtifactPublishingService::new(db_pool)?;
             for artifact in artifacts {
                 publishing_service
-                    .publish_from_a2a(artifact, &task.id, &task.context_id)
+                    .publish_from_a2a(artifact, &task.id, context_id)
                     .await
                     .map_err(|e| anyhow!("Failed to publish artifact {}: {}", artifact.id, e))?;
 
                 broadcast_artifact_created(
                     artifact,
                     &task.id,
-                    &task.context_id,
+                    context_id,
                     context.user_id(),
                     context.auth_token().as_str(),
                 )
@@ -71,7 +71,7 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
 
     tracing::info!(
         task_id = %task.id,
-        context_id = %task.context_id,
+        context_id = ?task.context_id,
         user_id = %context.user_id(),
         "Persisted task"
     );

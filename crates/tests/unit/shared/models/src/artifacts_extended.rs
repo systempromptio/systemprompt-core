@@ -1,5 +1,7 @@
 use serde_json::json;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 use systemprompt_models::artifacts::chart::ChartDataset;
 use systemprompt_models::artifacts::dashboard::{
     DashboardHints, DashboardSection, DatabaseStatus, ErrorCounts, ItemList, LayoutMode,
@@ -20,7 +22,7 @@ fn test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("test-session"),
         TraceId::new("test-trace"),
-        ContextId::new("test-context"),
+        ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("test-agent"),
     )
 }

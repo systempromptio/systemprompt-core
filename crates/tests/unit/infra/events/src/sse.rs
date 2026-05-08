@@ -7,9 +7,13 @@ use systemprompt_models::{
     ContextEvent, SystemEvent, SystemEventBuilder,
 };
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
+
+
 fn test_agui_event() -> AgUiEvent {
     AgUiEventBuilder::run_started(
-        ContextId::new("test-context"),
+        ContextId::new(TEST_CONTEXT_ID_A),
         TaskId::new("test-task"),
         None,
     )
@@ -18,7 +22,7 @@ fn test_agui_event() -> AgUiEvent {
 fn test_a2a_event() -> A2AEvent {
     A2AEventBuilder::task_status_update(
         TaskId::new("test-task"),
-        ContextId::new("test-context"),
+        ContextId::new(TEST_CONTEXT_ID_A),
         TaskState::Working,
         Some("test message".to_string()),
     )
@@ -183,10 +187,16 @@ fn test_context_event_a2a_to_sse_succeeds() {
 
 #[test]
 fn test_multiple_agui_events_serialize_independently() {
-    let event1 =
-        AgUiEventBuilder::run_started(ContextId::new("context-1"), TaskId::new("task-1"), None);
-    let event2 =
-        AgUiEventBuilder::run_started(ContextId::new("context-2"), TaskId::new("task-2"), None);
+    let event1 = AgUiEventBuilder::run_started(
+        ContextId::new(TEST_CONTEXT_ID_A),
+        TaskId::new("task-1"),
+        None,
+    );
+    let event2 = AgUiEventBuilder::run_started(
+        ContextId::new(TEST_CONTEXT_ID_B),
+        TaskId::new("task-2"),
+        None,
+    );
 
     let sse1 = event1.to_sse().expect("should serialize");
     let sse2 = event2.to_sse().expect("should serialize");
@@ -194,8 +204,8 @@ fn test_multiple_agui_events_serialize_independently() {
     let debug1 = format!("{:?}", sse1);
     let debug2 = format!("{:?}", sse2);
 
-    assert!(debug1.contains("context-1") || debug1.contains("task-1"));
-    assert!(debug2.contains("context-2") || debug2.contains("task-2"));
+    assert!(debug1.contains(TEST_CONTEXT_ID_A) || debug1.contains("task-1"));
+    assert!(debug2.contains(TEST_CONTEXT_ID_B) || debug2.contains("task-2"));
 }
 
 #[test]

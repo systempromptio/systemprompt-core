@@ -7,6 +7,8 @@ use systemprompt_analytics::models::{
 };
 use systemprompt_identifiers::ContextId;
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 mod agent_row_tests {
     use super::*;
 
@@ -133,7 +135,7 @@ mod agent_row_tests {
     fn conversation_list_row_stores_values() {
         let now = Utc::now();
         let row = ConversationListRow {
-            context_id: ContextId::new("ctx_conv".to_string()),
+            context_id: ContextId::new(TEST_CONTEXT_ID_A.to_string()),
             name: Some("Support Chat".to_string()),
             task_count: 5,
             message_count: 25,
@@ -141,7 +143,7 @@ mod agent_row_tests {
             updated_at: now,
         };
 
-        assert_eq!(row.context_id.as_str(), "ctx_conv");
+        assert_eq!(row.context_id.as_str(), TEST_CONTEXT_ID_A);
         assert_eq!(row.name, Some("Support Chat".to_string()));
         assert_eq!(row.task_count, 5);
         assert_eq!(row.message_count, 25);

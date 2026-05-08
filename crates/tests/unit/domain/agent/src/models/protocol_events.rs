@@ -11,6 +11,8 @@ use systemprompt_agent::models::a2a::{
 };
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 
+const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
 fn create_test_artifact(id: &str) -> Artifact {
     Artifact {
         id: ArtifactId::new(id),
@@ -20,7 +22,7 @@ fn create_test_artifact(id: &str) -> Artifact {
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             "text".to_string(),
-            ContextId::new("ctx-1"),
+            ContextId::new(TEST_CONTEXT_ID_A),
             TaskId::new("task-1"),
         ),
     }

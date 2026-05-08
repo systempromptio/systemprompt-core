@@ -97,7 +97,7 @@ impl SessionMiddleware {
         RequestContext::new(
             SessionId::new(format!("untracked_{}", Uuid::new_v4())),
             trace_id,
-            ContextId::new(String::new()),
+            ContextId::generate(),
             AgentName::system(),
         )
         .with_user_id(UserId::new("anonymous".to_string()))
@@ -109,7 +109,7 @@ impl SessionMiddleware {
         RequestContext::new(
             SessionId::new(format!("bot_{}", Uuid::new_v4())),
             trace_id,
-            ContextId::new(String::new()),
+            ContextId::generate(),
             AgentName::system(),
         )
         .with_user_id(UserId::new("bot".to_string()))
@@ -144,16 +144,14 @@ impl SessionMiddleware {
             .resolve_session(token_result, headers, uri, method)
             .await?;
 
-        let mut ctx = RequestContext::new(
-            session_id,
-            trace_id,
-            ContextId::new(String::new()),
-            AgentName::system(),
-        )
-        .with_user_id(user_id)
-        .with_auth_token(jwt_token)
-        .with_user_type(UserType::Anon)
-        .with_tracked(true);
+        let context_id =
+            HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate);
+
+        let mut ctx = RequestContext::new(session_id, trace_id, context_id, AgentName::system())
+            .with_user_id(user_id)
+            .with_auth_token(jwt_token)
+            .with_user_type(UserType::Anon)
+            .with_tracked(true);
         if let Some(fp) = fingerprint_hash {
             ctx = ctx.with_fingerprint_hash(fp);
         }

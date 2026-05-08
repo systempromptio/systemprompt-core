@@ -42,11 +42,8 @@ pub(crate) fn write_hooks_json(
     let track_url = format!("{base}/api/public/hooks/track?plugin_id={plugin_id}");
     let mut body = HooksFile::new(govern_url, &track_url, PLUGIN_TOKEN_ENV_VAR);
     for hook in user_hooks {
-        let entry = WireHookEntry::user_command(
-            hook.command.clone(),
-            hook.event.as_str(),
-            hook.is_async,
-        );
+        let entry =
+            WireHookEntry::user_command(hook.command.clone(), hook.event.as_str(), hook.is_async);
         body.append_user_hook(hook.event.as_str().to_string(), hook.matcher.clone(), entry);
     }
     let bytes = serde_json::to_vec_pretty(&body).map_err(|e| ApplyError::Serialize {

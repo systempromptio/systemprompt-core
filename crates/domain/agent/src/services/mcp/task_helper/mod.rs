@@ -35,12 +35,12 @@ pub async fn ensure_task_exists(
         });
     }
 
-    let context_id = request_context.context_id();
+    let initial_context_id = request_context.context_id().as_str().to_owned();
     let context_repo = ContextRepository::new(db_pool).map_err(|e| {
         McpError::internal_error(format!("Failed to create context repository: {e}"), None)
     })?;
 
-    let context_id = if context_id.is_empty() {
+    let context_id = if initial_context_id.is_empty() {
         if let Ok(Some(existing)) = context_repo
             .find_by_session_id(request_context.session_id())
             .await
@@ -74,7 +74,7 @@ pub async fn ensure_task_exists(
             new_context_id
         }
     } else {
-        let old_context_id = context_id.clone();
+        let old_context_id = request_context.context_id().clone();
         match context_repo
             .validate_context_ownership(&old_context_id, request_context.user_id())
             .await
@@ -127,7 +127,7 @@ pub async fn ensure_task_exists(
 
     let task = Task {
         id: task_id.clone(),
-        context_id: context_id.clone(),
+        context_id: Some(context_id.clone()),
         status: TaskStatus {
             state: TaskState::Submitted,
             message: None,

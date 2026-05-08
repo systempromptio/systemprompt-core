@@ -16,8 +16,7 @@ pub enum MessageRole {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunStartedPayload {
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub thread_id: Option<ContextId>,
+    pub thread_id: ContextId,
     pub run_id: TaskId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<Value>,
@@ -26,8 +25,7 @@ pub struct RunStartedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunFinishedPayload {
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub thread_id: Option<ContextId>,
+    pub thread_id: ContextId,
     pub run_id: TaskId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<Value>,
@@ -127,16 +125,14 @@ pub struct MessagesSnapshotPayload {
 pub struct ArtifactCustomPayload {
     pub artifact: crate::a2a::Artifact,
     pub task_id: TaskId,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionStepCustomPayload {
     pub step: crate::execution::ExecutionStep,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

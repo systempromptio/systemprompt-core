@@ -81,7 +81,7 @@ impl TaskBuilder {
             })],
             message_id: self.id.clone(),
             task_id: Some(self.task_id.clone()),
-            context_id: self.context_id.clone(),
+            context_id: Some(self.context_id.clone()),
             metadata: None,
             extensions: None,
             reference_task_ids: None,
@@ -97,7 +97,7 @@ impl TaskBuilder {
                     })],
                     message_id: MessageId::generate(),
                     task_id: Some(self.task_id.clone()),
-                    context_id: self.context_id.clone(),
+                    context_id: Some(self.context_id.clone()),
                     metadata: None,
                     extensions: None,
                     reference_task_ids: None,
@@ -109,7 +109,7 @@ impl TaskBuilder {
 
         Task {
             id: self.task_id.clone(),
-            context_id: self.context_id.clone(),
+            context_id: Some(self.context_id.clone()),
             status: TaskStatus {
                 state: self.state,
                 message: Some(agent_message),

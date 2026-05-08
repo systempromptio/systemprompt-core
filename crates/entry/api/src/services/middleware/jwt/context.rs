@@ -109,10 +109,9 @@ impl JwtContextExtractor {
         let context_id = headers
             .get("x-context-id")
             .and_then(|h| h.to_str().ok())
-            .map_or_else(
-                || ContextId::new(String::new()),
-                |s| ContextId::new(s.to_string()),
-            );
+            .filter(|s| !s.is_empty())
+            .and_then(|s| ContextId::try_new(s).ok())
+            .unwrap_or_else(ContextId::generate);
 
         let (trace_id, task_id, auth_token, agent_name) =
             extract_common_headers(&self.token_extractor, headers);
@@ -166,9 +165,7 @@ impl JwtContextExtractor {
         &self,
         request: Request<Body>,
     ) -> Result<(RequestContext, Request<Body>), ContextExtractionError> {
-        use crate::services::middleware::context::sources::{
-            ContextIdSource, PayloadSource, TASK_BASED_CONTEXT_MARKER,
-        };
+        use crate::services::middleware::context::sources::{ContextIdSource, PayloadSource};
 
         let headers = request.headers().clone();
         let has_auth = headers.get("authorization").is_some();
@@ -205,10 +202,14 @@ impl JwtContextExtractor {
 
         let context_source = PayloadSource::extract_context_source(&body_bytes)?;
         let (context_id, task_id_from_payload) = match context_source {
-            ContextIdSource::Direct(id) => (ContextId::new(id), None),
-            ContextIdSource::FromTask { task_id } => {
-                (ContextId::new(TASK_BASED_CONTEXT_MARKER), Some(task_id))
-            },
+            ContextIdSource::Direct(id) => (
+                ContextId::try_new(id).map_err(|e| ContextExtractionError::InvalidHeaderValue {
+                    header: "contextId".to_string(),
+                    reason: e.to_string(),
+                })?,
+                None,
+            ),
+            ContextIdSource::FromTask { task_id } => (ContextId::generate(), Some(task_id)),
         };
 
         let (trace_id, task_id_from_header, auth_token, agent_name) =
