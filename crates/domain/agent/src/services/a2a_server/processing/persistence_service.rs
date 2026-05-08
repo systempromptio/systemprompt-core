@@ -128,7 +128,7 @@ impl PersistenceService {
 
         Task {
             id: task_id,
-            context_id: context_id,
+            context_id,
             status: TaskStatus {
                 state: TaskState::Submitted,
                 message: None,

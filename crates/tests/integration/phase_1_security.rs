@@ -141,7 +141,7 @@ fn test_request_context_only_one_constructor() {
     let ctx = RequestContext::new(
         SessionId::new("sess_123".to_string()),
         TraceId::new("trace_456".to_string()),
-        ContextId::new(String::new()),
+        ContextId::generate(),
         AgentName::new("agent".to_string()),
     );
 

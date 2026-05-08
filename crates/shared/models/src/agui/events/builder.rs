@@ -20,11 +20,7 @@ use crate::execution::ExecutionStep;
 pub struct AgUiEventBuilder;
 
 impl AgUiEventBuilder {
-    pub fn run_started(
-        context_id: ContextId,
-        task_id: TaskId,
-        input: Option<Value>,
-    ) -> AgUiEvent {
+    pub fn run_started(context_id: ContextId, task_id: TaskId, input: Option<Value>) -> AgUiEvent {
         AgUiEvent::RunStarted {
             timestamp: Utc::now(),
             payload: RunStartedPayload {
@@ -185,11 +181,7 @@ impl AgUiEventBuilder {
         }
     }
 
-    pub fn artifact(
-        artifact: Artifact,
-        task_id: TaskId,
-        context_id: ContextId,
-    ) -> AgUiEvent {
+    pub fn artifact(artifact: Artifact, task_id: TaskId, context_id: ContextId) -> AgUiEvent {
         Self::custom(CustomPayload::Artifact(Box::new(ArtifactCustomPayload {
             artifact,
             task_id,

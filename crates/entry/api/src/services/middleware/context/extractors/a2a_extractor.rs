@@ -6,9 +6,7 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId,
 use systemprompt_models::execution::{ContextExtractionError, RequestContext};
 
 use super::traits::ContextExtractor;
-use crate::services::middleware::context::sources::{
-    ContextIdSource, HeaderSource, PayloadSource,
-};
+use crate::services::middleware::context::sources::{ContextIdSource, HeaderSource, PayloadSource};
 
 #[derive(Debug, Clone, Copy)]
 pub struct A2aContextExtractor;
@@ -80,10 +78,9 @@ impl A2aContextExtractor {
                 })?;
                 (id, HeaderSource::extract_optional(headers, "x-task-id"))
             },
-            ContextIdSource::FromTask { task_id } => (
-                ContextId::generate(),
-                Some(task_id.as_str().to_string()),
-            ),
+            ContextIdSource::FromTask { task_id } => {
+                (ContextId::generate(), Some(task_id.as_str().to_string()))
+            },
         };
 
         let mut context = RequestContext::new(
