@@ -1,25 +1,17 @@
-//! Execution-context identifier (one per logical conversation/task tree).
+//! Execution-context identifier — UUID v4 only.
 
-crate::define_id!(ContextId, generate, schema);
+use crate::error::IdValidationError;
+
+crate::define_id!(ContextId, validated, schema, validate_uuid_v4);
+
+fn validate_uuid_v4(s: &str) -> Result<(), IdValidationError> {
+    uuid::Uuid::parse_str(s).map_err(|e| IdValidationError::invalid("ContextId", e.to_string()))?;
+    Ok(())
+}
 
 impl ContextId {
-    pub fn system() -> Self {
-        Self("system".to_string())
-    }
-
-    pub const fn empty() -> Self {
-        Self(String::new())
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn is_system(&self) -> bool {
-        self.0 == "system"
-    }
-
-    pub fn is_anonymous(&self) -> bool {
-        self.0 == "anonymous"
+    pub fn generate() -> Self {
+        // Safe: UUID v4 from `uuid` crate is always a valid UUID string.
+        Self::new(uuid::Uuid::new_v4().to_string())
     }
 }
