@@ -47,7 +47,7 @@ pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 
 pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus,
-    ContextService, SkillIngestionService, SkillService,
+    ContextService, SkillService,
 };
 
 pub use repository::content::ArtifactRepository;

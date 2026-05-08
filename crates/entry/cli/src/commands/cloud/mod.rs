@@ -101,9 +101,6 @@ pub enum CloudCommands {
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Sync {
-                command: Some(sync::SyncCommands::Local(_)),
-            } => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
             Self::Deploy { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Sync { command: Some(_) } | Self::Secrets { .. } => {
                 CommandDescriptor::PROFILE_AND_SECRETS

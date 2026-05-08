@@ -1,6 +1,6 @@
 //! Cloud sync orchestration for systemprompt.io.
 //!
-//! Drives push/pull of files, agents, skills, content, and database state
+//! Drives push/pull of files, agents, content, and database state
 //! between a local systemprompt project and the systemprompt cloud (or a
 //! self-hosted tenant in direct-sync mode).
 //!
@@ -9,10 +9,9 @@
 //! - [`SyncService`], [`SyncConfig`], [`SyncConfigBuilder`] — high-level façade
 //!   that wires everything together for `cloud sync` commands.
 //! - [`SyncApiClient`] — low-level HTTP client for the cloud API.
-//! - [`AgentsLocalSync`], [`SkillsLocalSync`], [`ContentLocalSync`] — disk ↔
+//! - [`AgentsLocalSync`], [`ContentLocalSync`] — disk ↔
 //!   database sync for each domain.
-//! - [`AgentsDiffCalculator`], [`SkillsDiffCalculator`],
-//!   [`ContentDiffCalculator`] — pure diff computation.
+//! - [`AgentsDiffCalculator`], [`ContentDiffCalculator`] — pure diff computation.
 //! - [`SyncError`] / [`SyncResult`] — typed error returned by every public
 //!   function in this crate.
 //!
@@ -39,27 +38,22 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 
 pub use api_client::SyncApiClient;
-pub use database::{ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
-pub use diff::{
-    AgentsDiffCalculator, ContentDiffCalculator, SkillsDiffCalculator, compute_content_hash,
-};
+pub use database::{ContextExport, DatabaseExport, DatabaseSyncService};
+pub use diff::{AgentsDiffCalculator, ContentDiffCalculator, compute_content_hash};
 pub use error::{SyncError, SyncResult};
 pub use export::{
-    escape_yaml, export_agent_to_disk, export_content_to_file, export_skill_to_disk,
-    generate_agent_config, generate_agent_system_prompt, generate_content_markdown,
-    generate_skill_config, generate_skill_markdown,
+    escape_yaml, export_agent_to_disk, export_content_to_file, generate_agent_config,
+    generate_agent_system_prompt, generate_content_markdown,
 };
 pub use files::{
     FileBundle, FileDiffStatus, FileEntry, FileManifest, FileSyncService, PullDownload,
     SyncDiffEntry, SyncDiffResult,
 };
 pub use jobs::{AccessControlSyncJob, ContentSyncJob};
-pub use local::{
-    AccessControlLocalSync, AgentsLocalSync, ContentDiffEntry, ContentLocalSync, SkillsLocalSync,
-};
+pub use local::{AccessControlLocalSync, AgentsLocalSync, ContentDiffEntry, ContentLocalSync};
 pub use models::{
     AgentDiffItem, AgentsDiffResult, ContentDiffItem, ContentDiffResult, DiffStatus, DiskAgent,
-    DiskContent, DiskSkill, LocalSyncDirection, LocalSyncResult, SkillDiffItem, SkillsDiffResult,
+    DiskContent, LocalSyncDirection, LocalSyncResult,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

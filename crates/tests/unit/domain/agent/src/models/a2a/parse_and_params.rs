@@ -13,7 +13,7 @@ fn test_parse_message_send_request() {
                 "role": "ROLE_USER",
                 "parts": [{"text": "Hello"}],
                 "messageId": "msg-1",
-                "contextId": "ctx-1"
+                "contextId": "00000000-0000-4000-8000-000000000001"
             }
         }),
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("1".to_string()),
@@ -82,7 +82,7 @@ fn test_parse_message_stream_request() {
                 "role": "ROLE_USER",
                 "parts": [{"text": "Stream this"}],
                 "messageId": "msg-2",
-                "contextId": "ctx-2"
+                "contextId": "00000000-0000-4000-8000-000000000001"
             }
         }),
         id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("4".to_string()),

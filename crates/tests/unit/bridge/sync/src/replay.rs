@@ -44,6 +44,7 @@ fn canonical_payload_includes_not_before_in_position() {
         plugins: vec![],
         skills: vec![],
         agents: vec![],
+        hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
         enabled_hosts: vec![],

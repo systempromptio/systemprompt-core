@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use anyhow::{Context, Result, bail};
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
@@ -10,39 +8,31 @@ use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
 
-use super::{SkillsSyncArgs, skills};
-
 #[derive(Debug, Clone, Copy)]
 pub enum SyncType {
     Push,
     Pull,
-    LocalSkills,
 }
 
 pub struct ProfileSelection {
     pub name: String,
-    pub path: PathBuf,
     pub profile: Profile,
 }
 
-pub async fn execute(config: &CliConfig) -> Result<()> {
+pub async fn execute(_config: &CliConfig) -> Result<()> {
     CliService::section("Sync Menu");
 
     let sync_type = select_sync_type()?;
 
     let source = select_profile("Select source profile")?;
 
-    match sync_type {
-        SyncType::Push | SyncType::Pull => execute_cloud_sync(sync_type, &source).await,
-        SyncType::LocalSkills => execute_local_skills_sync(&source, config).await,
-    }
+    execute_cloud_sync(sync_type, &source).await
 }
 
 fn select_sync_type() -> Result<SyncType> {
     let options = vec![
         "Push to cloud (Local → Cloud)",
         "Pull from cloud (Cloud → Local)",
-        "Sync skills (Disk ↔ Database)",
     ];
 
     let selection = Select::with_theme(&ColorfulTheme::default())
@@ -55,7 +45,6 @@ fn select_sync_type() -> Result<SyncType> {
     match selection {
         0 => Ok(SyncType::Push),
         1 => Ok(SyncType::Pull),
-        2 => Ok(SyncType::LocalSkills),
         _ => bail!("Invalid selection"),
     }
 }
@@ -121,11 +110,7 @@ fn discover_profiles() -> Result<Vec<ProfileSelection>> {
             let name = entry.file_name().to_string_lossy().to_string();
             let profile = ProfileLoader::load_from_path(&profile_yaml).ok()?;
 
-            Some(ProfileSelection {
-                name,
-                path: profile_yaml,
-                profile,
-            })
+            Some(ProfileSelection { name, profile })
         })
         .collect();
 
@@ -164,7 +149,6 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     let direction = match sync_type {
         SyncType::Push => SyncDirection::Push,
         SyncType::Pull => SyncDirection::Pull,
-        SyncType::LocalSkills => bail!("Invalid sync type for cloud sync"),
     };
 
     let config = SyncConfig {
@@ -212,20 +196,3 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     Ok(())
 }
 
-async fn execute_local_skills_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
-    use systemprompt_config::ProfileBootstrap;
-
-    ProfileBootstrap::init_from_path(&source.path)
-        .context("Failed to initialize profile for skills sync")?;
-
-    let args = SkillsSyncArgs {
-        direction: None,
-        database_url: None,
-        skill: None,
-        dry_run: false,
-        delete_orphans: false,
-        yes: false,
-    };
-
-    skills::execute(args, config).await
-}

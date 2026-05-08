@@ -128,7 +128,20 @@ fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, Str
 }
 
 fn optional_context_id(headers: &HeaderMap) -> Result<Option<ContextId>, (StatusCode, String)> {
-    optional_typed_header(headers, sp_headers::CONTEXT_ID, ContextId::new)
+    let Some(raw) = headers.get(sp_headers::CONTEXT_ID) else {
+        return Ok(None);
+    };
+    let raw = raw.to_str().map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("invalid {} header: {e}", sp_headers::CONTEXT_ID),
+        )
+    })?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    Ok(ContextId::try_new(trimmed.to_string()).ok())
 }
 
 fn optional_gateway_conversation_id(
@@ -188,27 +201,6 @@ fn require_typed_header<T>(
         return Err((StatusCode::BAD_REQUEST, format!("empty {name} header")));
     }
     Ok(ctor(trimmed.to_string()))
-}
-
-fn optional_typed_header<T>(
-    headers: &HeaderMap,
-    name: &'static str,
-    ctor: fn(String) -> T,
-) -> Result<Option<T>, (StatusCode, String)> {
-    let Some(raw) = headers.get(name) else {
-        return Ok(None);
-    };
-    let raw = raw.to_str().map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("invalid {name} header: {e}"),
-        )
-    })?;
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(ctor(trimmed.to_string())))
 }
 
 async fn read_gateway_body(

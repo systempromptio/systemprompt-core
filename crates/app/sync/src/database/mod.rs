@@ -1,4 +1,4 @@
-//! Database push / pull: serialise the user, skill, and context tables to
+//! Database push / pull: serialise the user and context tables to
 //! JSON and round-trip them between a local Postgres and a cloud Postgres
 //! using compile-time-checked `sqlx` upserts.
 
@@ -8,17 +8,16 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::prelude::FromRow;
-use systemprompt_identifiers::{ContextId, SessionId, SkillId, SourceId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
 use crate::error::SyncResult;
 use crate::{SyncDirection, SyncOperationResult};
 
-use upsert::{upsert_context, upsert_skill, upsert_user};
+use upsert::{upsert_context, upsert_user};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DatabaseExport {
     pub users: Vec<UserExport>,
-    pub skills: Vec<SkillExport>,
     pub contexts: Vec<ContextExport>,
     pub timestamp: DateTime<Utc>,
 }
@@ -36,21 +35,6 @@ pub struct UserExport {
     pub is_bot: bool,
     pub is_scanner: bool,
     pub avatar_url: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
-pub struct SkillExport {
-    pub skill_id: SkillId,
-    pub file_path: String,
-    pub name: String,
-    pub description: String,
-    pub instructions: String,
-    pub enabled: bool,
-    pub tags: Option<Vec<String>>,
-    pub category_id: Option<String>,
-    pub source_id: SourceId,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -104,7 +88,7 @@ impl DatabaseSyncService {
 
     async fn push(&self) -> SyncResult<SyncOperationResult> {
         let export = export_from_database(&self.local_database_url).await?;
-        let count = export.users.len() + export.skills.len() + export.contexts.len();
+        let count = export.users.len() + export.contexts.len();
 
         if self.dry_run {
             return Ok(SyncOperationResult::dry_run(
@@ -112,7 +96,6 @@ impl DatabaseSyncService {
                 count,
                 serde_json::json!({
                     "users": export.users.len(),
-                    "skills": export.skills.len(),
                     "contexts": export.contexts.len(),
                 }),
             ));
@@ -124,7 +107,7 @@ impl DatabaseSyncService {
 
     async fn pull(&self) -> SyncResult<SyncOperationResult> {
         let export = export_from_database(&self.cloud_database_url).await?;
-        let count = export.users.len() + export.skills.len() + export.contexts.len();
+        let count = export.users.len() + export.contexts.len();
 
         if self.dry_run {
             return Ok(SyncOperationResult::dry_run(
@@ -132,7 +115,6 @@ impl DatabaseSyncService {
                 count,
                 serde_json::json!({
                     "users": export.users.len(),
-                    "skills": export.skills.len(),
                     "contexts": export.contexts.len(),
                 }),
             ));
@@ -155,18 +137,6 @@ async fn export_from_database(database_url: &str) -> SyncResult<DatabaseExport> 
     .fetch_all(&pool)
     .await?;
 
-    let skills = sqlx::query_as!(
-        SkillExport,
-        r#"SELECT skill_id as "skill_id!: SkillId",
-                  file_path, name, description, instructions, enabled,
-                  tags, category_id,
-                  source_id as "source_id!: SourceId",
-                  created_at, updated_at
-           FROM agent_skills"#
-    )
-    .fetch_all(&pool)
-    .await?;
-
     let contexts = sqlx::query_as!(
         ContextExport,
         r#"SELECT context_id as "context_id!: ContextId",
@@ -180,7 +150,6 @@ async fn export_from_database(database_url: &str) -> SyncResult<DatabaseExport> 
 
     Ok(DatabaseExport {
         users,
-        skills,
         contexts,
         timestamp: Utc::now(),
     })
@@ -194,7 +163,7 @@ async fn import_to_database(
     let mut created = 0;
     let mut updated = 0;
     let mut completed = 0usize;
-    let total = export.users.len() + export.skills.len() + export.contexts.len();
+    let total = export.users.len() + export.contexts.len();
 
     for user in &export.users {
         match upsert_user(&pool, user).await {
@@ -208,23 +177,6 @@ async fn import_to_database(
                     completed,
                     total,
                     message: format!("user upsert failed: {err}"),
-                });
-            },
-        }
-    }
-
-    for skill in &export.skills {
-        match upsert_skill(&pool, skill).await {
-            Ok((c, u)) => {
-                created += c;
-                updated += u;
-                completed += 1;
-            },
-            Err(err) => {
-                return Err(crate::error::SyncError::PartialImport {
-                    completed,
-                    total,
-                    message: format!("skill upsert failed: {err}"),
                 });
             },
         }

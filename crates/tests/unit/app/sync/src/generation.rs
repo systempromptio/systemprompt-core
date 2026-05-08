@@ -1,8 +1,6 @@
 use chrono::{TimeZone, Utc};
-use std::fs;
 use systemprompt_sync::{
-    compute_content_hash, escape_yaml, export_content_to_file, export_skill_to_disk,
-    generate_content_markdown, generate_skill_config, generate_skill_markdown,
+    compute_content_hash, escape_yaml, export_content_to_file, generate_content_markdown,
 };
 use tempfile::TempDir;
 
@@ -83,117 +81,6 @@ mod escape_yaml_tests {
 
     #[test]
     fn multiple_escapes() { assert_eq!(escape_yaml("a\\b\"c\nd"), r#"a\\b\"c\nd"#); }
-}
-
-mod skill_generation_tests {
-    use super::*;
-    use systemprompt_agent::models::Skill;
-    use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
-
-    #[test]
-    fn markdown_structure() {
-        let skill = Skill {
-            skill_id: SkillId::new("test_skill"),
-            file_path: "/skills/test-skill/SKILL.md".to_string(),
-            name: "Test Skill".to_string(),
-            description: "A test skill description".to_string(),
-            instructions: "Follow these instructions carefully.".to_string(),
-            enabled: true,
-            tags: vec!["tag1".to_string(), "tag2".to_string()],
-            category_id: Some(CategoryId::new("skills")),
-            source_id: SourceId::new("skills"),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        let markdown = generate_skill_markdown(&skill);
-        assert!(markdown.starts_with("---\n"));
-        assert!(markdown.contains("description: \"A test skill description\""));
-        assert!(markdown.contains("Follow these instructions carefully."));
-    }
-
-    #[test]
-    fn config_structure() {
-        let skill = Skill {
-            skill_id: SkillId::new("config_test"),
-            file_path: "/skills/config-test/SKILL.md".to_string(),
-            name: "Config Test".to_string(),
-            description: "Testing config generation".to_string(),
-            instructions: "Instructions here".to_string(),
-            enabled: true,
-            tags: vec!["tag1".to_string()],
-            category_id: Some(CategoryId::new("skills")),
-            source_id: SourceId::new("skills"),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        let config = generate_skill_config(&skill);
-        assert!(config.contains("id: config_test"));
-        assert!(config.contains("enabled: true"));
-    }
-
-    #[test]
-    fn config_empty_tags() {
-        let skill = Skill {
-            skill_id: SkillId::new("no_tags"),
-            file_path: "/skills/no-tags/SKILL.md".to_string(),
-            name: "No Tags".to_string(),
-            description: "No tags skill".to_string(),
-            instructions: "Instructions".to_string(),
-            enabled: false,
-            tags: vec![],
-            category_id: None,
-            source_id: SourceId::new("skills"),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        let config = generate_skill_config(&skill);
-        assert!(config.contains("enabled: false"));
-    }
-
-    #[test]
-    fn export_to_disk_creates_files() {
-        let temp_dir = TempDir::new().expect("create temp directory");
-        let skill = Skill {
-            skill_id: SkillId::new("export_test"),
-            file_path: "/skills/export-test/SKILL.md".to_string(),
-            name: "Export Test".to_string(),
-            description: "Testing export".to_string(),
-            instructions: "Test instructions".to_string(),
-            enabled: true,
-            tags: vec![],
-            category_id: Some(CategoryId::new("skills")),
-            source_id: SourceId::new("skills"),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        let result = export_skill_to_disk(&skill, temp_dir.path());
-        result.expect("result should succeed");
-        let skill_dir = temp_dir.path().join("export-test");
-        assert!(skill_dir.exists());
-        assert!(skill_dir.join("SKILL.md").exists());
-        assert!(skill_dir.join("config.yaml").exists());
-    }
-
-    #[test]
-    fn export_underscore_to_dash() {
-        let temp_dir = TempDir::new().expect("create temp directory");
-        let skill = Skill {
-            skill_id: SkillId::new("my_complex_skill_name"),
-            file_path: "/skills/my-complex-skill-name/SKILL.md".to_string(),
-            name: "Complex Skill".to_string(),
-            description: "Complex".to_string(),
-            instructions: "Instructions".to_string(),
-            enabled: true,
-            tags: vec![],
-            category_id: None,
-            source_id: SourceId::new("skills"),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        let result = export_skill_to_disk(&skill, temp_dir.path());
-        result.expect("result should succeed");
-        assert!(temp_dir.path().join("my-complex-skill-name").exists());
-    }
 }
 
 mod content_generation_tests {

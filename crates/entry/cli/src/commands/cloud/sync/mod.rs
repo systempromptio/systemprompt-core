@@ -1,9 +1,8 @@
 pub mod admin_user;
 mod interactive;
-pub mod skills;
 
 use anyhow::{Result, anyhow};
-use clap::{Args, Subcommand, ValueEnum};
+use clap::{Args, Subcommand};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_logging::CliService;
@@ -12,28 +11,14 @@ use systemprompt_sync::{SyncConfig, SyncDirection, SyncOpState, SyncOperationRes
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::get_credentials;
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum CliLocalSyncDirection {
-    ToDb,
-    ToDisk,
-}
-
 #[derive(Debug, Subcommand)]
 pub enum SyncCommands {
     Push(SyncArgs),
 
     Pull(SyncArgs),
 
-    #[command(subcommand)]
-    Local(LocalSyncCommands),
-
     #[command(about = "Sync cloud user as admin to all local profiles")]
     AdminUser(AdminUserSyncArgs),
-}
-
-#[derive(Debug, Subcommand)]
-pub enum LocalSyncCommands {
-    Skills(SkillsSyncArgs),
 }
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -46,27 +31,6 @@ pub struct SyncArgs {
 
     #[arg(short, long)]
     pub verbose: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct SkillsSyncArgs {
-    #[arg(long, value_enum)]
-    pub direction: Option<CliLocalSyncDirection>,
-
-    #[arg(long)]
-    pub database_url: Option<String>,
-
-    #[arg(long)]
-    pub skill: Option<String>,
-
-    #[arg(long)]
-    pub dry_run: bool,
-
-    #[arg(long)]
-    pub delete_orphans: bool,
-
-    #[arg(short = 'y', long, help = "Skip confirmation prompts")]
-    pub yes: bool,
 }
 
 #[derive(Debug, Args)]
@@ -85,23 +49,16 @@ pub async fn execute(cmd: Option<SyncCommands>, config: &CliConfig) -> Result<()
     match cmd {
         Some(SyncCommands::Push(args)) => execute_cloud_sync(SyncDirection::Push, args).await,
         Some(SyncCommands::Pull(args)) => execute_cloud_sync(SyncDirection::Pull, args).await,
-        Some(SyncCommands::Local(cmd)) => execute_local_sync(cmd, config).await,
         Some(SyncCommands::AdminUser(args)) => execute_admin_user_sync(args).await,
         None => {
             if !config.is_interactive() {
                 return Err(anyhow!(
-                    "Sync subcommand required in non-interactive mode. Use push, pull, local, or \
+                    "Sync subcommand required in non-interactive mode. Use push, pull, or \
                      admin-user."
                 ));
             }
             interactive::execute(config).await
         },
-    }
-}
-
-async fn execute_local_sync(cmd: LocalSyncCommands, config: &CliConfig) -> Result<()> {
-    match cmd {
-        LocalSyncCommands::Skills(args) => skills::execute(args, config).await,
     }
 }
 

@@ -6495,6 +6495,7 @@ dependencies = [
  "systemprompt-bridge",
  "temp-env",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

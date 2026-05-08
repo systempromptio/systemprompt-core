@@ -2,6 +2,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
     ManagedMcpServer, SignedManifest, SkillEntry, UserId, ValidatedUrl,
 };
@@ -39,6 +40,7 @@ fn manifest_with(
         plugins: vec![],
         skills,
         agents: vec![],
+        hooks: vec![],
         managed_mcp_servers: mcp,
         revocations: vec![],
         enabled_hosts,
@@ -69,11 +71,30 @@ fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     }
 }
 
-fn ctx<'a>(manifest: &'a SignedManifest, root: &'a Path) -> HostSyncCtx<'a> {
+fn ctx<'a>(
+    manifest: &'a SignedManifest,
+    root: &'a Path,
+    client: &'a GatewayClient,
+    bearer: &'a str,
+) -> HostSyncCtx<'a> {
     HostSyncCtx {
         manifest,
         org_plugins_root: root,
+        client,
+        bearer,
     }
+}
+
+fn stub_client() -> GatewayClient {
+    GatewayClient::new(ValidatedUrl::try_new("http://127.0.0.1:0").unwrap())
+}
+
+fn block_on<F: std::future::Future>(f: F) -> F::Output {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(f)
 }
 
 fn plugin_root(home: &Path) -> PathBuf {
@@ -92,7 +113,8 @@ fn skill_lands_in_plugin_bundle_skills_dir() {
             vec![],
             vec!["codex-cli".into()],
         );
-        CodexCliSync.apply(&ctx(&m, home)).unwrap();
+        let client = stub_client();
+        block_on(CodexCliSync.apply(&ctx(&m, home, &client, ""))).unwrap();
 
         let path = plugin_root(home)
             .join("skills")
@@ -113,7 +135,8 @@ fn mcp_lands_in_plugin_bundle_mcp_json() {
             vec![mcp("primary", "https://mcp.example.invalid/api")],
             vec!["codex-cli".into()],
         );
-        CodexCliSync.apply(&ctx(&m, home)).unwrap();
+        let client = stub_client();
+        block_on(CodexCliSync.apply(&ctx(&m, home, &client, ""))).unwrap();
 
         let mcp_path = plugin_root(home).join(".mcp.json");
         let body = fs::read_to_string(&mcp_path).expect("mcp.json exists");
@@ -131,7 +154,8 @@ fn plugin_json_manifest_carries_version() {
             vec![],
             vec!["codex-cli".into()],
         );
-        CodexCliSync.apply(&ctx(&m, home)).unwrap();
+        let client = stub_client();
+        block_on(CodexCliSync.apply(&ctx(&m, home, &client, ""))).unwrap();
 
         let body = fs::read_to_string(plugin_root(home).join(".codex-plugin").join("plugin.json"))
             .expect("plugin.json exists");
@@ -160,7 +184,8 @@ fn apply_writes_plugin_block_and_preserves_unrelated_keys() {
             vec![mcp("primary", "https://mcp.example.invalid/api")],
             vec!["codex-cli".into()],
         );
-        CodexCliSync.apply(&ctx(&m, home)).unwrap();
+        let client = stub_client();
+        block_on(CodexCliSync.apply(&ctx(&m, home, &client, ""))).unwrap();
 
         let cfg = fs::read_to_string(&cfg_path).unwrap();
         assert!(
@@ -191,7 +216,8 @@ fn clear_removes_bundle_and_disables_plugin_block() {
             vec![mcp("primary", "https://mcp.example.invalid/api")],
             vec!["codex-cli".into()],
         );
-        CodexCliSync.apply(&ctx(&m, home)).unwrap();
+        let client = stub_client();
+        block_on(CodexCliSync.apply(&ctx(&m, home, &client, ""))).unwrap();
         assert!(plugin_root(home).is_dir());
 
         fs::write(
@@ -227,7 +253,8 @@ fn clear_removes_bundle_and_disables_plugin_block() {
 fn empty_manifest_writes_no_bundle_but_still_emits_plugin_block() {
     with_codex_home(|home| {
         let m = manifest_with(vec![], vec![], vec!["codex-cli".into()]);
-        CodexCliSync.apply(&ctx(&m, home)).unwrap();
+        let client = stub_client();
+        block_on(CodexCliSync.apply(&ctx(&m, home, &client, ""))).unwrap();
 
         assert!(
             !plugin_root(home).exists(),

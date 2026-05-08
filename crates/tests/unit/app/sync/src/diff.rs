@@ -1,8 +1,8 @@
 use chrono::Utc;
-use systemprompt_identifiers::{SkillId, SourceId};
+use systemprompt_identifiers::SourceId;
 use systemprompt_sync::{
-    ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent, DiskSkill, LocalSyncDirection,
-    LocalSyncResult, SkillDiffItem, SkillsDiffResult,
+    ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent, LocalSyncDirection,
+    LocalSyncResult,
 };
 
 mod local_sync_direction_tests {
@@ -86,24 +86,6 @@ mod content_diff_item_tests {
     }
 }
 
-mod skill_diff_item_tests {
-    use super::*;
-
-    #[test]
-    fn creation() {
-        let item = SkillDiffItem {
-            skill_id: SkillId::new("new_skill"),
-            file_path: "/skills/new-skill/SKILL.md".to_string(),
-            status: DiffStatus::Added,
-            disk_hash: Some("hash123".to_string()),
-            db_hash: None,
-            name: Some("New Skill".to_string()),
-        };
-        assert_eq!(item.skill_id, "new_skill");
-        assert_eq!(item.status, DiffStatus::Added);
-    }
-}
-
 mod content_diff_result_tests {
     use super::*;
 
@@ -170,53 +152,6 @@ mod content_diff_result_tests {
     }
 }
 
-mod skills_diff_result_tests {
-    use super::*;
-
-    #[test]
-    fn no_changes() {
-        let result = SkillsDiffResult::default();
-        assert!(!result.has_changes());
-    }
-
-    #[test]
-    fn with_changes() {
-        let result = SkillsDiffResult {
-            added: vec![SkillDiffItem {
-                skill_id: SkillId::new("skill1"),
-                file_path: "/skills/skill1/SKILL.md".to_string(),
-                status: DiffStatus::Added,
-                disk_hash: Some("hash".to_string()),
-                db_hash: None,
-                name: Some("Skill 1".to_string()),
-            }],
-            removed: vec![],
-            modified: vec![],
-            unchanged: 2,
-        };
-        assert!(result.has_changes());
-    }
-
-    #[test]
-    fn serialization() {
-        let result = SkillsDiffResult {
-            added: vec![SkillDiffItem {
-                skill_id: SkillId::new("new_skill"),
-                file_path: "/skills/new/SKILL.md".to_string(),
-                status: DiffStatus::Added,
-                disk_hash: Some("hash".to_string()),
-                db_hash: None,
-                name: Some("New Skill".to_string()),
-            }],
-            removed: vec![],
-            modified: vec![],
-            unchanged: 10,
-        };
-        let json = serde_json::to_string(&result).expect("serialize");
-        assert!(json.contains("new_skill"));
-    }
-}
-
 mod local_sync_result_tests {
     use super::*;
 
@@ -253,18 +188,6 @@ mod disk_model_tests {
             body: "Article body content".to_string(),
         };
         assert_eq!(content.slug, "test-article");
-    }
-
-    #[test]
-    fn disk_skill() {
-        let skill = DiskSkill {
-            skill_id: SkillId::new("test_skill"),
-            name: "Test Skill".to_string(),
-            description: "A test skill".to_string(),
-            instructions: "Do something useful".to_string(),
-            file_path: "/skills/test-skill/SKILL.md".to_string(),
-        };
-        assert_eq!(skill.skill_id, "test_skill");
     }
 }
 

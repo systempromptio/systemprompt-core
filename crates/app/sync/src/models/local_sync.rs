@@ -5,7 +5,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::fmt;
-use systemprompt_identifiers::{AgentId, SkillId, SourceId};
+use systemprompt_identifiers::{AgentId, SourceId};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub enum LocalSyncDirection {
@@ -43,16 +43,6 @@ pub struct ContentDiffItem {
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct SkillDiffItem {
-    pub skill_id: SkillId,
-    pub file_path: String,
-    pub status: DiffStatus,
-    pub disk_hash: Option<String>,
-    pub db_hash: Option<String>,
-    pub name: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
 pub struct ContentDiffResult {
     pub source_id: SourceId,
     pub added: Vec<ContentDiffItem>,
@@ -80,20 +70,6 @@ impl ContentDiffResult {
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
-pub struct SkillsDiffResult {
-    pub added: Vec<SkillDiffItem>,
-    pub removed: Vec<SkillDiffItem>,
-    pub modified: Vec<SkillDiffItem>,
-    pub unchanged: usize,
-}
-
-impl SkillsDiffResult {
-    pub fn has_changes(&self) -> bool {
-        !self.added.is_empty() || !self.removed.is_empty() || !self.modified.is_empty()
-    }
-}
-
-#[derive(Clone, Debug, Default, Serialize)]
 pub struct LocalSyncResult {
     pub items_synced: usize,
     pub items_skipped: usize,
@@ -108,15 +84,6 @@ pub struct DiskContent {
     pub slug: String,
     pub title: String,
     pub body: String,
-}
-
-#[derive(Debug)]
-pub struct DiskSkill {
-    pub skill_id: SkillId,
-    pub name: String,
-    pub description: String,
-    pub instructions: String,
-    pub file_path: String,
 }
 
 #[derive(Clone, Debug, Serialize)]

@@ -6,7 +6,6 @@
 //! - Runtime models (AgentRuntimeInfo)
 //! - Web models (ListAgentsQuery, AgentDiscovery)
 //! - Agent info (AgentInfo builder methods)
-//! - Skill models (Skill, SkillMetadata)
 //! - External integration models (TokenInfo, WebhookEndpoint, etc.)
 //! - Protocol event types (TaskStatusUpdateEvent, etc.)
 
@@ -16,6 +15,5 @@ mod context;
 mod external_integrations;
 mod protocol_events;
 mod runtime;
-mod skill;
 mod validation;
 mod web;
