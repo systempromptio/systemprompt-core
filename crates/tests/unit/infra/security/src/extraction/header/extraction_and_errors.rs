@@ -37,13 +37,18 @@ fn test_header_extractor_extract_trace_id_generates_unique() {
     );
 }
 
+const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
+
 #[test]
 fn test_header_extractor_extract_context_id_present() {
     let mut headers = HeaderMap::new();
-    headers.insert("x-context-id", HeaderValue::from_static("my-context-id"));
+    headers.insert("x-context-id", HeaderValue::from_static(TEST_CTX));
 
     let context_id = HeaderExtractor::extract_context_id(&headers);
-    assert_eq!(context_id.as_str(), "my-context-id");
+    assert_eq!(
+        context_id.as_ref().map(systemprompt_identifiers::ContextId::as_str),
+        Some(TEST_CTX)
+    );
 }
 
 #[test]
@@ -51,9 +56,18 @@ fn test_header_extractor_extract_context_id_missing() {
     let headers = HeaderMap::new();
 
     let context_id = HeaderExtractor::extract_context_id(&headers);
+    assert!(context_id.is_none(), "Should return None when missing");
+}
+
+#[test]
+fn test_header_extractor_extract_context_id_malformed() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-context-id", HeaderValue::from_static("not-a-uuid"));
+
+    let context_id = HeaderExtractor::extract_context_id(&headers);
     assert!(
-        context_id.as_str().is_empty(),
-        "Should return empty context ID when missing"
+        context_id.is_none(),
+        "Should silently drop a malformed UUID"
     );
 }
 
@@ -64,8 +78,8 @@ fn test_header_extractor_extract_context_id_empty_value() {
 
     let context_id = HeaderExtractor::extract_context_id(&headers);
     assert!(
-        context_id.as_str().is_empty(),
-        "Should return empty for empty header value"
+        context_id.is_none(),
+        "Empty header value rejects as None"
     );
 }
 
