@@ -10,8 +10,7 @@ pub struct Message {
     pub message_id: MessageId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<TaskId>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub metadata: Option<serde_json::Value>,
     pub extensions: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

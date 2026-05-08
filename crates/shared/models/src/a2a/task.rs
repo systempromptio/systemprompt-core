@@ -8,8 +8,7 @@ use systemprompt_identifiers::{ContextId, TaskId};
 #[serde(rename_all = "camelCase")]
 pub struct Task {
     pub id: TaskId,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub status: TaskStatus,
     pub history: Option<Vec<Message>>,
     pub artifacts: Option<Vec<Artifact>>,
@@ -25,7 +24,7 @@ impl Default for Task {
         let now = chrono::Utc::now();
         Self {
             id: TaskId::generate(),
-            context_id: Some(ContextId::generate()),
+            context_id: ContextId::generate(),
             status: TaskStatus::default(),
             history: None,
             artifacts: None,

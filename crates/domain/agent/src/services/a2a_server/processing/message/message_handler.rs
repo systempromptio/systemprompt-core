@@ -26,10 +26,7 @@ impl MessageProcessor {
 
         let agent_runtime = self.load_agent_runtime(agent_name).await?;
 
-        let context_id = message
-            .context_id
-            .as_ref()
-            .ok_or_else(|| anyhow!("Message missing required context_id"))?;
+        let context_id = &message.context_id;
 
         self.context_repo
             .get_context(context_id, context.user_id())

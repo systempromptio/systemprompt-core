@@ -42,7 +42,8 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
         .map_err(|e| anyhow!("Failed to update task and save messages: {}", e))?;
 
     if !artifacts_already_published {
-        if let (Some(artifacts), Some(context_id)) = (&task.artifacts, &task.context_id) {
+        if let Some(artifacts) = &task.artifacts {
+            let context_id = &task.context_id;
             let publishing_service = ArtifactPublishingService::new(db_pool)?;
             for artifact in artifacts {
                 publishing_service
