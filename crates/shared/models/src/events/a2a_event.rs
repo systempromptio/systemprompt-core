@@ -96,7 +96,7 @@ pub struct A2AEventBuilder;
 impl A2AEventBuilder {
     pub fn task_submitted(
         task_id: TaskId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         agent_name: String,
         input: Option<serde_json::Value>,
     ) -> A2AEvent {
@@ -113,7 +113,7 @@ impl A2AEventBuilder {
 
     pub fn task_status_update(
         task_id: TaskId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         state: TaskState,
         message: Option<String>,
     ) -> A2AEvent {
@@ -130,7 +130,7 @@ impl A2AEventBuilder {
 
     pub fn artifact_created(
         task_id: TaskId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         artifact: Artifact,
     ) -> A2AEvent {
         A2AEvent::ArtifactCreated {
@@ -152,7 +152,7 @@ impl A2AEventBuilder {
 
     pub fn agent_message(
         task_id: TaskId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         message_id: MessageId,
         content: String,
     ) -> A2AEvent {
@@ -167,7 +167,11 @@ impl A2AEventBuilder {
         }
     }
 
-    pub fn input_required(task_id: TaskId, context_id: ContextId, prompt: String) -> A2AEvent {
+    pub fn input_required(
+        task_id: TaskId,
+        context_id: Option<ContextId>,
+        prompt: String,
+    ) -> A2AEvent {
         A2AEvent::InputRequired {
             timestamp: Utc::now(),
             payload: InputRequiredPayload {
@@ -178,7 +182,11 @@ impl A2AEventBuilder {
         }
     }
 
-    pub fn auth_required(task_id: TaskId, context_id: ContextId, auth_url: String) -> A2AEvent {
+    pub fn auth_required(
+        task_id: TaskId,
+        context_id: Option<ContextId>,
+        auth_url: String,
+    ) -> A2AEvent {
         A2AEvent::AuthRequired {
             timestamp: Utc::now(),
             payload: AuthRequiredPayload {

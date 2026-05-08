@@ -33,7 +33,7 @@ pub struct FileUploadInput {
     pub mime_type: String,
     pub bytes_base64: String,
     pub name: Option<String>,
-    pub context_id: ContextId,
+    pub context_id: Option<ContextId>,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
@@ -44,7 +44,7 @@ impl FileUploadInput {
     pub fn new(
         mime_type: impl Into<String>,
         bytes_base64: impl Into<String>,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
     ) -> Self {
         Self {
             mime_type: mime_type.into(),

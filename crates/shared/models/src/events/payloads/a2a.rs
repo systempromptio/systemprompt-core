@@ -8,7 +8,8 @@ use crate::a2a::{Artifact, TaskState};
 #[serde(rename_all = "camelCase")]
 pub struct TaskSubmittedPayload {
     pub task_id: TaskId,
-    pub context_id: ContextId,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub context_id: Option<ContextId>,
     pub agent_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<Value>,
@@ -18,7 +19,8 @@ pub struct TaskSubmittedPayload {
 #[serde(rename_all = "camelCase")]
 pub struct TaskStatusUpdatePayload {
     pub task_id: TaskId,
-    pub context_id: ContextId,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub context_id: Option<ContextId>,
     pub state: TaskState,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -28,7 +30,8 @@ pub struct TaskStatusUpdatePayload {
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactCreatedPayload {
     pub task_id: TaskId,
-    pub context_id: ContextId,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub context_id: Option<ContextId>,
     pub artifact: Artifact,
 }
 
@@ -36,7 +39,8 @@ pub struct ArtifactCreatedPayload {
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactUpdatedPayload {
     pub task_id: TaskId,
-    pub context_id: ContextId,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub context_id: Option<ContextId>,
     pub artifact_id: ArtifactId,
     pub append: bool,
     pub last_chunk: bool,
@@ -48,7 +52,8 @@ pub struct ArtifactUpdatedPayload {
 #[serde(rename_all = "camelCase")]
 pub struct AgentMessagePayload {
     pub task_id: TaskId,
-    pub context_id: ContextId,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub context_id: Option<ContextId>,
     pub message_id: MessageId,
     pub content: String,
 }
@@ -57,7 +62,8 @@ pub struct AgentMessagePayload {
 #[serde(rename_all = "camelCase")]
 pub struct InputRequiredPayload {
     pub task_id: TaskId,
-    pub context_id: ContextId,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub context_id: Option<ContextId>,
     pub prompt: String,
 }
 
@@ -65,7 +71,8 @@ pub struct InputRequiredPayload {
 #[serde(rename_all = "camelCase")]
 pub struct AuthRequiredPayload {
     pub task_id: TaskId,
-    pub context_id: ContextId,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub context_id: Option<ContextId>,
     pub auth_url: String,
 }
 
