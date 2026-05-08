@@ -1,5 +1,5 @@
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ManagedMcpServer, PluginEntry, SkillEntry,
+    AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
 };
 
 /// Mutable bundle of marketplace items presented to a
@@ -15,6 +15,7 @@ pub struct MarketplaceCandidate {
     pub plugins: Vec<PluginEntry>,
     pub skills: Vec<SkillEntry>,
     pub agents: Vec<AgentEntry>,
+    pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
 }
 
@@ -24,12 +25,14 @@ impl MarketplaceCandidate {
         plugins: Vec<PluginEntry>,
         skills: Vec<SkillEntry>,
         agents: Vec<AgentEntry>,
+        hooks: Vec<HookEntry>,
         managed_mcp_servers: Vec<ManagedMcpServer>,
     ) -> Self {
         Self {
             plugins,
             skills,
             agents,
+            hooks,
             managed_mcp_servers,
         }
     }
@@ -39,6 +42,7 @@ impl MarketplaceCandidate {
         self.plugins.is_empty()
             && self.skills.is_empty()
             && self.agents.is_empty()
+            && self.hooks.is_empty()
             && self.managed_mcp_servers.is_empty()
     }
 }

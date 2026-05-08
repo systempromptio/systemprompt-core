@@ -3,7 +3,8 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::Serialize;
 
 pub use systemprompt_models::bridge::manifest::{
-    AgentEntry, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest, SkillEntry, UserInfo,
+    AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest, SkillEntry,
+    UserInfo,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
@@ -82,6 +83,7 @@ pub struct SignedManifestBuilder {
     plugins: Vec<PluginEntry>,
     skills: Vec<SkillEntry>,
     agents: Vec<AgentEntry>,
+    hooks: Vec<HookEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
     revocations: Vec<String>,
     enabled_hosts: Vec<String>,
@@ -107,6 +109,7 @@ impl SignedManifestBuilder {
             plugins: Vec::new(),
             skills: Vec::new(),
             agents: Vec::new(),
+            hooks: Vec::new(),
             managed_mcp_servers: Vec::new(),
             revocations: Vec::new(),
             enabled_hosts: Vec::new(),
@@ -150,6 +153,12 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
+    pub fn with_hooks(mut self, hooks: Vec<HookEntry>) -> Self {
+        self.hooks = hooks;
+        self
+    }
+
+    #[must_use]
     pub fn with_managed_mcp_servers(mut self, servers: Vec<ManagedMcpServer>) -> Self {
         self.managed_mcp_servers = servers;
         self
@@ -173,6 +182,7 @@ impl SignedManifestBuilder {
             plugins: self.plugins,
             skills: self.skills,
             agents: self.agents,
+            hooks: self.hooks,
             managed_mcp_servers: self.managed_mcp_servers,
             revocations: self.revocations,
             enabled_hosts: self.enabled_hosts,
@@ -192,6 +202,7 @@ struct CanonicalView<'a> {
     plugins: &'a [PluginEntry],
     skills: &'a [SkillEntry],
     agents: &'a [AgentEntry],
+    hooks: &'a [HookEntry],
     managed_mcp_servers: &'a [ManagedMcpServer],
     revocations: &'a [String],
     enabled_hosts: &'a [String],
@@ -208,6 +219,7 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
         plugins: &m.plugins,
         skills: &m.skills,
         agents: &m.agents,
+        hooks: &m.hooks,
         managed_mcp_servers: &m.managed_mcp_servers,
         revocations: &m.revocations,
         enabled_hosts: &m.enabled_hosts,

@@ -86,6 +86,7 @@ pub enum EntityKind {
     Agent,
     Marketplace,
     Skill,
+    Hook,
 }
 
 impl EntityKind {
@@ -97,6 +98,7 @@ impl EntityKind {
             Self::Agent => "agent",
             Self::Marketplace => "marketplace",
             Self::Skill => "skill",
+            Self::Hook => "hook",
         }
     }
 }
@@ -112,6 +114,7 @@ impl FromStr for EntityKind {
             "agent" => Ok(Self::Agent),
             "marketplace" => Ok(Self::Marketplace),
             "skill" => Ok(Self::Skill),
+            "hook" => Ok(Self::Hook),
             other => Err(AuthzError::Validation(format!(
                 "unknown entity_type: {other}"
             ))),

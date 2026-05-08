@@ -11,7 +11,7 @@ use systemprompt_identifiers::{AgentName, JwtToken, TenantId, UserId};
 use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_models::bridge::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
+    AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
@@ -36,6 +36,7 @@ struct CanonicalView<'a> {
     plugins: &'a [PluginEntry],
     skills: &'a [SkillEntry],
     agents: &'a [AgentEntry],
+    hooks: &'a [HookEntry],
     managed_mcp_servers: &'a [ManagedMcpServer],
     revocations: &'a [String],
     enabled_hosts: &'a [String],
@@ -118,11 +119,13 @@ pub async fn manifest(
         },
     };
 
+    let hooks: Vec<HookEntry> = Vec::new();
+
     let filtered = ctx
         .marketplace_filter()
         .filter(
             &claims.user_id,
-            MarketplaceCandidate::new(plugins, skills, agents, managed_mcp_servers),
+            MarketplaceCandidate::new(plugins, skills, agents, hooks, managed_mcp_servers),
         )
         .await
         .map_err(|e| {
@@ -133,6 +136,7 @@ pub async fn manifest(
         plugins,
         skills,
         agents,
+        hooks,
         managed_mcp_servers,
     } = filtered;
 
@@ -146,6 +150,7 @@ pub async fn manifest(
         plugins: &plugins,
         skills: &skills,
         agents: &agents,
+        hooks: &hooks,
         managed_mcp_servers: &managed_mcp_servers,
         revocations: &revocations,
         enabled_hosts: &enabled_hosts,
@@ -169,6 +174,7 @@ pub async fn manifest(
         plugins,
         skills,
         agents,
+        hooks,
         managed_mcp_servers,
         revocations,
         enabled_hosts,
