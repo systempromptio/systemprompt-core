@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::CliConfig;
 use crate::shared::CommandResult;
-use systemprompt_models::{HookEvent, PluginConfigFile};
+use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
 use super::types::{HookValidateEntry, HookValidateOutput};
 
@@ -18,9 +18,9 @@ pub fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<HookValidateOutput>> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let plugins_path = std::path::PathBuf::from(profile.paths.plugins());
+    let hooks_path = std::path::PathBuf::from(profile.paths.hooks());
 
-    let results = validate_all_hooks(&plugins_path)?;
+    let results = validate_all_hooks(&hooks_path)?;
     let output = HookValidateOutput { results };
 
     Ok(CommandResult::table(output)
@@ -32,21 +32,26 @@ pub fn execute(
         ]))
 }
 
-fn validate_all_hooks(plugins_path: &Path) -> Result<Vec<HookValidateEntry>> {
-    if !plugins_path.exists() {
+fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
+    if !hooks_path.exists() {
         return Ok(Vec::new());
     }
 
     let mut results = Vec::new();
 
-    for dir_entry in std::fs::read_dir(plugins_path)? {
+    for dir_entry in std::fs::read_dir(hooks_path)? {
         let dir_entry = dir_entry?;
         let path = dir_entry.path();
         if !path.is_dir() {
             continue;
         }
 
-        let config_path = path.join("config.yaml");
+        let dir_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+        let config_path = path.join(HOOK_CONFIG_FILENAME);
         if !config_path.exists() {
             continue;
         }
@@ -55,26 +60,33 @@ fn validate_all_hooks(plugins_path: &Path) -> Result<Vec<HookValidateEntry>> {
             continue;
         };
 
-        let Ok(plugin_file): Result<PluginConfigFile, _> = serde_yaml::from_str(&content) else {
-            results.push(HookValidateEntry {
-                plugin_id: dir_entry.file_name().to_string_lossy().to_string(),
-                valid: false,
-                errors: vec!["Failed to parse config.yaml".to_string()],
-            });
-            continue;
+        let config: DiskHookConfig = match serde_yaml::from_str(&content) {
+            Ok(c) => c,
+            Err(e) => {
+                results.push(HookValidateEntry {
+                    plugin_id: dir_name,
+                    valid: false,
+                    errors: vec![format!("Failed to parse {HOOK_CONFIG_FILENAME}: {e}")],
+                });
+                continue;
+            },
         };
 
-        let plugin = &plugin_file.plugin;
         let mut errors = Vec::new();
+        let id_str = if config.id.as_str().is_empty() {
+            dir_name.clone()
+        } else {
+            config.id.as_str().to_string()
+        };
 
-        if let Err(e) = plugin.hooks.validate() {
-            errors.push(format!("{}", e));
+        if config.command.is_empty() {
+            errors.push("command must not be empty".to_string());
+        } else {
+            validate_hook_command(&config.command, &path, &mut errors);
         }
 
-        validate_hook_scripts(plugin, plugins_path, &mut errors);
-
         results.push(HookValidateEntry {
-            plugin_id: plugin.id.to_string(),
+            plugin_id: id_str,
             valid: errors.is_empty(),
             errors,
         });
@@ -83,38 +95,14 @@ fn validate_all_hooks(plugins_path: &Path) -> Result<Vec<HookValidateEntry>> {
     Ok(results)
 }
 
-fn validate_hook_scripts(
-    plugin: &systemprompt_models::PluginConfig,
-    plugins_path: &Path,
-    errors: &mut Vec<String>,
-) {
-    let all_commands = collect_hook_commands(&plugin.hooks);
-    let plugin_dir = plugins_path.join(plugin.id.as_str());
-
-    for cmd in all_commands {
-        if cmd.contains(PLUGIN_ROOT_VAR) {
-            let relative = cmd.replace(&format!("{}/", PLUGIN_ROOT_VAR), "");
-            let script_path = plugin_dir.join(&relative);
-            if !script_path.exists() {
-                errors.push(format!(
-                    "Hook command references missing script: {}",
-                    relative
-                ));
-            }
+fn validate_hook_command(command: &str, hook_dir: &Path, errors: &mut Vec<String>) {
+    if command.contains(PLUGIN_ROOT_VAR) {
+        let relative = command.replace(&format!("{PLUGIN_ROOT_VAR}/"), "");
+        let script_path = hook_dir.join(&relative);
+        if !script_path.exists() {
+            errors.push(format!(
+                "Hook command references missing script: {relative}"
+            ));
         }
     }
-}
-
-fn collect_hook_commands(hooks: &systemprompt_models::HookEventsConfig) -> Vec<String> {
-    let mut commands = Vec::new();
-    for event in HookEvent::ALL_VARIANTS {
-        for matcher in hooks.matchers_for_event(*event) {
-            for action in &matcher.hooks {
-                if let Some(cmd) = &action.command {
-                    commands.push(cmd.clone());
-                }
-            }
-        }
-    }
-    commands
 }
