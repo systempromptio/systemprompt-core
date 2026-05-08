@@ -22,7 +22,8 @@ use crate::bridge::ids::{
     ToolPolicy,
 };
 use crate::bridge::manifest_version::ManifestVersion;
-use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
+use crate::services::hooks::{HookCategory, HookEvent};
+use systemprompt_identifiers::{AgentId, AgentName, HookId, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedManifest {
@@ -38,6 +39,8 @@ pub struct SignedManifest {
     pub skills: Vec<SkillEntry>,
     #[serde(default)]
     pub agents: Vec<AgentEntry>,
+    #[serde(default)]
+    pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub revocations: Vec<String>,
     #[serde(default)]
@@ -109,6 +112,23 @@ pub struct AgentEntry {
     pub tags: Vec<String>,
     #[serde(default)]
     pub system_prompt: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HookEntry {
+    pub id: HookId,
+    pub name: String,
+    pub description: String,
+    pub version: String,
+    pub event: HookEvent,
+    pub matcher: String,
+    pub command: String,
+    #[serde(default)]
+    pub is_async: bool,
+    pub category: HookCategory,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub sha256: Sha256Digest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

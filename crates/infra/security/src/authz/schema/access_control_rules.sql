@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
 
 ALTER TABLE access_control_rules DROP CONSTRAINT IF EXISTS access_control_rules_entity_type_check;
 ALTER TABLE access_control_rules ADD CONSTRAINT access_control_rules_entity_type_check
-    CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route'));
+    CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook'));
 
 ALTER TABLE access_control_rules DROP CONSTRAINT IF EXISTS access_control_rules_rule_type_check;
 ALTER TABLE access_control_rules ADD CONSTRAINT access_control_rules_rule_type_check
