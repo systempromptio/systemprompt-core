@@ -48,7 +48,7 @@ impl ToolUsageRepository {
 
         let id = Uuid::new_v4().to_string();
         let mcp_execution_id = McpExecutionId::new(id.clone());
-        let context_id = request.context.context_id().map(ToString::to_string);
+        let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
         let input_str = serde_json::to_string(&request.input)?;
@@ -131,7 +131,7 @@ impl ToolUsageRepository {
         let id = Uuid::new_v4().to_string();
         let mcp_execution_id = McpExecutionId::new(id.clone());
         let status = ExecutionStatus::from_error(result.error_message.is_some()).as_str();
-        let context_id = request.context.context_id().map(ToString::to_string);
+        let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let task_id = request.context.task_id().map(ToString::to_string);
         let session_id = request.context.session_id().to_string();
