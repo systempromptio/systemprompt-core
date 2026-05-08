@@ -69,21 +69,21 @@ impl SystemEvent {
 pub struct SystemEventBuilder;
 
 impl SystemEventBuilder {
-    pub fn context_created(context_id: ContextId, name: String) -> SystemEvent {
+    pub fn context_created(context_id: Option<ContextId>, name: String) -> SystemEvent {
         SystemEvent::ContextCreated {
             timestamp: Utc::now(),
             payload: ContextCreatedPayload { context_id, name },
         }
     }
 
-    pub fn context_updated(context_id: ContextId, name: Option<String>) -> SystemEvent {
+    pub fn context_updated(context_id: Option<ContextId>, name: Option<String>) -> SystemEvent {
         SystemEvent::ContextUpdated {
             timestamp: Utc::now(),
             payload: ContextUpdatedPayload { context_id, name },
         }
     }
 
-    pub fn context_deleted(context_id: ContextId) -> SystemEvent {
+    pub fn context_deleted(context_id: Option<ContextId>) -> SystemEvent {
         SystemEvent::ContextDeleted {
             timestamp: Utc::now(),
             payload: ContextDeletedPayload { context_id },

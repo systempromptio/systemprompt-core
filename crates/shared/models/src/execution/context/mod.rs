@@ -38,7 +38,7 @@ impl RequestContext {
     pub fn new(
         session_id: SessionId,
         trace_id: TraceId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         agent_name: AgentName,
     ) -> Self {
         Self {
@@ -87,7 +87,7 @@ impl RequestContext {
     }
 
     pub fn with_context_id(mut self, context_id: ContextId) -> Self {
-        self.execution.context_id = context_id;
+        self.execution.context_id = Some(context_id);
         self
     }
 
@@ -177,8 +177,8 @@ impl RequestContext {
         &self.execution.trace_id
     }
 
-    pub const fn context_id(&self) -> &ContextId {
-        &self.execution.context_id
+    pub const fn context_id(&self) -> Option<&ContextId> {
+        self.execution.context_id.as_ref()
     }
 
     pub const fn agent_name(&self) -> &AgentName {
@@ -222,7 +222,12 @@ impl RequestContext {
     }
 
     pub fn is_system(&self) -> bool {
-        self.auth.user_id.is_system() && self.execution.context_id.is_system()
+        self.auth.user_id.is_system()
+            && self
+                .execution
+                .context_id
+                .as_ref()
+                .is_some_and(ContextId::is_system)
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -233,7 +238,7 @@ impl RequestContext {
         if self.execution.task_id.is_none() {
             return Err("Missing task_id for task execution".to_string());
         }
-        if self.execution.context_id.as_str().is_empty() {
+        if self.execution.context_id.is_none() {
             return Err("Missing context_id for task execution".to_string());
         }
         Ok(())

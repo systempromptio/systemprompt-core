@@ -43,7 +43,7 @@ impl Default for RequestMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionContext {
     pub trace_id: TraceId,
-    pub context_id: ContextId,
+    pub context_id: Option<ContextId>,
     pub task_id: Option<TaskId>,
     pub ai_tool_call_id: Option<AiToolCallId>,
     pub mcp_execution_id: Option<McpExecutionId>,
@@ -57,7 +57,7 @@ impl Default for ExecutionContext {
     fn default() -> Self {
         Self {
             trace_id: TraceId::new(uuid::Uuid::new_v4().to_string()),
-            context_id: ContextId::new(String::new()),
+            context_id: None,
             task_id: None,
             ai_tool_call_id: None,
             mcp_execution_id: None,
