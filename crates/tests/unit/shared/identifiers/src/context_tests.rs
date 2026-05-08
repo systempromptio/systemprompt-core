@@ -2,44 +2,17 @@ use std::collections::HashSet;
 use systemprompt_identifiers::{ContextId, DbValue, ToDbValue};
 
 #[test]
-fn system_factory_value() {
-    assert_eq!(ContextId::system().as_str(), "system");
-}
-
-#[test]
-fn empty_factory_produces_empty_string() {
-    let id = ContextId::empty();
-    assert!(id.is_empty());
-    assert_eq!(id.as_str(), "");
-}
-
-#[test]
-fn is_empty_false_for_non_empty() {
-    assert!(!ContextId::new("something").is_empty());
-    assert!(!ContextId::system().is_empty());
-}
-
-#[test]
-fn is_system_true_only_for_system() {
-    assert!(ContextId::system().is_system());
-    assert!(!ContextId::new("other").is_system());
-    assert!(!ContextId::empty().is_system());
-}
-
-#[test]
-fn is_anonymous_true_only_for_anonymous() {
-    assert!(ContextId::new("anonymous").is_anonymous());
-    assert!(!ContextId::system().is_anonymous());
-    assert!(!ContextId::new("other").is_anonymous());
-}
-
-#[test]
 fn generate_produces_uuid_format() {
     let id = ContextId::generate();
     assert_eq!(id.as_str().len(), 36);
-    assert!(!id.is_empty());
-    assert!(!id.is_system());
-    assert!(!id.is_anonymous());
+    uuid::Uuid::parse_str(id.as_str()).expect("generate must produce a valid UUID");
+}
+
+#[test]
+fn generate_round_trips_through_try_new() {
+    let id = ContextId::generate();
+    let id2 = ContextId::try_new(id.as_str()).unwrap();
+    assert_eq!(id, id2);
 }
 
 #[test]
@@ -51,30 +24,57 @@ fn generate_unique_across_calls() {
 }
 
 #[test]
-fn display_format() {
-    let id = ContextId::new("ctx-42");
-    assert_eq!(format!("{}", id), "ctx-42");
+fn try_new_accepts_valid_uuid() {
+    let uuid = "550e8400-e29b-41d4-a716-446655440000";
+    let id = ContextId::try_new(uuid).unwrap();
+    assert_eq!(id.as_str(), uuid);
 }
 
 #[test]
-fn serde_transparent_json() {
-    let id = ContextId::new("serde-ctx");
+fn try_new_rejects_empty_string() {
+    assert!(ContextId::try_new("").is_err());
+}
+
+#[test]
+fn try_new_rejects_sentinel_system() {
+    assert!(ContextId::try_new("system").is_err());
+}
+
+#[test]
+fn try_new_rejects_plain_string() {
+    assert!(ContextId::try_new("not-a-uuid").is_err());
+}
+
+#[test]
+fn try_new_rejects_prefixed_id() {
+    assert!(ContextId::try_new("ctx_abc123").is_err());
+}
+
+#[test]
+fn display_format() {
+    let uuid = "550e8400-e29b-41d4-a716-446655440000";
+    let id = ContextId::try_new(uuid).unwrap();
+    assert_eq!(format!("{}", id), uuid);
+}
+
+#[test]
+fn serde_round_trip() {
+    let id = ContextId::generate();
     let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serde-ctx\"");
     let deserialized: ContextId = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, id);
 }
 
 #[test]
-fn from_string_and_str_produce_equal() {
-    let from_str: ContextId = "test".into();
-    let from_string: ContextId = String::from("test").into();
-    assert_eq!(from_str, from_string);
+fn serde_rejects_malformed_string() {
+    let result: Result<ContextId, _> = serde_json::from_str("\"not-a-uuid\"");
+    assert!(result.is_err());
 }
 
 #[test]
 fn to_db_value_owned_and_ref() {
-    let id = ContextId::new("db");
-    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == "db"));
-    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == "db"));
+    let uuid = "550e8400-e29b-41d4-a716-446655440000";
+    let id = ContextId::try_new(uuid).unwrap();
+    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == uuid));
+    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == uuid));
 }
