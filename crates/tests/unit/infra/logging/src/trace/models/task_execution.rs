@@ -1,13 +1,16 @@
 //! Tests for TaskInfo, ExecutionStep, AiRequestInfo, McpToolExecution
 
 use chrono::Utc;
+use systemprompt_identifiers::ContextId;
 use systemprompt_logging::{AiRequestInfo, ExecutionStep, McpToolExecution, TaskInfo};
+
+const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 
 #[test]
 fn test_task_info_creation() {
     let task = TaskInfo {
         task_id: "task-123".to_string().into(),
-        context_id: "ctx-456".to_string().into(),
+        context_id: ContextId::new(TEST_CTX),
         agent_name: Some("test-agent".to_string()),
         status: "completed".to_string(),
         created_at: Utc::now(),
@@ -18,7 +21,7 @@ fn test_task_info_creation() {
     };
 
     assert_eq!(task.task_id, "task-123");
-    assert_eq!(task.context_id, "ctx-456");
+    assert_eq!(task.context_id.as_str(), TEST_CTX);
     assert_eq!(task.agent_name, Some("test-agent".to_string()));
     assert_eq!(task.status, "completed");
     task.execution_time_ms
@@ -29,7 +32,7 @@ fn test_task_info_creation() {
 fn test_task_info_minimal() {
     let task = TaskInfo {
         task_id: "task-min".to_string().into(),
-        context_id: "ctx-min".to_string().into(),
+        context_id: ContextId::new(TEST_CTX),
         agent_name: None,
         status: "pending".to_string(),
         created_at: Utc::now(),
@@ -48,7 +51,7 @@ fn test_task_info_minimal() {
 fn test_task_info_with_error() {
     let task = TaskInfo {
         task_id: "task-err".to_string().into(),
-        context_id: "ctx-err".to_string().into(),
+        context_id: ContextId::new(TEST_CTX),
         agent_name: Some("error-agent".to_string()),
         status: "failed".to_string(),
         created_at: Utc::now(),
@@ -69,7 +72,7 @@ fn test_task_info_with_error() {
 fn test_task_info_serialize() {
     let task = TaskInfo {
         task_id: "ser".to_string().into(),
-        context_id: "ctx".to_string().into(),
+        context_id: ContextId::new(TEST_CTX),
         agent_name: None,
         status: "pending".to_string(),
         created_at: Utc::now(),

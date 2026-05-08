@@ -300,12 +300,3 @@ fn context_extraction_error_invalid_header_value() {
     assert!(msg.contains("bad encoding"));
 }
 
-#[test]
-fn task_based_context_marker_is_not_empty() {
-    assert!(!TASK_BASED_CONTEXT_MARKER.is_empty());
-}
-
-#[test]
-fn task_based_context_marker_value() {
-    assert_eq!(TASK_BASED_CONTEXT_MARKER, "__task_based__");
-}
