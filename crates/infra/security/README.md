@@ -115,7 +115,7 @@ Session token generation and claim validation.
 
 ```toml
 [dependencies]
-systemprompt-security = "0.2.1"
+systemprompt-security = "0.9.0"
 ```
 
 ### Token Extraction

@@ -91,7 +91,7 @@ Configuration file output:
 
 ```toml
 [dependencies]
-systemprompt-config = "0.2.1"
+systemprompt-config = "0.9.0"
 ```
 
 ```rust

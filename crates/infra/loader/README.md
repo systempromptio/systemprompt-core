@@ -87,7 +87,7 @@ The `modules/` directory contains definitions for each systemprompt.io module. E
 
 ```toml
 [dependencies]
-systemprompt-loader = "0.2.1"
+systemprompt-loader = "0.9.0"
 ```
 
 ```rust

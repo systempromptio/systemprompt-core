@@ -42,7 +42,7 @@ MCP (Model Context Protocol) server lifecycle management module.
 
 ```toml
 [dependencies]
-systemprompt-mcp = "0.2.1"
+systemprompt-mcp = "0.9.0"
 ```
 
 ## Architecture

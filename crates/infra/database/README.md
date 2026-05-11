@@ -148,7 +148,7 @@ PostgreSQL-specific implementations.
 
 ```toml
 [dependencies]
-systemprompt-database = "0.2.1"
+systemprompt-database = "0.9.0"
 ```
 
 ```rust

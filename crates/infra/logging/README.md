@@ -122,7 +122,7 @@ schema/
 
 ```toml
 [dependencies]
-systemprompt-logging = "0.2.1"
+systemprompt-logging = "0.9.0"
 ```
 
 ```rust

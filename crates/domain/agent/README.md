@@ -98,7 +98,7 @@ This crate implements the Agent-to-Agent (A2A) protocol, providing:
 
 ```toml
 [dependencies]
-systemprompt-agent = "0.2.1"
+systemprompt-agent = "0.9.0"
 ```
 
 ## Directory Structure

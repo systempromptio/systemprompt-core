@@ -52,7 +52,7 @@ Defines the core provider trait contracts used throughout systemprompt.io. These
 
 ```toml
 [dependencies]
-systemprompt-provider-contracts = "0.2.1"
+systemprompt-provider-contracts = "0.9.0"
 ```
 
 ```rust

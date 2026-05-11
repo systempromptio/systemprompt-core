@@ -570,7 +570,7 @@ Artifact types: `Table`, `List`, `Card`, `Text`, `CopyPasteText`, `Chart`, `Form
 
 ```toml
 [dependencies]
-systemprompt-cli = "0.2.1"
+systemprompt-cli = "0.9.0"
 ```
 
 ```bash

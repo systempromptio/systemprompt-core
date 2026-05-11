@@ -49,7 +49,7 @@ This crate follows the **Interface Segregation Principle** from SOLID:
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.2.1"
+systemprompt-traits = "0.9.0"
 ```
 
 ```rust
