@@ -6,6 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
+use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::SitemapConfig;
 use systemprompt_template_provider::{ComponentContext, ExtenderContext, PageContext};
 use tokio::fs;
@@ -21,6 +22,7 @@ pub(super) struct RenderSingleItemParams<'a> {
     pub ctx: &'a PrerenderContext,
     pub source_name: &'a str,
     pub sitemap_config: &'a SitemapConfig,
+    pub locale_prefix: &'a str,
     pub item: &'a serde_json::Value,
     pub all_items: &'a [serde_json::Value],
     pub popular_ids: &'a [String],
@@ -32,6 +34,7 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
         ctx,
         source_name,
         sitemap_config,
+        locale_prefix,
         item,
         all_items,
         popular_ids,
@@ -56,15 +59,23 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
         .and_then(|v| v.as_str())
         .ok_or_else(|| PublishError::missing_field("content_type", slug))?;
 
+    let locale = item
+        .get("locale")
+        .and_then(|v| v.as_str())
+        .and_then(|s| LocaleCode::try_new(s).ok())
+        .unwrap_or_else(|| ctx.web_config.i18n.default_locale.clone());
+
     let mut template_data = serde_json::json!({
         "CONTENT": toc_result.content_html,
         "TOC_HTML": toc_result.toc_html,
         "SLUG": slug,
+        "locale": locale.as_str(),
     });
 
     let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
         .with_content_item(item)
-        .with_all_items(all_items);
+        .with_all_items(all_items)
+        .with_locale(&locale);
 
     for provider in ctx.template_registry.page_providers_for(content_type) {
         let data = provider
@@ -116,27 +127,43 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
             PublishError::render_failed(template_name, Some(slug.to_string()), e.to_string())
         })?;
 
-    write_rendered_page(&ctx.dist_dir, &sitemap_config.url_pattern, slug, &html).await
+    write_rendered_page(
+        &ctx.dist_dir,
+        locale_prefix,
+        &sitemap_config.url_pattern,
+        slug,
+        &html,
+    )
+    .await
 }
 
 async fn write_rendered_page(
     dist_dir: &Path,
+    locale_prefix: &str,
     url_pattern: &str,
     slug: &str,
     html: &str,
 ) -> GeneratorResult<()> {
-    let output_dir = determine_output_dir(dist_dir, url_pattern, slug);
+    let output_dir = determine_output_dir(dist_dir, locale_prefix, url_pattern, slug);
     fs::create_dir_all(&output_dir).await?;
 
     let output_path = output_dir.join("index.html");
     fs::write(&output_path, html).await?;
 
-    let generated_path = url_pattern.replace(SLUG_PLACEHOLDER, slug);
+    let generated_path = format!(
+        "{locale_prefix}{}",
+        url_pattern.replace(SLUG_PLACEHOLDER, slug)
+    );
     tracing::debug!(path = %generated_path, "Generated page");
     Ok(())
 }
 
-fn determine_output_dir(dist_dir: &Path, url_pattern: &str, slug: &str) -> PathBuf {
+fn determine_output_dir(
+    dist_dir: &Path,
+    locale_prefix: &str,
+    url_pattern: &str,
+    slug: &str,
+) -> PathBuf {
     let path = if slug.is_empty() {
         url_pattern
             .replace(&format!("/{SLUG_PLACEHOLDER}"), "")
@@ -145,7 +172,8 @@ fn determine_output_dir(dist_dir: &Path, url_pattern: &str, slug: &str) -> PathB
     } else {
         url_pattern.replace(SLUG_PLACEHOLDER, slug)
     };
-    match path.trim_start_matches('/') {
+    let combined = format!("{locale_prefix}{path}");
+    match combined.trim_start_matches('/') {
         "" => dist_dir.to_path_buf(),
         p => dist_dir.join(p),
     }

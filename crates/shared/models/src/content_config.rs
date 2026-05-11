@@ -240,8 +240,6 @@ pub struct Metadata {
     #[serde(default)]
     pub default_author: String,
     #[serde(default)]
-    pub language: String,
-    #[serde(default)]
     pub structured_data: StructuredData,
 }
 
@@ -269,8 +267,6 @@ pub struct ArticleDefaults {
     pub article_type: String,
     #[serde(default)]
     pub article_section: String,
-    #[serde(default)]
-    pub language: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

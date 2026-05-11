@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{CreateEngagementEventInput, EngagementRepository, SessionRepository};
 use systemprompt_content::ContentRepository;
-use systemprompt_identifiers::{ContentId, SessionId};
+use systemprompt_identifiers::{ContentId, LocaleCode, SessionId};
 use systemprompt_models::ContentRouting;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
@@ -66,7 +66,7 @@ async fn resolve_content_id(
     let slug = content_routing.and_then(|r| r.resolve_slug(page_url))?;
 
     content_repo
-        .get_by_slug(&slug)
+        .get_by_slug(&slug, &LocaleCode::new("en"))
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, slug = %slug, "Failed to lookup content by slug");

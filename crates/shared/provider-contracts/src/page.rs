@@ -4,6 +4,7 @@ use std::any::Any;
 
 use async_trait::async_trait;
 use serde_json::Value;
+use systemprompt_identifiers::LocaleCode;
 
 use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
@@ -11,6 +12,7 @@ use crate::web_config::WebConfig;
 pub struct PageContext<'a> {
     pub page_type: &'a str,
     pub web_config: &'a WebConfig,
+    pub locale: &'a LocaleCode,
     content_config: &'a (dyn Any + Send + Sync),
     db_pool: &'a (dyn Any + Send + Sync),
     content_item: Option<&'a Value>,
@@ -41,11 +43,18 @@ impl<'a> PageContext<'a> {
         Self {
             page_type,
             web_config,
+            locale: &web_config.i18n.default_locale,
             content_config,
             db_pool,
             content_item: None,
             all_items: None,
         }
+    }
+
+    #[must_use]
+    pub const fn with_locale(mut self, locale: &'a LocaleCode) -> Self {
+        self.locale = locale;
+        self
     }
 
     #[must_use]

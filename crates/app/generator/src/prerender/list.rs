@@ -5,6 +5,7 @@
 use std::path::Path;
 
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::{ContentConfigRaw, ParentRoute, WebConfig};
 use systemprompt_template_provider::{ComponentContext, PageContext};
 use systemprompt_templates::TemplateRegistry;
@@ -19,6 +20,8 @@ pub struct RenderListParams<'a> {
     pub web_config: &'a WebConfig,
     pub list_config: &'a ParentRoute,
     pub source_name: &'a str,
+    pub locale: &'a LocaleCode,
+    pub locale_prefix: &'a str,
     pub template_registry: &'a TemplateRegistry,
     pub dist_dir: &'a Path,
     pub index_content: Option<&'a serde_json::Value>,
@@ -42,6 +45,8 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<
         web_config,
         list_config,
         source_name,
+        locale,
+        locale_prefix,
         template_registry,
         dist_dir,
         index_content,
@@ -62,10 +67,12 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<
 
     let mut list_data = serde_json::json!({
         "HAS_INDEX_CONTENT": index_content.is_some(),
+        "locale": locale.as_str(),
     });
 
-    let mut page_ctx =
-        PageContext::new(&list_content_type, web_config, config, db_pool).with_all_items(items);
+    let mut page_ctx = PageContext::new(&list_content_type, web_config, config, db_pool)
+        .with_all_items(items)
+        .with_locale(locale);
 
     if let Some(item) = index_content {
         page_ctx = page_ctx.with_content_item(item);
@@ -92,10 +99,16 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<
         .render(template_name, &list_data)
         .map_err(|e| PublishError::render_failed(template_name, None, e.to_string()))?;
 
-    let list_dir = dist_dir.join(list_config.url.trim_start_matches('/'));
+    let list_dir = if locale_prefix.is_empty() {
+        dist_dir.join(list_config.url.trim_start_matches('/'))
+    } else {
+        dist_dir
+            .join(locale_prefix.trim_start_matches('/'))
+            .join(list_config.url.trim_start_matches('/'))
+    };
     fs::create_dir_all(&list_dir).await?;
     fs::write(list_dir.join("index.html"), &list_html).await?;
 
-    tracing::debug!(path = %list_config.url, "Generated list route");
+    tracing::debug!(path = %list_config.url, locale_prefix = %locale_prefix, "Generated list route");
     Ok(())
 }

@@ -6,7 +6,7 @@ use clap::Args;
 use std::path::PathBuf;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
@@ -37,7 +37,7 @@ pub async fn execute_with_pool(
     let repo = ContentRepository::new(pool)?;
 
     let source = SourceId::new(args.source.clone());
-    let contents = repo.list_by_source(&source).await?;
+    let contents = repo.list_by_source(&source, &LocaleCode::new("en")).await?;
 
     let url_pattern = args
         .url_pattern

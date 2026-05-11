@@ -11,7 +11,7 @@ use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_content::{CategoryIdUpdate, ContentRepository};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContentId, SourceId};
+use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 
@@ -68,7 +68,7 @@ pub async fn execute_with_pool(
             .as_ref()
             .ok_or_else(|| anyhow!("Source ID required when using slug"))?;
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &identifier)
+        repo.get_by_source_and_slug(&source, &identifier, &LocaleCode::new("en"))
             .await?
             .ok_or_else(|| anyhow!("Content not found: {} in source {}", identifier, source_id))?
     };
@@ -132,7 +132,8 @@ fn prompt_content_selection(
     let contents = rt.block_on(async {
         if let Some(source) = source {
             let source = SourceId::new(source.to_string());
-            repo.list_by_source_limited(&source, 50).await
+            repo.list_by_source_limited(&source, &LocaleCode::new("en"), 50)
+                .await
         } else {
             repo.list(50, 0).await
         }

@@ -7,7 +7,7 @@ use futures::stream::{self, StreamExt};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider};
 
 use crate::error::{GeneratorResult, PublishError};
@@ -20,21 +20,23 @@ pub async fn fetch_content_for_source(
     ctx: &PrerenderContext,
     source_name: &str,
     source_id: &SourceId,
+    locale: &LocaleCode,
 ) -> GeneratorResult<Vec<Content>> {
     let repo = ContentRepository::new(&ctx.db_pool)
         .map_err(|e| PublishError::other(format!("Failed to create content repository: {e}")))?;
-    fetch_with_retries(&repo, source_id, source_name).await
+    fetch_with_retries(&repo, source_id, source_name, locale).await
 }
 
 async fn fetch_with_retries(
     repo: &ContentRepository,
     source_id: &SourceId,
     source_name: &str,
+    locale: &LocaleCode,
 ) -> GeneratorResult<Vec<Content>> {
     let mut last_error = None;
 
     for retry in 0..=MAX_RETRIES {
-        match repo.list_by_source(source_id).await {
+        match repo.list_by_source(source_id, locale).await {
             Ok(contents) if !contents.is_empty() => return Ok(contents),
             Ok(_) if retry < MAX_RETRIES => {
                 tracing::warn!(source = %source_name, attempt = retry + 1, "No content found, retrying");
@@ -75,6 +77,7 @@ pub async fn contents_to_json(
             serde_json::json!({
                 "id": c.id,
                 "slug": c.slug,
+                "locale": c.locale,
                 "title": c.title,
                 "description": c.description,
                 "content": c.body,

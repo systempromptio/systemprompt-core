@@ -9,7 +9,7 @@ use std::path::Path;
 use systemprompt_content::models::Content;
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{LocaleCode, SourceId};
 use tracing::warn;
 use walkdir::WalkDir;
 
@@ -34,7 +34,7 @@ impl ContentDiffCalculator {
         let source_id_typed = source_id.clone();
         let db_content = self
             .content_repo
-            .list_by_source(&source_id_typed)
+            .list_by_source(&source_id_typed, &LocaleCode::new("en"))
             .await
             .map_err(SyncError::internal)?;
         let db_map: HashMap<String, Content> = db_content

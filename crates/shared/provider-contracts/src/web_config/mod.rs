@@ -4,11 +4,13 @@
 
 mod branding;
 mod error;
+mod i18n;
 mod paths;
 mod theme;
 
 pub use branding::{BrandingConfig, LogoConfig, LogoVariant};
 pub use error::WebConfigError;
+pub use i18n::SiteI18nConfig;
 pub use paths::{ContentConfig, PathsConfig, ScriptConfig};
 pub use theme::{
     AnimationConfig, BackgroundColors, BorderColors, CardConfig, CardGradient, CardPadding,
@@ -50,6 +52,8 @@ pub struct WebConfig {
     pub social_action_bar: SocialActionBarConfig,
     #[serde(default)]
     pub pages: HashMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub i18n: SiteI18nConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

@@ -59,7 +59,8 @@ pub use page_prerenderer::{
 };
 pub use rss::{RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec};
 pub use sitemap::{
-    PlaceholderMapping, SitemapContext, SitemapProvider, SitemapSourceSpec, SitemapUrlEntry,
+    PlaceholderMapping, SitemapAlternate, SitemapContext, SitemapProvider, SitemapSourceSpec,
+    SitemapUrlEntry,
 };
 pub use template::{TemplateDefinition, TemplateProvider, TemplateSource};
 pub use tool::{
@@ -69,6 +70,6 @@ pub use tool::{
 pub use web_config::{
     AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, FontsConfig, LayoutConfig,
     LogoConfig, MobileConfig, NavConfig, PathsConfig, RadiusConfig, ScriptConfig, ShadowsConfig,
-    SocialActionBarConfig, SocialPlatform, SpacingConfig, TouchTargetsConfig, TypographyConfig,
-    WebConfig, WebConfigError, ZIndexConfig,
+    SiteI18nConfig, SocialActionBarConfig, SocialPlatform, SpacingConfig, TouchTargetsConfig,
+    TypographyConfig, WebConfig, WebConfigError, ZIndexConfig,
 };

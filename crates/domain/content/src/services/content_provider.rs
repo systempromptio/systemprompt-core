@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::LocaleCode;
 use systemprompt_traits::content::{ContentFilter, ContentItem, ContentProvider, ContentSummary};
 
 use crate::error::ContentError;
@@ -45,7 +46,7 @@ impl ContentProvider for DefaultContentProvider {
     }
 
     async fn get_content_by_slug(&self, slug: &str) -> Result<Option<ContentItem>, Self::Error> {
-        let content = self.repo.get_by_slug(slug).await?;
+        let content = self.repo.get_by_slug(slug, &LocaleCode::new("en")).await?;
 
         Ok(content.map(|c| ContentItem {
             id: c.id,
@@ -69,7 +70,10 @@ impl ContentProvider for DefaultContentProvider {
         slug: &str,
     ) -> Result<Option<ContentItem>, Self::Error> {
         let source = systemprompt_identifiers::SourceId::new(source_id_str);
-        let content = self.repo.get_by_source_and_slug(&source, slug).await?;
+        let content = self
+            .repo
+            .get_by_source_and_slug(&source, slug, &LocaleCode::new("en"))
+            .await?;
 
         Ok(content.map(|c| ContentItem {
             id: c.id,
@@ -96,7 +100,9 @@ impl ContentProvider for DefaultContentProvider {
 
         let contents = if let Some(source_id) = filter.source_id {
             let source = systemprompt_identifiers::SourceId::new(&source_id);
-            self.repo.list_by_source(&source).await?
+            self.repo
+                .list_by_source(&source, &LocaleCode::new("en"))
+                .await?
         } else {
             self.repo.list(limit, offset).await?
         };

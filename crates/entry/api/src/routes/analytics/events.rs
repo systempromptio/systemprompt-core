@@ -10,7 +10,7 @@ use systemprompt_analytics::{
     EngagementOptionalMetrics, EngagementRepository,
 };
 use systemprompt_content::ContentRepository;
-use systemprompt_identifiers::ContentId;
+use systemprompt_identifiers::{ContentId, LocaleCode};
 use systemprompt_models::ContentRouting;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
@@ -46,7 +46,7 @@ async fn resolve_content_id(
     };
 
     content_repo
-        .get_by_slug(slug_to_use)
+        .get_by_slug(slug_to_use, &LocaleCode::new("en"))
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, slug = %slug_to_use, "Failed to lookup content by slug");

@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use std::collections::HashMap;
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{LocaleCode, SourceId};
 
 use crate::error::ProviderResult;
 
@@ -13,11 +13,18 @@ pub struct SitemapContext<'a> {
 }
 
 #[derive(Debug, Clone)]
+pub struct SitemapAlternate {
+    pub hreflang: LocaleCode,
+    pub href: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct SitemapUrlEntry {
     pub loc: String,
     pub lastmod: String,
     pub changefreq: String,
     pub priority: f32,
+    pub alternates: Vec<SitemapAlternate>,
 }
 
 #[derive(Debug, Clone)]

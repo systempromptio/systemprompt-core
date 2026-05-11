@@ -1,13 +1,15 @@
 use crate::models::Content;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
 pub async fn get_by_id(pool: &Arc<PgPool>, id: &ContentId) -> Result<Option<Content>, sqlx::Error> {
     sqlx::query_as!(
         Content,
         r#"
-        SELECT id as "id: ContentId", slug, title, description, body, author,
+        SELECT id as "id: ContentId", slug,
+               locale as "locale: LocaleCode",
+               title, description, body, author,
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
@@ -22,20 +24,27 @@ pub async fn get_by_id(pool: &Arc<PgPool>, id: &ContentId) -> Result<Option<Cont
     .await
 }
 
-pub async fn get_by_slug(pool: &Arc<PgPool>, slug: &str) -> Result<Option<Content>, sqlx::Error> {
+pub async fn get_by_slug(
+    pool: &Arc<PgPool>,
+    slug: &str,
+    locale: &LocaleCode,
+) -> Result<Option<Content>, sqlx::Error> {
     sqlx::query_as!(
         Content,
         r#"
-        SELECT id as "id: ContentId", slug, title, description, body, author,
+        SELECT id as "id: ContentId", slug,
+               locale as "locale: LocaleCode",
+               title, description, body, author,
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
                version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
                updated_at
         FROM markdown_content
-        WHERE slug = $1
+        WHERE slug = $1 AND locale = $2
         "#,
-        slug
+        slug,
+        locale.as_str()
     )
     .fetch_optional(&**pool)
     .await
@@ -45,21 +54,25 @@ pub async fn get_by_source_and_slug(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
     slug: &str,
+    locale: &LocaleCode,
 ) -> Result<Option<Content>, sqlx::Error> {
     sqlx::query_as!(
         Content,
         r#"
-        SELECT id as "id: ContentId", slug, title, description, body, author,
+        SELECT id as "id: ContentId", slug,
+               locale as "locale: LocaleCode",
+               title, description, body, author,
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
                version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
                updated_at
         FROM markdown_content
-        WHERE source_id = $1 AND slug = $2
+        WHERE source_id = $1 AND slug = $2 AND locale = $3
         "#,
         source_id.as_str(),
-        slug
+        slug,
+        locale.as_str()
     )
     .fetch_optional(&**pool)
     .await
@@ -73,7 +86,9 @@ pub async fn list(
     sqlx::query_as!(
         Content,
         r#"
-        SELECT id as "id: ContentId", slug, title, description, body, author,
+        SELECT id as "id: ContentId", slug,
+               locale as "locale: LocaleCode",
+               title, description, body, author,
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
@@ -93,21 +108,25 @@ pub async fn list(
 pub async fn list_by_source(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
+    locale: &LocaleCode,
 ) -> Result<Vec<Content>, sqlx::Error> {
     sqlx::query_as!(
         Content,
         r#"
-        SELECT id as "id: ContentId", slug, title, description, body, author,
+        SELECT id as "id: ContentId", slug,
+               locale as "locale: LocaleCode",
+               title, description, body, author,
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
                version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
                updated_at
         FROM markdown_content
-        WHERE source_id = $1
+        WHERE source_id = $1 AND locale = $2
         ORDER BY published_at DESC
         "#,
-        source_id.as_str()
+        source_id.as_str(),
+        locale.as_str()
     )
     .fetch_all(&**pool)
     .await
@@ -116,23 +135,27 @@ pub async fn list_by_source(
 pub async fn list_by_source_limited(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
+    locale: &LocaleCode,
     limit: i64,
 ) -> Result<Vec<Content>, sqlx::Error> {
     sqlx::query_as!(
         Content,
         r#"
-        SELECT id as "id: ContentId", slug, title, description, body, author,
+        SELECT id as "id: ContentId", slug,
+               locale as "locale: LocaleCode",
+               title, description, body, author,
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
                version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
                updated_at
         FROM markdown_content
-        WHERE source_id = $1
+        WHERE source_id = $1 AND locale = $2
         ORDER BY published_at DESC
-        LIMIT $2
+        LIMIT $3
         "#,
         source_id.as_str(),
+        locale.as_str(),
         limit
     )
     .fetch_all(&**pool)
@@ -147,7 +170,9 @@ pub async fn list_all(
     sqlx::query_as!(
         Content,
         r#"
-        SELECT id as "id: ContentId", slug, title, description, body, author,
+        SELECT id as "id: ContentId", slug,
+               locale as "locale: LocaleCode",
+               title, description, body, author,
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
@@ -209,4 +234,22 @@ pub async fn get_popular_content_ids(
     .await?;
 
     Ok(rows.into_iter().map(ContentId::new).collect())
+}
+
+pub async fn list_slugs_with_locales_by_source(
+    pool: &Arc<PgPool>,
+    source_id: &SourceId,
+) -> Result<Vec<(String, LocaleCode)>, sqlx::Error> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT slug, locale as "locale: LocaleCode"
+        FROM markdown_content
+        WHERE source_id = $1 AND public = true
+        ORDER BY slug, locale
+        "#,
+        source_id.as_str()
+    )
+    .fetch_all(&**pool)
+    .await?;
+    Ok(rows.into_iter().map(|r| (r.slug, r.locale)).collect())
 }

@@ -35,7 +35,7 @@ impl PageDataProvider for DefaultListBrandingProvider {
 
         let source = content_config.content_sources.get(source_name);
         let org = &content_config.metadata.structured_data.organization;
-        let language = &content_config.metadata.language;
+        let language = ctx.web_config.i18n.default_locale.as_str();
         let branding = &ctx.web_config.branding;
 
         let source_branding = source.and_then(|s| s.branding.as_ref());

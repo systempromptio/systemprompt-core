@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::{
     ProviderError, ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
@@ -111,17 +111,11 @@ impl RssFeedProvider for DefaultRssFeedProvider {
             ProviderError::Configuration(format!("Failed to load global config: {e}"))
         })?;
 
-        let language = if self.content_config.metadata.language.is_empty() {
-            "en".to_string()
-        } else {
-            self.content_config.metadata.language.clone()
-        };
-
         Ok(RssFeedMetadata {
             title,
             link: global_config.api_external_url.clone(),
             description,
-            language: Some(language),
+            language: Some("en".to_string()),
         })
     }
 
@@ -150,7 +144,7 @@ impl RssFeedProvider for DefaultRssFeedProvider {
 
         let source_id = SourceId::new(ctx.source_name);
         let content_items = repo
-            .list_by_source_limited(&source_id, limit)
+            .list_by_source_limited(&source_id, &LocaleCode::new("en"), limit)
             .await
             .map_err(|e| {
                 ProviderError::RenderFailed(format!("Failed to fetch content for RSS feed: {e}"))

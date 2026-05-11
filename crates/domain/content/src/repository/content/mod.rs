@@ -6,7 +6,7 @@ use crate::models::{Content, CreateContentParams, UpdateContentParams};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
 #[derive(Debug)]
 pub struct ContentRepository {
@@ -33,32 +33,49 @@ impl ContentRepository {
         queries::get_by_id(&self.pool, id).await
     }
 
-    pub async fn get_by_slug(&self, slug: &str) -> Result<Option<Content>, sqlx::Error> {
-        queries::get_by_slug(&self.pool, slug).await
+    pub async fn get_by_slug(
+        &self,
+        slug: &str,
+        locale: &LocaleCode,
+    ) -> Result<Option<Content>, sqlx::Error> {
+        queries::get_by_slug(&self.pool, slug, locale).await
     }
 
     pub async fn get_by_source_and_slug(
         &self,
         source_id: &SourceId,
         slug: &str,
+        locale: &LocaleCode,
     ) -> Result<Option<Content>, sqlx::Error> {
-        queries::get_by_source_and_slug(&self.pool, source_id, slug).await
+        queries::get_by_source_and_slug(&self.pool, source_id, slug, locale).await
     }
 
     pub async fn list(&self, limit: i64, offset: i64) -> Result<Vec<Content>, sqlx::Error> {
         queries::list(&self.pool, limit, offset).await
     }
 
-    pub async fn list_by_source(&self, source_id: &SourceId) -> Result<Vec<Content>, sqlx::Error> {
-        queries::list_by_source(&self.pool, source_id).await
+    pub async fn list_by_source(
+        &self,
+        source_id: &SourceId,
+        locale: &LocaleCode,
+    ) -> Result<Vec<Content>, sqlx::Error> {
+        queries::list_by_source(&self.pool, source_id, locale).await
     }
 
     pub async fn list_by_source_limited(
         &self,
         source_id: &SourceId,
+        locale: &LocaleCode,
         limit: i64,
     ) -> Result<Vec<Content>, sqlx::Error> {
-        queries::list_by_source_limited(&self.pool, source_id, limit).await
+        queries::list_by_source_limited(&self.pool, source_id, locale, limit).await
+    }
+
+    pub async fn list_slugs_with_locales_by_source(
+        &self,
+        source_id: &SourceId,
+    ) -> Result<Vec<(String, LocaleCode)>, sqlx::Error> {
+        queries::list_slugs_with_locales_by_source(&self.pool, source_id).await
     }
 
     pub async fn update(&self, params: &UpdateContentParams) -> Result<Content, sqlx::Error> {

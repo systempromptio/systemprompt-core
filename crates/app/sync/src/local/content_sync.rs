@@ -10,7 +10,7 @@ use systemprompt_content::models::{IngestionOptions, IngestionSource};
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_content::services::IngestionService;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 use tracing::info;
 
 #[derive(Debug)]
@@ -62,7 +62,7 @@ impl ContentLocalSync {
 
             for item in &entry.diff.modified {
                 match content_repo
-                    .get_by_source_and_slug(&entry.source_id, &item.slug)
+                    .get_by_source_and_slug(&entry.source_id, &item.slug, &LocaleCode::new("en"))
                     .await
                     .map_err(SyncError::internal)?
                 {
@@ -81,7 +81,7 @@ impl ContentLocalSync {
 
             for item in &entry.diff.removed {
                 match content_repo
-                    .get_by_source_and_slug(&entry.source_id, &item.slug)
+                    .get_by_source_and_slug(&entry.source_id, &item.slug, &LocaleCode::new("en"))
                     .await
                     .map_err(SyncError::internal)?
                 {

@@ -5,7 +5,7 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_content::ContentRepository;
-use systemprompt_identifiers::{ContentId, SourceId};
+use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
@@ -41,7 +41,7 @@ pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandRes
             .as_ref()
             .ok_or_else(|| anyhow!("--source required when using slug"))?;
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &args.identifier)
+        repo.get_by_source_and_slug(&source, &args.identifier, &LocaleCode::new("en"))
             .await?
             .ok_or_else(|| {
                 anyhow!(
