@@ -51,10 +51,10 @@ Snapshot at time of writing:
 
 | Repo | Workspace version | `systemprompt` facade dep |
 |---|---|---|
-| `systemprompt-core` | 0.5.0 | n/a (owns the facade) |
-| `bin/bridge/` (in core) | 0.7.0 (independent — not in workspace) | n/a |
-| `systemprompt-deploy` | 0.4.0 | `= "0.5.0"` |
-| `systemprompt-template` | 0.5.0 | `= "0.5.0"` + `[patch.crates-io]` overrides for dev |
+| `systemprompt-core` | 0.9.0 | n/a (owns the facade) |
+| `bin/bridge/` (in core) | 0.8.0 (independent — not in workspace) | n/a |
+| `systemprompt-deploy` | 0.4.0 | `= "0.9.0"` |
+| `systemprompt-template` | 0.9.0 | `= "0.9.0"` + `[patch.crates-io]` overrides for dev |
 
 Rules:
 - **Bridge (`bin/bridge/Cargo.toml`)** versions independently. Its tag track is `bridge-v*` in core; its workspace membership is none. The crate version and the release tag don't have to match — the binary identifies itself by tag.
@@ -76,7 +76,7 @@ There is **no formal RC tag policy** wired up today. `bridge-vX.Y.Z-rc.N`, `gate
 
 **Template `Cargo.toml`** pins:
 ```toml
-systemprompt = { version = "0.5.0", default-features = false, features = ["core", "database"] }
+systemprompt = { version = "0.9.0", default-features = false, features = ["core", "database"] }
 
 [patch.crates-io]
 systemprompt = { path = "../systemprompt-core/systemprompt" }

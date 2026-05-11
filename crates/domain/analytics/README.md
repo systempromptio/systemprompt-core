@@ -49,7 +49,7 @@ This crate provides comprehensive analytics capabilities including:
 
 ```toml
 [dependencies]
-systemprompt-analytics = "0.2.1"
+systemprompt-analytics = "0.9.0"
 ```
 
 ```rust

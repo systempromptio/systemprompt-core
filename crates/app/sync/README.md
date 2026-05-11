@@ -100,7 +100,7 @@ src/
 
 ```toml
 [dependencies]
-systemprompt-sync = "0.2.1"
+systemprompt-sync = "0.9.0"
 ```
 
 ```rust

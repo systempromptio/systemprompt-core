@@ -1,12 +1,12 @@
 # Stability Contract
 
-This document defines what is stable in systemprompt.io and what is not. It is the honest answer to "you're on 0.3.x — is this safe to build against?"
+This document defines what is stable in systemprompt.io and what is not. It is the honest answer to "you're on 0.9.x — is this safe to build against?"
 
 ## Current Version
 
-`0.3.x` across the workspace. See root `Cargo.toml` for the exact current version.
+`0.9.x` across the workspace. See root `Cargo.toml` for the exact current version.
 
-We have not cut `1.0`. The reason is specific and deliberate: systemprompt integrates with AI provider APIs (Anthropic Messages API, OpenAI Chat Completions, Gemini, MCP spec, A2A protocol) that are themselves evolving rapidly, often under research-preview terms. Declaring `1.0` while our upstream surface is still in motion would claim a level of stability we cannot honestly provide for the full binary. We would rather be plainly `0.3` and truthful about the shape of stability than pretend.
+We have not cut `1.0`. The reason is specific and deliberate: systemprompt integrates with AI provider APIs (Anthropic Messages API, OpenAI Chat Completions, Gemini, MCP spec, A2A protocol) that are themselves evolving rapidly, often under research-preview terms. Declaring `1.0` while our upstream surface is still in motion would claim a level of stability we cannot honestly provide for the full binary. We would rather be plainly `0.9` and truthful about the shape of stability than pretend.
 
 What the rest of this document does is separate the parts of systemprompt that **are** stable from the parts that track upstream and must be allowed to move. The customer-facing commitment is in §3 below.
 

@@ -34,7 +34,7 @@ Building with this? [⭐ Star the repo](https://github.com/systempromptio/system
 
 ---
 
-- **Embed it** — `systemprompt = { version = "0.5.0", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
+- **Embed it** — `systemprompt = { version = "0.9.0", features = ["full"] }` in `Cargo.toml`, then jump to [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
 - **Evaluate it running** — clone [`systemprompt-template`](https://github.com/systempromptio/systemprompt-template) for a turnkey demo. `just build && just setup-local <key> && just start` runs 40+ scripted demos against the live binary.
 
 ---
@@ -134,7 +134,7 @@ Open **http://localhost:8080**, point Claude Code / Claude Desktop at it, and wa
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.5.0", features = ["full"] }
+systemprompt = { version = "0.9.0", features = ["full"] }
 ```
 
 See [Extensions (technical)](#extensions-technical) for the compile-time plugin model.
@@ -245,7 +245,7 @@ Registration is a single macro — `register_extension!` lives in [`crates/share
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.5.0", features = ["full"] }
+systemprompt = { version = "0.9.0", features = ["full"] }
 ```
 
 ```rust
@@ -333,10 +333,10 @@ Pull in only what you need through the `systemprompt` facade.
 
 ```toml
 # Embedded library usage
-systemprompt = { version = "0.5.0", features = ["core", "database"] }
+systemprompt = { version = "0.9.0", features = ["core", "database"] }
 
 # Building a product binary
-systemprompt = { version = "0.5.0", features = ["full"] }
+systemprompt = { version = "0.9.0", features = ["full"] }
 ```
 
 ```rust

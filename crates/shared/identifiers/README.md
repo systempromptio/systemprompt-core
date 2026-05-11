@@ -57,7 +57,7 @@ Provides strongly-typed wrappers for all domain identifiers, ensuring type safet
 
 ```toml
 [dependencies]
-systemprompt-identifiers = "0.2.1"
+systemprompt-identifiers = "0.9.0"
 ```
 
 ```rust

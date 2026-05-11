@@ -46,7 +46,7 @@ Provides the infrastructure for building and loading systemprompt.io extensions.
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.2.1"
+systemprompt-extension = "0.9.0"
 ```
 
 ```rust

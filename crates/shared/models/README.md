@@ -70,7 +70,7 @@ Service lifecycle trait, `WhereClause` query builder, and repository macros.
 
 ```toml
 [dependencies]
-systemprompt-models = "0.2.1"
+systemprompt-models = "0.9.0"
 ```
 
 ### `api` — API Response Models
