@@ -79,6 +79,7 @@ pub fn execute(
                         lastmod: today.clone(),
                         changefreq: parent.changefreq.clone(),
                         priority: parent.priority,
+                        alternates: Vec::new(),
                     });
                 }
             }
@@ -95,6 +96,7 @@ pub fn execute(
                     lastmod: today.clone(),
                     changefreq: sitemap.changefreq.clone(),
                     priority: sitemap.priority,
+                    alternates: Vec::new(),
                 });
             }
         }

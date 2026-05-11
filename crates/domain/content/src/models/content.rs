@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use sqlx::FromRow;
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId, TagId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId, TagId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -33,6 +33,7 @@ impl std::fmt::Display for ContentKind {
 pub struct Content {
     pub id: ContentId,
     pub slug: String,
+    pub locale: LocaleCode,
     pub title: String,
     pub description: String,
     pub body: String,
@@ -74,6 +75,8 @@ pub struct ContentMetadata {
     pub author: String,
     pub published_at: String,
     pub slug: String,
+    #[serde(default)]
+    pub locale: Option<LocaleCode>,
     #[serde(default)]
     pub keywords: String,
     pub kind: String,

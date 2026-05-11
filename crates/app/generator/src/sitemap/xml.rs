@@ -1,8 +1,16 @@
 //! Pure-function sitemap XML serialisation: turns slices of [`SitemapUrl`]
 //! into the `urlset` and `sitemapindex` documents required by the sitemaps.org
-//! 0.9 protocol.
+//! 0.9 protocol. The `xhtml:link` namespace is declared on every `<urlset>`
+//! so per-URL `<xhtml:link rel="alternate" hreflang="…">` entries validate
+//! against Google's hreflang spec.
 
 use chrono::Utc;
+
+#[derive(Debug, Clone)]
+pub struct SitemapUrlAlternate {
+    pub hreflang: String,
+    pub href: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct SitemapUrl {
@@ -10,29 +18,33 @@ pub struct SitemapUrl {
     pub lastmod: String,
     pub changefreq: String,
     pub priority: f32,
+    pub alternates: Vec<SitemapUrlAlternate>,
 }
 
 pub fn build_sitemap_xml(urls: &[SitemapUrl]) -> String {
     let mut xml = String::from(
         r#"<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 "#,
     );
 
     for url in urls {
         xml.push_str(&format!(
-            r"  <url>
-    <loc>{}</loc>
-    <lastmod>{}</lastmod>
-    <changefreq>{}</changefreq>
-    <priority>{:.1}</priority>
-  </url>
-",
+            "  <url>\n    <loc>{}</loc>\n    <lastmod>{}</lastmod>\n    \
+             <changefreq>{}</changefreq>\n    <priority>{:.1}</priority>\n",
             escape_xml(&url.loc),
             escape_xml(&url.lastmod),
             escape_xml(&url.changefreq),
             url.priority
         ));
+        for alt in &url.alternates {
+            xml.push_str(&format!(
+                "    <xhtml:link rel=\"alternate\" hreflang=\"{}\" href=\"{}\"/>\n",
+                escape_xml(&alt.hreflang),
+                escape_xml(&alt.href),
+            ));
+        }
+        xml.push_str("  </url>\n");
     }
 
     xml.push_str("</urlset>");

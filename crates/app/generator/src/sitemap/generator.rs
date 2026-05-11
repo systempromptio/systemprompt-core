@@ -2,21 +2,24 @@
 //! 50 000 URL limit) from configured content sources.
 
 use chrono::Utc;
+use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::SourceId;
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfigRaw};
+use systemprompt_identifiers::{LocaleCode, SourceId};
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfigRaw, WebConfig};
 use tokio::fs;
 
-use super::xml::{SitemapUrl, build_sitemap_index, build_sitemap_xml};
+use super::xml::{SitemapUrl, SitemapUrlAlternate, build_sitemap_index, build_sitemap_xml};
 use crate::error::{GeneratorResult as Result, PublishError};
+use crate::templates::load_web_config;
 
 const MAX_URLS_PER_SITEMAP: usize = 50_000;
 const SLUG_PLACEHOLDER: &str = "{slug}";
 
 struct SitemapContext {
     config: ContentConfigRaw,
+    web_config: WebConfig,
     db_pool: DbPool,
     base_url: String,
     web_dir: std::path::PathBuf,
@@ -41,6 +44,10 @@ async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<Sitem
     let config: ContentConfigRaw = serde_yaml::from_str(&yaml_content)
         .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))?;
 
+    let web_config = load_web_config(paths)
+        .await
+        .map_err(|e| PublishError::other(format!("Failed to load web config: {e}")))?;
+
     let web_dir = paths.web().dist().to_path_buf();
     let base_url = global_config.api_external_url.clone();
 
@@ -48,6 +55,7 @@ async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<Sitem
 
     Ok(SitemapContext {
         config,
+        web_config,
         db_pool,
         base_url,
         web_dir,
@@ -78,6 +86,7 @@ async fn collect_source_urls(
 
     let mut urls = fetch_urls_from_database(FetchParams {
         db_pool: &ctx.db_pool,
+        web_config: &ctx.web_config,
         source_id: source.source_id.as_str(),
         url_pattern: &sitemap_config.url_pattern,
         priority: sitemap_config.priority,
@@ -87,7 +96,11 @@ async fn collect_source_urls(
     .await
     .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
-    urls.extend(build_parent_url(sitemap_config, &ctx.base_url));
+    urls.extend(build_parent_urls(
+        sitemap_config,
+        &ctx.web_config,
+        &ctx.base_url,
+    ));
     Ok(urls)
 }
 
@@ -100,22 +113,52 @@ fn get_enabled_sitemap_config(
     source.sitemap.as_ref().filter(|cfg| cfg.enabled)
 }
 
-fn build_parent_url(
+fn build_parent_urls(
     sitemap_config: &systemprompt_models::SitemapConfig,
+    web_config: &WebConfig,
     base_url: &str,
-) -> Option<SitemapUrl> {
-    let parent_config = sitemap_config.parent_route.as_ref()?;
+) -> Vec<SitemapUrl> {
+    let Some(parent_config) = sitemap_config.parent_route.as_ref() else {
+        return Vec::new();
+    };
 
     if !parent_config.enabled {
-        return None;
+        return Vec::new();
     }
 
-    Some(SitemapUrl {
-        loc: format!("{}{}", base_url, parent_config.url),
-        lastmod: Utc::now().format("%Y-%m-%d").to_string(),
-        changefreq: parent_config.changefreq.clone(),
-        priority: parent_config.priority,
-    })
+    let lastmod = Utc::now().format("%Y-%m-%d").to_string();
+    let i18n = &web_config.i18n;
+
+    i18n.supported_locales
+        .iter()
+        .map(|locale| {
+            let prefix = i18n.locale_prefix(locale);
+            let alternates = i18n
+                .supported_locales
+                .iter()
+                .map(|alt| SitemapUrlAlternate {
+                    hreflang: alt.to_string(),
+                    href: format!(
+                        "{}{}{}",
+                        base_url,
+                        i18n.locale_prefix(alt),
+                        parent_config.url
+                    ),
+                })
+                .chain(std::iter::once(SitemapUrlAlternate {
+                    hreflang: "x-default".to_string(),
+                    href: format!("{}{}", base_url, parent_config.url),
+                }))
+                .collect();
+            SitemapUrl {
+                loc: format!("{}{}{}", base_url, prefix, parent_config.url),
+                lastmod: lastmod.clone(),
+                changefreq: parent_config.changefreq.clone(),
+                priority: parent_config.priority,
+                alternates,
+            }
+        })
+        .collect()
 }
 
 async fn write_sitemap_files(
@@ -128,8 +171,16 @@ async fn write_sitemap_files(
         .map(<[_]>::to_vec)
         .collect();
 
-    if sitemap_chunks.len() == 1 {
-        write_single_sitemap(web_dir, &sitemap_chunks[0]).await
+    if sitemap_chunks.len() <= 1 {
+        write_single_sitemap(
+            web_dir,
+            sitemap_chunks
+                .first()
+                .cloned()
+                .unwrap_or_default()
+                .as_slice(),
+        )
+        .await
     } else {
         write_multiple_sitemaps(web_dir, &sitemap_chunks, base_url).await
     }
@@ -182,6 +233,7 @@ async fn write_sitemap_index(
 
 struct FetchParams<'a> {
     db_pool: &'a DbPool,
+    web_config: &'a WebConfig,
     source_id: &'a str,
     url_pattern: &'a str,
     priority: f32,
@@ -194,30 +246,48 @@ async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<Sitemap
         .map_err(|e| PublishError::other(format!("Failed to create content repository: {e}")))?;
 
     let source_id = SourceId::new(params.source_id);
-    let contents = repo
-        .list_by_source(&source_id)
+    let pairs = repo
+        .list_slugs_with_locales_by_source(&source_id)
         .await
         .map_err(|e| PublishError::other(format!("Failed to fetch content for sitemap: {e}")))?;
 
-    Ok(contents
-        .iter()
-        .map(|content| build_sitemap_url_from_content(content, &params))
-        .collect())
-}
-
-fn build_sitemap_url_from_content(
-    content: &systemprompt_content::models::Content,
-    params: &FetchParams<'_>,
-) -> SitemapUrl {
-    let relative_url = params.url_pattern.replace(SLUG_PLACEHOLDER, &content.slug);
-    let absolute_url = format!("{}{}", params.base_url, relative_url);
-
-    let lastmod = content.published_at.format("%Y-%m-%d").to_string();
-
-    SitemapUrl {
-        loc: absolute_url,
-        lastmod,
-        changefreq: params.changefreq.to_string(),
-        priority: params.priority,
+    let mut by_slug: HashMap<String, Vec<LocaleCode>> = HashMap::new();
+    for (slug, locale) in pairs {
+        by_slug.entry(slug).or_default().push(locale);
     }
+
+    let i18n = &params.web_config.i18n;
+    let lastmod = Utc::now().format("%Y-%m-%d").to_string();
+
+    let mut urls = Vec::new();
+    for (slug, locales) in by_slug {
+        let relative = params.url_pattern.replace(SLUG_PLACEHOLDER, &slug);
+        let default_url = format!("{}{}", params.base_url, relative);
+
+        for locale in &locales {
+            let prefix = i18n.locale_prefix(locale);
+            let alternates = locales
+                .iter()
+                .filter(|alt| i18n.supported_locales.contains(alt))
+                .map(|alt| SitemapUrlAlternate {
+                    hreflang: alt.to_string(),
+                    href: format!("{}{}{}", params.base_url, i18n.locale_prefix(alt), relative),
+                })
+                .chain(std::iter::once(SitemapUrlAlternate {
+                    hreflang: "x-default".to_string(),
+                    href: default_url.clone(),
+                }))
+                .collect();
+
+            urls.push(SitemapUrl {
+                loc: format!("{}{}{}", params.base_url, prefix, relative),
+                lastmod: lastmod.clone(),
+                changefreq: params.changefreq.to_string(),
+                priority: params.priority,
+                alternates,
+            });
+        }
+    }
+
+    Ok(urls)
 }

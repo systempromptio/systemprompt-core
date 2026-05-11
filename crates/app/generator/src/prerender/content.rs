@@ -4,6 +4,7 @@
 //! (in [`crate::prerender::list`]).
 
 use futures::stream::{self, StreamExt};
+use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
 
 use crate::error::{GeneratorResult as Result, PublishError};
@@ -11,6 +12,16 @@ use crate::prerender::context::PrerenderContext;
 use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_popular_ids};
 use crate::prerender::list::{RenderListParams, render_list_route};
 use crate::prerender::render::{RenderSingleItemParams, render_single_item};
+
+struct SourceRenderJob<'a> {
+    ctx: &'a PrerenderContext,
+    source_name: &'a str,
+    sitemap_config: &'a SitemapConfig,
+    locale: &'a LocaleCode,
+    locale_prefix: &'a str,
+    items: &'a [serde_json::Value],
+    popular_ids: &'a [String],
+}
 
 pub async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
     const SOURCE_CONCURRENCY: usize = 2;
@@ -24,10 +35,19 @@ pub async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
         })
         .collect();
 
-    let futures: Vec<_> = sources
+    let locales = &ctx.web_config.i18n.supported_locales;
+
+    let mut work = Vec::with_capacity(sources.len() * locales.len());
+    for (source_name, source, sitemap) in &sources {
+        for locale in locales {
+            work.push((*source_name, *source, *sitemap, locale.clone()));
+        }
+    }
+
+    let futures: Vec<_> = work
         .iter()
-        .map(|&(source_name, source, sitemap_config)| {
-            process_source(ctx, source_name, source, sitemap_config)
+        .map(|(source_name, source, sitemap_config, locale)| {
+            process_source(ctx, source_name, source, sitemap_config, locale)
         })
         .collect();
 
@@ -67,13 +87,14 @@ async fn process_source(
     source_name: &str,
     source: &ContentSourceConfigRaw,
     sitemap_config: &SitemapConfig,
+    locale: &LocaleCode,
 ) -> Result<u32> {
-    let contents = fetch_content_for_source(ctx, source_name, &source.source_id)
+    let contents = fetch_content_for_source(ctx, source_name, &source.source_id, locale)
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
     if contents.is_empty() {
-        tracing::debug!(source = %source_name, "No content found for source");
+        tracing::debug!(source = %source_name, locale = %locale, "No content found for source/locale");
         return Ok(0);
     }
 
@@ -88,43 +109,51 @@ async fn process_source(
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
-    let rendered = render_all_items(ctx, source_name, sitemap_config, &items, &popular_ids).await?;
-    let parent = render_parent_if_enabled(ctx, source_name, sitemap_config, &items).await?;
+    let locale_prefix = ctx.web_config.i18n.locale_prefix(locale);
+    let job = SourceRenderJob {
+        ctx,
+        source_name,
+        sitemap_config,
+        locale,
+        locale_prefix: &locale_prefix,
+        items: &items,
+        popular_ids: &popular_ids,
+    };
+
+    let rendered = render_all_items(&job).await?;
+    let parent = render_parent_if_enabled(&job).await?;
     Ok(rendered + parent)
 }
 
-async fn render_all_items(
-    ctx: &PrerenderContext,
-    source_name: &str,
-    sitemap_config: &SitemapConfig,
-    items: &[serde_json::Value],
-    popular_ids: &[String],
-) -> Result<u32> {
+async fn render_all_items(job: &SourceRenderJob<'_>) -> Result<u32> {
     const RENDER_CONCURRENCY: usize = 8;
 
-    let config_value = serde_yaml::to_value(&ctx.config)?;
+    let config_value = serde_yaml::to_value(&job.ctx.config)?;
 
-    let parent_route_enabled = sitemap_config
+    let parent_route_enabled = job
+        .sitemap_config
         .parent_route
         .as_ref()
         .is_some_and(|p| p.enabled);
 
-    let futures: Vec<_> = items
+    let futures: Vec<_> = job
+        .items
         .iter()
         .map(|item| async {
             let slug = item.get("slug").and_then(|v| v.as_str()).unwrap_or("");
             if slug.is_empty() && parent_route_enabled {
-                tracing::debug!(source = %source_name, "Skipping index content - rendered by parent route");
+                tracing::debug!(source = %job.source_name, "Skipping index content - rendered by parent route");
                 return Ok(false);
             }
 
             render_single_item(&RenderSingleItemParams {
-                ctx,
-                source_name,
-                sitemap_config,
+                ctx: job.ctx,
+                source_name: job.source_name,
+                sitemap_config: job.sitemap_config,
+                locale_prefix: job.locale_prefix,
                 item,
-                all_items: items,
-                popular_ids,
+                all_items: job.items,
+                popular_ids: job.popular_ids,
                 config_value: &config_value,
             })
             .await?;
@@ -146,13 +175,8 @@ async fn render_all_items(
     Ok(rendered)
 }
 
-async fn render_parent_if_enabled(
-    ctx: &PrerenderContext,
-    source_name: &str,
-    sitemap_config: &SitemapConfig,
-    items: &[serde_json::Value],
-) -> Result<u32> {
-    let Some(parent_config) = &sitemap_config.parent_route else {
+async fn render_parent_if_enabled(job: &SourceRenderJob<'_>) -> Result<u32> {
+    let Some(parent_config) = &job.sitemap_config.parent_route else {
         return Ok(0);
     };
 
@@ -160,22 +184,24 @@ async fn render_parent_if_enabled(
         return Ok(0);
     }
 
-    let index_content = items.iter().find(|item| {
+    let index_content = job.items.iter().find(|item| {
         item.get("slug")
             .and_then(|v| v.as_str())
             .is_some_and(str::is_empty)
     });
 
     render_list_route(RenderListParams {
-        items,
-        config: &ctx.config,
-        web_config: &ctx.web_config,
+        items: job.items,
+        config: &job.ctx.config,
+        web_config: &job.ctx.web_config,
         list_config: parent_config,
-        source_name,
-        template_registry: &ctx.template_registry,
-        dist_dir: &ctx.dist_dir,
+        source_name: job.source_name,
+        locale: job.locale,
+        locale_prefix: job.locale_prefix,
+        template_registry: &job.ctx.template_registry,
+        dist_dir: &job.ctx.dist_dir,
         index_content,
-        db_pool: &ctx.db_pool,
+        db_pool: &job.ctx.db_pool,
     })
     .await?;
 

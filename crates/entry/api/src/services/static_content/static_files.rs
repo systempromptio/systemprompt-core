@@ -13,7 +13,7 @@ use cache::{resolve_mime_type, serve_cached_file};
 use responses::{not_found_response, not_prerendered_response};
 use systemprompt_content::ContentRepository;
 use systemprompt_files::FilesConfig;
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::{RouteClassifier, RouteType};
 use systemprompt_runtime::AppContext;
 
@@ -162,7 +162,7 @@ async fn serve_content_page(
 
     let source_id = SourceId::new(req.source_id);
     match content_repo
-        .get_by_source_and_slug(&source_id, req.slug)
+        .get_by_source_and_slug(&source_id, req.slug, &LocaleCode::new("en"))
         .await
     {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),

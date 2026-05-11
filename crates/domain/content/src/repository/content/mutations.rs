@@ -3,7 +3,7 @@ use crate::models::{Content, ContentKind, CreateContentParams, UpdateContentPara
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
 use super::queries;
 
@@ -17,12 +17,12 @@ pub async fn create(
         Content,
         r#"
         INSERT INTO markdown_content (
-            id, slug, title, description, body, author,
+            id, slug, locale, title, description, body, author,
             published_at, keywords, kind, image, category_id, source_id,
             version_hash, links, updated_at, public
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        ON CONFLICT (slug) DO UPDATE SET
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        ON CONFLICT (slug, locale) DO UPDATE SET
             title = EXCLUDED.title,
             description = EXCLUDED.description,
             body = EXCLUDED.body,
@@ -37,7 +37,9 @@ pub async fn create(
             links = EXCLUDED.links,
             updated_at = EXCLUDED.updated_at,
             public = EXCLUDED.public
-        RETURNING id as "id: ContentId", slug, title, description, body, author,
+        RETURNING id as "id: ContentId", slug,
+                  locale as "locale: LocaleCode",
+                  title, description, body, author,
                   published_at, keywords, kind, image,
                   category_id as "category_id: CategoryId",
                   source_id as "source_id: SourceId",
@@ -46,6 +48,7 @@ pub async fn create(
         "#,
         id.as_str(),
         params.slug,
+        params.locale.as_str(),
         params.title,
         params.description,
         params.body,
@@ -115,7 +118,9 @@ pub async fn update(
             category_id = $8, kind = $9, public = $10,
             author = $11, published_at = $12, links = $13
         WHERE id = $14
-        RETURNING id as "id: ContentId", slug, title, description, body, author,
+        RETURNING id as "id: ContentId", slug,
+                  locale as "locale: LocaleCode",
+                  title, description, body, author,
                   published_at, keywords, kind, image,
                   category_id as "category_id: CategoryId",
                   source_id as "source_id: SourceId",

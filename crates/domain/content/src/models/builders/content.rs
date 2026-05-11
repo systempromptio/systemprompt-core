@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
 #[derive(Debug, Clone)]
 pub enum CategoryIdUpdate {
@@ -21,6 +21,7 @@ impl From<Option<Option<CategoryId>>> for CategoryIdUpdate {
 #[derive(Debug, Clone)]
 pub struct CreateContentParams {
     pub slug: String,
+    pub locale: LocaleCode,
     pub title: String,
     pub description: String,
     pub body: String,
@@ -46,6 +47,7 @@ impl CreateContentParams {
     ) -> Self {
         Self {
             slug,
+            locale: LocaleCode::new("en"),
             title,
             description,
             body,
@@ -64,6 +66,11 @@ impl CreateContentParams {
 
     pub fn with_author(mut self, author: String) -> Self {
         self.author = author;
+        self
+    }
+
+    pub fn with_locale(mut self, locale: LocaleCode) -> Self {
+        self.locale = locale;
         self
     }
 

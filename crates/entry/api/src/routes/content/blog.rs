@@ -4,7 +4,7 @@ use axum::http::header::LINK;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use systemprompt_content::{Content, ContentRepository};
-use systemprompt_identifiers::SourceId;
+use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
 use systemprompt_runtime::AppContext;
@@ -27,7 +27,10 @@ pub async fn list_content_by_source_handler(
     };
 
     let source_id = SourceId::new(source_id);
-    match content_service.list_by_source(&source_id).await {
+    match content_service
+        .list_by_source(&source_id, &LocaleCode::new("en"))
+        .await
+    {
         Ok(content) => Json(content).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -56,7 +59,7 @@ pub async fn get_content_handler(
 
     let source_id_typed = SourceId::new(source_id.clone());
     match content_service
-        .get_by_source_and_slug(&source_id_typed, &slug)
+        .get_by_source_and_slug(&source_id_typed, &slug, &LocaleCode::new("en"))
         .await
     {
         Ok(Some(content)) => {
@@ -119,7 +122,7 @@ pub async fn get_content_markdown_handler(
     let source_id = SourceId::new(source_id);
 
     match content_service
-        .get_by_source_and_slug(&source_id, slug)
+        .get_by_source_and_slug(&source_id, slug, &LocaleCode::new("en"))
         .await
     {
         Ok(Some(content)) => content_to_markdown_response(&content).into_response(),

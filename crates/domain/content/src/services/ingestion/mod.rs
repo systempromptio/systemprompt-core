@@ -12,7 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 use systemprompt_provider_contracts::FrontmatterContext;
 
 #[derive(Debug)]
@@ -108,7 +108,11 @@ impl IngestionService {
 
         let existing_content = self
             .content_repo
-            .get_by_source_and_slug(&new_content.source_id, &new_content.slug)
+            .get_by_source_and_slug(
+                &new_content.source_id,
+                &new_content.slug,
+                &new_content.locale,
+            )
             .await?;
 
         let slug = new_content.slug.clone();
@@ -126,6 +130,7 @@ impl IngestionService {
                     new_content.body.clone(),
                     new_content.source_id.clone(),
                 )
+                .with_locale(new_content.locale.clone())
                 .with_author(new_content.author.clone())
                 .with_published_at(new_content.published_at)
                 .with_keywords(new_content.keywords.clone())
@@ -263,6 +268,10 @@ impl IngestionService {
         Ok(Content {
             id,
             slug,
+            locale: metadata
+                .locale
+                .clone()
+                .unwrap_or_else(|| LocaleCode::new("en")),
             title: metadata.title.clone(),
             description: metadata.description.clone(),
             body: content_text.to_string(),

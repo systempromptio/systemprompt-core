@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use serde_json::Value;
+use systemprompt_identifiers::LocaleCode;
 
 use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
@@ -12,6 +13,7 @@ use crate::web_config::WebConfig;
 #[derive(Debug)]
 pub struct PagePrepareContext<'a> {
     pub web_config: &'a WebConfig,
+    pub locale: &'a LocaleCode,
     content_config: &'a (dyn Any + Send + Sync),
     db_pool: &'a (dyn Any + Send + Sync),
     dist_dir: &'a std::path::Path,
@@ -27,10 +29,17 @@ impl<'a> PagePrepareContext<'a> {
     ) -> Self {
         Self {
             web_config,
+            locale: &web_config.i18n.default_locale,
             content_config,
             db_pool,
             dist_dir,
         }
+    }
+
+    #[must_use]
+    pub const fn with_locale(mut self, locale: &'a LocaleCode) -> Self {
+        self.locale = locale;
+        self
     }
 
     #[must_use]

@@ -84,6 +84,7 @@ impl SitemapProvider for DefaultSitemapProvider {
                             lastmod: today.clone(),
                             changefreq: parent.changefreq.clone(),
                             priority: parent.priority,
+                            alternates: Vec::new(),
                         })
                     })
                 })
