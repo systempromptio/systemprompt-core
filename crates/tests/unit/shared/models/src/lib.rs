@@ -62,9 +62,6 @@ mod text_utils;
 mod routing;
 
 #[cfg(test)]
-mod modules;
-
-#[cfg(test)]
 mod marketplace;
 
 #[cfg(test)]

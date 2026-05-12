@@ -14,8 +14,9 @@
 //! - [`PostgresProvider`] — the `PostgreSQL` implementation.
 //! - [`RepositoryError`] / [`DatabaseResult`] — canonical typed error/result
 //!   returned from non-trait public APIs.
-//! - [`MigrationService`], [`install_extension_schemas`], [`install_schema`],
-//!   etc. — lifecycle helpers driving extension-supplied DDL.
+//! - [`MigrationService`], [`install_extension_schemas`],
+//!   [`install_extension_schemas_full`] — lifecycle helpers driving
+//!   extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
 //!
@@ -66,10 +67,10 @@ pub use services::{
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
-    AppliedMigration, MigrationResult, MigrationService, MigrationStatus, ModuleInstaller,
-    install_extension_schemas, install_extension_schemas_with_config,
-    install_module_schemas_from_source, install_module_seeds_from_path, install_schema,
-    install_seed, validate_column_exists, validate_database_connection, validate_table_exists,
+    AppliedMigration, MigrationConfig, MigrationResult, MigrationService, MigrationStatus,
+    install_extension_schemas, install_extension_schemas_full,
+    install_extension_schemas_with_config, validate_column_exists, validate_database_connection,
+    validate_table_exists,
 };
 pub use repository::{
     CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PgDbPool, ServiceConfig,

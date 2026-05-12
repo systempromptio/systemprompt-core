@@ -1,6 +1,7 @@
 mod admin;
 mod admin_migrate;
 mod admin_migrations;
+mod doctor;
 mod helpers;
 mod introspect;
 mod query;
@@ -46,7 +47,14 @@ pub enum DbCommands {
     #[command(about = "Show database information")]
     Info,
     #[command(about = "Run database migrations")]
-    Migrate,
+    Migrate {
+        #[arg(
+            long,
+            help = "Continue past migration checksum mismatches with a warning instead of \
+                    erroring (use with caution)"
+        )]
+        allow_checksum_drift: bool,
+    },
     #[command(about = "Show migration status and history")]
     Migrations {
         #[command(subcommand)]
@@ -67,6 +75,8 @@ pub enum DbCommands {
     },
     #[command(about = "Show database and table sizes")]
     Size,
+    #[command(about = "Diff live schema against extension declarations")]
+    Doctor,
 }
 
 #[derive(Debug, Subcommand)]
@@ -103,8 +113,11 @@ impl DatabaseTool {
 }
 
 pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
-    if matches!(cmd, DbCommands::Migrate) {
-        return admin::execute_migrate(config).await;
+    if let DbCommands::Migrate {
+        allow_checksum_drift,
+    } = cmd
+    {
+        return admin::execute_migrate(config, allow_checksum_drift).await;
     }
 
     let db = DatabaseTool::new().await?;
@@ -137,7 +150,7 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
             schema::execute_describe(&db.admin_service, &table_name, config).await
         },
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
-        DbCommands::Migrate => unreachable!(),
+        DbCommands::Migrate { .. } => unreachable!(),
         DbCommands::Migrations { cmd } => admin::execute_migrations(&db.ctx, cmd, config).await,
         DbCommands::AssignAdmin { user } => {
             admin::execute_assign_admin(&db.ctx, &user, config).await
@@ -151,6 +164,7 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
             introspect::execute_indexes(&db.admin_service, table, config).await
         },
         DbCommands::Size => introspect::execute_size(&db.admin_service, config).await,
+        DbCommands::Doctor => doctor::execute_doctor(db.ctx.db_pool(), config).await,
     }
 }
 
@@ -194,7 +208,9 @@ pub async fn execute_with_db(
             schema::execute_describe(&admin_service, &table_name, config).await
         },
         DbCommands::Info => schema::execute_info(&admin_service, config).await,
-        DbCommands::Migrate => admin::execute_migrate_standalone(db_ctx, config).await,
+        DbCommands::Migrate {
+            allow_checksum_drift,
+        } => admin::execute_migrate_standalone(db_ctx, config, allow_checksum_drift).await,
         DbCommands::Migrations { cmd } => {
             admin::execute_migrations_standalone(db_ctx, cmd, config).await
         },
@@ -210,5 +226,6 @@ pub async fn execute_with_db(
             introspect::execute_indexes(&admin_service, table, config).await
         },
         DbCommands::Size => introspect::execute_size(&admin_service, config).await,
+        DbCommands::Doctor => doctor::execute_doctor(db_ctx.db_pool(), config).await,
     }
 }

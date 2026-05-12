@@ -18,7 +18,7 @@ impl Extension for McpExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "mcp_tool_executions",
                 include_str!("../schema/mcp_tool_executions.sql"),
             )
@@ -28,13 +28,13 @@ impl Extension for McpExtension {
                 "server_name".into(),
                 "created_at".into(),
             ]),
-            SchemaDefinition::inline("mcp_sessions", include_str!("../schema/mcp_sessions.sql"))
+            SchemaDefinition::new("mcp_sessions", include_str!("../schema/mcp_sessions.sql"))
                 .with_required_columns(vec![
                     "session_id".into(),
                     "status".into(),
                     "created_at".into(),
                 ]),
-            SchemaDefinition::inline("mcp_artifacts", include_str!("../schema/mcp_artifacts.sql"))
+            SchemaDefinition::new("mcp_artifacts", include_str!("../schema/mcp_artifacts.sql"))
                 .with_required_columns(vec![
                     "artifact_id".into(),
                     "mcp_execution_id".into(),

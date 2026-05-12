@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_extension::{ExtensionRegistry, SchemaSource};
+use systemprompt_extension::ExtensionRegistry;
 
 use super::types::{
     ExtensionDetailOutput, ExtensionSource, JobInfo, LlmProviderInfo, RoleInfo, SchemaInfo,
@@ -53,16 +53,10 @@ pub fn execute(
     let schemas: Vec<SchemaInfo> = ext
         .schemas()
         .iter()
-        .map(|schema| {
-            let source = match &schema.sql {
-                SchemaSource::Inline(_) => "inline".to_string(),
-                SchemaSource::File(path) => path.display().to_string(),
-            };
-            SchemaInfo {
-                table: schema.table.clone(),
-                source,
-                required_columns: schema.required_columns.clone(),
-            }
+        .map(|schema| SchemaInfo {
+            table: schema.table.clone(),
+            source: "inline".to_string(),
+            required_columns: schema.required_columns.clone(),
         })
         .collect();
 

@@ -20,19 +20,36 @@ pub struct MigrationResult {
     pub migrations_skipped: usize,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MigrationConfig {
+    pub allow_checksum_drift: bool,
+}
+
 pub struct MigrationService<'a> {
     db: &'a dyn DatabaseProvider,
+    config: MigrationConfig,
 }
 
 impl std::fmt::Debug for MigrationService<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MigrationService").finish_non_exhaustive()
+        f.debug_struct("MigrationService")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
     }
 }
 
 impl<'a> MigrationService<'a> {
     pub fn new(db: &'a dyn DatabaseProvider) -> Self {
-        Self { db }
+        Self {
+            db,
+            config: MigrationConfig::default(),
+        }
+    }
+
+    #[must_use]
+    pub const fn with_config(mut self, config: MigrationConfig) -> Self {
+        self.config = config;
+        self
     }
 
     async fn ensure_migrations_table_exists(&self) -> Result<(), LoaderError> {
@@ -106,14 +123,28 @@ impl<'a> MigrationService<'a> {
                 let current_checksum = migration.checksum();
                 if let Some(&stored_checksum) = applied_checksums.get(&migration.version) {
                     if stored_checksum != current_checksum {
-                        warn!(
-                            extension = %ext_id,
-                            version = migration.version,
-                            name = %migration.name,
-                            stored_checksum = %stored_checksum,
-                            current_checksum = %current_checksum,
-                            "Migration checksum mismatch - SQL has changed since it was applied"
-                        );
+                        if self.config.allow_checksum_drift {
+                            warn!(
+                                extension = %ext_id,
+                                version = migration.version,
+                                name = %migration.name,
+                                stored_checksum = %stored_checksum,
+                                current_checksum = %current_checksum,
+                                "Migration checksum mismatch tolerated by --allow-checksum-drift"
+                            );
+                        } else {
+                            return Err(LoaderError::MigrationFailed {
+                                extension: ext_id.to_string(),
+                                message: format!(
+                                    "Migration {ver} ('{name}') has been edited since it was \
+                                     applied (stored checksum {stored_checksum}, current \
+                                     {current_checksum}). Refusing to proceed. Re-run with \
+                                     --allow-checksum-drift to override.",
+                                    ver = migration.version,
+                                    name = migration.name,
+                                ),
+                            });
+                        }
                     }
                 }
                 migrations_skipped += 1;

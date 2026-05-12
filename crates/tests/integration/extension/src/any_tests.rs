@@ -35,7 +35,7 @@ impl NoDependencies for SchemaTestExtension {}
 
 impl SchemaExtensionTyped for SchemaTestExtension {
     fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::embedded(
+        vec![SchemaDefinitionTyped::new(
             "test_table",
             "CREATE TABLE test_table (id INTEGER PRIMARY KEY)",
         )]

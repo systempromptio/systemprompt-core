@@ -13,7 +13,6 @@
 //! - [`RowParseError`] — JSON-row deserialization failures.
 //! - [`MetadataError`] — MCP `_meta` payload decoding.
 //! - [`SecretsError`] — on-disk secrets document.
-//! - [`ModuleError`] — module manifest resolution.
 //! - [`ProviderError`] / [`ProviderResult`] — plug-in trait abstractions.
 //! - [`CoreError`] — legacy umbrella enum with HTTP status mapping.
 //! - [`ServiceError`] — application-tier umbrella enum.
@@ -23,7 +22,6 @@ pub use systemprompt_traits::RepositoryError;
 mod core;
 pub mod macros;
 mod metadata;
-mod module;
 mod parse;
 mod provider;
 mod row;
@@ -33,7 +31,6 @@ mod validation;
 
 pub use core::CoreError;
 pub use metadata::MetadataError;
-pub use module::ModuleError;
 pub use parse::{ConfigError, ParseEnumError};
 pub use provider::{ProviderError, ProviderResult};
 pub use row::RowParseError;

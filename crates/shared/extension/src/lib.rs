@@ -67,7 +67,7 @@ pub mod types;
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use error::{ConfigError, LoaderError};
-pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition, SchemaSource, SeedSource};
+pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
@@ -82,7 +82,7 @@ pub use capabilities::{
 pub use hlist::{Contains, NotSame, Subset, TypeList};
 pub use typed::{
     ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
-    ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+    ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
 };
 pub use typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
 pub use types::{
@@ -96,7 +96,7 @@ pub mod prelude {
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
-        SchemaSource, SiteAuthConfig, register_extension,
+        SiteAuthConfig, register_extension,
     };
 
     pub use crate::any::AnyExtension;
@@ -109,7 +109,7 @@ pub mod prelude {
     pub use crate::hlist::{Contains, NotSame, Subset, TypeList};
     pub use crate::typed::{
         ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
-        ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+        ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
     };
     pub use crate::typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
     pub use crate::types::{

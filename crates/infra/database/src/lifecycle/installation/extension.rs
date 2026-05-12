@@ -1,12 +1,27 @@
 //! Schema installation from compile-time-registered
 //! [`systemprompt_extension::Extension`] instances (the modern path).
+//!
+//! Invariants:
+//! - Every `SchemaDefinition.sql` is executed on every boot. Schemas are
+//!   expected to be idempotent (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF
+//!   NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`). The previous "skip if table
+//!   already exists" optimisation silently dropped post-install ALTERs and
+//!   defeated the safety-net pattern; it is intentionally gone.
+//! - The full set of statements for one extension runs inside a single
+//!   transaction. On failure, the transaction is rolled back and the failing
+//!   statement (with its 1-based index and SQL text) is surfaced in the error.
+//! - A session-scoped advisory lock serialises concurrent boot processes so
+//!   rolling deploys or accidental double-invocations cannot interleave DDL.
 
-use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSource};
-use tracing::{debug, info, warn};
+use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
+use tracing::{debug, info};
 
-use super::util::table_exists;
-use crate::lifecycle::migrations::MigrationService;
+use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::{DatabaseProvider, SqlExecutor};
+
+/// Stable 64-bit key for `pg_advisory_lock`. Chosen as a constant so all
+/// `systemprompt`-managed processes serialise on the same lock.
+const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
 
 pub async fn install_extension_schemas(
     registry: &ExtensionRegistry,
@@ -20,6 +35,21 @@ pub async fn install_extension_schemas_with_config(
     db: &dyn DatabaseProvider,
     disabled_extensions: &[String],
 ) -> Result<(), LoaderError> {
+    install_extension_schemas_full(
+        registry,
+        db,
+        disabled_extensions,
+        MigrationConfig::default(),
+    )
+    .await
+}
+
+pub async fn install_extension_schemas_full(
+    registry: &ExtensionRegistry,
+    db: &dyn DatabaseProvider,
+    disabled_extensions: &[String],
+    migration_config: MigrationConfig,
+) -> Result<(), LoaderError> {
     let schema_extensions = registry.enabled_schema_extensions(disabled_extensions);
 
     if schema_extensions.is_empty() {
@@ -32,7 +62,26 @@ pub async fn install_extension_schemas_with_config(
         schema_extensions.len()
     );
 
-    let migration_service = MigrationService::new(db);
+    acquire_advisory_lock(db).await?;
+
+    let result = run_install(db, &schema_extensions, migration_config).await;
+
+    if let Err(e) = release_advisory_lock(db).await {
+        tracing::warn!(error = %e, "Failed to release bootstrap advisory lock");
+    }
+
+    result?;
+
+    info!("Extension schema installation complete");
+    Ok(())
+}
+
+async fn run_install(
+    db: &dyn DatabaseProvider,
+    schema_extensions: &[std::sync::Arc<dyn Extension>],
+    migration_config: MigrationConfig,
+) -> Result<(), LoaderError> {
+    let migration_service = MigrationService::new(db).with_config(migration_config);
 
     for ext in schema_extensions {
         install_extension_schema(ext.as_ref(), db).await?;
@@ -47,8 +96,6 @@ pub async fn install_extension_schemas_with_config(
                 .await?;
         }
     }
-
-    info!("Extension schema installation complete");
     Ok(())
 }
 
@@ -74,46 +121,17 @@ async fn install_extension_schema(
     let mut schemas_to_validate = Vec::new();
 
     for schema in &schemas {
-        if !schema.table.is_empty()
-            && check_table_exists_for_extension(db, &schema.table, &extension_id).await?
-        {
-            debug!("  Table '{}' already exists, skipping", schema.table);
-            continue;
-        }
-
-        let sql = read_schema_sql(schema, &extension_id)?;
-        all_sql.push(sql);
+        all_sql.push(schema.sql.as_str());
 
         if !schema.required_columns.is_empty() {
             schemas_to_validate.push(schema);
         }
     }
 
-    if all_sql.is_empty() {
-        return Ok(());
-    }
-
     let combined = all_sql.join("\n");
     let statements = SqlExecutor::parse_sql_statements(&combined);
 
-    if !statements.is_empty() {
-        let batch = statements.join("\n");
-        if let Err(batch_err) = db.execute_raw(&batch).await {
-            debug!(
-                extension = %extension_id,
-                error = %batch_err,
-                "Batch execution failed, falling back to per-statement execution"
-            );
-            for statement in &statements {
-                db.execute_raw(statement).await.map_err(|e| {
-                    LoaderError::SchemaInstallationFailed {
-                        extension: extension_id.clone(),
-                        message: format!("Failed to execute SQL statement: {e}\n{statement}"),
-                    }
-                })?;
-            }
-        }
-    }
+    execute_statements_transactional(db, &statements, &extension_id).await?;
 
     for schema in schemas_to_validate {
         validate_extension_columns(db, &schema.table, &schema.required_columns, &extension_id)
@@ -123,32 +141,49 @@ async fn install_extension_schema(
     Ok(())
 }
 
-async fn check_table_exists_for_extension(
+async fn execute_statements_transactional(
     db: &dyn DatabaseProvider,
-    table: &str,
+    statements: &[String],
     extension_id: &str,
-) -> Result<bool, LoaderError> {
-    table_exists(db, table)
+) -> Result<(), LoaderError> {
+    if statements.is_empty() {
+        return Ok(());
+    }
+
+    let mut tx =
+        db.begin_transaction()
+            .await
+            .map_err(|e| LoaderError::SchemaInstallationFailed {
+                extension: extension_id.to_string(),
+                message: format!("Failed to begin transaction: {e}"),
+            })?;
+
+    let total = statements.len();
+    for (idx, statement) in statements.iter().enumerate() {
+        let sql_str: &str = statement.as_str();
+        if let Err(e) = tx.execute(&sql_str, &[]).await {
+            let rollback_note = match tx.rollback().await {
+                Ok(()) => String::new(),
+                Err(rb) => format!(" (rollback also failed: {rb})"),
+            };
+            return Err(LoaderError::SchemaInstallationFailed {
+                extension: extension_id.to_string(),
+                message: format!(
+                    "Statement {n}/{total} failed: {e}{rollback_note}\nSQL:\n{statement}",
+                    n = idx + 1,
+                ),
+            });
+        }
+    }
+
+    tx.commit()
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {
             extension: extension_id.to_string(),
-            message: format!("Failed to check table existence: {e}"),
-        })
-}
+            message: format!("Failed to commit transaction: {e}"),
+        })?;
 
-fn read_schema_sql(
-    schema: &systemprompt_extension::SchemaDefinition,
-    extension_id: &str,
-) -> Result<String, LoaderError> {
-    match &schema.sql {
-        SchemaSource::Inline(sql) => Ok(sql.clone()),
-        SchemaSource::File(path) => {
-            std::fs::read_to_string(path).map_err(|e| LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_string(),
-                message: format!("Failed to read schema file '{}': {e}", path.display()),
-            })
-        },
-    }
+    Ok(())
 }
 
 async fn validate_extension_columns(
@@ -185,10 +220,6 @@ async fn validate_single_column(
         })?;
 
     if result.rows.is_empty() {
-        warn!(
-            "Extension '{}': Required column '{}' not found in table '{}'",
-            extension_id, column, table
-        );
         return Err(LoaderError::SchemaInstallationFailed {
             extension: extension_id.to_string(),
             message: format!("Required column '{column}' not found in table '{table}'"),
@@ -196,4 +227,26 @@ async fn validate_single_column(
     }
 
     Ok(())
+}
+
+async fn acquire_advisory_lock(db: &dyn DatabaseProvider) -> Result<(), LoaderError> {
+    let sql = format!("SELECT pg_advisory_lock({BOOTSTRAP_ADVISORY_LOCK_KEY})");
+    db.execute_raw(&sql)
+        .await
+        .map_err(|e| LoaderError::SchemaInstallationFailed {
+            extension: "database".to_string(),
+            message: format!("Failed to acquire bootstrap advisory lock: {e}"),
+        })?;
+    debug!(
+        key = BOOTSTRAP_ADVISORY_LOCK_KEY,
+        "Acquired bootstrap advisory lock"
+    );
+    Ok(())
+}
+
+async fn release_advisory_lock(
+    db: &dyn DatabaseProvider,
+) -> Result<(), crate::error::RepositoryError> {
+    let sql = format!("SELECT pg_advisory_unlock({BOOTSTRAP_ADVISORY_LOCK_KEY})");
+    db.execute_raw(&sql).await
 }

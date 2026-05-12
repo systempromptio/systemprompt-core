@@ -3,8 +3,6 @@ use crate::interactive::confirm_optional;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_database::install_extension_schemas;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, ServiceCategory, validate_system};
 use systemprompt_scheduler::ProcessCleanup;
@@ -51,12 +49,15 @@ pub async fn execute_with_events(
     let ctx = Arc::new(
         AppContext::builder()
             .with_startup_warnings(true)
+            .with_migrations(true)
             .build()
             .await
             .context("Failed to initialize application context")?,
     );
 
-    run_migrations(&ctx, events).await?;
+    if events.is_none() {
+        CliService::phase_success("Database schemas installed", None);
+    }
 
     if let Some(tx) = events {
         tx.phase_started(Phase::Database);
@@ -202,18 +203,4 @@ fn register_modules(events: Option<&StartupEventSender>) {
             );
         }
     }
-}
-
-async fn run_migrations(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<()> {
-    let registry = ExtensionRegistry::discover();
-
-    install_extension_schemas(&registry, ctx.db_pool().write_provider())
-        .await
-        .context("Failed to install extension schemas")?;
-
-    if events.is_none() {
-        CliService::phase_success("Database schemas installed", None);
-    }
-
-    Ok(())
 }

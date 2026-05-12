@@ -7,11 +7,18 @@
 //! to `inventory` collectors that this module materialises into runtime maps.
 
 use axum::Router;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use systemprompt_models::modules::{Module, ModuleType, Modules, ServiceCategory};
+pub use systemprompt_models::modules::ServiceCategory;
 
 use crate::AppContext;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ModuleType {
+    Regular,
+    Proxy,
+}
 
 #[derive(Debug)]
 pub struct ModuleApiRegistry {
@@ -97,35 +104,5 @@ impl ModuleApiRegistry {
             .filter(|(_, impl_)| matches!(impl_.category, c if c as u8 == category as u8))
             .map(|(name, _)| name.clone())
             .collect()
-    }
-}
-
-pub trait ModuleRuntime {
-    fn routes(&self, ctx: &AppContext, registry: &ModuleApiRegistry) -> Option<Router>;
-    fn create_api_registry(&self) -> ModuleApiRegistry;
-}
-
-impl ModuleRuntime for Module {
-    fn routes(&self, ctx: &AppContext, registry: &ModuleApiRegistry) -> Option<Router> {
-        if let Some(api) = &self.api {
-            if api.enabled {
-                return registry.get_routes(&self.name, ctx);
-            }
-        }
-        None
-    }
-
-    fn create_api_registry(&self) -> ModuleApiRegistry {
-        ModuleApiRegistry::new()
-    }
-}
-
-impl ModuleRuntime for Modules {
-    fn routes(&self, _ctx: &AppContext, _registry: &ModuleApiRegistry) -> Option<Router> {
-        None
-    }
-
-    fn create_api_registry(&self) -> ModuleApiRegistry {
-        ModuleApiRegistry::new()
     }
 }

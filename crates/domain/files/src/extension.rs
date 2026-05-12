@@ -18,16 +18,16 @@ impl Extension for FilesExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline("files", include_str!("../schema/files.sql"))
+            SchemaDefinition::new("files", include_str!("../schema/files.sql"))
                 .with_required_columns(vec![
                     "id".into(),
                     "path".into(),
                     "mime_type".into(),
                     "created_at".into(),
                 ]),
-            SchemaDefinition::inline("content_files", include_str!("../schema/content_files.sql"))
+            SchemaDefinition::new("content_files", include_str!("../schema/content_files.sql"))
                 .with_required_columns(vec!["id".into(), "content_id".into(), "file_id".into()]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "ai_image_analytics",
                 include_str!("../schema/ai_image_analytics.sql"),
             ),

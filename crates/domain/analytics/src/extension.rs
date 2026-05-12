@@ -31,7 +31,7 @@ impl Extension for AnalyticsExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "engagement_events",
                 include_str!("../schema/engagement_events.sql"),
             )
@@ -40,19 +40,19 @@ impl Extension for AnalyticsExtension {
                 "session_id".into(),
                 "created_at".into(),
             ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "anomaly_thresholds",
                 include_str!("../schema/anomaly_thresholds.sql"),
             )
             .with_required_columns(vec!["metric_name".into()]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "fingerprint_reputation",
                 include_str!("../schema/fingerprint_reputation.sql"),
             )
             .with_required_columns(vec!["fingerprint_hash".into()]),
-            SchemaDefinition::inline("funnels", include_str!("../schema/funnels.sql"))
+            SchemaDefinition::new("funnels", include_str!("../schema/funnels.sql"))
                 .with_required_columns(vec!["id".into(), "name".into()]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "funnel_progress",
                 include_str!("../schema/funnel_progress.sql"),
             )

@@ -155,10 +155,7 @@ pub use mcp::{
     McpServerConfig, McpServerState, McpToolProvider, OAuthRequirement, RUNNING as MCP_RUNNING,
     RegistryConfig, STARTING as MCP_STARTING, STOPPED as MCP_STOPPED, Settings,
 };
-pub use modules::{
-    ApiConfig, ApiPaths, CliPaths, Module, ModuleDefinition, ModulePermission, ModuleSchema,
-    ModuleSeed, ModuleType, Modules, ServiceCategory,
-};
+pub use modules::{ApiPaths, CliPaths, ServiceCategory};
 pub use oauth::{OAuthClientConfig, OAuthServerConfig};
 pub use paths::{
     AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths, cloud_container,

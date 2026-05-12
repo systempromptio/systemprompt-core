@@ -25,11 +25,11 @@ impl Extension for DatabaseExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "extension_migrations",
                 include_str!("../schema/extension_migrations.sql"),
             ),
-            SchemaDefinition::inline("functions", include_str!("../schema/functions.sql")),
+            SchemaDefinition::new("functions", include_str!("../schema/functions.sql")),
         ]
     }
 

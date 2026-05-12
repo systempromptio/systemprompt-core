@@ -19,7 +19,6 @@ mod context;
 #[cfg(test)]
 mod database_context;
 #[cfg(test)]
-mod installation;
 #[cfg(test)]
 mod registry;
 #[cfg(test)]

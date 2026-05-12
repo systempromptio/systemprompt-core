@@ -22,7 +22,7 @@ impl Extension for AuthzExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "access_control_rules",
                 include_str!("schema/access_control_rules.sql"),
             )
@@ -34,7 +34,7 @@ impl Extension for AuthzExtension {
                 "rule_value".into(),
                 "access".into(),
             ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "governance_decisions",
                 include_str!("schema/governance_decisions.sql"),
             )

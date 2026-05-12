@@ -1,8 +1,6 @@
 //! [`SchemaExtensionTyped`] — typed contract for schema-bearing
 //! extensions, plus the [`SchemaDefinitionTyped`] value type.
 
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
 
 use crate::types::ExtensionMeta;
@@ -10,25 +8,16 @@ use crate::types::ExtensionMeta;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaDefinitionTyped {
     pub table: String,
-    pub sql: SchemaSourceTyped,
+    pub sql: String,
     pub required_columns: Vec<String>,
 }
 
 impl SchemaDefinitionTyped {
     #[must_use]
-    pub fn embedded(table: impl Into<String>, sql: impl Into<String>) -> Self {
+    pub fn new(table: impl Into<String>, sql: impl Into<String>) -> Self {
         Self {
             table: table.into(),
-            sql: SchemaSourceTyped::Embedded(sql.into()),
-            required_columns: Vec::new(),
-        }
-    }
-
-    #[must_use]
-    pub fn file(table: impl Into<String>, path: impl Into<PathBuf>) -> Self {
-        Self {
-            table: table.into(),
-            sql: SchemaSourceTyped::File(path.into()),
+            sql: sql.into(),
             required_columns: Vec::new(),
         }
     }
@@ -38,12 +27,6 @@ impl SchemaDefinitionTyped {
         self.required_columns = columns;
         self
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SchemaSourceTyped {
-    Embedded(String),
-    File(PathBuf),
 }
 
 pub trait SchemaExtensionTyped: ExtensionMeta {

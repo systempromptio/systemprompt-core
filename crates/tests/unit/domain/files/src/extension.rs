@@ -102,54 +102,27 @@ fn test_files_extension_dependencies() {
 
 #[test]
 fn test_files_extension_schemas_have_sql() {
-    use systemprompt_extension::SchemaSource;
-
     let ext = FilesExtension;
     let schemas = ext.schemas();
     for schema in schemas {
-        match &schema.sql {
-            SchemaSource::Inline(sql) => {
-                assert!(!sql.is_empty(), "Schema {} has empty SQL", schema.table);
-            },
-            SchemaSource::File(path) => {
-                assert!(
-                    !path.as_os_str().is_empty(),
-                    "Schema {} has empty path",
-                    schema.table
-                );
-            },
-        }
+        assert!(!schema.sql.is_empty(), "Schema {} has empty SQL", schema.table);
     }
 }
 
 #[test]
 fn test_files_extension_files_schema_sql_contains_table() {
-    use systemprompt_extension::SchemaSource;
-
     let ext = FilesExtension;
     let schemas = ext.schemas();
     let files_schema = schemas.iter().find(|s| s.table == "files").unwrap();
-    match &files_schema.sql {
-        SchemaSource::Inline(sql) => {
-            assert!(sql.contains("CREATE TABLE") || sql.contains("files"));
-        },
-        SchemaSource::File(_) => {},
-    }
+    assert!(files_schema.sql.contains("CREATE TABLE") || files_schema.sql.contains("files"));
 }
 
 #[test]
 fn test_files_extension_content_files_schema_sql_contains_table() {
-    use systemprompt_extension::SchemaSource;
-
     let ext = FilesExtension;
     let schemas = ext.schemas();
     let schema = schemas.iter().find(|s| s.table == "content_files").unwrap();
-    match &schema.sql {
-        SchemaSource::Inline(sql) => {
-            assert!(sql.contains("CREATE TABLE") || sql.contains("content_files"));
-        },
-        SchemaSource::File(_) => {},
-    }
+    assert!(schema.sql.contains("CREATE TABLE") || schema.sql.contains("content_files"));
 }
 
 #[test]

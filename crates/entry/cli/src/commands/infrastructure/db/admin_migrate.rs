@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_models::Config;
@@ -11,7 +11,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::types::DbMigrateOutput;
 
-pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
+pub async fn execute_migrate(config: &CliConfig, allow_checksum_drift: bool) -> Result<()> {
     let sys_config = Config::get()?;
 
     if config.should_show_verbose() {
@@ -34,6 +34,7 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
         &ExtensionRegistry::discover(),
         database.write_provider(),
         config,
+        allow_checksum_drift,
     )
     .await
 }
@@ -41,12 +42,14 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
 pub async fn execute_migrate_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
+    allow_checksum_drift: bool,
 ) -> Result<()> {
     let database = db_ctx.db_pool();
     run_install(
         &ExtensionRegistry::discover(),
         database.write_provider(),
         config,
+        allow_checksum_drift,
     )
     .await
 }
@@ -55,6 +58,7 @@ async fn run_install(
     registry: &ExtensionRegistry,
     write_provider: &dyn systemprompt_database::services::DatabaseProvider,
     config: &CliConfig,
+    allow_checksum_drift: bool,
 ) -> Result<()> {
     let extension_count = registry.schema_extensions().len();
 
@@ -65,7 +69,11 @@ async fn run_install(
         ));
     }
 
-    install_extension_schemas(registry, write_provider)
+    let migration_config = MigrationConfig {
+        allow_checksum_drift,
+    };
+
+    install_extension_schemas_full(registry, write_provider, &[], migration_config)
         .await
         .map_err(|e| anyhow!("Schema installation failed: {}", e))?;
 
