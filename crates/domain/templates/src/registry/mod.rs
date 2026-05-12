@@ -4,7 +4,10 @@ mod stats;
 
 use std::collections::HashMap;
 
-use handlebars::Handlebars;
+use handlebars::{
+    Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError,
+    RenderErrorReason,
+};
 use systemprompt_template_provider::{
     DynComponentRenderer, DynPageDataProvider, DynPagePrerenderer, DynTemplateDataExtender,
     DynTemplateLoader, DynTemplateProvider, TemplateDefinition,
@@ -34,6 +37,8 @@ impl Default for TemplateRegistry {
 impl TemplateRegistry {
     #[must_use]
     pub fn new() -> Self {
+        let mut handlebars = Handlebars::new();
+        handlebars.register_helper("json", Box::new(json_helper));
         Self {
             providers: Vec::new(),
             loaders: Vec::new(),
@@ -42,7 +47,7 @@ impl TemplateRegistry {
             page_providers: Vec::new(),
             page_prerenderers: Vec::new(),
             resolved_templates: HashMap::new(),
-            handlebars: Handlebars::new(),
+            handlebars,
             template_sources: HashMap::new(),
         }
     }
@@ -101,6 +106,25 @@ impl TemplateRegistry {
         self.page_prerenderers.push(prerenderer);
         self.page_prerenderers.sort_by_key(|p| p.priority());
     }
+}
+
+fn json_helper(
+    h: &Helper<'_>,
+    _: &Handlebars<'_>,
+    _: &Context,
+    _: &mut RenderContext<'_, '_>,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let param = h
+        .param(0)
+        .ok_or_else(|| RenderError::from(RenderErrorReason::ParamNotFoundForIndex("json", 0)))?;
+    let serialized = serde_json::to_string(param.value()).map_err(|e| {
+        RenderError::from(RenderErrorReason::NestedError(Box::new(
+            std::io::Error::other(e.to_string()),
+        )))
+    })?;
+    out.write(&serialized)?;
+    Ok(())
 }
 
 impl std::fmt::Debug for TemplateRegistry {

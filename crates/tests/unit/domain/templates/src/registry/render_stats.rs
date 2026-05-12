@@ -96,6 +96,58 @@ mod render_tests {
     }
 
     #[tokio::test]
+    async fn json_helper_escapes_backslashes_and_quotes() {
+        let mut registry = TemplateRegistry::new();
+
+        let template = TemplateDefinition::embedded(
+            "ldjson",
+            r#"<script type="application/ld+json">{"description":{{{json description}}}}</script>"#,
+        );
+        registry.register_provider(provider(MockProvider::with_templates("p", vec![template])));
+        registry.register_loader(loader(MockLoader::new()));
+        registry.initialize().await.expect("should initialize");
+
+        let data = serde_json::json!({
+            "description": "HKCU\\SOFTWARE\\Policies\\Claude \"quoted\"\nnewline",
+        });
+        let rendered = registry
+            .render("ldjson", &data)
+            .expect("should render ldjson template");
+
+        let start = rendered.find('{').expect("opening brace");
+        let end = rendered.rfind('}').expect("closing brace");
+        let json_blob = &rendered[start..=end];
+        let parsed: serde_json::Value =
+            serde_json::from_str(json_blob).expect("rendered JSON-LD must be valid JSON");
+        assert_eq!(
+            parsed["description"],
+            serde_json::json!("HKCU\\SOFTWARE\\Policies\\Claude \"quoted\"\nnewline")
+        );
+    }
+
+    #[tokio::test]
+    async fn json_helper_emits_non_string_values_unquoted() {
+        let mut registry = TemplateRegistry::new();
+
+        let template = TemplateDefinition::embedded(
+            "numbers",
+            "{\"count\":{{{json count}}},\"enabled\":{{{json enabled}}}}",
+        );
+        registry.register_provider(provider(MockProvider::with_templates("p", vec![template])));
+        registry.register_loader(loader(MockLoader::new()));
+        registry.initialize().await.expect("should initialize");
+
+        let data = serde_json::json!({"count": 42, "enabled": true});
+        let rendered = registry
+            .render("numbers", &data)
+            .expect("should render numbers template");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&rendered).expect("rendered JSON must parse");
+        assert_eq!(parsed["count"], serde_json::json!(42));
+        assert_eq!(parsed["enabled"], serde_json::json!(true));
+    }
+
+    #[tokio::test]
     async fn render_with_conditional() {
         let mut registry = TemplateRegistry::new();
 

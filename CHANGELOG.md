@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.1] - 2026-05-12
+
+### Added
+
+- **Handlebars `json` helper** (`crates/domain/templates/src/registry/mod.rs`). Registered on every `TemplateRegistry::new()`. `{{{json field}}}` emits values via `serde_json::to_string`, correctly escaping backslashes, quotes, newlines, and control characters that Handlebars' default HTML escaping leaves intact — required for safe `<script type="application/ld+json">` and other inline-JSON contexts. Non-string values (numbers, bools, objects) round-trip unquoted.
+
+### Changed
+
+- **Cloud credentials bootstrap error is actionable.** `CredentialsBootstrap` now surfaces an operator-targeted message ("tenant pod credentials rejected by api.systemprompt.io … re-run `systemprompt cloud deploy` or set `SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1` to bypass") instead of the bare underlying error string. The redundant inner `map_err` in `validate_with_api` is removed — the outer call site owns the user-facing wording.
+
+### Fixed
+
+- **Test workspace caught up with 0.9.0 i18n.** Updated fixtures in `crates/tests/unit/domain/content/**` (added `locale: LocaleCode::new("en")` to `Content` initializers, `locale: None` to `ContentMetadata`) and `crates/tests/unit/app/generator/src/sitemap{,/xml,_tests}.rs` (added `alternates: vec![]` to all `SitemapUrl` literals; relaxed an XML assertion that hard-matched the old `<urlset>` opening tag, which now declares the `xhtml` namespace for hreflang `<xhtml:link>` alternates).
+
 ## [0.9.0] - 2026-05-08
 
 ### Changed

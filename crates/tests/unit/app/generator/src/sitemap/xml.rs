@@ -9,6 +9,7 @@ fn test_sitemap_url_creation() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "weekly".to_string(),
         priority: 0.8,
+        alternates: vec![],
     };
 
     assert_eq!(url.loc, "https://example.com/page");
@@ -24,6 +25,7 @@ fn test_sitemap_url_clone() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 1.0,
+        alternates: vec![],
     };
 
     let cloned = url.clone();
@@ -40,6 +42,7 @@ fn test_sitemap_url_debug() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "monthly".to_string(),
         priority: 0.5,
+        alternates: vec![],
     };
 
     let debug = format!("{:?}", url);
@@ -65,6 +68,7 @@ fn test_build_sitemap_xml_single_url() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 1.0,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -85,18 +89,21 @@ fn test_build_sitemap_xml_multiple_urls() {
             lastmod: "2024-01-15".to_string(),
             changefreq: "daily".to_string(),
             priority: 1.0,
+            alternates: vec![],
         },
         SitemapUrl {
             loc: "https://example.com/about".to_string(),
             lastmod: "2024-01-10".to_string(),
             changefreq: "monthly".to_string(),
             priority: 0.8,
+            alternates: vec![],
         },
         SitemapUrl {
             loc: "https://example.com/blog".to_string(),
             lastmod: "2024-01-14".to_string(),
             changefreq: "weekly".to_string(),
             priority: 0.9,
+            alternates: vec![],
         },
     ];
 
@@ -118,12 +125,14 @@ fn test_build_sitemap_xml_priority_formatting() {
             lastmod: "2024-01-15".to_string(),
             changefreq: "daily".to_string(),
             priority: 1.0,
+            alternates: vec![],
         },
         SitemapUrl {
             loc: "https://example.com/low".to_string(),
             lastmod: "2024-01-15".to_string(),
             changefreq: "yearly".to_string(),
             priority: 0.1,
+            alternates: vec![],
         },
     ];
 
@@ -140,6 +149,7 @@ fn test_build_sitemap_xml_escapes_special_characters() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 0.5,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -155,6 +165,7 @@ fn test_build_sitemap_xml_escapes_angle_brackets() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "<script>".to_string(), // Invalid but tests escaping
         priority: 0.5,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -170,6 +181,7 @@ fn test_build_sitemap_xml_escapes_quotes() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 0.5,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -184,6 +196,7 @@ fn test_build_sitemap_xml_has_namespace() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 1.0,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -203,6 +216,7 @@ fn test_build_sitemap_xml_changefreq_values() {
             lastmod: "2024-01-15".to_string(),
             changefreq: freq.to_string(),
             priority: 0.5,
+            alternates: vec![],
         }];
 
         let result = build_sitemap_xml(&urls);
@@ -228,6 +242,7 @@ fn test_build_sitemap_index_single_chunk() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 1.0,
+        alternates: vec![],
     }]];
 
     let result = build_sitemap_index(&chunks, "https://example.com");
@@ -246,18 +261,21 @@ fn test_build_sitemap_index_multiple_chunks() {
             lastmod: "2024-01-15".to_string(),
             changefreq: "daily".to_string(),
             priority: 1.0,
+            alternates: vec![],
         }],
         vec![SitemapUrl {
             loc: "https://example.com/page2".to_string(),
             lastmod: "2024-01-15".to_string(),
             changefreq: "daily".to_string(),
             priority: 1.0,
+            alternates: vec![],
         }],
         vec![SitemapUrl {
             loc: "https://example.com/page3".to_string(),
             lastmod: "2024-01-15".to_string(),
             changefreq: "daily".to_string(),
             priority: 1.0,
+            alternates: vec![],
         }],
     ];
 
@@ -278,6 +296,7 @@ fn test_build_sitemap_index_has_namespace() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 1.0,
+        alternates: vec![],
     }]];
 
     let result = build_sitemap_index(&chunks, "https://example.com");
@@ -292,6 +311,7 @@ fn test_build_sitemap_index_base_url_formatting() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 1.0,
+        alternates: vec![],
     }]];
 
     let result = build_sitemap_index(&chunks, "https://example.com/");
@@ -308,6 +328,7 @@ fn test_build_sitemap_index_lastmod_date_format() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 1.0,
+        alternates: vec![],
     }]];
 
     let result = build_sitemap_index(&chunks, "https://example.com");
@@ -324,6 +345,7 @@ fn test_sitemap_url_with_unicode() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 0.5,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -339,6 +361,7 @@ fn test_sitemap_url_with_long_url() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "daily".to_string(),
         priority: 0.5,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -353,6 +376,7 @@ fn test_sitemap_priority_zero() {
         lastmod: "2024-01-15".to_string(),
         changefreq: "yearly".to_string(),
         priority: 0.0,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -367,6 +391,7 @@ fn test_sitemap_empty_lastmod() {
         lastmod: "".to_string(),
         changefreq: "daily".to_string(),
         priority: 0.5,
+        alternates: vec![],
     }];
 
     let result = build_sitemap_xml(&urls);
@@ -382,12 +407,14 @@ fn test_sitemap_xml_well_formed() {
             lastmod: "2024-01-15".to_string(),
             changefreq: "daily".to_string(),
             priority: 1.0,
+            alternates: vec![],
         },
         SitemapUrl {
             loc: "https://example.com/about".to_string(),
             lastmod: "2024-01-10".to_string(),
             changefreq: "monthly".to_string(),
             priority: 0.8,
+            alternates: vec![],
         },
     ];
 
