@@ -64,8 +64,8 @@ impl CliService {
     }
 
     pub fn clear_screen() {
-        let mut stdout = std::io::stdout();
-        write!(stdout, "\x1B[2J\x1B[1;1H").ok();
+        let mut stderr = std::io::stderr();
+        write!(stderr, "\x1B[2J\x1B[1;1H").ok();
     }
 
     pub fn output(content: &str) {
@@ -104,9 +104,9 @@ impl CliService {
     }
 
     pub fn key_value(label: &str, value: &str) {
-        let mut stdout = std::io::stdout();
+        let mut stderr = std::io::stderr();
         writeln!(
-            stdout,
+            stderr,
             "{}: {}",
             Theme::color(label, EmphasisType::Bold),
             Theme::color(value, EmphasisType::Highlight)
@@ -115,9 +115,9 @@ impl CliService {
     }
 
     pub fn status_line(label: &str, value: &str, status: ItemStatus) {
-        let mut stdout = std::io::stdout();
+        let mut stderr = std::io::stderr();
         writeln!(
-            stdout,
+            stderr,
             "{} {}: {}",
             Theme::icon(status),
             Theme::color(label, EmphasisType::Bold),

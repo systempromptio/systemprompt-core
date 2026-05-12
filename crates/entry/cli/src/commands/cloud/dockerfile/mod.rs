@@ -12,7 +12,3 @@ pub use validation::{
 pub fn generate_dockerfile_content(project_root: &Path) -> String {
     DockerfileBuilder::new(project_root).build()
 }
-
-pub fn print_dockerfile_suggestion(project_root: &Path) {
-    systemprompt_logging::CliService::info(&generate_dockerfile_content(project_root));
-}

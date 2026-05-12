@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError, SessionStore};
+use systemprompt_cloud::{CloudError, CredentialsBootstrap, SessionStore};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
@@ -107,27 +107,15 @@ pub fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
     Some(profile.runtime.log_level)
 }
 
-pub async fn init_credentials() -> Result<()> {
-    CredentialsBootstrap::init().await?;
-    Ok(())
-}
-
 pub async fn init_credentials_gracefully() -> Result<()> {
-    match init_credentials().await {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let is_file_not_found = e
-                .downcast_ref::<CredentialsBootstrapError>()
-                .is_some_and(|ce| matches!(ce, CredentialsBootstrapError::FileNotFound { .. }));
-
-            if is_file_not_found {
-                tracing::debug!(error = %e, "Credentials file not found, continuing in local-only mode");
-                CredentialsBootstrap::init_empty();
-                Ok(())
-            } else {
-                Err(e.context("Credential initialization failed"))
-            }
+    match CredentialsBootstrap::init().await {
+        Ok(_) => Ok(()),
+        Err(CloudError::CredentialsFileNotFound { path }) => {
+            tracing::debug!(path = %path, "Credentials file not found, continuing in local-only mode");
+            CredentialsBootstrap::init_empty();
+            Ok(())
         },
+        Err(e) => Err(anyhow::Error::new(e).context("Credential initialization failed")),
     }
 }
 

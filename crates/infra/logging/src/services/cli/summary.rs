@@ -135,9 +135,9 @@ impl Display for ValidationSummary {
 
         let total_active = self.total_active();
         if total_active > 0 {
-            let mut stdout = std::io::stdout();
+            let mut stderr = std::io::stderr();
             writeln!(
-                stdout,
+                stderr,
                 "\n{} {} active modules ready",
                 Theme::icon(MessageLevel::Success),
                 Theme::color(&total_active.to_string(), EmphasisType::Bold)
@@ -216,8 +216,8 @@ impl Display for OperationResult {
 
         for detail in &self.details {
             let colored = Theme::color(detail, EmphasisType::Dim);
-            let mut stdout = std::io::stdout();
-            writeln!(stdout, "  \u{2022} {colored}").ok();
+            let mut stderr = std::io::stderr();
+            writeln!(stderr, "  \u{2022} {colored}").ok();
         }
     }
 }

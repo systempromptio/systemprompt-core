@@ -82,8 +82,8 @@ impl Prompts {
                 item.display();
             }
             {
-                let mut stdout = std::io::stdout();
-                writeln!(stdout).ok();
+                let mut stderr = std::io::stderr();
+                writeln!(stderr).ok();
             }
         }
 
@@ -151,8 +151,8 @@ impl PromptBuilder {
 
         if !self.show_context.is_empty() {
             {
-                let mut stdout = std::io::stdout();
-                writeln!(stdout).ok();
+                let mut stderr = std::io::stderr();
+                writeln!(stderr).ok();
             }
         }
 

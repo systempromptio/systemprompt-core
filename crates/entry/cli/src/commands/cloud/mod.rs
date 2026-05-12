@@ -189,7 +189,7 @@ fn execute_dockerfile(config: &CliConfig) -> Result<()> {
             &crate::shared::CommandResult::copy_paste(output).with_title("Dockerfile"),
         );
     } else {
-        systemprompt_logging::CliService::info(&content);
+        systemprompt_logging::CliService::output(&content);
     }
 
     Ok(())

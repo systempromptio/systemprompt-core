@@ -6,8 +6,8 @@ use crate::services::cli::prompts::Prompts;
 use crate::services::cli::theme::{ItemStatus, MessageLevel, ModuleType, Theme};
 type Result<T> = std::result::Result<T, LoggingError>;
 
-fn stdout_writeln(args: std::fmt::Arguments<'_>) {
-    let mut out = std::io::stdout();
+fn stderr_writeln(args: std::fmt::Arguments<'_>) {
+    let mut out = std::io::stderr();
     writeln!(out, "{args}").ok();
 }
 
@@ -69,7 +69,7 @@ impl ModuleDisplay {
         }
 
         Self::missing_schemas(module_name, schemas);
-        stdout_writeln(format_args!(""));
+        stderr_writeln(format_args!(""));
         Prompts::confirm_schemas()
     }
 
@@ -79,7 +79,7 @@ impl ModuleDisplay {
         }
 
         Self::missing_seeds(module_name, seeds);
-        stdout_writeln(format_args!(""));
+        stderr_writeln(format_args!(""));
         Prompts::confirm_seeds()
     }
 }
@@ -121,7 +121,7 @@ impl ModuleUpdate {
 
 impl Display for ModuleUpdate {
     fn display(&self) {
-        stdout_writeln(format_args!(
+        stderr_writeln(format_args!(
             "   {} {} {}",
             Theme::icon(crate::services::cli::theme::ActionType::Update),
             Theme::color(&self.name, crate::services::cli::theme::EmphasisType::Bold),
@@ -132,7 +132,7 @@ impl Display for ModuleUpdate {
         ));
 
         for change in &self.changes {
-            stdout_writeln(format_args!(
+            stderr_writeln(format_args!(
                 "     \u{2022} {}",
                 Theme::color(change, crate::services::cli::theme::EmphasisType::Dim)
             ));
@@ -170,7 +170,7 @@ impl Display for ModuleInstall {
             |desc| format!("v{} - {}", self.version, desc),
         );
 
-        stdout_writeln(format_args!(
+        stderr_writeln(format_args!(
             "   {} {} {}",
             Theme::icon(crate::services::cli::theme::ActionType::Install),
             Theme::color(&self.name, crate::services::cli::theme::EmphasisType::Bold),
