@@ -193,7 +193,7 @@ impl DatabaseProvider for PostgresProvider {
     }
 
     async fn execute_batch(&self, sql: &str) -> DatabaseResult<()> {
-        let statements = crate::services::SqlExecutor::parse_sql_statements(sql);
+        let statements = crate::services::SqlExecutor::parse_sql_statements(sql)?;
         for statement in statements {
             sqlx::query(&statement).execute(&*self.pool).await?;
         }

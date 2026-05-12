@@ -130,4 +130,8 @@ impl CloudError {
             message: message.into(),
         }
     }
+
+    pub const fn is_missing_credentials_file(&self) -> bool {
+        matches!(self, Self::CredentialsFileNotFound { .. })
+    }
 }

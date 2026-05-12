@@ -28,6 +28,7 @@ async-trait = { workspace = true }
 
 # Database
 sqlx = { workspace = true, features = ["postgres", "uuid"] }
+sqlparser = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-traits = { workspace = true }

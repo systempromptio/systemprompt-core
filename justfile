@@ -98,6 +98,15 @@ sqlx-verify-offline:
     echo ""
     echo "All crates verified for offline compilation!"
 
+# Cut a new patch/minor/major release: bump → sync → tag → push → publish.
+# The release script itself is gitignored (release credentials and machine-specific
+# paths live there); this recipe is the discoverable entry point used by the docs.
+release BUMP="patch":
+    @[ "{{BUMP}}" = "patch" ] || [ "{{BUMP}}" = "minor" ] || [ "{{BUMP}}" = "major" ] || \
+        { echo "usage: just release [patch|minor|major]"; exit 2; }
+    @[ -x scripts/release.sh ] || { echo "scripts/release.sh missing — see instructions/information/crates-publishing.md"; exit 1; }
+    ./scripts/release.sh {{BUMP}}
+
 # Check without building
 check:
     cargo check --workspace

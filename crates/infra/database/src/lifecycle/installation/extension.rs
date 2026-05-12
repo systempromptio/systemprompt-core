@@ -129,7 +129,12 @@ async fn install_extension_schema(
     }
 
     let combined = all_sql.join("\n");
-    let statements = SqlExecutor::parse_sql_statements(&combined);
+    let statements = SqlExecutor::parse_sql_statements(&combined).map_err(|e| {
+        LoaderError::SchemaInstallationFailed {
+            extension: extension_id.clone(),
+            message: format!("SQL parse failed: {e}"),
+        }
+    })?;
 
     execute_statements_transactional(db, &statements, &extension_id).await?;
 

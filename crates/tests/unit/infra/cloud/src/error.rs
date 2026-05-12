@@ -347,6 +347,26 @@ fn test_requires_setup_false_for_token_expired() {
 }
 
 #[test]
+fn is_missing_credentials_file_matches_variant() {
+    let error = CloudError::CredentialsFileNotFound {
+        path: "/tmp/missing.json".to_string(),
+    };
+    assert!(error.is_missing_credentials_file());
+}
+
+#[test]
+fn is_missing_credentials_file_rejects_other_variants() {
+    assert!(!CloudError::NotAuthenticated.is_missing_credentials_file());
+    assert!(!CloudError::TokenExpired.is_missing_credentials_file());
+    assert!(
+        !CloudError::InvalidCredentials {
+            message: "bad".to_string()
+        }
+        .is_missing_credentials_file()
+    );
+}
+
+#[test]
 fn test_cloud_error_debug() {
     let error = CloudError::NotAuthenticated;
     let debug_str = format!("{:?}", error);
