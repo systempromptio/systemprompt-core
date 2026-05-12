@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.0] - 2026-05-12
+
+### Changed
+
+- **Breaking (signature):** `SqlExecutor::parse_sql_statements` now returns `DatabaseResult<Vec<String>>` instead of `Vec<String>`. The hand-rolled line scanner has been replaced with `sqlparser` parsing against `PostgreSqlDialect`. Unparseable SQL now surfaces as `RepositoryError::Internal` rather than producing a silently truncated statement list. Named dollar-quoted bodies (`$tag$ … $tag$`) and apostrophe-quoted function bodies are now handled correctly; the previous heuristic only recognised `$$`. The internal helpers `should_skip_line` and `is_statement_complete` are removed.
+
 ## [0.9.2] - 2026-05-12
 
 ### Fixed

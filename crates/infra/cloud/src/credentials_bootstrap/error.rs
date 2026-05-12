@@ -28,6 +28,12 @@ pub enum CredentialsBootstrapError {
     ApiValidationFailed { message: String },
 }
 
+impl CredentialsBootstrapError {
+    pub const fn is_file_not_found(&self) -> bool {
+        matches!(self, Self::FileNotFound { .. })
+    }
+}
+
 impl From<CredentialsBootstrapError> for CloudError {
     fn from(value: CredentialsBootstrapError) -> Self {
         match value {

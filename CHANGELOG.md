@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.0] - 2026-05-12
+
+Friction-reduction follow-ups from the 0.9.2 fresh-clone retro. Bumped to a minor because `SqlExecutor::parse_sql_statements` changes its public return type.
+
+### Changed
+
+- **Breaking — `SqlExecutor::parse_sql_statements` now returns `DatabaseResult<Vec<String>>` instead of `Vec<String>`.** The hand-rolled line scanner in `crates/infra/database/src/services/executor.rs` is replaced with `sqlparser::Parser::parse_sql(&PostgreSqlDialect, …)`. Named dollar-quoted bodies (`$body$ … $body$`) and apostrophe-quoted function bodies are now handled correctly; the previous heuristic only matched `$$`. Unparseable SQL surfaces as `RepositoryError::Internal` rather than silently producing a truncated statement list. The two helper functions `should_skip_line` / `is_statement_complete` are gone. All three call sites (`services/executor.rs:execute_statements_parsed`, `lifecycle/installation/extension.rs:install_extension_schema`, `services/postgres/mod.rs:execute_batch`) propagate the new `Result`; the installation site maps the parse error into `LoaderError::SchemaInstallationFailed`. Schemas under `crates/**/schema/*.sql` are dialect-clean; this is a strict-mode upgrade, not a behavioural regression.
+- **`init_credentials_gracefully` no longer pattern-matches `CloudError::CredentialsFileNotFound` directly** (`crates/entry/cli/src/bootstrap.rs`). It calls a new `CloudError::is_missing_credentials_file()` predicate instead, so future renames or refactors of the variant don't silently regress the fresh-clone fallback path (the exact regression class that broke 0.9.1). A matching `CredentialsBootstrapError::is_file_not_found()` is added for symmetry.
+- **`instructions/information/crates-publishing.md` leads with `just release patch`** instead of the raw `./scripts/release.sh patch` invocation. The script itself stays gitignored.
+
+### Added
+
+- **`just release [patch|minor|major]` recipe** in the root `justfile`. Validates the bump kind, checks `scripts/release.sh` is present and executable, then delegates. The release script remains local-only; the recipe is the discoverable entry point referenced from the publishing doc.
+- **`CloudError::is_missing_credentials_file()` / `CredentialsBootstrapError::is_file_not_found()`** — inherent `const` helpers, no new traits, no dyn overhead. Two regression tests live in `crates/tests/unit/infra/cloud/src/error.rs`.
+
+### Fixed
+
+- **`parse_sql_statements` mishandled named dollar quotes and bare-apostrophe function bodies.** The previous scanner only looked for `$$`, so a `CREATE FUNCTION … AS $body$ … $body$ LANGUAGE plpgsql;` block (or an apostrophe-quoted body) followed by another statement was treated as a single concatenated statement and rejected by sqlx. Three regression tests added to `crates/tests/unit/infra/database/src/services/executor.rs`: named `$tag$` bodies, apostrophe bodies, and malformed SQL surfacing `Err` instead of producing a garbage statement.
+
 ## [0.9.2] - 2026-05-12
 
 ### Fixed

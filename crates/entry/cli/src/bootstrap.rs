@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::{CloudError, CredentialsBootstrap, SessionStore};
+use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
@@ -110,8 +110,8 @@ pub fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
 pub async fn init_credentials_gracefully() -> Result<()> {
     match CredentialsBootstrap::init().await {
         Ok(_) => Ok(()),
-        Err(CloudError::CredentialsFileNotFound { path }) => {
-            tracing::debug!(path = %path, "Credentials file not found, continuing in local-only mode");
+        Err(e) if e.is_missing_credentials_file() => {
+            tracing::debug!(error = %e, "Credentials file not found, continuing in local-only mode");
             CredentialsBootstrap::init_empty();
             Ok(())
         },

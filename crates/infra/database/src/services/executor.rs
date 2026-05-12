@@ -19,7 +19,7 @@ impl SqlExecutor {
         db: &dyn DatabaseProvider,
         sql: &str,
     ) -> DatabaseResult<()> {
-        let statements = Self::parse_sql_statements(sql);
+        let statements = Self::parse_sql_statements(sql)?;
 
         for statement in statements {
             db.execute_raw(&statement).await.map_err(|e| {
@@ -32,67 +32,13 @@ impl SqlExecutor {
         Ok(())
     }
 
-    pub fn parse_sql_statements(sql: &str) -> Vec<String> {
-        let mut statements = Vec::new();
-        let mut current_statement = String::new();
-        let mut in_function_body = false;
-        let mut in_dollar_quote = false;
-        let mut dollar_count = 0;
+    pub fn parse_sql_statements(sql: &str) -> DatabaseResult<Vec<String>> {
+        use sqlparser::dialect::PostgreSqlDialect;
+        use sqlparser::parser::Parser;
 
-        for line in sql.lines() {
-            let trimmed = line.trim();
-
-            if Self::should_skip_line(trimmed) {
-                continue;
-            }
-
-            current_statement.push_str(line);
-            current_statement.push('\n');
-
-            if trimmed.contains("$$") {
-                dollar_count += trimmed.matches("$$").count();
-                in_dollar_quote = dollar_count % 2 == 1;
-            }
-
-            if trimmed.starts_with("CREATE OR REPLACE FUNCTION")
-                || trimmed.starts_with("CREATE FUNCTION")
-            {
-                in_function_body = true;
-            }
-
-            if Self::is_statement_complete(trimmed, in_function_body, in_dollar_quote) {
-                let stmt = current_statement.trim().to_string();
-                if !stmt.is_empty() {
-                    statements.push(stmt);
-                }
-                current_statement.clear();
-                in_function_body = false;
-                dollar_count = 0;
-            }
-        }
-
-        let stmt = current_statement.trim().to_string();
-        if !stmt.is_empty() {
-            statements.push(stmt);
-        }
-
-        statements
-    }
-
-    fn should_skip_line(line: &str) -> bool {
-        line.starts_with("--") || line.is_empty()
-    }
-
-    fn is_statement_complete(line: &str, in_function_body: bool, in_dollar_quote: bool) -> bool {
-        if in_dollar_quote {
-            return false;
-        }
-
-        if in_function_body {
-            return line == "END;" || line.ends_with("LANGUAGE plpgsql;");
-        }
-
-        line.ends_with(';')
+        Parser::parse_sql(&PostgreSqlDialect {}, sql)
+            .map_err(|e| RepositoryError::Internal(format!("SQL parse failed: {e}")))
+            .map(|stmts| stmts.into_iter().map(|s| s.to_string()).collect())
     }
 
     pub async fn execute_query(db: &Database, query: &str) -> DatabaseResult<QueryResult> {

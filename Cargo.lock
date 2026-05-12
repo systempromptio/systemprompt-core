@@ -4050,6 +4050,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlparser"
+version = "0.51.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fe11944a61da0da3f592e19a45ebe5ab92dc14a779907ff1f08fbb797bfefc7"
+dependencies = [
+ "log",
+]
+
+[[package]]
 name = "sqlx"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4767,6 +4776,7 @@ dependencies = [
  "rust_decimal",
  "serde",
  "serde_json",
+ "sqlparser",
  "sqlx",
  "systemprompt-extension",
  "systemprompt-identifiers",

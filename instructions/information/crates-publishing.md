@@ -243,7 +243,7 @@ cargo install cargo-workspaces
 
 ### The one-liner
 
-Everything below is automated by `scripts/release.sh` (local-only, under gitignored `scripts/`).
+Use the `just release` recipe — it shells out to `scripts/release.sh` (local-only, under gitignored `scripts/`).
 
 ```bash
 # Pre-release prep (commit changes, regenerate SQLx cache if schema moved)
@@ -252,10 +252,10 @@ just sqlx-prepare-publish
 git add crates/*/.sqlx && git commit -m "chore: update SQLx cache for release"
 
 # Full release — bump, sync, tag, push, publish
-./scripts/release.sh patch   # or: minor | major
+just release patch   # or: minor | major
 ```
 
-`scripts/release.sh` runs:
+Equivalent direct invocation: `./scripts/release.sh patch`. `scripts/release.sh` runs:
 
 1. Refuses to run on a dirty tree or off `main`.
 2. `cargo fmt --all -- --check`.
