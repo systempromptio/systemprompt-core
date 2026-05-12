@@ -18,7 +18,7 @@ impl Extension for DemoExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::inline(
+        vec![SchemaDefinition::new(
             "demo_extension_state",
             "CREATE TABLE IF NOT EXISTS demo_extension_state (id TEXT PRIMARY KEY)",
         )]

@@ -33,6 +33,17 @@ pub enum LoaderError {
 
     #[error("Circular dependency detected: {chain}")]
     CircularDependency { chain: String },
+
+    #[error(
+        "Extension '{extension}' (weight {extension_weight}) depends on '{dependency}' (weight \
+         {dependency_weight}); a dependency must have a lower migration_weight than its dependent"
+    )]
+    InvalidDependencyOrdering {
+        extension: String,
+        extension_weight: u32,
+        dependency: String,
+        dependency_weight: u32,
+    },
 }
 
 #[derive(Debug, Error)]

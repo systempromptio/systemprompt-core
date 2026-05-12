@@ -22,15 +22,16 @@ impl Extension for LoggingExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline("logs", include_str!("../schema/log.sql"))
-                .with_required_columns(vec![
+            SchemaDefinition::new("logs", include_str!("../schema/log.sql")).with_required_columns(
+                vec![
                     "id".into(),
                     "timestamp".into(),
                     "level".into(),
                     "module".into(),
                     "message".into(),
-                ]),
-            SchemaDefinition::inline("analytics_events", include_str!("../schema/analytics.sql"))
+                ],
+            ),
+            SchemaDefinition::new("analytics_events", include_str!("../schema/analytics.sql"))
                 .with_required_columns(vec![
                     "id".into(),
                     "user_id".into(),

@@ -115,7 +115,13 @@ async fn run_startup(
 
     if !options.skip_migrate {
         events.phase_started(Phase::Database);
-        super::super::db::execute(super::super::db::DbCommands::Migrate, config).await?;
+        super::super::db::execute(
+            super::super::db::DbCommands::Migrate {
+                allow_checksum_drift: false,
+            },
+            config,
+        )
+        .await?;
         events.phase_completed(Phase::Database);
     }
 

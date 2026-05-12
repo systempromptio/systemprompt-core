@@ -1,5 +1,5 @@
 use clap::Args;
-use systemprompt_extension::{ExtensionRegistry, SchemaSource};
+use systemprompt_extension::ExtensionRegistry;
 
 use crate::CliConfig;
 use crate::commands::plugins::types::{SchemaWithExtension, SchemasListOutput};
@@ -21,19 +21,12 @@ pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<Schemas
         .flat_map(|ext| {
             ext.schemas()
                 .iter()
-                .map(|schema| {
-                    let source = match &schema.sql {
-                        SchemaSource::Inline(_) => "inline".to_string(),
-                        SchemaSource::File(path) => path.display().to_string(),
-                    };
-
-                    SchemaWithExtension {
-                        extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
-                        extension_name: ext.name().to_string(),
-                        table: schema.table.clone(),
-                        source,
-                        migration_weight: ext.migration_weight(),
-                    }
+                .map(|schema| SchemaWithExtension {
+                    extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
+                    extension_name: ext.name().to_string(),
+                    table: schema.table.clone(),
+                    source: "inline".to_string(),
+                    migration_weight: ext.migration_weight(),
                 })
                 .collect::<Vec<_>>()
         })

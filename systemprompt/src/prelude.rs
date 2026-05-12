@@ -11,7 +11,7 @@
 #[cfg(feature = "core")]
 pub use systemprompt_extension::{
     Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
-    SchemaDefinition, SchemaSource, register_extension,
+    SchemaDefinition, register_extension,
 };
 
 /// Typed extension errors — `ConfigError` (extension config validation) and

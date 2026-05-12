@@ -242,6 +242,14 @@ fn test_loader_error_variant_matching() {
             LoaderError::CircularDependency { chain } => {
                 assert!(!chain.is_empty());
             },
+            LoaderError::InvalidDependencyOrdering {
+                extension,
+                dependency,
+                ..
+            } => {
+                assert!(!extension.is_empty());
+                assert!(!dependency.is_empty());
+            },
         }
     }
 }

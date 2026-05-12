@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Schema-install pipeline overhaul (Phases 1–4).** Single coherent change to how every `Extension` reaches a live Postgres on boot. Production impact: the prod content_ingestion incident where `markdown_content.locale` was missing despite core 0.9 shipping the safety-net ALTER cannot recur — the installer no longer skips idempotent ALTERs on already-existing tables.
+  - **Phase 1 — always-run schemas.** `install_extension_schema` (`crates/infra/database/src/lifecycle/installation/extension.rs`) no longer short-circuits when a schema's primary table already exists. Every `SchemaDefinition.sql` runs on every boot. Schemas are expected to be idempotent (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`) — the previous skip silently dropped every post-install ALTER on legacy tenants.
+  - **Phase 2 — transactional install + surfaced errors.** All parsed statements for one extension execute inside a single transaction via `db.begin_transaction()`. On per-statement failure the transaction rolls back and the error carries `Statement N/M failed: …\nSQL: <text>` with the offending statement text. The previous batch-then-per-statement fallback (which could commit partial DDL) is gone.
+  - **Phase 2 — checksum drift is a hard error.** `MigrationService::run_pending_migrations` (`crates/infra/database/src/lifecycle/migrations.rs`) returns `LoaderError::MigrationFailed` when a stored migration's checksum no longer matches the SQL on disk. New `MigrationConfig { allow_checksum_drift }` and `MigrationService::with_config` let admins explicitly opt out via `systemprompt infra db migrate --allow-checksum-drift`.
+  - **Phase 2 — dependency-weight validation.** `ExtensionRegistry::validate_dependencies` (`crates/shared/extension/src/registry/validation.rs`) now requires every declared dependency to have a strictly lower `migration_weight()` than its dependent, surfacing FK-ordering bugs at registry build instead of install. New variant `LoaderError::InvalidDependencyOrdering { extension, extension_weight, dependency, dependency_weight }`.
+  - **Phase 3 — schema install is part of `AppContext`.** New builder hooks `AppContextBuilder::with_migrations(bool)` and `with_migration_config(MigrationConfig)` (`crates/app/runtime/src/builder.rs`) run `install_extension_schemas_full` during `build()`. `systemprompt serve` (`crates/entry/cli/src/commands/infrastructure/services/serve.rs`) sets `with_migrations(true)`; the standalone `run_migrations` helper is gone.
+  - **Phase 3 — advisory lock around install.** `install_extension_schemas_full` takes Postgres advisory lock `0x73706F6D70740 1` for the duration of the install pass and releases it on completion (and on error). Rolling deploys can no longer race on idempotent DDL.
+  - **Phase 4 — `SchemaSource` enum collapsed to `String`.** `SchemaDefinition.sql: String` (was `enum { Inline(String), File(PathBuf) }`); single constructor `SchemaDefinition::new(table, sql)`. Same applies to `SchemaDefinitionTyped` in the typed path. Every production extension migrated.
+  - **Phase 4 — dead YAML-loader subsystem removed.** Deleted `crates/infra/database/src/lifecycle/installation/{module.rs,util.rs}`, `crates/app/runtime/src/installation.rs`, `crates/shared/models/src/modules/types.rs`, `crates/shared/models/src/errors/module.rs`. Public types removed: `Module`, `Modules`, `ModuleDefinition`, `ModuleSchema`, `ModuleSeed`, `ApiConfig`, `ModulePermission`, `SeedSource`, `SchemaSource`, `ModuleRuntime`, `ModuleInstaller`, `install_module`, `install_module_with_db`, `install_module_schemas_from_source`, `install_module_seeds_from_path`, `install_schema`, `install_seed`, `ModuleError`. The dead `AppContext::get_provided_audiences` / `get_valid_audiences` / `get_server_audiences` accessors are also gone (zero non-test callers across core, web, and template). `ModuleType` (Regular/Proxy) is preserved by moving it to `crates/app/runtime/src/registry.rs` where its sole consumers live.
+
+### Added
+
+- **`systemprompt infra db doctor`** (`crates/entry/cli/src/commands/infrastructure/db/doctor.rs`). Read-only drift report: lists tables that exist in `information_schema` but are not declared by any registered extension, declared tables absent from the live database, and declared `required_columns` missing from live tables. Text and JSON output via existing `CommandResult` plumbing.
+- **`instructions/information/migrations.md`** — workflow doc for shipping additive vs versioned schema changes, advisory-lock behaviour, dependency-ordering rules, and a triage table for common failure modes.
+
+### Fixed
+
+- **Test workspace pool exhaustion under parallel execution.** `crates/tests/unit/domain/analytics/src/repository/costs.rs` opened a 50-connection sqlx pool per test; cargo's default parallel scheduler put ~8 × 50 = 400 connection requests against `max_connections=100`, timing out the late tests with "pool timed out while waiting for an open connection". Tests in that module now serialise against an in-process `tokio::sync::Mutex` gate carried in `Fixture`. Total wall-clock for the 8 tests is 1.25 s, so the serialisation cost is negligible.
+
 ## [0.9.1] - 2026-05-12
 
 ### Added

@@ -1,9 +1,6 @@
-use std::path::PathBuf;
-
 use systemprompt_extension::error::ConfigError;
 use systemprompt_extension::typed::{
     ApiExtensionTyped, ConfigExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
-    SchemaSourceTyped,
 };
 use systemprompt_extension::types::{ExtensionType, NoDependencies};
 
@@ -21,8 +18,8 @@ impl NoDependencies for TestSchemaExt {}
 impl SchemaExtensionTyped for TestSchemaExt {
     fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
         vec![
-            SchemaDefinitionTyped::embedded("users", "CREATE TABLE users (id TEXT)"),
-            SchemaDefinitionTyped::file("posts", PathBuf::from("posts.sql")),
+            SchemaDefinitionTyped::new("users", "CREATE TABLE users (id TEXT)"),
+            SchemaDefinitionTyped::new("posts", "CREATE TABLE posts (id TEXT)"),
         ]
     }
 }
@@ -76,45 +73,27 @@ impl ApiExtensionTyped for TestApiExt {
 }
 
 #[test]
-fn schema_definition_typed_embedded() {
-    let schema = SchemaDefinitionTyped::embedded("test", "CREATE TABLE test (id INT)");
+fn schema_definition_typed_new() {
+    let schema = SchemaDefinitionTyped::new("test", "CREATE TABLE test (id INT)");
     assert_eq!(schema.table, "test");
-    assert!(matches!(schema.sql, SchemaSourceTyped::Embedded(ref s) if s.contains("CREATE")));
+    assert!(schema.sql.contains("CREATE"));
     assert!(schema.required_columns.is_empty());
 }
 
 #[test]
-fn schema_definition_typed_file() {
-    let schema = SchemaDefinitionTyped::file("items", PathBuf::from("items.sql"));
-    assert_eq!(schema.table, "items");
-    assert!(matches!(schema.sql, SchemaSourceTyped::File(_)));
-}
-
-#[test]
 fn schema_definition_typed_with_required_columns() {
-    let schema = SchemaDefinitionTyped::embedded("data", "CREATE TABLE data (id TEXT, name TEXT)")
+    let schema = SchemaDefinitionTyped::new("data", "CREATE TABLE data (id TEXT, name TEXT)")
         .with_required_columns(vec!["id".to_string(), "name".to_string()]);
     assert_eq!(schema.required_columns.len(), 2);
 }
 
 #[test]
 fn schema_definition_typed_serde_roundtrip() {
-    let schema = SchemaDefinitionTyped::embedded("events", "CREATE TABLE events (id TEXT)");
+    let schema = SchemaDefinitionTyped::new("events", "CREATE TABLE events (id TEXT)");
     let json = serde_json::to_string(&schema).expect("serialize");
     let deserialized: SchemaDefinitionTyped = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(deserialized.table, "events");
-}
-
-#[test]
-fn schema_source_typed_embedded_variant() {
-    let source = SchemaSourceTyped::Embedded("SELECT 1".to_string());
-    assert!(matches!(source, SchemaSourceTyped::Embedded(ref s) if s == "SELECT 1"));
-}
-
-#[test]
-fn schema_source_typed_file_variant() {
-    let source = SchemaSourceTyped::File(PathBuf::from("test.sql"));
-    assert!(matches!(source, SchemaSourceTyped::File(ref p) if p.to_str().unwrap() == "test.sql"));
+    assert!(deserialized.sql.contains("CREATE TABLE"));
 }
 
 #[test]

@@ -141,18 +141,6 @@ impl AppContext {
         format!("{}:{}", self.config.host, self.config.port)
     }
 
-    pub fn get_provided_audiences() -> Vec<String> {
-        vec!["a2a".to_string(), "api".to_string(), "mcp".to_string()]
-    }
-
-    pub fn get_valid_audiences(_module_name: &str) -> Vec<String> {
-        Self::get_provided_audiences()
-    }
-
-    pub fn get_server_audiences(_server_name: &str, _port: u16) -> Vec<String> {
-        Self::get_provided_audiences()
-    }
-
     pub const fn geoip_reader(&self) -> Option<&GeoIpReader> {
         self.geoip_reader.as_ref()
     }

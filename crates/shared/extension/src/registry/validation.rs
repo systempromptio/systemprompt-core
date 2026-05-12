@@ -23,10 +23,19 @@ impl ExtensionRegistry {
     pub fn validate_dependencies(&self) -> Result<(), LoaderError> {
         for ext in self.extensions.values() {
             for dep_id in ext.dependencies() {
-                if !self.extensions.contains_key(dep_id) {
+                let Some(dep) = self.extensions.get(dep_id) else {
                     return Err(LoaderError::MissingDependency {
                         extension: ext.id().to_string(),
                         dependency: dep_id.to_string(),
+                    });
+                };
+
+                if dep.migration_weight() >= ext.migration_weight() {
+                    return Err(LoaderError::InvalidDependencyOrdering {
+                        extension: ext.id().to_string(),
+                        extension_weight: ext.migration_weight(),
+                        dependency: dep_id.to_string(),
+                        dependency_weight: dep.migration_weight(),
                     });
                 }
             }

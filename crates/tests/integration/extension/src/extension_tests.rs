@@ -1,10 +1,8 @@
-//! Tests for core extension types: SchemaDefinition, SchemaSource,
-//! ExtensionRouter, ExtensionMetadata.
-
-use std::path::PathBuf;
+//! Tests for core extension types: SchemaDefinition, ExtensionRouter,
+//! ExtensionMetadata.
 
 use axum::Router;
-use systemprompt_extension::{ExtensionMetadata, ExtensionRouter, SchemaDefinition, SchemaSource};
+use systemprompt_extension::{ExtensionMetadata, ExtensionRouter, SchemaDefinition};
 
 #[test]
 fn test_extension_metadata_creation() {
@@ -62,103 +60,17 @@ fn test_extension_metadata_serialize() {
 }
 
 #[test]
-fn test_schema_source_inline() {
-    let source = SchemaSource::Inline("CREATE TABLE test (id INTEGER)".to_string());
-
-    match source {
-        SchemaSource::Inline(sql) => {
-            assert!(sql.contains("CREATE TABLE test"));
-        },
-        SchemaSource::File(_) => panic!("Expected Inline variant"),
-    }
-}
-
-#[test]
-fn test_schema_source_file() {
-    let source = SchemaSource::File(PathBuf::from("/path/to/schema.sql"));
-
-    match source {
-        SchemaSource::File(path) => {
-            assert_eq!(path, PathBuf::from("/path/to/schema.sql"));
-        },
-        SchemaSource::Inline(_) => panic!("Expected File variant"),
-    }
-}
-
-#[test]
-fn test_schema_source_debug() {
-    let inline = SchemaSource::Inline("CREATE TABLE x".to_string());
-    let file = SchemaSource::File(PathBuf::from("schema.sql"));
-
-    let inline_debug = format!("{:?}", inline);
-    let file_debug = format!("{:?}", file);
-
-    assert!(inline_debug.contains("Inline"));
-    assert!(inline_debug.contains("CREATE TABLE x"));
-    assert!(file_debug.contains("File"));
-    assert!(file_debug.contains("schema.sql"));
-}
-
-#[test]
-fn test_schema_source_clone() {
-    let source = SchemaSource::Inline("CREATE TABLE y".to_string());
-    let cloned = source.clone();
-
-    match cloned {
-        SchemaSource::Inline(sql) => {
-            assert!(sql.contains("CREATE TABLE y"));
-        },
-        _ => panic!("Expected Inline variant"),
-    }
-}
-
-#[test]
-fn test_schema_source_serialize_inline() {
-    let source = SchemaSource::Inline("SELECT 1".to_string());
-    let json = serde_json::to_string(&source).expect("should serialize");
-    assert!(json.contains("SELECT 1"));
-}
-
-#[test]
-fn test_schema_source_serialize_file() {
-    let source = SchemaSource::File(PathBuf::from("test.sql"));
-    let json = serde_json::to_string(&source).expect("should serialize");
-    assert!(json.contains("test.sql"));
-}
-
-#[test]
-fn test_schema_definition_inline() {
-    let schema = SchemaDefinition::inline("users", "CREATE TABLE users (id INTEGER PRIMARY KEY)");
+fn test_schema_definition_new() {
+    let schema = SchemaDefinition::new("users", "CREATE TABLE users (id INTEGER PRIMARY KEY)");
 
     assert_eq!(schema.table, "users");
     assert!(schema.required_columns.is_empty());
-
-    match schema.sql {
-        SchemaSource::Inline(sql) => {
-            assert!(sql.contains("CREATE TABLE users"));
-        },
-        _ => panic!("Expected Inline source"),
-    }
-}
-
-#[test]
-fn test_schema_definition_file() {
-    let schema = SchemaDefinition::file("orders", "/db/orders.sql");
-
-    assert_eq!(schema.table, "orders");
-    assert!(schema.required_columns.is_empty());
-
-    match schema.sql {
-        SchemaSource::File(path) => {
-            assert_eq!(path, PathBuf::from("/db/orders.sql"));
-        },
-        _ => panic!("Expected File source"),
-    }
+    assert!(schema.sql.contains("CREATE TABLE users"));
 }
 
 #[test]
 fn test_schema_definition_with_required_columns() {
-    let schema = SchemaDefinition::inline("products", "CREATE TABLE products (id INT, name TEXT)")
+    let schema = SchemaDefinition::new("products", "CREATE TABLE products (id INT, name TEXT)")
         .with_required_columns(vec!["id".to_string(), "name".to_string()]);
 
     assert_eq!(schema.table, "products");
@@ -169,11 +81,9 @@ fn test_schema_definition_with_required_columns() {
 
 #[test]
 fn test_schema_definition_chained_required_columns() {
-    let schema = SchemaDefinition::file("events", "events.sql").with_required_columns(vec![
-        "id".to_string(),
-        "timestamp".to_string(),
-        "type".to_string(),
-    ]);
+    let schema = SchemaDefinition::new("events", "CREATE TABLE events ()").with_required_columns(
+        vec!["id".to_string(), "timestamp".to_string(), "type".to_string()],
+    );
 
     assert_eq!(schema.required_columns.len(), 3);
 }
@@ -181,14 +91,14 @@ fn test_schema_definition_chained_required_columns() {
 #[test]
 fn test_schema_definition_empty_required_columns() {
     let schema =
-        SchemaDefinition::inline("empty", "CREATE TABLE empty ()").with_required_columns(vec![]);
+        SchemaDefinition::new("empty", "CREATE TABLE empty ()").with_required_columns(vec![]);
 
     assert!(schema.required_columns.is_empty());
 }
 
 #[test]
 fn test_schema_definition_debug() {
-    let schema = SchemaDefinition::inline("debug_table", "CREATE TABLE debug_table (x INT)");
+    let schema = SchemaDefinition::new("debug_table", "CREATE TABLE debug_table (x INT)");
     let debug_str = format!("{:?}", schema);
 
     assert!(debug_str.contains("SchemaDefinition"));
@@ -197,7 +107,7 @@ fn test_schema_definition_debug() {
 
 #[test]
 fn test_schema_definition_serialize() {
-    let schema = SchemaDefinition::inline("ser_table", "CREATE TABLE ser_table (a INT)")
+    let schema = SchemaDefinition::new("ser_table", "CREATE TABLE ser_table (a INT)")
         .with_required_columns(vec!["a".to_string()]);
 
     let json = serde_json::to_string(&schema).expect("should serialize");
@@ -260,9 +170,9 @@ fn test_extension_router_with_nested_path() {
 #[test]
 fn test_multiple_schema_definitions() {
     let schemas = [
-        SchemaDefinition::inline("users", "CREATE TABLE users ()"),
-        SchemaDefinition::inline("posts", "CREATE TABLE posts ()"),
-        SchemaDefinition::file("comments", "comments.sql"),
+        SchemaDefinition::new("users", "CREATE TABLE users ()"),
+        SchemaDefinition::new("posts", "CREATE TABLE posts ()"),
+        SchemaDefinition::new("comments", "CREATE TABLE comments ()"),
     ];
 
     assert_eq!(schemas.len(), 3);

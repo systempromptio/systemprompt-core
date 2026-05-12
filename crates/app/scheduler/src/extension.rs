@@ -24,7 +24,7 @@ impl Extension for SchedulerExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "scheduled_jobs",
                 include_str!("../schema/scheduled_jobs.sql"),
             )

@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_database::Database;
+use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
@@ -23,6 +23,8 @@ pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
+    install_schemas: bool,
+    migration_config: MigrationConfig,
 }
 
 impl std::fmt::Debug for AppContextBuilder {
@@ -31,6 +33,8 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("extension_registry", &self.extension_registry.is_some())
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
+            .field("install_schemas", &self.install_schemas)
+            .field("migration_config", &self.migration_config)
             .finish()
     }
 }
@@ -56,6 +60,21 @@ impl AppContextBuilder {
     #[must_use]
     pub fn with_marketplace_filter(mut self, filter: Arc<dyn MarketplaceFilter>) -> Self {
         self.marketplace_filter = Some(filter);
+        self
+    }
+
+    /// Install / migrate extension schemas as part of `build()`. Off by
+    /// default so admin tools (`db doctor`, repair scripts) can open a
+    /// connection without mutating the schema. `serve` turns this on.
+    #[must_use]
+    pub const fn with_migrations(mut self, install: bool) -> Self {
+        self.install_schemas = install;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
+        self.migration_config = config;
         self
     }
 
@@ -95,6 +114,17 @@ impl AppContextBuilder {
             .extension_registry
             .unwrap_or_else(ExtensionRegistry::discover);
         registry.validate()?;
+
+        if self.install_schemas {
+            install_extension_schemas_full(
+                &registry,
+                database.write_provider(),
+                &[],
+                self.migration_config,
+            )
+            .await?;
+        }
+
         let extension_registry = Arc::new(registry);
 
         let geoip_reader = AppContext::load_geoip_database(&config, self.show_startup_warnings);

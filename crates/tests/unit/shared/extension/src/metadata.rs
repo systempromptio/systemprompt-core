@@ -1,8 +1,4 @@
-use std::path::PathBuf;
-
-use systemprompt_extension::{
-    ExtensionMetadata, ExtensionRole, SchemaDefinition, SchemaSource, SeedSource,
-};
+use systemprompt_extension::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 
 #[test]
 fn extension_metadata_stores_static_fields() {
@@ -54,25 +50,16 @@ fn extension_metadata_serde_roundtrip() {
 }
 
 #[test]
-fn schema_definition_inline_constructor() {
-    let schema = SchemaDefinition::inline("users", "CREATE TABLE users (id TEXT)");
+fn schema_definition_new_constructor() {
+    let schema = SchemaDefinition::new("users", "CREATE TABLE users (id TEXT)");
     assert_eq!(schema.table, "users");
-    assert!(matches!(schema.sql, SchemaSource::Inline(ref s) if s.contains("CREATE TABLE")));
+    assert!(schema.sql.contains("CREATE TABLE"));
     assert!(schema.required_columns.is_empty());
 }
 
 #[test]
-fn schema_definition_file_constructor() {
-    let schema = SchemaDefinition::file("users", PathBuf::from("/path/to/schema.sql"));
-    assert_eq!(schema.table, "users");
-    assert!(
-        matches!(schema.sql, SchemaSource::File(ref p) if p.to_str().unwrap().contains("schema.sql"))
-    );
-}
-
-#[test]
 fn schema_definition_with_required_columns() {
-    let schema = SchemaDefinition::inline("posts", "CREATE TABLE posts (id TEXT)")
+    let schema = SchemaDefinition::new("posts", "CREATE TABLE posts (id TEXT)")
         .with_required_columns(vec!["id".to_string(), "title".to_string()]);
     assert_eq!(schema.required_columns.len(), 2);
     assert_eq!(schema.required_columns[0], "id");
@@ -80,46 +67,14 @@ fn schema_definition_with_required_columns() {
 }
 
 #[test]
-fn schema_definition_serde_roundtrip_inline() {
-    let schema = SchemaDefinition::inline("events", "CREATE TABLE events (id TEXT)")
+fn schema_definition_serde_roundtrip() {
+    let schema = SchemaDefinition::new("events", "CREATE TABLE events (id TEXT)")
         .with_required_columns(vec!["id".to_string()]);
     let json = serde_json::to_string(&schema).expect("serialize");
     let deserialized: SchemaDefinition = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(deserialized.table, "events");
     assert_eq!(deserialized.required_columns, vec!["id"]);
-}
-
-#[test]
-fn schema_definition_serde_roundtrip_file() {
-    let schema = SchemaDefinition::file("items", "/path/items.sql");
-    let json = serde_json::to_string(&schema).expect("serialize");
-    let deserialized: SchemaDefinition = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(deserialized.table, "items");
-    assert!(matches!(deserialized.sql, SchemaSource::File(_)));
-}
-
-#[test]
-fn schema_source_inline_variant() {
-    let source = SchemaSource::Inline("SELECT 1".to_string());
-    assert!(matches!(source, SchemaSource::Inline(ref s) if s == "SELECT 1"));
-}
-
-#[test]
-fn schema_source_file_variant() {
-    let source = SchemaSource::File(PathBuf::from("test.sql"));
-    assert!(matches!(source, SchemaSource::File(ref p) if p.to_str().unwrap() == "test.sql"));
-}
-
-#[test]
-fn seed_source_inline_variant() {
-    let seed = SeedSource::Inline("INSERT INTO x VALUES (1)".to_string());
-    assert!(matches!(seed, SeedSource::Inline(ref s) if s.contains("INSERT")));
-}
-
-#[test]
-fn seed_source_file_variant() {
-    let seed = SeedSource::File(PathBuf::from("seeds.sql"));
-    assert!(matches!(seed, SeedSource::File(ref p) if p.to_str().unwrap() == "seeds.sql"));
+    assert!(deserialized.sql.contains("CREATE TABLE"));
 }
 
 #[test]

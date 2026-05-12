@@ -10,4 +10,4 @@ pub use api::{ApiExtensionTyped, ApiExtensionTypedDyn};
 pub use config::ConfigExtensionTyped;
 pub use job::JobExtensionTyped;
 pub use provider::ProviderExtensionTyped;
-pub use schema::{SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped};
+pub use schema::{SchemaDefinitionTyped, SchemaExtensionTyped};

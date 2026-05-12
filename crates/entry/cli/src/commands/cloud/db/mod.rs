@@ -158,7 +158,9 @@ impl CloudDbCommands {
 
     fn into_db_command(self) -> Option<db::DbCommands> {
         match self {
-            Self::Migrate { .. } => Some(db::DbCommands::Migrate),
+            Self::Migrate { .. } => Some(db::DbCommands::Migrate {
+                allow_checksum_drift: false,
+            }),
             Self::Query {
                 sql,
                 limit,

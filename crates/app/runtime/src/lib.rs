@@ -25,7 +25,6 @@ mod context_loaders;
 mod context_traits;
 mod database_context;
 mod error;
-mod installation;
 mod registry;
 mod span;
 mod startup_validation;
@@ -36,19 +35,16 @@ pub use builder::AppContextBuilder;
 pub use context::{AppContext, AppContextParts};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
-pub use installation::{install_module, install_module_with_db};
-pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleRuntime, WellKnownRoute};
+pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleType, WellKnownRoute};
 pub use span::create_request_span;
 pub use startup_validation::{
     FilesConfigValidator, StartupValidator, display_validation_report, display_validation_warnings,
 };
+pub use systemprompt_database::MigrationConfig;
 pub use validation::{validate_database_path, validate_system};
 pub use wellknown::{WellKnownMetadata, get_wellknown_metadata};
 
-pub use systemprompt_models::modules::{
-    ApiConfig, Module, ModuleDefinition, ModulePermission, ModuleSchema, ModuleSeed, ModuleType,
-    Modules, ServiceCategory,
-};
+pub use systemprompt_models::modules::ServiceCategory;
 
 #[macro_export]
 macro_rules! register_module_api {

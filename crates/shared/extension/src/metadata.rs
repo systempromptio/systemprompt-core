@@ -1,6 +1,4 @@
-//! Static metadata, schema-source, and role-definition value types.
-
-use std::path::PathBuf;
+//! Static metadata, schema, and role-definition value types.
 
 use serde::{Deserialize, Serialize};
 
@@ -14,25 +12,16 @@ pub struct ExtensionMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaDefinition {
     pub table: String,
-    pub sql: SchemaSource,
+    pub sql: String,
     pub required_columns: Vec<String>,
 }
 
 impl SchemaDefinition {
     #[must_use]
-    pub fn inline(table: impl Into<String>, sql: impl Into<String>) -> Self {
+    pub fn new(table: impl Into<String>, sql: impl Into<String>) -> Self {
         Self {
             table: table.into(),
-            sql: SchemaSource::Inline(sql.into()),
-            required_columns: Vec::new(),
-        }
-    }
-
-    #[must_use]
-    pub fn file(table: impl Into<String>, path: impl Into<PathBuf>) -> Self {
-        Self {
-            table: table.into(),
-            sql: SchemaSource::File(path.into()),
+            sql: sql.into(),
             required_columns: Vec::new(),
         }
     }
@@ -42,18 +31,6 @@ impl SchemaDefinition {
         self.required_columns = columns;
         self
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SchemaSource {
-    Inline(String),
-    File(PathBuf),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SeedSource {
-    Inline(String),
-    File(PathBuf),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

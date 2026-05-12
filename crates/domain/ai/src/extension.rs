@@ -18,14 +18,14 @@ impl Extension for AiExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline("ai_requests", include_str!("../schema/ai_requests.sql"))
+            SchemaDefinition::new("ai_requests", include_str!("../schema/ai_requests.sql"))
                 .with_required_columns(vec![
                     "id".into(),
                     "provider".into(),
                     "model".into(),
                     "created_at".into(),
                 ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "ai_request_messages",
                 include_str!("../schema/ai_request_messages.sql"),
             )
@@ -34,7 +34,7 @@ impl Extension for AiExtension {
                 "request_id".into(),
                 "role".into(),
             ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "ai_request_tool_calls",
                 include_str!("../schema/ai_request_tool_calls.sql"),
             )
@@ -43,12 +43,12 @@ impl Extension for AiExtension {
                 "request_id".into(),
                 "tool_name".into(),
             ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "ai_request_payloads",
                 include_str!("../schema/ai_request_payloads.sql"),
             )
             .with_required_columns(vec!["ai_request_id".into()]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "ai_safety_findings",
                 include_str!("../schema/ai_safety_findings.sql"),
             )
@@ -57,7 +57,7 @@ impl Extension for AiExtension {
                 "ai_request_id".into(),
                 "severity".into(),
             ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "ai_quota_buckets",
                 include_str!("../schema/ai_quota_buckets.sql"),
             )
@@ -66,7 +66,7 @@ impl Extension for AiExtension {
                 "user_id".into(),
                 "window_start".into(),
             ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "ai_gateway_policies",
                 include_str!("../schema/ai_gateway_policies.sql"),
             )

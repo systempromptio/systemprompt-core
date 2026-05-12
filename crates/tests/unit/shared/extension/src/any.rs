@@ -27,7 +27,7 @@ impl NoDependencies for SchemaExt {}
 
 impl SchemaExtensionTyped for SchemaExt {
     fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::embedded(
+        vec![SchemaDefinitionTyped::new(
             "test_table",
             "CREATE TABLE test_table (id TEXT PRIMARY KEY)",
         )]

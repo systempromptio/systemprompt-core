@@ -4,7 +4,22 @@ use std::env;
 use std::sync::Arc;
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_database::{Database, DbPool};
+use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
+
+// Serialise this module's tests against a single in-process gate. Each test
+// here creates its own 50-connection sqlx pool against Postgres; running N of
+// them in parallel exhausts `max_connections=100`. Tests in this module are
+// fast (~150ms each) so the wall-clock cost of serialising is negligible.
+static SERIAL: OnceCell<Mutex<()>> = OnceCell::const_new();
+
+async fn acquire_serial() -> MutexGuard<'static, ()> {
+    SERIAL
+        .get_or_init(|| async { Mutex::new(()) })
+        .await
+        .lock()
+        .await
+}
 
 struct Fixture {
     pool: sqlx::PgPool,
@@ -14,10 +29,12 @@ struct Fixture {
     window_start: chrono::DateTime<Utc>,
     window_end: chrono::DateTime<Utc>,
     tag: String,
+    _guard: MutexGuard<'static, ()>,
 }
 
 impl Fixture {
     async fn new() -> Result<Self> {
+        let guard = acquire_serial().await;
         let url = env::var("DATABASE_URL")
             .expect("DATABASE_URL must be set for cost reconciliation tests");
         let db = Database::new_postgres(&url).await?;
@@ -57,6 +74,7 @@ impl Fixture {
             window_start,
             window_end,
             tag,
+            _guard: guard,
         })
     }
 

@@ -61,41 +61,41 @@ impl Extension for UsersExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline("users", include_str!("../schema/users.sql"))
+            SchemaDefinition::new("users", include_str!("../schema/users.sql"))
                 .with_required_columns(vec![
                     "id".into(),
                     "name".into(),
                     "email".into(),
                     "created_at".into(),
                 ]),
-            SchemaDefinition::inline("user_sessions", include_str!("../schema/user_sessions.sql"))
+            SchemaDefinition::new("user_sessions", include_str!("../schema/user_sessions.sql"))
                 .with_required_columns(vec!["session_id".into(), "started_at".into()]),
-            SchemaDefinition::inline("banned_ips", include_str!("../schema/banned_ips.sql"))
+            SchemaDefinition::new("banned_ips", include_str!("../schema/banned_ips.sql"))
                 .with_required_columns(vec![
                     "ip_address".into(),
                     "reason".into(),
                     "banned_at".into(),
                 ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "session_analytics_views",
                 include_str!("../schema/session_analytics_views.sql"),
             ),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "referrer_analytics_views",
                 include_str!("../schema/referrer_analytics_views.sql"),
             ),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "bot_analytics_views",
                 include_str!("../schema/bot_analytics_views.sql"),
             ),
-            SchemaDefinition::inline("user_api_keys", include_str!("../schema/user_api_keys.sql"))
+            SchemaDefinition::new("user_api_keys", include_str!("../schema/user_api_keys.sql"))
                 .with_required_columns(vec![
                     "id".into(),
                     "user_id".into(),
                     "key_prefix".into(),
                     "key_hash".into(),
                 ]),
-            SchemaDefinition::inline(
+            SchemaDefinition::new(
                 "user_device_certs",
                 include_str!("../schema/user_device_certs.sql"),
             )

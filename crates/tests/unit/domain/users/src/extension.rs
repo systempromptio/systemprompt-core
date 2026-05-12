@@ -7,7 +7,6 @@
 //! - Schema definitions
 //! - Dependencies
 
-use systemprompt_extension::SchemaSource;
 use systemprompt_extension::prelude::Extension;
 use systemprompt_users::UsersExtension;
 
@@ -165,14 +164,7 @@ mod extension_schema_tests {
         let schemas = ext.schemas();
 
         for schema in &schemas {
-            match &schema.sql {
-                SchemaSource::Inline(sql) => {
-                    assert!(!sql.is_empty(), "Schema {} has empty SQL", schema.table);
-                },
-                SchemaSource::File(_) => {
-                    panic!("Schema {} should use inline SQL", schema.table);
-                },
-            }
+            assert!(!schema.sql.is_empty(), "Schema {} has empty SQL", schema.table);
         }
     }
 
