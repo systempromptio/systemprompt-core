@@ -2,14 +2,14 @@ use std::io::Write;
 
 use crate::services::cli::theme::BrandColors;
 
-fn stdout_writeln(args: std::fmt::Arguments<'_>) {
-    let mut out = std::io::stdout();
+fn stderr_writeln(args: std::fmt::Arguments<'_>) {
+    let mut out = std::io::stderr();
     writeln!(out, "{args}").ok();
 }
 
 pub fn render_startup_banner(subtitle: Option<&str>) {
-    stdout_writeln(format_args!(""));
-    stdout_writeln(format_args!(
+    stderr_writeln(format_args!(""));
+    stderr_writeln(format_args!(
         "{}{}{}{}{}",
         BrandColors::primary_bold("</"),
         BrandColors::white_bold("SYSTEMPROMPT"),
@@ -18,13 +18,13 @@ pub fn render_startup_banner(subtitle: Option<&str>) {
         BrandColors::primary_bold(">")
     ));
     if let Some(text) = subtitle {
-        stdout_writeln(format_args!("{}", BrandColors::dim(text)));
+        stderr_writeln(format_args!("{}", BrandColors::dim(text)));
     }
-    stdout_writeln(format_args!(""));
+    stderr_writeln(format_args!(""));
 }
 
 pub fn render_phase_header(name: &str) {
-    stdout_writeln(format_args!(
+    stderr_writeln(format_args!(
         "\n{} {}",
         BrandColors::primary("\u{25b8}"),
         BrandColors::white_bold(name)
@@ -33,13 +33,13 @@ pub fn render_phase_header(name: &str) {
 
 pub fn render_phase_item(icon: &str, message: &str, detail: Option<&str>) {
     match detail {
-        Some(d) => stdout_writeln(format_args!(
+        Some(d) => stderr_writeln(format_args!(
             "  {} {} {}",
             icon,
             message,
             BrandColors::dim(format!("({})", d))
         )),
-        None => stdout_writeln(format_args!("  {} {}", icon, message)),
+        None => stderr_writeln(format_args!("  {} {}", icon, message)),
     }
 }
 

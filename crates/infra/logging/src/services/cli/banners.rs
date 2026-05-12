@@ -1,7 +1,7 @@
 //! Banner and session-context rendering helpers for [`CliService`].
 //!
 //! These methods own the side-effect of writing branded headers and footers to
-//! stdout. They are co-located with [`CliService`] but split out for cohesion.
+//! stderr. They are co-located with [`CliService`] but split out for cohesion.
 
 use std::io::Write;
 use std::time::Duration;
@@ -101,8 +101,8 @@ impl CliService {
             profile, truncated_session, tenant_info, url_info
         );
 
-        let mut stdout = std::io::stdout();
-        writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
+        let mut stderr = std::io::stderr();
+        writeln!(stderr, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
     }
 
     pub fn profile_banner(profile_name: &str, is_cloud: bool, tenant: Option<&str>) {
@@ -112,7 +112,7 @@ impl CliService {
             "[profile: {} ({}){}]",
             profile_name, target_label, tenant_info
         );
-        let mut stdout = std::io::stdout();
-        writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
+        let mut stderr = std::io::stderr();
+        writeln!(stderr, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
     }
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.2] - 2026-05-12
+
+### Fixed
+
+- `bootstrap::init_credentials_gracefully` now matches on `CloudError::CredentialsFileNotFound` by pattern instead of round-tripping through `anyhow::Error::downcast_ref`. The 0.9.1 refactor of `CredentialsBootstrap::init` to return `CloudResult` made the previous downcast a silent no-op, breaking fresh-clone bootstrap on local profiles without a credentials file. The unused `init_credentials()` helper has been removed.
+
 ## [0.4.3] - 2026-04-29
 
 ### Added

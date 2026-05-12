@@ -1,6 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.2] - 2026-05-12
+
+### Fixed
+
+- **Fresh-clone bootstrap aborted when `.systemprompt/credentials.json` was absent.** `crates/entry/cli/src/bootstrap.rs::init_credentials_gracefully` previously downcast the underlying anyhow error to `CredentialsBootstrapError::FileNotFound`, but the 0.9.1 refactor of `CredentialsBootstrap::init` to return `CloudResult` meant the error reaching the call site was the converted `CloudError::CredentialsFileNotFound` variant — the downcast missed and the CLI failed strictly instead of falling back to `init_empty()`. The graceful wrapper now calls `CredentialsBootstrap::init()` directly and matches on `CloudError::CredentialsFileNotFound` by pattern, removing the brittle dual `downcast_ref` and the unused `init_credentials()` helper.
+- **Schema install on a clean database failed on `CREATE TRIGGER` statements.** `SqlExecutor::parse_sql_statements` (`crates/infra/database/src/services/executor.rs`) treated `CREATE TRIGGER` as opening a plpgsql function body, so it kept appending lines until it saw `END;` / `LANGUAGE plpgsql;` — neither sentinel ever appears in a Postgres trigger (triggers always reference a separate function with `EXECUTE FUNCTION foo();`), so the trigger and every subsequent statement got concatenated into one prepared statement that sqlx rejected. The body-detection branch now fires only on `CREATE [OR REPLACE] FUNCTION`; the internal flag was renamed `in_trigger` → `in_function_body` so the misuse is harder to reintroduce. Regression-covered by `crates/tests/unit/infra/database/src/services/executor.rs`.
 
 ### Changed
 

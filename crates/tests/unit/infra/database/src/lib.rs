@@ -32,3 +32,6 @@ mod lifecycle;
 
 #[cfg(test)]
 mod extension;
+
+#[cfg(test)]
+mod services;

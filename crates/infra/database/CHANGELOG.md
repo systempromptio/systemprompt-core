@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.2] - 2026-05-12
+
+### Fixed
+
+- `SqlExecutor::parse_sql_statements` no longer treats `CREATE TRIGGER` as opening a plpgsql function body. Postgres triggers always end with `EXECUTE FUNCTION foo();` on a single semicolon, so the previous logic waited indefinitely for `END;` / `LANGUAGE plpgsql;` and concatenated the trigger with every following statement into one over-stuffed prepared statement that sqlx rejected. This broke schema install on a clean database. The internal flag was renamed `in_trigger` → `in_function_body` to prevent the same confusion recurring; regression coverage added in the test workspace.
+
 ## [0.1.18] - 2026-03-27
 
 ### Added

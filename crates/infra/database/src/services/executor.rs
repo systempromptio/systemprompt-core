@@ -35,7 +35,7 @@ impl SqlExecutor {
     pub fn parse_sql_statements(sql: &str) -> Vec<String> {
         let mut statements = Vec::new();
         let mut current_statement = String::new();
-        let mut in_trigger = false;
+        let mut in_function_body = false;
         let mut in_dollar_quote = false;
         let mut dollar_count = 0;
 
@@ -54,19 +54,19 @@ impl SqlExecutor {
                 in_dollar_quote = dollar_count % 2 == 1;
             }
 
-            if trimmed.starts_with("CREATE TRIGGER")
-                || trimmed.starts_with("CREATE OR REPLACE FUNCTION")
+            if trimmed.starts_with("CREATE OR REPLACE FUNCTION")
+                || trimmed.starts_with("CREATE FUNCTION")
             {
-                in_trigger = true;
+                in_function_body = true;
             }
 
-            if Self::is_statement_complete(trimmed, in_trigger, in_dollar_quote) {
+            if Self::is_statement_complete(trimmed, in_function_body, in_dollar_quote) {
                 let stmt = current_statement.trim().to_string();
                 if !stmt.is_empty() {
                     statements.push(stmt);
                 }
                 current_statement.clear();
-                in_trigger = false;
+                in_function_body = false;
                 dollar_count = 0;
             }
         }
@@ -83,12 +83,12 @@ impl SqlExecutor {
         line.starts_with("--") || line.is_empty()
     }
 
-    fn is_statement_complete(line: &str, in_trigger: bool, in_dollar_quote: bool) -> bool {
+    fn is_statement_complete(line: &str, in_function_body: bool, in_dollar_quote: bool) -> bool {
         if in_dollar_quote {
             return false;
         }
 
-        if in_trigger {
+        if in_function_body {
             return line == "END;" || line.ends_with("LANGUAGE plpgsql;");
         }
 
