@@ -13,6 +13,7 @@ fn create_valid_metadata() -> ContentMetadata {
         author: "John Doe".to_string(),
         published_at: "2024-01-15".to_string(),
         slug: "valid-slug".to_string(),
+        locale: None,
         keywords: "test, valid".to_string(),
         kind: "article".to_string(),
         image: None,

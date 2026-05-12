@@ -35,7 +35,12 @@ impl CredentialsBootstrap {
                         );
                     } else {
                         return Err(CredentialsBootstrapError::ApiValidationFailed {
-                            message: e.to_string(),
+                            message: format!(
+                                "tenant pod credentials rejected by api.systemprompt.io (token in \
+                                 SYSTEMPROMPT_API_TOKEN). Re-run 'systemprompt cloud deploy' or \
+                                 set SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1 to bypass. \
+                                 Underlying: {e}"
+                            ),
                         }
                         .into());
                     }
@@ -67,12 +72,7 @@ impl CredentialsBootstrap {
 
     async fn validate_with_api(creds: &CloudCredentials) -> CloudResult<()> {
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
-        client
-            .get_user()
-            .await
-            .map_err(|e| CredentialsBootstrapError::ApiValidationFailed {
-                message: e.to_string(),
-            })?;
+        client.get_user().await?;
         tracing::debug!("Cloud credentials validated with API");
         Ok(())
     }

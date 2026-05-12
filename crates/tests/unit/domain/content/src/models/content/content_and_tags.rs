@@ -4,7 +4,7 @@
 fn test_content_links_metadata_valid() {
     use chrono::Utc;
     use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, SourceId};
+    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
     let links_json = serde_json::json!([
         {"title": "Link 1", "url": "https://example.com/1"},
@@ -14,6 +14,7 @@ fn test_content_links_metadata_valid() {
     let content = Content {
         id: ContentId::new("content-1"),
         slug: "test-content".to_string(),
+        locale: LocaleCode::new("en"),
         title: "Test Content".to_string(),
         description: "Description".to_string(),
         body: "Body content".to_string(),
@@ -41,11 +42,12 @@ fn test_content_links_metadata_valid() {
 fn test_content_links_metadata_empty() {
     use chrono::Utc;
     use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, SourceId};
+    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
     let content = Content {
         id: ContentId::new("content-2"),
         slug: "no-links".to_string(),
+        locale: LocaleCode::new("en"),
         title: "No Links".to_string(),
         description: "Description".to_string(),
         body: "Body".to_string(),
@@ -70,11 +72,12 @@ fn test_content_links_metadata_empty() {
 fn test_content_links_metadata_invalid_json() {
     use chrono::Utc;
     use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, SourceId};
+    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
     let content = Content {
         id: ContentId::new("content-3"),
         slug: "invalid-links".to_string(),
+        locale: LocaleCode::new("en"),
         title: "Invalid Links".to_string(),
         description: "Description".to_string(),
         body: "Body".to_string(),
@@ -99,11 +102,12 @@ fn test_content_links_metadata_invalid_json() {
 fn test_content_clone() {
     use chrono::Utc;
     use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, SourceId};
+    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
     let content = Content {
         id: ContentId::new("content-4"),
         slug: "clone-test".to_string(),
+        locale: LocaleCode::new("en"),
         title: "Clone Test".to_string(),
         description: "Description".to_string(),
         body: "Body".to_string(),

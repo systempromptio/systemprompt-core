@@ -71,6 +71,7 @@ fn test_content_metadata_serialization() {
         author: "Author".to_string(),
         published_at: "2024-01-01".to_string(),
         slug: "test".to_string(),
+        locale: None,
         keywords: "key".to_string(),
         kind: "article".to_string(),
         image: Some("/img.png".to_string()),
