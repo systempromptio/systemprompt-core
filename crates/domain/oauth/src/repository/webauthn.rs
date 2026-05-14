@@ -110,7 +110,7 @@ impl crate::repository::OAuthRepository {
     ) -> Result<()> {
         let transports_json = serde_json::to_string(params.transports)?;
         let counter_i32 = i32::try_from(params.counter).map_err(|_| {
-            crate::error::OauthError::from(anyhow::anyhow!("Counter exceeds i32::MAX"))
+            crate::error::OauthError::Internal(format!("Counter exceeds i32::MAX"))
         })?;
         let now = Utc::now();
 
@@ -153,7 +153,7 @@ impl crate::repository::OAuthRepository {
             .map(|row| {
                 let transports: Vec<String> = serde_json::from_str(&row.transports)?;
                 let counter = u32::try_from(row.counter).map_err(|_| {
-                    crate::error::OauthError::from(anyhow::anyhow!(
+                    crate::error::OauthError::Internal(format!(
                         "Invalid counter value: {}",
                         row.counter
                     ))
@@ -180,7 +180,7 @@ impl crate::repository::OAuthRepository {
         counter: u32,
     ) -> Result<()> {
         let counter_i32 = i32::try_from(counter).map_err(|_| {
-            crate::error::OauthError::from(anyhow::anyhow!("Counter exceeds i32::MAX"))
+            crate::error::OauthError::Internal(format!("Counter exceeds i32::MAX"))
         })?;
         let now = Utc::now();
 

@@ -3,8 +3,8 @@
 //! Variants enumerate the security-meaningful failure modes encountered
 //! throughout the OAuth 2.0 / OIDC, `WebAuthn` and CIMD subsystems. Concrete
 //! `#[from]` adapters route `sqlx`, `std::io`, `url`, `serde_json`, and
-//! upstream `anyhow` errors into the appropriate variant so callers can
-//! match on a single `OauthError` enum.
+//! `webauthn`/`bcrypt`/`jsonwebtoken` errors into the appropriate variant
+//! so callers can match on a single `OauthError` enum.
 
 use thiserror::Error;
 
@@ -64,8 +64,8 @@ pub enum OauthError {
     #[error("crypto error: {0}")]
     Crypto(String),
 
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+    #[error("internal: {0}")]
+    Internal(String),
 }
 
 pub type OauthResult<T> = Result<T, OauthError>;
