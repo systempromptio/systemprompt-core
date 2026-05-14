@@ -2,7 +2,7 @@ use systemprompt_models::domain_error;
 
 domain_error! {
     pub enum McpDomainError {
-        common: [repository, io, json, validation, anyhow],
+        common: [repository, io, json, validation],
 
         #[error("MCP server not found: {0}")]
         ServerNotFound(String),

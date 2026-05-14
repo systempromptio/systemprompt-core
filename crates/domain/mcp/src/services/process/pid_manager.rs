@@ -4,7 +4,6 @@
 //! On other Unix targets, uses `lsof`. On Windows, parses `netstat`/`tasklist`.
 
 use crate::error::McpDomainResult;
-use anyhow::Context;
 use std::process::Command;
 
 #[cfg(target_os = "linux")]

@@ -30,20 +30,20 @@ impl Job for McpSessionCleanupJob {
 
         let db_pool = Arc::clone(
             ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
+                .ok_or_else(|| systemprompt_provider_contracts::ProviderError::Internal("DbPool not available in job context".to_string()))?,
         );
 
         let repo =
-            McpSessionRepository::new(&db_pool).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            McpSessionRepository::new(&db_pool).map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
 
         let expired = repo
             .cleanup_expired()
             .await
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
         let deleted = repo
             .delete_stale(STALE_SESSION_RETENTION_DAYS)
             .await
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

@@ -1,6 +1,5 @@
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use anyhow::Context;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -52,14 +51,14 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .with_context(|| format!("Failed to create log file: {}", log_file_path.display()))?;
 
     let tools_config_json =
-        serde_json::to_string(&config.tools).context("Failed to serialize tools config")?;
+        serde_json::to_string(&config.tools).map_err(|e| crate::error::McpDomainError::Internal(format!("Failed to serialize tools config: {e}")))?;
     let server_model_config_json = serde_json::to_string(&config.model_config)
-        .context("Failed to serialize server model config")?;
+        .map_err(|e| crate::error::McpDomainError::Internal(format!("Failed to serialize server model config: {e}")))?;
 
     let profile_path = ProfileBootstrap::get_path()
-        .context("SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server")?;
+        .map_err(|e| crate::error::McpDomainError::Internal(format!("SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server: {e}")))?;
     let secrets =
-        SecretsBootstrap::get().context("Secrets not available - cannot spawn MCP server")?;
+        SecretsBootstrap::get().map_err(|e| crate::error::McpDomainError::Internal(format!("Secrets not available - cannot spawn MCP server: {e}")))?;
 
     let mut child_command = Command::new(&binary_path);
 

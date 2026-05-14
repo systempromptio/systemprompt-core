@@ -1,5 +1,4 @@
 use crate::error::McpDomainResult;
-use anyhow::Context;
 use std::process::Command;
 use std::time::Duration;
 

@@ -1,5 +1,4 @@
 use crate::error::McpDomainResult;
-use anyhow::Context;
 use std::process::Command;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
