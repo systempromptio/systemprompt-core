@@ -1,7 +1,7 @@
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::streaming::webhook_client::{WebhookError, broadcast_agui_event};
-use anyhow::{Context, Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -137,7 +137,7 @@ struct LoadedDiskSkill {
 
 fn resolve_skills_root() -> Result<PathBuf> {
     let profile = ProfileBootstrap::get()
-        .map_err(|e| anyhow!("Profile not initialized for SkillService: {e}"))?;
+        .map_err(|e| AgentServiceError::Internal(format!("Profile not initialized for SkillService: {e}"))?;
     Ok(PathBuf::from(profile.paths.skills()))
 }
 
@@ -147,7 +147,7 @@ fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskS
     let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
 
     if !config_path.exists() {
-        return Err(anyhow!(
+        return Err(AgentServiceError::Internal(format!(
             "Skill not found on disk: {} ({} missing at {})",
             id_str,
             SKILL_CONFIG_FILENAME,
@@ -227,7 +227,7 @@ fn list_enabled_skill_ids(skills_root: &Path) -> Result<Vec<String>> {
         let dir_name = path
             .file_name()
             .and_then(|n| n.to_str())
-            .ok_or_else(|| anyhow!("Invalid skill dir entry under {}", skills_root.display()))?;
+            .ok_or_else(|| AgentServiceError::Internal(format!("Invalid skill dir entry under {}", skills_root.display()))?;
         let id = if config.id.as_str().is_empty() {
             dir_name.to_string()
         } else {

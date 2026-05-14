@@ -1,7 +1,7 @@
 mod helpers;
 mod processing;
 
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
 use std::sync::Arc;
 
@@ -28,7 +28,7 @@ impl StreamProcessor {
                 return Ok(text_part.text.clone());
             }
         }
-        Err(anyhow!("No text content found in message"))
+        Err(AgentServiceError::Internal(format!("No text content found in message"))
     }
 
     pub fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {

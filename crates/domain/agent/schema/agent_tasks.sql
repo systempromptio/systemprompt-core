@@ -53,8 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_tasks_execution_time ON agent_tasks(executi
 
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_error_message ON agent_tasks(error_message) WHERE error_message IS NOT NULL;
 
-DROP TRIGGER IF EXISTS update_agent_tasks_updated_at ON agent_tasks;
-CREATE TRIGGER update_agent_tasks_updated_at
+CREATE OR REPLACE TRIGGER update_agent_tasks_updated_at
     BEFORE UPDATE ON agent_tasks
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_trigger();

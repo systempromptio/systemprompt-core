@@ -68,7 +68,7 @@ impl ValidationReport {
     }
 }
 
-use anyhow::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -95,7 +95,7 @@ pub enum OrchestrationError {
     HealthCheckTimeout(String),
 
     #[error("Generic error: {0}")]
-    Generic(#[from] anyhow::Error),
+    Generic(String),
 
     #[error("agent: {0}")]
     Agent(#[from] crate::error::AgentError),

@@ -1,6 +1,6 @@
 //! Cross-platform process / port probing helpers.
 
-use anyhow::{Context, Result};
+use crate::services::shared::{AgentServiceError, Result};
 use std::process::Command;
 use systemprompt_models::CliPaths;
 

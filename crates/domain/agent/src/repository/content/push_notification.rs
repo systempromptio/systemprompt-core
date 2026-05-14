@@ -1,4 +1,4 @@
-use anyhow::Result;
+use systemprompt_traits::RepositoryError;
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 
 use systemprompt_models::AiProvider;

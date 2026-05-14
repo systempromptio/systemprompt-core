@@ -53,7 +53,7 @@ pub async fn start_agent(
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
     let lifecycle = AgentLifecycle::new(pool, app_paths)
-        .map_err(|e| OrchestrationError::Generic(anyhow::anyhow!(e.to_string())))?;
+        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
     lifecycle.start_agent(agent_name, events).await
 }
 
@@ -64,7 +64,7 @@ pub async fn enable_agent(
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
     let lifecycle = AgentLifecycle::new(pool, app_paths)
-        .map_err(|e| OrchestrationError::Generic(anyhow::anyhow!(e.to_string())))?;
+        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
     lifecycle.enable_agent(agent_name, events).await
 }
 
@@ -74,7 +74,7 @@ pub async fn disable_agent(
     agent_name: &str,
 ) -> OrchestrationResult<()> {
     let lifecycle = AgentLifecycle::new(pool, app_paths)
-        .map_err(|e| OrchestrationError::Generic(anyhow::anyhow!(e.to_string())))?;
+        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
     lifecycle.disable_agent(agent_name).await
 }
 
@@ -85,6 +85,6 @@ pub async fn restart_agent(
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
     let lifecycle = AgentLifecycle::new(pool, app_paths)
-        .map_err(|e| OrchestrationError::Generic(anyhow::anyhow!(e.to_string())))?;
+        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
     lifecycle.restart_agent(agent_name, events).await
 }

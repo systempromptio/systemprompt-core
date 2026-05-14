@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::AiMessage;
@@ -56,7 +56,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         )
         .await
         .map_err(|()| {
-            anyhow::anyhow!("Standard execution failed - see stream errors for details")
+            AgentServiceError::Internal(format!("Standard execution failed - see stream errors for details")
         })?;
 
         if let Ok(step) = tracking.track_completion(task_id).await {

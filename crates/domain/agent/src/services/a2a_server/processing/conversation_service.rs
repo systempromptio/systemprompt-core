@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
@@ -29,7 +29,7 @@ impl ConversationService {
         let tasks = task_repo
             .list_tasks_by_context(context_id)
             .await
-            .map_err(|e| anyhow!("Failed to load conversation history: {}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("Failed to load conversation history: {}", e))?;
 
         let mut history_messages = Vec::new();
 

@@ -4,7 +4,7 @@ mod stream_processor;
 
 pub use stream_processor::StreamProcessor;
 
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -102,7 +102,7 @@ impl MessageProcessor {
         let agent_config = registry
             .get_agent(agent_name)
             .await
-            .map_err(|_| anyhow!("Agent not found"))?;
+            .map_err(|_| AgentServiceError::Internal(format!("Agent not found"))?;
 
         Ok(agent_config.into())
     }

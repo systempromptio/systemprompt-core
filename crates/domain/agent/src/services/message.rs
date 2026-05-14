@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -95,7 +95,7 @@ impl MessageService {
                 trace_id,
             })
             .await
-            .map_err(|e| anyhow!("Failed to persist message: {}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist message: {}", e))?;
 
         tracing::info!(
             message_id = %message.message_id,

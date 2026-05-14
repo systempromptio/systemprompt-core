@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::RequestContext;
@@ -60,7 +60,7 @@ impl MessageValidationService {
         let agent_config = registry
             .get_agent(agent_name)
             .await
-            .map_err(|_| anyhow!("Agent not found: {}", agent_name))?;
+            .map_err(|_| AgentServiceError::Internal(format!("Agent not found: {}", agent_name))?;
 
         Ok(agent_config.into())
     }
@@ -78,7 +78,7 @@ impl MessageValidationService {
             .get_context(context_id, context.user_id())
             .await
             .map_err(|e| {
-                anyhow!(
+                AgentServiceError::Internal(format!(
                     "Context validation failed - context_id: {}, user_id: {}, error: {}",
                     context_id,
                     context.user_id(),
@@ -96,7 +96,7 @@ impl MessageValidationService {
             .any(|part| matches!(part, crate::models::Part::Text(_)));
 
         if !has_text_part {
-            return Err(anyhow!("No text content found in message"));
+            return Err(AgentServiceError::Internal(format!("No text content found in message"));
         }
 
         Ok(())

@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
@@ -43,7 +43,7 @@ impl PersistenceService {
                 agent_name,
             })
             .await
-            .map_err(|e| anyhow!("Failed to persist task at start: {}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist task at start: {}", e))?;
 
         tracing::info!(task_id = %task.id, "Task persisted to database");
 
@@ -60,7 +60,7 @@ impl PersistenceService {
         task_repo
             .update_task_state(task_id, state, timestamp)
             .await
-            .map_err(|e| anyhow!("Failed to update task state: {}", e))
+            .map_err(|e| AgentServiceError::Internal(format!("Failed to update task state: {}", e))
     }
 
     pub async fn persist_completed_task(
@@ -86,7 +86,7 @@ impl PersistenceService {
                 trace_id: context.trace_id(),
             })
             .await
-            .map_err(|e| anyhow!("Failed to update task and save messages: {}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("Failed to update task and save messages: {}", e))?;
 
         if !artifacts_already_published {
             if let Some(artifacts) = &task.artifacts {
@@ -97,7 +97,7 @@ impl PersistenceService {
                         .publish_from_a2a(artifact, &task.id, context_id)
                         .await
                         .map_err(|e| {
-                            anyhow!("Failed to publish artifact {}: {}", artifact.id, e)
+                            AgentServiceError::Internal(format!("Failed to publish artifact {}: {}", artifact.id, e)
                         })?;
                 }
 

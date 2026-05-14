@@ -1,6 +1,6 @@
 //! Row -> [`ExecutionStep`] parsing helper for the execution-step repository.
 
-use anyhow::Result;
+use systemprompt_traits::RepositoryError;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, StepContent, StepStatus};
@@ -30,9 +30,9 @@ pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep> {
     } = params;
     let status = status
         .parse::<StepStatus>()
-        .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?;
+        .map_err(|e| RepositoryError::Internal(format!("Invalid status: {}", e))?;
     let content: StepContent =
-        serde_json::from_value(content).map_err(|e| anyhow::anyhow!("Invalid content: {}", e))?;
+        serde_json::from_value(content).map_err(|e| RepositoryError::Internal(format!("Invalid content: {}", e))?;
     Ok(ExecutionStep {
         step_id: step_id.into(),
         task_id,
