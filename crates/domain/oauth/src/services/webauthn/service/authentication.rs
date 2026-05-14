@@ -20,12 +20,12 @@ impl WebAuthnService {
             .oauth_repo
             .find_user_by_email(email)
             .await?
-            .ok_or_else(|| crate::error::OauthError::from(anyhow::anyhow!("User not found")))?;
+            .ok_or_else(|| crate::error::OauthError::Internal(format!("User not found")))?;
 
         let user_credentials = self.get_user_credentials(&user.id).await?;
 
         if user_credentials.is_empty() {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "No credentials found for user"
             )));
         }
@@ -111,14 +111,14 @@ impl WebAuthnService {
         let data = {
             let mut states = self.auth_states.lock().await;
             states.remove(challenge_id).ok_or_else(|| {
-                crate::error::OauthError::from(anyhow::anyhow!(
+                crate::error::OauthError::Internal(format!(
                     "Authentication state not found or expired"
                 ))
             })?
         };
 
         if data.timestamp.elapsed() > std::time::Duration::from_secs(120) {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "Authentication challenge expired"
             )));
         }

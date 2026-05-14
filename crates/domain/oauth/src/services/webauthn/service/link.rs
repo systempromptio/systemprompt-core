@@ -50,17 +50,17 @@ impl WebAuthnService {
         let token_record = match validation {
             TokenValidationResult::Valid(record) => record,
             TokenValidationResult::Expired => {
-                return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                return Err(crate::error::OauthError::Internal(format!(
                     "Setup token has expired"
                 )));
             },
             TokenValidationResult::AlreadyUsed => {
-                return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                return Err(crate::error::OauthError::Internal(format!(
                     "Setup token has already been used"
                 )));
             },
             TokenValidationResult::NotFound => {
-                return Err(crate::error::OauthError::from(anyhow::anyhow!(
+                return Err(crate::error::OauthError::Internal(format!(
                     "Invalid setup token"
                 )));
             },
@@ -129,7 +129,7 @@ impl WebAuthnService {
         let validation = self.oauth_repo.validate_setup_token(&token_hash).await?;
 
         let TokenValidationResult::Valid(token_record) = validation else {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "Invalid or expired setup token"
             )));
         };
@@ -137,20 +137,20 @@ impl WebAuthnService {
         let state = {
             let mut states = link_states.lock().await;
             states.remove(challenge_id).ok_or_else(|| {
-                crate::error::OauthError::from(anyhow::anyhow!(
+                crate::error::OauthError::Internal(format!(
                     "Registration session not found or expired"
                 ))
             })?
         };
 
         if state.token_id != token_record.id {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "Token mismatch"
             )));
         }
 
         if state.timestamp.elapsed() > Duration::from_secs(CHALLENGE_EXPIRY_SECONDS) {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "Registration session expired"
             )));
         }

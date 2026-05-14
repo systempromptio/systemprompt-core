@@ -19,13 +19,13 @@ impl WebAuthnConfig {
         let config = Config::get()?;
         let api_url = &config.api_external_url;
         let parsed_url = Url::parse(api_url).map_err(|e| {
-            crate::error::OauthError::from(anyhow::anyhow!("API_EXTERNAL_URL invalid: {}", e))
+            crate::error::OauthError::Internal(format!("API_EXTERNAL_URL invalid: {}", e))
         })?;
 
         let rp_id = parsed_url
             .host_str()
             .ok_or_else(|| {
-                crate::error::OauthError::from(anyhow::anyhow!(
+                crate::error::OauthError::Internal(format!(
                     "API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID"
                 ))
             })?

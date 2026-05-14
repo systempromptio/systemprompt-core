@@ -76,32 +76,32 @@ impl OAuthClient {
 
     pub fn validate(&self) -> Result<()> {
         if self.client_id.as_str().is_empty() {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "client_id cannot be empty"
             )));
         }
         if self.client_name.is_empty() {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "client_name cannot be empty"
             )));
         }
         if self.redirect_uris.is_empty() {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "redirect_uris cannot be empty"
             )));
         }
         if self.grant_types.is_empty() {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "grant_types cannot be empty"
             )));
         }
         if self.response_types.is_empty() {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "response_types cannot be empty"
             )));
         }
         if self.scopes.is_empty() {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "scopes cannot be empty"
             )));
         }

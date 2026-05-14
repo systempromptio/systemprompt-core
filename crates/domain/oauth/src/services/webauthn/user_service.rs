@@ -30,7 +30,7 @@ impl UserCreationService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?
+            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
         {
             return Ok(existing_user.id.as_str().to_string());
         }
@@ -41,12 +41,12 @@ impl UserCreationService {
             .user_provider
             .create_user(username, email, full_name)
             .await
-            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?;
+            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?;
 
         self.user_provider
             .assign_roles(&user.id, &roles)
             .await
-            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?;
+            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?;
 
         Ok(user.id.as_str().to_string())
     }
@@ -61,10 +61,10 @@ impl UserCreationService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?
+            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
             .is_some()
         {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "email_already_registered"
             )));
         }
@@ -73,10 +73,10 @@ impl UserCreationService {
             .user_provider
             .find_by_name(username)
             .await
-            .map_err(|e| crate::error::OauthError::from(anyhow::anyhow!("{}", e)))?
+            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
             .is_some()
         {
-            return Err(crate::error::OauthError::from(anyhow::anyhow!(
+            return Err(crate::error::OauthError::Internal(format!(
                 "username_already_taken"
             )));
         }
