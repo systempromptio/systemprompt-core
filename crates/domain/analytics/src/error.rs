@@ -4,7 +4,7 @@ use systemprompt_models::domain_error;
 
 domain_error! {
     pub enum AnalyticsError {
-        common: [repository, io, json, anyhow],
+        common: [repository, io, json],
 
         #[error("Session not found: {0}")]
         SessionNotFound(String),
