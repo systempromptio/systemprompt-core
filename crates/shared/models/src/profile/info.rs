@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TenantId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProfileInfo {
@@ -9,7 +10,7 @@ pub struct ProfileInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub database_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<TenantId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub validation_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

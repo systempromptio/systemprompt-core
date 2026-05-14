@@ -11,7 +11,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Args)]
 pub struct IssueCodeArgs {
     #[arg(long, help = "User ID to issue the exchange code for")]
-    pub user_id: String,
+    pub user_id: UserId,
 }
 
 pub async fn execute(
@@ -20,8 +20,8 @@ pub async fn execute(
 ) -> Result<CommandResult<ExchangeCodeIssuedOutput>> {
     let ctx = AppContext::new().await?;
 
-    let user_id = UserId::new(args.user_id.trim());
-    if user_id.as_str().is_empty() {
+    let user_id = args.user_id;
+    if user_id.as_str().trim().is_empty() {
         return Err(anyhow!("user_id cannot be empty"));
     }
 

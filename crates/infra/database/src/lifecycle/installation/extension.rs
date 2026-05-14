@@ -17,6 +17,7 @@ use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info};
 
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
+use crate::services::schema_additivity::{compute_additive_alters, parse_declared_tables};
 use crate::services::{DatabaseProvider, SqlExecutor};
 
 /// Stable 64-bit key for `pg_advisory_lock`. Chosen as a constant so all
@@ -129,12 +130,30 @@ async fn install_extension_schema(
     }
 
     let combined = all_sql.join("\n");
-    let statements = SqlExecutor::parse_sql_statements(&combined).map_err(|e| {
+    let parsed = SqlExecutor::parse_sql_statements(&combined).map_err(|e| {
         LoaderError::SchemaInstallationFailed {
             extension: extension_id.clone(),
             message: format!("SQL parse failed: {e}"),
         }
     })?;
+
+    let declared_tables = parse_declared_tables(&combined);
+    let additive_alters = compute_additive_alters(db, &declared_tables)
+        .await
+        .map_err(|e| LoaderError::SchemaInstallationFailed {
+            extension: extension_id.clone(),
+            message: format!("Schema-additivity check failed: {e}"),
+        })?;
+    for alter in &additive_alters {
+        debug!(
+            extension = %extension_id,
+            sql = %alter,
+            "Auto-emitting additive ALTER for legacy table"
+        );
+    }
+
+    let mut statements = additive_alters;
+    statements.extend(parsed);
 
     execute_statements_transactional(db, &statements, &extension_id).await?;
 

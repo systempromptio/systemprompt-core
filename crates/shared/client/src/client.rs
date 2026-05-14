@@ -3,7 +3,7 @@ use crate::http;
 use chrono::Utc;
 use reqwest::Client;
 use std::time::Duration;
-use systemprompt_identifiers::{ContextId, JwtToken};
+use systemprompt_identifiers::{ContextId, JwtToken, TaskId};
 use systemprompt_models::a2a::{Task, methods};
 use systemprompt_models::admin::{AnalyticsData, LogEntry, UserInfo};
 use systemprompt_models::net::{
@@ -127,48 +127,60 @@ impl SystempromptClient {
         Ok(context.context_id)
     }
 
-    pub async fn update_context_name(&self, context_id: &str, name: &str) -> ClientResult<()> {
+    pub async fn update_context_name(
+        &self,
+        context_id: &ContextId,
+        name: &str,
+    ) -> ClientResult<()> {
         let url = format!(
             "{}{}/{}",
             self.base_url,
             ApiPaths::CORE_CONTEXTS,
-            context_id
+            context_id.as_str()
         );
         let body = serde_json::json!({ "name": name });
         http::put(&self.client, &url, &body, self.token.as_ref()).await
     }
 
-    pub async fn delete_context(&self, context_id: &str) -> ClientResult<()> {
+    pub async fn delete_context(&self, context_id: &ContextId) -> ClientResult<()> {
         let url = format!(
             "{}{}/{}",
             self.base_url,
             ApiPaths::CORE_CONTEXTS,
-            context_id
+            context_id.as_str()
         );
         http::delete(&self.client, &url, self.token.as_ref()).await
     }
 
-    pub async fn list_tasks(&self, context_id: &str) -> ClientResult<Vec<Task>> {
+    pub async fn list_tasks(&self, context_id: &ContextId) -> ClientResult<Vec<Task>> {
         let url = format!(
             "{}{}/{}/tasks",
             self.base_url,
             ApiPaths::CORE_CONTEXTS,
-            context_id
+            context_id.as_str()
         );
         http::get(&self.client, &url, self.token.as_ref()).await
     }
 
-    pub async fn delete_task(&self, task_id: &str) -> ClientResult<()> {
-        let url = format!("{}{}/{}", self.base_url, ApiPaths::CORE_TASKS, task_id);
+    pub async fn delete_task(&self, task_id: &TaskId) -> ClientResult<()> {
+        let url = format!(
+            "{}{}/{}",
+            self.base_url,
+            ApiPaths::CORE_TASKS,
+            task_id.as_str()
+        );
         http::delete(&self.client, &url, self.token.as_ref()).await
     }
 
-    pub async fn list_artifacts(&self, context_id: &str) -> ClientResult<Vec<serde_json::Value>> {
+    pub async fn list_artifacts(
+        &self,
+        context_id: &ContextId,
+    ) -> ClientResult<Vec<serde_json::Value>> {
         let url = format!(
             "{}{}/{}/artifacts",
             self.base_url,
             ApiPaths::CORE_CONTEXTS,
-            context_id
+            context_id.as_str()
         );
         http::get(&self.client, &url, self.token.as_ref()).await
     }

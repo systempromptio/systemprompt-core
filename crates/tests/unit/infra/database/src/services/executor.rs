@@ -79,17 +79,55 @@ CREATE TABLE after_apos (id INT);
 }
 
 #[test]
-fn malformed_sql_returns_err() {
-    let sql = "CREATE TABLE foo (";
+fn unterminated_dollar_quote_returns_err() {
+    let sql = "CREATE FUNCTION x() RETURNS void AS $body$ BEGIN RETURN; END;";
     let result = SqlExecutor::parse_sql_statements(sql);
     assert!(
         result.is_err(),
-        "expected parse error for unterminated CREATE TABLE, got {result:?}"
+        "expected error for unterminated $body$ block, got {result:?}"
     );
 }
 
 #[test]
-fn comments_and_blank_lines_are_skipped() {
+fn unterminated_single_quote_returns_err() {
+    let sql = "INSERT INTO t VALUES ('oops";
+    let result = SqlExecutor::parse_sql_statements(sql);
+    assert!(
+        result.is_err(),
+        "expected error for unterminated string literal, got {result:?}"
+    );
+}
+
+#[test]
+fn create_function_preserves_empty_parameter_list() {
+    let sql = "\
+CREATE OR REPLACE FUNCTION update_timestamp_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+";
+    let stmts = SqlExecutor::parse_sql_statements(sql).expect("parse ok");
+    assert_eq!(stmts.len(), 1, "got {stmts:#?}");
+    assert!(
+        stmts[0].contains("update_timestamp_trigger()"),
+        "splitter must preserve the empty parameter list verbatim — Postgres rejects `CREATE FUNCTION foo RETURNS …` without it. Got: {}",
+        stmts[0]
+    );
+}
+
+#[test]
+fn block_comments_with_inner_semicolon_do_not_split() {
+    let sql = "/* outer; /* nested; */ still inside; */ CREATE TABLE only_one (id INT);";
+    let stmts = SqlExecutor::parse_sql_statements(sql).expect("parse ok");
+    assert_eq!(stmts.len(), 1);
+    assert!(stmts[0].to_uppercase().contains("CREATE TABLE"));
+}
+
+#[test]
+fn leading_comments_are_carried_with_statement() {
     let sql = "\
 -- a comment
 
@@ -98,9 +136,13 @@ CREATE TABLE only_one (id INT);
 ";
     let stmts = SqlExecutor::parse_sql_statements(sql).expect("parse ok");
     assert_eq!(stmts.len(), 1);
-    assert!(stmts[0].to_uppercase().starts_with("CREATE TABLE"));
-    assert!(stmts[0].contains("only_one"));
-    assert!(!stmts[0].contains("--"));
+    assert!(stmts[0].contains("CREATE TABLE only_one"));
+}
+
+#[test]
+fn semicolon_only_block_emits_no_statements() {
+    let stmts = SqlExecutor::parse_sql_statements(";;-- trailing\n").expect("parse ok");
+    assert!(stmts.is_empty(), "got {stmts:#?}");
 }
 
 #[test]

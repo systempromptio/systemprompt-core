@@ -66,13 +66,12 @@ impl ContentProvider for DefaultContentProvider {
 
     async fn get_content_by_source_and_slug(
         &self,
-        source_id_str: &str,
+        source_id: &systemprompt_identifiers::SourceId,
         slug: &str,
     ) -> Result<Option<ContentItem>, Self::Error> {
-        let source = systemprompt_identifiers::SourceId::new(source_id_str);
         let content = self
             .repo
-            .get_by_source_and_slug(&source, slug, &LocaleCode::new("en"))
+            .get_by_source_and_slug(source_id, slug, &LocaleCode::new("en"))
             .await?;
 
         Ok(content.map(|c| ContentItem {
@@ -98,10 +97,9 @@ impl ContentProvider for DefaultContentProvider {
         let limit = filter.limit.unwrap_or(100);
         let offset = filter.offset.unwrap_or(0);
 
-        let contents = if let Some(source_id) = filter.source_id {
-            let source = systemprompt_identifiers::SourceId::new(&source_id);
+        let contents = if let Some(source_id) = &filter.source_id {
             self.repo
-                .list_by_source(&source, &LocaleCode::new("en"))
+                .list_by_source(source_id, &LocaleCode::new("en"))
                 .await?
         } else {
             self.repo.list(limit, offset).await?

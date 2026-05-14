@@ -109,9 +109,14 @@ pub async fn write_synthetic_plugin(
         write_agent(&root, agent)?;
     }
 
-    let synthetic_id = paths::SYNTHETIC_PLUGIN_NAME;
-    materialize_hook_token(client, bearer, synthetic_id, &root).await?;
-    write_hooks_json(client.base_url_str(), synthetic_id, &root, &manifest.hooks)?;
+    let synthetic_id = systemprompt_identifiers::PluginId::new(paths::SYNTHETIC_PLUGIN_NAME);
+    materialize_hook_token(client, bearer, &synthetic_id, &root).await?;
+    write_hooks_json(
+        client.base_url_str(),
+        &synthetic_id,
+        &root,
+        &manifest.hooks,
+    )?;
     ensure_plugin_json_hooks_field(&root)?;
 
     Ok(())

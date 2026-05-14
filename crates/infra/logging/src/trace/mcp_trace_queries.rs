@@ -3,14 +3,14 @@ type Result<T> = std::result::Result<T, LoggingError>;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{AiRequestId, ArtifactId, McpExecutionId};
+use systemprompt_identifiers::{AiRequestId, ArtifactId, ContextId, McpExecutionId, TaskId};
 
 use super::models::{AiRequestInfo, McpToolExecution, TaskArtifact, ToolLogEntry};
 
 pub async fn fetch_mcp_executions(
     pool: &Arc<PgPool>,
-    task_id: &str,
-    context_id: &str,
+    task_id: &TaskId,
+    context_id: &ContextId,
 ) -> Result<Vec<McpToolExecution>> {
     let rows = sqlx::query!(
         r#"SELECT mcp_execution_id, tool_name, server_name, status, execution_time_ms,
@@ -18,8 +18,8 @@ pub async fn fetch_mcp_executions(
            FROM mcp_tool_executions
            WHERE task_id = $1 OR context_id = $2
            ORDER BY started_at"#,
-        task_id,
-        context_id
+        task_id.as_str(),
+        context_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -41,14 +41,14 @@ pub async fn fetch_mcp_executions(
 
 pub async fn fetch_mcp_linked_ai_requests(
     pool: &Arc<PgPool>,
-    mcp_execution_id: &str,
+    mcp_execution_id: &McpExecutionId,
 ) -> Result<Vec<AiRequestInfo>> {
     let rows = sqlx::query!(
         r#"SELECT id, model, provider, max_tokens, input_tokens, output_tokens, cost_microdollars, latency_ms
            FROM ai_requests
            WHERE mcp_execution_id = $1
            ORDER BY created_at"#,
-        mcp_execution_id
+        mcp_execution_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -70,8 +70,8 @@ pub async fn fetch_mcp_linked_ai_requests(
 
 pub async fn fetch_tool_logs(
     pool: &Arc<PgPool>,
-    task_id: &str,
-    context_id: &str,
+    task_id: &TaskId,
+    context_id: &ContextId,
 ) -> Result<Vec<ToolLogEntry>> {
     let rows = sqlx::query!(
         r#"SELECT timestamp, level, module, message
@@ -85,8 +85,8 @@ pub async fn fetch_tool_logs(
                  OR message LIKE 'MCP execution%'
              )
            ORDER BY timestamp"#,
-        task_id,
-        context_id
+        task_id.as_str(),
+        context_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -104,8 +104,8 @@ pub async fn fetch_tool_logs(
 
 pub async fn fetch_task_artifacts(
     pool: &Arc<PgPool>,
-    task_id: &str,
-    context_id: &str,
+    task_id: &TaskId,
+    context_id: &ContextId,
 ) -> Result<Vec<TaskArtifact>> {
     let rows = sqlx::query!(
         r#"SELECT ta.artifact_id, ta.artifact_type, ta.name, ta.source, ta.tool_name,
@@ -115,8 +115,8 @@ pub async fn fetch_task_artifacts(
            LEFT JOIN artifact_parts ap ON ta.artifact_id = ap.artifact_id AND ta.context_id = ap.context_id
            WHERE ta.task_id = $1 OR ta.context_id = $2
            ORDER BY ta.created_at, ap.sequence_number"#,
-        task_id,
-        context_id
+        task_id.as_str(),
+        context_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;

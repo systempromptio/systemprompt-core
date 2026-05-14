@@ -21,6 +21,16 @@ use super::types::{Access, AccessRule, EntityKind, RuleType};
 
 const DEFAULT_SENTINEL_VALUE: &str = "__default__";
 
+#[derive(Debug, Clone)]
+pub struct ExportRuleRow {
+    pub entity_type: String,
+    pub entity_id: String,
+    pub rule_type: String,
+    pub rule_value: String,
+    pub access: String,
+    pub justification: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct UpsertRuleParams<'a> {
     pub entity_type: EntityKind,
@@ -55,6 +65,22 @@ impl AccessControlRepository {
     pub fn from_pool(pool: Arc<PgPool>) -> Self {
         let write_pool = Arc::clone(&pool);
         Self { pool, write_pool }
+    }
+
+    pub async fn list_role_department_rules_for_export(&self) -> AuthzResult<Vec<ExportRuleRow>> {
+        let rows = sqlx::query_as!(
+            ExportRuleRow,
+            r#"
+            SELECT entity_type, entity_id, rule_type, rule_value, access, justification
+            FROM access_control_rules
+            WHERE rule_type IN ('role', 'department')
+              AND rule_value <> '__default__'
+            ORDER BY entity_type, entity_id, access, rule_type, rule_value
+            "#,
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows)
     }
 
     pub async fn list_rules_for_entity(

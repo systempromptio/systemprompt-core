@@ -212,7 +212,7 @@ pub async fn generate_anonymous_token(
                 .into_response();
         },
     };
-    let session_source = SessionSource::from_client_id(req.client_id.as_str());
+    let session_source = SessionSource::from_client_id(&req.client_id);
     match session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
             headers: &headers,

@@ -2,6 +2,7 @@ use futures_util::StreamExt;
 // JSON: protocol boundary — OpenAI Chat Completions outbound wire format is
 // dynamic JSON.
 use serde_json::Value;
+use systemprompt_identifiers::MessageId;
 
 use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
@@ -18,7 +19,7 @@ where
     let initial = OpenAiChatStreamState {
         buf: Vec::new(),
         model: fallback_model,
-        message_id: String::new(),
+        message_id: MessageId::new(""),
         started: false,
         text_block_open: false,
         next_index: 0,
@@ -57,7 +58,7 @@ fn drain_buffer(
                     state.text_block_open = false;
                 }
                 events.push(Ok(CanonicalEvent::MessageStop {
-                    id: state.message_id.clone(),
+                    id: state.message_id.as_str().to_string(),
                     stop_reason: Some(CanonicalStopReason::EndTurn),
                 }));
                 continue;
@@ -116,7 +117,7 @@ fn emit_message_start(
         .and_then(Value::as_str)
         .unwrap_or(&state.model)
         .to_string();
-    state.message_id.clone_from(&id);
+    state.message_id = MessageId::new(&id);
     events.push(Ok(CanonicalEvent::MessageStart {
         id,
         model: model.clone(),
@@ -228,7 +229,7 @@ fn emit_message_stop(
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: tc.index }));
     }
     events.push(Ok(CanonicalEvent::MessageStop {
-        id: state.message_id.clone(),
+        id: state.message_id.as_str().to_string(),
         stop_reason: Some(CanonicalStopReason::from_openai(finish)),
     }));
 }
@@ -249,7 +250,7 @@ fn usage_from_value(usage: &Value) -> CanonicalUsage {
 struct OpenAiChatStreamState {
     buf: Vec<u8>,
     model: String,
-    message_id: String,
+    message_id: MessageId,
     started: bool,
     text_block_open: bool,
     next_index: u32,

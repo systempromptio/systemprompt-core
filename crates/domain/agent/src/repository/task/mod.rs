@@ -6,8 +6,8 @@ mod task_updates;
 
 pub use constructor::TaskConstructor;
 pub use mutations::{
-    CreateTaskParams, create_task, task_state_to_db_string, track_agent_in_context,
-    update_task_failed_with_error, update_task_state,
+    CreateTaskParams, apply_notification_status, create_task, task_state_to_db_string,
+    track_agent_in_context, update_task_failed_with_error, update_task_state,
 };
 pub use queries::{
     TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
@@ -151,6 +151,15 @@ impl TaskRepository {
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
         update_task_state(&self.write_pool, task_id, state, timestamp).await
+    }
+
+    pub async fn apply_notification_status(
+        &self,
+        task_id: &str,
+        state: &str,
+        timestamp: &chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), RepositoryError> {
+        apply_notification_status(&self.write_pool, task_id, state, timestamp).await
     }
 
     pub async fn update_task_failed_with_error(

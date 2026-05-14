@@ -30,7 +30,7 @@ pub fn session_key_for_profile(profile: &Profile) -> SessionKey {
     if profile.target.is_local() {
         SessionKey::Local
     } else {
-        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
         SessionKey::from_tenant_id(tenant_id)
     }
 }

@@ -1,5 +1,4 @@
-//! `JsonSchema`-driven validation helpers used by `build.rs` scripts
-//! and the `systemprompt cloud config` command.
+//! `JsonSchema`-driven validation helpers for runtime config parsing.
 
 use std::path::Path;
 
@@ -36,35 +35,6 @@ pub fn generate_schema<T: JsonSchema>() -> Result<serde_json::Value, serde_json:
 pub fn validate_yaml_str<T: DeserializeOwned>(yaml: &str) -> Result<T, ConfigValidationError> {
     let config: T = serde_yaml::from_str(yaml)?;
     Ok(config)
-}
-
-pub type ConfigValidatorFn = fn(&str) -> Result<(), String>;
-
-pub fn build_validate_configs(configs: &[(&str, ConfigValidatorFn)]) {
-    for (path, validator) in configs {
-        emit_rerun(path);
-        if let Err(e) = validator(path) {
-            emit_failure(path, &e);
-        }
-    }
-}
-
-#[expect(
-    clippy::print_stdout,
-    reason = "build.rs requires writing cargo:rerun-if-changed directives to stdout"
-)]
-fn emit_rerun(path: &str) {
-    println!("cargo:rerun-if-changed={path}");
-}
-
-#[expect(
-    clippy::print_stderr,
-    clippy::exit,
-    reason = "build.rs failure path must write a diagnostic to stderr and abort with status 1"
-)]
-fn emit_failure(path: &str, message: &str) -> ! {
-    eprintln!("Config validation failed for {path}: {message}");
-    std::process::exit(1);
 }
 
 pub fn validate_yaml_file(

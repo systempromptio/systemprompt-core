@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! define_id {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -33,7 +33,7 @@ macro_rules! define_id {
     };
 
     ($name:ident, non_empty) => {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, schemars::JsonSchema)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -50,6 +50,10 @@ macro_rules! define_id {
 
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
+                // SAFETY: `new` is the infallible constructor reserved for already-validated
+                // inputs (literals, values that round-tripped through `try_new` at a boundary).
+                // The only `try_new` failure path is the empty string; callers that may pass an
+                // empty value must use `try_new` instead.
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
             }
 
@@ -63,7 +67,7 @@ macro_rules! define_id {
     };
 
     ($name:ident, validated, $validator:expr) => {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, schemars::JsonSchema)]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -79,6 +83,9 @@ macro_rules! define_id {
 
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
+                // SAFETY: `new` is the infallible constructor reserved for inputs the caller
+                // has already validated (compile-time literals, values that round-tripped
+                // through `try_new` at a boundary). Untrusted input must go through `try_new`.
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 
@@ -108,6 +115,9 @@ macro_rules! define_id {
 
             #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
+                // SAFETY: `new` is the infallible constructor reserved for inputs the caller
+                // has already validated (compile-time literals, values that round-tripped
+                // through `try_new` at a boundary). Untrusted input must go through `try_new`.
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 

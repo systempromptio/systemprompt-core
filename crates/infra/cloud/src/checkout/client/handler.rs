@@ -81,9 +81,7 @@ pub(super) async fn callback_handler(
             });
 
             tokio::spawn(async move {
-                match wait_for_checkout_provisioning(&api_client, checkout_session_id.as_str())
-                    .await
-                {
+                match wait_for_checkout_provisioning(&api_client, &checkout_session_id).await {
                     Ok(prov_result) => {
                         let result = Ok(CheckoutCallbackResult {
                             transaction_id,
@@ -141,7 +139,7 @@ struct CheckoutProvisioningResult {
 
 async fn wait_for_checkout_provisioning(
     client: &CloudApiClient,
-    checkout_session_id: &str,
+    checkout_session_id: &systemprompt_identifiers::CheckoutSessionId,
 ) -> CloudResult<CheckoutProvisioningResult> {
     let mut stream = client.subscribe_checkout_events(checkout_session_id);
 

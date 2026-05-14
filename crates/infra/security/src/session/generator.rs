@@ -54,7 +54,7 @@ impl SessionGenerator {
             client_id: None,
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),
-            session_id: Some(params.session_id.to_string()),
+            session_id: Some(params.session_id.clone()),
             rate_limit_tier: Some(params.rate_limit_tier),
             plugin_id: None,
         };

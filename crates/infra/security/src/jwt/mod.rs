@@ -45,10 +45,10 @@ impl JwtService {
             user_type: UserType::Admin,
             roles: vec!["admin".to_string(), "user".to_string()],
             department: None,
-            client_id: params.client_id.map(ToString::to_string),
+            client_id: params.client_id.cloned(),
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),
-            session_id: Some(params.session_id.to_string()),
+            session_id: Some(params.session_id.clone()),
             rate_limit_tier: Some(RateLimitTier::Admin),
             plugin_id: None,
         };

@@ -141,7 +141,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         CliService::warning(&format!("Failed to load tenant store: {}", e));
         TenantStore::default()
     });
-    let tenant = store.find_tenant(tenant_id);
+    let tenant = store.find_tenant(tenant_id.as_str());
 
     let (hostname, sync_token) =
         tenant.map_or((None, None), |t| (t.hostname.clone(), t.sync_token.clone()));
@@ -155,7 +155,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         direction,
         dry_run: false,
         verbose: false,
-        tenant_id: systemprompt_identifiers::TenantId::new(tenant_id),
+        tenant_id: tenant_id.clone(),
         api_url: creds.api_url.clone(),
         api_token: creds.api_token.clone(),
         services_path: source.profile.paths.services.clone(),

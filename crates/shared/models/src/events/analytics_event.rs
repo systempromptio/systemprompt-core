@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{ContentId, SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
@@ -70,9 +70,9 @@ pub struct SessionEndedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageViewPayload {
     pub session_id: SessionId,
-    pub user_id: Option<String>,
+    pub user_id: Option<UserId>,
     pub page_url: String,
-    pub content_id: Option<String>,
+    pub content_id: Option<ContentId>,
     pub referrer: Option<String>,
 }
 
@@ -124,9 +124,9 @@ impl AnalyticsEventBuilder {
 
     pub fn page_view(
         session_id: SessionId,
-        user_id: Option<String>,
+        user_id: Option<UserId>,
         page_url: String,
-        content_id: Option<String>,
+        content_id: Option<ContentId>,
         referrer: Option<String>,
     ) -> AnalyticsEvent {
         AnalyticsEvent::PageView {

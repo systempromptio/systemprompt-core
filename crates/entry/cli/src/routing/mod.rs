@@ -3,7 +3,7 @@ pub mod remote;
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{ContextId, TenantId};
+use systemprompt_identifiers::ContextId;
 
 use crate::paths::ResolvedPaths;
 
@@ -44,14 +44,14 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
         "Profile has tenant_id, resolving remote execution target"
     );
 
-    let tenant = resolve_tenant(tenant_id)?;
+    let tenant = resolve_tenant(tenant_id.as_str())?;
     let hostname = tenant
         .hostname
         .as_ref()
         .context("Tenant has no hostname configured")?
         .clone();
 
-    let session_key = SessionKey::Tenant(TenantId::new(tenant_id.clone()));
+    let session_key = SessionKey::Tenant(tenant_id.clone());
     let session = load_session_for_key(&session_key)?;
 
     tracing::info!(

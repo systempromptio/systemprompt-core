@@ -28,7 +28,10 @@ pub(super) fn parse_response(value: &Value, fallback_model: &str) -> CanonicalRe
             input_tokens: u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
             output_tokens: u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
         })
-        .unwrap_or_default();
+        .unwrap_or(CanonicalUsage {
+            input_tokens: 0,
+            output_tokens: 0,
+        });
 
     let mut content: Vec<CanonicalContent> = Vec::new();
     if let Some(arr) = value.get("content").and_then(Value::as_array) {

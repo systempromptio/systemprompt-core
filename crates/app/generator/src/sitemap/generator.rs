@@ -171,18 +171,10 @@ async fn write_sitemap_files(
         .map(<[_]>::to_vec)
         .collect();
 
-    if sitemap_chunks.len() <= 1 {
-        write_single_sitemap(
-            web_dir,
-            sitemap_chunks
-                .first()
-                .cloned()
-                .unwrap_or_default()
-                .as_slice(),
-        )
-        .await
-    } else {
-        write_multiple_sitemaps(web_dir, &sitemap_chunks, base_url).await
+    match sitemap_chunks.as_slice() {
+        [] => write_single_sitemap(web_dir, &[]).await,
+        [single] => write_single_sitemap(web_dir, single).await,
+        _ => write_multiple_sitemaps(web_dir, &sitemap_chunks, base_url).await,
     }
 }
 

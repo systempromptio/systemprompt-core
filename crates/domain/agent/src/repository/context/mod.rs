@@ -2,7 +2,10 @@
 
 pub mod message;
 mod mutations;
+pub mod notifications;
 mod queries;
+
+pub use notifications::ContextNotificationRepository;
 
 use sqlx::PgPool;
 use std::sync::Arc;

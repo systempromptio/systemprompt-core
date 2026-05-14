@@ -54,7 +54,7 @@ fn load_profile_info() -> (Option<ProfileInfo>, Option<String>) {
         info.validation_mode = Some(format!("{:?}", cloud.validation));
         if let Some(ref tid) = cloud.tenant_id {
             info.tenant_id = Some(tid.clone());
-            tenant_id_from_profile = Some(tid.clone());
+            tenant_id_from_profile = Some(tid.as_str().to_string());
         }
     }
 
@@ -159,7 +159,7 @@ fn render_profile(profile_info: Option<&ProfileInfo>) {
         CliService::key_value("Validation mode", validation_mode);
     }
     if let Some(ref tid) = profile.tenant_id {
-        CliService::key_value("Tenant ID (profile)", tid);
+        CliService::key_value("Tenant ID (profile)", tid.as_str());
     }
     if profile.credentials_path.is_none() && profile.validation_mode.is_none() {
         CliService::key_value("Cloud config", "Not configured");

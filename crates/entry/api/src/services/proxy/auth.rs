@@ -166,7 +166,7 @@ async fn lookup_oauth_requirement(
 fn resource_path_for(service: &ServiceConfig, service_name: &str) -> String {
     match service.module_name.as_str() {
         "mcp" => ApiPaths::mcp_server_endpoint(service_name),
-        "agent" => ApiPaths::agent_endpoint(service_name),
+        "agent" => ApiPaths::agent_endpoint(&systemprompt_identifiers::AgentId::new(service_name)),
         _ => String::new(),
     }
 }

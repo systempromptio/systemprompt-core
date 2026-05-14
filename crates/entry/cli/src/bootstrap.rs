@@ -35,7 +35,11 @@ pub fn resolve_and_display_profile(
     if cli_config.output_format == OutputFormat::Table
         && cli_config.verbosity != VerbosityLevel::Quiet
     {
-        let tenant = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+        let tenant = profile
+            .cloud
+            .as_ref()
+            .and_then(|c| c.tenant_id.as_ref())
+            .map(systemprompt_identifiers::TenantId::as_str);
         CliService::profile_banner(&profile.name, profile.target.is_cloud(), tenant);
     }
 

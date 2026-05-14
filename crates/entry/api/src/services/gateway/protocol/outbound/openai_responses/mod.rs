@@ -38,7 +38,10 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
             .map_err(|e| anyhow!("Upstream OpenAI Responses request failed: {e}"))?;
         let status = upstream_response.status();
         if !status.is_success() {
-            let err = upstream_response.text().await.unwrap_or_default();
+            let err = upstream_response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<failed to read upstream body: {e}>"));
             return Err(anyhow!("Upstream error {status}: {err}"));
         }
 

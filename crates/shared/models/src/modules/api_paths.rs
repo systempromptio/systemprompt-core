@@ -1,5 +1,7 @@
 //! API path constants.
 
+use systemprompt_identifiers::{AgentId, ClientId, TenantId};
+
 #[derive(Debug, Clone, Copy)]
 pub struct ApiPaths;
 
@@ -87,71 +89,99 @@ impl ApiPaths {
     pub const ACTIVITY_EVENT_LOGIN: &'static str = "cloud_login";
     pub const ACTIVITY_EVENT_LOGOUT: &'static str = "cloud_logout";
 
-    pub fn tenant(tenant_id: &str) -> String {
-        format!("{}/{}", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant(tenant_id: &TenantId) -> String {
+        format!("{}/{}", Self::CLOUD_TENANTS, tenant_id.as_str())
     }
 
-    pub fn tenant_status(tenant_id: &str) -> String {
-        format!("{}/{}/status", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_status(tenant_id: &TenantId) -> String {
+        format!("{}/{}/status", Self::CLOUD_TENANTS, tenant_id.as_str())
     }
 
-    pub fn tenant_registry_token(tenant_id: &str) -> String {
-        format!("{}/{}/registry-token", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_registry_token(tenant_id: &TenantId) -> String {
+        format!(
+            "{}/{}/registry-token",
+            Self::CLOUD_TENANTS,
+            tenant_id.as_str()
+        )
     }
 
-    pub fn tenant_deploy(tenant_id: &str) -> String {
-        format!("{}/{}/deploy", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_deploy(tenant_id: &TenantId) -> String {
+        format!("{}/{}/deploy", Self::CLOUD_TENANTS, tenant_id.as_str())
     }
 
-    pub fn tenant_events(tenant_id: &str) -> String {
-        format!("{}/{}/events", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_events(tenant_id: &TenantId) -> String {
+        format!("{}/{}/events", Self::CLOUD_TENANTS, tenant_id.as_str())
     }
 
-    pub fn tenant_restart(tenant_id: &str) -> String {
-        format!("{}/{}/restart", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_restart(tenant_id: &TenantId) -> String {
+        format!("{}/{}/restart", Self::CLOUD_TENANTS, tenant_id.as_str())
     }
 
-    pub fn tenant_retry_provision(tenant_id: &str) -> String {
-        format!("{}/{}/retry-provision", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_retry_provision(tenant_id: &TenantId) -> String {
+        format!(
+            "{}/{}/retry-provision",
+            Self::CLOUD_TENANTS,
+            tenant_id.as_str()
+        )
     }
 
-    pub fn tenant_secrets(tenant_id: &str) -> String {
-        format!("{}/{}/secrets", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_secrets(tenant_id: &TenantId) -> String {
+        format!("{}/{}/secrets", Self::CLOUD_TENANTS, tenant_id.as_str())
     }
 
-    pub fn tenant_external_db_access(tenant_id: &str) -> String {
-        format!("{}/{}/external-db-access", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_external_db_access(tenant_id: &TenantId) -> String {
+        format!(
+            "{}/{}/external-db-access",
+            Self::CLOUD_TENANTS,
+            tenant_id.as_str()
+        )
     }
 
-    pub fn tenant_rotate_credentials(tenant_id: &str) -> String {
-        format!("{}/{}/rotate-credentials", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_rotate_credentials(tenant_id: &TenantId) -> String {
+        format!(
+            "{}/{}/rotate-credentials",
+            Self::CLOUD_TENANTS,
+            tenant_id.as_str()
+        )
     }
 
-    pub fn tenant_rotate_sync_token(tenant_id: &str) -> String {
-        format!("{}/{}/rotate-sync-token", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_rotate_sync_token(tenant_id: &TenantId) -> String {
+        format!(
+            "{}/{}/rotate-sync-token",
+            Self::CLOUD_TENANTS,
+            tenant_id.as_str()
+        )
     }
 
-    pub fn tenant_subscription_cancel(tenant_id: &str) -> String {
-        format!("{}/{}/subscription/cancel", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_subscription_cancel(tenant_id: &TenantId) -> String {
+        format!(
+            "{}/{}/subscription/cancel",
+            Self::CLOUD_TENANTS,
+            tenant_id.as_str()
+        )
     }
 
     pub fn mcp_server_endpoint(server_name: &str) -> String {
         format!("{}/{}/mcp", Self::MCP_BASE, server_name)
     }
 
-    pub fn oauth_client_location(client_id: &str) -> String {
-        format!("{}/{}", Self::OAUTH_CLIENTS, client_id)
+    pub fn oauth_client_location(client_id: &ClientId) -> String {
+        format!("{}/{}", Self::OAUTH_CLIENTS, client_id.as_str())
     }
 
     pub fn wellknown_agent_card_named(agent_name: &str) -> String {
         format!("{}/{}", Self::WELLKNOWN_AGENT_CARDS, agent_name)
     }
 
-    pub fn agent_endpoint(agent_id: &str) -> String {
-        format!("{}/{}/", Self::AGENTS_BASE, agent_id)
+    pub fn agent_endpoint(agent_id: &AgentId) -> String {
+        format!("{}/{}/", Self::AGENTS_BASE, agent_id.as_str())
     }
 
-    pub fn tenant_custom_domain(tenant_id: &str) -> String {
-        format!("{}/{}/custom-domain", Self::CLOUD_TENANTS, tenant_id)
+    pub fn tenant_custom_domain(tenant_id: &TenantId) -> String {
+        format!(
+            "{}/{}/custom-domain",
+            Self::CLOUD_TENANTS,
+            tenant_id.as_str()
+        )
     }
 }

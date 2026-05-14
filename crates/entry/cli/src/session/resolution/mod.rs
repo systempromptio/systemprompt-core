@@ -54,7 +54,7 @@ async fn get_session_for_loaded_profile(
     }
 
     let profile_name = extract_profile_name(profile_path)?;
-    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
     let session_key = SessionKey::from_tenant_id(tenant_id);
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;

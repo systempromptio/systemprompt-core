@@ -84,7 +84,7 @@ impl PolicyResolver {
     pub async fn resolve(&self, tenant_id: Option<&TenantId>) -> GatewayPolicySpec {
         let key = tenant_id
             .map(|t| t.as_str().to_string())
-            .unwrap_or_default();
+            .unwrap_or_else(String::new);
 
         if let Ok(cache) = self.cache.read() {
             if let Some(entry) = cache.get(&key) {

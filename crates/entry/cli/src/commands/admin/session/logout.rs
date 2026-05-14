@@ -137,7 +137,7 @@ fn resolve_target_key(
         let profile = ProfileLoader::load_from_path(&profile_config_path)
             .with_context(|| format!("Failed to load profile '{}'", profile_name))?;
 
-        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
         return Ok(SessionKey::from_tenant_id(tenant_id));
     }
 

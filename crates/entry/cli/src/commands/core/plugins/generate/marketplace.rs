@@ -59,8 +59,8 @@ fn render_marketplace(
             serde_json::json!({
                 "name": plugin_id,
                 "source": format!("./storage/files/plugins/{plugin_id}"),
-                "description": plugin.map(|p| p.description.clone()).unwrap_or_default(),
-                "version": plugin.map(|p| p.version.clone()).unwrap_or_default(),
+                "description": plugin.map(|p| p.description.clone()).unwrap_or_else(String::new),
+                "version": plugin.map(|p| p.version.clone()).unwrap_or_else(String::new),
             })
         })
         .collect();

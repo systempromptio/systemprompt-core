@@ -5,7 +5,7 @@ use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::{SkillId, SourceId};
 
 fn default_artifact_type() -> String {
     "list".to_string()
@@ -23,7 +23,7 @@ pub struct ListItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_id: Option<String>,
+    pub source_id: Option<SourceId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -64,8 +64,8 @@ impl ListItem {
         self
     }
 
-    pub fn with_source_id(mut self, source_id: impl Into<String>) -> Self {
-        self.source_id = Some(source_id.into());
+    pub fn with_source_id(mut self, source_id: SourceId) -> Self {
+        self.source_id = Some(source_id);
         self
     }
 

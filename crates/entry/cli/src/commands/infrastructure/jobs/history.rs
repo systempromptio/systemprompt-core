@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
-use systemprompt_scheduler::ScheduledJob;
+use systemprompt_scheduler::JobRepository;
 
 use super::types::{JobHistoryEntry, JobHistoryOutput};
 use crate::shared::{CommandResult, RenderingHints};
@@ -26,53 +26,27 @@ pub struct HistoryArgs {
 
 pub async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistoryOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
-    let pool = ctx.db_pool().pool_arc()?;
+    let repo = JobRepository::new(ctx.db_pool())?;
 
     let entries: Vec<JobHistoryEntry> = if let Some(ref job_name) = args.job {
-        let job = sqlx::query_as!(
-            ScheduledJob,
-            r#"
-            SELECT id, job_name, schedule, enabled, last_run, next_run,
-                   last_status, last_error, run_count, created_at, updated_at
-            FROM scheduled_jobs
-            WHERE job_name = $1
-            "#,
-            job_name
-        )
-        .fetch_optional(&*pool)
-        .await?;
-
-        if let Some(j) = job {
-            if let Some(last_run) = j.last_run {
-                vec![JobHistoryEntry {
-                    job_name: j.job_name,
-                    status: j.last_status.unwrap_or_else(|| "unknown".to_string()),
-                    run_at: last_run,
-                    error: j.last_error,
-                }]
-            } else {
-                vec![]
-            }
-        } else {
-            vec![]
+        match repo.find_job(job_name).await? {
+            Some(j) => j
+                .last_run
+                .map(|last_run| {
+                    vec![JobHistoryEntry {
+                        job_name: j.job_name,
+                        status: j.last_status.unwrap_or_else(|| "unknown".to_string()),
+                        run_at: last_run,
+                        error: j.last_error,
+                    }]
+                })
+                .unwrap_or_else(Vec::new),
+            None => vec![],
         }
     } else {
-        let jobs = sqlx::query_as!(
-            ScheduledJob,
-            r#"
-            SELECT id, job_name, schedule, enabled, last_run, next_run,
-                   last_status, last_error, run_count, created_at, updated_at
-            FROM scheduled_jobs
-            WHERE last_run IS NOT NULL
-            ORDER BY last_run DESC
-            LIMIT $1
-            "#,
-            args.limit
-        )
-        .fetch_all(&*pool)
-        .await?;
-
-        jobs.into_iter()
+        repo.list_recent_runs(args.limit)
+            .await?
+            .into_iter()
             .filter_map(|j| {
                 j.last_run.map(|last_run| JobHistoryEntry {
                     job_name: j.job_name,

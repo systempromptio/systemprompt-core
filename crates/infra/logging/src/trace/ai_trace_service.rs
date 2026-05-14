@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{ContextId, McpExecutionId, TaskId};
 
 use super::ai_trace_queries;
 use super::models::{
@@ -63,15 +63,15 @@ impl AiTraceService {
 
     pub async fn get_mcp_executions(
         &self,
-        task_id: &str,
-        context_id: &str,
+        task_id: &TaskId,
+        context_id: &ContextId,
     ) -> Result<Vec<McpToolExecution>> {
         ai_trace_queries::fetch_mcp_executions(&self.pool, task_id, context_id).await
     }
 
     pub async fn get_mcp_linked_ai_requests(
         &self,
-        mcp_execution_id: &str,
+        mcp_execution_id: &McpExecutionId,
     ) -> Result<Vec<AiRequestInfo>> {
         ai_trace_queries::fetch_mcp_linked_ai_requests(&self.pool, mcp_execution_id).await
     }
@@ -85,16 +85,16 @@ impl AiTraceService {
 
     pub async fn get_tool_logs(
         &self,
-        task_id: &str,
-        context_id: &str,
+        task_id: &TaskId,
+        context_id: &ContextId,
     ) -> Result<Vec<ToolLogEntry>> {
         ai_trace_queries::fetch_tool_logs(&self.pool, task_id, context_id).await
     }
 
     pub async fn get_task_artifacts(
         &self,
-        task_id: &str,
-        context_id: &str,
+        task_id: &TaskId,
+        context_id: &ContextId,
     ) -> Result<Vec<TaskArtifact>> {
         ai_trace_queries::fetch_task_artifacts(&self.pool, task_id, context_id).await
     }

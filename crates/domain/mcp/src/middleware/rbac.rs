@@ -166,7 +166,7 @@ async fn enforce_authz_for_server(server_name: &str, claims: &JwtClaims) -> Resu
         entity_id: server_name.to_string(),
         user_id,
         roles: claims.roles.clone(),
-        department: claims.department.clone().unwrap_or_default(),
+        department: claims.department.clone().unwrap_or_else(String::new),
         trace_id: TraceId::generate(),
         context: serde_json::Value::Null,
     };

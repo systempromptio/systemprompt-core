@@ -64,7 +64,7 @@ pub async fn create_client(
                 "OAuth client created"
             );
 
-            let location = ApiPaths::oauth_client_location(client.client_id.as_str());
+            let location = ApiPaths::oauth_client_location(&client.client_id);
             let response: OAuthClientResponse = client.into();
 
             match serde_json::to_value(response) {

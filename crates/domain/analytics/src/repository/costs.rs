@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::{ContextId, UserId};
 
 use crate::models::cli::{
     ContextGroupRow, ContextSummaryRow, CostBreakdownRow, CostSummaryRow, CostTrendRow,
@@ -169,7 +170,7 @@ impl CostAnalyticsRepository {
 
     pub async fn get_summary_for_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<CostSummaryRow> {
@@ -185,7 +186,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id
+            user_id.as_str()
         )
         .fetch_one(&*self.pool)
         .await
@@ -194,7 +195,7 @@ impl CostAnalyticsRepository {
 
     pub async fn get_previous_cost_for_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<PreviousCostRow> {
@@ -207,7 +208,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id
+            user_id.as_str()
         )
         .fetch_one(&*self.pool)
         .await
@@ -216,7 +217,7 @@ impl CostAnalyticsRepository {
 
     pub async fn get_breakdown_by_model_for_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
@@ -238,7 +239,7 @@ impl CostAnalyticsRepository {
             start,
             end,
             limit,
-            user_id
+            user_id.as_str()
         )
         .fetch_all(&*self.pool)
         .await
@@ -247,7 +248,7 @@ impl CostAnalyticsRepository {
 
     pub async fn get_context_summary_for_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<ContextSummaryRow> {
@@ -264,7 +265,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id
+            user_id.as_str()
         )
         .fetch_one(&*self.pool)
         .await
@@ -273,7 +274,7 @@ impl CostAnalyticsRepository {
 
     pub async fn get_contexts_by_model_for_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
@@ -295,7 +296,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id,
+            user_id.as_str(),
             limit
         )
         .fetch_all(&*self.pool)
@@ -305,7 +306,7 @@ impl CostAnalyticsRepository {
 
     pub async fn get_contexts_by_agent_for_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
@@ -328,7 +329,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id,
+            user_id.as_str(),
             limit
         )
         .fetch_all(&*self.pool)
@@ -338,7 +339,7 @@ impl CostAnalyticsRepository {
 
     pub async fn get_recent_contexts_for_user(
         &self,
-        user_id: &str,
+        user_id: &UserId,
         end: DateTime<Utc>,
         limit: i64,
     ) -> Result<Vec<RecentContextRow>> {
@@ -346,7 +347,7 @@ impl CostAnalyticsRepository {
             RecentContextRow,
             r#"
             SELECT
-                ctx.context_id as "context_id!",
+                ctx.context_id as "context_id!: ContextId",
                 ctx.last_activity as "last_activity!",
                 ctx.ai_requests as "ai_requests!",
                 last_req.model,
@@ -373,7 +374,7 @@ impl CostAnalyticsRepository {
             LEFT JOIN agent_tasks last_task ON last_task.task_id = last_req.task_id
             ORDER BY ctx.last_activity DESC
             "#,
-            user_id,
+            user_id.as_str(),
             end,
             limit
         )

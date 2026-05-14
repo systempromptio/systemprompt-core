@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
-use systemprompt_identifiers::LogId;
+use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 
 use super::{LogEntry, LogLevel, LoggingError};
 
@@ -14,12 +14,12 @@ pub struct LogRow {
     pub module: String,
     pub message: String,
     pub metadata: Option<String>,
-    pub user_id: Option<String>,
-    pub session_id: Option<String>,
-    pub task_id: Option<String>,
-    pub trace_id: Option<String>,
-    pub context_id: Option<String>,
-    pub client_id: Option<String>,
+    pub user_id: Option<UserId>,
+    pub session_id: Option<SessionId>,
+    pub task_id: Option<TaskId>,
+    pub trace_id: Option<TraceId>,
+    pub context_id: Option<ContextId>,
+    pub client_id: Option<ClientId>,
 }
 
 impl LogRow {
@@ -62,35 +62,29 @@ impl LogRow {
             .and_then(|v| v.as_str())
             .map(String::from);
 
-        let user_id = row
-            .get("user_id")
-            .and_then(|v| v.as_str())
-            .map(String::from);
+        let user_id = row.get("user_id").and_then(|v| v.as_str()).map(UserId::new);
 
         let session_id = row
             .get("session_id")
             .and_then(|v| v.as_str())
-            .map(String::from);
+            .map(SessionId::new);
 
-        let task_id = row
-            .get("task_id")
-            .and_then(|v| v.as_str())
-            .map(String::from);
+        let task_id = row.get("task_id").and_then(|v| v.as_str()).map(TaskId::new);
 
         let trace_id = row
             .get("trace_id")
             .and_then(|v| v.as_str())
-            .map(String::from);
+            .map(TraceId::new);
 
         let context_id = row
             .get("context_id")
             .and_then(|v| v.as_str())
-            .map(String::from);
+            .map(ContextId::new);
 
         let client_id = row
             .get("client_id")
             .and_then(|v| v.as_str())
-            .map(String::from);
+            .map(ClientId::new);
 
         Ok(Self {
             id,
@@ -127,21 +121,12 @@ impl From<LogRow> for LogEntry {
                     })
                     .ok()
             }),
-            user_id: row.user_id.map_or_else(
-                systemprompt_identifiers::UserId::system,
-                systemprompt_identifiers::UserId::new,
-            ),
-            session_id: row.session_id.map_or_else(
-                systemprompt_identifiers::SessionId::system,
-                systemprompt_identifiers::SessionId::new,
-            ),
-            task_id: row.task_id.map(systemprompt_identifiers::TaskId::new),
-            trace_id: row.trace_id.map_or_else(
-                systemprompt_identifiers::TraceId::system,
-                systemprompt_identifiers::TraceId::new,
-            ),
-            context_id: row.context_id.map(systemprompt_identifiers::ContextId::new),
-            client_id: row.client_id.map(systemprompt_identifiers::ClientId::new),
+            user_id: row.user_id.unwrap_or_else(UserId::system),
+            session_id: row.session_id.unwrap_or_else(SessionId::system),
+            task_id: row.task_id,
+            trace_id: row.trace_id.unwrap_or_else(TraceId::system),
+            context_id: row.context_id,
+            client_id: row.client_id,
         }
     }
 }

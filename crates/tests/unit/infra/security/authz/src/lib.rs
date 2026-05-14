@@ -9,4 +9,6 @@ mod hook_runtime;
 #[cfg(test)]
 mod profile_governance;
 #[cfg(test)]
+mod resolver;
+#[cfg(test)]
 mod webhook_hook;

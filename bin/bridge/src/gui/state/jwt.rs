@@ -1,6 +1,7 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::Deserialize;
+use systemprompt_identifiers::{TenantId, UserId};
 
 use super::{VerifiedIdentity, now_unix};
 
@@ -9,9 +10,9 @@ struct JwtClaims {
     #[serde(default)]
     email: Option<String>,
     #[serde(default)]
-    sub: Option<String>,
+    sub: Option<UserId>,
     #[serde(default)]
-    tenant_id: Option<String>,
+    tenant_id: Option<TenantId>,
     #[serde(default)]
     exp: Option<u64>,
 }

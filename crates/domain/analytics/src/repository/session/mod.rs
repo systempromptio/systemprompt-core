@@ -105,6 +105,10 @@ impl SessionRepository {
         mutations::cleanup_inactive(&self.write_pool, inactive_hours).await
     }
 
+    pub async fn count_inactive(&self, inactive_hours: i32) -> Result<i64> {
+        queries::count_inactive(&self.pool, inactive_hours).await
+    }
+
     pub async fn migrate_user_sessions(
         &self,
         old_user_id: &UserId,

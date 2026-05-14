@@ -29,7 +29,7 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
         .get("input")
         .map(parse_input)
         .transpose()?
-        .unwrap_or_default();
+        .unwrap_or_else(Vec::new);
     let temperature = value
         .get("temperature")
         .and_then(Value::as_f64)
@@ -46,13 +46,13 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
             ),
             _ => None,
         })
-        .unwrap_or_default();
+        .unwrap_or_else(Vec::new);
 
     let tools = value
         .get("tools")
         .and_then(Value::as_array)
         .map(|arr| arr.iter().filter_map(parse_tool).collect::<Vec<_>>())
-        .unwrap_or_default();
+        .unwrap_or_else(Vec::new);
     let tool_choice = value.get("tool_choice").and_then(parse_tool_choice);
     let stream = value
         .get("stream")
@@ -174,7 +174,7 @@ fn parse_reasoning_item(item: &Value) -> Option<CanonicalMessage> {
                 .collect::<Vec<_>>()
                 .join("\n")
         })
-        .unwrap_or_default();
+        .unwrap_or_else(String::new);
     if text.is_empty() {
         return None;
     }

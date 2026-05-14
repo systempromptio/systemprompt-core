@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 use uuid::Uuid;
 
 use super::enums::UserType;
@@ -137,7 +138,7 @@ pub enum AuthError {
     WeakPkceMethod { method: String },
 
     #[error("Client ID {client_id} not found")]
-    ClientNotFound { client_id: String },
+    ClientNotFound { client_id: ClientId },
 
     #[error("Scope '{scope}' is invalid")]
     InvalidScope { scope: String },

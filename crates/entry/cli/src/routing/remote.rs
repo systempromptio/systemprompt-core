@@ -21,7 +21,7 @@ pub async fn execute_remote(
         context_id: if context.is_empty() {
             None
         } else {
-            Some(context.to_string())
+            Some(systemprompt_identifiers::ContextId::new(context))
         },
     };
 

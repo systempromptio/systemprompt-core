@@ -56,7 +56,7 @@ pub use error::{ConfigError, ConfigResult};
 pub use profile_loader::load_profile_with_catalog;
 pub use services::{
     ConfigManager, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
-    EnvironmentConfig, ValidationReport, build_validate_configs, generate_schema, validate_config,
-    validate_yaml_file, validate_yaml_str,
+    EnvironmentConfig, ValidationReport, generate_schema, validate_config, validate_yaml_file,
+    validate_yaml_str,
 };
 pub use skill_validator::SkillConfigValidator;

@@ -6,6 +6,7 @@ pub mod display;
 pub mod executor;
 pub mod postgres;
 pub mod provider;
+pub mod schema_additivity;
 pub mod transaction;
 
 pub use database::{Database, DatabaseExt, DbPool};

@@ -105,7 +105,7 @@ impl LocalProfileBuilder {
                 non_interactive: false,
             },
             cloud: Some(CloudConfig {
-                tenant_id: self.tenant_id.map(|id| id.to_string()),
+                tenant_id: self.tenant_id,
                 validation: CloudValidationMode::Warn,
             }),
             secrets: Some(SecretsConfig {
@@ -218,7 +218,7 @@ impl CloudProfileBuilder {
                 non_interactive: true,
             },
             cloud: Some(CloudConfig {
-                tenant_id: self.tenant_id.map(|id| id.to_string()),
+                tenant_id: self.tenant_id,
                 validation: CloudValidationMode::Strict,
             }),
             secrets: Some(SecretsConfig {

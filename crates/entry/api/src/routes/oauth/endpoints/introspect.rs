@@ -90,7 +90,7 @@ fn introspect_token(_repo: &OAuthRepository, token: &str) -> Result<IntrospectRe
             scope: Some(systemprompt_models::auth::permissions_to_string(
                 &claims.scope,
             )),
-            client_id: claims.client_id.clone(),
+            client_id: claims.client_id.as_ref().map(|c| c.as_str().to_string()),
             username: Some(claims.username),
             token_type: Some("Bearer".to_string()),
             exp: Some(claims.exp),

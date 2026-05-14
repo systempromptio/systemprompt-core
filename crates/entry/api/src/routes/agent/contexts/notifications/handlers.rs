@@ -1,5 +1,7 @@
 use chrono::Utc;
 use serde_json::json;
+use systemprompt_agent::repository::context::ContextNotificationRepository;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_events::EventRouter;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
@@ -13,23 +15,13 @@ pub async fn persist_notification(
     agent: &str,
     notification: &A2aNotification,
 ) -> Result<i32, anyhow::Error> {
-    let pool = db.write_pool_arc()?;
+    let repo = ContextNotificationRepository::new(&db)?;
     let notification_data =
         serde_json::to_value(notification).map_err(|e| anyhow::anyhow!("{}", e))?;
-
-    let result = sqlx::query!(
-        r#"INSERT INTO context_notifications (context_id, agent_id, notification_type, notification_data)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id"#,
-        context,
-        agent,
-        notification.method,
-        notification_data
-    )
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    Ok(result.id)
+    let id = repo
+        .insert(context, agent, &notification.method, &notification_data)
+        .await?;
+    Ok(id)
 }
 
 pub async fn process_notification(
@@ -37,7 +29,6 @@ pub async fn process_notification(
     notification: &A2aNotification,
 ) -> Result<(), anyhow::Error> {
     let db = app_context.db_pool();
-    let pool = db.write_pool_arc()?;
 
     match notification.method.as_str() {
         "notifications/taskStatusUpdate" => {
@@ -62,30 +53,10 @@ pub async fn process_notification(
                 .and_then(systemprompt_database::parse_database_datetime)
                 .unwrap_or_else(Utc::now);
 
-            if state == "completed" {
-                sqlx::query!(
-                    r#"UPDATE agent_tasks SET
-                        status = 'completed',
-                        updated_at = $1,
-                        completed_at = CURRENT_TIMESTAMP,
-                        started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
-                        execution_time_ms = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(started_at, CURRENT_TIMESTAMP))) * 1000
-                    WHERE task_id = $2"#,
-                    timestamp,
-                    task_id
-                )
-                .execute(pool.as_ref())
+            let task_repo = TaskRepository::new(db)?;
+            task_repo
+                .apply_notification_status(task_id, state, &timestamp)
                 .await?;
-            } else {
-                sqlx::query!(
-                    "UPDATE agent_tasks SET status = $1, updated_at = $2 WHERE task_id = $3",
-                    state,
-                    timestamp,
-                    task_id
-                )
-                .execute(pool.as_ref())
-                .await?;
-            }
 
             Ok(())
         },
@@ -151,13 +122,7 @@ pub async fn mark_notification_broadcasted(
     db: systemprompt_database::DbPool,
     notification_id: i32,
 ) -> Result<(), anyhow::Error> {
-    let pool = db.write_pool_arc()?;
-    sqlx::query!(
-        "UPDATE context_notifications SET broadcasted = true WHERE id = $1",
-        notification_id
-    )
-    .execute(pool.as_ref())
-    .await?;
-
+    let repo = ContextNotificationRepository::new(&db)?;
+    repo.mark_broadcasted(notification_id).await?;
     Ok(())
 }
