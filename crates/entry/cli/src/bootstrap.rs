@@ -114,8 +114,12 @@ pub fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
 pub async fn init_credentials_gracefully() -> Result<()> {
     match CredentialsBootstrap::init().await {
         Ok(_) => Ok(()),
-        Err(e) if e.is_missing_credentials_file() => {
-            tracing::debug!(error = %e, "Credentials file not found, continuing in local-only mode");
+        Err(e) if e.is_local_mode_recoverable() => {
+            tracing::warn!(
+                error = %e,
+                "Cloud credentials unavailable; continuing in local-only mode. \
+                 Cloud commands will require 'systemprompt cloud login'."
+            );
             CredentialsBootstrap::init_empty();
             Ok(())
         },

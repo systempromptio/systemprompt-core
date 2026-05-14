@@ -134,4 +134,13 @@ impl CloudError {
     pub const fn is_missing_credentials_file(&self) -> bool {
         matches!(self, Self::CredentialsFileNotFound { .. })
     }
+
+    pub const fn is_local_mode_recoverable(&self) -> bool {
+        matches!(
+            self,
+            Self::CredentialsFileNotFound { .. }
+                | Self::TokenExpired
+                | Self::ApiValidationFailed { .. }
+        )
+    }
 }
