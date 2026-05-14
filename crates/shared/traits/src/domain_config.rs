@@ -24,9 +24,6 @@ pub enum DomainConfigError {
 
     #[error("Validation failed: {0}")]
     ValidationError(String),
-
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
 }
 
 pub trait DomainConfig: Send + Sync + Debug {

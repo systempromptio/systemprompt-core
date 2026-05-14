@@ -1,7 +1,6 @@
 //! Repository for declared agent services (named processes registered with the
 //! platform).
 
-use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -66,8 +65,7 @@ impl AgentServiceRepository {
         )
         .execute(pool.as_ref())
         .await
-        .context("Failed to register agent")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(name.to_string())
     }
@@ -95,8 +93,7 @@ impl AgentServiceRepository {
         )
         .execute(pool.as_ref())
         .await
-        .context("Failed to register agent as starting")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(name.to_string())
     }
@@ -111,8 +108,7 @@ impl AgentServiceRepository {
         )
         .execute(pool.as_ref())
         .await
-        .context("Failed to mark agent as running")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(())
     }
@@ -129,8 +125,7 @@ impl AgentServiceRepository {
         )
         .fetch_optional(pool.as_ref())
         .await
-        .context("Failed to get agent status")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(row.map(|r| AgentServiceRow {
             name: r.name,
@@ -150,8 +145,7 @@ impl AgentServiceRepository {
         )
         .execute(pool.as_ref())
         .await
-        .context("Failed to mark agent as crashed")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(())
     }
@@ -166,8 +160,7 @@ impl AgentServiceRepository {
         )
         .execute(pool.as_ref())
         .await
-        .context("Failed to mark agent as stopped")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(())
     }
@@ -182,8 +175,7 @@ impl AgentServiceRepository {
         )
         .execute(pool.as_ref())
         .await
-        .context("Failed to mark agent with error")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(())
     }
@@ -194,8 +186,7 @@ impl AgentServiceRepository {
         let rows = sqlx::query!("SELECT name FROM services WHERE status = 'running'")
             .fetch_all(pool.as_ref())
             .await
-            .context("Failed to list running agents")
-            .map_err(RepositoryError::Other)?;
+            .map_err(RepositoryError::database)?;
 
         Ok(rows
             .into_iter()
@@ -213,8 +204,7 @@ impl AgentServiceRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .context("Failed to list running agent PIDs")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(rows
             .into_iter()
@@ -228,8 +218,7 @@ impl AgentServiceRepository {
         sqlx::query!("DELETE FROM services WHERE name = $1", agent_name)
             .execute(pool.as_ref())
             .await
-            .context("Failed to remove agent service")
-            .map_err(RepositoryError::Other)?;
+            .map_err(RepositoryError::database)?;
 
         Ok(())
     }
@@ -248,8 +237,7 @@ impl AgentServiceRepository {
         )
         .execute(pool.as_ref())
         .await
-        .context("Failed to update agent health status")
-        .map_err(RepositoryError::Other)?;
+        .map_err(RepositoryError::database)?;
 
         Ok(())
     }

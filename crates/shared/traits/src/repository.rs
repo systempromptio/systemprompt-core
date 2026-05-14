@@ -19,7 +19,7 @@ pub enum RepositoryError {
     ConstraintViolation(String),
 
     #[error("{0}")]
-    Other(#[from] anyhow::Error),
+    Internal(String),
 }
 
 impl RepositoryError {
