@@ -61,7 +61,7 @@ impl From<RepositoryError> for ApiError {
             RepositoryError::Serialization(e) => {
                 Self::internal_error(format!("Serialization error: {e}"))
             },
-            RepositoryError::Other(e) => Self::internal_error(format!("Error: {e}")),
+            RepositoryError::Internal(msg) => Self::internal_error(format!("Error: {msg}")),
             _ => Self::internal_error(format!("Repository error: {err}")),
         }
     }
