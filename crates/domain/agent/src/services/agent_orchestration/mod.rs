@@ -68,7 +68,7 @@ impl ValidationReport {
     }
 }
 
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::AgentServiceError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -99,6 +99,9 @@ pub enum OrchestrationError {
 
     #[error("agent: {0}")]
     Agent(#[from] crate::error::AgentError),
+
+    #[error("Service error: {0}")]
+    AgentService(#[from] AgentServiceError),
 }
 
-pub type OrchestrationResult<T> = std::result::Result<T, OrchestrationError>;
+pub type OrchestrationResult<T> = Result<T, OrchestrationError>;

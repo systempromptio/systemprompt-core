@@ -13,7 +13,7 @@ pub async fn handle_non_streaming_request(
     request: A2aRequestParams,
     state: &AgentHandlerState,
     context: &RequestContext,
-) -> std::result::Result<Task, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Task, Box<dyn std::error::Error + Send + Sync>> {
     let config = state.config.read().await;
     let agent_name = config.name.clone();
     drop(config);

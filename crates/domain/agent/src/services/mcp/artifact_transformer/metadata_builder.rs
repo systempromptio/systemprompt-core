@@ -15,7 +15,7 @@ pub struct BuildMetadataParams<'a> {
     pub tool_name: &'a str,
 }
 
-pub fn build_metadata(params: BuildMetadataParams<'_>) -> std::result::Result<ArtifactMetadata, ArtifactError> {
+pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadata, ArtifactError> {
     let BuildMetadataParams {
         artifact_type,
         schema,

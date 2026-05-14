@@ -45,6 +45,12 @@ pub enum AgentServiceError {
     Capacity(String),
 }
 
+impl From<std::io::Error> for AgentServiceError {
+    fn from(err: std::io::Error) -> Self {
+        Self::Internal(format!("io: {err}"))
+    }
+}
+
 impl From<sqlx::Error> for AgentServiceError {
     fn from(err: sqlx::Error) -> Self {
         Self::Database(err.to_string())
@@ -54,6 +60,18 @@ impl From<sqlx::Error> for AgentServiceError {
 impl From<crate::repository::RepositoryError> for AgentServiceError {
     fn from(err: crate::repository::RepositoryError) -> Self {
         Self::Repository(err.to_string())
+    }
+}
+
+impl From<systemprompt_database::RepositoryError> for AgentServiceError {
+    fn from(err: systemprompt_database::RepositoryError) -> Self {
+        Self::Repository(err.to_string())
+    }
+}
+
+impl From<crate::error::AgentError> for AgentServiceError {
+    fn from(err: crate::error::AgentError) -> Self {
+        Self::Internal(err.to_string())
     }
 }
 

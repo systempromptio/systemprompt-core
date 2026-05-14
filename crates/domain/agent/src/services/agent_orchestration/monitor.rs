@@ -1,4 +1,4 @@
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_models::net::AGENT_MONITOR_TCP_TIMEOUT;

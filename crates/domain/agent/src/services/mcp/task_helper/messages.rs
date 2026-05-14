@@ -21,7 +21,7 @@ pub struct SaveMessagesForToolExecutionParams<'a> {
 
 pub async fn save_messages_for_tool_execution(
     params: SaveMessagesForToolExecutionParams<'_>,
-) -> std::result::Result<(), McpError> {
+) -> Result<(), McpError> {
     let SaveMessagesForToolExecutionParams {
         db_pool,
         task_id,

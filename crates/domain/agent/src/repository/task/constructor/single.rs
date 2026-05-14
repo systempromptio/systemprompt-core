@@ -12,7 +12,7 @@ use super::{TaskConstructor, converters};
 pub async fn construct_task_from_task_id(
     constructor: &TaskConstructor,
     task_id: &TaskId,
-) -> std::result::Result<Task, RepositoryError> {
+) -> Result<Task, RepositoryError> {
     let row = fetch_task_row(constructor, task_id).await?;
     construct_task_from_row(constructor, &row).await
 }
@@ -20,7 +20,7 @@ pub async fn construct_task_from_task_id(
 async fn fetch_task_row(
     constructor: &TaskConstructor,
     task_id: &TaskId,
-) -> std::result::Result<TaskRow, RepositoryError> {
+) -> Result<TaskRow, RepositoryError> {
     let pool = constructor.pool();
     let task_id_str = task_id.as_str();
 
@@ -58,7 +58,7 @@ async fn fetch_task_row(
 async fn construct_task_from_row(
     constructor: &TaskConstructor,
     row: &TaskRow,
-) -> std::result::Result<Task, RepositoryError> {
+) -> Result<Task, RepositoryError> {
     let task_id = row.task_id.clone();
 
     let history = load_task_messages(constructor, &task_id).await?;
@@ -92,7 +92,7 @@ async fn construct_task_from_row(
 async fn load_task_messages(
     constructor: &TaskConstructor,
     task_id: &TaskId,
-) -> std::result::Result<Option<Vec<Message>>, RepositoryError> {
+) -> Result<Option<Vec<Message>>, RepositoryError> {
     let pool = constructor.pool();
     let task_id_str = task_id.as_str();
 
@@ -138,7 +138,7 @@ async fn load_message_parts(
     constructor: &TaskConstructor,
     message_id: &MessageId,
     task_id: &TaskId,
-) -> std::result::Result<Vec<Part>, RepositoryError> {
+) -> Result<Vec<Part>, RepositoryError> {
     let pool = constructor.pool();
     let task_id_str = task_id.as_str();
     let message_id_str = message_id.as_str();
@@ -172,7 +172,7 @@ async fn load_message_parts(
 async fn load_task_artifacts(
     constructor: &TaskConstructor,
     task_id: &TaskId,
-) -> std::result::Result<Option<Vec<Artifact>>, RepositoryError> {
+) -> Result<Option<Vec<Artifact>>, RepositoryError> {
     let artifacts = constructor
         .artifact_repo()
         .get_artifacts_by_task(task_id)
@@ -189,7 +189,7 @@ async fn load_task_artifacts(
 async fn load_execution_steps(
     constructor: &TaskConstructor,
     task_id: &TaskId,
-) -> std::result::Result<Option<Vec<ExecutionStep>>, RepositoryError> {
+) -> Result<Option<Vec<ExecutionStep>>, RepositoryError> {
     let step_repo = ExecutionStepRepository::new(constructor.db_pool())?;
 
     let steps = step_repo

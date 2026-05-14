@@ -13,7 +13,7 @@ use super::{TaskConstructor, converters};
 pub async fn construct_tasks_batch(
     constructor: &TaskConstructor,
     task_ids: &[TaskId],
-) -> std::result::Result<Vec<Task>, RepositoryError> {
+) -> Result<Vec<Task>, RepositoryError> {
     if task_ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -78,7 +78,7 @@ struct BuildTasksParams<'a> {
     steps_by_task: &'a HashMap<TaskId, Vec<&'a ExecutionStepBatchRow>>,
 }
 
-fn build_tasks(params: &BuildTasksParams<'_>) -> std::result::Result<Vec<Task>, RepositoryError> {
+fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryError> {
     let BuildTasksParams {
         task_rows,
         messages_by_task,

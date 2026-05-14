@@ -1,4 +1,4 @@
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

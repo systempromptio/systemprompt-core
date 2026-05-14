@@ -16,7 +16,7 @@ pub struct ContextProviderService {
 }
 
 impl ContextProviderService {
-    pub fn new(db_pool: &DbPool) -> std::result::Result<Self, AgentError> {
+    pub fn new(db_pool: &DbPool) -> Result<Self, AgentError> {
         Ok(Self {
             repo: ContextRepository::new(db_pool)?,
         })
@@ -28,7 +28,7 @@ impl ContextProvider for ContextProviderService {
     async fn list_contexts_with_stats(
         &self,
         user_id: &UserId,
-    ) -> std::result::Result<Vec<ContextWithStats>, ContextProviderError> {
+    ) -> Result<Vec<ContextWithStats>, ContextProviderError> {
         let contexts = self
             .repo
             .list_contexts_with_stats(user_id)
@@ -54,7 +54,7 @@ impl ContextProvider for ContextProviderService {
         &self,
         context_id: &ContextId,
         user_id: &UserId,
-    ) -> std::result::Result<ContextWithStats, ContextProviderError> {
+    ) -> Result<ContextWithStats, ContextProviderError> {
         let context = self
             .repo
             .get_context(context_id, user_id)
@@ -96,7 +96,7 @@ impl ContextProvider for ContextProviderService {
         user_id: &UserId,
         session_id: Option<&SessionId>,
         name: &str,
-    ) -> std::result::Result<ContextId, ContextProviderError> {
+    ) -> Result<ContextId, ContextProviderError> {
         self.repo
             .create_context(user_id, session_id, name)
             .await
@@ -108,7 +108,7 @@ impl ContextProvider for ContextProviderService {
         context_id: &ContextId,
         user_id: &UserId,
         name: &str,
-    ) -> std::result::Result<(), ContextProviderError> {
+    ) -> Result<(), ContextProviderError> {
         self.repo
             .update_context_name(context_id, user_id, name)
             .await
@@ -124,7 +124,7 @@ impl ContextProvider for ContextProviderService {
         &self,
         context_id: &ContextId,
         user_id: &UserId,
-    ) -> std::result::Result<(), ContextProviderError> {
+    ) -> Result<(), ContextProviderError> {
         self.repo
             .delete_context(context_id, user_id)
             .await

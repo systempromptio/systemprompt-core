@@ -22,7 +22,7 @@ pub fn convert_json_security_to_struct(
     });
 
     let security_reqs = security.and_then(|sec_vec| {
-        let reqs: std::result::Result<Vec<HashMap<String, Vec<String>>>, _> = sec_vec
+        let reqs: Result<Vec<HashMap<String, Vec<String>>>, _> = sec_vec
             .iter()
             .map(|v| serde_json::from_value::<HashMap<String, Vec<String>>>(v.clone()))
             .collect();

@@ -14,7 +14,7 @@ use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 pub async fn parse_a2a_request(
     jsonrpc_request: &crate::models::a2a::A2aJsonRpcRequest,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
-) -> std::result::Result<A2aRequestParams, axum::response::Response> {
+) -> Result<A2aRequestParams, axum::response::Response> {
     match jsonrpc_request.parse_request() {
         Ok(request) => Ok(request),
         Err(e) => {

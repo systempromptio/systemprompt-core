@@ -6,7 +6,7 @@ pub fn infer_type(
     artifact: &JsonValue,
     schema: Option<&JsonValue>,
     tool_name: &str,
-) -> std::result::Result<ArtifactType, ArtifactError> {
+) -> Result<ArtifactType, ArtifactError> {
     if let Some(schema) = schema
         && let Some(artifact_type) = extract_artifact_type_from_schema(schema)
     {

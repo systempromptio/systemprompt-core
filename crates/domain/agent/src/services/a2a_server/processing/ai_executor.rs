@@ -1,4 +1,3 @@
-use crate::services::shared::{AgentServiceError, Result};
 use futures::StreamExt;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -79,7 +78,7 @@ pub struct SynthesizeToolResultsParams<'a> {
 
 pub async fn synthesize_tool_results_with_artifacts(
     params: SynthesizeToolResultsParams<'_>,
-) -> std::result::Result<String, ()> {
+) -> Result<String, ()> {
     let SynthesizeToolResultsParams {
         ai_service,
         agent_runtime,
@@ -158,7 +157,7 @@ pub async fn process_without_tools(
     ai_messages: Vec<AiMessage>,
     tx: mpsc::Sender<StreamEvent>,
     request_context: RequestContext,
-) -> std::result::Result<(String, Vec<ToolCall>, Vec<CallToolResult>), ()> {
+) -> Result<(String, Vec<ToolCall>, Vec<CallToolResult>), ()> {
     let (provider, model, max_output_tokens) =
         resolve_provider_config(&request_context, agent_runtime, ai_service.as_ref());
 

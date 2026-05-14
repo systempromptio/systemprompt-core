@@ -26,7 +26,7 @@ pub struct MessageRepository {
 }
 
 impl MessageRepository {
-    pub fn new(db: &DbPool) -> std::result::Result<Self, RepositoryError> {
+    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
         let pool = db.pool_arc().map_err(|e| {
             RepositoryError::InvalidData(format!("PostgreSQL pool not available: {e}"))
         })?;
@@ -36,32 +36,32 @@ impl MessageRepository {
     pub async fn get_messages_by_task(
         &self,
         task_id: &TaskId,
-    ) -> std::result::Result<Vec<Message>, RepositoryError> {
+    ) -> Result<Vec<Message>, RepositoryError> {
         get_messages_by_task(&self.pool, task_id).await
     }
 
     pub async fn get_messages_by_context(
         &self,
         context_id: &ContextId,
-    ) -> std::result::Result<Vec<Message>, RepositoryError> {
+    ) -> Result<Vec<Message>, RepositoryError> {
         get_messages_by_context(&self.pool, context_id).await
     }
 
-    pub async fn get_next_sequence_number(&self, task_id: &TaskId) -> std::result::Result<i32, RepositoryError> {
+    pub async fn get_next_sequence_number(&self, task_id: &TaskId) -> Result<i32, RepositoryError> {
         get_next_sequence_number(&self.pool, task_id).await
     }
 
     pub async fn persist_message_sqlx(
         &self,
         params: PersistMessageSqlxParams<'_>,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         persist_message_sqlx(params).await
     }
 
     pub async fn persist_message_with_tx(
         &self,
         params: PersistMessageWithTxParams<'_>,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         persist_message_with_tx(params).await
     }
 }

@@ -20,7 +20,7 @@ pub struct ExecutionStepRepository {
 }
 
 impl ExecutionStepRepository {
-    pub fn new(db: &DbPool) -> std::result::Result<Self, crate::error::AgentError> {
+    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
         let pool = db
             .pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
@@ -69,7 +69,7 @@ impl ExecutionStepRepository {
         )
         .fetch_optional(&*self.pool)
         .await
-        .map_err(|e| systemprompt_traits::RepositoryError::Internal(format!("{}: {e}", format!("Failed to get execution step: {step_id}"))))?;
+        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to get execution step: {step_id}"))))?;
         row.map(|r| {
             parse_step(ParseStepParams {
                 step_id: r.step_id,
@@ -94,7 +94,7 @@ impl ExecutionStepRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(|e| systemprompt_traits::RepositoryError::Internal(format!("{}: {e}", format!(
+        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!(
             "Failed to list execution steps for task: {}",
             task_id
         ))))?;
@@ -141,7 +141,7 @@ impl ExecutionStepRepository {
             )
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| systemprompt_traits::RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete execution step: {step_id}"))))?;
+            .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete execution step: {step_id}"))))?;
         } else {
             sqlx::query!(
                 r#"UPDATE task_execution_steps SET
@@ -156,7 +156,7 @@ impl ExecutionStepRepository {
             )
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| systemprompt_traits::RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete execution step: {step_id}"))))?;
+            .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete execution step: {step_id}"))))?;
         }
 
         Ok(())
@@ -188,7 +188,7 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| systemprompt_traits::RepositoryError::Internal(format!("{}: {e}", format!("Failed to fail execution step: {step_id}"))))?;
+        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to fail execution step: {step_id}"))))?;
 
         Ok(())
     }
@@ -217,7 +217,7 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| systemprompt_traits::RepositoryError::Internal(format!("{}: {e}", format!(
+        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!(
             "Failed to fail in-progress steps for task: {}",
             task_id
         ))))?;
@@ -258,7 +258,7 @@ impl ExecutionStepRepository {
         )
         .fetch_one(&*self.write_pool)
         .await
-        .map_err(|e| systemprompt_traits::RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete planning step: {step_id}"))))?;
+        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete planning step: {step_id}"))))?;
 
         parse_step(ParseStepParams {
             step_id: row.step_id,

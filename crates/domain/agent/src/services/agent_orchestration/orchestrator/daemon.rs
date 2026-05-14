@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use std::time::Duration;
 use systemprompt_traits::StartupEventSender;
 use tokio::task::JoinHandle;

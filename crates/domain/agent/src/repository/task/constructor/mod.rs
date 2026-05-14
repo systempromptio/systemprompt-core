@@ -20,7 +20,7 @@ pub struct TaskConstructor {
 }
 
 impl TaskConstructor {
-    pub fn new(db: &DbPool) -> std::result::Result<Self, crate::error::AgentError> {
+    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
         let pool = db
             .pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
@@ -47,14 +47,14 @@ impl TaskConstructor {
     pub async fn construct_task_from_task_id(
         &self,
         task_id: &TaskId,
-    ) -> std::result::Result<Task, RepositoryError> {
+    ) -> Result<Task, RepositoryError> {
         single::construct_task_from_task_id(self, task_id).await
     }
 
     pub async fn construct_tasks_batch(
         &self,
         task_ids: &[TaskId],
-    ) -> std::result::Result<Vec<Task>, RepositoryError> {
+    ) -> Result<Vec<Task>, RepositoryError> {
         batch::construct_tasks_batch(self, task_ids).await
     }
 }

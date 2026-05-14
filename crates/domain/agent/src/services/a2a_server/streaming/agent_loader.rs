@@ -15,7 +15,7 @@ pub async fn load_agent_runtime(
     task_repo: &TaskRepository,
     tx: &Sender<Event>,
     request_id: &NumberOrString,
-) -> std::result::Result<AgentRuntimeInfo, ()> {
+) -> Result<AgentRuntimeInfo, ()> {
     let registry = match AgentRegistry::new() {
         Ok(r) => r,
         Err(e) => {

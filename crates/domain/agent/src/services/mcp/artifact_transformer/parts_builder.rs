@@ -2,7 +2,7 @@ use crate::error::ArtifactError;
 use crate::models::a2a::{DataPart, FileContent, FilePart, Part, TextPart};
 use serde_json::Value as JsonValue;
 
-pub fn build_parts(artifact: &JsonValue) -> std::result::Result<Vec<Part>, ArtifactError> {
+pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
     let mut parts = Vec::new();
 
     if let Some(obj) = artifact.as_object() {
