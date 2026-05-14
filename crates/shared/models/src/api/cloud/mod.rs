@@ -10,6 +10,7 @@ pub use provisioning::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use systemprompt_identifiers::ContextId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudApiResponse<T> {
@@ -206,7 +207,7 @@ pub struct ConversationGroup {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecentConversationSummary {
-    pub context_id: String,
+    pub context_id: ContextId,
     pub last_activity: chrono::DateTime<chrono::Utc>,
     pub ai_requests: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]

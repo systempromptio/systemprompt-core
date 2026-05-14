@@ -198,6 +198,41 @@ pub async fn update_task_state(
     Ok(())
 }
 
+pub async fn apply_notification_status(
+    pool: &Arc<PgPool>,
+    task_id: &str,
+    state: &str,
+    timestamp: &chrono::DateTime<chrono::Utc>,
+) -> Result<(), RepositoryError> {
+    if state == "completed" {
+        sqlx::query!(
+            r#"UPDATE agent_tasks SET
+                status = 'completed',
+                updated_at = $1,
+                completed_at = CURRENT_TIMESTAMP,
+                started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+                execution_time_ms = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(started_at, CURRENT_TIMESTAMP))) * 1000
+            WHERE task_id = $2"#,
+            timestamp,
+            task_id,
+        )
+        .execute(pool.as_ref())
+        .await
+        .map_err(RepositoryError::database)?;
+    } else {
+        sqlx::query!(
+            "UPDATE agent_tasks SET status = $1, updated_at = $2 WHERE task_id = $3",
+            state,
+            timestamp,
+            task_id,
+        )
+        .execute(pool.as_ref())
+        .await
+        .map_err(RepositoryError::database)?;
+    }
+    Ok(())
+}
+
 pub async fn update_task_failed_with_error(
     pool: &Arc<PgPool>,
     task_id: &systemprompt_identifiers::TaskId,

@@ -245,7 +245,6 @@ impl ConfigValidator {
 
         #[cfg(not(unix))]
         {
-            let _ = path;
             CliService::warning("File permission check skipped (non-Unix system)");
         }
 

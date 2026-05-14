@@ -184,7 +184,7 @@ impl SessionStore {
         reason = "Preserves the existing public signature for callers using `?`"
     )]
     pub fn load_or_create(sessions_dir: &Path) -> CloudResult<Self> {
-        Ok(Self::load(sessions_dir).unwrap_or_default())
+        Ok(Self::load(sessions_dir).unwrap_or_else(Self::new))
     }
 
     pub fn save(&self, sessions_dir: &Path) -> CloudResult<()> {

@@ -109,7 +109,15 @@ impl ConfigLoader {
 
         discover_marketplaces(&self.base_path, &mut merged)?;
 
-        merged.settings.apply_env_overrides();
+        if let Ok(val) = std::env::var("SYSTEMPROMPT_SERVICES_PATH") {
+            merged.settings.services_path = Some(val);
+        }
+        if let Ok(val) = std::env::var("SYSTEMPROMPT_SKILLS_PATH") {
+            merged.settings.skills_path = Some(val);
+        }
+        if let Ok(val) = std::env::var("SYSTEMPROMPT_CONFIG_PATH") {
+            merged.settings.config_path = Some(val);
+        }
 
         merged
             .validate()

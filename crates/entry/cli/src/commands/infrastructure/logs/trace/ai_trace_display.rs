@@ -45,17 +45,13 @@ pub async fn execute_ai_trace(
         print_ai_requests(&ai_requests);
     }
 
-    let mcp_executions = service
-        .get_mcp_executions(task_id.as_str(), context_id.as_str())
-        .await?;
+    let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
     if (show_all || args.sections.mcp) && !args.json {
         print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose).await;
     }
 
     if show_all || args.sections.artifacts {
-        let artifacts = service
-            .get_task_artifacts(task_id.as_str(), context_id.as_str())
-            .await?;
+        let artifacts = service.get_task_artifacts(task_id, &context_id).await?;
         if !args.json {
             print_artifacts(&artifacts);
         }

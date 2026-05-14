@@ -151,7 +151,7 @@ fn bridge_hook_client_id(user_id: &UserId) -> ClientId {
 /// on receipt — the server cannot re-emit it.
 #[derive(Debug, Clone, Serialize)]
 pub struct BridgeOAuthClient {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_secret: String,
     pub scopes: Vec<String>,
     pub token_endpoint: String,
@@ -199,7 +199,7 @@ pub async fn provision_bridge_oauth_client(
     }
 
     Ok(BridgeOAuthClient {
-        client_id: client_id.to_string(),
+        client_id,
         client_secret: secret,
         scopes,
         token_endpoint,

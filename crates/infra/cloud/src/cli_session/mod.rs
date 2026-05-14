@@ -18,8 +18,8 @@ pub enum SessionKey {
 
 impl SessionKey {
     #[must_use]
-    pub fn from_tenant_id(tenant_id: Option<&str>) -> Self {
-        tenant_id.map_or(Self::Local, |id| Self::Tenant(TenantId::new(id)))
+    pub fn from_tenant_id(tenant_id: Option<&TenantId>) -> Self {
+        tenant_id.map_or(Self::Local, |id| Self::Tenant(id.clone()))
     }
 
     #[must_use]

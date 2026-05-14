@@ -7,6 +7,20 @@ use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
 impl ContextRepository {
+    pub async fn find_user_id_for_context(
+        &self,
+        context_id: &str,
+    ) -> Result<Option<UserId>, RepositoryError> {
+        let row = sqlx::query_scalar!(
+            r#"SELECT user_id FROM user_contexts WHERE context_id = $1"#,
+            context_id,
+        )
+        .fetch_optional(&*self.pool)
+        .await
+        .map_err(RepositoryError::database)?;
+        Ok(row.map(UserId::new))
+    }
+
     pub async fn get_context(
         &self,
         context_id: &ContextId,

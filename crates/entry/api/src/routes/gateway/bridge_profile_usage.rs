@@ -10,7 +10,7 @@ use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_analytics::{AnalyticsResult, CostAnalyticsRepository};
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_models::api::cloud::{
     BridgeProfileUsage, ConversationGroup, ConversationSummary, ModelShare,
     RecentConversationSummary, UsageWindow,
@@ -39,7 +39,7 @@ pub async fn handle(
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
-    let user_id = claims.user_id.as_str();
+    let user_id = UserId::new(claims.user_id.to_string());
     let repo = CostAnalyticsRepository::new(ctx.db_pool())
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -49,14 +49,14 @@ pub async fn handle(
     let d30_start = now - Duration::days(30);
 
     let (d1, d7, d30) = tokio::try_join!(
-        window(&repo, user_id, d1_start, now, Duration::days(1)),
-        window(&repo, user_id, d7_start, now, Duration::days(7)),
-        window(&repo, user_id, d30_start, now, Duration::days(30)),
+        window(&repo, &user_id, d1_start, now, Duration::days(1)),
+        window(&repo, &user_id, d7_start, now, Duration::days(7)),
+        window(&repo, &user_id, d30_start, now, Duration::days(30)),
     )
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let model_breakdown = repo
-        .get_breakdown_by_model_for_user(user_id, d30_start, now, TOP_MODELS_LIMIT)
+        .get_breakdown_by_model_for_user(&user_id, d30_start, now, TOP_MODELS_LIMIT)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -76,7 +76,7 @@ pub async fn handle(
         })
         .collect();
 
-    let conversations = conversation_summary(&repo, user_id, d30_start, now)
+    let conversations = conversation_summary(&repo, &user_id, d30_start, now)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -91,7 +91,7 @@ pub async fn handle(
 
 async fn window(
     repo: &CostAnalyticsRepository,
-    user_id: &str,
+    user_id: &UserId,
     start: chrono::DateTime<Utc>,
     end: chrono::DateTime<Utc>,
     span: Duration,
@@ -111,7 +111,7 @@ async fn window(
 
 async fn conversation_summary(
     repo: &CostAnalyticsRepository,
-    user_id: &str,
+    user_id: &UserId,
     start: chrono::DateTime<Utc>,
     end: chrono::DateTime<Utc>,
 ) -> AnalyticsResult<ConversationSummary> {

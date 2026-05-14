@@ -9,6 +9,7 @@ use std::time::SystemTime;
 
 use parking_lot::RwLock;
 use serde::Deserialize;
+use systemprompt_identifiers::{TenantId, UserId};
 use tokio_util::sync::CancellationToken;
 
 pub use jwt::decode_jwt_identity_unverified;
@@ -55,8 +56,8 @@ impl GatewayStatus {
 #[derive(Debug, Clone)]
 pub struct VerifiedIdentity {
     pub email: Option<String>,
-    pub user_id: Option<String>,
-    pub tenant_id: Option<String>,
+    pub user_id: Option<UserId>,
+    pub tenant_id: Option<TenantId>,
     pub exp_unix: Option<u64>,
     pub verified_at_unix: u64,
 }

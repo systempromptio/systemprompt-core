@@ -1,15 +1,26 @@
 //! `WebAuthn` setup-token persistence and validation.
 
-use crate::error::OauthResult as Result;
+use crate::error::{OauthError, OauthResult as Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{TokenId, UserId};
+use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SetupTokenPurpose {
     CredentialLink,
     Recovery,
+}
+
+#[derive(Debug, Error)]
+#[error("invalid setup token purpose: {0}")]
+pub struct SetupTokenPurposeParseError(pub String);
+
+impl From<SetupTokenPurposeParseError> for OauthError {
+    fn from(err: SetupTokenPurposeParseError) -> Self {
+        Self::Validation(err.to_string())
+    }
 }
 
 impl SetupTokenPurpose {
@@ -29,13 +40,13 @@ impl std::fmt::Display for SetupTokenPurpose {
 }
 
 impl std::str::FromStr for SetupTokenPurpose {
-    type Err = anyhow::Error;
+    type Err = SetupTokenPurposeParseError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "credential_link" => Ok(Self::CredentialLink),
             "recovery" => Ok(Self::Recovery),
-            other => Err(anyhow::anyhow!("Invalid setup token purpose: {}", other)),
+            other => Err(SetupTokenPurposeParseError(other.to_string())),
         }
     }
 }

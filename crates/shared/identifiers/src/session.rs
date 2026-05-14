@@ -40,8 +40,8 @@ impl SessionSource {
         }
     }
 
-    pub fn from_client_id(client_id: &str) -> Self {
-        match client_id {
+    pub fn from_client_id(client_id: &crate::ClientId) -> Self {
+        match client_id.as_str() {
             "sp_web" => Self::Web,
             "sp_cli" => Self::Cli,
             "sp_bridge" => Self::Bridge,

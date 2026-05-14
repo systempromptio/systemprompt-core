@@ -8,23 +8,26 @@ use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, Tr
 use crate::models::{LogEntry, LogLevel};
 
 struct LogRow {
-    id: String,
+    id: LogId,
     timestamp: DateTime<Utc>,
     level: String,
     module: String,
     message: String,
     metadata: Option<String>,
-    user_id: String,
-    session_id: String,
-    task_id: Option<String>,
-    trace_id: String,
-    context_id: Option<String>,
-    client_id: Option<String>,
+    user_id: UserId,
+    session_id: SessionId,
+    task_id: Option<TaskId>,
+    trace_id: TraceId,
+    // Decoded as raw text and validated in row_to_entry: ContextId requires a
+    // UUID, but historical log rows may carry malformed values that must be
+    // skipped rather than fail the whole query.
+    context_id_text: Option<String>,
+    client_id: Option<ClientId>,
 }
 
 fn row_to_entry(r: LogRow) -> LogEntry {
     LogEntry {
-        id: LogId::new(r.id),
+        id: r.id,
         timestamp: r.timestamp,
         level: r.level.parse().unwrap_or(LogLevel::Info),
         module: r.module,
@@ -37,11 +40,11 @@ fn row_to_entry(r: LogRow) -> LogEntry {
                 })
                 .ok()
         }),
-        user_id: UserId::new(r.user_id),
-        session_id: SessionId::new(r.session_id),
-        task_id: r.task_id.map(TaskId::new),
-        trace_id: TraceId::new(r.trace_id),
-        context_id: r.context_id.and_then(|s| {
+        user_id: r.user_id,
+        session_id: r.session_id,
+        task_id: r.task_id,
+        trace_id: r.trace_id,
+        context_id: r.context_id_text.and_then(|s| {
             ContextId::try_new(&s)
                 .map_err(|e| {
                     tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from log row");
@@ -49,7 +52,7 @@ fn row_to_entry(r: LogRow) -> LogEntry {
                 })
                 .ok()
         }),
-        client_id: r.client_id.map(ClientId::new),
+        client_id: r.client_id,
     }
 }
 
@@ -58,9 +61,14 @@ pub async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogEn
         LogRow,
         r#"
         SELECT
-            id as "id!", timestamp as "timestamp!", level as "level!", module as "module!",
-            message as "message!", metadata, user_id as "user_id!", session_id as "session_id!",
-            task_id, trace_id as "trace_id!", context_id, client_id
+            id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
+            message as "message!", metadata,
+            user_id as "user_id!: UserId",
+            session_id as "session_id!: SessionId",
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id!: TraceId",
+            context_id as "context_id_text",
+            client_id as "client_id: ClientId"
         FROM logs WHERE id = $1
         "#,
         id
@@ -80,9 +88,14 @@ pub async fn find_log_by_partial_id(
         LogRow,
         r#"
         SELECT
-            id as "id!", timestamp as "timestamp!", level as "level!", module as "module!",
-            message as "message!", metadata, user_id as "user_id!", session_id as "session_id!",
-            task_id, trace_id as "trace_id!", context_id, client_id
+            id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
+            message as "message!", metadata,
+            user_id as "user_id!: UserId",
+            session_id as "session_id!: SessionId",
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id!: TraceId",
+            context_id as "context_id_text",
+            client_id as "client_id: ClientId"
         FROM logs
         WHERE id LIKE $1
         ORDER BY timestamp DESC
@@ -101,9 +114,14 @@ pub async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result
         LogRow,
         r#"
         SELECT
-            id as "id!", timestamp as "timestamp!", level as "level!", module as "module!",
-            message as "message!", metadata, user_id as "user_id!", session_id as "session_id!",
-            task_id, trace_id as "trace_id!", context_id, client_id
+            id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
+            message as "message!", metadata,
+            user_id as "user_id!: UserId",
+            session_id as "session_id!: SessionId",
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id!: TraceId",
+            context_id as "context_id_text",
+            client_id as "client_id: ClientId"
         FROM logs
         WHERE trace_id = $1
         ORDER BY timestamp ASC
@@ -122,9 +140,14 @@ pub async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result
         LogRow,
         r#"
         SELECT
-            id as "id!", timestamp as "timestamp!", level as "level!", module as "module!",
-            message as "message!", metadata, user_id as "user_id!", session_id as "session_id!",
-            task_id, trace_id as "trace_id!", context_id, client_id
+            id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
+            message as "message!", metadata,
+            user_id as "user_id!: UserId",
+            session_id as "session_id!: SessionId",
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id!: TraceId",
+            context_id as "context_id_text",
+            client_id as "client_id: ClientId"
         FROM logs
         WHERE trace_id LIKE $1
         ORDER BY timestamp ASC
@@ -148,9 +171,14 @@ pub async fn list_logs_filtered(
         LogRow,
         r#"
         SELECT
-            id as "id!", timestamp as "timestamp!", level as "level!", module as "module!",
-            message as "message!", metadata, user_id as "user_id!", session_id as "session_id!",
-            task_id, trace_id as "trace_id!", context_id, client_id
+            id as "id!: LogId", timestamp as "timestamp!", level as "level!", module as "module!",
+            message as "message!", metadata,
+            user_id as "user_id!: UserId",
+            session_id as "session_id!: SessionId",
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id!: TraceId",
+            context_id as "context_id_text",
+            client_id as "client_id: ClientId"
         FROM logs
         WHERE ($1::TIMESTAMPTZ IS NULL OR timestamp >= $1)
           AND ($2::TEXT IS NULL OR UPPER(level) = $2)

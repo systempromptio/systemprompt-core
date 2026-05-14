@@ -132,6 +132,17 @@ pub async fn get_messages_by_context(
     Ok(messages)
 }
 
+pub async fn message_exists(pool: &Arc<PgPool>, message_id: &str) -> Result<bool, RepositoryError> {
+    let row = sqlx::query_scalar!(
+        r#"SELECT EXISTS(SELECT 1 FROM task_messages WHERE message_id = $1)"#,
+        message_id,
+    )
+    .fetch_one(pool.as_ref())
+    .await
+    .map_err(RepositoryError::database)?;
+    Ok(row.unwrap_or(false))
+}
+
 pub async fn get_next_sequence_number(
     pool: &Arc<PgPool>,
     task_id: &TaskId,

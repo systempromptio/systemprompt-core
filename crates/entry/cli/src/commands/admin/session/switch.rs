@@ -32,7 +32,7 @@ pub async fn execute(
 
     let new_profile = load_profile(&profile_config_path)?;
     let new_tenant_id = new_profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
-    let session_key = SessionKey::from_tenant_id(new_tenant_id.as_deref());
+    let session_key = SessionKey::from_tenant_id(new_tenant_id.as_ref());
 
     let sessions_dir = paths.sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
@@ -73,7 +73,7 @@ pub async fn execute(
         previous_profile,
         new_profile: profile_name.to_string(),
         session_key: session_key.as_storage_key(),
-        tenant: new_tenant_id,
+        tenant: new_tenant_id.as_ref().map(|t| t.as_str().to_string()),
         message: format!("Switched to profile '{}'", profile_name),
     };
 

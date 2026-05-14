@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_analytics::SessionCleanupService;
+use systemprompt_analytics::{SessionCleanupService, SessionRepository};
 use systemprompt_runtime::AppContext;
 
 use super::types::SessionCleanupOutput;
@@ -24,20 +24,8 @@ pub async fn execute(args: CleanupSessionsArgs) -> Result<CommandResult<SessionC
     let ctx = Arc::new(AppContext::new().await?);
 
     if args.dry_run {
-        let pool = ctx.db_pool().pool_arc()?;
-        let cutoff_hours = args.hours;
-
-        let count = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*) as "count!"
-            FROM user_sessions
-            WHERE ended_at IS NULL
-              AND last_activity_at < NOW() - ($1 || ' hours')::INTERVAL
-            "#,
-            cutoff_hours.to_string()
-        )
-        .fetch_one(&*pool)
-        .await?;
+        let repo = SessionRepository::new(ctx.db_pool())?;
+        let count = repo.count_inactive(args.hours).await?;
 
         let output = SessionCleanupOutput {
             job_name: "session_cleanup".to_string(),

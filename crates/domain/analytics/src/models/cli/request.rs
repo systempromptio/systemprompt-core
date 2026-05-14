@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{AiRequestId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct RequestStatsRow {
@@ -83,7 +83,7 @@ pub struct ContextGroupRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct RecentContextRow {
-    pub context_id: String,
+    pub context_id: ContextId,
     pub last_activity: DateTime<Utc>,
     pub ai_requests: i64,
     pub model: Option<String>,

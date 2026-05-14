@@ -7,11 +7,11 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{TenantId, UserId};
+use systemprompt_identifiers::{ClientId, TenantId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeOAuthClientResponse {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_secret: String,
     #[serde(default)]
     pub scopes: Vec<String>,

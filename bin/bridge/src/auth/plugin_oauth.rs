@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
+use systemprompt_identifiers::{ClientId, PluginId};
 use tokio::sync::OnceCell;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
@@ -39,7 +40,7 @@ pub enum PluginOAuthError {
 
 #[derive(Debug, Clone)]
 pub struct OAuthClientCreds {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_secret: String,
     pub token_endpoint: String,
     pub scopes: Vec<String>,
@@ -58,7 +59,7 @@ impl From<BridgeOAuthClientResponse> for OAuthClientCreds {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct StoredCreds {
-    client_id: String,
+    client_id: ClientId,
     token_endpoint: String,
     #[serde(default)]
     scopes: Vec<String>,
@@ -68,7 +69,7 @@ struct StoredCreds {
 // migrates the secret into the keystore, then rewrites the file.
 #[derive(Debug, Deserialize)]
 struct LegacyCreds {
-    client_id: String,
+    client_id: ClientId,
     client_secret: String,
     token_endpoint: String,
     #[serde(default)]
@@ -80,18 +81,18 @@ pub fn creds_path() -> Option<PathBuf> {
     Some(base.join(CACHE_DIR_NAME).join(CREDS_FILE))
 }
 
-fn keyring_entry(client_id: &str) -> Result<keyring::Entry, PluginOAuthError> {
-    keyring::Entry::new(KEYRING_SERVICE, client_id)
+fn keyring_entry(client_id: &ClientId) -> Result<keyring::Entry, PluginOAuthError> {
+    keyring::Entry::new(KEYRING_SERVICE, client_id.as_str())
         .map_err(|e| PluginOAuthError::Keyring(e.to_string()))
 }
 
-fn write_secret(client_id: &str, secret: &str) -> Result<(), PluginOAuthError> {
+fn write_secret(client_id: &ClientId, secret: &str) -> Result<(), PluginOAuthError> {
     keyring_entry(client_id)?
         .set_password(secret)
         .map_err(|e| PluginOAuthError::Keyring(e.to_string()))
 }
 
-fn read_secret(client_id: &str) -> Result<Option<String>, PluginOAuthError> {
+fn read_secret(client_id: &ClientId) -> Result<Option<String>, PluginOAuthError> {
     match keyring_entry(client_id)?.get_password() {
         Ok(s) => Ok(Some(s)),
         Err(keyring::Error::NoEntry) => Ok(None),
@@ -99,7 +100,7 @@ fn read_secret(client_id: &str) -> Result<Option<String>, PluginOAuthError> {
     }
 }
 
-fn delete_secret(client_id: &str) {
+fn delete_secret(client_id: &ClientId) {
     match keyring_entry(client_id).and_then(|e| match e.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
@@ -232,9 +233,9 @@ pub struct PluginTokenCache {
 }
 
 impl PluginTokenCache {
-    pub fn get(&self, plugin_id: &str, threshold_secs: u64) -> Option<CachedHookToken> {
+    pub fn get(&self, plugin_id: &PluginId, threshold_secs: u64) -> Option<CachedHookToken> {
         let guard = self.entries.lock().ok()?;
-        let cached = guard.get(plugin_id)?;
+        let cached = guard.get(plugin_id.as_str())?;
         if cached.is_fresh(threshold_secs) {
             Some(cached.clone())
         } else {
@@ -242,15 +243,15 @@ impl PluginTokenCache {
         }
     }
 
-    pub fn put(&self, plugin_id: &str, token: CachedHookToken) {
+    pub fn put(&self, plugin_id: &PluginId, token: CachedHookToken) {
         if let Ok(mut guard) = self.entries.lock() {
-            guard.insert(plugin_id.to_string(), token);
+            guard.insert(plugin_id.as_str().to_string(), token);
         }
     }
 
-    pub fn invalidate(&self, plugin_id: &str) {
+    pub fn invalidate(&self, plugin_id: &PluginId) {
         if let Ok(mut guard) = self.entries.lock() {
-            guard.remove(plugin_id);
+            guard.remove(plugin_id.as_str());
         }
     }
 }
@@ -266,7 +267,7 @@ pub async fn global_cache() -> &'static PluginTokenCache {
 async fn mint(
     gateway: &GatewayClient,
     c: &OAuthClientCreds,
-    plugin_id: &str,
+    plugin_id: &PluginId,
 ) -> Result<HookTokenResponse, GatewayError> {
     gateway
         .mint_plugin_hook_token(&c.token_endpoint, &c.client_id, &c.client_secret, plugin_id)
@@ -278,7 +279,7 @@ async fn mint(
 pub async fn mint_or_refresh_plugin_token(
     gateway: &GatewayClient,
     pat: &str,
-    plugin_id: &str,
+    plugin_id: &PluginId,
 ) -> Result<CachedHookToken, PluginOAuthError> {
     let cache = global_cache().await;
     if let Some(cached) = cache.get(plugin_id, REFRESH_THRESHOLD_SECS) {
@@ -289,7 +290,7 @@ pub async fn mint_or_refresh_plugin_token(
         Ok(r) => r,
         Err(GatewayError::HttpStatus { status, .. }) if status.as_u16() == 401 => {
             tracing::warn!(
-                plugin_id,
+                plugin_id = plugin_id.as_str(),
                 "hook token mint 401; rotating client secret and retrying"
             );
             let creds = refresh_creds(gateway, pat).await?;

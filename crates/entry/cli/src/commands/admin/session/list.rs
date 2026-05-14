@@ -53,7 +53,7 @@ pub fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
 
 struct DiscoveredProfile {
     name: String,
-    tenant: Option<String>,
+    tenant: Option<systemprompt_identifiers::TenantId>,
 }
 
 fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
@@ -95,7 +95,7 @@ fn load_profile_config(config_path: &std::path::Path) -> Option<Profile> {
 }
 
 fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) -> ProfileInfo {
-    let session_key = SessionKey::from_tenant_id(info.tenant.as_deref());
+    let session_key = SessionKey::from_tenant_id(info.tenant.as_ref());
 
     let is_active = store.is_some_and(|s| {
         s.active_profile_name.as_deref() == Some(info.name.as_str())

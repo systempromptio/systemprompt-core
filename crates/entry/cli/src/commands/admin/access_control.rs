@@ -15,6 +15,7 @@ use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::authz::repository::AccessControlRepository;
 
 use crate::CliConfig;
 use crate::shared::{CommandResult, render_result};
@@ -63,19 +64,11 @@ async fn render_yaml_snapshot(pool: &DbPool) -> Result<String> {
 }
 
 async fn load_grouped_rules(pool: &DbPool) -> Result<BTreeMap<GroupKey, GroupValue>> {
-    let pg = pool.pool_arc().map_err(|e| anyhow!("acquire pool: {e}"))?;
-    let rows = sqlx::query!(
-        r#"
-        SELECT entity_type, entity_id, rule_type, rule_value, access, justification
-        FROM access_control_rules
-        WHERE rule_type IN ('role', 'department')
-          AND rule_value <> '__default__'
-        ORDER BY entity_type, entity_id, access, rule_type, rule_value
-        "#,
-    )
-    .fetch_all(&*pg)
-    .await
-    .map_err(|e| anyhow!("query access_control_rules: {e}"))?;
+    let repo = AccessControlRepository::new(pool).map_err(|e| anyhow!("acquire repo: {e}"))?;
+    let rows = repo
+        .list_role_department_rules_for_export()
+        .await
+        .map_err(|e| anyhow!("query access_control_rules: {e}"))?;
 
     let mut grouped: BTreeMap<GroupKey, GroupValue> = BTreeMap::new();
     for row in rows {

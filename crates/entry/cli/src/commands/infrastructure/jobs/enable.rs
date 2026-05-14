@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
+use systemprompt_scheduler::JobRepository;
 use systemprompt_traits::Job;
 
 use super::types::JobEnableOutput;
@@ -27,15 +28,10 @@ pub async fn execute(args: EnableArgs) -> Result<CommandResult<JobEnableOutput>>
     }
 
     let ctx = Arc::new(AppContext::new().await?);
-    let pool = ctx.db_pool().write_pool_arc()?;
-
-    sqlx::query!(
-        "UPDATE scheduled_jobs SET enabled = true, updated_at = NOW() WHERE job_name = $1",
-        args.job_name
-    )
-    .execute(&*pool)
-    .await
-    .context("Failed to enable job")?;
+    let repo = JobRepository::new(ctx.db_pool())?;
+    repo.set_enabled(&args.job_name, true)
+        .await
+        .context("Failed to enable job")?;
 
     let output = JobEnableOutput {
         job_name: args.job_name.clone(),

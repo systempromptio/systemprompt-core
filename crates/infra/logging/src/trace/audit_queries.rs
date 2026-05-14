@@ -8,15 +8,15 @@ use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 use super::models::{AuditLookupResult, AuditToolCallRow, ConversationMessage, LinkedMcpCall};
 
 struct AuditRow {
-    id: String,
+    id: AiRequestId,
     provider: String,
     model: String,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
     cost_microdollars: i64,
     latency_ms: Option<i32>,
-    task_id: Option<String>,
-    trace_id: Option<String>,
+    task_id: Option<TaskId>,
+    trace_id: Option<TraceId>,
 }
 
 struct MsgRow {
@@ -61,9 +61,11 @@ async fn find_audit_by_request_id(
     let row = sqlx::query_as!(
         AuditRow,
         r#"
-        SELECT id as "id!", provider as "provider!", model as "model!",
+        SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
-            latency_ms, task_id, trace_id
+            latency_ms,
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id: TraceId"
         FROM ai_requests WHERE id = $1 OR id LIKE $2 LIMIT 1
         "#,
         id,
@@ -83,9 +85,11 @@ async fn find_audit_by_task_id(
     let row = sqlx::query_as!(
         AuditRow,
         r#"
-        SELECT id as "id!", provider as "provider!", model as "model!",
+        SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
-            latency_ms, task_id, trace_id
+            latency_ms,
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id: TraceId"
         FROM ai_requests WHERE task_id = $1 OR task_id LIKE $2
         ORDER BY created_at DESC LIMIT 1
         "#,
@@ -106,9 +110,11 @@ async fn find_audit_by_trace_id(
     let row = sqlx::query_as!(
         AuditRow,
         r#"
-        SELECT id as "id!", provider as "provider!", model as "model!",
+        SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
-            latency_ms, task_id, trace_id
+            latency_ms,
+            task_id as "task_id: TaskId",
+            trace_id as "trace_id: TraceId"
         FROM ai_requests WHERE trace_id = $1 OR trace_id LIKE $2
         ORDER BY created_at DESC LIMIT 1
         "#,
@@ -123,15 +129,15 @@ async fn find_audit_by_trace_id(
 
 fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
     AuditLookupResult {
-        id: AiRequestId::new(r.id),
+        id: r.id,
         provider: r.provider,
         model: r.model,
         input_tokens: r.input_tokens,
         output_tokens: r.output_tokens,
         cost_microdollars: r.cost_microdollars,
         latency_ms: r.latency_ms,
-        task_id: r.task_id.map(TaskId::new),
-        trace_id: r.trace_id.map(TraceId::new),
+        task_id: r.task_id,
+        trace_id: r.trace_id,
     }
 }
 

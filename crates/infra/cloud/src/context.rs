@@ -70,7 +70,9 @@ impl CloudContext {
         Ok(self)
     }
 
-    fn resolve_tenant(tenant_id: &str) -> CloudResult<Option<ResolvedTenant>> {
+    fn resolve_tenant(
+        tenant_id: &systemprompt_identifiers::TenantId,
+    ) -> CloudResult<Option<ResolvedTenant>> {
         let cloud_paths = get_cloud_paths();
         let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
 
@@ -81,10 +83,10 @@ impl CloudContext {
         let store =
             TenantStore::load_from_path(&tenants_path).map_err(|_| CloudError::TenantsNotSynced)?;
 
-        store.find_tenant(tenant_id).map_or_else(
+        store.find_tenant(tenant_id.as_str()).map_or_else(
             || {
                 Err(CloudError::TenantNotFound {
-                    tenant_id: systemprompt_identifiers::TenantId::new(tenant_id),
+                    tenant_id: tenant_id.clone(),
                 })
             },
             |tenant| Ok(Some(ResolvedTenant::from(tenant.clone()))),

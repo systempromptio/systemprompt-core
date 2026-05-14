@@ -61,9 +61,9 @@ pub async fn manifest(
     let tenant_id = profile
         .cloud
         .as_ref()
-        .and_then(|cloud| cloud.tenant_id.as_deref())
-        .filter(|t| !t.is_empty())
-        .map(TenantId::new);
+        .and_then(|cloud| cloud.tenant_id.as_ref())
+        .filter(|t| !t.as_str().is_empty())
+        .cloned();
 
     let (manifest_version, issued_at, not_before) = build_version()?;
 

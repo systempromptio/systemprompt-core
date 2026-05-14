@@ -127,23 +127,13 @@ async fn load_message_received(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
-    let pool = db
-        .pool_arc()
-        .map_err(|e| anyhow::anyhow!("Database error: {}", e))?;
+    let task_repo = TaskRepository::new(db)?;
+    let exists = task_repo
+        .message_exists(&request.entity_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to load message: {}", e))?;
 
-    let message = sqlx::query!(
-        r#"SELECT m.id, m.message_id, STRING_AGG(mp.id::text, ',') as part_ids
-        FROM task_messages m
-        LEFT JOIN message_parts mp ON m.message_id = mp.message_id
-        WHERE m.message_id = $1
-        GROUP BY m.id, m.message_id"#,
-        request.entity_id
-    )
-    .fetch_optional(pool.as_ref())
-    .await
-    .map_err(|e| anyhow::anyhow!("Failed to load message: {}", e))?;
-
-    if message.is_some() {
+    if exists {
         Ok(AgUiWebhookData {
             event_name: "message_received".to_string(),
             payload: json!({

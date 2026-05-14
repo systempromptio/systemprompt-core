@@ -15,7 +15,7 @@ pub struct AiGatewayPolicyRepository {
 #[derive(Debug, Clone)]
 pub struct GatewayPolicyRow {
     pub id: AiGatewayPolicyId,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<TenantId>,
     pub name: String,
     pub spec: Value,
     pub enabled: bool,
@@ -38,7 +38,7 @@ impl AiGatewayPolicyRepository {
     ) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
         let rows = sqlx::query!(
             r#"
-            SELECT id as "id!: AiGatewayPolicyId", tenant_id, name, spec, enabled
+            SELECT id as "id!: AiGatewayPolicyId", tenant_id as "tenant_id: TenantId", name, spec, enabled
             FROM ai_gateway_policies
             WHERE enabled = TRUE
               AND (tenant_id = $1 OR tenant_id IS NULL)

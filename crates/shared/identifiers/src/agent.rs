@@ -31,6 +31,10 @@ impl AgentName {
 
     #[allow(clippy::expect_used)]
     pub fn new(name: impl Into<String>) -> Self {
+        // SAFETY: `new` is the infallible constructor reserved for inputs the caller
+        // has already validated (compile-time literals, values that
+        // round-tripped through `try_new` at a boundary). Untrusted input must
+        // go through `try_new`.
         Self::try_new(name).expect("AgentName validation failed")
     }
 

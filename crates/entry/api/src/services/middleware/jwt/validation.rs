@@ -76,9 +76,7 @@ pub(super) async fn validate_session_exists(
     let session_source = jwt_context
         .client_id
         .as_ref()
-        .map_or(SessionSource::Api, |c| {
-            SessionSource::from_client_id(c.as_str())
-        });
+        .map_or(SessionSource::Api, SessionSource::from_client_id);
 
     analytics_provider
         .create_session(CreateSessionInput {

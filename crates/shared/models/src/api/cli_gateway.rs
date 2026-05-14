@@ -1,6 +1,7 @@
 //! CLI Gateway models for remote command execution.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ContextId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliExecuteRequest {
@@ -8,7 +9,7 @@ pub struct CliExecuteRequest {
     #[serde(default = "default_timeout")]
     pub timeout_secs: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub context_id: Option<String>,
+    pub context_id: Option<ContextId>,
 }
 
 const fn default_timeout() -> u64 {

@@ -126,4 +126,33 @@ impl JobRepository {
         .await?;
         Ok(())
     }
+
+    pub async fn list_recent_runs(&self, limit: i64) -> SchedulerResult<Vec<ScheduledJob>> {
+        sqlx::query_as!(
+            ScheduledJob,
+            r#"
+            SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
+                   run_count, created_at, updated_at
+            FROM scheduled_jobs
+            WHERE last_run IS NOT NULL
+            ORDER BY last_run DESC
+            LIMIT $1
+            "#,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn set_enabled(&self, job_name: &str, enabled: bool) -> SchedulerResult<()> {
+        sqlx::query!(
+            "UPDATE scheduled_jobs SET enabled = $1, updated_at = NOW() WHERE job_name = $2",
+            enabled,
+            job_name,
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
+    }
 }

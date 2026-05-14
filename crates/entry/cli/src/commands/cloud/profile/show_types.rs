@@ -194,16 +194,16 @@ pub fn build_env_config(
         paths: PathsEnvVars {
             system_path: paths
                 .map(|p| p.system().root().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(String::new),
             services: paths
                 .map(|p| p.system().services().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(String::new),
             skills: paths
                 .map(|p| p.system().skills().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(String::new),
             services_config: paths
                 .map(|p| p.system().settings().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(String::new),
         },
     }
 }

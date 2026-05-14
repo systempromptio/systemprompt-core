@@ -6,6 +6,7 @@ use crate::gateway::GatewayClient;
 use crate::gateway::manifest::HookEntry as ManifestHookEntry;
 use std::fs;
 use std::path::Path;
+use systemprompt_identifiers::PluginId;
 
 const PLUGIN_TOKEN_ENV_VAR: &str = "SYSTEMPROMPT_PLUGIN_TOKEN";
 
@@ -14,21 +15,21 @@ const PLUGIN_TOKEN_ENV_VAR: &str = "SYSTEMPROMPT_PLUGIN_TOKEN";
 pub(crate) async fn materialize_hook_token(
     client: &GatewayClient,
     bearer: &str,
-    plugin_id: &str,
+    plugin_id: &PluginId,
     plugin_dir: &Path,
 ) -> Result<(), ApplyError> {
     let token = mint_or_refresh_plugin_token(client, bearer, plugin_id).await?;
     let env_path = plugin_dir.join(".env.plugin");
     let body = format!("{PLUGIN_TOKEN_ENV_VAR}={}\n", token.access_token);
     fsutil::atomic_write_0600(&env_path, body.as_bytes()).map_err(|e| ApplyError::Io {
-        context: format!(".env.plugin for {plugin_id}"),
+        context: format!(".env.plugin for {}", plugin_id.as_str()),
         source: e,
     })
 }
 
 pub(crate) fn write_hooks_json(
     gateway_base: &str,
-    plugin_id: &str,
+    plugin_id: &PluginId,
     plugin_dir: &Path,
     user_hooks: &[ManifestHookEntry],
 ) -> Result<(), ApplyError> {

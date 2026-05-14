@@ -21,7 +21,7 @@ pub struct PresentationCardResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_id: Option<String>,
+    pub skill_id: Option<SkillId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_name: Option<String>,
 }
@@ -97,7 +97,7 @@ pub struct PresentationCardArtifact {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_id: Option<String>,
+    pub skill_id: Option<SkillId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_name: Option<String>,
     #[serde(skip)]
@@ -174,7 +174,7 @@ impl PresentationCardArtifact {
         skill_name: impl Into<String>,
     ) -> Self {
         let id = skill_id.into();
-        self.skill_id = Some(id.to_string());
+        self.skill_id = Some(id.clone());
         self.skill_name = Some(skill_name.into());
         self.metadata.skill_id = Some(id);
         self

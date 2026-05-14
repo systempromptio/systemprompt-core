@@ -41,20 +41,6 @@ impl Default for Settings {
     }
 }
 
-impl Settings {
-    pub fn apply_env_overrides(&mut self) {
-        if let Ok(val) = std::env::var("SYSTEMPROMPT_SERVICES_PATH") {
-            self.services_path = Some(val);
-        }
-        if let Ok(val) = std::env::var("SYSTEMPROMPT_SKILLS_PATH") {
-            self.skills_path = Some(val);
-        }
-        if let Ok(val) = std::env::var("SYSTEMPROMPT_CONFIG_PATH") {
-            self.config_path = Some(val);
-        }
-    }
-}
-
 const fn default_agent_port_range() -> (u16, u16) {
     (9000, 9999)
 }

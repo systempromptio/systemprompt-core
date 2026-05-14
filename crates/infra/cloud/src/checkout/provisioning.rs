@@ -18,7 +18,7 @@ pub async fn wait_for_provisioning<F>(
 where
     F: Fn(&ProvisioningEvent),
 {
-    let mut stream = client.subscribe_provisioning_events(tenant_id.as_str());
+    let mut stream = client.subscribe_provisioning_events(tenant_id);
 
     while let Some(event_result) = stream.next().await {
         match event_result {

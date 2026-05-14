@@ -66,7 +66,7 @@ pub async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Result<()> 
         let Some(live_cols) = live_columns.get(table) else {
             continue;
         };
-        let owner_id = owner.get(table).cloned().unwrap_or_default();
+        let owner_id = owner.get(table).cloned().unwrap_or_else(String::new);
         for col in required {
             if !live_cols.contains(col) {
                 missing_columns.push((owner_id.clone(), table.clone(), col.clone()));

@@ -5,6 +5,7 @@ use std::pin::Pin;
 
 use futures::stream::{Stream, StreamExt};
 use reqwest_eventsource::{Event, EventSource};
+use systemprompt_identifiers::TenantId;
 use systemprompt_models::modules::ApiPaths;
 
 use super::CloudApiClient;
@@ -14,7 +15,7 @@ use crate::error::{CloudError, CloudResult};
 impl CloudApiClient {
     pub fn subscribe_provisioning_events(
         &self,
-        tenant_id: &str,
+        tenant_id: &TenantId,
     ) -> Pin<Box<dyn Stream<Item = CloudResult<ProvisioningEvent>> + Send + '_>> {
         let url = format!("{}{}", self.api_url(), ApiPaths::tenant_events(tenant_id));
         let token = self.token().to_string();
@@ -69,12 +70,12 @@ impl CloudApiClient {
 
     pub fn subscribe_checkout_events(
         &self,
-        checkout_session_id: &str,
+        checkout_session_id: &systemprompt_identifiers::CheckoutSessionId,
     ) -> Pin<Box<dyn Stream<Item = CloudResult<CheckoutEvent>> + Send + '_>> {
         let url = format!(
             "{}/api/v1/checkout/{}/events",
             self.api_url(),
-            checkout_session_id
+            checkout_session_id.as_str()
         );
         let token = self.token().to_string();
         let client = self.client.clone();

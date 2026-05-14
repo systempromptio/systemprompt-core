@@ -9,6 +9,8 @@
 
 use std::time::Instant;
 
+use systemprompt_identifiers::{ClientId, PluginId};
+
 use crate::auth::types::{AuthResponse, MtlsRequest, SessionExchangeRequest};
 use crate::gateway::errors::GatewayError;
 use crate::gateway::types::{BridgeOAuthClientResponse, HookTokenResponse};
@@ -98,18 +100,18 @@ impl GatewayClient {
     pub async fn mint_plugin_hook_token(
         &self,
         token_endpoint: &str,
-        client_id: &str,
+        client_id: &ClientId,
         client_secret: &str,
-        plugin_id: &str,
+        plugin_id: &PluginId,
     ) -> Result<HookTokenResponse, GatewayError> {
         let started = Instant::now();
         let form = [
             ("grant_type", "client_credentials"),
-            ("client_id", client_id),
+            ("client_id", client_id.as_str()),
             ("client_secret", client_secret),
             ("scope", "hook:govern hook:track"),
             ("audience", "hook"),
-            ("plugin_id", plugin_id),
+            ("plugin_id", plugin_id.as_str()),
         ];
         let resp = self
             .http()

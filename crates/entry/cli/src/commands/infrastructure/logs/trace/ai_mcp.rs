@@ -46,7 +46,7 @@ pub async fn print_mcp_executions(
         print_tool_io(exec, show_full);
 
         if let Ok(linked_requests) = service
-            .get_mcp_linked_ai_requests(exec.mcp_execution_id.as_str())
+            .get_mcp_linked_ai_requests(&exec.mcp_execution_id)
             .await
         {
             if !linked_requests.is_empty() {
@@ -148,10 +148,7 @@ async fn print_tool_errors_from_logs(
     task_id: &TaskId,
     context_id: &ContextId,
 ) {
-    let Ok(logs) = service
-        .get_tool_logs(task_id.as_str(), context_id.as_str())
-        .await
-    else {
+    let Ok(logs) = service.get_tool_logs(task_id, context_id).await else {
         return;
     };
 

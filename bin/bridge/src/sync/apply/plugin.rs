@@ -54,7 +54,7 @@ pub async fn apply_plugins(
     if !removed.is_empty() {
         let cache = global_cache().await;
         for id in &removed {
-            cache.invalidate(id);
+            cache.invalidate(&systemprompt_identifiers::PluginId::new(id));
         }
     }
 
@@ -104,10 +104,11 @@ async fn sync_one_plugin(
         source: e,
     })?;
 
-    materialize_hook_token(client, bearer, plugin.id.as_str(), &target).await?;
+    let plugin_id_typed = systemprompt_identifiers::PluginId::new(plugin.id.as_str());
+    materialize_hook_token(client, bearer, &plugin_id_typed, &target).await?;
     write_hooks_json(
         client.base_url_str(),
-        plugin.id.as_str(),
+        &plugin_id_typed,
         &target,
         user_hooks,
     )?;

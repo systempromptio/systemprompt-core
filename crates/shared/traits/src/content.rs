@@ -34,7 +34,7 @@ pub struct ContentItem {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentFilter {
-    pub source_id: Option<String>,
+    pub source_id: Option<SourceId>,
     pub category_id: Option<String>,
     pub kind: Option<String>,
     pub query: Option<String>,
@@ -52,7 +52,7 @@ pub trait ContentProvider: Send + Sync {
 
     async fn get_content_by_source_and_slug(
         &self,
-        source_id: &str,
+        source_id: &SourceId,
         slug: &str,
     ) -> Result<Option<ContentItem>, Self::Error>;
 

@@ -15,7 +15,10 @@ pub fn extract_from_canonical(
             tool_calls.push(CapturedToolUse {
                 ai_tool_call_id: id.clone(),
                 tool_name: name.clone(),
-                tool_input: serde_json::to_string(input).unwrap_or_default(),
+                tool_input: serde_json::to_string(input).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, tool = %name, "failed to serialise tool_input");
+                    String::new()
+                }),
             });
         }
     }

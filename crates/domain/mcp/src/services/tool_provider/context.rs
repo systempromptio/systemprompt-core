@@ -1,7 +1,5 @@
 use crate::error::McpDomainResult;
-use systemprompt_identifiers::{
-    AgentName, AiToolCallId, ContextId, SessionId, TaskId, TraceId, UserId,
-};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{ToolContext, ToolProviderError};
 
@@ -11,12 +9,12 @@ pub fn create_request_context(ctx: &ToolContext) -> Result<RequestContext, ToolP
     let session_id = ctx
         .session_id
         .as_ref()
-        .map_or_else(SessionId::system, |s| SessionId::new(s.clone()));
+        .map_or_else(SessionId::system, Clone::clone);
 
     let trace_id = ctx
         .trace_id
         .as_ref()
-        .map_or_else(TraceId::generate, |t| TraceId::new(t.clone()));
+        .map_or_else(TraceId::generate, Clone::clone);
 
     let context_id = ctx
         .headers
@@ -56,7 +54,7 @@ pub fn create_request_context(ctx: &ToolContext) -> Result<RequestContext, ToolP
     }
 
     if let Some(ai_tool_call_id) = &ctx.ai_tool_call_id {
-        request_ctx = request_ctx.with_ai_tool_call_id(AiToolCallId::new(ai_tool_call_id.clone()));
+        request_ctx = request_ctx.with_ai_tool_call_id(ai_tool_call_id.clone());
     }
 
     Ok(request_ctx)

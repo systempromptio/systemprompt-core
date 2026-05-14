@@ -11,7 +11,7 @@ use super::request::ChatRequest;
 use super::response::ChatResponse;
 use crate::tool::{ToolCallRequest, ToolCallResult, ToolDefinition};
 
-pub type ChatStream = Pin<Box<dyn Stream<Item = anyhow::Result<String>> + Send>>;
+pub type ChatStream = Pin<Box<dyn Stream<Item = LlmProviderResult<String>> + Send>>;
 
 #[async_trait]
 pub trait LlmProvider: Send + Sync {

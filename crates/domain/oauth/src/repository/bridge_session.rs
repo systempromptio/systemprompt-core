@@ -97,9 +97,12 @@ impl BridgeSessionRepository {
     pub async fn list_active(&self, within: Duration) -> OauthResult<Vec<BridgeSessionRow>> {
         let cutoff_seconds = i64::try_from(within.as_secs()).unwrap_or(i64::MAX) as f64;
         let rows = sqlx::query_as!(
-            BridgeSessionRowRaw,
+            BridgeSessionRow,
             r#"
-            SELECT session_id, user_id, tenant_id, bridge_version, os, hostname,
+            SELECT session_id as "session_id: SessionId",
+                   user_id as "user_id: UserId",
+                   tenant_id as "tenant_id: TenantId",
+                   bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
                    forwarded_total, tokens_in_total, tokens_out_total
             FROM bridge_sessions
@@ -111,7 +114,7 @@ impl BridgeSessionRepository {
         .fetch_all(self.pool.as_ref())
         .await?;
 
-        Ok(rows.into_iter().map(BridgeSessionRow::from).collect())
+        Ok(rows)
     }
 
     pub async fn list_active_for_user(
@@ -121,9 +124,12 @@ impl BridgeSessionRepository {
     ) -> OauthResult<Vec<BridgeSessionRow>> {
         let cutoff_seconds = i64::try_from(within.as_secs()).unwrap_or(i64::MAX) as f64;
         let rows = sqlx::query_as!(
-            BridgeSessionRowRaw,
+            BridgeSessionRow,
             r#"
-            SELECT session_id, user_id, tenant_id, bridge_version, os, hostname,
+            SELECT session_id as "session_id: SessionId",
+                   user_id as "user_id: UserId",
+                   tenant_id as "tenant_id: TenantId",
+                   bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
                    forwarded_total, tokens_in_total, tokens_out_total
             FROM bridge_sessions
@@ -137,7 +143,7 @@ impl BridgeSessionRepository {
         .fetch_all(self.pool.as_ref())
         .await?;
 
-        Ok(rows.into_iter().map(BridgeSessionRow::from).collect())
+        Ok(rows)
     }
 
     pub async fn delete_stale(&self, older_than: Duration) -> OauthResult<u64> {
@@ -152,40 +158,5 @@ impl BridgeSessionRepository {
         .execute(self.write_pool.as_ref())
         .await?;
         Ok(result.rows_affected())
-    }
-}
-
-#[derive(sqlx::FromRow)]
-struct BridgeSessionRowRaw {
-    session_id: String,
-    user_id: String,
-    tenant_id: Option<String>,
-    bridge_version: String,
-    os: String,
-    hostname: String,
-    started_at: DateTime<Utc>,
-    last_heartbeat_at: DateTime<Utc>,
-    last_activity_at: Option<DateTime<Utc>>,
-    forwarded_total: i64,
-    tokens_in_total: i64,
-    tokens_out_total: i64,
-}
-
-impl From<BridgeSessionRowRaw> for BridgeSessionRow {
-    fn from(raw: BridgeSessionRowRaw) -> Self {
-        Self {
-            session_id: SessionId::new(raw.session_id),
-            user_id: UserId::new(raw.user_id),
-            tenant_id: raw.tenant_id.map(TenantId::new),
-            bridge_version: raw.bridge_version,
-            os: raw.os,
-            hostname: raw.hostname,
-            started_at: raw.started_at,
-            last_heartbeat_at: raw.last_heartbeat_at,
-            last_activity_at: raw.last_activity_at,
-            forwarded_total: raw.forwarded_total,
-            tokens_in_total: raw.tokens_in_total,
-            tokens_out_total: raw.tokens_out_total,
-        }
     }
 }

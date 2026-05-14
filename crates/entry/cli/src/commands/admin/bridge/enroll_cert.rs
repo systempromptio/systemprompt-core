@@ -11,7 +11,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Args)]
 pub struct EnrollCertArgs {
     #[arg(long, help = "User ID to enroll the cert for")]
-    pub user_id: String,
+    pub user_id: UserId,
 
     #[arg(long, help = "SHA-256 fingerprint of the device certificate (hex)")]
     pub fingerprint: String,
@@ -31,8 +31,8 @@ pub async fn execute(
     let ctx = AppContext::new().await?;
     let service = DeviceCertService::new(ctx.db_pool())?;
 
-    let user_id = UserId::new(args.user_id.trim());
-    if user_id.as_str().is_empty() {
+    let user_id = args.user_id;
+    if user_id.as_str().trim().is_empty() {
         return Err(anyhow!("user_id cannot be empty"));
     }
 

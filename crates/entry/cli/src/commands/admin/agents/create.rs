@@ -81,10 +81,9 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
     let agent_config = AgentConfig {
         name: name.clone(),
         port,
-        endpoint: args
-            .agent
-            .endpoint
-            .unwrap_or_else(|| ApiPaths::agent_endpoint(&name)),
+        endpoint: args.agent.endpoint.unwrap_or_else(|| {
+            ApiPaths::agent_endpoint(&systemprompt_identifiers::AgentId::new(&name))
+        }),
         enabled: args.enabled,
         dev_only: args.agent.dev_only,
         is_primary: args.agent.is_primary,

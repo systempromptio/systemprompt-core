@@ -6,7 +6,8 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, TenantId};
+
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;
 
@@ -106,7 +107,7 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
     let organization_uuid = profile
         .cloud
         .as_ref()
-        .and_then(|cloud| cloud.tenant_id.as_deref())
+        .and_then(|cloud| cloud.tenant_id.as_ref())
         .map(canonicalize_org_uuid);
 
     Ok(Json(BridgeProfileResponse {
@@ -121,10 +122,11 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
 // `deploymentOrganizationUuid` policy key — local-trial tenants need a valid
 // v4/v5 UUID on the wire. Internal state keeps the `local_` prefix; only the
 // Cowork-facing handler peels it.
-fn canonicalize_org_uuid(tenant_id: &str) -> String {
-    let suffix = tenant_id.strip_prefix("local_").unwrap_or(tenant_id);
+fn canonicalize_org_uuid(tenant_id: &TenantId) -> String {
+    let raw = tenant_id.as_str();
+    let suffix = raw.strip_prefix("local_").unwrap_or(raw);
     if let Ok(parsed) = Uuid::parse_str(suffix) {
         return parsed.to_string();
     }
-    Uuid::new_v5(&Uuid::NAMESPACE_OID, tenant_id.as_bytes()).to_string()
+    Uuid::new_v5(&Uuid::NAMESPACE_OID, raw.as_bytes()).to_string()
 }

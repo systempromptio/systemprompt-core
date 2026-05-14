@@ -153,3 +153,18 @@ pub async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
 
     Ok(count)
 }
+
+pub async fn count_inactive(pool: &PgPool, inactive_hours: i32) -> Result<i64> {
+    let cutoff = Utc::now() - Duration::hours(i64::from(inactive_hours));
+    let count = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(*)::BIGINT as "count!"
+        FROM user_sessions
+        WHERE ended_at IS NULL AND last_activity_at < $1
+        "#,
+        cutoff,
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(count)
+}

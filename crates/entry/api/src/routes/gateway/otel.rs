@@ -92,7 +92,7 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
                 .scope
                 .as_ref()
                 .map(|s| s.name.clone())
-                .unwrap_or_default();
+                .unwrap_or_else(String::new);
             for span in scope.spans {
                 let trace_hex = hex_lower(&span.trace_id);
                 let span_hex = hex_lower(&span.span_id);
@@ -153,7 +153,7 @@ async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
                 .scope
                 .as_ref()
                 .map(|s| s.name.clone())
-                .unwrap_or_default();
+                .unwrap_or_else(String::new);
             for record in scope.log_records {
                 let trace_hex = hex_lower(&record.trace_id);
                 let span_hex = hex_lower(&record.span_id);
@@ -239,9 +239,8 @@ fn any_value_to_string(value: Option<&opentelemetry_proto::tonic::common::v1::An
         AV::IntValue(i) => i.to_string(),
         AV::DoubleValue(f) => f.to_string(),
         AV::BytesValue(b) => format!("<bytes:{}>", b.len()),
-        AV::ArrayValue(_) | AV::KvlistValue(_) => {
-            serde_json::to_string(&any_value_to_json(value)).unwrap_or_default()
-        },
+        AV::ArrayValue(_) | AV::KvlistValue(_) => serde_json::to_string(&any_value_to_json(value))
+            .unwrap_or_else(|e| format!("<json-serialise-failed: {e}>")),
     }
 }
 

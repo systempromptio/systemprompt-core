@@ -3,6 +3,7 @@ use crate::auth::{JwtAudience, Permission};
 use crate::mcp::capabilities::ToolVisibility;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use systemprompt_identifiers::ClientId;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum McpServerType {
@@ -119,7 +120,7 @@ pub struct OAuthRequirement {
     pub required: bool,
     pub scopes: Vec<Permission>,
     pub audience: JwtAudience,
-    pub client_id: Option<String>,
+    pub client_id: Option<ClientId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

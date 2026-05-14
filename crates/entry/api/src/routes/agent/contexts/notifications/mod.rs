@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use systemprompt_identifiers::UserId;
+use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_runtime::AppContext;
 
 use handlers::{
@@ -30,8 +30,8 @@ pub async fn handle_context_notification(
 ) -> Response {
     let db = app_context.db_pool();
 
-    let pool = match db.pool_arc() {
-        Ok(p) => p,
+    let ctx_repo = match ContextRepository::new(db) {
+        Ok(r) => r,
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -43,14 +43,8 @@ pub async fn handle_context_notification(
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
-    let user_id = match sqlx::query_scalar::<_, String>(
-        "SELECT user_id FROM user_contexts WHERE context_id = $1",
-    )
-    .bind(&context_id)
-    .fetch_optional(pool.as_ref())
-    .await
-    {
-        Ok(Some(uid)) => UserId::new(uid),
+    let user_id = match ctx_repo.find_user_id_for_context(&context_id).await {
+        Ok(Some(uid)) => uid,
         Ok(None) => {
             tracing::error!(context_id = %context_id, "Context not found");
             return (

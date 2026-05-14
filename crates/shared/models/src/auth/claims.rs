@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use systemprompt_identifiers::{ClientId, SessionId};
 
 use super::{
     JwtAudience, Permission, RateLimitTier, TokenType, UserType, parse_permissions,
@@ -36,11 +37,11 @@ pub struct JwtClaims {
     pub department: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub client_id: Option<String>,
+    pub client_id: Option<ClientId>,
     pub token_type: TokenType,
     pub auth_time: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate_limit_tier: Option<RateLimitTier>,

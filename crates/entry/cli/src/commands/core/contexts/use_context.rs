@@ -42,7 +42,7 @@ pub async fn execute(
             .profile
             .cloud
             .as_ref()
-            .and_then(|c| c.tenant_id.as_deref()),
+            .and_then(|c| c.tenant_id.as_ref()),
     );
 
     let mut session = session_ctx.session.clone();

@@ -73,6 +73,6 @@ async fn authenticate_jwt(
         tenant_id: header_tenant_id,
         trace_id: Some(TraceId::generate()),
         roles: claims.roles,
-        department: claims.department.unwrap_or_default(),
+        department: claims.department.unwrap_or_else(String::new),
     })
 }
