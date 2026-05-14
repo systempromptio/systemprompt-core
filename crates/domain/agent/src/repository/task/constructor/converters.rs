@@ -28,7 +28,7 @@ pub fn construct_metadata(row: &TaskRow) -> TaskMetadata {
     metadata
 }
 
-pub fn parse_task_state(state_str: &str) -> Result<TaskState, TaskError> {
+pub fn parse_task_state(state_str: &str) -> std::result::Result<TaskState, TaskError> {
     match state_str {
         "TASK_STATE_SUBMITTED" | "submitted" => Ok(TaskState::Submitted),
         "TASK_STATE_WORKING" | "working" => Ok(TaskState::Working),
@@ -69,7 +69,7 @@ pub fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
     }
 }
 
-pub fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, RepositoryError> {
+pub fn build_parts_from_rows(part_rows: &[MessagePart]) -> std::result::Result<Vec<Part>, RepositoryError> {
     let mut parts = Vec::new();
     for part_row in part_rows {
         let part = match part_row.part_kind.as_str() {

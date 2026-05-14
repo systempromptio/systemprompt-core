@@ -53,6 +53,14 @@ impl Extension for AuthzExtension {
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users"]
     }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(
+            1,
+            "access_control_rules_evolution",
+            include_str!("schema/migrations/001_access_control_rules_evolution.sql"),
+        )]
+    }
 }
 
 register_extension!(AuthzExtension);

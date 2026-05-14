@@ -72,6 +72,11 @@ impl Extension for AnalyticsExtension {
         vec![
             Migration::new(1, "add_engagement_event_type", MIGRATION_001_EVENT_TYPE),
             Migration::new(2, "add_engagement_event_data", MIGRATION_002_EVENT_DATA),
+            Migration::new(
+                3,
+                "seed_anomaly_thresholds",
+                include_str!("../schema/migrations/003_seed_anomaly_thresholds.sql"),
+            ),
         ]
     }
 }

@@ -33,7 +33,7 @@ pub fn get_process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
     let output = Command::new("ps")
         .args(["-p", &pid.to_string(), "-o", "pid,ppid,cmd"])
         .output()
-        .with_context(|| format!("failed to run `ps -p {pid} -o pid,ppid,cmd`"))?;
+        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("failed to run `ps -p {pid} -o pid,ppid,cmd`"))))?;
 
     if !output.status.success() {
         return Ok(None);

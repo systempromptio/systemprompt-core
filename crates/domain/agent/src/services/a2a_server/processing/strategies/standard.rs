@@ -56,7 +56,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         )
         .await
         .map_err(|()| {
-            AgentServiceError::Internal(format!("Standard execution failed - see stream errors for details")
+            AgentServiceError::Internal(format!("Standard execution failed - see stream errors for details"))
         })?;
 
         if let Ok(step) = tracking.track_completion(task_id).await {

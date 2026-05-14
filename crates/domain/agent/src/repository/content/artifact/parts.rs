@@ -8,7 +8,7 @@ pub async fn get_artifact_parts(
     pool: &PgPool,
     artifact_id: &ArtifactId,
     context_id: &ContextId,
-) -> Result<Vec<Part>, RepositoryError> {
+) -> std::result::Result<Vec<Part>, RepositoryError> {
     let artifact_id_str = artifact_id.as_str();
     let context_id_str = context_id.as_str();
     let part_rows = sqlx::query_as!(
@@ -85,7 +85,7 @@ pub async fn persist_artifact_part(
     artifact_id: &ArtifactId,
     context_id: &ContextId,
     sequence_number: i32,
-) -> Result<(), RepositoryError> {
+) -> std::result::Result<(), RepositoryError> {
     let artifact_id_str = artifact_id.as_str();
     let context_id_str = context_id.as_str();
     match part {

@@ -5,7 +5,7 @@ pub async fn validate_message_context(
     message: &crate::models::a2a::Message,
     user_id: Option<&UserId>,
     db_pool: &systemprompt_database::DbPool,
-) -> Result<(), String> {
+) -> std::result::Result<(), String> {
     let context_id = &message.context_id;
 
     let user_id =

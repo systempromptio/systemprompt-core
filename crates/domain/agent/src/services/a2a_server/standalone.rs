@@ -20,9 +20,9 @@ pub async fn run_standalone(
         port,
     )
     .await
-    .context("Failed to create agent server")?;
+    .map_err(|e| AgentServiceError::Internal(format!("Failed to create agent server: {e}")))?;
 
-    server.run().await.context("Agent server failed")?;
+    server.run().await.map_err(|e| AgentServiceError::Internal(format!("Agent server failed: {e}")))?;
 
     Ok(())
 }

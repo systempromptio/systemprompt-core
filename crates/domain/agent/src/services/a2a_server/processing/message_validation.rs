@@ -60,7 +60,7 @@ impl MessageValidationService {
         let agent_config = registry
             .get_agent(agent_name)
             .await
-            .map_err(|_| AgentServiceError::Internal(format!("Agent not found: {}", agent_name))?;
+            .map_err(|_| AgentServiceError::Internal(format!("Agent not found: {}", agent_name)))?;
 
         Ok(agent_config.into())
     }
@@ -83,7 +83,7 @@ impl MessageValidationService {
                     context_id,
                     context.user_id(),
                     e
-                )
+                ))
             })?;
 
         Ok(())
@@ -96,7 +96,9 @@ impl MessageValidationService {
             .any(|part| matches!(part, crate::models::Part::Text(_)));
 
         if !has_text_part {
-            return Err(AgentServiceError::Internal(format!("No text content found in message"));
+            return Err(AgentServiceError::Internal(
+                "No text content found in message".to_string(),
+            ));
         }
 
         Ok(())

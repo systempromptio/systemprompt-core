@@ -36,7 +36,7 @@ pub async fn broadcast_agui_event(
     user_id: &UserId,
     event: AgUiEvent,
     auth_token: &str,
-) -> Result<usize, WebhookError> {
+) -> std::result::Result<usize, WebhookError> {
     let url = format!("{}/api/v1/webhook/agui", get_api_url());
     let event_type = event.event_type();
 
@@ -116,7 +116,7 @@ pub async fn broadcast_a2a_event(
     user_id: &UserId,
     event: A2AEvent,
     auth_token: &str,
-) -> Result<usize, WebhookError> {
+) -> std::result::Result<usize, WebhookError> {
     let url = format!("{}/api/v1/webhook/a2a", get_api_url());
     let event_type = event.event_type();
 
@@ -202,11 +202,11 @@ impl WebhookContext {
         &self.user_id
     }
 
-    pub async fn broadcast_agui(&self, event: AgUiEvent) -> Result<usize, WebhookError> {
+    pub async fn broadcast_agui(&self, event: AgUiEvent) -> std::result::Result<usize, WebhookError> {
         broadcast_agui_event(&self.user_id, event, &self.auth_token).await
     }
 
-    pub async fn broadcast_a2a(&self, event: A2AEvent) -> Result<usize, WebhookError> {
+    pub async fn broadcast_a2a(&self, event: A2AEvent) -> std::result::Result<usize, WebhookError> {
         broadcast_a2a_event(&self.user_id, event, &self.auth_token).await
     }
 }

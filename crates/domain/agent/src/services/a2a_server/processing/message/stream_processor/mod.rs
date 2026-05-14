@@ -28,7 +28,9 @@ impl StreamProcessor {
                 return Ok(text_part.text.clone());
             }
         }
-        Err(AgentServiceError::Internal(format!("No text content found in message"))
+        Err(AgentServiceError::Internal(
+            "No text content found in message".to_string(),
+        ))
     }
 
     pub fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {

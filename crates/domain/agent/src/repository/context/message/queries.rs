@@ -10,7 +10,7 @@ use crate::repository::task::constructor::batch_queries;
 pub async fn get_messages_by_task(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
-) -> Result<Vec<Message>, RepositoryError> {
+) -> std::result::Result<Vec<Message>, RepositoryError> {
     let message_rows: Vec<crate::models::TaskMessage> = sqlx::query_as!(
         crate::models::TaskMessage,
         r#"SELECT
@@ -73,7 +73,7 @@ pub async fn get_messages_by_task(
 pub async fn get_messages_by_context(
     pool: &Arc<PgPool>,
     context_id: &ContextId,
-) -> Result<Vec<Message>, RepositoryError> {
+) -> std::result::Result<Vec<Message>, RepositoryError> {
     let message_rows: Vec<crate::models::TaskMessage> = sqlx::query_as!(
         crate::models::TaskMessage,
         r#"SELECT
@@ -132,7 +132,7 @@ pub async fn get_messages_by_context(
     Ok(messages)
 }
 
-pub async fn message_exists(pool: &Arc<PgPool>, message_id: &str) -> Result<bool, RepositoryError> {
+pub async fn message_exists(pool: &Arc<PgPool>, message_id: &str) -> std::result::Result<bool, RepositoryError> {
     let row = sqlx::query_scalar!(
         r#"SELECT EXISTS(SELECT 1 FROM task_messages WHERE message_id = $1)"#,
         message_id,
@@ -146,7 +146,7 @@ pub async fn message_exists(pool: &Arc<PgPool>, message_id: &str) -> Result<bool
 pub async fn get_next_sequence_number(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
-) -> Result<i32, RepositoryError> {
+) -> std::result::Result<i32, RepositoryError> {
     let row = sqlx::query!(
         r#"SELECT MAX(sequence_number) as "max_seq" FROM task_messages WHERE task_id = $1"#,
         task_id.as_str()
@@ -161,7 +161,7 @@ pub async fn get_next_sequence_number(
 pub async fn get_next_sequence_number_sqlx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     task_id: &TaskId,
-) -> Result<i32, RepositoryError> {
+) -> std::result::Result<i32, RepositoryError> {
     let row = sqlx::query!(
         r#"SELECT MAX(sequence_number) as "max_seq" FROM task_messages WHERE task_id = $1"#,
         task_id.as_str()
@@ -176,7 +176,7 @@ pub async fn get_next_sequence_number_sqlx(
 pub async fn get_next_sequence_number_in_tx(
     tx: &mut dyn systemprompt_database::DatabaseTransaction,
     task_id: &TaskId,
-) -> Result<i32, RepositoryError> {
+) -> std::result::Result<i32, RepositoryError> {
     let query: &str =
         "SELECT MAX(sequence_number) as max_seq FROM task_messages WHERE task_id = $1";
     let task_id_str = task_id.as_str();

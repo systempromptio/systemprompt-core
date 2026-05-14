@@ -148,7 +148,7 @@ pub async fn broadcast_artifact_created(
     context_id: &ContextId,
     user_id: &UserId,
     token: &str,
-) -> Result<(), crate::error::AgentError> {
+) -> std::result::Result<(), crate::error::AgentError> {
     let api_url = Config::get()
         .map_err(|e| crate::error::AgentError::Config(e.to_string()))?
         .api_internal_url

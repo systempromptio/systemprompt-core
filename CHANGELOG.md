@@ -1,8 +1,12 @@
 # Changelog
 
-## [0.10.0] - 2026-05-12
+## [0.10.0] - 2026-05-14
 
-Friction-reduction follow-ups from the 0.9.2 fresh-clone retro. Bumped to a minor because `SqlExecutor::parse_sql_statements` changes its public return type.
+Friction-reduction follow-ups from the 0.9.2 fresh-clone retro plus a structural rule for schema files. Bumped to a minor because schema files now have a hard linter at boot and `SqlExecutor::parse_sql_statements` changes its public return type.
+
+### Breaking
+
+- **Schema files must be purely declarative.** `<crate>/schema/<name>.sql` may contain only `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `CREATE [OR REPLACE] FUNCTION/VIEW/TRIGGER`, `CREATE TYPE`, `CREATE EXTENSION IF NOT EXISTS`, and `COMMENT ON`. `ALTER`, `DROP`, top-level `DO $$ … $$`, `UPDATE`/`INSERT`/`DELETE`, `TRUNCATE`, `GRANT`, and `REVOKE` are rejected at install time by `schema_linter::lint_declarative_schema` in `crates/infra/database`. Imperative state transitions move to `<crate>/schema/migrations/NNN_<name>.sql` declared via `Extension::migrations()`. The runner applies pending migrations BEFORE executing each extension's schema, so legacy databases reach the target shape before the schema's `CREATE … IF NOT EXISTS` runs. Pre-merge gate: `just lint-schema` (wired into `just check`). See `instructions/information/migrations.md`.
 
 ### Changed
 

@@ -1,2 +1,2 @@
 mod executor;
-mod schema_additivity;
+mod schema_linter;

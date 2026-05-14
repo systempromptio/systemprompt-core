@@ -107,8 +107,12 @@ release BUMP="patch":
     @[ -x scripts/release.sh ] || { echo "scripts/release.sh missing — see instructions/information/crates-publishing.md"; exit 1; }
     ./scripts/release.sh {{BUMP}}
 
+# Reject imperative SQL in declarative schema files
+lint-schema:
+    ./ci/lint-schema.sh crates
+
 # Check without building
-check:
+check: lint-schema
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)

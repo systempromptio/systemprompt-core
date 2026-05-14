@@ -102,7 +102,7 @@ impl MessageProcessor {
         let agent_config = registry
             .get_agent(agent_name)
             .await
-            .map_err(|_| AgentServiceError::Internal(format!("Agent not found"))?;
+            .map_err(|_| AgentServiceError::Internal("Agent not found".to_string()))?;
 
         Ok(agent_config.into())
     }

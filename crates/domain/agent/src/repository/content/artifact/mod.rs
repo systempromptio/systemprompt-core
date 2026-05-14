@@ -21,7 +21,7 @@ pub struct ArtifactRepository {
 }
 
 impl ArtifactRepository {
-    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
+    pub fn new(db: &DbPool) -> std::result::Result<Self, AgentError> {
         let pool = db.pool_arc().map_err(|e| AgentError::Init(e.to_string()))?;
         let write_pool = db
             .write_pool_arc()

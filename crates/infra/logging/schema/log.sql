@@ -32,8 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_context_timestamp ON logs(context_id, timest
 CREATE INDEX IF NOT EXISTS idx_logs_client_id ON logs(client_id);
 CREATE INDEX IF NOT EXISTS idx_logs_client_timestamp ON logs(client_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_client_level ON logs(client_id, level);
-DROP VIEW IF EXISTS v_log_analytics_by_client CASCADE;
-CREATE VIEW v_log_analytics_by_client AS
+CREATE OR REPLACE VIEW v_log_analytics_by_client AS
 SELECT
     client_id,
     level,
@@ -45,8 +44,7 @@ FROM logs
 WHERE client_id IS NOT NULL
 GROUP BY client_id, level, module
 ORDER BY log_count DESC;
-DROP VIEW IF EXISTS v_client_errors CASCADE;
-CREATE VIEW v_client_errors AS
+CREATE OR REPLACE VIEW v_client_errors AS
 SELECT
     client_id,
     COUNT(*) as error_count,

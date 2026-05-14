@@ -11,7 +11,7 @@ pub async fn agent_oauth_middleware(
     State(state): State<AgentOAuthState>,
     mut request: Request<axum::body::Body>,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> std::result::Result<Response, StatusCode> {
     let headers = request.headers();
     let has_auth_header = headers.get("authorization").is_some();
 
@@ -53,7 +53,7 @@ pub async fn agent_oauth_middleware_wrapper(
     State(handler_state): State<Arc<AgentHandlerState>>,
     request: Request<axum::body::Body>,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> std::result::Result<Response, StatusCode> {
     agent_oauth_middleware(
         State(handler_state.oauth_state.as_ref().clone()),
         request,

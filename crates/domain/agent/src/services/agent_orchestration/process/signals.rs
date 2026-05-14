@@ -38,7 +38,7 @@ pub fn terminate_process(pid: u32) -> Result<()> {
     use nix::unistd::Pid;
 
     signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
-        .with_context(|| format!("Failed to send SIGTERM to PID {pid}"))?;
+        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to send SIGTERM to PID {pid}"))))?;
 
     Ok(())
 }
@@ -48,7 +48,7 @@ pub fn terminate_process(pid: u32) -> Result<()> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string()])
         .output()
-        .with_context(|| format!("Failed to run taskkill for PID {pid}"))?;
+        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to run taskkill for PID {pid}"))))?;
 
     if !output.status.success() {
         return Err(AgentServiceError::Internal(format!("taskkill failed for PID {pid}")));
@@ -62,7 +62,7 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
     use nix::unistd::Pid;
 
     signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL)
-        .with_context(|| format!("Failed to send SIGKILL to PID {pid}"))?;
+        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to send SIGKILL to PID {pid}"))))?;
 
     Ok(())
 }
@@ -72,7 +72,7 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/F"])
         .output()
-        .with_context(|| format!("Failed to force-kill PID {pid}"))?;
+        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to force-kill PID {pid}"))))?;
 
     if !output.status.success() {
         return Err(AgentServiceError::Internal(format!("taskkill /F failed for PID {pid}")));
@@ -124,9 +124,8 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
     }
 
     Err(AgentServiceError::Internal(format!(
-        "Failed to kill process {} even with SIGKILL",
-        pid
-    ))
+        "Failed to kill process {pid} even with SIGKILL"
+    )))
 }
 
 pub fn kill_process(pid: u32) -> bool {

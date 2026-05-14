@@ -1,23 +1,37 @@
 //! Schema installation from compile-time-registered
-//! [`systemprompt_extension::Extension`] instances (the modern path).
+//! [`systemprompt_extension::Extension`] instances.
 //!
-//! Invariants:
-//! - Every `SchemaDefinition.sql` is executed on every boot. Schemas are
-//!   expected to be idempotent (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF
-//!   NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`). The previous "skip if table
-//!   already exists" optimisation silently dropped post-install ALTERs and
-//!   defeated the safety-net pattern; it is intentionally gone.
+//! Architectural invariant — declarative schema vs. imperative migration:
+//! - `schema/*.sql` files are **pure declarative target state**: only
+//!   idempotent `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`,
+//!   `CREATE [OR REPLACE] FUNCTION/VIEW/TRIGGER`, `CREATE TYPE`, and
+//!   `CREATE EXTENSION IF NOT EXISTS` statements. The runner lints each
+//!   schema before execution and **hard-rejects** `ALTER TABLE`, `DROP`,
+//!   top-level `DO $$` blocks, `UPDATE`/`INSERT`/`DELETE`, `TRUNCATE`,
+//!   `GRANT`/`REVOKE`, and renames. Imperative state transitions belong
+//!   in `schema/migrations/NNN_<name>.sql` declared via
+//!   [`Extension::migrations`].
+//! - Install order per extension is **migrations first, then schema**.
+//!   Migrations bring legacy tables to the current shape; the schema then
+//!   sees a target-state-compliant table and every `CREATE … IF NOT
+//!   EXISTS` is a clean no-op. This is the same separation Diesel,
+//!   Alembic, Flyway, and `sqlx migrate` converged on — for the same
+//!   reason: mixing them produces 3 a.m. `column "x" does not exist`
+//!   failures on legacy databases.
+//! - Every `SchemaDefinition.sql` runs on every boot. Schemas are
+//!   expected to be idempotent by construction (the linter enforces it).
 //! - The full set of statements for one extension runs inside a single
-//!   transaction. On failure, the transaction is rolled back and the failing
-//!   statement (with its 1-based index and SQL text) is surfaced in the error.
-//! - A session-scoped advisory lock serialises concurrent boot processes so
-//!   rolling deploys or accidental double-invocations cannot interleave DDL.
+//!   transaction. On failure, the transaction is rolled back and the
+//!   failing statement (with its 1-based index and SQL text) is surfaced.
+//! - A session-scoped advisory lock serialises concurrent boot processes
+//!   so rolling deploys or accidental double-invocations cannot
+//!   interleave DDL.
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info};
 
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
-use crate::services::schema_additivity::{compute_additive_alters, parse_declared_tables};
+use crate::services::schema_linter::lint_declarative_schema;
 use crate::services::{DatabaseProvider, SqlExecutor};
 
 /// Stable 64-bit key for `pg_advisory_lock`. Chosen as a constant so all
@@ -85,17 +99,17 @@ async fn run_install(
     let migration_service = MigrationService::new(db).with_config(migration_config);
 
     for ext in schema_extensions {
-        install_extension_schema(ext.as_ref(), db).await?;
-
         if ext.has_migrations() {
             debug!(
                 extension = %ext.id(),
-                "Running pending migrations"
+                "Running pending migrations before schema install"
             );
             migration_service
                 .run_pending_migrations(ext.as_ref())
                 .await?;
         }
+
+        install_extension_schema(ext.as_ref(), db).await?;
     }
     Ok(())
 }
@@ -120,13 +134,33 @@ async fn install_extension_schema(
 
     let mut all_sql = Vec::new();
     let mut schemas_to_validate = Vec::new();
+    let mut lint_errors: Vec<String> = Vec::new();
 
     for schema in &schemas {
+        let source = schema.table.as_str();
+        if let Err(errors) = lint_declarative_schema(&schema.sql, source) {
+            for err in errors {
+                lint_errors.push(err.to_string());
+            }
+        }
+
         all_sql.push(schema.sql.as_str());
 
         if !schema.required_columns.is_empty() {
             schemas_to_validate.push(schema);
         }
+    }
+
+    if !lint_errors.is_empty() {
+        return Err(LoaderError::SchemaInstallationFailed {
+            extension: extension_id,
+            message: format!(
+                "Imperative SQL detected in declarative schema. Move offending \
+                 statements to schema/migrations/NNN_<name>.sql and declare them \
+                 via Extension::migrations():\n{}",
+                lint_errors.join("\n")
+            ),
+        });
     }
 
     let combined = all_sql.join("\n");
@@ -137,25 +171,7 @@ async fn install_extension_schema(
         }
     })?;
 
-    let declared_tables = parse_declared_tables(&combined);
-    let additive_alters = compute_additive_alters(db, &declared_tables)
-        .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: extension_id.clone(),
-            message: format!("Schema-additivity check failed: {e}"),
-        })?;
-    for alter in &additive_alters {
-        debug!(
-            extension = %extension_id,
-            sql = %alter,
-            "Auto-emitting additive ALTER for legacy table"
-        );
-    }
-
-    let mut statements = additive_alters;
-    statements.extend(parsed);
-
-    execute_statements_transactional(db, &statements, &extension_id).await?;
+    execute_statements_transactional(db, &parsed, &extension_id).await?;
 
     for schema in schemas_to_validate {
         validate_extension_columns(db, &schema.table, &schema.required_columns, &extension_id)

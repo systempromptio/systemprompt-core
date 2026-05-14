@@ -23,12 +23,6 @@ CREATE TABLE IF NOT EXISTS markdown_content (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE markdown_content
-    ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'en';
-
-ALTER TABLE markdown_content DROP CONSTRAINT IF EXISTS markdown_content_slug_key;
-DROP INDEX IF EXISTS idx_markdown_content_slug;
-
 CREATE INDEX IF NOT EXISTS idx_markdown_content_category ON markdown_content(category_id);
 CREATE INDEX IF NOT EXISTS idx_markdown_content_source ON markdown_content(source_id);
 CREATE INDEX IF NOT EXISTS idx_markdown_content_published ON markdown_content(published_at DESC);

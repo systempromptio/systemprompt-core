@@ -12,7 +12,7 @@ use systemprompt_traits::RepositoryError;
 pub async fn rows_to_artifacts_batch(
     pool: &Arc<PgPool>,
     rows: Vec<ArtifactRow>,
-) -> Result<Vec<Artifact>, RepositoryError> {
+) -> std::result::Result<Vec<Artifact>, RepositoryError> {
     if rows.is_empty() {
         return Ok(Vec::new());
     }
@@ -43,7 +43,7 @@ pub async fn rows_to_artifacts_batch(
 fn convert_artifact_part_row(
     part_kind: &str,
     row: &crate::models::ArtifactPartRow,
-) -> Result<Part, RepositoryError> {
+) -> std::result::Result<Part, RepositoryError> {
     match part_kind {
         "text" => {
             let text = row

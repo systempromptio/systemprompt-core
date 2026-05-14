@@ -10,7 +10,7 @@ pub async fn complete_task(
     db_pool: &DbPool,
     task_id: &TaskId,
     jwt_token: &str,
-) -> Result<(), McpError> {
+) -> std::result::Result<(), McpError> {
     if let Err(e) = trigger_task_completion_broadcast(db_pool, task_id, jwt_token).await {
         tracing::error!(
             task_id = %task_id.as_str(),
@@ -26,7 +26,7 @@ async fn trigger_task_completion_broadcast(
     db_pool: &DbPool,
     task_id: &TaskId,
     jwt_token: &str,
-) -> Result<(), McpError> {
+) -> std::result::Result<(), McpError> {
     let task_repo = TaskRepository::new(db_pool).map_err(|e| {
         McpError::internal_error(format!("Failed to create task repository: {e}"), None)
     })?;

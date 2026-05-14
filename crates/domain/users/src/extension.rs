@@ -124,6 +124,11 @@ impl Extension for UsersExtension {
                 "add_user_sessions_is_ai_crawler",
                 MIGRATION_002_IS_AI_CRAWLER,
             ),
+            Migration::new(
+                3,
+                "rebuild_clean_traffic_index",
+                include_str!("../schema/migrations/003_rebuild_clean_traffic_index.sql"),
+            ),
         ]
     }
 }

@@ -44,7 +44,7 @@ impl ToolProvider for AiServiceToolProvider {
         self.ai_service
             .list_available_tools_for_agent(agent_name, context)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("{}", e))
+            .map_err(|e| AgentServiceError::Internal(format!("{e}")))
     }
 }
 
@@ -102,7 +102,7 @@ impl ArtifactBuilder {
                         },
                     )
                     .map_err(|e| {
-                        AgentServiceError::Internal(format!("Tool '{}' artifact transform failed: {e}", tool_call.name)
+                        AgentServiceError::Internal(format!("Tool '{}' artifact transform failed: {e}", tool_call.name))
                     })?;
 
                     artifact.metadata = artifact.metadata.with_execution_index(index);

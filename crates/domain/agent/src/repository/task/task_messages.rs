@@ -8,35 +8,35 @@ use crate::repository::context::message::{
 use systemprompt_traits::RepositoryError;
 
 impl TaskRepository {
-    pub async fn message_exists(&self, message_id: &str) -> Result<bool, RepositoryError> {
+    pub async fn message_exists(&self, message_id: &str) -> std::result::Result<bool, RepositoryError> {
         message_exists(&self.pool, message_id).await
     }
 
     pub async fn get_next_sequence_number(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
-    ) -> Result<i32, RepositoryError> {
+    ) -> std::result::Result<i32, RepositoryError> {
         get_next_sequence_number(&self.pool, task_id).await
     }
 
     pub async fn get_messages_by_task(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
-    ) -> Result<Vec<Message>, RepositoryError> {
+    ) -> std::result::Result<Vec<Message>, RepositoryError> {
         get_messages_by_task(&self.pool, task_id).await
     }
 
     pub async fn get_message_parts(
         &self,
         message_id: &systemprompt_identifiers::MessageId,
-    ) -> Result<Vec<Part>, RepositoryError> {
+    ) -> std::result::Result<Vec<Part>, RepositoryError> {
         get_message_parts(&self.pool, message_id).await
     }
 
     pub async fn get_messages_by_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
-    ) -> Result<Vec<Message>, RepositoryError> {
+    ) -> std::result::Result<Vec<Message>, RepositoryError> {
         get_messages_by_context(&self.pool, context_id).await
     }
 
@@ -44,14 +44,14 @@ impl TaskRepository {
         &self,
         tx: &mut dyn systemprompt_database::DatabaseTransaction,
         task_id: &systemprompt_identifiers::TaskId,
-    ) -> Result<i32, RepositoryError> {
+    ) -> std::result::Result<i32, RepositoryError> {
         get_next_sequence_number_in_tx(tx, task_id).await
     }
 
     pub async fn persist_message_with_tx(
         &self,
         params: PersistMessageWithTxParams<'_>,
-    ) -> Result<(), RepositoryError> {
+    ) -> std::result::Result<(), RepositoryError> {
         persist_message_with_tx(params).await
     }
 }

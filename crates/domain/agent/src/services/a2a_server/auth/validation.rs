@@ -15,14 +15,16 @@ pub async fn validate_agent_token(
     let jwt_provider = state
         .jwt_provider
         .as_ref()
-        .ok_or_else(|| AgentServiceError::Internal(format!("JWT provider not configured"))?;
+        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_string()))?;
 
     let claims = jwt_provider
         .validate_token(token)
-        .map_err(|e| AgentServiceError::Internal(format!("Invalid or expired JWT token: {}", e))?;
+        .map_err(|e| AgentServiceError::Internal(format!("Invalid or expired JWT token: {e}")))?;
 
     if !claims.has_audience("a2a") {
-        return Err(AgentServiceError::Internal(format!("Token does not support A2A protocol"));
+        return Err(AgentServiceError::Internal(
+            "Token does not support A2A protocol".to_string(),
+        ));
     }
 
     if let Some(ref user_provider) = state.user_provider {
@@ -48,7 +50,7 @@ pub async fn generate_agent_token(
     let jwt_provider = state
         .jwt_provider
         .as_ref()
-        .ok_or_else(|| AgentServiceError::Internal(format!("JWT provider not configured"))?;
+        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_string()))?;
 
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
 
@@ -59,7 +61,7 @@ pub async fn generate_agent_token(
 
     jwt_provider
         .generate_token(params)
-        .map_err(|e| AgentServiceError::Internal(format!("Failed to generate A2A JWT token: {}", e))
+        .map_err(|e| AgentServiceError::Internal(format!("Failed to generate A2A JWT token: {e}")))
 }
 
 pub async fn generate_cross_protocol_token(
@@ -70,7 +72,7 @@ pub async fn generate_cross_protocol_token(
     let jwt_provider = state
         .jwt_provider
         .as_ref()
-        .ok_or_else(|| AgentServiceError::Internal(format!("JWT provider not configured"))?;
+        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_string()))?;
 
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
 
@@ -81,7 +83,9 @@ pub async fn generate_cross_protocol_token(
 
     jwt_provider
         .generate_token(params)
-        .map_err(|e| AgentServiceError::Internal(format!("Failed to generate cross-protocol JWT token: {}", e))
+        .map_err(|e| {
+            AgentServiceError::Internal(format!("Failed to generate cross-protocol JWT token: {e}"))
+        })
 }
 
 async fn verify_user_exists_and_active(
@@ -92,14 +96,14 @@ async fn verify_user_exists_and_active(
     let user = user_provider
         .find_by_id(&subject_id)
         .await
-        .map_err(|e| AgentServiceError::Internal(format!("Failed to lookup user in database: {}", e))?;
+        .map_err(|e| AgentServiceError::Internal(format!("Failed to lookup user in database: {e}")))?;
 
     let Some(user) = user else {
         tracing::warn!(
             user_id = %claims.subject,
             "User ID from token not found in database"
         );
-        return Err(AgentServiceError::Internal(format!("User not found"));
+        return Err(AgentServiceError::Internal("User not found".to_string()));
     };
 
     if !user.is_active {
@@ -108,7 +112,9 @@ async fn verify_user_exists_and_active(
             is_active = user.is_active,
             "User has non-active status"
         );
-        return Err(AgentServiceError::Internal(format!("User account is not active"));
+        return Err(AgentServiceError::Internal(
+            "User account is not active".to_string(),
+        ));
     }
 
     Ok(user)
@@ -131,13 +137,18 @@ fn verify_a2a_permissions(claims: &AgentJwtClaims, user: &AuthUser) -> Result<()
         .collect();
 
     if db_permissions.is_empty() {
-        return Err(AgentServiceError::Internal(format!("User {} has no valid permissions", user.id));
+        return Err(AgentServiceError::Internal(format!(
+            "User {} has no valid permissions",
+            user.id
+        )));
     }
 
     let db_has_admin_permission = db_permissions.contains(&Permission::Admin);
 
     if !token_has_admin_permission && !db_has_admin_permission {
-        return Err(AgentServiceError::Internal(format!("User lacks required A2A permissions"));
+        return Err(AgentServiceError::Internal(
+            "User lacks required A2A permissions".to_string(),
+        ));
     }
 
     Ok(())
@@ -167,7 +178,7 @@ pub async fn validate_oauth_for_request(
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
     required_scopes: &[Permission],
     jwt_provider: Option<&std::sync::Arc<dyn systemprompt_traits::JwtValidationProvider>>,
-) -> Result<Option<serde_json::Value>, (StatusCode, serde_json::Value)> {
+) -> std::result::Result<Option<serde_json::Value>, (StatusCode, serde_json::Value)> {
     let token = match extract_bearer_token(headers) {
         Some(t) if !t.is_empty() => t,
         _ => {
