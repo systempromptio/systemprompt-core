@@ -26,7 +26,6 @@ geolocation = ["dep:maxminddb"]
 [dependencies]
 # Core runtime
 tokio = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }

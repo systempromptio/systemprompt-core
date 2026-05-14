@@ -25,7 +25,6 @@ indexmap = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }
-anyhow = { workspace = true }
 async-trait = { workspace = true }
 
 # Logging

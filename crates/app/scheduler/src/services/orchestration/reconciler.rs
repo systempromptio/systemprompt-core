@@ -67,7 +67,7 @@ impl ServiceReconciler {
     ) -> SchedulerResult<ReconciliationResult>
     where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = anyhow::Result<()>> + Send,
+        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         let states = self.state_manager.get_verified_states(configs).await?;
         let mut result = ReconciliationResult::new();
@@ -87,7 +87,7 @@ impl ServiceReconciler {
         result: &mut ReconciliationResult,
     ) where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = anyhow::Result<()>> + Send,
+        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         match state.needs_action {
             ServiceAction::None => {},
@@ -116,7 +116,7 @@ impl ServiceReconciler {
         result: &mut ReconciliationResult,
     ) where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = anyhow::Result<()>> + Send,
+        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         match start_service(state.name.clone(), state.port).await {
             Ok(()) => result.started.push(state.name),
@@ -138,7 +138,7 @@ impl ServiceReconciler {
         result: &mut ReconciliationResult,
     ) where
         F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = anyhow::Result<()>> + Send,
+        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
         if let Err(e) = self.stop_service(&state).await {
             result.failed.push((state.name, e.to_string()));

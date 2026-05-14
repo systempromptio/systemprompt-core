@@ -41,7 +41,6 @@ serde_yaml = { workspace = true }
 
 
 # Utilities
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }

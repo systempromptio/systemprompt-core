@@ -100,7 +100,7 @@ impl SchedulerError {
 
 impl From<SchedulerError> for systemprompt_provider_contracts::ProviderError {
     fn from(err: SchedulerError) -> Self {
-        Self::Internal(anyhow::Error::new(err))
+        Self::Internal(err.to_string())
     }
 }
 
