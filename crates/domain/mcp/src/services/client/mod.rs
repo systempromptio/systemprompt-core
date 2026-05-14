@@ -1,5 +1,4 @@
 use crate::error::McpDomainResult;
-use anyhow::Context;
 use rmcp::handler::client::progress::ProgressDispatcher;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProgressNotificationParam};
 use rmcp::service::NotificationContext;

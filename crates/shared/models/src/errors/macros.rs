@@ -151,18 +151,6 @@ macro_rules! __domain_error_emit {
             }
         }
     };
-    (@attrs [$($attrs:tt)*] @name $name:ident @commons [anyhow $($rest:ident)*] @body { $($body:tt)* }) => {
-        $crate::__domain_error_emit! {
-            @attrs [$($attrs)*]
-            @name $name
-            @commons [$($rest)*]
-            @body {
-                #[error("{0}")]
-                Other(#[from] ::anyhow::Error),
-                $($body)*
-            }
-        }
-    };
     (@attrs [$($attrs:tt)*] @name $name:ident @commons [] @body { $($body:tt)* }) => {
         $($attrs)*
         #[derive(::std::fmt::Debug, ::thiserror::Error)]

@@ -24,7 +24,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Core dependencies
 tokio = { workspace = true, features = ["signal"] }
 tokio-util = { workspace = true }
-anyhow = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

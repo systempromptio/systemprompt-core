@@ -1,5 +1,4 @@
 use crate::error::McpDomainResult;
-use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use systemprompt_database::DatabaseProvider;

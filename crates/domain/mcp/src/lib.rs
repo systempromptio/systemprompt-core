@@ -28,7 +28,9 @@
 //!
 //! All public APIs return [`McpDomainResult`] — a typed `Result` aliased over
 //! [`McpDomainError`]. External error types (`sqlx`, `serde_json`, `io`,
-//! `anyhow`) are composed via `#[from]` on the error enum.
+//! join errors) are composed via `#[from]` on the error enum. Third-party
+//! errors without a typed adapter are converted at the boundary with
+//! `.map_err(|e| McpDomainError::Internal(e.to_string()))`.
 
 pub(crate) mod capabilities;
 pub(crate) mod cli;
