@@ -1,5 +1,4 @@
-DROP VIEW IF EXISTS v_preconversion_engagement CASCADE;
-CREATE VIEW v_preconversion_engagement AS
+CREATE OR REPLACE VIEW v_preconversion_engagement AS
 SELECT
     s.session_id,
     s.user_id,
@@ -16,8 +15,7 @@ WHERE s.user_type = 'registered'
 GROUP BY s.session_id, s.user_id, s.started_at, s.converted_at
 ORDER BY s.converted_at DESC;
 
-DROP VIEW IF EXISTS v_conversion_funnel CASCADE;
-CREATE VIEW v_conversion_funnel AS
+CREATE OR REPLACE VIEW v_conversion_funnel AS
 SELECT
     'Total Anonymous Sessions' as stage,
     COUNT(*) as count,
@@ -61,8 +59,7 @@ SELECT
 FROM user_sessions
 WHERE user_type = 'registered' AND converted_at IS NOT NULL;
 
-DROP VIEW IF EXISTS v_active_anonymous_sessions CASCADE;
-CREATE VIEW v_active_anonymous_sessions AS
+CREATE OR REPLACE VIEW v_active_anonymous_sessions AS
 SELECT
     s.session_id,
     s.user_id,

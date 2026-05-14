@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, TrackedStep};
 
@@ -10,7 +10,7 @@ pub async fn handle_direct_response(
     response_text: String,
     exec_ctx: &ExecutionContext,
     tracking: &ExecutionTrackingService,
-    planning_tracked: Result<(TrackedStep, ExecutionStep), anyhow::Error>,
+    planning_tracked: Result<(TrackedStep, ExecutionStep), AgentServiceError>,
     task_id: TaskId,
 ) -> Result<ExecutionResult> {
     if let Ok((tracked, _)) = planning_tracked {

@@ -66,10 +66,4 @@ impl From<reqwest::Error> for AgentServiceError {
     }
 }
 
-impl From<anyhow::Error> for AgentServiceError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Configuration("unknown".to_string(), err.to_string())
-    }
-}
-
 pub type Result<T> = std::result::Result<T, AgentServiceError>;

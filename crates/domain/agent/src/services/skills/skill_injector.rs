@@ -1,5 +1,5 @@
 use crate::services::skills::{SkillMetadata, SkillService};
-use anyhow::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 use systemprompt_identifiers::SkillId;
 use systemprompt_models::execution::context::RequestContext;

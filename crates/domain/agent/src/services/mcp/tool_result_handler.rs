@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use std::fmt;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::ai::tools::CallToolResult;
@@ -50,7 +50,7 @@ impl ToolResultHandler {
             context,
         } = params;
         if !context.is_authenticated() || context.is_system() {
-            return Err(anyhow!(
+            return Err(AgentServiceError::Internal(format!(
                 "Invalid user - unauthenticated and system users cannot create artifacts"
             ));
         }
@@ -72,12 +72,12 @@ impl ToolResultHandler {
                 task_id: task_id.as_str(),
                 tool_arguments: *tool_arguments,
             })
-            .map_err(|e| anyhow::anyhow!("Artifact transform failed: {}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("Artifact transform failed: {}", e))?;
 
         artifact
             .metadata
             .validate()
-            .map_err(|e| anyhow::anyhow!("Artifact metadata validation failed: {}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("Artifact metadata validation failed: {}", e))?;
 
         tracing::info!(
             artifact_id = %artifact.id,

@@ -3,7 +3,7 @@
 
 mod parse;
 
-use anyhow::{Context, Result};
+use systemprompt_traits::RepositoryError;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -37,7 +37,7 @@ impl ExecutionStepRepository {
         let step_type_str = step.content.step_type().to_string();
         let title = step.content.title();
         let content_json =
-            serde_json::to_value(&step.content).context("Failed to serialize step content")?;
+            serde_json::to_value(&step.content).map_err(|e| RepositoryError::Internal(format!("Failed to serialize step content: {e}")))?;
         sqlx::query!(
             r#"INSERT INTO task_execution_steps (
                 step_id, task_id, step_type, title, status, content, started_at, completed_at, duration_ms, error_message
@@ -55,7 +55,7 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .context("Failed to create execution step")?;
+        .map_err(|e| RepositoryError::Internal(format!("Failed to create execution step: {e}")))?;
         Ok(())
     }
 
@@ -239,7 +239,7 @@ impl ExecutionStepRepository {
 
         let content = StepContent::planning(reasoning, planned_tools);
         let content_json =
-            serde_json::to_value(&content).context("Failed to serialize planning content")?;
+            serde_json::to_value(&content).map_err(|e| RepositoryError::Internal(format!("Failed to serialize planning content: {e}")))?;
 
         let row = sqlx::query!(
             r#"UPDATE task_execution_steps SET
@@ -279,7 +279,7 @@ impl ExecutionStepRepository {
         )
         .fetch_one(&*self.pool)
         .await
-        .context("Failed to check mcp_execution_id existence")?;
+        .map_err(|e| RepositoryError::Internal(format!("Failed to check mcp_execution_id existence: {e}")))?;
 
         Ok(exists)
     }

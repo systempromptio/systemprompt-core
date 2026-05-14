@@ -1,6 +1,6 @@
 //! Cross-platform process probing and termination primitives.
 
-use anyhow::{Context, Result};
+use crate::services::shared::{AgentServiceError, Result};
 #[cfg(windows)]
 use std::process::Command;
 
@@ -51,7 +51,7 @@ pub fn terminate_process(pid: u32) -> Result<()> {
         .with_context(|| format!("Failed to run taskkill for PID {pid}"))?;
 
     if !output.status.success() {
-        anyhow::bail!("taskkill failed for PID {pid}");
+        return Err(AgentServiceError::Internal(format!("taskkill failed for PID {pid}")));
     }
     Ok(())
 }
@@ -75,7 +75,7 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
         .with_context(|| format!("Failed to force-kill PID {pid}"))?;
 
     if !output.status.success() {
-        anyhow::bail!("taskkill /F failed for PID {pid}");
+        return Err(AgentServiceError::Internal(format!("taskkill /F failed for PID {pid}")));
     }
     Ok(())
 }
@@ -123,7 +123,7 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
         tokio::time::sleep(check_interval).await;
     }
 
-    Err(anyhow::anyhow!(
+    Err(AgentServiceError::Internal(format!(
         "Failed to kill process {} even with SIGKILL",
         pid
     ))

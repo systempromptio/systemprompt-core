@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
+use crate::services::shared::{AgentServiceError, Result};
 use uuid::Uuid;
 
 use super::persistence::{broadcast_completion, persist_completed_task};
@@ -32,7 +32,7 @@ impl MessageProcessor {
             .get_context(context_id, context.user_id())
             .await
             .map_err(|e| {
-                anyhow!(
+                AgentServiceError::Internal(format!(
                     "Context validation failed - context_id: {}, user_id: {}, error: {}",
                     context_id,
                     context.user_id(),
@@ -86,7 +86,7 @@ impl MessageProcessor {
             })
             .await
         {
-            return Err(anyhow!("Failed to persist task at start: {}", e));
+            return Err(AgentServiceError::Internal(format!("Failed to persist task at start: {}", e));
         }
 
         tracing::info!(task_id = %task_id, "Task persisted to database");
@@ -156,7 +156,7 @@ impl MessageProcessor {
                     {
                         tracing::debug!(error = %e, "Failed to broadcast error event");
                     }
-                    return Err(anyhow!(error));
+                    return Err(AgentServiceError::Internal(format!(error));
                 },
                 _ => {},
             }

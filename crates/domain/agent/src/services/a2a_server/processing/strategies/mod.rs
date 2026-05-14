@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;

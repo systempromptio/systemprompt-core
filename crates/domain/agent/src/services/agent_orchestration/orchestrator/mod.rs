@@ -2,7 +2,7 @@ mod cleanup;
 mod daemon;
 mod status;
 
-use anyhow::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 use tokio::sync::broadcast;
@@ -69,7 +69,7 @@ impl AgentOrchestrator {
         let db_service = AgentDatabaseService::new(agent_repo)?;
         let lifecycle = AgentLifecycle::new(db_pool, app_paths)
             .map_err(|e| {
-                crate::services::agent_orchestration::OrchestrationError::Generic(anyhow::anyhow!(
+                crate::services::agent_orchestration::OrchestrationError::Generic(AgentServiceError::Internal(format!(
                     e.to_string()
                 ))
             })?

@@ -4,7 +4,7 @@ mod tool_execution;
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::AiMessage;
@@ -56,7 +56,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
             .ai_service
             .list_available_tools_for_agent(&context.agent_name, &context.request_ctx)
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("{}", e))?;
 
         tracing::info!(tool_count = tools.len(), "Available tools");
 
@@ -86,7 +86,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                         tracing::warn!(error = %fail_err, "Failed to record planning failure");
                     }
                 }
-                return Err(anyhow::anyhow!("{}", e));
+                return Err(AgentServiceError::Internal(format!("{}", e));
             },
         };
 

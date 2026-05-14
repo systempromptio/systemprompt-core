@@ -111,7 +111,7 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
 
 pub async fn handle_stream_creation_error(
     webhook_context: &WebhookContext,
-    error: anyhow::Error,
+    error: AgentServiceError,
     task_id: &TaskId,
     _context_id: &ContextId,
     task_repo: &TaskRepository,
