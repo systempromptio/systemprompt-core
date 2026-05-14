@@ -3,8 +3,9 @@
 //! This module hosts `thiserror`-derived enums returned by the public
 //! surface of this crate. Public APIs never return `anyhow::Error`; they
 //! convert to one of the typed enums declared here. Downstream entry
-//! crates that use `anyhow` continue to consume these errors transparently
-//! via `?` because every enum implements `std::error::Error`.
+//! crates that use `anyhow` (`entry/cli`, `entry/api`) continue to consume
+//! these errors transparently via `?` because every enum implements
+//! `std::error::Error`.
 //!
 //! Public re-exports:
 //!

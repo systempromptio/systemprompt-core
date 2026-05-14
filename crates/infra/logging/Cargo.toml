@@ -19,7 +19,6 @@ workspace = true
 [dependencies]
 # Core dependencies
 tokio = { workspace = true }
-anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 serde = { workspace = true }

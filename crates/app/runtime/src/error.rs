@@ -6,10 +6,9 @@
 //! extensions) via `#[from]` so callers can pattern-match on the original
 //! cause without losing fidelity.
 //!
-//! Calls into upstream crates that still return `anyhow::Result` (for
-//! example schema/seed installation and database connectivity probes)
-//! are stringified into the [`RuntimeError::Internal`] variant at the
-//! call site so the lossy conversion is visible.
+//! Third-party errors without a `#[from]` adapter are stringified into
+//! the [`RuntimeError::Internal`] variant at the call site so the lossy
+//! conversion is visible.
 
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::{ConfigError as ProfileConfigError, ProfileBootstrapError};
