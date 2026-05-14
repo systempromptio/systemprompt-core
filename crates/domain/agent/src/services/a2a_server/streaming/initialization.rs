@@ -81,7 +81,7 @@ pub fn resolve_task_id(message: &Message) -> TaskId {
         .unwrap_or_else(|| TaskId::new(Uuid::new_v4().to_string()))
 }
 
-pub async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> std::result::Result<StreamSetupResult, ()> {
+pub async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> Result<StreamSetupResult, ()> {
     let StreamInput {
         message,
         agent_name,

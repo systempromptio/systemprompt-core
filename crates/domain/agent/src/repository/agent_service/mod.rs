@@ -34,7 +34,7 @@ pub struct AgentServiceRepository {
 }
 
 impl AgentServiceRepository {
-    pub fn new(db: &DbPool) -> std::result::Result<Self, AgentError> {
+    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
         let pool = db.pool_arc().map_err(|e| AgentError::Init(e.to_string()))?;
         let write_pool = db
             .write_pool_arc()
@@ -47,7 +47,7 @@ impl AgentServiceRepository {
         name: &str,
         pid: u32,
         port: u16,
-    ) -> std::result::Result<String, RepositoryError> {
+    ) -> Result<String, RepositoryError> {
         self.remove_agent_service(name).await?;
 
         let pool = &self.write_pool;
@@ -75,7 +75,7 @@ impl AgentServiceRepository {
         name: &str,
         pid: u32,
         port: u16,
-    ) -> std::result::Result<String, RepositoryError> {
+    ) -> Result<String, RepositoryError> {
         self.remove_agent_service(name).await?;
 
         let pool = &self.write_pool;
@@ -98,7 +98,7 @@ impl AgentServiceRepository {
         Ok(name.to_string())
     }
 
-    pub async fn mark_running(&self, agent_name: &str) -> std::result::Result<(), RepositoryError> {
+    pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
         let pool = &self.write_pool;
 
         sqlx::query!(
@@ -116,7 +116,7 @@ impl AgentServiceRepository {
     pub async fn get_agent_status(
         &self,
         agent_name: &str,
-    ) -> std::result::Result<Option<AgentServiceRow>, RepositoryError> {
+    ) -> Result<Option<AgentServiceRow>, RepositoryError> {
         let pool = &self.pool;
 
         let row = sqlx::query!(
@@ -135,7 +135,7 @@ impl AgentServiceRepository {
         }))
     }
 
-    pub async fn mark_crashed(&self, agent_name: &str) -> std::result::Result<(), RepositoryError> {
+    pub async fn mark_crashed(&self, agent_name: &str) -> Result<(), RepositoryError> {
         let pool = &self.write_pool;
 
         sqlx::query!(
@@ -150,7 +150,7 @@ impl AgentServiceRepository {
         Ok(())
     }
 
-    pub async fn mark_stopped(&self, agent_name: &str) -> std::result::Result<(), RepositoryError> {
+    pub async fn mark_stopped(&self, agent_name: &str) -> Result<(), RepositoryError> {
         let pool = &self.write_pool;
 
         sqlx::query!(
@@ -165,7 +165,7 @@ impl AgentServiceRepository {
         Ok(())
     }
 
-    pub async fn mark_error(&self, agent_name: &str) -> std::result::Result<(), RepositoryError> {
+    pub async fn mark_error(&self, agent_name: &str) -> Result<(), RepositoryError> {
         let pool = &self.write_pool;
 
         sqlx::query!(
@@ -180,7 +180,7 @@ impl AgentServiceRepository {
         Ok(())
     }
 
-    pub async fn list_running_agents(&self) -> std::result::Result<Vec<AgentServerIdRow>, RepositoryError> {
+    pub async fn list_running_agents(&self) -> Result<Vec<AgentServerIdRow>, RepositoryError> {
         let pool = &self.pool;
 
         let rows = sqlx::query!("SELECT name FROM services WHERE status = 'running'")
@@ -196,7 +196,7 @@ impl AgentServiceRepository {
 
     pub async fn list_running_agent_pids(
         &self,
-    ) -> std::result::Result<Vec<AgentServerIdPidRow>, RepositoryError> {
+    ) -> Result<Vec<AgentServerIdPidRow>, RepositoryError> {
         let pool = &self.pool;
 
         let rows = sqlx::query!(
@@ -212,7 +212,7 @@ impl AgentServiceRepository {
             .collect())
     }
 
-    pub async fn remove_agent_service(&self, agent_name: &str) -> std::result::Result<(), RepositoryError> {
+    pub async fn remove_agent_service(&self, agent_name: &str) -> Result<(), RepositoryError> {
         let pool = &self.write_pool;
 
         sqlx::query!("DELETE FROM services WHERE name = $1", agent_name)
@@ -227,7 +227,7 @@ impl AgentServiceRepository {
         &self,
         agent_name: &str,
         health_status: &str,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         let pool = &self.write_pool;
 
         sqlx::query!(

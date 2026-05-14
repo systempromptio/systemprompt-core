@@ -26,7 +26,7 @@ pub async fn ensure_task_exists(
     request_context: &mut systemprompt_models::execution::context::RequestContext,
     tool_name: &str,
     mcp_server_name: &str,
-) -> std::result::Result<TaskResult, McpError> {
+) -> Result<TaskResult, McpError> {
     if let Some(task_id) = request_context.task_id() {
         tracing::info!(task_id = %task_id.as_str(), "Task reused from parent");
         return Ok(TaskResult {

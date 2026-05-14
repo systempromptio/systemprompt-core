@@ -1,7 +1,7 @@
 //! Build the `Command` used to spawn a detached agent subprocess and rotate its
 //! log file.
 
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;

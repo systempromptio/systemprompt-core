@@ -1,4 +1,4 @@
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use async_trait::async_trait;
 use rmcp::model::Content;
 use serde_json::Value;

@@ -11,7 +11,7 @@ pub struct AgentRegistryProviderService {
 }
 
 impl AgentRegistryProviderService {
-    pub fn new() -> std::result::Result<Self, RegistryError> {
+    pub fn new() -> Result<Self, RegistryError> {
         let registry =
             AgentRegistry::new().map_err(|e| RegistryError::Unavailable(e.to_string()))?;
 
@@ -25,7 +25,7 @@ impl AgentRegistryProviderService {
 
 #[async_trait]
 impl AgentRegistryProvider for AgentRegistryProviderService {
-    async fn get_agent(&self, name: &str) -> std::result::Result<AgentInfo, RegistryError> {
+    async fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
         let agent = self
             .registry
             .get_agent(name)
@@ -44,7 +44,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
         })
     }
 
-    async fn list_enabled_agents(&self) -> std::result::Result<Vec<AgentInfo>, RegistryError> {
+    async fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
         let agents = self
             .registry
             .list_enabled_agents()
@@ -66,7 +66,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             .collect())
     }
 
-    async fn get_default_agent(&self) -> std::result::Result<AgentInfo, RegistryError> {
+    async fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
         let agent = self
             .registry
             .get_default_agent()

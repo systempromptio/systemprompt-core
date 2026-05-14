@@ -29,7 +29,7 @@ pub struct CreateTaskParams<'a> {
     pub agent_name: &'a str,
 }
 
-pub async fn create_task(params: CreateTaskParams<'_>) -> std::result::Result<String, RepositoryError> {
+pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, RepositoryError> {
     let CreateTaskParams {
         pool,
         task,
@@ -79,7 +79,7 @@ pub async fn track_agent_in_context(
     pool: &Arc<PgPool>,
     context_id: &systemprompt_identifiers::ContextId,
     agent_name: &str,
-) -> std::result::Result<(), RepositoryError> {
+) -> Result<(), RepositoryError> {
     let context_id_str = context_id.as_str();
     sqlx::query!(
         r#"INSERT INTO context_agents (context_id, agent_name) VALUES ($1, $2)
@@ -99,7 +99,7 @@ pub async fn update_task_state(
     task_id: &systemprompt_identifiers::TaskId,
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
-) -> std::result::Result<(), RepositoryError> {
+) -> Result<(), RepositoryError> {
     let status = task_state_to_db_string(state);
     let task_id_str = task_id.as_str();
 
@@ -203,7 +203,7 @@ pub async fn apply_notification_status(
     task_id: &str,
     state: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
-) -> std::result::Result<(), RepositoryError> {
+) -> Result<(), RepositoryError> {
     if state == "completed" {
         sqlx::query!(
             r#"UPDATE agent_tasks SET
@@ -238,7 +238,7 @@ pub async fn update_task_failed_with_error(
     task_id: &systemprompt_identifiers::TaskId,
     error_message: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
-) -> std::result::Result<(), RepositoryError> {
+) -> Result<(), RepositoryError> {
     let task_id_str = task_id.as_str();
 
     let mut tx = pool.begin().await.map_err(RepositoryError::database)?;

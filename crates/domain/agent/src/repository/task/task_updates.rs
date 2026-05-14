@@ -20,7 +20,7 @@ impl TaskRepository {
     pub async fn update_task_and_save_messages(
         &self,
         params: UpdateTaskAndSaveMessagesParams<'_>,
-    ) -> std::result::Result<Task, RepositoryError> {
+    ) -> Result<Task, RepositoryError> {
         let UpdateTaskAndSaveMessagesParams {
             task,
             user_message,
@@ -147,7 +147,7 @@ impl TaskRepository {
     pub async fn delete_task(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         let task_id_str = task_id.as_str();
 
         sqlx::query!(

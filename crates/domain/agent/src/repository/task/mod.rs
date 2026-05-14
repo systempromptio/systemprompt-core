@@ -55,7 +55,7 @@ impl std::fmt::Debug for TaskRepository {
 }
 
 impl TaskRepository {
-    pub fn new(db: &DbPool) -> std::result::Result<Self, crate::error::AgentError> {
+    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
         let pool = db
             .pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
@@ -93,7 +93,7 @@ impl TaskRepository {
     pub async fn create_task(
         &self,
         params: RepoCreateTaskParams<'_>,
-    ) -> std::result::Result<String, RepositoryError> {
+    ) -> Result<String, RepositoryError> {
         let result = create_task(CreateTaskParams {
             pool: &self.write_pool,
             task: params.task,
@@ -116,14 +116,14 @@ impl TaskRepository {
     pub async fn get_task(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
-    ) -> std::result::Result<Option<Task>, RepositoryError> {
+    ) -> Result<Option<Task>, RepositoryError> {
         get_task(&self.pool, &self.db_pool, task_id).await
     }
 
     pub async fn list_tasks_by_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
-    ) -> std::result::Result<Vec<Task>, RepositoryError> {
+    ) -> Result<Vec<Task>, RepositoryError> {
         list_tasks_by_context(&self.pool, &self.db_pool, context_id).await
     }
 
@@ -132,7 +132,7 @@ impl TaskRepository {
         user_id: &UserId,
         limit: Option<i32>,
         offset: Option<i32>,
-    ) -> std::result::Result<Vec<Task>, RepositoryError> {
+    ) -> Result<Vec<Task>, RepositoryError> {
         get_tasks_by_user_id(&self.pool, &self.db_pool, user_id, limit, offset).await
     }
 
@@ -140,7 +140,7 @@ impl TaskRepository {
         &self,
         context_id: &systemprompt_identifiers::ContextId,
         agent_name: &str,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         track_agent_in_context(&self.write_pool, context_id, agent_name).await
     }
 
@@ -149,7 +149,7 @@ impl TaskRepository {
         task_id: &systemprompt_identifiers::TaskId,
         state: TaskState,
         timestamp: &chrono::DateTime<chrono::Utc>,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         update_task_state(&self.write_pool, task_id, state, timestamp).await
     }
 
@@ -158,7 +158,7 @@ impl TaskRepository {
         task_id: &str,
         state: &str,
         timestamp: &chrono::DateTime<chrono::Utc>,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         apply_notification_status(&self.write_pool, task_id, state, timestamp).await
     }
 
@@ -167,14 +167,14 @@ impl TaskRepository {
         task_id: &systemprompt_identifiers::TaskId,
         error_message: &str,
         timestamp: &chrono::DateTime<chrono::Utc>,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         update_task_failed_with_error(&self.write_pool, task_id, error_message, timestamp).await
     }
 
     pub async fn get_task_context_info(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
-    ) -> std::result::Result<Option<TaskContextInfo>, RepositoryError> {
+    ) -> Result<Option<TaskContextInfo>, RepositoryError> {
         get_task_context_info(&self.pool, task_id).await
     }
 }

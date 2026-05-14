@@ -13,7 +13,7 @@ pub async fn handle_streaming_request(
     state: Arc<AgentHandlerState>,
     request_id: NumberOrString,
     context: RequestContext,
-) -> impl futures::stream::Stream<Item = std::result::Result<Event, std::convert::Infallible>> + Send {
+) -> impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send {
     use crate::models::a2a::A2aRequestParams;
     use futures::StreamExt;
     use tokio_stream::wrappers::ReceiverStream;

@@ -29,7 +29,7 @@ pub struct PersistMessageSqlxParams<'a> {
 
 pub async fn persist_message_sqlx(
     params: PersistMessageSqlxParams<'_>,
-) -> std::result::Result<(), RepositoryError> {
+) -> Result<(), RepositoryError> {
     let PersistMessageSqlxParams {
         tx,
         message,
@@ -120,7 +120,7 @@ pub struct PersistMessageWithTxParams<'a> {
 
 pub async fn persist_message_with_tx(
     params: PersistMessageWithTxParams<'_>,
-) -> std::result::Result<(), RepositoryError> {
+) -> Result<(), RepositoryError> {
     let PersistMessageWithTxParams {
         tx,
         message,

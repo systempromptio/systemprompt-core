@@ -16,7 +16,7 @@ pub struct ContextNotificationRepository {
 }
 
 impl ContextNotificationRepository {
-    pub fn new(db: &DbPool) -> std::result::Result<Self, RepositoryError> {
+    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
         let write_pool = db.write_pool_arc().map_err(|e| {
             RepositoryError::InvalidData(format!("PostgreSQL write pool not available: {e}"))
         })?;
@@ -29,7 +29,7 @@ impl ContextNotificationRepository {
         agent_id: &str,
         notification_type: &str,
         notification_data: &serde_json::Value,
-    ) -> std::result::Result<i32, RepositoryError> {
+    ) -> Result<i32, RepositoryError> {
         let row = sqlx::query!(
             r#"INSERT INTO context_notifications (context_id, agent_id, notification_type, notification_data)
             VALUES ($1, $2, $3, $4)
@@ -45,7 +45,7 @@ impl ContextNotificationRepository {
         Ok(row.id)
     }
 
-    pub async fn mark_broadcasted(&self, notification_id: i32) -> std::result::Result<(), RepositoryError> {
+    pub async fn mark_broadcasted(&self, notification_id: i32) -> Result<(), RepositoryError> {
         sqlx::query!(
             "UPDATE context_notifications SET broadcasted = true WHERE id = $1",
             notification_id,

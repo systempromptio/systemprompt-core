@@ -13,7 +13,7 @@ impl ArtifactRepository {
         task_id: &TaskId,
         context_id: &ContextId,
         artifact: &Artifact,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         let pool = Arc::clone(&self.write_pool);
         let now = Utc::now();
 
@@ -85,7 +85,7 @@ impl ArtifactRepository {
         Ok(())
     }
 
-    pub async fn delete_artifact(&self, artifact_id: &ArtifactId) -> std::result::Result<(), RepositoryError> {
+    pub async fn delete_artifact(&self, artifact_id: &ArtifactId) -> Result<(), RepositoryError> {
         let pool = Arc::clone(&self.write_pool);
         let artifact_id_str = artifact_id.as_str();
 

@@ -1,4 +1,4 @@
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use systemprompt_identifiers::{SkillId, TaskId};
@@ -46,6 +46,7 @@ impl ExecutionTrackingService {
         self.repository
             .complete_step(&tracked.step_id, tracked.started_at, result)
             .await
+            .map_err(Into::into)
     }
 
     pub async fn complete_planning(
@@ -62,12 +63,14 @@ impl ExecutionTrackingService {
                 planned_tools,
             )
             .await
+            .map_err(Into::into)
     }
 
     pub async fn fail(&self, tracked: &TrackedStep, error: String) -> Result<()> {
         self.repository
             .fail_step(&tracked.step_id, tracked.started_at, &error)
             .await
+            .map_err(Into::into)
     }
 
     pub async fn fail_step(
@@ -76,21 +79,22 @@ impl ExecutionTrackingService {
         started_at: DateTime<Utc>,
         error: String,
     ) -> Result<()> {
-        self.repository.fail_step(step_id, started_at, &error).await
+        self.repository.fail_step(step_id, started_at, &error).await.map_err(Into::into)
     }
 
     pub async fn get_steps_by_task(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
-        self.repository.list_by_task(task_id).await
+        self.repository.list_by_task(task_id).await.map_err(Into::into)
     }
 
     pub async fn get_step(&self, step_id: &StepId) -> Result<Option<ExecutionStep>> {
-        self.repository.get(step_id).await
+        self.repository.get(step_id).await.map_err(Into::into)
     }
 
     pub async fn fail_in_progress_steps(&self, task_id: &TaskId, error: &str) -> Result<u64> {
         self.repository
             .fail_in_progress_steps_for_task(task_id, error)
             .await
+            .map_err(Into::into)
     }
 
     pub async fn track_understanding(&self, task_id: TaskId) -> Result<ExecutionStep> {

@@ -12,7 +12,7 @@ impl ArtifactRepository {
     pub async fn get_artifacts_by_task(
         &self,
         task_id: &TaskId,
-    ) -> std::result::Result<Vec<Artifact>, RepositoryError> {
+    ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
         let task_id_str = task_id.as_str();
 
@@ -48,7 +48,7 @@ impl ArtifactRepository {
     pub async fn get_artifacts_by_context(
         &self,
         context_id: &ContextId,
-    ) -> std::result::Result<Vec<Artifact>, RepositoryError> {
+    ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
         let context_id_str = context_id.as_str();
 
@@ -85,7 +85,7 @@ impl ArtifactRepository {
         &self,
         user_id: &UserId,
         limit: Option<i32>,
-    ) -> std::result::Result<Vec<Artifact>, RepositoryError> {
+    ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
         let limit = i64::from(limit.unwrap_or(100));
         let user_id_str = user_id.as_str();
@@ -125,7 +125,7 @@ impl ArtifactRepository {
     pub async fn get_artifact_by_id(
         &self,
         artifact_id: &ArtifactId,
-    ) -> std::result::Result<Option<Artifact>, RepositoryError> {
+    ) -> Result<Option<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
         let artifact_id_str = artifact_id.as_str();
 
@@ -166,7 +166,7 @@ impl ArtifactRepository {
     pub async fn get_all_artifacts(
         &self,
         limit: Option<i32>,
-    ) -> std::result::Result<Vec<Artifact>, RepositoryError> {
+    ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
         let limit = i64::from(limit.unwrap_or(100));
 
@@ -203,7 +203,7 @@ impl ArtifactRepository {
 async fn row_to_artifact(
     pool: &Arc<PgPool>,
     row: ArtifactRow,
-) -> std::result::Result<Artifact, RepositoryError> {
+) -> Result<Artifact, RepositoryError> {
     let parts = get_artifact_parts(pool, &row.artifact_id, &row.context_id).await?;
     Ok(row_to_artifact_with_parts(row, parts))
 }

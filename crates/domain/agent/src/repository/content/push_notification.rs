@@ -22,7 +22,7 @@ impl std::fmt::Debug for PushNotificationConfigRepository {
 }
 
 impl PushNotificationConfigRepository {
-    pub fn new(db: &DbPool) -> std::result::Result<Self, crate::error::AgentError> {
+    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
         let pool = db
             .pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
@@ -66,7 +66,7 @@ impl PushNotificationConfigRepository {
             now
         )
         .execute(&*self.write_pool)
-        .await.map_err(systemprompt_traits::RepositoryError::database)?;
+        .await.map_err(RepositoryError::database)?;
 
         Ok(config_id)
     }
@@ -96,7 +96,7 @@ impl PushNotificationConfigRepository {
             config_id_str
         )
         .fetch_optional(&*self.pool)
-        .await.map_err(systemprompt_traits::RepositoryError::database)?;
+        .await.map_err(RepositoryError::database)?;
 
         row.map(|r| Self::row_to_config(&r)).transpose()
     }
@@ -120,7 +120,7 @@ impl PushNotificationConfigRepository {
             task_id_str
         )
         .fetch_all(&*self.pool)
-        .await.map_err(systemprompt_traits::RepositoryError::database)?;
+        .await.map_err(RepositoryError::database)?;
 
         rows.iter()
             .map(Self::row_to_config)
@@ -136,7 +136,7 @@ impl PushNotificationConfigRepository {
             config_id_str
         )
         .execute(&*self.write_pool)
-        .await.map_err(systemprompt_traits::RepositoryError::database)?;
+        .await.map_err(RepositoryError::database)?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -148,7 +148,7 @@ impl PushNotificationConfigRepository {
             task_id_str
         )
         .execute(&*self.write_pool)
-        .await.map_err(systemprompt_traits::RepositoryError::database)?;
+        .await.map_err(RepositoryError::database)?;
 
         Ok(result.rows_affected())
     }

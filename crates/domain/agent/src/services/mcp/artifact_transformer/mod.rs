@@ -33,7 +33,7 @@ pub struct ParsedToolResponse {
 
 pub fn parse_tool_response(
     structured_content: &JsonValue,
-) -> std::result::Result<ParsedToolResponse, ArtifactError> {
+) -> Result<ParsedToolResponse, ArtifactError> {
     if structured_content.is_null() {
         return Err(RowParseError::MissingField {
             field: "structured_content (received null)".to_string(),
@@ -111,7 +111,7 @@ struct TransformParsedParams<'a> {
     tool_arguments: Option<&'a JsonValue>,
 }
 
-fn transform_parsed(params: TransformParsedParams<'_>) -> std::result::Result<Artifact, ArtifactError> {
+fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, ArtifactError> {
     let TransformParsedParams {
         tool_name,
         parsed,
@@ -177,7 +177,7 @@ pub struct TransformFromJsonParams<'a> {
 pub struct McpToA2aTransformer;
 
 impl McpToA2aTransformer {
-    pub fn transform(params: &TransformParams<'_>) -> std::result::Result<Artifact, ArtifactError> {
+    pub fn transform(params: &TransformParams<'_>) -> Result<Artifact, ArtifactError> {
         let TransformParams {
             tool_name,
             tool_result,
@@ -207,7 +207,7 @@ impl McpToA2aTransformer {
 
     pub fn transform_from_json(
         params: &TransformFromJsonParams<'_>,
-    ) -> std::result::Result<Artifact, ArtifactError> {
+    ) -> Result<Artifact, ArtifactError> {
         let TransformFromJsonParams {
             tool_name,
             tool_result_json,

@@ -10,7 +10,7 @@ impl ContextRepository {
     pub async fn find_user_id_for_context(
         &self,
         context_id: &str,
-    ) -> std::result::Result<Option<UserId>, RepositoryError> {
+    ) -> Result<Option<UserId>, RepositoryError> {
         let row = sqlx::query_scalar!(
             r#"SELECT user_id FROM user_contexts WHERE context_id = $1"#,
             context_id,
@@ -25,7 +25,7 @@ impl ContextRepository {
         &self,
         context_id: &ContextId,
         user_id: &UserId,
-    ) -> std::result::Result<UserContext, RepositoryError> {
+    ) -> Result<UserContext, RepositoryError> {
         let row = sqlx::query!(
             r#"SELECT
                 context_id as "context_id!",
@@ -59,7 +59,7 @@ impl ContextRepository {
     pub async fn list_contexts_basic(
         &self,
         user_id: &UserId,
-    ) -> std::result::Result<Vec<UserContext>, RepositoryError> {
+    ) -> Result<Vec<UserContext>, RepositoryError> {
         let rows = sqlx::query!(
             r#"SELECT
                 context_id as "context_id!",
@@ -89,7 +89,7 @@ impl ContextRepository {
     pub async fn list_contexts_with_stats(
         &self,
         user_id: &UserId,
-    ) -> std::result::Result<Vec<UserContextWithStats>, RepositoryError> {
+    ) -> Result<Vec<UserContextWithStats>, RepositoryError> {
         let rows = sqlx::query!(
             r#"SELECT
                 c.context_id as "context_id!",
@@ -130,7 +130,7 @@ impl ContextRepository {
     pub async fn find_by_session_id(
         &self,
         session_id: &SessionId,
-    ) -> std::result::Result<Option<UserContext>, RepositoryError> {
+    ) -> Result<Option<UserContext>, RepositoryError> {
         let row = sqlx::query!(
             r#"SELECT
                 context_id as "context_id!",
@@ -159,7 +159,7 @@ impl ContextRepository {
         &self,
         context_id: &ContextId,
         last_seen: DateTime<Utc>,
-    ) -> std::result::Result<Vec<ContextStateEvent>, RepositoryError> {
+    ) -> Result<Vec<ContextStateEvent>, RepositoryError> {
         let mut events = Vec::new();
 
         let task_ids: Vec<String> = sqlx::query_scalar!(

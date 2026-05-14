@@ -27,7 +27,7 @@ pub async fn validate_context(
     state: &Arc<AgentHandlerState>,
     tx: &Sender<Event>,
     request_id: &NumberOrString,
-) -> std::result::Result<(), ()> {
+) -> Result<(), ()> {
     let context_repo = ContextRepository::new(&state.db_pool).map_err(|e| {
         tracing::error!(error = %e, "Failed to create ContextRepository");
         if tx
@@ -73,7 +73,7 @@ pub async fn validate_context(
     Ok(())
 }
 
-pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> std::result::Result<TaskRepository, ()> {
+pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRepository, ()> {
     let PersistTaskInput {
         task_id,
         context_id,

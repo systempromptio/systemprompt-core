@@ -10,7 +10,7 @@ impl ContextRepository {
         user_id: &UserId,
         session_id: Option<&SessionId>,
         name: &str,
-    ) -> std::result::Result<ContextId, RepositoryError> {
+    ) -> Result<ContextId, RepositoryError> {
         let context_id = ContextId::generate();
         let now = Utc::now();
         let session_id_str = session_id.map(SessionId::as_str);
@@ -36,7 +36,7 @@ impl ContextRepository {
         &self,
         context_id: &ContextId,
         user_id: &UserId,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         let result = sqlx::query_scalar!(
             "SELECT context_id FROM user_contexts WHERE context_id = $1 AND user_id = $2",
             context_id.as_str(),
@@ -60,7 +60,7 @@ impl ContextRepository {
         context_id: &ContextId,
         user_id: &UserId,
         name: &str,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         let now = Utc::now();
 
         let result = sqlx::query!(
@@ -89,7 +89,7 @@ impl ContextRepository {
         &self,
         context_id: &ContextId,
         user_id: &UserId,
-    ) -> std::result::Result<(), RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         let result = sqlx::query!(
             "DELETE FROM user_contexts WHERE context_id = $1 AND user_id = $2",
             context_id.as_str(),

@@ -29,7 +29,7 @@ impl std::fmt::Debug for FileUploadContext<'_> {
 pub async fn get_message_parts(
     pool: &Arc<PgPool>,
     message_id: &MessageId,
-) -> std::result::Result<Vec<Part>, RepositoryError> {
+) -> Result<Vec<Part>, RepositoryError> {
     let part_rows: Vec<crate::models::MessagePart> = sqlx::query_as!(
         crate::models::MessagePart,
         r#"SELECT
@@ -105,7 +105,7 @@ pub struct PersistPartSqlxParams<'a> {
     pub upload_ctx: Option<&'a FileUploadContext<'a>>,
 }
 
-pub async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> std::result::Result<(), RepositoryError> {
+pub async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> Result<(), RepositoryError> {
     let PersistPartSqlxParams {
         tx,
         part,
@@ -230,7 +230,7 @@ pub async fn persist_part_with_tx(
     message_id: &MessageId,
     task_id: &TaskId,
     sequence_number: i32,
-) -> std::result::Result<(), RepositoryError> {
+) -> Result<(), RepositoryError> {
     let message_id_str = message_id.as_str();
     let task_id_str = task_id.as_str();
     match part {
