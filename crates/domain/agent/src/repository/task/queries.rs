@@ -12,7 +12,7 @@ pub async fn get_task(
     pool: &Arc<PgPool>,
     db_pool: &DbPool,
     task_id: &TaskId,
-) -> Result<Option<Task>, RepositoryError> {
+) -> std::result::Result<Option<Task>, RepositoryError> {
     let task_id_str = task_id.as_str();
     let row = sqlx::query_as!(
         TaskRow,
@@ -53,7 +53,7 @@ pub async fn list_tasks_by_context(
     pool: &Arc<PgPool>,
     db_pool: &DbPool,
     context_id: &ContextId,
-) -> Result<Vec<Task>, RepositoryError> {
+) -> std::result::Result<Vec<Task>, RepositoryError> {
     let context_id_str = context_id.as_str();
     let rows = sqlx::query_as!(
         TaskRow,
@@ -93,7 +93,7 @@ pub async fn get_tasks_by_user_id(
     user_id: &UserId,
     limit: Option<i32>,
     offset: Option<i32>,
-) -> Result<Vec<Task>, RepositoryError> {
+) -> std::result::Result<Vec<Task>, RepositoryError> {
     let lim = limit.map_or(1000, i64::from);
     let off = offset.map_or(0, i64::from);
     let user_id_str = user_id.as_str();
@@ -141,7 +141,7 @@ pub struct TaskContextInfo {
 pub async fn get_task_context_info(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
-) -> Result<Option<TaskContextInfo>, RepositoryError> {
+) -> std::result::Result<Option<TaskContextInfo>, RepositoryError> {
     let task_id_str = task_id.as_str();
     let row = sqlx::query!(
         r#"SELECT

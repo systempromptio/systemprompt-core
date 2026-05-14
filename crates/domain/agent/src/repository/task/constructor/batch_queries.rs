@@ -11,7 +11,7 @@ use systemprompt_traits::RepositoryError;
 pub async fn fetch_task_rows(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
-) -> Result<Vec<TaskRow>, RepositoryError> {
+) -> std::result::Result<Vec<TaskRow>, RepositoryError> {
     sqlx::query_as!(
         TaskRow,
         r#"SELECT
@@ -41,7 +41,7 @@ pub async fn fetch_task_rows(
 pub async fn fetch_messages(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
-) -> Result<Vec<TaskMessage>, RepositoryError> {
+) -> std::result::Result<Vec<TaskMessage>, RepositoryError> {
     sqlx::query_as!(
         TaskMessage,
         r#"SELECT
@@ -70,7 +70,7 @@ pub async fn fetch_messages(
 pub async fn fetch_message_parts(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
-) -> Result<Vec<MessagePart>, RepositoryError> {
+) -> std::result::Result<Vec<MessagePart>, RepositoryError> {
     sqlx::query_as!(
         MessagePart,
         r#"SELECT
@@ -97,7 +97,7 @@ pub async fn fetch_message_parts(
 pub async fn fetch_artifacts(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
-) -> Result<Vec<ArtifactRow>, RepositoryError> {
+) -> std::result::Result<Vec<ArtifactRow>, RepositoryError> {
     sqlx::query_as!(
         ArtifactRow,
         r#"SELECT
@@ -126,7 +126,7 @@ pub async fn fetch_artifacts(
 pub async fn fetch_artifact_parts(
     pool: &Arc<sqlx::PgPool>,
     artifact_ids: &[String],
-) -> Result<Vec<ArtifactPartRow>, RepositoryError> {
+) -> std::result::Result<Vec<ArtifactPartRow>, RepositoryError> {
     if artifact_ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -157,7 +157,7 @@ pub async fn fetch_artifact_parts(
 pub async fn fetch_execution_steps(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
-) -> Result<Vec<ExecutionStepBatchRow>, RepositoryError> {
+) -> std::result::Result<Vec<ExecutionStepBatchRow>, RepositoryError> {
     if task_ids.is_empty() {
         return Ok(Vec::new());
     }

@@ -42,7 +42,7 @@ impl Server {
         ai_service: Arc<dyn AiProvider>,
         agent_name: Option<String>,
         port: u16,
-    ) -> Result<Self, crate::error::AgentError> {
+    ) -> std::result::Result<Self, crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
         let mut config = if let Some(name) = agent_name {
@@ -89,7 +89,7 @@ impl Server {
         })
     }
 
-    pub async fn reload_config(&self) -> Result<(), crate::error::AgentError> {
+    pub async fn reload_config(&self) -> std::result::Result<(), crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
         let agent_name = {
@@ -144,7 +144,7 @@ impl Server {
         router.layer(CorsLayer::permissive())
     }
 
-    pub async fn run(self) -> Result<(), crate::error::AgentError> {
+    pub async fn run(self) -> std::result::Result<(), crate::error::AgentError> {
         Self::log_server_configuration();
         self.start_server(None).await
     }
@@ -152,7 +152,7 @@ impl Server {
     pub async fn run_with_shutdown(
         self,
         shutdown_signal: impl Future<Output = ()> + Send + 'static,
-    ) -> Result<(), crate::error::AgentError> {
+    ) -> std::result::Result<(), crate::error::AgentError> {
         Self::log_server_configuration();
         self.start_server(Some(Box::pin(shutdown_signal))).await
     }
@@ -162,7 +162,7 @@ impl Server {
     async fn start_server(
         self,
         shutdown_signal: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
-    ) -> Result<(), crate::error::AgentError> {
+    ) -> std::result::Result<(), crate::error::AgentError> {
         let app = self.create_router();
         let addr = format!("0.0.0.0:{}", self.port);
         let listener = tokio::net::TcpListener::bind(&addr).await?;

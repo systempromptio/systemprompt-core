@@ -1,5 +1,4 @@
-DROP VIEW IF EXISTS v_daily_conversions CASCADE;
-CREATE VIEW v_daily_conversions AS
+CREATE OR REPLACE VIEW v_daily_conversions AS
 SELECT
     DATE(started_at) as date,
     COUNT(CASE WHEN user_type = 'anon' THEN 1 END) as anonymous_sessions,
@@ -14,8 +13,7 @@ WHERE started_at >= CURRENT_DATE - INTERVAL '30 days'
 GROUP BY DATE(started_at)
 ORDER BY date DESC;
 
-DROP VIEW IF EXISTS v_time_to_conversion CASCADE;
-CREATE VIEW v_time_to_conversion AS
+CREATE OR REPLACE VIEW v_time_to_conversion AS
 SELECT
     session_id,
     user_id,

@@ -6,7 +6,7 @@ pub mod display;
 pub mod executor;
 pub mod postgres;
 pub mod provider;
-pub mod schema_additivity;
+pub mod schema_linter;
 pub mod transaction;
 
 pub use database::{Database, DatabaseExt, DbPool};
@@ -15,4 +15,5 @@ pub use executor::SqlExecutor;
 pub use postgres::PostgresProvider;
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::{DatabaseProvider, DatabaseProviderExt};
+pub use schema_linter::{LintError, lint_declarative_schema};
 pub use transaction::{BoxFuture, with_transaction, with_transaction_raw, with_transaction_retry};

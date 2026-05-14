@@ -44,11 +44,18 @@ impl Extension for LoggingExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(
-            1,
-            "split_context_id",
-            include_str!("../schema/migrations/001_split_context_id.sql"),
-        )]
+        vec![
+            Migration::new(
+                1,
+                "split_context_id",
+                include_str!("../schema/migrations/001_split_context_id.sql"),
+            ),
+            Migration::new(
+                2,
+                "analytics_event_data",
+                include_str!("../schema/migrations/002_analytics_event_data.sql"),
+            ),
+        ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

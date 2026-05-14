@@ -69,9 +69,9 @@ impl AgentOrchestrator {
         let db_service = AgentDatabaseService::new(agent_repo)?;
         let lifecycle = AgentLifecycle::new(db_pool, app_paths)
             .map_err(|e| {
-                crate::services::agent_orchestration::OrchestrationError::Generic(AgentServiceError::Internal(format!(
-                    e.to_string()
-                ))
+                crate::services::agent_orchestration::OrchestrationError::Generic(
+                    AgentServiceError::Internal(e.to_string()),
+                )
             })?
             .with_event_bus(Arc::clone(&event_bus));
         let reconciler = AgentReconciler::new(db_pool)?;

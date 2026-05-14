@@ -34,7 +34,7 @@ pub fn terminate_gracefully(pid: u32) -> McpDomainResult<()> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string()])
         .output()
-        .with_context(|| format!("failed to run `taskkill /PID {pid}`"))?;
+        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("failed to run `taskkill /PID {pid}`"))))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -75,7 +75,7 @@ pub fn force_kill(pid: u32) -> McpDomainResult<()> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/F"])
         .output()
-        .with_context(|| format!("failed to run `taskkill /PID {pid} /F`"))?;
+        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("failed to run `taskkill /PID {pid} /F`"))))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -92,7 +92,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
         .output()
-        .with_context(|| format!("failed to run `lsof -ti :{port}` for port {port}"))?;
+        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("failed to run `lsof -ti :{port}` for port {port}"))))?;
 
     if output.stdout.is_empty() {
         return Ok(vec![]);
@@ -127,7 +127,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
-        .with_context(|| format!("failed to run `netstat -ano -p TCP` for port {port}"))?;
+        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("failed to run `netstat -ano -p TCP` for port {port}"))))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let port_pattern = format!(":{port} ");

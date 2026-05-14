@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS analytics_events (
     task_id VARCHAR(255),
     message TEXT,
     metadata TEXT,
+    event_data JSONB DEFAULT '{}',
     timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT analytics_events_session_id_fkey
@@ -30,9 +31,6 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_provider_request_id ON analytics
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_type ON analytics_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_category ON analytics_events(event_category);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_timestamp ON analytics_events(timestamp);
-
-ALTER TABLE analytics_events
-    ADD COLUMN IF NOT EXISTS event_data JSONB DEFAULT '{}';
 
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_data
     ON analytics_events USING GIN (event_data);

@@ -15,7 +15,7 @@ use crate::services::a2a_server::handlers::AgentHandlerState;
 pub async fn handle_set_push_notification_config(
     State(state): State<Arc<AgentHandlerState>>,
     request: SetTaskPushNotificationConfigRequest,
-) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
+) -> std::result::Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Setting push notification config");
 
     let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
@@ -73,7 +73,7 @@ pub async fn handle_set_push_notification_config(
 pub async fn handle_get_push_notification_config(
     State(state): State<Arc<AgentHandlerState>>,
     request: GetTaskPushNotificationConfigRequest,
-) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
+) -> std::result::Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Getting push notification config");
 
     let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
@@ -125,7 +125,7 @@ pub async fn handle_get_push_notification_config(
 pub async fn handle_list_push_notification_configs(
     State(state): State<Arc<AgentHandlerState>>,
     task_id: TaskId,
-) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
+) -> std::result::Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %task_id, "Listing push notification configs");
 
     let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
@@ -181,7 +181,7 @@ pub async fn handle_list_push_notification_configs(
 pub async fn handle_delete_push_notification_config(
     State(state): State<Arc<AgentHandlerState>>,
     request: DeleteTaskPushNotificationConfigRequest,
-) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
+) -> std::result::Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Deleting push notification config");
 
     let repo = match PushNotificationConfigRepository::new(&state.db_pool) {

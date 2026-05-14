@@ -1,7 +1,6 @@
 -- v_top_referrer_sources is defined in user_sessions.sql with proper bot filters
 
-DROP VIEW IF EXISTS v_landing_page_conversion CASCADE;
-CREATE VIEW v_landing_page_conversion AS
+CREATE OR REPLACE VIEW v_landing_page_conversion AS
 SELECT
     landing_page,
     COUNT(*) as total_sessions,
@@ -18,8 +17,7 @@ ORDER BY conversion_rate_percent DESC NULLS LAST;
 
 -- v_utm_campaign_performance is defined in user_sessions.sql with proper bot filters
 
-DROP VIEW IF EXISTS v_referrer_landing_flow CASCADE;
-CREATE VIEW v_referrer_landing_flow AS
+CREATE OR REPLACE VIEW v_referrer_landing_flow AS
 SELECT
     referrer_source,
     landing_page,
@@ -34,8 +32,7 @@ GROUP BY referrer_source, landing_page
 HAVING COUNT(*) >= 3
 ORDER BY session_count DESC;
 
-DROP VIEW IF EXISTS v_traffic_source_quality CASCADE;
-CREATE VIEW v_traffic_source_quality AS
+CREATE OR REPLACE VIEW v_traffic_source_quality AS
 SELECT
     referrer_source,
     COUNT(*) as sessions,

@@ -56,7 +56,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
             .ai_service
             .list_available_tools_for_agent(&context.agent_name, &context.request_ctx)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("{}", e))?;
+            .map_err(|e| AgentServiceError::Internal(format!("{}", e)))?;
 
         tracing::info!(tool_count = tools.len(), "Available tools");
 
@@ -86,7 +86,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                         tracing::warn!(error = %fail_err, "Failed to record planning failure");
                     }
                 }
-                return Err(AgentServiceError::Internal(format!("{}", e));
+                return Err(AgentServiceError::Internal(format!("{e}")));
             },
         };
 

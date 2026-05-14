@@ -1,5 +1,4 @@
-DROP VIEW IF EXISTS v_bot_traffic_summary CASCADE;
-CREATE VIEW v_bot_traffic_summary AS
+CREATE OR REPLACE VIEW v_bot_traffic_summary AS
 SELECT
     DATE(started_at) as date,
     COUNT(*) as bot_sessions,
@@ -13,8 +12,7 @@ ORDER BY date DESC;
 
 COMMENT ON VIEW v_bot_traffic_summary IS 'Daily summary of bot crawler activity';
 
-DROP VIEW IF EXISTS v_bot_type_breakdown CASCADE;
-CREATE VIEW v_bot_type_breakdown AS
+CREATE OR REPLACE VIEW v_bot_type_breakdown AS
 SELECT
     CASE
         WHEN user_agent ILIKE '%googlebot%' THEN 'Google'
@@ -45,8 +43,7 @@ ORDER BY session_count DESC;
 
 COMMENT ON VIEW v_bot_type_breakdown IS 'Bot traffic categorized by major bot types (search engines, AI scrapers, etc.)';
 
-DROP VIEW IF EXISTS v_traffic_composition CASCADE;
-CREATE VIEW v_traffic_composition AS
+CREATE OR REPLACE VIEW v_traffic_composition AS
 SELECT
     DATE(started_at) as date,
     COUNT(CASE WHEN is_bot = false THEN 1 END) as human_sessions,
@@ -61,8 +58,7 @@ ORDER BY date DESC;
 
 COMMENT ON VIEW v_traffic_composition IS 'Daily comparison of human vs bot traffic';
 
-DROP VIEW IF EXISTS v_seo_crawler_activity CASCADE;
-CREATE VIEW v_seo_crawler_activity AS
+CREATE OR REPLACE VIEW v_seo_crawler_activity AS
 SELECT
     DATE(started_at) as date,
     CASE
@@ -89,8 +85,7 @@ ORDER BY date DESC, crawl_sessions DESC;
 
 COMMENT ON VIEW v_seo_crawler_activity IS 'Search engine crawler activity for SEO monitoring';
 
-DROP VIEW IF EXISTS v_ai_scraper_activity CASCADE;
-CREATE VIEW v_ai_scraper_activity AS
+CREATE OR REPLACE VIEW v_ai_scraper_activity AS
 SELECT
     DATE(started_at) as date,
     CASE
@@ -118,8 +113,7 @@ ORDER BY date DESC, scrape_sessions DESC;
 
 COMMENT ON VIEW v_ai_scraper_activity IS 'AI model scraping activity (ChatGPT, Claude, Perplexity, etc.)';
 
-DROP VIEW IF EXISTS v_bot_human_metrics_comparison CASCADE;
-CREATE VIEW v_bot_human_metrics_comparison AS
+CREATE OR REPLACE VIEW v_bot_human_metrics_comparison AS
 SELECT
     'Human Traffic' as traffic_type,
     COUNT(*) as total_sessions,
@@ -146,8 +140,7 @@ WHERE is_bot = true
 
 COMMENT ON VIEW v_bot_human_metrics_comparison IS 'Side-by-side comparison of bot vs human traffic metrics';
 
-DROP VIEW IF EXISTS v_recent_bot_activity CASCADE;
-CREATE VIEW v_recent_bot_activity AS
+CREATE OR REPLACE VIEW v_recent_bot_activity AS
 SELECT
     session_id,
     started_at,

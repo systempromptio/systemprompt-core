@@ -29,7 +29,7 @@ pub struct A2ARepositories {
 }
 
 impl A2ARepositories {
-    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
+    pub fn new(db: &DbPool) -> std::result::Result<Self, AgentError> {
         let agent_services = agent_service::AgentServiceRepository::new(db)?;
         let tasks = task::TaskRepository::new(db)?;
         let execution_steps = execution::ExecutionStepRepository::new(db)?;

@@ -22,7 +22,7 @@ impl std::fmt::Debug for PushNotificationConfigRepository {
 }
 
 impl PushNotificationConfigRepository {
-    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
+    pub fn new(db: &DbPool) -> std::result::Result<Self, crate::error::AgentError> {
         let pool = db
             .pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
@@ -36,7 +36,7 @@ impl PushNotificationConfigRepository {
         &self,
         task_id: &TaskId,
         config: &PushNotificationConfig,
-    ) -> Result<String> {
+    ) -> Result<String, RepositoryError> {
         let config_id = uuid::Uuid::new_v4().to_string();
         let headers_json = config
             .headers
@@ -66,7 +66,7 @@ impl PushNotificationConfigRepository {
             now
         )
         .execute(&*self.write_pool)
-        .await?;
+        .await.map_err(systemprompt_traits::RepositoryError::database)?;
 
         Ok(config_id)
     }
@@ -75,7 +75,7 @@ impl PushNotificationConfigRepository {
         &self,
         task_id: &TaskId,
         config_id: &ConfigId,
-    ) -> Result<Option<PushNotificationConfig>> {
+    ) -> Result<Option<PushNotificationConfig>, RepositoryError> {
         let task_id_str = task_id.as_str();
         let config_id_str = config_id.as_str();
         let row = sqlx::query_as!(
@@ -96,12 +96,12 @@ impl PushNotificationConfigRepository {
             config_id_str
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await.map_err(systemprompt_traits::RepositoryError::database)?;
 
         row.map(|r| Self::row_to_config(&r)).transpose()
     }
 
-    pub async fn list_configs(&self, task_id: &TaskId) -> Result<Vec<PushNotificationConfig>> {
+    pub async fn list_configs(&self, task_id: &TaskId) -> Result<Vec<PushNotificationConfig>, RepositoryError> {
         let task_id_str = task_id.as_str();
         let rows: Vec<PushNotificationConfigRow> = sqlx::query_as!(
             PushNotificationConfigRow,
@@ -120,14 +120,14 @@ impl PushNotificationConfigRepository {
             task_id_str
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map_err(systemprompt_traits::RepositoryError::database)?;
 
         rows.iter()
             .map(Self::row_to_config)
-            .collect::<Result<Vec<_>>>()
+            .collect::<Result<Vec<_>, RepositoryError>>()
     }
 
-    pub async fn delete_config(&self, task_id: &TaskId, config_id: &ConfigId) -> Result<bool> {
+    pub async fn delete_config(&self, task_id: &TaskId, config_id: &ConfigId) -> Result<bool, RepositoryError> {
         let task_id_str = task_id.as_str();
         let config_id_str = config_id.as_str();
         let result = sqlx::query!(
@@ -136,24 +136,24 @@ impl PushNotificationConfigRepository {
             config_id_str
         )
         .execute(&*self.write_pool)
-        .await?;
+        .await.map_err(systemprompt_traits::RepositoryError::database)?;
 
         Ok(result.rows_affected() > 0)
     }
 
-    pub async fn delete_all_for_task(&self, task_id: &TaskId) -> Result<u64> {
+    pub async fn delete_all_for_task(&self, task_id: &TaskId) -> Result<u64, RepositoryError> {
         let task_id_str = task_id.as_str();
         let result = sqlx::query!(
             "DELETE FROM task_push_notification_configs WHERE task_id = $1",
             task_id_str
         )
         .execute(&*self.write_pool)
-        .await?;
+        .await.map_err(systemprompt_traits::RepositoryError::database)?;
 
         Ok(result.rows_affected())
     }
 
-    fn row_to_config(row: &PushNotificationConfigRow) -> Result<PushNotificationConfig> {
+    fn row_to_config(row: &PushNotificationConfigRow) -> Result<PushNotificationConfig, RepositoryError> {
         let headers = row
             .headers
             .as_ref()

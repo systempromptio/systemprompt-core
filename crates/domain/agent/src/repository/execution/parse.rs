@@ -17,7 +17,7 @@ pub(super) struct ParseStepParams {
     pub error_message: Option<String>,
 }
 
-pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep> {
+pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep, RepositoryError> {
     let ParseStepParams {
         step_id,
         task_id,
@@ -30,9 +30,9 @@ pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep> {
     } = params;
     let status = status
         .parse::<StepStatus>()
-        .map_err(|e| RepositoryError::Internal(format!("Invalid status: {}", e))?;
-    let content: StepContent =
-        serde_json::from_value(content).map_err(|e| RepositoryError::Internal(format!("Invalid content: {}", e))?;
+        .map_err(|e| RepositoryError::Internal(format!("Invalid status: {}", e)))?;
+    let content: StepContent = serde_json::from_value(content)
+        .map_err(|e| RepositoryError::Internal(format!("Invalid content: {}", e)))?;
     Ok(ExecutionStep {
         step_id: step_id.into(),
         task_id,

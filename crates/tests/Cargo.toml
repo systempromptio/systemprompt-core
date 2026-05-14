@@ -10,6 +10,7 @@
 [workspace]
 members = [
     # Integration tests
+    "integration/database",
     "integration/extension",
     "integration/oauth",
     # Unit tests - shared layer

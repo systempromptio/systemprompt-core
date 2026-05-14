@@ -3,6 +3,7 @@
 //! - emit a status frame on the SSE channel,
 //! - record stream-creation failures.
 
+use crate::services::shared::AgentServiceError;
 use axum::response::sse::Event;
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, TaskId};

@@ -39,7 +39,7 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
             trace_id: context.trace_id(),
         })
         .await
-        .map_err(|e| AgentServiceError::Internal(format!("Failed to update task and save messages: {}", e))?;
+        .map_err(|e| AgentServiceError::Internal(format!("Failed to update task and save messages: {}", e)))?;
 
     if !artifacts_already_published {
         if let Some(artifacts) = &task.artifacts {
@@ -49,7 +49,7 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
                 publishing_service
                     .publish_from_a2a(artifact, &task.id, context_id)
                     .await
-                    .map_err(|e| AgentServiceError::Internal(format!("Failed to publish artifact {}: {}", artifact.id, e))?;
+                    .map_err(|e| AgentServiceError::Internal(format!("Failed to publish artifact {}: {}", artifact.id, e)))?;
 
                 broadcast_artifact_created(
                     artifact,
@@ -59,7 +59,7 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
                     context.auth_token().as_str(),
                 )
                 .await
-                .map_err(|e| AgentServiceError::Internal(format!("Failed to broadcast artifact {}: {}", artifact.id, e))?;
+                .map_err(|e| AgentServiceError::Internal(format!("Failed to broadcast artifact {}: {}", artifact.id, e)))?;
             }
 
             tracing::info!(

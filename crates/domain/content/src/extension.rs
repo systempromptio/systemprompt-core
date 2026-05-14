@@ -63,6 +63,14 @@ impl Extension for ContentExtension {
         vec!["users", "analytics"]
     }
 
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(
+            1,
+            "markdown_content_locale_unique",
+            include_str!("../schema/migrations/001_markdown_content_locale_unique.sql"),
+        )]
+    }
+
     fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
         vec![Arc::new(DefaultHomepagePrerenderer)]
     }

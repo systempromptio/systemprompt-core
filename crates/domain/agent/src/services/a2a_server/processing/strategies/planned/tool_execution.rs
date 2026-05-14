@@ -20,7 +20,7 @@ pub struct HandleToolCallsParams<'a> {
     pub calls: Vec<PlannedToolCall>,
     pub context: &'a ExecutionContext,
     pub tracking: &'a ExecutionTrackingService,
-    pub planning_tracked: Result<(TrackedStep, ExecutionStep), AgentServiceError>,
+    pub planning_tracked: std::result::Result<(TrackedStep, ExecutionStep), AgentServiceError>,
     pub task_id: TaskId,
     pub messages: Vec<AiMessage>,
     pub tools: Vec<McpTool>,
@@ -151,9 +151,9 @@ pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<Exec
                     tool_error = %tool_err,
                     "AI synthesis failed after tool errors - returning tool errors"
                 );
-                return Err(AgentServiceError::Internal(format!("Tool execution failed: {}", tool_err));
+                return Err(AgentServiceError::Internal(format!("Tool execution failed: {tool_err}")));
             }
-            return Err(AgentServiceError::Internal(format!("{}", ai_error));
+            return Err(AgentServiceError::Internal(format!("{ai_error}")));
         },
     };
 
@@ -209,7 +209,7 @@ async fn handle_validation_failure(
             max_output_tokens: context.agent_runtime.max_output_tokens,
         })
         .await
-        .map_err(|e| AgentServiceError::Internal(format!("{}", e))?;
+        .map_err(|e| AgentServiceError::Internal(format!("{}", e)))?;
 
     if context
         .tx

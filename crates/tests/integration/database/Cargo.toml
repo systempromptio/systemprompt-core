@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-database-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-database lifecycle (schema/migration ordering)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+sqlx = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+uuid = { workspace = true }

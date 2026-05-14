@@ -176,16 +176,16 @@ impl<'a> SchemaValidator<'a> {
         schema_def: &SchemaDefinition,
     ) -> McpDomainResult<()> {
         let sql = SchemaLoader::load_schema_file(service_path, &schema_def.file)
-            .with_context(|| format!("Failed to load schema file: {}", schema_def.file))?;
+            .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("Failed to load schema file: {}", schema_def.file))))?;
 
         SchemaLoader::validate_schema_syntax(&sql)?;
 
-        self.db.execute(&sql, &[]).await.with_context(|| {
+        self.db.execute(&sql, &[]).await.map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", {
             format!(
                 "Failed to execute schema SQL for table '{}'",
                 schema_def.table
             )
-        })?;
+        })))?;
 
         let table_exists = self.table_exists(&schema_def.table).await?;
         if !table_exists {
@@ -197,12 +197,12 @@ impl<'a> SchemaValidator<'a> {
 
         self.validate_columns(&schema_def.table, &schema_def.required_columns)
             .await
-            .with_context(|| {
+            .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", {
                 format!(
                     "Table '{}' created but missing required columns",
                     schema_def.table
                 )
-            })?;
+            })))?;
 
         Ok(())
     }
