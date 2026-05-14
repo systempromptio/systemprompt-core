@@ -5,9 +5,9 @@
 //! providers carry their own typed errors — see [`crate::llm`] and
 //! [`crate::tool`]).
 //!
-//! Downstream provider crates that implement these traits typically use
-//! `anyhow::Error` internally; the `#[from]` impl lets them propagate with
-//! `?` while still presenting a typed error at the public boundary.
+//! Downstream provider crates that implement these traits convert any
+//! third-party error at the boundary with
+//! `.map_err(|e| ProviderError::Internal(e.to_string()))`.
 
 use thiserror::Error;
 
@@ -35,13 +35,7 @@ pub enum ProviderError {
     Json(#[from] serde_json::Error),
 
     #[error("Internal provider error: {0}")]
-    Internal(#[source] anyhow::Error),
-}
-
-impl From<anyhow::Error> for ProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err)
-    }
+    Internal(String),
 }
 
 pub type ProviderResult<T> = Result<T, ProviderError>;

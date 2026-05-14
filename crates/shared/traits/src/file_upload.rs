@@ -22,12 +22,6 @@ pub enum FileUploadProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for FileUploadProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct FileUploadInput {
     pub mime_type: String,

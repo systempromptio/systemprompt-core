@@ -26,10 +26,4 @@ pub enum ToolProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for ToolProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 pub type ToolProviderResult<T> = Result<T, ToolProviderError>;

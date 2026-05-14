@@ -21,8 +21,3 @@ pub enum AiProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for AiProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}

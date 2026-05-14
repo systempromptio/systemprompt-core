@@ -23,13 +23,7 @@ pub enum LlmProviderError {
     GenerationFailed(String),
 
     #[error("Internal error: {0}")]
-    Internal(#[source] anyhow::Error),
-}
-
-impl From<anyhow::Error> for LlmProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err)
-    }
+    Internal(String),
 }
 
 pub type LlmProviderResult<T> = Result<T, LlmProviderError>;
