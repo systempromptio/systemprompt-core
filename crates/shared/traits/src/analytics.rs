@@ -21,12 +21,6 @@ pub enum AnalyticsProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for AnalyticsProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct SessionAnalytics {
     pub ip_address: Option<String>,

@@ -28,12 +28,6 @@ pub enum AuthProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for AuthProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct AuthUser {
     pub id: UserId,

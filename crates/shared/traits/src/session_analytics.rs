@@ -16,12 +16,6 @@ pub enum SessionAnalyticsProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for SessionAnalyticsProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 #[async_trait]
 pub trait SessionAnalyticsProvider: Send + Sync {
     async fn increment_task_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()>;

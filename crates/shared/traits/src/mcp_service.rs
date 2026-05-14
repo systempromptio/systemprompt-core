@@ -17,12 +17,6 @@ pub enum McpServiceProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for McpServiceProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct McpServerMetadata {
     pub name: String,

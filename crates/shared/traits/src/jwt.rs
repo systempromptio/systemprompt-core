@@ -24,12 +24,6 @@ pub enum JwtProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for JwtProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct AgentJwtClaims {
     pub subject: String,

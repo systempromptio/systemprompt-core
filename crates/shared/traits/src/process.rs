@@ -21,12 +21,6 @@ pub enum ProcessProviderError {
     Internal(String),
 }
 
-impl From<anyhow::Error> for ProcessProviderError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
 #[async_trait]
 pub trait ProcessCleanupProvider: Send + Sync {
     fn process_exists(&self, pid: u32) -> bool;
