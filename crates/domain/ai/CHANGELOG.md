@@ -1,82 +1,90 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Normalized changelog formatting to match the consumer-facing house style.
+
 ## [0.3.0] - 2026-04-22
 
 ### Changed
-- `AiQuotaBucketRepository::increment` now takes `IncrementParams` struct (groups `tenant_id`, `user_id`, `window_seconds`, `window_start`, `delta`)
-- `AiRequestPayloadRepository::upsert_request` and `upsert_response` now take `UpsertPayloadParams` struct (groups `body`, `excerpt`, `truncated`, `bytes`)
-- New public types: `IncrementParams`, `UpsertPayloadParams` exported from crate root
+- **Breaking:** `AiQuotaBucketRepository::increment` now takes an `IncrementParams` struct grouping `tenant_id`, `user_id`, `window_seconds`, `window_start`, and `delta`. Migrate by constructing `IncrementParams` at the call site.
+- **Breaking:** `AiRequestPayloadRepository::upsert_request` and `upsert_response` now take an `UpsertPayloadParams` struct grouping `body`, `excerpt`, `truncated`, and `bytes`. Migrate by constructing `UpsertPayloadParams` at the call site.
+
+### Added
+- Re-exported `IncrementParams` and `UpsertPayloadParams` from the crate root.
 
 ## [0.1.3] - 2026-03-20
 
 ### Added
-- `OpenAiStreamChunk`, `OpenAiStreamChoice`, `OpenAiStreamDelta` typed structs for OpenAI streaming
-- Pricing-based cost calculation in `StreamStorageWrapper` using `ModelPricing`
-- Token usage tracking (input, output, total, cache read, cache creation) accumulated during streaming
+- Typed `OpenAiStreamChunk`, `OpenAiStreamChoice`, and `OpenAiStreamDelta` structs for OpenAI streaming.
+- Pricing-based cost calculation in `StreamStorageWrapper` driven by `ModelPricing`.
+- Token usage accumulation during streaming covering input, output, total, cache read, and cache creation tokens.
 
 ### Changed
-- All provider streaming implementations return `StreamChunk` instead of raw strings
-- `StreamStorageWrapper` captures token usage and finish reason from `StreamChunk::Usage` during streaming
-- Replace `serde_json::Value` with typed `OpenAiStreamChunk` struct in OpenAI streaming parser
-- `capture_usage` accepts `StreamChunk` directly instead of individual parameters
+- **Breaking:** Provider streaming implementations now return `StreamChunk` instead of raw strings. Migrate by matching on `StreamChunk` variants in stream consumers.
+- `StreamStorageWrapper` captures token usage and finish reason from `StreamChunk::Usage` during streaming.
+- `capture_usage` now accepts a `StreamChunk` directly instead of individual parameters.
+- OpenAI streaming parser uses typed `OpenAiStreamChunk` in place of `serde_json::Value`.
 
 ## [0.1.2] - 2026-02-03
 
 ### Added
-- `StreamStorageWrapper` for capturing and storing streaming AI response data
-- Request storage tracking for `generate_stream` and `generate_with_tools_stream` methods
+- `StreamStorageWrapper` for capturing and storing streaming AI response data.
+- Request storage tracking on `generate_stream` and `generate_with_tools_stream`.
 
 ### Changed
-- `RequestStorage` is now `Clone` to support stream wrapper ownership
-- **BREAKING**: Cost tracking changed from `cost_cents` (INTEGER) to `cost_microdollars` (BIGINT) for sub-cent precision
-- Regenerated SQLx offline query cache
+- **Breaking:** Cost tracking field renamed from `cost_cents` (INTEGER) to `cost_microdollars` (BIGINT) for sub-cent precision. Migrate by reading the new column and dividing by 1_000_000 to recover dollars.
+- `RequestStorage` now implements `Clone` to support stream-wrapper ownership.
+- Regenerated SQLx offline query cache.
 
 ## [0.1.0] - 2026-02-02
 
 ### Added
-- Anthropic web search support via `web_search_20250305` tool
-- OpenAI web search support
-- Updated AI provider models with latest versions
-
-### Fixed
-- Use correct model configs for image providers and search capabilities
+- Anthropic web search support via the `web_search_20250305` tool.
+- OpenAI web search support.
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- Updated AI provider model identifiers to the latest published versions.
+
+### Fixed
+- Model configs are now selected correctly for image providers and search-capable models.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
+- Version bump for workspace consistency.
 
-## [0.1.0] - 2026-01-26
+## [0.0.12] - 2026-01-26
 
 ### Fixed
-- Fix Gemini Google Search grounding API error "Function calling config is set without function_declarations" by removing `tool_config` from search requests (only needed for function calling, not for Google Search grounding)
+- Gemini Google Search grounding no longer fails with "Function calling config is set without function_declarations"; `tool_config` is omitted from search requests.
 
 ## [0.0.11] - 2026-01-26
 
 ### Fixed
-- Force Gemini to use Google Search grounding by setting `tool_config` with `mode: Any` instead of relying on AUTO mode
+- Gemini Google Search grounding is now forced via `tool_config` `mode: Any` instead of relying on `AUTO`.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Migration system infrastructure.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Schema validation now accepts VIEW-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Each domain crate now owns its SQL schemas via the `Extension` trait under the distributed schema-registration pattern.
+
+### Removed
+- Centralized module loaders from `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- `include_str!` paths no longer point outside the crate directory, allowing standalone compilation from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

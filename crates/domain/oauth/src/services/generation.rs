@@ -71,7 +71,7 @@ pub fn generate_jwt(
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| {
-            crate::error::OauthError::Internal(format!("Failed to calculate token expiration"))
+            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
         })?
         .timestamp();
 
@@ -159,7 +159,7 @@ pub fn generate_anonymous_jwt_with_expiry(
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| {
-            crate::error::OauthError::Internal(format!("Failed to calculate token expiration"))
+            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
         })?
         .timestamp();
 
@@ -227,7 +227,7 @@ pub fn generate_admin_jwt_with_expiry(
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| {
-            crate::error::OauthError::Internal(format!("Failed to calculate token expiration"))
+            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
         })?
         .timestamp();
 

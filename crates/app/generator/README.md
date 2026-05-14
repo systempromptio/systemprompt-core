@@ -48,83 +48,83 @@ This application-layer crate orchestrates the full content publishing pipeline:
 
 ```
 src/
-├── lib.rs                    # Public API exports
+├── lib.rs                    # Public API exports and crate-level docs
 ├── api.rs                    # HTTP API content fetching
-├── assets.rs                 # Asset copying and organization
+├── assets.rs                 # Dist asset organisation (organize_dist_assets)
 │
 ├── build/                    # Web build orchestration
 │   ├── mod.rs               # Module exports
 │   ├── orchestrator.rs      # BuildOrchestrator, BuildMode, BuildError
-│   ├── steps.rs             # Theme, TypeScript, Vite, CSS build steps
+│   ├── steps.rs             # CSS build steps
 │   └── validation.rs        # Sitemap URL validation
 │
 ├── content/                  # Content processing
 │   ├── mod.rs               # Module exports
-│   ├── cards.rs             # Card HTML generation, image URL normalization
-│   └── markdown.rs          # Markdown rendering, frontmatter extraction
+│   ├── markdown.rs          # Markdown rendering, frontmatter extraction
+│   └── toc.rs               # Table of contents extraction and heading IDs
+│
+├── error/                    # Typed errors
+│   ├── mod.rs               # PublishError, GeneratorResult
+│   └── suggestions.rs       # Human-readable error-suggestion strings
 │
 ├── jobs/                     # Scheduled job definitions
 │   ├── mod.rs               # Module exports
-│   ├── copy_assets.rs       # CopyExtensionAssetsJob
+│   ├── copy_assets.rs       # execute_copy_extension_assets entry point
 │   ├── content_prerender.rs # ContentPrerenderJob
 │   └── page_prerender.rs    # PagePrerenderJob
 │
 ├── prerender/                # Static page generation
 │   ├── mod.rs               # Module exports
 │   ├── engine.rs            # prerender_content, prerender_pages entry points
-│   ├── context.rs           # PrerenderContext, HomepageBranding
+│   ├── context.rs           # PrerenderContext
 │   ├── content.rs           # Source processing, item rendering
 │   ├── fetch.rs             # Database content fetching with retries
-│   ├── index.rs             # GenerateParentIndexParams, parent index generation
-│   └── parent.rs            # RenderParentParams, parent route rendering
+│   ├── list.rs              # Listing / index page rendering
+│   ├── render.rs            # Per-item render orchestration
+│   └── utils.rs             # Shared prerender helpers
 │
 ├── rss/                      # RSS feed generation
 │   ├── mod.rs               # Module exports
-│   ├── generator.rs         # generate_feed entry point
+│   ├── generator.rs         # generate_feed / generate_feed_with_providers
+│   ├── default_provider.rs  # DefaultRssFeedProvider
 │   └── xml.rs               # RssChannel, RssItem, XML building
 │
 ├── sitemap/                  # Sitemap generation
 │   ├── mod.rs               # Module exports
 │   ├── generator.rs         # generate_sitemap entry point
-│   └── xml.rs               # SitemapUrl, XML building
+│   ├── default_provider.rs  # DefaultSitemapProvider
+│   └── xml.rs               # SitemapUrl, build_sitemap_xml, build_sitemap_index
 │
-└── templates/                # Template data preparation
+└── templates/                # Template configuration loading
     ├── mod.rs               # Module exports
-    ├── engine.rs            # load_web_config, get_templates_path
-    ├── html.rs              # Related content, CTA links, references HTML
-    ├── items.rs             # find_latest_items, find_popular_items
-    ├── navigation.rs        # Footer, social action bar HTML generation
-    ├── paper.rs             # Paper content type: TOC, sections, read time
-    └── data/                # Template data preparation (split for maintainability)
-        ├── mod.rs           # prepare_template_data entry point
-        ├── types.rs         # TemplateDataParams, DateData, ImageData, etc.
-        ├── extractors.rs    # Config and field extraction functions
-        └── builders.rs      # JSON template building
+    └── engine.rs            # load_web_config, get_templates_path
 ```
 
 ### Module Descriptions
 
 | Module | Purpose |
 |--------|---------|
-| `build` | Orchestrates web frontend build: theme generation, TypeScript, Vite, CSS |
-| `content` | Markdown rendering and content card HTML generation |
-| `jobs` | Scheduled jobs implementing the `Job` trait for the scheduler |
-| `prerender` | Static HTML generation for content pages and homepage |
-| `rss` | RSS 2.0 feed generation with Atom namespace support |
-| `sitemap` | XML sitemap generation with chunking for large sites |
-| `templates` | Template data preparation and HTML fragment generation |
+| `build` | Orchestrates the web build with progress reporting and CSS organisation |
+| `content` | Markdown rendering, frontmatter extraction, and TOC generation |
+| `error` | Typed `PublishError` and `GeneratorResult` returned across the public API |
+| `jobs` | Scheduled jobs registered with the systemprompt scheduler via `inventory` |
+| `prerender` | Static HTML generation for content sources and registered page prerenderers |
+| `rss` | RSS 2.0 feed generation with a default feed provider |
+| `sitemap` | XML sitemap generation with chunking and a default sitemap provider |
+| `templates` | Template-path resolution and `WebConfig` loading |
 
 ### Key Types
 
 | Type | Description |
 |------|-------------|
-| `BuildOrchestrator` | Coordinates theme, TypeScript, Vite, and CSS build steps |
-| `BuildMode` | `Development`, `Production`, or `Docker` build configuration |
-| `PrerenderContext` | Shared context for prerendering: db pool, config, templates |
-| `PublishContentJob` | Main job that runs the full publishing pipeline |
-| `SitemapUrl` | URL entry for sitemap XML generation |
-| `RssChannel` / `RssItem` | RSS feed data structures |
-| `TemplateDataParams` | Parameters for preparing template data |
+| `BuildOrchestrator` | Coordinates CSS organisation and sitemap validation with progress reporting |
+| `BuildMode` | Build-configuration variants |
+| `BuildError` | Typed errors emitted by the build orchestrator |
+| `PublishError` / `GeneratorResult` | Public error and result alias for every entry point |
+| `PagePrerenderResult` | Outcome of a single page-prerenderer invocation |
+| `ContentPrerenderJob` / `PagePrerenderJob` | Scheduler jobs for content and page prerendering |
+| `SitemapUrl` / `DefaultSitemapProvider` | Sitemap entries and default provider |
+| `RssChannel` / `RssItem` / `GeneratedFeed` / `DefaultRssFeedProvider` | RSS feed types and default provider |
 
 ## Usage
 
@@ -136,14 +136,21 @@ systemprompt-generator = "0.9.0"
 ### Public Exports
 
 ```rust
-pub use assets::{copy_implementation_assets, organize_css_files, organize_js_files};
+pub use assets::organize_dist_assets;
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
-pub use prerender::{prerender_content, prerender_pages, PagePrerenderResult};
-pub use rss::{build_rss_xml, generate_feed, RssChannel, RssItem};
-pub use sitemap::{build_sitemap_index, build_sitemap_xml, generate_sitemap, SitemapUrl};
-pub use templates::{generate_footer_html, load_web_config, prepare_template_data};
-pub use jobs::{CopyExtensionAssetsJob, PublishContentJob};
+pub use error::{GeneratorResult, PublishError};
+pub use prerender::{PagePrerenderResult, prerender_content, prerender_pages};
+pub use rss::{
+    DefaultRssFeedProvider, GeneratedFeed, RssChannel, RssItem, build_rss_xml,
+    generate_feed, generate_feed_with_providers,
+};
+pub use sitemap::{
+    DefaultSitemapProvider, SitemapUrl, build_sitemap_index, build_sitemap_xml,
+    escape_xml, generate_sitemap,
+};
+pub use templates::load_web_config;
+pub use jobs::{ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets};
 ```
 
 ## Dependencies

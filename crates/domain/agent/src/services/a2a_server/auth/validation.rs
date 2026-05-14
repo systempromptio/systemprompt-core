@@ -81,11 +81,9 @@ pub async fn generate_cross_protocol_token(
         .with_audiences(vec!["mcp".to_string(), "a2a".to_string()])
         .with_expires_in_hours(1);
 
-    jwt_provider
-        .generate_token(params)
-        .map_err(|e| {
-            AgentServiceError::Internal(format!("Failed to generate cross-protocol JWT token: {e}"))
-        })
+    jwt_provider.generate_token(params).map_err(|e| {
+        AgentServiceError::Internal(format!("Failed to generate cross-protocol JWT token: {e}"))
+    })
 }
 
 async fn verify_user_exists_and_active(
@@ -93,10 +91,9 @@ async fn verify_user_exists_and_active(
     user_provider: &dyn systemprompt_traits::UserProvider,
 ) -> Result<AuthUser> {
     let subject_id = UserId::new(&claims.subject);
-    let user = user_provider
-        .find_by_id(&subject_id)
-        .await
-        .map_err(|e| AgentServiceError::Internal(format!("Failed to lookup user in database: {e}")))?;
+    let user = user_provider.find_by_id(&subject_id).await.map_err(|e| {
+        AgentServiceError::Internal(format!("Failed to lookup user in database: {e}"))
+    })?;
 
     let Some(user) = user else {
         tracing::warn!(

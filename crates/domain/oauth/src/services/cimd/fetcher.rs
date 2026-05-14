@@ -19,10 +19,7 @@ impl CimdFetcher {
             .redirect(reqwest::redirect::Policy::limited(3))
             .build()
             .map_err(|e| {
-                crate::error::OauthError::Internal(format!(
-                    "Failed to build HTTP client: {}",
-                    e
-                ))
+                crate::error::OauthError::Internal(format!("Failed to build HTTP client: {}", e))
             })?;
 
         Ok(Self { client })
@@ -31,9 +28,9 @@ impl CimdFetcher {
     pub async fn fetch_metadata(&self, client_id: &ClientId) -> Result<CimdMetadata> {
         let client_id_str = client_id.as_str();
         if !client_id_str.starts_with("https://") {
-            return Err(crate::error::OauthError::Internal(format!(
-                "CIMD client_id must be HTTPS URL"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "CIMD client_id must be HTTPS URL".to_string(),
+            ));
         }
 
         let response = self
@@ -65,8 +62,7 @@ impl CimdFetcher {
         if metadata.client_id.as_str() != client_id_str {
             return Err(crate::error::OauthError::Internal(format!(
                 "CIMD metadata client_id mismatch: expected '{}', got '{}'",
-                client_id_str,
-                metadata.client_id
+                client_id_str, metadata.client_id
             )));
         }
 

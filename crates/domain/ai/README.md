@@ -61,7 +61,7 @@ The AI module uses dependency injection for tool operations via the `ToolProvide
 
 ```toml
 [dependencies]
-systemprompt-ai = "0.9.0"
+systemprompt-ai = "0.9.2"
 ```
 
 ```rust
@@ -90,6 +90,7 @@ let response = ai_service.generate(&request).await?;
 src/
 ├── lib.rs                              # Public API exports
 ├── error.rs                            # AiError, RepositoryError types
+├── extension.rs                        # Extension trait implementation, schema registration
 ├── jobs/
 │   └── mod.rs                          # Background job definitions
 ├── models/
@@ -99,14 +100,23 @@ src/
 │   ├── message_converters.rs           # AiMessage to provider format conversions
 │   └── providers/
 │       ├── mod.rs                      # Provider model exports
-│       ├── anthropic.rs                # Anthropic API DTOs (requests, responses, streaming)
 │       ├── openai.rs                   # OpenAI API DTOs (requests, responses, tools)
+│       ├── anthropic/
+│       │   ├── mod.rs                  # Anthropic model exports
+│       │   ├── request.rs              # Anthropic request DTOs
+│       │   ├── response.rs             # Anthropic response DTOs
+│       │   ├── search.rs               # Web search tool DTOs
+│       │   └── streaming.rs            # SSE event DTOs
 │       └── gemini/
 │           ├── mod.rs                  # Gemini model exports
 │           ├── request.rs              # Gemini request types, function calling, tools
 │           └── response.rs             # Gemini response types, grounding metadata
 ├── repository/
 │   ├── mod.rs                          # Repository exports
+│   ├── ai_gateway_policies.rs          # AiGatewayPolicyRepository
+│   ├── ai_quota_buckets.rs             # AiQuotaBucketRepository, IncrementParams
+│   ├── ai_request_payloads.rs          # AiRequestPayloadRepository, UpsertPayloadParams
+│   ├── ai_safety_findings.rs           # AiSafetyFindingRepository
 │   └── ai_requests/
 │       ├── mod.rs                      # AI request repository exports
 │       ├── repository.rs               # AiRequestRepository struct
@@ -129,6 +139,7 @@ src/
     │   │   ├── generation.rs           # generate() - basic text generation
     │   │   ├── tool_execution.rs       # generate_with_tools(), execute_tools()
     │   │   ├── streaming.rs            # generate_stream(), health_check()
+    │   │   ├── stream_wrapper.rs       # StreamStorageWrapper for streaming persistence
     │   │   ├── planning.rs             # generate_plan(), generate_response(), cost estimation
     │   │   └── provider_impl.rs        # AiProvider trait implementation for AiService
     │   └── request_storage/
@@ -147,7 +158,6 @@ src/
     │   ├── openai_images.rs            # OpenAiImageProvider implementation
     │   ├── shared/
     │   │   ├── mod.rs                  # Shared utilities exports
-    │   │   ├── http_client.rs          # HTTP client helpers
     │   │   └── response_builder.rs     # Response building utilities
     │   ├── anthropic/
     │   │   ├── mod.rs                  # Anthropic provider exports
@@ -155,6 +165,7 @@ src/
     │   │   ├── converters.rs           # Message/tool conversion
     │   │   ├── generation.rs           # generate(), generate_with_tools()
     │   │   ├── streaming.rs            # Streaming implementation
+    │   │   ├── search.rs               # Web search integration
     │   │   ├── thinking.rs             # Extended thinking support
     │   │   └── trait_impl.rs           # AiProvider trait implementation
     │   ├── openai/
@@ -165,6 +176,7 @@ src/
     │   │   ├── streaming.rs            # Streaming implementation
     │   │   ├── response_builder.rs     # Response building helpers
     │   │   ├── reasoning.rs            # Reasoning effort configuration
+    │   │   ├── search.rs               # Web search integration
     │   │   └── trait_impl.rs           # AiProvider trait implementation
     │   └── gemini/
     │       ├── mod.rs                  # Gemini provider exports
@@ -212,7 +224,7 @@ src/
 Data structures for AI requests, responses, and provider-specific DTOs. Contains conversion logic for translating between the unified `AiMessage` format and provider-specific formats.
 
 ### `repository/`
-Database access layer for persisting AI requests, messages, and tool calls. Uses SQLX macros for compile-time query verification.
+Database access layer for AI requests, messages, tool calls, request/response payloads, quota buckets, gateway policies, and safety findings. Uses SQLX macros for compile-time query verification.
 
 ### `services/core/`
 Core AI functionality including `AiService` (main entry point) and `ImageService` for image generation. Handles request orchestration, storage, and logging.
@@ -231,7 +243,7 @@ JSON extraction and schema validation for structured output responses.
 
 ## Database
 
-Tables: `ai_requests`, `ai_request_messages`, `ai_request_tool_calls`
+Tables: `ai_requests`, `ai_request_messages`, `ai_request_tool_calls`, `ai_request_payloads`, `ai_quota_buckets`, `ai_gateway_policies`, `ai_safety_findings`.
 
 ## License
 

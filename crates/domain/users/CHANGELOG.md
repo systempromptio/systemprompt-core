@@ -1,63 +1,71 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Added
+- API key issuance, hashing, and verification via `ApiKeyService`.
+- Device certificate enrollment and rotation via `DeviceCertService`.
+- `CleanupAnonymousUsersJob` re-export for scheduler registration.
+
+### Changed
+- Re-exported `UserProvider` and `RoleProvider` traits from `systemprompt-traits`.
+- Migrated public errors to `thiserror`-derived `UserError` with `Result<T>` alias.
+
 ## [0.3.0] - 2026-04-22
 
 ### Changed
-- Formatting cleanup in `device_cert` repository
+- Formatting cleanup in the `device_cert` repository.
 
 ## [0.1.21] - 2026-04-02
 
 ### Added
-- `UserRepository::session_exists()` to check if a session is active in the database
-- `UserService::session_exists()` service method
-- Re-export `CleanupAnonymousUsersJob` from `jobs` module
+- `UserRepository::session_exists()` to check whether a session is active.
+- `UserService::session_exists()` service method.
+- Re-exported `CleanupAnonymousUsersJob` from the `jobs` module.
 
 ### Changed
-- Make `jobs` module public for external access
+- Exposed the `jobs` module for external registration.
 
 ## [0.1.18] - 2026-03-27
 
 ### Changed
-- Upgrade to Rust 2024 edition
+- Upgraded to the Rust 2024 edition.
 
 ## [0.1.2] - 2026-02-03
 
 ### Changed
-- Regenerated SQLx offline query cache
+- Regenerated the SQLx offline query cache.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release; aligned to the workspace 0.1.0 version line.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
-
-## [0.0.3] - 2026-01-22
-
-### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Version bump for workspace consistency.
 
 ## [0.0.3] - 2026-01-22
 
 ### Changed
-- Users extension marked as required (`is_required() -> true`)
+- Marked the users extension as required via `is_required() -> true`.
+
+### Fixed
+- Fixed schema validation for `VIEW`-based schemas.
+- Added migration system infrastructure.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Adopted the distributed schema registration pattern; each domain crate now owns its SQL schemas via the `Extension` trait.
+- Removed centralised module loaders from `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- Fixed `include_str!` paths that pointed outside the crate directory.
+- Ensured the crate compiles standalone when downloaded from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

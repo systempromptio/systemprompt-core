@@ -1,38 +1,46 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Normalize `CHANGELOG.md` format to align with workspace-wide maintainer style.
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed
-- Upgrade to Rust 2024 edition
+- Upgrade crate to the Rust 2024 edition.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- Promote crate to a stable `0.1.0` release aligned with the workspace baseline.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
+- Bump version for workspace consistency.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Add migration system infrastructure for schema rollout.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Fix schema validation for VIEW-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
+### Added
+- Distribute schema registration so each domain crate owns its SQL via the `Extension` trait.
+
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Remove the centralised module loader path from `systemprompt-loader` in favour of per-crate ownership.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- Correct `include_str!` paths that previously pointed outside the crate directory.
+- Ensure the crate compiles standalone when consumed from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release of `systemprompt-files`.

@@ -28,29 +28,25 @@
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-traits?style=flat-square)](https://docs.rs/systemprompt-traits)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Trait-first interface contracts for systemprompt.io AI governance infrastructure. Repository, provider, and service abstractions shared across the MCP governance pipeline. Provides the core trait definitions that enable polymorphism, dependency injection, and consistent patterns throughout the codebase.
+Trait-first interface contracts for the systemprompt.io platform. Defines the provider, repository, registry, and service abstractions that every other layer (infra, domain, app, entry) implements or consumes, plus the cross-cutting `ExtensionError` contract used to render domain errors over HTTP and MCP.
 
-**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Shared. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace. Depends only on [`systemprompt-identifiers`](https://crates.io/crates/systemprompt-identifiers) and [`systemprompt-provider-contracts`](https://crates.io/crates/systemprompt-provider-contracts).
 
-## Overview
-
-This crate provides the core trait definitions that enable polymorphism, dependency injection, and consistent patterns across the systemprompt.io codebase.
-
-## Architecture
-
-This crate follows the **Interface Segregation Principle** from SOLID:
-- Traits are small and focused
-- Clients depend only on the methods they use
-- No fat interfaces or forced implementations
-
-**No dependencies on other systemprompt.io crates** (except `systemprompt-provider-contracts` and `systemprompt-identifiers`) — intentional to prevent circular dependencies.
-
-## Usage
+## Installation
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.9.0"
+systemprompt-traits = "0.9"
 ```
+
+Enable the `web` feature to pull in the `axum`-backed `ApiModule` trait:
+
+```toml
+[dependencies]
+systemprompt-traits = { version = "0.9", features = ["web"] }
+```
+
+## Example
 
 ```rust
 use async_trait::async_trait;
@@ -67,257 +63,62 @@ impl Service for HealthPinger {
 }
 ```
 
-## Traits
+## Module map
 
-### Repository Traits
+| Module | Contents |
+|--------|----------|
+| `ai_providers` | `AiSessionProvider`, `AiFilePersistenceProvider`, image-generation metadata, and storage config. |
+| `analytics` | `AnalyticsProvider`, `FingerprintProvider`, session inputs, and `AnalyticsProviderError`. |
+| `artifact` | `ArtifactSupport` and built-in artifact JSON-Schema helpers. |
+| `auth` | `UserProvider`, `RoleProvider`, `AuthUser`, and `AuthProviderError`. |
+| `content` | Content provider traits, `ContentSummary`, and `ContentItem`. |
+| `context` | `AppContext`, `ConfigProvider`, `DatabaseHandle`, `ModuleRegistry`, `Module`, `ContextPropagation`, and the optional `ApiModule` (`web` feature). |
+| `context_provider` | `ContextProvider` for conversation contexts and `ContextWithStats`. |
+| `domain_config` | `DomainConfig` and `DomainConfigRegistry` for per-domain config loading. |
+| `events` | Log, user, and analytics event publisher traits. |
+| `extension_error` | `ExtensionError` trait, `ApiError`, and `McpErrorData` wire types. |
+| `file_upload` | `FileUploadProvider`, `FileUploadInput`, and `UploadedFileInfo`. |
+| `jwt` | `JwtValidationProvider`, `AgentJwtClaims`, and `GenerateTokenParams`. |
+| `log_service` | Generic `LogService` persistence trait. |
+| `mcp_service` | `McpServiceProvider` and `McpServerMetadata`. |
+| `module` | `register_module!` macro for compile-time module registration via `inventory`. |
+| `process` | `ProcessCleanupProvider` for PID and port lifecycle. |
+| `registry` | `AgentRegistryProvider`, `McpRegistryProvider`, `AgentInfo`, and `McpServerInfo`. |
+| `repository` | `RepositoryError` enum shared by domain repositories. |
+| `scheduler` | `JobStatus` and scheduler error types. |
+| `service` | `Service` and `AsyncService` lifecycle traits. |
+| `session_analytics` | `SessionAnalyticsProvider` for session-scoped counters. |
+| `startup_events` | Startup event publisher traits and types. |
+| `storage` | `FileStorage`, `StoredFileId`, and `StoredFileMetadata`. |
+| `validation` | `Validate`, `MetadataValidation`, and the field-level `ValidationError`. |
+| `validation_report` | `ValidationReport`, `StartupValidationReport`, and warning types. |
 
-**`Repository`** — Base trait for all repository implementations
-```rust
-use systemprompt_traits::{Repository, RepositoryError};
+Provider traits re-exported from [`systemprompt-provider-contracts`](https://crates.io/crates/systemprompt-provider-contracts) (chat, LLM, tools, jobs) are surfaced at the crate root so downstream callers do not need to depend on both crates.
 
-impl Repository for MyRepository {
-    type Pool = DbPool;
-    type Error = RepositoryError;
+## Error model
 
-    fn pool(&self) -> &Self::Pool {
-        &self.db_pool
-    }
-}
-```
+Each provider trait pairs with a `thiserror`-derived error enum (e.g. `AuthProviderError`, `JwtProviderError`, `FileStorageError`, `ProcessProviderError`). The cross-cutting `ExtensionError` trait is implemented by downstream errors so the API and MCP transports can render them uniformly into `ApiError` (HTTP) or `McpErrorData` (MCP).
 
-**`CrudRepository<T>`** — Generic CRUD operations trait
-```rust
-use systemprompt_traits::CrudRepository;
+`RepositoryError` is the standard error type for repository implementations across domain crates and is `#[non_exhaustive]`.
 
-impl CrudRepository<User> for UserRepository {
-    type Id = String;
+## Async traits
 
-    async fn create(&self, entity: User) -> Result<User, Self::Error> { ... }
-    async fn get(&self, id: Self::Id) -> Result<Option<User>, Self::Error> { ... }
-    async fn update(&self, entity: User) -> Result<User, Self::Error> { ... }
-    async fn delete(&self, id: Self::Id) -> Result<(), Self::Error> { ... }
-    async fn list(&self) -> Result<Vec<User>, Self::Error> { ... }
-}
-```
+Most provider traits are exposed as `Arc<dyn TraitName>` via the `Dyn*` aliases. Until trait dispatch supports native `async fn` on `dyn` traits, these continue to rely on `#[async_trait]`; each trait whose contract requires it is annotated with the rationale.
 
-**`RepositoryError`** — Standard error type for repository operations
-```rust
-pub enum RepositoryError {
-    DatabaseError(sqlx::Error),
-    NotFound(String),
-    SerializationError(serde_json::Error),
-    InvalidData(String),
-    ConstraintViolation(String),
-    GenericError(anyhow::Error),
-}
-```
+## Feature flags
 
-### Context Traits
-
-**`AppContext`** — Application context trait for dependency injection
-```rust
-use systemprompt_traits::AppContext;
-
-impl AppContext for MyAppContext {
-    fn config(&self) -> Arc<dyn ConfigProvider> { ... }
-    fn module_registry(&self) -> Arc<dyn ModuleRegistry> { ... }
-    fn database_handle(&self) -> Arc<dyn DatabaseHandle> { ... }
-}
-```
-
-**`ConfigProvider`** — Configuration provider trait
-```rust
-impl ConfigProvider for Config {
-    fn get(&self, key: &str) -> Option<String> { ... }
-    fn database_url(&self) -> &str { ... }
-    fn system_path(&self) -> &str { ... }
-    fn jwt_secret(&self) -> &str { ... }
-    fn api_port(&self) -> u16 { ... }
-}
-```
-
-**`ModuleRegistry`** — Module registry trait for dynamic module management
-```rust
-impl ModuleRegistry for MyModuleRegistry {
-    fn get_module(&self, name: &str) -> Option<Arc<dyn Module>> { ... }
-    fn list_modules(&self) -> Vec<String> { ... }
-}
-```
-
-### Service Traits
-
-**`Service`** — Base service trait with lifecycle methods
-```rust
-use systemprompt_traits::Service;
-
-#[async_trait]
-impl Service for MyService {
-    fn name(&self) -> &str { "my-service" }
-
-    async fn start(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> { ... }
-    async fn stop(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> { ... }
-    async fn health_check(&self) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> { ... }
-}
-```
-
-**`AsyncService`** — Async service trait for long-running background tasks
-```rust
-use systemprompt_traits::AsyncService;
-
-#[async_trait]
-impl AsyncService for MyAsyncService {
-    async fn run(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Long-running task
-    }
-}
-```
-
-### Module Traits
-
-**`Module`** — Core module trait for systemprompt.io modules
-```rust
-#[async_trait]
-impl Module for MyModule {
-    fn name(&self) -> &str { "my-module" }
-    fn version(&self) -> &str { "1.0.0" }
-    fn display_name(&self) -> &str { "My Module" }
-    async fn initialize(&self) -> Result<(), Box<dyn std::error::Error>> { ... }
-}
-```
-
-**`ApiModule`** — Module trait with REST API support
-```rust
-#[async_trait]
-impl ApiModule for MyApiModule {
-    fn router(&self, ctx: Arc<dyn AppContext>) -> axum::Router { ... }
-}
-```
-
-### Tool Provider Traits
-
-**`ToolProvider`** — Abstract tool discovery and execution
-
-Enables modules to use tools without depending on specific implementations (e.g., MCP).
-
-```rust
-use systemprompt_traits::{ToolProvider, ToolContext, ToolDefinition};
-
-#[async_trait]
-impl ToolProvider for MyToolProvider {
-    async fn list_tools(&self, agent_name: &str, context: &ToolContext)
-        -> ToolProviderResult<Vec<ToolDefinition>> { ... }
-    async fn call_tool(&self, request: &ToolCallRequest, service_id: &str, context: &ToolContext)
-        -> ToolProviderResult<ToolCallResult> { ... }
-    async fn refresh_connections(&self, agent_name: &str) -> ToolProviderResult<()> { ... }
-    async fn health_check(&self) -> ToolProviderResult<HashMap<String, bool>> { ... }
-}
-```
-
-Supporting types: `ToolDefinition`, `ToolCallRequest`, `ToolCallResult`, `ToolContent`, `ToolContext`, `ToolProviderError`
-
-### LLM Provider Traits
-
-**`LlmProvider`** — Abstract LLM interactions
-
-```rust
-use systemprompt_traits::{LlmProvider, ChatRequest, ChatResponse};
-
-#[async_trait]
-impl LlmProvider for MyProvider {
-    async fn chat(&self, request: &ChatRequest) -> LlmProviderResult<ChatResponse> { ... }
-    async fn stream_chat(&self, request: &ChatRequest) -> LlmProviderResult<ChatStream> { ... }
-    fn default_model(&self) -> &str { "model-name" }
-    fn supports_model(&self, model: &str) -> bool { ... }
-    fn supports_streaming(&self) -> bool { true }
-    fn supports_tools(&self) -> bool { true }
-}
-```
-
-**`ToolExecutor`** — Execute tools during conversations
-
-```rust
-use systemprompt_traits::{ToolExecutor, ToolExecutionContext};
-
-#[async_trait]
-impl ToolExecutor for MyExecutor {
-    async fn execute(&self, tool_calls: Vec<ToolCallRequest>, tools: &[ToolDefinition],
-        context: &ToolExecutionContext) -> (Vec<ToolCallRequest>, Vec<ToolCallResult>) { ... }
-}
-```
-
-Supporting types: `ChatMessage`, `ChatRole`, `ChatRequest`, `ChatResponse`, `SamplingParameters`, `TokenUsage`, `ToolExecutionContext`
-
-## Usage Patterns
-
-### When to Use Traits vs Concrete Types
-
-**Use Traits When:**
-- You need dependency injection for testing
-- You want to support multiple implementations
-- You're defining interfaces between modules
-- You need polymorphic behavior
-
-**Use Concrete Types When:**
-- Performance is critical and trait objects add overhead
-- There's only one implementation
-- The API is module-internal
-- Type inference is important
-
-### Testing with Traits
-
-Traits enable easy mocking:
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct MockRepository {
-        pool: MockPool,
-    }
-
-    impl Repository for MockRepository {
-        type Pool = MockPool;
-        type Error = RepositoryError;
-
-        fn pool(&self) -> &Self::Pool { &self.pool }
-    }
-
-    #[tokio::test]
-    async fn test_with_mock() {
-        let repo = MockRepository { pool: MockPool::new() };
-        // Test using trait methods
-    }
-}
-```
-
-### Error Handling
-
-All repository errors automatically convert to `ApiError`:
-
-```rust
-use systemprompt_models::{ApiError, RepositoryError};
-
-let result: Result<User, RepositoryError> = repo.get_user("id").await;
-let api_result: Result<User, ApiError> = result.map_err(|e| e.into());
-```
-
-## Feature Flags
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `web` | No | Axum router types for `ApiModule` trait |
+| Feature | Default | Effect |
+|---------|---------|--------|
+| `web` | off | Enables the `ApiModule` trait and pulls in `axum` for HTTP routing. |
 
 ## Dependencies
 
-- `async-trait` — Async trait support
-- `anyhow` — Error handling
-- `axum` — Router type for ApiModule (optional, with `web` feature)
-- `inventory` — Module registration
-- `thiserror` — Error derive macros
-- `serde_json` — Serialization errors
-- `systemprompt-provider-contracts` — Provider trait definitions
-- `systemprompt-identifiers` — Typed identifiers
+- `systemprompt-provider-contracts`, `systemprompt-identifiers` — sibling shared-layer crates.
+- `async-trait` — async methods on dyn-compatible traits.
+- `thiserror` — error enum derives.
+- `inventory` — compile-time module registration.
+- `serde`, `serde_json`, `chrono`, `uuid`, `futures`, `http`, `tracing`, `xxhash-rust`.
+- `axum` (optional, `web` feature).
 
 ## License
 

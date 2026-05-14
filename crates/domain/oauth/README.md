@@ -51,18 +51,17 @@ This crate implements a complete OAuth 2.0 authorization server with:
 
 ```toml
 [dependencies]
-systemprompt-oauth = "0.9.0"
+systemprompt-oauth = "0.9.2"
 ```
 
 ```rust
-pub use models::*;
-pub use repository::OAuthRepository;
-pub use services::validation::jwt::validate_jwt_token;
-pub use services::{
-    extract_bearer_token, extract_cookie_token, is_browser_request, AnonymousSessionInfo,
-    CreateAnonymousSessionInput, SessionCreationService, TemplateEngine, TokenValidator,
+use systemprompt_oauth::{
+    OAuthRepository, OAuthState, OauthError, OauthExtension, OauthResult,
+    SessionCreationService, TokenValidator, validate_jwt_token,
 };
-pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX};
+use systemprompt_oauth::services::{
+    issue_bridge_access, issue_bridge_exchange_code, exchange_bridge_session_code,
+};
 ```
 
 ## File Structure
@@ -70,102 +69,64 @@ pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX}
 ```
 src/
 ├── lib.rs                              # Crate root, public exports
-├── api/                                # HTTP API layer
-│   ├── mod.rs                          # API module exports
-│   ├── wellknown.rs                    # /.well-known/openid-configuration
-│   └── routes/                         # Axum route handlers
-│       ├── mod.rs                      # Routes module
-│       ├── core.rs                     # Core OAuth router
-│       ├── health.rs                   # Health check endpoint
-│       ├── discovery.rs                # OpenID Connect discovery
-│       ├── clients.rs                  # Client routes registration
-│       ├── client/                     # Client management CRUD
-│       │   ├── mod.rs
-│       │   ├── create.rs               # POST /clients
-│       │   ├── get.rs                  # GET /clients/{id}
-│       │   ├── list.rs                 # GET /clients
-│       │   ├── update.rs               # PUT /clients/{id}
-│       │   └── delete.rs               # DELETE /clients/{id}
-│       ├── oauth/                      # OAuth 2.0 endpoints
-│       │   ├── mod.rs
-│       │   ├── anonymous.rs            # Anonymous session tokens
-│       │   ├── callback.rs             # OAuth callback handler
-│       │   ├── consent.rs              # User consent screen
-│       │   ├── introspect.rs           # Token introspection (RFC 7662)
-│       │   ├── register.rs             # Dynamic client registration
-│       │   ├── revoke.rs               # Token revocation (RFC 7009)
-│       │   ├── userinfo.rs             # UserInfo endpoint
-│       │   ├── webauthn_complete.rs    # WebAuthn OAuth completion
-│       │   ├── authorize/              # Authorization endpoint
-│       │   │   ├── mod.rs
-│       │   │   ├── handler.rs          # Authorization request handler
-│       │   │   ├── response_builder.rs # Authorization response builder
-│       │   │   └── validation.rs       # Request validation, PKCE entropy
-│       │   ├── client_config/          # Client configuration management
-│       │   │   ├── mod.rs
-│       │   │   ├── get.rs
-│       │   │   ├── update.rs
-│       │   │   ├── delete.rs
-│       │   │   └── validation.rs
-│       │   └── token/                  # Token endpoint
-│       │       ├── mod.rs              # Token request/response types
-│       │       ├── handler.rs          # Token grant handlers
-│       │       ├── generation.rs       # JWT token generation
-│       │       └── validation.rs       # Client credentials validation
-│       └── webauthn/                   # WebAuthn/FIDO2 endpoints
-│           ├── mod.rs
-│           ├── authenticate.rs         # WebAuthn authentication
-│           └── register/               # WebAuthn registration
-│               ├── mod.rs
-│               ├── start.rs            # Registration challenge
-│               └── finish.rs           # Registration completion
+├── constants.rs                        # Shared constants (TTLs, claims, headers)
+├── error.rs                            # OauthError / OauthResult
+├── extension.rs                        # OauthExtension (schemas + migrations)
+├── state.rs                            # OAuthState handle
 ├── models/                             # Data structures
 │   ├── mod.rs                          # Model exports
-│   ├── analytics.rs                    # Analytics data types
-│   ├── cimd.rs                         # Client Identity Metadata
-│   ├── clients/                        # Client models
-│   │   ├── mod.rs                      # OAuthClient, OAuthClientRow
-│   │   └── api.rs                      # API request/response types
-│   └── oauth/                          # OAuth models
-│       ├── mod.rs                      # GrantType, PkceMethod, JwtClaims
+│   ├── analytics.rs                    # Session / login analytics types
+│   ├── cimd.rs                         # Client-Initiated Metadata Discovery types
+│   ├── clients/                        # OAuth client models
+│   │   ├── mod.rs                      # OAuthClient, OAuthClientRow, ClientRelations
+│   │   └── api.rs                      # Create/Update/Response DTOs
+│   └── oauth/                          # OAuth protocol models
+│       ├── mod.rs                      # GrantType, PkceMethod, JwtClaims, ResponseType...
 │       ├── api.rs                      # Pagination types
-│       └── dynamic_registration.rs     # RFC 7591 types
-├── queries/                            # SQL queries
+│       └── dynamic_registration.rs     # RFC 7591 request / response
+├── queries/                            # SQL query layer
 │   ├── mod.rs
 │   └── postgres/
 │       └── mod.rs                      # PostgreSQL query implementations
 ├── repository/                         # Data access layer
 │   ├── mod.rs                          # Repository exports
+│   ├── bridge_host_prefs.rs            # Per-host bridge enable/disable
+│   ├── bridge_session.rs               # Bridge heartbeat sessions
+│   ├── exchange_code.rs                # Bridge exchange-code persistence
+│   ├── setup_token.rs                  # Bootstrap / admin setup tokens
 │   ├── webauthn.rs                     # WebAuthn credential storage
 │   ├── client/                         # Client repository
-│   │   ├── mod.rs                      # ClientRepository struct
+│   │   ├── mod.rs                      # ClientRepository
 │   │   ├── queries.rs                  # Read operations
-│   │   ├── mutations.rs                # Write operations (create/update/delete)
+│   │   ├── mutations.rs                # Write operations
 │   │   ├── inserts.rs                  # Bulk insert helpers
 │   │   ├── relations.rs                # Load client relations
 │   │   └── cleanup.rs                  # Stale client cleanup
 │   └── oauth/                          # OAuth repository
-│       ├── mod.rs                      # OAuthRepository struct
-│       ├── auth_code.rs                # Authorization code operations
-│       ├── refresh_token.rs            # Refresh token operations
+│       ├── mod.rs                      # OAuthRepository
+│       ├── auth_code.rs                # Authorization codes
+│       ├── refresh_token.rs            # Refresh tokens
 │       ├── scopes.rs                   # Scope validation
-│       └── user.rs                     # User retrieval
+│       ├── user.rs                     # User retrieval
+│       └── cleanup.rs                  # Expired-record cleanup
 └── services/                           # Business logic
     ├── mod.rs                          # Service exports
-    ├── generation.rs                   # Token generation utilities
-    ├── http.rs                         # HTTP utilities
+    ├── bridge.rs                       # Bridge access tokens + exchange codes
+    ├── generation.rs                   # Token / JWT / secret generation
+    ├── http.rs                         # HTTP utilities (bearer / cookie extraction)
+    ├── providers.rs                    # JwtValidationProviderImpl
     ├── templating.rs                   # HTML template rendering
     ├── cimd/                           # Client metadata validation
     │   ├── mod.rs
     │   ├── fetcher.rs                  # Metadata URL fetching
     │   └── validator.rs                # Metadata validation
     ├── jwt/                            # JWT handling
-    │   ├── mod.rs                      # TokenValidator trait
+    │   ├── mod.rs                      # TokenValidator trait, AuthService
     │   ├── authentication.rs           # Token authentication
     │   └── authorization.rs            # Permission authorization
     ├── session/                        # Session management
     │   ├── mod.rs                      # SessionCreationService
-    │   ├── lookup.rs                   # Session lookup/reuse
+    │   ├── lookup.rs                   # Session lookup / reuse
     │   └── creation.rs                 # New session creation
     ├── validation/                     # Request validation
     │   ├── mod.rs
@@ -174,38 +135,43 @@ src/
     │   ├── jwt.rs                      # JWT token validation
     │   ├── oauth_params.rs             # OAuth parameter validation
     │   └── redirect_uri.rs             # Redirect URI validation
-    └── webauthn/                       # WebAuthn/FIDO2 service
+    └── webauthn/                       # WebAuthn / FIDO2 service
         ├── mod.rs
-        ├── config.rs                   # WebAuthn configuration
-        ├── jwt.rs                      # JWT for WebAuthn
-        ├── manager.rs                  # Credential manager
-        ├── user_service.rs             # User provider integration
+        ├── config.rs                   # WebAuthnConfig
+        ├── jwt.rs                      # JwtTokenValidator for WebAuthn
+        ├── registry.rs                 # Credential registry
+        ├── token.rs                    # WebAuthn token helpers
+        ├── user_service.rs             # UserCreationService
         └── service/                    # WebAuthn operations
             ├── mod.rs                  # WebAuthnService
             ├── authentication.rs       # Authentication flow
             ├── credentials.rs          # Credential operations
+            ├── link.rs                 # Account linking
             └── registration.rs         # Registration flow
 ```
 
 ## Module Descriptions
 
-### api/
-HTTP API layer implementing OAuth 2.0 endpoints per RFC 6749, 7009, 7591, 7662.
-
 ### models/
-Data structures for OAuth clients, tokens, and JWT claims. Includes typed enums for grant types, response types, and PKCE methods.
+Data structures for OAuth clients, tokens, JWT claims, CIMD metadata, and analytics. Includes typed enums for grant types, response types, and PKCE methods.
 
 ### queries/
-SQL query definitions. PostgreSQL-specific implementations using sqlx macros.
+PostgreSQL query implementations using compile-time-verified `sqlx` macros.
 
 ### repository/
-Data access layer with separate repositories for clients, OAuth operations, and WebAuthn credentials. All SQL uses compile-time verified sqlx macros.
+Data access layer with separate repositories for clients (`ClientRepository`), OAuth protocol records (`OAuthRepository`), bridge sessions (`BridgeSessionRepository`), bridge host preferences (`BridgeHostPrefsRepository`), exchange codes, setup tokens, and WebAuthn credentials.
 
 ### services/
 Business logic including:
-- **generation**: Secure token and JWT generation
-- **validation**: PKCE, client credentials, and JWT validation
-- **webauthn**: FIDO2 passwordless authentication
+- **bridge**: Bridge access-token issuance and short-lived exchange codes for the desktop bridge.
+- **cimd**: Client-Initiated Metadata Discovery fetcher and validator.
+- **generation**: Secure token, JWT, and client-secret generation.
+- **jwt**: `TokenValidator` and `AuthService` for token authentication and authorisation.
+- **providers**: `JwtValidationProviderImpl` implementing the `JwtValidationProvider` trait.
+- **session**: Anonymous and authenticated session creation and lookup.
+- **templating**: HTML template rendering for the OAuth consent / login pages.
+- **validation**: Audience, client-credential, JWT, redirect-URI, and OAuth-parameter validation.
+- **webauthn**: FIDO2 passwordless authentication, registration, and account linking.
 
 ## Database Tables
 
@@ -219,7 +185,10 @@ Business logic including:
 | `oauth_client_contacts` | Contact emails per client |
 | `oauth_auth_codes` | Authorization codes (600s TTL) |
 | `oauth_refresh_tokens` | Refresh tokens |
-| `webauthn_credentials` | FIDO2/WebAuthn credentials |
+| `bridge_exchange_codes` | Short-lived bridge session exchange codes |
+| `bridge_sessions` | Bridge heartbeat / active-session records |
+| `setup_tokens` | Bootstrap and admin setup tokens |
+| `webauthn_credentials` | FIDO2 / WebAuthn credentials |
 | `webauthn_challenges` | WebAuthn challenge storage |
 
 ## Trait Implementations
@@ -234,22 +203,24 @@ Implements traits from `systemprompt-traits`:
 ## Dependencies
 
 ### Internal Crates
-- `systemprompt-runtime` - AppContext, Config
-- `systemprompt-users` - UserProviderImpl
-- `systemprompt-logging` - Logging infrastructure
-- `systemprompt-database` - DbPool
-- `systemprompt-analytics` - Session analytics
+- `systemprompt-config` — Profile and config loading
+- `systemprompt-database` — `DbPool` and SQLx abstraction
+- `systemprompt-extension` — Extension framework
+- `systemprompt-logging` — Tracing setup
+- `systemprompt-security` — Crypto and auth primitives
 
 ### Shared Crates
-- `systemprompt-traits` - Auth traits
-- `systemprompt-models` - Shared types
-- `systemprompt-identifiers` - Typed identifiers
+- `systemprompt-traits` — Auth and provider traits
+- `systemprompt-models` — Shared domain types
+- `systemprompt-identifiers` — Typed identifiers (with `sqlx` feature)
 
 ### External
-- `jsonwebtoken` - JWT encoding/decoding
-- `bcrypt` - Password hashing
-- `webauthn-rs` - FIDO2/WebAuthn
-- `axum` - HTTP framework
+- `jsonwebtoken` — JWT encoding / decoding
+- `bcrypt` — Password and secret hashing
+- `webauthn-rs` — FIDO2 / WebAuthn
+- `axum`, `http`, `reqwest` — HTTP server and client types
+- `sqlx` — Compile-time-verified PostgreSQL queries
+- `validator`, `rand`, `base64`, `sha2` — Validation and crypto helpers
 
 ## Security Features
 

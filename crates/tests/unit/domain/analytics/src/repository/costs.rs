@@ -4,6 +4,7 @@ use std::env;
 use std::sync::Arc;
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_database::{Database, DbPool};
+use systemprompt_models::UserId;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -327,13 +328,13 @@ async fn summary_for_user_isolates_by_user_id() -> Result<()> {
 
     let repo = fx.repo()?;
     let summary = repo
-        .get_summary_for_user(&fx.user_id, fx.window_start, fx.window_end)
+        .get_summary_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end)
         .await?;
     assert_eq!(summary.requests, 2);
     assert_eq!(summary.cost, Some(3_500));
 
     let other_summary = repo
-        .get_summary_for_user(&other, fx.window_start, fx.window_end)
+        .get_summary_for_user(&UserId::new(&other), fx.window_start, fx.window_end)
         .await?;
     assert_eq!(other_summary.requests, 1);
     assert_eq!(other_summary.cost, Some(99_999_999));
@@ -352,7 +353,7 @@ async fn breakdown_by_model_for_user_only_includes_self() -> Result<()> {
 
     let repo = fx.repo()?;
     let rows = repo
-        .get_breakdown_by_model_for_user(&fx.user_id, fx.window_start, fx.window_end, 10)
+        .get_breakdown_by_model_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end, 10)
         .await?;
     let names: std::collections::HashSet<&str> = rows.iter().map(|r| r.name.as_str()).collect();
     assert!(names.contains("model-x"));
@@ -383,7 +384,7 @@ async fn context_summary_counts_distinct_contexts() -> Result<()> {
 
     let repo = fx.repo()?;
     let summary = repo
-        .get_context_summary_for_user(&fx.user_id, fx.window_start, fx.window_end)
+        .get_context_summary_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end)
         .await?;
     assert_eq!(summary.conversations, 2);
     assert_eq!(summary.ai_requests, 3);
@@ -409,7 +410,7 @@ async fn contexts_by_agent_groups_by_agent_name() -> Result<()> {
 
     let repo = fx.repo()?;
     let rows = repo
-        .get_contexts_by_agent_for_user(&fx.user_id, fx.window_start, fx.window_end, 10)
+        .get_contexts_by_agent_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end, 10)
         .await?;
     let by_name: std::collections::HashMap<&str, &_> =
         rows.iter().map(|r| (r.name.as_str(), r)).collect();

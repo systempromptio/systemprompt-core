@@ -3,13 +3,13 @@
 
 mod parse;
 
-use systemprompt_traits::RepositoryError;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, PlannedTool, StepContent, StepId, StepStatus};
+use systemprompt_traits::RepositoryError;
 
 use parse::{ParseStepParams, parse_step};
 
@@ -36,8 +36,9 @@ impl ExecutionStepRepository {
         let status_str = step.status.to_string();
         let step_type_str = step.content.step_type().to_string();
         let title = step.content.title();
-        let content_json =
-            serde_json::to_value(&step.content).map_err(|e| RepositoryError::Internal(format!("Failed to serialize step content: {e}")))?;
+        let content_json = serde_json::to_value(&step.content).map_err(|e| {
+            RepositoryError::Internal(format!("Failed to serialize step content: {e}"))
+        })?;
         sqlx::query!(
             r#"INSERT INTO task_execution_steps (
                 step_id, task_id, step_type, title, status, content, started_at, completed_at, duration_ms, error_message
@@ -69,7 +70,9 @@ impl ExecutionStepRepository {
         )
         .fetch_optional(&*self.pool)
         .await
-        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to get execution step: {step_id}"))))?;
+        .map_err(|e| {
+            RepositoryError::Internal(format!("Failed to get execution step: {step_id}: {e}"))
+        })?;
         row.map(|r| {
             parse_step(ParseStepParams {
                 step_id: r.step_id,
@@ -85,7 +88,10 @@ impl ExecutionStepRepository {
         .transpose()
     }
 
-    pub async fn list_by_task(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>, RepositoryError> {
+    pub async fn list_by_task(
+        &self,
+        task_id: &TaskId,
+    ) -> Result<Vec<ExecutionStep>, RepositoryError> {
         let rows = sqlx::query!(
             r#"SELECT step_id, task_id as "task_id!: TaskId", status, content,
                     started_at as "started_at!", completed_at, duration_ms, error_message
@@ -94,10 +100,11 @@ impl ExecutionStepRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!(
-            "Failed to list execution steps for task: {}",
-            task_id
-        ))))?;
+        .map_err(|e| {
+            RepositoryError::Internal(format!(
+                "Failed to list execution steps for task: {task_id}: {e}"
+            ))
+        })?;
         rows.into_iter()
             .map(|r| {
                 parse_step(ParseStepParams {
@@ -141,7 +148,11 @@ impl ExecutionStepRepository {
             )
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete execution step: {step_id}"))))?;
+            .map_err(|e| {
+                RepositoryError::Internal(format!(
+                    "Failed to complete execution step: {step_id}: {e}"
+                ))
+            })?;
         } else {
             sqlx::query!(
                 r#"UPDATE task_execution_steps SET
@@ -156,7 +167,11 @@ impl ExecutionStepRepository {
             )
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete execution step: {step_id}"))))?;
+            .map_err(|e| {
+                RepositoryError::Internal(format!(
+                    "Failed to complete execution step: {step_id}: {e}"
+                ))
+            })?;
         }
 
         Ok(())
@@ -188,7 +203,9 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to fail execution step: {step_id}"))))?;
+        .map_err(|e| {
+            RepositoryError::Internal(format!("Failed to fail execution step: {step_id}: {e}"))
+        })?;
 
         Ok(())
     }
@@ -217,10 +234,11 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!(
-            "Failed to fail in-progress steps for task: {}",
-            task_id
-        ))))?;
+        .map_err(|e| {
+            RepositoryError::Internal(format!(
+                "Failed to fail in-progress steps for task: {task_id}: {e}"
+            ))
+        })?;
 
         Ok(result.rows_affected())
     }
@@ -238,8 +256,9 @@ impl ExecutionStepRepository {
         let status_str = StepStatus::Completed.to_string();
 
         let content = StepContent::planning(reasoning, planned_tools);
-        let content_json =
-            serde_json::to_value(&content).map_err(|e| RepositoryError::Internal(format!("Failed to serialize planning content: {e}")))?;
+        let content_json = serde_json::to_value(&content).map_err(|e| {
+            RepositoryError::Internal(format!("Failed to serialize planning content: {e}"))
+        })?;
 
         let row = sqlx::query!(
             r#"UPDATE task_execution_steps SET
@@ -258,7 +277,9 @@ impl ExecutionStepRepository {
         )
         .fetch_one(&*self.write_pool)
         .await
-        .map_err(|e| RepositoryError::Internal(format!("{}: {e}", format!("Failed to complete planning step: {step_id}"))))?;
+        .map_err(|e| {
+            RepositoryError::Internal(format!("Failed to complete planning step: {step_id}: {e}"))
+        })?;
 
         parse_step(ParseStepParams {
             step_id: row.step_id,
@@ -272,7 +293,10 @@ impl ExecutionStepRepository {
         })
     }
 
-    pub async fn mcp_execution_id_exists(&self, mcp_execution_id: &str) -> Result<bool, RepositoryError> {
+    pub async fn mcp_execution_id_exists(
+        &self,
+        mcp_execution_id: &str,
+    ) -> Result<bool, RepositoryError> {
         let exists = sqlx::query_scalar!(
             r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
             mcp_execution_id

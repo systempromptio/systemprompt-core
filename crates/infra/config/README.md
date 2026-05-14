@@ -28,81 +28,78 @@
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-config?style=flat-square)](https://docs.rs/systemprompt-config)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Profile-based configuration for systemprompt.io AI governance infrastructure. Bootstraps profiles, secrets, and credentials with zero environment-variable fallback. Provides configuration management including YAML loading, variable resolution, secrets management, and validation.
+Profile-based configuration for systemprompt.io AI governance infrastructure. Bootstraps profiles, secrets, and credentials with zero environment-variable fallback.
 
 **Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-This crate provides configuration management for the systemprompt.io platform:
+This crate is the bootstrap layer for the platform. It loads the active profile YAML, the matching secrets document, and installs both into process-wide singletons before any other layer (database, runtime, agent) starts. It also exposes the deployment-time `ConfigManager` used by `systemprompt cloud config` and a `DomainConfig` validator for skill manifests.
 
-- **YAML Configuration Loading**: Loads and merges base and environment-specific YAML files
-- **Variable Resolution**: Resolves `${VAR_NAME}` and `${VAR_NAME:-default}` patterns
-- **Secrets Management**: Loads `.env.secrets` files into environment
-- **Validation**: Validates configuration completeness, URL formats, and environment-specific rules
-- **File Generation**: Writes `.env` files for deployment
+- **Type-state bootstrap**: `BootstrapSequence` enforces *profile before secrets* at compile time.
+- **Profile loading**: Parses `.systemprompt/profiles/<name>/profile.yaml`, with optional catalog overlay.
+- **Secrets loading**: Reads the secrets document referenced by the active profile and seeds the in-process store.
+- **Runtime config construction**: Builds a `systemprompt_models::Config` from the active profile.
+- **Deployment config**: `ConfigManager` resolves `${VAR}` / `${VAR:-default}` patterns and emits `.env` files for downstream services.
+- **Schema validation**: Generic YAML/JSON validation utilities and a `SkillConfigValidator` for the `skills/` tree.
 
 ## Architecture
 
 ```
 src/
-├── lib.rs                      # Crate root - public API exports
+├── lib.rs                      # Crate root — public API surface
+├── error.rs                    # ConfigError / ConfigResult<T>
+├── config_loader.rs            # init_config, build_from_profile, validate_database_config
+├── profile_loader.rs           # load_profile_with_catalog
+├── profile_gateway.rs          # Profile lookup gateway
+├── skill_validator.rs          # SkillConfigValidator (DomainConfig impl)
+├── bootstrap/
+│   ├── mod.rs                  # BootstrapSequence, type-state markers, presets
+│   ├── profile.rs              # ProfileBootstrap singleton
+│   ├── manifest.rs             # Manifest signing seed helpers
+│   └── secrets/
+│       ├── mod.rs              # SecretsBootstrap singleton
+│       ├── loader.rs           # load_secrets_from_path
+│       ├── io.rs               # Disk I/O for secrets documents
+│       └── logging.rs          # log_secrets_issue / skip / warn helpers
 └── services/
-    ├── mod.rs                  # Module declarations and re-exports
-    ├── manager.rs              # ConfigManager - YAML loading, merging, variable resolution
-    ├── schema_validation.rs    # Generic YAML/JSON schema validation utilities
+    ├── mod.rs                  # Re-exports
+    ├── manager.rs              # ConfigManager — YAML loading, merging, variable resolution
+    ├── report.rs               # ValidationReport
+    ├── schema_validation.rs    # validate_config, validate_yaml_file, generate_schema
     ├── types.rs                # DeployEnvironment, DeploymentConfig, EnvironmentConfig
-    ├── validator.rs            # ConfigValidator, ValidationReport
-    └── writer.rs               # ConfigWriter - .env file generation
+    ├── validator.rs            # ConfigValidator
+    └── writer.rs               # .env file generation
 ```
 
-### `manager.rs`
-Core configuration management functionality:
-- `ConfigManager::new(project_root)` - Initialize with project path
-- `ConfigManager::generate_config(environment)` - Load and merge YAML configs
-- Variable resolution with environment variable fallback
-- Secrets file loading
+### `bootstrap/`
+Process-wide cells for the active profile and secrets document, plus the type-state `BootstrapSequence` that drives `Uninitialized → ProfileInitialized → SecretsInitialized → BootstrapComplete`. Manifest seed helpers (`generate_seed`, `decode_seed`, `persist_seed`) live alongside.
 
-### `schema_validation.rs`
-Generic schema validation utilities:
-- `validate_config<T>()` - Validate YAML against typed schema
-- `validate_yaml_file()` - Parse and validate YAML syntax
-- `generate_schema<T>()` - Generate JSON schema from types
-- `build_validate_configs()` - Build-time validation for build.rs
+### `config_loader.rs`
+Builds a runtime `Config` from the active profile via `init_config`, `try_init_config`, `init_config_from_profile`, and `build_from_profile`. `validate_database_config` checks database wiring before startup.
 
-### `types.rs`
-Configuration type definitions:
-- `DeployEnvironment` - Enum: Local, DockerDev, Production
-- `DeploymentConfig` - Raw YAML configuration container
-- `EnvironmentConfig` - Resolved environment variables
+### `services/`
+Deployment-pipeline utilities consumed by `systemprompt cloud config`: `ConfigManager` loads and merges YAML, `ConfigValidator` produces a `ValidationReport`, and the schema-validation helpers operate over arbitrary `serde` types.
 
-### `validator.rs`
-Configuration validation:
-- `ConfigValidator::validate()` - Run all validation checks
-- `ValidationReport` - Collect errors and warnings
-- Checks: unresolved variables, required variables, URL formats, port values
-
-### `writer.rs`
-Configuration file output:
-- `ConfigWriter::write_env_file()` - Write standard .env file
-- `ConfigWriter::write_web_env_file()` - Write VITE_* variables for web builds
+### `skill_validator.rs`
+`SkillConfigValidator` walks the `skills/` directory and reports missing or malformed manifests through the `DomainConfig` trait.
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-config = "0.9.0"
+systemprompt-config = "0.9.2"
 ```
 
 ```rust
-use std::path::PathBuf;
-use systemprompt_config::{ConfigManager, ConfigValidator, DeployEnvironment};
+use systemprompt_config::{
+    presets, BootstrapSequence, ConfigResult, init_config_from_profile,
+};
 
-fn load_env(project_root: PathBuf) -> anyhow::Result<()> {
-    let manager = ConfigManager::new(project_root);
-    let config = manager.generate_config(DeployEnvironment::Local)?;
-    let report = ConfigValidator::validate(&config);
-    report.into_result()?;
+fn boot() -> ConfigResult<()> {
+    let complete = presets::standard()?;
+    let config = init_config_from_profile(complete.profile())?;
+    let _ = config;
     Ok(())
 }
 ```
@@ -111,13 +108,32 @@ fn load_env(project_root: PathBuf) -> anyhow::Result<()> {
 
 ```rust
 use systemprompt_config::{
-    ConfigManager,
-    ConfigValidator,
-    DeployEnvironment,
-    EnvironmentConfig,
+    // Bootstrap
+    BootstrapSequence, BootstrapComplete, BootstrapState,
+    ProfileBootstrap, ProfileInitialized, ProfileBootstrapError,
+    SecretsBootstrap, SecretsInitialized, SecretsBootstrapError,
+    Uninitialized, presets,
+    build_loaded_secrets_message, load_secrets_from_path,
+    log_secrets_issue, log_secrets_skip, log_secrets_warn,
+    decode_seed, generate_seed, persist_seed,
+    JWT_SECRET_MIN_LENGTH, MANIFEST_SIGNING_SEED_BYTES,
+
+    // Runtime config
+    build_from_profile, init_config, init_config_from_profile,
+    try_init_config, validate_database_config,
+    load_profile_with_catalog,
+
+    // Errors
+    ConfigError, ConfigResult,
+
+    // Deployment services
+    ConfigManager, ConfigValidator, ConfigValidationError,
+    DeployEnvironment, DeploymentConfig, EnvironmentConfig,
     ValidationReport,
-    validate_config,
-    validate_yaml_file,
+    generate_schema, validate_config, validate_yaml_file, validate_yaml_str,
+
+    // Skill validation
+    SkillConfigValidator,
 };
 ```
 
@@ -125,13 +141,15 @@ use systemprompt_config::{
 
 | Crate | Purpose |
 |-------|---------|
-| `systemprompt-logging` | CLI output via CliService |
-| `serde_yaml` | YAML parsing |
+| `systemprompt-models` | `Config` and profile/secrets data types |
+| `systemprompt-traits` | `DomainConfig` trait implemented by `SkillConfigValidator` |
+| `systemprompt-logging` | CLI output via `CliService` |
+| `serde`, `serde_json`, `serde_yaml` | Profile, secrets, and config serialisation |
 | `schemars` | JSON schema generation |
-| `regex` | Variable resolution patterns |
-| `anyhow` | Error handling |
-| `thiserror` | Typed errors for schema validation |
-| `tracing` | Warning logs for unsupported features |
+| `regex` | `${VAR}` and `${VAR:-default}` resolution |
+| `base64`, `rand` | Manifest signing seed encoding |
+| `thiserror` | `ConfigError` and downstream typed errors |
+| `tracing` | Structured logging during bootstrap |
 
 ## License
 

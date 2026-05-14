@@ -1,6 +1,7 @@
 //! Tests for AuthMode enum variants and AuthMode::Required/Disabled validation
 
 use axum::http::{HeaderMap, HeaderValue};
+use systemprompt_identifiers::SessionId;
 use systemprompt_models::auth::{JwtAudience, UserType};
 use systemprompt_security::{AuthMode, AuthValidationService};
 
@@ -107,7 +108,7 @@ fn test_validate_request_required_wrong_secret() {
     let token = create_valid_jwt(
         "wrong_secret",
         "test_issuer",
-        Some("session_123".to_string()),
+        Some(SessionId::new("session_123")),
     );
 
     let mut headers = HeaderMap::new();
@@ -127,7 +128,7 @@ fn test_validate_request_required_wrong_issuer() {
     let token = create_valid_jwt(
         "test_secret_key",
         "wrong_issuer",
-        Some("session_123".to_string()),
+        Some(SessionId::new("session_123")),
     );
 
     let mut headers = HeaderMap::new();
@@ -181,7 +182,7 @@ fn test_validate_request_required_valid_token() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session_123".to_string()),
+        Some(SessionId::new("session_123")),
     );
 
     let mut headers = HeaderMap::new();

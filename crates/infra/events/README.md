@@ -42,31 +42,44 @@ This crate provides a type-safe, generic event broadcasting system for real-time
 crates/infra/events/
 ├── Cargo.toml
 ├── README.md
-├── status.md
+├── CHANGELOG.md
 └── src/
-    ├── lib.rs                      # 27 lines  - Trait definitions, type aliases, re-exports
+    ├── lib.rs              # Broadcaster trait, EventSender alias, top-level re-exports
+    ├── error.rs            # EventError / EventResult (thiserror)
+    ├── sse.rs              # ToSse trait and impls for systemprompt-models event types
     └── services/
-        ├── mod.rs                  # 10 lines  - Module re-exports
-        ├── broadcaster.rs          # 191 lines - GenericBroadcaster implementation
-        └── routing.rs              # 51 lines  - EventRouter, global singletons
+        ├── mod.rs          # Module re-exports
+        ├── broadcaster.rs  # GenericBroadcaster, ConnectionGuard, keep-alive utilities
+        └── routing.rs      # EventRouter and global LazyLock broadcasters
 ```
 
 ### `lib.rs`
 Entry point defining core abstractions:
-- `Broadcaster` trait - Type-safe async broadcasting with connection management
-- `EventSender` type alias - Channel sender for SSE events (`UnboundedSender<Result<Event, Infallible>>`)
+- `Broadcaster` trait — type-safe async broadcasting with connection management.
+- `EventSender` type alias — `tokio::sync::mpsc::Sender<Result<Event, Infallible>>`.
+- `SSE_BUFFER` constant — default per-connection channel capacity.
+
+### `error.rs`
+Public error surface:
+- `EventError` — `Serialization` (`#[from] serde_json::Error`) and `ChannelFull { target }`.
+- `EventResult<T>` — `Result<T, EventError>` alias.
+
+### `sse.rs`
+SSE serialization:
+- `ToSse` trait — converts a typed event into an `axum::response::sse::Event`.
+- Implementations for `AgUiEvent`, `A2AEvent`, `ContextEvent`, `SystemEvent`, `AnalyticsEvent`, and `CliOutputEvent` (the last frames as `event: cli`).
 
 ### `services/broadcaster.rs`
 Generic broadcaster implementation:
-- `GenericBroadcaster<E>` - Thread-safe broadcaster using `Arc<RwLock<HashMap<UserId, HashMap<ConnId, Sender>>>>`
-- `ConnectionGuard<E>` - RAII guard for automatic connection cleanup on drop
-- Type aliases: `AgUiBroadcaster`, `A2ABroadcaster`, `ContextBroadcaster`, `AnalyticsBroadcaster`
-- Keep-alive utilities: `standard_keep_alive()`, `HEARTBEAT_INTERVAL`, `HEARTBEAT_JSON`
+- `GenericBroadcaster<E>` — thread-safe broadcaster backed by `Arc<RwLock<HashMap<UserId, HashMap<ConnId, Sender>>>>`.
+- `ConnectionGuard<E>` — RAII guard for automatic connection cleanup on drop.
+- Type aliases: `AgUiBroadcaster`, `A2ABroadcaster`, `ContextBroadcaster`, `AnalyticsBroadcaster`.
+- Keep-alive utilities: `standard_keep_alive()`, `HEARTBEAT_INTERVAL`, `HEARTBEAT_JSON`.
 
 ### `services/routing.rs`
 Event routing and global state:
-- `EventRouter` - Routes events to appropriate broadcaster(s)
-- Global singletons: `AGUI_BROADCASTER`, `A2A_BROADCASTER`, `CONTEXT_BROADCASTER`, `ANALYTICS_BROADCASTER`
+- `EventRouter` — routes events to the appropriate broadcaster(s); AG-UI and A2A events also fan out to `CONTEXT_BROADCASTER`.
+- Global singletons: `AGUI_BROADCASTER`, `A2A_BROADCASTER`, `CONTEXT_BROADCASTER`, `ANALYTICS_BROADCASTER`.
 
 ### Event Flow
 
@@ -92,7 +105,7 @@ AgUI and A2A events are routed to both their primary broadcaster AND the context
 
 ```toml
 [dependencies]
-systemprompt-events = "0.9.0"
+systemprompt-events = "0.9.2"
 ```
 
 ```rust
@@ -114,7 +127,8 @@ async fn active_listeners(user_id: &UserId) -> usize {
 ### Types
 | Type | Description |
 |------|-------------|
-| `EventSender` | `UnboundedSender<Result<Event, Infallible>>` |
+| `EventSender` | `tokio::sync::mpsc::Sender<Result<Event, Infallible>>` |
+| `EventError` / `EventResult<T>` | `thiserror`-derived error and result alias |
 | `GenericBroadcaster<E>` | Generic broadcaster for any `ToSse + Clone + Send + Sync` event |
 | `AgUiBroadcaster` | `GenericBroadcaster<AgUiEvent>` |
 | `A2ABroadcaster` | `GenericBroadcaster<A2AEvent>` |

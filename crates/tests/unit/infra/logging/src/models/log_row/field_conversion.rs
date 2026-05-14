@@ -2,7 +2,7 @@
 //! timestamp)
 
 use chrono::Utc;
-use systemprompt_identifiers::LogId;
+use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_logging::models::LogRow;
 use systemprompt_logging::{LogEntry, LogLevel};
 
@@ -62,7 +62,7 @@ fn test_log_row_to_log_entry_with_user_id() {
         module: "user::module".to_string(),
         message: "User message".to_string(),
         metadata: None,
-        user_id: Some("user-12345".to_string()),
+        user_id: Some(UserId::new("user-12345")),
         session_id: None,
         task_id: None,
         trace_id: None,
@@ -84,7 +84,7 @@ fn test_log_row_to_log_entry_with_session_id() {
         message: "Session message".to_string(),
         metadata: None,
         user_id: None,
-        session_id: Some("session-67890".to_string()),
+        session_id: Some(SessionId::new("session-67890")),
         task_id: None,
         trace_id: None,
         context_id: None,
@@ -106,7 +106,7 @@ fn test_log_row_to_log_entry_with_task_id() {
         metadata: None,
         user_id: None,
         session_id: None,
-        task_id: Some("task-abcde".to_string()),
+        task_id: Some(TaskId::new("task-abcde")),
         trace_id: None,
         context_id: None,
         client_id: None,
@@ -129,7 +129,7 @@ fn test_log_row_to_log_entry_with_trace_id() {
         user_id: None,
         session_id: None,
         task_id: None,
-        trace_id: Some("trace-fghij".to_string()),
+        trace_id: Some(TraceId::new("trace-fghij")),
         context_id: None,
         client_id: None,
     };
@@ -151,7 +151,7 @@ fn test_log_row_to_log_entry_with_context_id() {
         session_id: None,
         task_id: None,
         trace_id: None,
-        context_id: Some("00000000-0000-4000-8000-00000000ab01".to_string()),
+        context_id: Some(ContextId::new("00000000-0000-4000-8000-00000000ab01")),
         client_id: None,
     };
 
@@ -174,7 +174,7 @@ fn test_log_row_to_log_entry_with_client_id() {
         task_id: None,
         trace_id: None,
         context_id: None,
-        client_id: Some("client-pqrst".to_string()),
+        client_id: Some(ClientId::new("client-pqrst")),
     };
 
     let entry: LogEntry = row.into();
@@ -235,12 +235,12 @@ fn test_log_row_to_log_entry_full_conversion() {
         module: "full::conversion".to_string(),
         message: "Full conversion test".to_string(),
         metadata: Some(r#"{"test": true}"#.to_string()),
-        user_id: Some("user-full".to_string()),
-        session_id: Some("session-full".to_string()),
-        task_id: Some("task-full".to_string()),
-        trace_id: Some("trace-full".to_string()),
-        context_id: Some("00000000-0000-4000-8000-00000000ab02".to_string()),
-        client_id: Some("client-full".to_string()),
+        user_id: Some(UserId::new("user-full")),
+        session_id: Some(SessionId::new("session-full")),
+        task_id: Some(TaskId::new("task-full")),
+        trace_id: Some(TraceId::new("trace-full")),
+        context_id: Some(ContextId::new("00000000-0000-4000-8000-00000000ab02")),
+        client_id: Some(ClientId::new("client-full")),
     };
 
     let entry: LogEntry = row.into();

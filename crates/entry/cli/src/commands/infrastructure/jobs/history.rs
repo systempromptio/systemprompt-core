@@ -30,17 +30,14 @@ pub async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistoryOutput
 
     let entries: Vec<JobHistoryEntry> = if let Some(ref job_name) = args.job {
         match repo.find_job(job_name).await? {
-            Some(j) => j
-                .last_run
-                .map(|last_run| {
-                    vec![JobHistoryEntry {
-                        job_name: j.job_name,
-                        status: j.last_status.unwrap_or_else(|| "unknown".to_string()),
-                        run_at: last_run,
-                        error: j.last_error,
-                    }]
-                })
-                .unwrap_or_else(Vec::new),
+            Some(j) => j.last_run.map_or_else(Vec::new, |last_run| {
+                vec![JobHistoryEntry {
+                    job_name: j.job_name,
+                    status: j.last_status.unwrap_or_else(|| "unknown".to_string()),
+                    run_at: last_run,
+                    error: j.last_error,
+                }]
+            }),
             None => vec![],
         }
     } else {

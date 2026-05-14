@@ -79,11 +79,17 @@ impl ExecutionTrackingService {
         started_at: DateTime<Utc>,
         error: String,
     ) -> Result<()> {
-        self.repository.fail_step(step_id, started_at, &error).await.map_err(Into::into)
+        self.repository
+            .fail_step(step_id, started_at, &error)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn get_steps_by_task(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
-        self.repository.list_by_task(task_id).await.map_err(Into::into)
+        self.repository
+            .list_by_task(task_id)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn get_step(&self, step_id: &StepId) -> Result<Option<ExecutionStep>> {

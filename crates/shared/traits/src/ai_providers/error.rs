@@ -20,4 +20,3 @@ pub enum AiProviderError {
     #[error("Internal error: {0}")]
     Internal(String),
 }
-

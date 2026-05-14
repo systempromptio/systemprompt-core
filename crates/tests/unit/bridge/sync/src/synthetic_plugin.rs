@@ -17,7 +17,7 @@ use systemprompt_bridge::sync::write_synthetic_plugin;
 async fn prime_token_cache() {
     let cache = global_cache().await;
     cache.put(
-        SYNTHETIC_PLUGIN_NAME,
+        &systemprompt_identifiers::PluginId::new(SYNTHETIC_PLUGIN_NAME),
         CachedHookToken {
             access_token: "test-token".into(),
             expires_at_unix: u64::MAX,

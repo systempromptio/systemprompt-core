@@ -91,8 +91,7 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
             let scope_name = scope
                 .scope
                 .as_ref()
-                .map(|s| s.name.clone())
-                .unwrap_or_else(String::new);
+                .map_or_else(String::new, |s| s.name.clone());
             for span in scope.spans {
                 let trace_hex = hex_lower(&span.trace_id);
                 let span_hex = hex_lower(&span.span_id);
@@ -152,8 +151,7 @@ async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
             let scope_name = scope
                 .scope
                 .as_ref()
-                .map(|s| s.name.clone())
-                .unwrap_or_else(String::new);
+                .map_or_else(String::new, |s| s.name.clone());
             for record in scope.log_records {
                 let trace_hex = hex_lower(&record.trace_id);
                 let span_hex = hex_lower(&record.span_id);

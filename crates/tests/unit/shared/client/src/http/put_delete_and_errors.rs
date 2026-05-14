@@ -4,7 +4,7 @@
 #[cfg(test)]
 use systemprompt_client::SystempromptClient;
 #[cfg(test)]
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{ContextId, JwtToken};
 #[cfg(test)]
 use wiremock::matchers::{body_json, header, method, path};
 #[cfg(test)]
@@ -24,13 +24,17 @@ async fn test_put_request_success() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("PUT"))
-        .and(path("/api/v1/core/contexts/ctx-123"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000123",
+        ))
         .respond_with(ResponseTemplate::new(200))
         .mount(&mock_server)
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.update_context_name("ctx-123", "New Name").await;
+    let result = client
+        .update_context_name(&ContextId::new("00000000-0000-4000-8000-000000000123"), "New Name")
+        .await;
 
     result.expect("PUT request should succeed");
 }
@@ -44,7 +48,9 @@ async fn test_put_request_with_json_body() {
     });
 
     Mock::given(method("PUT"))
-        .and(path("/api/v1/core/contexts/ctx-123"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000123",
+        ))
         .and(body_json(&expected_body))
         .respond_with(ResponseTemplate::new(200))
         .mount(&mock_server)
@@ -52,7 +58,7 @@ async fn test_put_request_with_json_body() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .update_context_name("ctx-123", "Updated Context")
+        .update_context_name(&ContextId::new("00000000-0000-4000-8000-000000000123"), "Updated Context")
         .await;
 
     result.expect("PUT with JSON body should succeed");
@@ -63,13 +69,17 @@ async fn test_put_request_404_not_found() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("PUT"))
-        .and(path("/api/v1/core/contexts/nonexistent"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-0000000000ff",
+        ))
         .respond_with(ResponseTemplate::new(404).set_body_string("Context not found"))
         .mount(&mock_server)
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.update_context_name("nonexistent", "Name").await;
+    let result = client
+        .update_context_name(&ContextId::new("00000000-0000-4000-8000-0000000000ff"), "Name")
+        .await;
 
     result.unwrap_err();
 }
@@ -79,13 +89,15 @@ async fn test_delete_request_success() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/api/v1/core/contexts/ctx-to-delete"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000de1",
+        ))
         .respond_with(ResponseTemplate::new(204))
         .mount(&mock_server)
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.delete_context("ctx-to-delete").await;
+    let result = client.delete_context(&ContextId::new("00000000-0000-4000-8000-000000000de1")).await;
 
     result.expect("DELETE request should succeed");
 }
@@ -95,7 +107,9 @@ async fn test_delete_request_with_auth() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/api/v1/core/contexts/ctx-123"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000123",
+        ))
         .and(header("Authorization", "Bearer delete-token"))
         .respond_with(ResponseTemplate::new(204))
         .mount(&mock_server)
@@ -107,7 +121,7 @@ async fn test_delete_request_with_auth() {
         .with_token(token);
 
     client
-        .delete_context("ctx-123")
+        .delete_context(&ContextId::new("00000000-0000-4000-8000-000000000123"))
         .await
         .expect("DELETE with auth should succeed");
 }
@@ -117,13 +131,15 @@ async fn test_delete_request_403_forbidden() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/api/v1/core/contexts/protected"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-0000000000aa",
+        ))
         .respond_with(ResponseTemplate::new(403).set_body_string("Forbidden"))
         .mount(&mock_server)
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.delete_context("protected").await;
+    let result = client.delete_context(&ContextId::new("00000000-0000-4000-8000-0000000000aa")).await;
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("403"));

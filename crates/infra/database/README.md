@@ -41,22 +41,28 @@ Provides database abstraction via SQLx with repository patterns, transaction hel
 ```
 database/
 ├── Cargo.toml
-├── module.yml
+├── CHANGELOG.md
 ├── README.md
-├── status.md
 ├── schema/
+│   ├── extension_migrations.sql
 │   └── functions.sql
 └── src/
     ├── lib.rs
     ├── error.rs
+    ├── extension.rs
     ├── admin/
     │   ├── mod.rs
+    │   ├── admin_sql.rs
+    │   ├── identifier.rs
     │   ├── introspection.rs
     │   └── query_executor.rs
     ├── lifecycle/
     │   ├── mod.rs
-    │   ├── installation.rs
-    │   └── validation.rs
+    │   ├── migrations.rs
+    │   ├── validation.rs
+    │   └── installation/
+    │       ├── mod.rs
+    │       └── extension.rs
     ├── models/
     │   ├── mod.rs
     │   ├── info.rs
@@ -66,16 +72,18 @@ database/
     │   ├── mod.rs
     │   ├── base.rs
     │   ├── cleanup.rs
-    │   ├── entity.rs
     │   ├── info.rs
-    │   ├── macros.rs
-    │   └── service.rs
+    │   └── service/
+    │       ├── mod.rs
+    │       ├── model.rs
+    │       └── repo.rs
     └── services/
         ├── mod.rs
         ├── database.rs
         ├── display.rs
         ├── executor.rs
         ├── provider.rs
+        ├── schema_linter.rs
         ├── transaction.rs
         └── postgres/
             ├── mod.rs
@@ -85,21 +93,28 @@ database/
             └── transaction.rs
 ```
 
+### `extension.rs`
+`DatabaseExtension` implementation that registers the crate's base schema (`functions.sql`, `extension_migrations.sql`) via the workspace extension framework.
+
 ### `admin/`
-Administrative database utilities for introspection and query execution.
+Administrative database utilities for introspection and constrained query execution.
 
 | File | Purpose |
 |------|---------|
-| `introspection.rs` | `DatabaseAdminService` for listing tables, describing columns, getting indexes |
-| `query_executor.rs` | `QueryExecutor` for safe SQL execution with read-only mode support |
+| `admin_sql.rs` | `AdminSql` builders for vetted dynamic admin queries |
+| `identifier.rs` | `SafeIdentifier` validation for user-supplied SQL identifiers |
+| `introspection.rs` | `DatabaseAdminService` for listing tables, describing columns, and reading indexes |
+| `query_executor.rs` | `QueryExecutor` for SQL execution with read-only mode support |
 
 ### `lifecycle/`
-Database setup and validation.
+Database setup, migration, and validation.
 
 | File | Purpose |
 |------|---------|
-| `installation.rs` | Schema and seed installation for modules and extensions |
-| `validation.rs` | Connection and schema validation functions |
+| `installation/mod.rs` | `install_extension_schemas`, `install_extension_schemas_full`, `install_extension_schemas_with_config` entry points |
+| `installation/extension.rs` | Per-extension schema installation pipeline |
+| `migrations.rs` | `MigrationService`, `MigrationConfig`, `MigrationStatus`, `MigrationResult`, `AppliedMigration` |
+| `validation.rs` | `validate_database_connection`, `validate_table_exists`, `validate_column_exists` |
 
 ### `models/`
 Data structures for database operations.
@@ -107,20 +122,20 @@ Data structures for database operations.
 | File | Purpose |
 |------|---------|
 | `info.rs` | `DatabaseInfo`, `TableInfo`, `ColumnInfo`, `IndexInfo` |
-| `query.rs` | `DatabaseQuery`, `QuerySelector`, `FromDatabaseRow`, `QueryResult` |
+| `query.rs` | `DatabaseQuery`, `QuerySelector`, `FromDatabaseRow`, `QueryResult`, `QueryRow` |
 | `transaction.rs` | `DatabaseTransaction` trait |
 
 ### `repository/`
-Repository pattern implementations.
+Repository pattern building blocks.
 
 | File | Purpose |
 |------|---------|
-| `base.rs` | `Repository` trait, `PgDbPool` type alias, `PaginatedRepository` |
-| `cleanup.rs` | Cleanup utilities for expired data |
-| `entity.rs` | Generic `Entity` trait and `GenericRepository<E>` |
+| `base.rs` | `Repository` trait, `PaginatedRepository`, `PgDbPool` alias, and repository macros (`impl_repository_new!`, `define_repository!`, `impl_repository_pool!`) |
+| `cleanup.rs` | `CleanupRepository` utilities for expired data |
 | `info.rs` | `DatabaseInfoRepository` for metadata queries |
-| `macros.rs` | `impl_repository_new!`, `define_repository!`, `impl_repository_pool!` |
-| `service.rs` | `ServiceRepository` for service process management |
+| `service/mod.rs` | `ServiceRepository` re-exports |
+| `service/model.rs` | `CreateServiceInput`, `ServiceConfig` models |
+| `service/repo.rs` | `ServiceRepository` for service process registration |
 
 ### `services/`
 Core database services and providers.
@@ -129,19 +144,20 @@ Core database services and providers.
 |------|---------|
 | `database.rs` | `Database` wrapper, `DbPool`, `DatabaseExt` |
 | `display.rs` | `DatabaseCliDisplay` trait for CLI output |
-| `executor.rs` | `SqlExecutor` for SQL statement parsing and execution |
+| `executor.rs` | `SqlExecutor` for `sqlparser`-driven statement splitting and execution |
 | `provider.rs` | `DatabaseProvider`, `DatabaseProviderExt` traits |
-| `transaction.rs` | `with_transaction`, `with_transaction_retry` helpers |
+| `schema_linter.rs` | Boot-time linter that rejects imperative DDL in `schema/*.sql` |
+| `transaction.rs` | `with_transaction`, `with_transaction_raw`, `with_transaction_retry`, `BoxFuture` |
 
 ### `services/postgres/`
-PostgreSQL-specific implementations.
+PostgreSQL-specific implementation of the provider surface.
 
 | File | Purpose |
 |------|---------|
 | `mod.rs` | `PostgresProvider` implementation |
-| `conversion.rs` | `row_to_json`, `bind_params`, `rows_to_result` |
-| `ext.rs` | `DatabaseProviderExt` implementation |
-| `introspection.rs` | `get_database_info` for schema introspection |
+| `conversion.rs` | Row-to-JSON conversion, parameter binding, result mapping |
+| `ext.rs` | `DatabaseProviderExt` implementation for `PostgresProvider` |
+| `introspection.rs` | `get_database_info` schema introspection |
 | `transaction.rs` | `PostgresTransaction` implementation |
 
 ## Usage
@@ -152,9 +168,9 @@ systemprompt-database = "0.9.0"
 ```
 
 ```rust
-use systemprompt_database::{DbPool, Repository, with_transaction};
+use systemprompt_database::{DatabaseResult, DbPool, with_transaction};
 
-async fn example(pool: &DbPool) -> anyhow::Result<()> {
+async fn example(pool: &DbPool) -> DatabaseResult<()> {
     with_transaction(pool, |tx| Box::pin(async move {
         // Execute queries within transaction
         Ok(())
@@ -163,9 +179,9 @@ async fn example(pool: &DbPool) -> anyhow::Result<()> {
 ```
 
 ```rust
-use systemprompt_database::{Database, DbPool, with_transaction};
+use systemprompt_database::{DatabaseResult, DbPool, with_transaction};
 
-async fn count_users(pool: &DbPool) -> anyhow::Result<i64> {
+async fn count_users(pool: &DbPool) -> DatabaseResult<i64> {
     with_transaction(pool, |tx| Box::pin(async move {
         let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
             .fetch_one(&mut **tx)
@@ -188,11 +204,24 @@ async fn count_users(pool: &DbPool) -> anyhow::Result<i64> {
 | `RepositoryError` | `error.rs` | Unified repository error type |
 | `PostgresProvider` | `services/postgres/mod.rs` | PostgreSQL provider |
 | `PostgresTransaction` | `services/postgres/transaction.rs` | Transaction handle |
+| `SqlExecutor` | `services/executor.rs` | Statement splitter and executor |
 | `DatabaseQuery` | `models/query.rs` | Static query wrapper |
 | `QueryResult` | `models/query.rs` | Query execution result |
+| `QueryRow` | `models/query.rs` | Row representation |
 | `DatabaseInfo` | `models/info.rs` | Database metadata |
 | `TableInfo` | `models/info.rs` | Table metadata |
 | `ColumnInfo` | `models/info.rs` | Column metadata |
+| `IndexInfo` | `models/info.rs` | Index metadata |
+| `DatabaseAdminService` | `admin/introspection.rs` | Admin introspection service |
+| `QueryExecutor` | `admin/query_executor.rs` | Constrained admin query executor |
+| `AdminSql` | `admin/admin_sql.rs` | Vetted admin SQL builders |
+| `SafeIdentifier` | `admin/identifier.rs` | Validated SQL identifier wrapper |
+| `MigrationService` | `lifecycle/migrations.rs` | Extension migration runner |
+| `MigrationConfig` | `lifecycle/migrations.rs` | Migration runner configuration |
+| `MigrationStatus` | `lifecycle/migrations.rs` | Per-migration state |
+| `MigrationResult` | `lifecycle/migrations.rs` | Migration run outcome |
+| `AppliedMigration` | `lifecycle/migrations.rs` | Applied migration record |
+| `DatabaseExtension` | `extension.rs` | Extension trait implementation for this crate |
 | `BoxFuture` | `services/transaction.rs` | Boxed future type for transactions |
 
 ### Traits
@@ -214,16 +243,23 @@ async fn count_users(pool: &DbPool) -> anyhow::Result<i64> {
 | Function | Source | Description |
 |----------|--------|-------------|
 | `with_transaction` | `services/transaction.rs` | Execute closure in transaction |
-| `with_transaction_raw` | `services/transaction.rs` | Transaction with raw PgPool |
+| `with_transaction_raw` | `services/transaction.rs` | Transaction with raw `PgPool` |
 | `with_transaction_retry` | `services/transaction.rs` | Transaction with automatic retry |
+| `install_extension_schemas` | `lifecycle/installation/mod.rs` | Install all registered extension schemas |
+| `install_extension_schemas_full` | `lifecycle/installation/mod.rs` | Install schemas and run pending migrations |
+| `install_extension_schemas_with_config` | `lifecycle/installation/mod.rs` | Install schemas honouring a `MigrationConfig` |
+| `validate_database_connection` | `lifecycle/validation.rs` | Probe the live connection |
+| `validate_table_exists` | `lifecycle/validation.rs` | Assert a table is present |
+| `validate_column_exists` | `lifecycle/validation.rs` | Assert a column is present |
+| `parse_database_datetime` | re-export from `systemprompt-traits` | Parse driver-native datetime values |
 
 ### Macros
 
 | Macro | Source | Description |
 |-------|--------|-------------|
-| `impl_repository_new!` | `repository/macros.rs` | Generate `new()` constructor for repositories |
-| `define_repository!` | `repository/macros.rs` | Define repository struct with pool field |
-| `impl_repository_pool!` | `repository/macros.rs` | Generate pool accessor methods |
+| `impl_repository_new!` | `repository/base.rs` | Generate `new()` constructor for repositories |
+| `define_repository!` | `repository/base.rs` | Define repository struct with pool field |
+| `impl_repository_pool!` | `repository/base.rs` | Generate pool accessor methods |
 
 ### Re-exports
 
@@ -235,17 +271,21 @@ From `sqlx`: `PgPool`, `Pool`, `Postgres`, `Transaction`, `Json`
 
 ## Dependencies
 
-- `systemprompt-traits` - Core traits
-- `systemprompt-identifiers` - Typed identifiers
-- `sqlx` - PostgreSQL driver
-- `tokio` - Async runtime
-- `serde` / `serde_json` - Serialization
-- `chrono` - Timestamps
-- `uuid` - UUID support
-- `rust_decimal` - Decimal support
-- `anyhow` - Error handling
-- `thiserror` - Error derivation
-- `async-trait` - Async traits
+- `systemprompt-traits` — core traits
+- `systemprompt-identifiers` — typed identifiers
+- `systemprompt-models` — shared model types
+- `systemprompt-extension` — extension framework registration
+- `sqlx` — PostgreSQL driver with compile-time-verified macros
+- `tokio` — async runtime
+- `serde` / `serde_json` — serialization
+- `chrono` — timestamps
+- `uuid` — UUID support
+- `rust_decimal` — decimal support
+- `base64` — encoded value support
+- `thiserror` — error derivation
+- `async-trait` — `dyn`-compatible async traits
+- `tracing` — structured logging
+- `inventory` — extension registration
 
 ## License
 

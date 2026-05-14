@@ -18,16 +18,16 @@ pub(super) fn parse_response_object(value: &Value, fallback_model: &str) -> Cano
         .and_then(Value::as_str)
         .unwrap_or(fallback_model)
         .to_string();
-    let usage = value
-        .get("usage")
-        .map(|u| CanonicalUsage {
-            input_tokens: u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
-            output_tokens: u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
-        })
-        .unwrap_or(CanonicalUsage {
+    let usage = value.get("usage").map_or(
+        CanonicalUsage {
             input_tokens: 0,
             output_tokens: 0,
-        });
+        },
+        |u| CanonicalUsage {
+            input_tokens: u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
+            output_tokens: u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
+        },
+    );
 
     let mut content: Vec<CanonicalContent> = Vec::new();
     if let Some(output) = value.get("output").and_then(Value::as_array) {
@@ -103,13 +103,12 @@ fn extract_reasoning(item: &Value) -> Option<CanonicalContent> {
     let text = item
         .get("summary")
         .and_then(Value::as_array)
-        .map(|arr| {
+        .map_or_else(String::new, |arr| {
             arr.iter()
                 .filter_map(|v| v.get("text").and_then(Value::as_str))
                 .collect::<Vec<_>>()
                 .join("\n")
-        })
-        .unwrap_or_else(String::new);
+        });
     if text.is_empty() {
         None
     } else {

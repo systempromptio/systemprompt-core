@@ -6,6 +6,7 @@
 //! than here.
 
 use systemprompt_bridge::auth::plugin_oauth::{CachedHookToken, PluginTokenCache};
+use systemprompt_identifiers::PluginId;
 
 #[test]
 fn cache_returns_fresh_token() {
@@ -18,9 +19,11 @@ fn cache_returns_fresh_token() {
         access_token: "jwt.value".into(),
         expires_at_unix: now + 3600,
     };
-    cache.put("plugin-a", token.clone());
+    cache.put(&PluginId::new("plugin-a"), token.clone());
 
-    let got = cache.get("plugin-a", 300).expect("token should be fresh");
+    let got = cache
+        .get(&PluginId::new("plugin-a"), 300)
+        .expect("token should be fresh");
     assert_eq!(got.access_token, "jwt.value");
 }
 
@@ -36,9 +39,9 @@ fn cache_drops_token_within_threshold_of_expiry() {
         access_token: "jwt.value".into(),
         expires_at_unix: now + 30,
     };
-    cache.put("plugin-a", token);
+    cache.put(&PluginId::new("plugin-a"), token);
 
-    assert!(cache.get("plugin-a", 300).is_none());
+    assert!(cache.get(&PluginId::new("plugin-a"), 300).is_none());
 }
 
 #[test]
@@ -53,15 +56,15 @@ fn cache_invalidate_drops_specific_plugin() {
         expires_at_unix: now + 3600,
     };
 
-    cache.put("plugin-a", make("a"));
-    cache.put("plugin-b", make("b"));
+    cache.put(&PluginId::new("plugin-a"), make("a"));
+    cache.put(&PluginId::new("plugin-b"), make("b"));
 
-    cache.invalidate("plugin-a");
+    cache.invalidate(&PluginId::new("plugin-a"));
 
-    assert!(cache.get("plugin-a", 60).is_none());
+    assert!(cache.get(&PluginId::new("plugin-a"), 60).is_none());
     assert_eq!(
         cache
-            .get("plugin-b", 60)
+            .get(&PluginId::new("plugin-b"), 60)
             .expect("b still cached")
             .access_token,
         "jwt.b"
@@ -71,5 +74,5 @@ fn cache_invalidate_drops_specific_plugin() {
 #[test]
 fn cache_miss_for_unknown_plugin_id() {
     let cache = PluginTokenCache::default();
-    assert!(cache.get("never-cached", 60).is_none());
+    assert!(cache.get(&PluginId::new("never-cached"), 60).is_none());
 }

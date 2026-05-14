@@ -1,67 +1,72 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Normalize changelog formatting to maintainer style.
+
 ## [0.1.3] - 2026-03-20
 
 ### Fixed
-- Remove stale test functions referencing removed `BuildError` variants (`ThemeGenerationFailed`, `TypeScriptFailed`, `ViteFailed`)
+- Drop stale tests referencing removed `BuildError` variants.
 
 ## [0.1.2] - 2026-03-05
 
+### Added
+- Add `futures` dependency for stream-based concurrency in the prerender pipeline.
+
 ### Changed
-- Parallelize content item rendering with `buffer_unordered(8)` for concurrent page generation
-- Parallelize content enrichment with `buffered(8)` for concurrent provider calls per source
-- Parallelize source processing with `buffer_unordered(2)` for concurrent source rendering
-- Replace regex-based heading ID injection with string search in TOC generation
+- Render content items concurrently with `buffer_unordered(8)`.
+- Enrich content concurrently with `buffered(8)` per source.
+- Process sources concurrently with `buffer_unordered(2)`.
+- Replace regex-based heading-ID injection with a string search in TOC generation.
 
 ### Removed
-- Remove `regex` dependency (no longer needed after TOC refactor)
-
-### Added
-- Add `futures` dependency for stream-based concurrency
+- Drop the `regex` dependency.
 
 ## [0.1.1] - 2026-02-03
 
 ### Added
-- Priority-based deduplication for page prerenderers (skip lower-priority prerenderers when page type already rendered)
-- Priority-based deduplication for component renderers (skip lower-priority components when variable already rendered)
+- Priority-based deduplication for page prerenderers so lower-priority prerenderers skip already-rendered page types.
+- Priority-based deduplication for component renderers so lower-priority components skip already-rendered variables.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release; aligned with workspace 0.1.0.
 
 ## [0.0.14] - 2026-01-27
 
 ### Added
-- Table of Contents (TOC) generation for documentation pages
-- New `toc` module with AST-based heading extraction using comrak
-- Automatic heading ID injection for anchor links
-- Stylable TOC HTML with CSS classes (`.toc-list`, `.toc-item`, `.toc-level-N`, `.toc-link`)
-- Duplicate heading slug handling with numeric suffixes
+- Generate a Table of Contents for documentation pages via a new `toc` module.
+- Extract headings from the comrak AST and inject anchor IDs automatically.
+- Emit TOC HTML with stylable classes (`.toc-list`, `.toc-item`, `.toc-level-N`, `.toc-link`).
+- Disambiguate duplicate heading slugs with numeric suffixes.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
+- Bump version for workspace consistency.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Add migration-system infrastructure.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Validate schemas backed by SQL VIEWs.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Move schema registration to each domain crate via the `Extension` trait.
+- Drop centralised module loaders from `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- Correct `include_str!` paths that pointed outside the crate directory.
+- Ensure the crate compiles standalone when fetched from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

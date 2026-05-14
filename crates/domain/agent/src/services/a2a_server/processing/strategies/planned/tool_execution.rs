@@ -151,7 +151,9 @@ pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<Exec
                     tool_error = %tool_err,
                     "AI synthesis failed after tool errors - returning tool errors"
                 );
-                return Err(AgentServiceError::Internal(format!("Tool execution failed: {tool_err}")));
+                return Err(AgentServiceError::Internal(format!(
+                    "Tool execution failed: {tool_err}"
+                )));
             }
             return Err(AgentServiceError::Internal(format!("{ai_error}")));
         },

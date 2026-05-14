@@ -193,17 +193,12 @@ pub fn build_env_config(
         },
         paths: PathsEnvVars {
             system_path: paths
-                .map(|p| p.system().root().display().to_string())
-                .unwrap_or_else(String::new),
+                .map_or_else(String::new, |p| p.system().root().display().to_string()),
             services: paths
-                .map(|p| p.system().services().display().to_string())
-                .unwrap_or_else(String::new),
-            skills: paths
-                .map(|p| p.system().skills().display().to_string())
-                .unwrap_or_else(String::new),
+                .map_or_else(String::new, |p| p.system().services().display().to_string()),
+            skills: paths.map_or_else(String::new, |p| p.system().skills().display().to_string()),
             services_config: paths
-                .map(|p| p.system().settings().display().to_string())
-                .unwrap_or_else(String::new),
+                .map_or_else(String::new, |p| p.system().settings().display().to_string()),
         },
     }
 }

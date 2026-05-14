@@ -38,10 +38,9 @@ impl ToolExecutorTrait for ContextToolExecutor {
             )
             .await;
 
-        let result = results
-            .into_iter()
-            .next()
-            .ok_or_else(|| AgentServiceError::Internal(format!("Tool {} returned no result", tool_name)))?;
+        let result = results.into_iter().next().ok_or_else(|| {
+            AgentServiceError::Internal(format!("Tool {} returned no result", tool_name))
+        })?;
 
         if result.is_error.unwrap_or(false) {
             let error_msg = result
@@ -61,12 +60,8 @@ impl ToolExecutorTrait for ContextToolExecutor {
             )));
         }
 
-        result
-            .structured_content
-            .ok_or_else(|| {
-                AgentServiceError::Internal(format!(
-                    "Tool {tool_name} returned no structured_content"
-                ))
-            })
+        result.structured_content.ok_or_else(|| {
+            AgentServiceError::Internal(format!("Tool {tool_name} returned no structured_content"))
+        })
     }
 }

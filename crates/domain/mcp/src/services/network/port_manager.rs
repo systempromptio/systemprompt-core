@@ -33,7 +33,11 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
         .output()
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("failed to run `lsof -ti :{port}` for port {port}"))))?;
+        .map_err(|e| {
+            crate::error::McpDomainError::Internal(format!(
+                "failed to run `lsof -ti :{port}` for port {port}: {e}"
+            ))
+        })?;
 
     if !output.stdout.is_empty() {
         let pids = String::from_utf8_lossy(&output.stdout);
@@ -64,7 +68,12 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("failed to run `netstat -ano -p TCP` for port {port}"))))?;
+        .map_err(|e| {
+            crate::error::McpDomainError::Internal(format!(
+                "{}: {e}",
+                format!("failed to run `netstat -ano -p TCP` for port {port}")
+            ))
+        })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let port_pattern = format!(":{port} ");

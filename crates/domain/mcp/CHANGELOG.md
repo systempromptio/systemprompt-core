@@ -1,139 +1,171 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+
+- Normalised changelog format to match workspace standard.
+
 ## [0.4.3] - 2026-04-29
 
 ### Fixed
 
-- `services/process/spawner.rs` propagates `MANIFEST_SIGNING_SECRET_SEED` into the spawn env. Subprocesses no longer regenerate the manifest signing seed on launch.
+- Propagate `MANIFEST_SIGNING_SECRET_SEED` into spawned subprocess environments so manifest signing seeds remain stable across launches.
 
 ## [0.1.18] - 2026-03-27
 
 ### Added
-- MCP request logging middleware with method, URI, session ID, and auth status tracking
-- Proxy-verified identity auth flow in RBAC middleware
-- Stale session cleanup in `DatabaseSessionManager`
 
-### Fixed
-- Fix MCP session loss causing 404 on SSE reconnect by persisting sessions to database
-- Move MCP session auth to proxy layer with trusted identity headers
+- MCP request logging middleware capturing method, URI, session ID, and auth status.
+- Proxy-verified identity auth flow in RBAC middleware.
+- Stale session cleanup in `DatabaseSessionManager`.
 
 ### Changed
-- Upgrade to Rust 2024 edition
-- Split `dashboard.rs` UI renderer into focused modules
+
+- Upgraded to Rust 2024 edition.
+- Split the dashboard UI renderer into focused modules.
+
+### Fixed
+
+- MCP session loss no longer produces 404 on SSE reconnect; sessions persist to the database.
+- Moved MCP session auth to the proxy layer with trusted identity headers.
 
 ## [0.1.6] - 2026-03-05
 
+### Added
+
+- `artifact_type()` and `artifact_type_name()` methods on the `McpOutputSchema` trait.
+- `McpOutputSchema` implementations for Audio, Chart, Cli, CopyPasteText, Dashboard, Image, List, PresentationCard, Table, Text, and Video artifacts.
+
 ### Changed
-- Rename `call_tool` to `McpToolExecutor` for consistent naming
-- Merge `build()` and `build_and_persist()` into single `build()` method that always persists artifacts
-- Add `artifact_type()` and `artifact_type_name()` methods to `McpOutputSchema` trait
-- Implement `McpOutputSchema` for all artifact types (Audio, Chart, Cli, CopyPasteText, Dashboard, Image, List, PresentationCard, Table, Text, Video)
+
+- **Breaking:** Renamed `call_tool` to `McpToolExecutor`. Migrate by updating imports and type references.
+- **Breaking:** Merged `build()` and `build_and_persist()` into a single `build()` that always persists artifacts. Migrate by removing calls to `build_and_persist()` and using `build()`.
 
 ## [0.1.5] - 2026-02-19
 
 ### Changed
-- Populate `server_type` and `remote_endpoint` fields in MCP server config from deployment
-- Replace inline validation with dedicated `RegistryValidator` methods for target resolution
-- Refactor orchestrator to use `TargetResolution` module for server target routing
+
+- Populated `server_type` and `remote_endpoint` fields in MCP server config from deployment.
+- Replaced inline validation with dedicated `RegistryValidator` methods for target resolution.
+- Refactored the orchestrator to route server targets via a dedicated `TargetResolution` module.
 
 ## [0.1.4] - 2026-02-04
 
 ### Added
-- `mcp_artifacts` table schema for persisting MCP tool execution artifacts
-- `McpArtifactRepository` with save, find, list, delete, and cleanup operations
-- `CreateMcpArtifact` and `McpArtifactRecord` structs for artifact data
-- `capabilities` module with MCP Apps UI extension helpers
-- `mcp_apps_ui_extension()` function for experimental capabilities
-- `tool_ui_meta()` helper for UI metadata generation
+
+- `mcp_artifacts` table schema for persisting MCP tool execution artifacts.
+- `McpArtifactRepository` with save, find, list, delete, and cleanup operations.
+- `CreateMcpArtifact` and `McpArtifactRecord` data structs.
+- `capabilities` module exposing MCP Apps UI extension helpers.
+- `mcp_apps_ui_extension()` for experimental capabilities.
+- `tool_ui_meta()` helper for UI metadata generation.
 
 ### Changed
-- `DatabaseSessionManager::new()` now takes `&DbPool` reference instead of owned value
-- Move CSP tests to `crates/tests/unit/domain/mcp/src/services/ui_renderer/`
-- Refactor `CspPolicy::extract_domains()` to associated function
-- Add `const fn` to `UiMetadata::with_prefers_border()`
-- Simplify UI metadata to use static `/artifact-viewer` template path instead of dynamic artifact ID substitution
-- Rename `UiMetadata::for_artifact()` to `for_static_template()` for clarity
+
+- **Breaking:** `DatabaseSessionManager::new()` now takes `&DbPool` instead of an owned value. Migrate by passing a reference.
+- **Breaking:** Renamed `UiMetadata::for_artifact()` to `for_static_template()`. Migrate by updating call sites.
+- `UiMetadata::with_prefers_border()` is now `const fn`.
+- UI metadata uses the static `/artifact-viewer` template path instead of per-artifact ID substitution.
 
 ### Removed
-- Remove `result_ui_meta()` helper - MCP Apps spec uses static templates via `ui/notifications/tool-result`
-- Remove `UiMetadata::to_result_meta()` method - no longer needed with static templates
-- Remove `ARTIFACT_ID_PLACEHOLDER` constant from ui_renderer
+
+- **Breaking:** Removed `result_ui_meta()` helper. Migrate to static templates via `ui/notifications/tool-result`.
+- **Breaking:** Removed `UiMetadata::to_result_meta()`. Migrate by relying on static templates.
+- **Breaking:** Removed `ARTIFACT_ID_PLACEHOLDER` from `ui_renderer`. Migrate by using static template paths.
 
 ### Fixed
-- Fix session resumption errors when SSE channel closes: stale sessions now cleaned up and `SessionNeedsReconnect` returned instead of internal error
-- Fix redundant `artifact_id.clone()` in `McpResponseBuilder::build()`
-- Fix redundant closure in UI metadata CSP conversion
-- Fix `map().flatten()` pattern replaced with `and_then()` in response builder
+
+- Stale sessions are cleaned up and `SessionNeedsReconnect` is returned when the SSE channel closes mid-resume.
+- Removed redundant `artifact_id.clone()` in `McpResponseBuilder::build()`.
+- Replaced a redundant closure in UI metadata CSP conversion.
+- Replaced `map().flatten()` with `and_then()` in the response builder.
 
 ## [0.1.2] - 2026-02-03
 
 ### Added
-- `mcp_sessions` table for persisting MCP session state across server restarts
-- `McpSessionRepository` with CRUD operations for session persistence
-- `DatabaseSessionManagerError` enum with specific error types for session handling
 
-### Fixed
-- **Critical**: Fix infinite token refresh loop after server restart by implementing database-backed MCP session persistence
-- `DatabaseSessionManager` now properly uses the `DbPool` parameter instead of ignoring it
-- Session resumption now returns `SessionNeedsReconnect` error when session exists in database but not in memory
+- `mcp_sessions` table for persisting MCP session state across server restarts.
+- `McpSessionRepository` with CRUD operations for session persistence.
+- `DatabaseSessionManagerError` enum with specific session error variants.
 
 ### Changed
-- `DatabaseSessionManager` now uses hybrid approach: in-memory for active sessions + database for persistence
-- Register `mcp_sessions` schema in `McpExtension`
+
+- `DatabaseSessionManager` now uses a hybrid in-memory plus database persistence model.
+- Registered the `mcp_sessions` schema in `McpExtension`.
+
+### Fixed
+
+- Eliminated the infinite token refresh loop after server restart by persisting MCP sessions to the database.
+- `DatabaseSessionManager` now uses the `DbPool` parameter previously ignored.
+- Session resumption returns `SessionNeedsReconnect` when the session exists in the database but not in memory.
 
 ## [0.1.1] - 2026-02-03
 
 ### Changed
-- Replace `unwrap_or_default()` with explicit `map_or_else` patterns in UI renderer templates
+
+- Replaced `unwrap_or_default()` with explicit `map_or_else` patterns in UI renderer templates.
 
 ### Fixed
-- Add process existence check before sending SIGTERM in cleanup to avoid errors on already-terminated processes
+
+- Cleanup now checks process existence before sending `SIGTERM` to avoid errors on already-terminated processes.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+
+- First stable release aligning all workspace crates at version 0.1.0.
 
 ## [0.0.14] - 2026-01-27
 
 ### Added
-- `UiMetadata::for_tool_definition()` factory method for creating tool-specific UI metadata
-- `UiMetadata::to_tool_meta()` method for generating tool metadata JSON
-- `UiMetadata::to_result_meta()` method for generating result metadata with artifact ID substitution
+
+- `UiMetadata::for_tool_definition()` factory for tool-specific UI metadata.
+- `UiMetadata::to_tool_meta()` for generating tool metadata JSON.
+- `UiMetadata::to_result_meta()` for generating result metadata with artifact ID substitution.
 
 ### Changed
-- Add `include` directive to Cargo.toml for SQLx offline mode support in published crates
+
+- Added an `include` directive to `Cargo.toml` to support SQLx offline mode in published crates.
 
 ## [0.0.13] - 2026-01-27
 
 ### Added
-- UI renderer module with template-based HTML generation for artifacts
-- Renderers for Dashboard, Chart, Table, Form, List, Image, and Text artifact types
-- Asset loading via `include_str!` for CSS and JS files
-- CSP (Content Security Policy) builder with configurable directives
+
+- UI renderer module providing template-based HTML generation for artifacts.
+- Renderers for Dashboard, Chart, Table, Form, List, Image, and Text artifacts.
+- Asset loading via `include_str!` for CSS and JS files.
+- CSP builder with configurable directives.
 
 ### Changed
-- Refactor inline CSS/JS to separate asset files for maintainability
-- Update code for clippy pedantic compliance
+
+- Moved inline CSS and JS to separate asset files.
+- Brought the crate into clippy pedantic compliance.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+
+- Migration system infrastructure.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+
+- Schema validation now handles VIEW-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+
+- **Breaking:** Each domain crate now owns its SQL schemas via the `Extension` trait. Migrate by removing references to centralised loaders and registering schemas through `Extension`.
+- Removed centralised module loaders from `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+
+- Corrected `include_str!` paths that pointed outside the crate directory.
+- Crate now compiles standalone when downloaded from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+
+- Initial release.

@@ -1,5 +1,6 @@
 //! Tests for ToolContext and ToolProviderError.
 
+use systemprompt_identifiers::{AiToolCallId, SessionId, TraceId};
 use systemprompt_provider_contracts::{ToolContext, ToolProviderError};
 
 mod tool_context_tests {
@@ -37,20 +38,20 @@ mod tool_context_tests {
 
     #[test]
     fn with_session_id() {
-        let ctx = ToolContext::new("token").with_session_id("sess-1");
-        assert_eq!(ctx.session_id, Some("sess-1".to_string()));
+        let ctx = ToolContext::new("token").with_session_id(SessionId::new("sess-1"));
+        assert_eq!(ctx.session_id, Some(SessionId::new("sess-1")));
     }
 
     #[test]
     fn with_trace_id() {
-        let ctx = ToolContext::new("token").with_trace_id("trace-1");
-        assert_eq!(ctx.trace_id, Some("trace-1".to_string()));
+        let ctx = ToolContext::new("token").with_trace_id(TraceId::new("trace-1"));
+        assert_eq!(ctx.trace_id, Some(TraceId::new("trace-1")));
     }
 
     #[test]
     fn with_ai_tool_call_id() {
-        let ctx = ToolContext::new("token").with_ai_tool_call_id("call-1");
-        assert_eq!(ctx.ai_tool_call_id, Some("call-1".to_string()));
+        let ctx = ToolContext::new("token").with_ai_tool_call_id(AiToolCallId::new("call-1"));
+        assert_eq!(ctx.ai_tool_call_id, Some(AiToolCallId::new("call-1")));
     }
 
     #[test]

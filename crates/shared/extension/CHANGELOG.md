@@ -1,72 +1,68 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Align crate version with the `systemprompt-core` workspace release cadence.
+
 ## [0.1.21] - 2026-04-02
 
 ### Changed
-- Move `RESERVED_PATHS` definition to `registry` module and re-export from `typed_registry`
+- Move `RESERVED_PATHS` to the `registry` module and re-export from `typed_registry`.
 
 ## [0.1.18] - 2026-03-27
 
 ### Changed
-- Upgrade to Rust 2024 edition
-- Split monolithic `lib.rs` and `registry.rs` into focused modules
+- Upgrade to Rust 2024 edition.
+- Split `lib.rs` and `registry.rs` into focused submodules.
 
 ## [0.1.12] - 2026-02-10
 
 ### Added
-- `AssetType::Html` variant for declaring HTML assets
-- `AssetDefinition::html()` convenience constructor
+- `AssetType::Html` variant for declaring HTML assets.
+- `AssetDefinition::html()` convenience constructor.
 
 ## [0.1.10] - 2026-02-06
 
 ### Added
-- `SiteAuthConfig` type for declaring site-wide authentication requirements
-- `site_auth()` method on `Extension` trait (default returns `None`)
-- `has_site_auth()` predicate method on `Extension` trait
-- `SiteAuthConfig` exported from prelude
+- `SiteAuthConfig` type for declaring site-wide authentication requirements.
+- `Extension::site_auth()` method, defaulting to `None`.
+- `Extension::has_site_auth()` predicate method.
+- `SiteAuthConfig` re-exported from the prelude.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
-
-## [0.0.3] - 2026-01-22
-
-### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Version bump for workspace consistency.
 
 ## [0.0.3] - 2026-01-22
 
 ### Added
-- `Migration` struct for versioned extension migrations
-- `is_required()` trait method to mark core extensions as non-disableable
-- `migrations()` trait method for extensions to define versioned migrations
-- `has_migrations()` helper method
-- `MigrationFailed` error variant in `LoaderError`
-- `enabled_extensions()`, `enabled_schema_extensions()`, `enabled_api_extensions()`, `enabled_job_extensions()` methods to filter by enabled state
+- `Migration` struct for versioned extension migrations.
+- `Extension::is_required()` method to mark core extensions as non-disableable.
+- `Extension::migrations()` method for declaring versioned migrations.
+- `Extension::has_migrations()` helper.
+- `LoaderError::MigrationFailed` variant.
+- `enabled_extensions()`, `enabled_schema_extensions()`, `enabled_api_extensions()`, and `enabled_job_extensions()` filters on the registry.
 
-### Changed
-- Extensions can now define versioned migrations that are tracked in database
-- Required extensions cannot be disabled even if listed in profile config
+### Fixed
+- Schema validation for VIEW-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Each domain crate now owns its SQL schemas via the `Extension` trait, replacing the centralized loader in `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- `include_str!` paths that pointed outside the crate directory.
+- Standalone compilation when consumed from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

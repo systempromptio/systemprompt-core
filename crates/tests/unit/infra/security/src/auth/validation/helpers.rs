@@ -2,6 +2,7 @@
 
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
@@ -15,7 +16,7 @@ pub fn create_test_service() -> AuthValidationService {
     )
 }
 
-pub fn create_valid_jwt(secret: &str, issuer: &str, session_id: Option<String>) -> String {
+pub fn create_valid_jwt(secret: &str, issuer: &str, session_id: Option<SessionId>) -> String {
     let now = Utc::now();
     let expiry = now + Duration::hours(1);
 
@@ -31,7 +32,7 @@ pub fn create_valid_jwt(secret: &str, issuer: &str, session_id: Option<String>) 
         email: "test@example.com".to_string(),
         user_type: UserType::User,
         roles: vec!["user".to_string()],
-        client_id: Some("test_client".to_string()),
+        client_id: Some(ClientId::new("test_client")),
         token_type: TokenType::Bearer,
         auth_time: now.timestamp(),
         session_id,
@@ -65,10 +66,10 @@ pub fn create_admin_jwt(secret: &str, issuer: &str) -> String {
         email: "admin@example.com".to_string(),
         user_type: UserType::User,
         roles: vec!["admin".to_string(), "user".to_string()],
-        client_id: Some("admin_client".to_string()),
+        client_id: Some(ClientId::new("admin_client")),
         token_type: TokenType::Bearer,
         auth_time: now.timestamp(),
-        session_id: Some("admin_session".to_string()),
+        session_id: Some(SessionId::new("admin_session")),
         department: None,
         rate_limit_tier: Some(RateLimitTier::Admin),
         plugin_id: None,
@@ -99,10 +100,10 @@ pub fn create_expired_jwt(secret: &str, issuer: &str) -> String {
         email: "test@example.com".to_string(),
         user_type: UserType::User,
         roles: vec!["user".to_string()],
-        client_id: Some("test_client".to_string()),
+        client_id: Some(ClientId::new("test_client")),
         token_type: TokenType::Bearer,
         auth_time: (now - Duration::hours(2)).timestamp(),
-        session_id: Some("session_123".to_string()),
+        session_id: Some(SessionId::new("session_123")),
         department: None,
         rate_limit_tier: Some(RateLimitTier::User),
         plugin_id: None,

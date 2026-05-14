@@ -39,17 +39,19 @@ User management for systemprompt.io AI governance infrastructure. 6-tier RBAC, s
 This crate provides user management functionality including:
 
 - User CRUD operations with typed identifiers
-- Session management (list, end, cleanup)
-- Role-based access control (admin, user, anonymous)
+- Session management (list, end, cleanup, existence checks)
+- Role-based access control with policy-aware promotion/demotion
+- API key issuance, hashing, and verification
+- Device certificate enrollment and rotation
 - IP banning with expiration and metadata tracking
-- Anonymous user lifecycle management
-- Bulk operations for user administration
+- Anonymous user lifecycle management and scheduled cleanup
+- Bulk operations and aggregate statistics
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-users = "0.9.0"
+systemprompt-users = "0.9.2"
 ```
 
 ```rust
@@ -69,92 +71,120 @@ let stats = user_service.get_stats().await?;
 
 ```
 src/
-├── lib.rs                              # Public exports
-├── error.rs                            # UserError enum, Result type alias
+├── lib.rs                              # Crate docs, public exports
+├── error.rs                            # UserError enum, Result / UserResult aliases
+├── extension.rs                        # UsersExtension (schema + job registration)
 ├── models/
-│   └── mod.rs                          # User, UserSession, UserActivity, UserStats, UserExport
+│   └── mod.rs                          # User, UserSession, UserActivity, UserStats,
+│                                       # UserApiKey, UserDeviceCert, NewApiKey, UserExport
 ├── repository/
-│   ├── mod.rs                          # UserRepository struct, MAX_PAGE_SIZE constant
+│   ├── mod.rs                          # UserRepository facade, MAX_PAGE_SIZE constant
+│   ├── api_key.rs                      # API key persistence and lookup
+│   ├── device_cert.rs                  # Device certificate persistence
 │   ├── banned_ip/
-│   │   ├── mod.rs                      # BannedIpRepository struct
-│   │   ├── types.rs                    # BannedIp, BanDuration, BanIpParams
-│   │   ├── queries.rs                  # ban_ip, unban_ip, is_banned, get_ban, cleanup_expired
-│   │   └── listing.rs                  # list_active_bans, list_bans_by_source, count_active_bans
+│   │   ├── mod.rs                      # BannedIpRepository
+│   │   ├── types.rs                    # BannedIp, BanDuration, BanIpParams,
+│   │   │                               # BanIpWithMetadataParams
+│   │   ├── queries.rs                  # ban_ip, unban_ip, is_banned, get_ban,
+│   │   │                               # cleanup_expired
+│   │   └── listing.rs                  # list_active_bans, list_bans_by_source,
+│   │                                   # count_active_bans
 │   └── user/
 │       ├── mod.rs                      # Module exports
-│       ├── find.rs                     # find_by_id, find_by_email, find_by_name, find_by_role
+│       ├── find.rs                     # find_by_id, find_by_email, find_by_name,
+│       │                               # find_by_role
 │       ├── list.rs                     # list, search, count, bulk operations
 │       ├── stats.rs                    # count_by_status, count_by_role, get_stats
 │       ├── operations.rs               # create, update_*, delete, cleanup_old_anonymous
 │       ├── merge.rs                    # merge_users, MergeResult
-│       └── session.rs                  # list_sessions, end_session, end_all_sessions
+│       └── session.rs                  # list_sessions, end_session, end_all_sessions,
+│                                       # session_exists
 ├── services/
 │   ├── mod.rs                          # Service exports
 │   ├── admin_service.rs                # UserAdminService, PromoteResult, DemoteResult
+│   ├── api_key_service.rs              # ApiKeyService, IssueApiKeyParams,
+│   │                                   # API_KEY_PREFIX
+│   ├── device_cert_service.rs          # DeviceCertService, EnrollDeviceCertServiceParams
 │   ├── user_provider.rs                # UserProviderImpl wrapper for trait-based access
 │   └── user/
-│       ├── mod.rs                      # UserService - primary service
-│       └── provider.rs                 # UserProvider, RoleProvider trait implementations
+│       ├── mod.rs                      # UserService — primary service
+│       └── provider.rs                 # UserProvider / RoleProvider impls
 └── jobs/
     ├── mod.rs                          # Job exports
-    └── cleanup_anonymous_users.rs      # CleanupAnonymousUsersJob (30-day cleanup)
+    └── cleanup_anonymous_users.rs      # CleanupAnonymousUsersJob (retention window)
 ```
 
 ## Public Exports
 
 ### Models
 
-- `User` - Core user entity with id, name, email, roles, status
-- `UserSession` - Session with timestamps and device info
-- `UserActivity` - User activity summary (last active, counts)
-- `UserWithSessions` - User with active session count
-- `UserStats` - Aggregate statistics (totals, breakdowns)
-- `UserCountBreakdown` - Counts by status and role
-- `UserExport` - Export-friendly user representation
+- `User` — Core user entity with id, name, email, roles, status
+- `UserSession` — Session with timestamps and device info
+- `UserActivity` — User activity summary (last active, counts)
+- `UserWithSessions` — User with active session count
+- `UserStats` — Aggregate statistics (totals, breakdowns)
+- `UserCountBreakdown` — Counts by status and role
+- `UserApiKey` — Stored API key record
+- `NewApiKey` — Plaintext key returned at issuance
+- `UserDeviceCert` — Stored device certificate record
+- `UserExport` — Export-friendly user representation
 
 ### Enums
 
-- `UserStatus` - Active, Suspended, Deleted (re-exported from systemprompt-models)
-- `UserRole` - Admin, User, Anonymous (re-exported from systemprompt-models)
+- `UserStatus` — Active, Suspended, Deleted (re-exported from `systemprompt-models`)
+- `UserRole` — Admin, User, Anonymous (re-exported from `systemprompt-models`)
 
 ### Services
 
-- `UserService` - Primary service implementing `UserProvider` and `RoleProvider`
-- `UserAdminService` - Admin operations (promote, demote)
-- `UserProviderImpl` - Wrapper for trait-based dependency injection
+- `UserService` — Primary service implementing `UserProvider` and `RoleProvider`
+- `UserAdminService` — Admin operations (promote, demote)
+- `ApiKeyService` — Issue, hash, and verify API keys
+- `DeviceCertService` — Enroll and rotate device certificates
+- `UserProviderImpl` — Wrapper for trait-based dependency injection
 
 ### Repositories
 
-- `UserRepository` - User database operations
-- `BannedIpRepository` - IP ban management
+- `UserRepository` — User database operations
+- `BannedIpRepository` — IP ban management
 
 ### Types
 
-- `UpdateUserParams` - Multi-field update struct
-- `MergeResult` - Result of merging two users
-- `BanDuration` - Hours, Days, or Permanent
-- `BanIpParams` - Basic ban parameters
-- `BanIpWithMetadataParams` - Ban with offense tracking
-- `BannedIp` - Active ban record
+- `UpdateUserParams` — Multi-field user update struct
+- `MergeResult` — Result of merging two users
+- `IssueApiKeyParams` — Parameters for `ApiKeyService::issue`
+- `EnrollDeviceCertServiceParams` — Parameters for `DeviceCertService::enroll`
+- `CreateApiKeyParams` — Repository-level API key creation parameters
+- `EnrollDeviceCertParams` — Repository-level device cert parameters
+- `BanDuration` — Hours, Days, or Permanent
+- `BanIpParams` — Basic ban parameters
+- `BanIpWithMetadataParams` — Ban with offense tracking
+- `BannedIp` — Active ban record
+- `PromoteResult` / `DemoteResult` — Outcomes of admin role transitions
+- `API_KEY_PREFIX` — Canonical user-facing key prefix
+
+### Extension
+
+- `UsersExtension` — Schema and job registration entry point
 
 ### Traits (re-exported)
 
-- `UserProvider` - User lookup and creation
-- `RoleProvider` - Role management
+- `UserProvider` — User lookup and creation
+- `RoleProvider` — Role management
 
 ### Error Handling
 
-- `UserError` - Domain-specific errors (NotFound, EmailAlreadyExists, etc.)
-- `Result<T>` - Type alias for `std::result::Result<T, UserError>`
+- `UserError` — Domain-specific errors (`NotFound`, `EmailAlreadyExists`, …)
+- `Result<T>` / `UserResult<T>` — Aliases for `std::result::Result<T, UserError>`
 
 ## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| `systemprompt-database` | DbPool for database access |
-| `systemprompt-traits` | UserProvider, RoleProvider, Job traits |
-| `systemprompt-identifiers` | UserId, SessionId typed identifiers |
-| `systemprompt-models` | UserRole, UserStatus enums |
+| `systemprompt-database` | `DbPool` for database access |
+| `systemprompt-extension` | `Extension` trait for schema/job registration |
+| `systemprompt-traits` | `UserProvider`, `RoleProvider`, `Job` traits |
+| `systemprompt-identifiers` | `UserId`, `SessionId` typed identifiers (sqlx feature) |
+| `systemprompt-models` | `UserRole`, `UserStatus` enums |
 | `systemprompt-provider-contracts` | Job registration macro |
 
 ## License

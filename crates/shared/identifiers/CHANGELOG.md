@@ -1,61 +1,59 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.2] - 2026-05-14
 
-### Changed (BREAKING)
-
-- `SessionSource::Cowork` → `SessionSource::Bridge` (`as_str` returns `"bridge"`); `from_client_id("sp_bridge") => SessionSource::Bridge`.
-- `ClientId::cowork()` → `ClientId::bridge()`; returns `"sp_bridge"`.
+### Breaking
+- **Breaking:** `SessionSource::Cowork` renamed to `SessionSource::Bridge`; `as_str` now returns `"bridge"` and `SessionSource::from_client_id("sp_bridge")` resolves to `SessionSource::Bridge`. Migrate by replacing `SessionSource::Cowork` with `SessionSource::Bridge` at call sites.
+- **Breaking:** `ClientId::cowork()` renamed to `ClientId::bridge()` and returns `"sp_bridge"`. Migrate by replacing `ClientId::cowork()` with `ClientId::bridge()`.
 
 ## [0.1.18] - 2026-03-27
 
 ### Added
-- `PROXY_VERIFIED` and `USER_PERMISSIONS` header constants for proxy-verified identity flow
+- `PROXY_VERIFIED` and `USER_PERMISSIONS` header constants for the proxy-verified identity flow.
 
 ### Changed
-- Upgrade to Rust 2024 edition
+- Upgraded to the Rust 2024 edition.
 
 ### Removed
-- Remove unused session ID helper methods
+- Removed unused session ID helper methods.
 
 ## [0.1.3] - 2026-02-19
 
 ### Added
-- `HookId` typed identifier with `generate()` support for hook catalog entries
+- `HookId` typed identifier with `generate()` support for hook catalogue entries.
 
 ## [0.1.2] - 2026-02-03
 
 ### Added
-- `SessionSource::Mcp` variant for identifying MCP protocol sessions
+- `SessionSource::Mcp` variant for identifying MCP protocol sessions.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release; all workspace crates aligned at 0.1.0.
 
 ## [0.0.13] - 2026-01-26
 
 ### Added
-- Add `PlaybookId` typed identifier for playbook domain type
+- `PlaybookId` typed identifier for the playbook domain.
 
 ## [0.0.3] - 2026-01-22
 
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Schema validation now handles VIEW-based schemas.
+
+### Added
+- Migration system infrastructure.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Each domain crate now owns its SQL schemas via the `Extension` trait, replacing the centralised module loaders in `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- `include_str!` paths no longer point outside the crate directory, allowing the crate to compile standalone when downloaded from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

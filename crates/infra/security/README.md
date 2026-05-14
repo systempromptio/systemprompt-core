@@ -28,22 +28,25 @@
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-security?style=flat-square)](https://docs.rs/systemprompt-security)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Security infrastructure for systemprompt.io AI governance: JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret encryption, and the four-layer tool-call governance pipeline. Handles JWT token generation and validation, multi-method token extraction, and bot/scanner detection.
+Security infrastructure for systemprompt.io AI governance: JWT, OAuth2 token extraction, scope enforcement, the four-layer tool-call governance pipeline, the unified authz decision plane (deny-overrides resolver + `AuthzDecisionHook`) shared by gateway and MCP enforcement, Ed25519 bridge manifest signing, and bot/scanner detection.
 
 **Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-This crate provides security primitives for the systemprompt.io platform. It handles JWT token generation and validation, multi-method token extraction, and bot/scanner detection.
+This crate provides security primitives for the systemprompt.io platform. It handles JWT token generation and validation, multi-method token extraction, the unified authorization decision plane (resolver, repository, hook surface, audit sinks), Ed25519 manifest signing for the bridge, and bot/scanner classification.
 
 ## Architecture
 
 ```
 src/
 ├── lib.rs                     # Module exports and public API
+├── error.rs                   # AuthError, JwtError, ManifestSigningError
+├── manifest_signing.rs        # Ed25519 signing + RFC 8785 JCS canonicalisation
 ├── auth/
 │   ├── mod.rs                 # Auth module re-exports
-│   └── validation.rs          # AuthValidationService, AuthMode, token validation
+│   ├── validation.rs          # AuthValidationService, AuthMode
+│   └── hook_token.rs          # HookTokenValidator, ValidatedHookClaims
 ├── extraction/
 │   ├── mod.rs                 # Extraction module re-exports
 │   ├── token.rs               # TokenExtractor with fallback chain
@@ -51,23 +54,41 @@ src/
 │   └── cookie.rs              # CookieExtractor for cookie-based auth
 ├── jwt/
 │   └── mod.rs                 # JwtService for admin token generation
+├── session/
+│   ├── mod.rs                 # Session module re-exports
+│   ├── generator.rs           # SessionGenerator for session token creation
+│   └── claims.rs              # ValidatedSessionClaims data structure
 ├── services/
 │   ├── mod.rs                 # Services module re-exports
 │   └── scanner.rs             # ScannerDetector for bot detection
-└── session/
-    ├── mod.rs                 # Session module re-exports
-    ├── generator.rs           # SessionGenerator for session token creation
-    └── claims.rs              # ValidatedSessionClaims data structure
+└── authz/
+    ├── mod.rs                 # Authz module re-exports
+    ├── config.rs              # AccessControlConfig, RuleEntry, DepartmentEntry
+    ├── error.rs               # AuthzError, AuthzBootstrapError
+    ├── extension.rs           # AuthzExtension (registers schemas + migrations)
+    ├── hook.rs                # AuthzDecisionHook trait + Allow/Deny/Webhook impls
+    ├── ingestion.rs           # AccessControlIngestionService
+    ├── repository.rs          # AccessControlRepository, UpsertRuleParams
+    ├── resolver.rs            # Deny-overrides resolve() entrypoint
+    ├── runtime.rs             # global_hook / install_global_hook
+    ├── types.rs               # Access, AccessRule, AuthzDecision, AuthzRequest, EntityKind
+    ├── audit/
+    │   ├── mod.rs             # AuthzAuditSink, AuthzSource
+    │   ├── db_sink.rs         # DbAuditSink (Postgres)
+    │   └── repository.rs      # GovernanceDecisionRepository, insert_governance_decision
+    └── schema/                # SQL DDL + migrations
 ```
 
 ### `auth`
 
-Authentication validation service with configurable enforcement modes.
+Authentication validation with configurable enforcement modes plus bridge hook-token verification.
 
 | Export | Type | Purpose |
 |--------|------|---------|
-| `AuthValidationService` | Struct | Validates JWT tokens and creates RequestContext |
+| `AuthValidationService` | Struct | Validates JWT tokens and constructs `RequestContext` |
 | `AuthMode` | Enum | `Required`, `Optional`, `Disabled` enforcement levels |
+| `HookTokenValidator` | Struct | Verifies short-lived hook tokens minted for the bridge |
+| `ValidatedHookClaims` | Struct | Claims extracted from a verified hook token |
 
 ### `extraction`
 
@@ -111,11 +132,38 @@ Session token generation and claim validation.
 | `SessionParams` | Struct | Configuration for session token creation |
 | `ValidatedSessionClaims` | Struct | Extracted claims after JWT validation |
 
+### `authz`
+
+Unified authorization decision plane shared by the gateway `/v1/messages` proxy and the MCP RBAC middleware.
+
+| Export | Type | Purpose |
+|--------|------|---------|
+| `resolve` | Fn | Deny-overrides resolver against `access_control_rules` |
+| `AuthzDecisionHook` | Trait | Pluggable decision surface installed as a global hook |
+| `AllowAllHook` / `DenyAllHook` / `WebhookHook` | Struct | Built-in `AuthzDecisionHook` implementations |
+| `AccessControlRepository` | Struct | CRUD over `access_control_rules` |
+| `AccessControlIngestionService` | Struct | Loads rule sets from configuration |
+| `AuthzExtension` | Struct | Registers schemas and migrations via the extension framework |
+| `AuthzAuditSink` / `DbAuditSink` / `NullAuditSink` | Trait + impls | Sinks for governance decision audit records |
+| `GovernanceDecisionRepository` | Struct | Reads `governance_decisions` audit rows |
+| `Access` / `AccessRule` / `AuthzDecision` / `AuthzRequest` / `Decision` / `EntityKind` / `RuleType` | Types | Authz request and decision data model |
+| `global_hook` / `install_global_hook` / `install_from_governance_config` / `clear_global_hook` | Fns | Process-wide hook installation |
+
+### `manifest_signing`
+
+Ed25519 signing for bridge manifests, keyed independently of the JWT HMAC secret.
+
+| Export | Type | Purpose |
+|--------|------|---------|
+| `sign_value<T: Serialize>` | Fn | RFC 8785 canonicalise + Ed25519 sign |
+| `canonicalize<T: Serialize>` | Fn | RFC 8785 JCS canonical JSON |
+| `signing_key` | Fn | Loads the Ed25519 signing key from `manifest_signing_secret_seed` |
+
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-security = "0.9.0"
+systemprompt-security = "0.9.2"
 ```
 
 ### Token Extraction
@@ -181,10 +229,17 @@ let token = generator.generate(&params)?;
 |-------|---------|
 | `systemprompt-models` | Shared models (JwtClaims, UserType, Permission) |
 | `systemprompt-identifiers` | Typed identifiers (UserId, SessionId, TraceId) |
+| `systemprompt-config` | Profile and secrets access for signing keys |
+| `systemprompt-database` | `DbPool` for authz repositories and audit sinks |
+| `systemprompt-extension` | Extension trait used by `AuthzExtension` |
 | `jsonwebtoken` | JWT encoding/decoding with HS256 |
+| `ed25519-dalek` + `serde_jcs` | Ed25519 signing and RFC 8785 canonical JSON |
 | `axum` | HTTP types (HeaderMap, HeaderValue) |
+| `sqlx` | Authz repository and audit sink queries |
+| `reqwest` | `WebhookHook` outbound calls |
+| `inventory` | Extension registration |
 | `chrono` | Timestamp handling |
-| `tracing` | Debug logging for extraction errors |
+| `tracing` | Structured logging |
 
 ## License
 

@@ -25,9 +25,9 @@ impl WebAuthnConfig {
         let rp_id = parsed_url
             .host_str()
             .ok_or_else(|| {
-                crate::error::OauthError::Internal(format!(
-                    "API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID"
-                ))
+                crate::error::OauthError::Internal(
+                    "API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID".to_string(),
+                )
             })?
             .to_string();
 

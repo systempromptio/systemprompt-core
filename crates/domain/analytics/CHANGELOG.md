@@ -1,76 +1,81 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Normalize changelog formatting and entry style.
+
 ## [0.1.21] - 2026-04-02
 
 ### Changed
-- Make `models` module public for external access
+- Expose `models` module publicly for external consumers.
 
 ## [0.1.18] - 2026-03-27
 
-### Fixed
-- Rewrite content analytics queries to use `engagement_events` joined with `user_sessions`, filtering bots via `is_bot` and `is_behavioral_bot` flags
-- Cast `avg_time_on_page` to `float8` for type safety
-- Cap `time_on_page_ms` at 1,800,000ms to exclude outliers
-
 ### Changed
-- Upgrade to Rust 2024 edition
+- Upgrade crate to the Rust 2024 edition.
+
+### Fixed
+- Rewrite content analytics queries to join `engagement_events` with `user_sessions` and filter bots via `is_bot` and `is_behavioral_bot` flags.
+- Cast `avg_time_on_page` to `float8` for type safety.
+- Cap `time_on_page_ms` at 1,800,000 ms to exclude outliers.
 
 ## [0.1.10] - 2026-02-08
 
 ### Added
-- `event_type` column to engagement_events schema with migration
-- `content_id` column and index on engagement_events table
-- Content ID resolution via slug for engagement tracking
-- `EngagementOptionalMetrics` struct with serde flatten for optional fields
-- Default event type helper for backwards-compatible deserialization
+- Add `event_type` column and accompanying migration to `engagement_events`.
+- Add `content_id` column and index to `engagement_events`.
+- Resolve content IDs from slugs during engagement tracking.
+- Add `EngagementOptionalMetrics` with `serde(flatten)` for optional fields.
+- Provide a default event-type helper for backwards-compatible deserialization.
 
 ### Changed
-- `CreateEngagementEventInput` restructured with required/optional field separation
-- Engagement repository queries now include `event_type` and `content_id` fields
+- Split `CreateEngagementEventInput` into required and optional field groups.
+- Include `event_type` and `content_id` in engagement repository queries.
 
 ## [0.1.2] - 2026-02-03
 
 ### Changed
-- Updated cost queries to use `cost_microdollars` (BIGINT) instead of `cost_cents` for sub-cent precision
-- Regenerated SQLx offline query cache
+- Switch cost queries to `cost_microdollars` (`BIGINT`) for sub-cent precision.
+- Regenerate the SQLx offline query cache.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- Align crate version with the workspace 0.1.0 stable release.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Use `is_none_or` instead of `map_or` in bot detection for clarity
+- Use `is_none_or` in place of `map_or` in bot detection.
 
 ## [0.0.11] - 2026-01-26
 
 ### Added
-- Fan out engagement metrics on `PageExit` analytics events
-- `fan_out_engagement` for batch analytics processing
+- Fan out engagement metrics on `PageExit` analytics events via `fan_out_engagement`.
 
 ### Fixed
-- Fix clippy errors in repository modules
+- Resolve clippy warnings in repository modules.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Add migration system infrastructure.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Validate schemas defined as SQL `VIEW`s.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Adopt the distributed schema registration pattern with each domain crate owning its SQL via the `Extension` trait.
+- Remove centralized module loaders from `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- Correct `include_str!` paths that pointed outside the crate directory.
+- Ensure the crate compiles standalone when downloaded from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

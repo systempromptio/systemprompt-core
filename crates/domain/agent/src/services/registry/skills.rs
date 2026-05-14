@@ -43,10 +43,9 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &SkillId) -> Result<Ag
     let config_path = skill_dir.join(CONFIG_FILENAME);
     let config = if config_path.exists() {
         let config_text = fs::read_to_string(&config_path)?;
-        serde_yaml::from_str::<SkillConfig>(&config_text)
-            .map_err(|e| {
-                AgentServiceError::Internal(format!("Failed to parse {CONFIG_FILENAME}: {e}"))
-            })?
+        serde_yaml::from_str::<SkillConfig>(&config_text).map_err(|e| {
+            AgentServiceError::Internal(format!("Failed to parse {CONFIG_FILENAME}: {e}"))
+        })?
     } else {
         SkillConfig {
             name: None,

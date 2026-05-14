@@ -64,9 +64,9 @@ impl UserCreationService {
             .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
             .is_some()
         {
-            return Err(crate::error::OauthError::Internal(format!(
-                "email_already_registered"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "email_already_registered".to_string(),
+            ));
         }
 
         if self
@@ -76,9 +76,9 @@ impl UserCreationService {
             .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
             .is_some()
         {
-            return Err(crate::error::OauthError::Internal(format!(
-                "username_already_taken"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "username_already_taken".to_string(),
+            ));
         }
 
         self.find_or_create_user_with_webauthn_registration(username, email, full_name, None)

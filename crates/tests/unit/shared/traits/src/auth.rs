@@ -28,9 +28,8 @@ fn internal_error_includes_message() {
 }
 
 #[test]
-fn from_anyhow_error() {
-    let anyhow_err = anyhow::anyhow!("Something went wrong");
-    let auth_err: AuthProviderError = anyhow_err.into();
+fn internal_variant_construction() {
+    let auth_err = AuthProviderError::Internal("Something went wrong".to_string());
 
     match auth_err {
         AuthProviderError::Internal(msg) => {

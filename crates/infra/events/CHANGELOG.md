@@ -1,44 +1,57 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Added
+- `EventError` and `EventResult` for fallible broadcaster operations.
+- `AnalyticsBroadcaster`, `ANALYTICS_BROADCASTER`, and `EventRouter::route_analytics` for analytics-event fan-out.
+- `ConnectionGuard` RAII wrapper that unregisters SSE connections on drop.
+- `standard_keep_alive`, `HEARTBEAT_INTERVAL`, and `HEARTBEAT_JSON` for SSE keep-alive configuration.
+- `ToSse` impl for `CliOutputEvent` to support CLI streaming.
+
+### Changed
+- Routed `EventRouter::route_agui` and `route_a2a` to mirror events onto `CONTEXT_BROADCASTER` for the unified context stream.
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed
-- Upgrade to Rust 2024 edition
+- Upgraded to Rust 2024 edition.
 
 ## [0.1.3] - 2026-02-03
 
 ### Removed
-- `WebhookUserEventPublisher` (replaced by cloud activity API in systemprompt-cloud)
-- Unused dependencies: hmac, sha2, hex, chrono, reqwest, systemprompt-traits
+- **Breaking:** `WebhookUserEventPublisher` — migrate by switching to the cloud activity API in `systemprompt-cloud`.
+- Unused dependencies `hmac`, `sha2`, `hex`, `chrono`, `reqwest`, and `systemprompt-traits`.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- Aligned to the workspace 0.1.0 stable release.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
+- Version bump for workspace consistency.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Migration system infrastructure.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Schema validation for view-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- **Breaking:** Centralized module loaders removed from `systemprompt-loader` in favor of distributed schema registration — migrate by registering schemas through the `Extension` trait on the owning domain crate.
+- Each domain crate now owns its SQL schemas via the `Extension` trait.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- `include_str!` paths that pointed outside the crate directory.
+- Standalone compilation when the crate is fetched from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

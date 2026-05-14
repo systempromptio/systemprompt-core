@@ -40,18 +40,27 @@ Provides template loading abstractions and dynamic type aliases for template-rel
 
 | Type | Description |
 |------|-------------|
+| `TemplateProvider` | Top-level provider trait for the rendering pipeline |
 | `TemplateLoader` | Trait for loading templates by name |
-| `EmbeddedLoader` | Loader for compile-time embedded templates |
-| `FileSystemLoader` | Async filesystem template loader (requires `tokio` feature) |
+| `TemplateDataExtender` | Trait for augmenting template render context |
+| `ComponentRenderer` | Trait for rendering reusable components |
+| `PageDataProvider` | Trait for supplying page-level data |
+| `PagePrerenderer` | Trait for static page prerendering (re-exported from `systemprompt-provider-contracts`) |
+| `EmbeddedLoader` | Unit struct loader for compile-time embedded templates |
+| `FileSystemLoader` | Async `tokio::fs`-backed loader with base-path sandboxing (requires `tokio` feature) |
+| `TemplateLoaderError` / `TemplateLoaderResult` | Error type and result alias for loader operations |
 | `DynTemplateProvider` | `Arc<dyn TemplateProvider>` type alias |
 | `DynTemplateLoader` | `Arc<dyn TemplateLoader>` type alias |
+| `DynTemplateDataExtender` | `Arc<dyn TemplateDataExtender>` type alias |
 | `DynComponentRenderer` | `Arc<dyn ComponentRenderer>` type alias |
+| `DynPageDataProvider` | `Arc<dyn PageDataProvider>` type alias |
+| `DynPagePrerenderer` | `Arc<dyn PagePrerenderer>` type alias |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-template-provider = "0.9.0"
+systemprompt-template-provider = "0.9.2"
 ```
 
 ```rust
@@ -61,7 +70,7 @@ use systemprompt_template_provider::{
 };
 use async_trait::async_trait;
 
-let loader: DynTemplateLoader = std::sync::Arc::new(EmbeddedLoader::new());
+let loader: DynTemplateLoader = std::sync::Arc::new(EmbeddedLoader);
 ```
 
 ```rust
@@ -93,7 +102,8 @@ fn register(provider: Arc<dyn TemplateProvider>) -> DynTemplateProvider {
 | Crate | Purpose |
 |-------|---------|
 | `async-trait` | Async trait support |
-| `tokio` | Async filesystem operations (optional) |
+| `thiserror` | Derive macros for loader error types |
+| `tokio` | Async filesystem operations (optional, `fs` + `sync`) |
 
 ## License
 

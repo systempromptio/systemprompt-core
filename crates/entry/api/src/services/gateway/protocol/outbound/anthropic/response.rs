@@ -22,16 +22,16 @@ pub(super) fn parse_response(value: &Value, fallback_model: &str) -> CanonicalRe
         .get("stop_reason")
         .and_then(Value::as_str)
         .map(CanonicalStopReason::from_anthropic);
-    let usage = value
-        .get("usage")
-        .map(|u| CanonicalUsage {
-            input_tokens: u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
-            output_tokens: u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
-        })
-        .unwrap_or(CanonicalUsage {
+    let usage = value.get("usage").map_or(
+        CanonicalUsage {
             input_tokens: 0,
             output_tokens: 0,
-        });
+        },
+        |u| CanonicalUsage {
+            input_tokens: u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
+            output_tokens: u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
+        },
+    );
 
     let mut content: Vec<CanonicalContent> = Vec::new();
     if let Some(arr) = value.get("content").and_then(Value::as_array) {
