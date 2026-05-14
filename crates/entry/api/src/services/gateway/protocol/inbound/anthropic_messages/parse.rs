@@ -38,18 +38,18 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
     let stop_sequences = value
         .get("stop_sequences")
         .and_then(Value::as_array)
-        .map(|arr| {
+        .map_or_else(Vec::new, |arr| {
             arr.iter()
                 .filter_map(|v| v.as_str().map(ToString::to_string))
                 .collect::<Vec<_>>()
-        })
-        .unwrap_or_else(Vec::new);
+        });
 
     let tools = value
         .get("tools")
         .and_then(Value::as_array)
-        .map(|arr| arr.iter().map(parse_tool).collect::<Vec<_>>())
-        .unwrap_or_else(Vec::new);
+        .map_or_else(Vec::new, |arr| {
+            arr.iter().map(parse_tool).collect::<Vec<_>>()
+        });
 
     let tool_choice = value.get("tool_choice").and_then(parse_tool_choice);
 

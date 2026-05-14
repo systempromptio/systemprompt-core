@@ -28,209 +28,172 @@
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-api?style=flat-square)](https://docs.rs/systemprompt-api)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Axum-based HTTP server and API gateway for systemprompt.io AI governance infrastructure. Exposes governed agents, MCP, A2A, and admin endpoints with rate limiting and RBAC. Serves as the entry point for all HTTP requests to systemprompt.io OS.
+Axum-based HTTP server and API gateway for systemprompt.io AI governance infrastructure. Exposes governed agents, MCP, A2A, OAuth, the Claude gateway, marketplace, sync, analytics, and admin endpoints behind a unified middleware stack with authentication, rate limiting, RBAC, content negotiation, and security headers.
 
 **Layer**: Entry — application boundary. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
+> This crate exposes a public library surface (`ApiServer`, route routers, middleware extractors) consumed by `entry/cli`. Per repository convention, entry-layer crates do not carry per-item `///` rustdoc; the README is the canonical user-facing reference.
+
 ## Overview
 
-Part of the Entry layer in the systemprompt.io architecture.
-**Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
+The Entry layer turns an `AppContext` into a running Axum server. Responsibilities:
 
-This crate serves as the entry point for all HTTP requests to systemprompt.io OS. It provides:
+- **Route mounting** — every domain crate's router is composed under one tree by `services/server/routes.rs`.
+- **Middleware stack** — JWT, sessions, CORS, IP ban, rate limiting, throttling, bot detection, analytics emission, context extraction, content negotiation, security headers, and trailing-slash normalization.
+- **Gateway** — proxies Claude API traffic with quota enforcement, safety filtering, OTel ingest, audit, and pricing capture.
+- **Static content** — serves the prebuilt web frontend with ETag, SPA fallback, and per-route session handling.
+- **Server lifecycle** — readiness probes, agent reconciliation, scheduler bootstrap, and graceful shutdown.
 
-- **Route Configuration:** Mounts all API endpoints from domain crates
-- **Middleware Stack:** Authentication, rate limiting, analytics, CORS, session management
-- **Proxy Services:** Forwards requests to MCP servers and A2A agents
-- **Static Content:** Serves the web frontend and handles SPA routing
-- **Server Lifecycle:** Manages startup, health checks, and graceful shutdown
-
-## Architecture
-
-The API crate follows the Entry layer pattern:
-- Handlers extract request data and delegate to domain services
-- No direct database access (uses repositories through injected services)
-- Middleware handles cross-cutting concerns
+## Source layout
 
 ```
 src/
-├── lib.rs                                    # Crate exports
+├── lib.rs                          # Re-exports: ApiServer, HealthChecker, ContextMiddleware, ServerConfig
 ├── models/
-│   └── mod.rs                                # ServerConfig
+│   └── mod.rs                      # ServerConfig
 ├── routes/
-│   ├── mod.rs                                # Route exports
-│   ├── wellknown.rs                          # /.well-known/* endpoints
-│   ├── admin/
-│   │   ├── mod.rs                            # Admin route exports
-│   │   └── cli.rs                            # CLI gateway endpoint
-│   ├── analytics/
-│   │   ├── mod.rs                            # Analytics route exports
-│   │   ├── events.rs                         # Event tracking endpoints
-│   │   └── stream.rs                         # SSE analytics stream
-│   ├── engagement/
-│   │   ├── mod.rs                            # Engagement route exports
-│   │   └── handlers.rs                       # Engagement tracking handlers
-│   ├── proxy/
-│   │   ├── mod.rs                            # Proxy route exports
-│   │   ├── agents.rs                         # A2A agent proxy routes
-│   │   └── mcp.rs                            # MCP server proxy routes
-│   ├── stream/
-│   │   ├── mod.rs                            # SSE stream exports
-│   │   └── contexts.rs                       # Context state streaming
-│   └── sync/
-│       ├── mod.rs                            # Sync route exports
-│       ├── types.rs                          # Request/response types
-│       ├── auth.rs                           # Sync authentication
-│       └── files.rs                          # File sync endpoints
+│   ├── mod.rs
+│   ├── wellknown.rs                # /.well-known/* (agent cards, OAuth metadata)
+│   ├── marketplace.rs              # Marketplace catalog endpoints
+│   ├── admin/                      # CLI gateway, keys
+│   ├── agent/                      # A2A: artifacts, contexts (+ events, notifications, webhook), registry, tasks, responses
+│   ├── analytics/                  # Event ingestion + SSE stream
+│   ├── content/                    # Blog, query, link tracking
+│   ├── engagement/                 # Engagement metrics
+│   ├── gateway/                    # Claude gateway: auth, bridge (data, heartbeat, manifest, profile usage, whoami), messages, OTel
+│   ├── mcp/                        # MCP server registry
+│   ├── oauth/                      # OAuth2/OIDC: discovery, endpoints, clients, webauthn, wellknown, health
+│   ├── proxy/                      # A2A and MCP request forwarding
+│   ├── stream/                     # SSE for context updates
+│   └── sync/                       # File and auth sync for offline-first clients
 └── services/
-    ├── mod.rs                                # Service exports
-    ├── health/
-    │   ├── mod.rs                            # Health service exports
-    │   ├── checker.rs                        # HTTP health checker
-    │   └── monitor.rs                        # Process health monitor
+    ├── mod.rs
+    ├── validation.rs               # Cross-route validation helpers
+    ├── gateway/                    # ClaudeGatewayService — audit, captures, parse, policy, pricing, protocol, quota, registry, safety, stream_tap
+    ├── health/                     # HealthChecker, ProcessMonitor
     ├── middleware/
-    │   ├── mod.rs                            # Middleware exports
-    │   ├── analytics/
-    │   │   ├── mod.rs                        # Analytics middleware
-    │   │   ├── detection.rs                  # Bot/scanner detection
-    │   │   └── events.rs                     # Event emission
-    │   ├── auth.rs                           # Route-level authentication
-    │   ├── bot_detector.rs                   # Bot identification
-    │   ├── context/
-    │   │   ├── mod.rs                        # Context middleware exports
-    │   │   ├── middleware.rs                 # Context extraction middleware
-    │   │   ├── requirements.rs               # Context requirement levels
-    │   │   ├── extractors/
-    │   │   │   ├── mod.rs                    # Extractor exports
-    │   │   │   ├── traits.rs                 # ContextExtractor trait
-    │   │   │   ├── a2a_extractor.rs          # A2A protocol extractor
-    │   │   │   └── header_extractor.rs       # Header-based extractor
-    │   │   └── sources/
-    │   │       ├── mod.rs                    # Source exports
-    │   │       ├── headers.rs                # Header source
-    │   │       └── payload.rs                # Payload source
-    │   ├── cors.rs                           # CORS configuration
-    │   ├── ip_ban.rs                         # IP ban middleware
-    │   ├── jwt/
-    │   │   ├── mod.rs                        # JWT middleware exports
-    │   │   ├── context.rs                    # JWT context extraction
-    │   │   └── token.rs                      # Token validation
-    │   ├── rate_limit.rs                     # Rate limiting
-    │   ├── session.rs                        # Session management
-    │   ├── throttle.rs                       # Request throttling
-    │   ├── trace.rs                          # Trace header injection
-    │   └── trailing_slash.rs                 # Path normalization
-    ├── proxy/
-    │   ├── mod.rs                            # Proxy service exports
-    │   ├── auth.rs                           # Proxy authentication
-    │   ├── backend.rs                        # Request/response transform
-    │   ├── client.rs                         # HTTP client pool
-    │   ├── engine.rs                         # ProxyEngine core
-    │   └── resolver.rs                       # Service endpoint resolution
+    │   ├── analytics/              # Bot/scanner detection + event emission
+    │   ├── context/                # Context extraction with header/A2A extractors and header/payload sources
+    │   ├── jwt/                    # Token validation + JWT context
+    │   ├── negotiation/            # Accept-header content negotiation
+    │   ├── session/                # Lifecycle and skip rules
+    │   ├── auth.rs                 # Route-level auth gate
+    │   ├── bot_detector.rs         # Bot fingerprinting
+    │   ├── cors.rs
+    │   ├── ip_ban.rs
+    │   ├── rate_limit.rs
+    │   ├── security_headers.rs
+    │   ├── session.rs              # Session middleware entry
+    │   ├── site_auth.rs            # Site-wide auth gate
+    │   ├── throttle.rs
+    │   ├── trace.rs
+    │   └── trailing_slash.rs
+    ├── proxy/                      # ProxyEngine: auth, backend transform, client pool, resolver, MCP session
     ├── server/
-    │   ├── mod.rs                            # Server exports
-    │   ├── builder.rs                        # ApiServer construction
-    │   ├── readiness.rs                      # Readiness probe state
-    │   ├── routes.rs                         # Route tree configuration
-    │   ├── runner.rs                         # Server entry point
-    │   └── lifecycle/
-    │       ├── mod.rs                        # Lifecycle exports
-    │       ├── agents.rs                     # Agent reconciliation
-    │       ├── reconciliation.rs             # Service startup coordination
-    │       └── scheduler.rs                  # Bootstrap job execution
-    └── static_content/
-        ├── mod.rs                            # Static content exports
-        ├── config.rs                         # StaticContentMatcher
-        ├── fallback.rs                       # 404 and SPA routing
-        ├── homepage.rs                       # Homepage serving
-        ├── session.rs                        # Static route sessions
-        └── vite.rs                           # Vite asset serving
+    │   ├── builder.rs              # ApiServer construction
+    │   ├── discovery.rs            # Extension router discovery
+    │   ├── health.rs               # Health endpoint (incl. portable disk usage)
+    │   ├── health_detail.rs        # Detailed health payload
+    │   ├── readiness.rs            # Readiness probe state
+    │   ├── routes.rs / routes/     # Route tree, extension mount, protocol mount, static setup
+    │   ├── runner.rs               # Server entry point (run_server)
+    │   └── lifecycle/              # Agent reconciliation + scheduler bootstrap
+    └── static_content/             # SPA fallback, homepage, static files (cache + responses), session handling
 ```
 
-### Routes
+## Route surface
 
 | Module | Description |
 |--------|-------------|
-| `admin` | Administrative endpoints for CLI gateway and system management |
-| `analytics` | Event tracking and real-time analytics streaming |
-| `engagement` | User engagement metrics collection |
-| `proxy` | Request forwarding to MCP servers and A2A agents |
-| `stream` | Server-Sent Events for real-time context updates |
-| `sync` | Database synchronization for offline-first clients |
-| `wellknown` | Standard discovery endpoints (agent cards, OAuth metadata) |
+| `admin` | CLI gateway and key-management endpoints. |
+| `agent` | A2A protocol — artifacts, contexts, tasks, registry, webhook broadcasts, notifications. |
+| `analytics` | Event ingestion, batch processing, and SSE streaming. |
+| `content` | Blog, content queries, and link redirect tracking. |
+| `engagement` | Engagement metrics fan-out from analytics events. |
+| `gateway` | Claude API gateway: bridge auth/data/heartbeat/manifest/profile-usage/whoami, message dispatch, OTLP ingest. |
+| `marketplace` | Marketplace catalog and asset endpoints. |
+| `mcp` | MCP server registry. |
+| `oauth` | OAuth2/OIDC authorize, token, clients, WebAuthn, discovery, and `.well-known` metadata. |
+| `proxy` | Forwards requests to MCP servers and A2A agents through `ProxyEngine`. |
+| `stream` | Server-Sent Events for live context updates. |
+| `sync` | File and auth sync for offline-first clients (tar+gzip payloads). |
+| `wellknown` | Standard discovery endpoints (agent cards, OAuth protected resource). |
 
-### Services
+## Service surface
 
 | Module | Description |
 |--------|-------------|
-| `health` | Process monitoring and HTTP health checks |
-| `middleware` | Request processing pipeline (auth, rate limiting, analytics) |
-| `proxy` | HTTP client pooling and request transformation |
-| `server` | Server lifecycle, route mounting, and startup coordination |
-| `static_content` | SPA serving, content matching, and session handling |
+| `gateway` | Claude gateway service — quota, audit, safety, pricing, stream tap, OTel capture. |
+| `health` | Process monitoring and HTTP health checks. |
+| `middleware` | Request pipeline: JWT, session, context, analytics, CORS, IP ban, rate limiting, throttling, security headers, content negotiation, trailing-slash normalization. |
+| `proxy` | HTTP client pool and request transformation for upstream MCP and A2A targets. |
+| `server` | Builder, route tree, readiness, lifecycle (agent reconciliation + scheduler), and runner. |
+| `static_content` | SPA serving, homepage, static-file cache and response building, fallback routing. |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-api = "0.9.0"
+systemprompt-api = "0.9.2"
 ```
 
 ```rust
 use systemprompt_api::services::server::{run_server, setup_api_server};
 use systemprompt_runtime::AppContext;
 
-// Initialize and run
 let ctx = AppContext::new().await?;
 run_server(ctx, None).await?;
 ```
 
 ## Configuration
 
-The API server is configured through `systemprompt-runtime::Config`:
+The API server is configured through `systemprompt-runtime::Config` and the active profile:
 
-- `api_external_url` - Public URL for the API
-- `rate_limits` - Per-endpoint rate limit configuration
-- `jwt_secret` - JWT signing secret
-- `cors` - CORS allowed origins
+- `api_external_url` — public URL advertised in discovery metadata.
+- `rate_limits` — per-endpoint rate limit configuration.
+- `jwt_secret` — JWT signing secret (loaded via the secrets bootstrap).
+- `cors` — allowed origins.
+- `paths.system` — root used by `static_content` to locate prebuilt web assets.
 
 ## Notes
 
-- No direct repository access in handlers (uses service injection)
-- All routes mounted through `services/server/routes.rs`
-- Middleware order is significant (see `services/server/builder.rs`)
-- Static content requires prebuilt web assets in `WEB_DIR`
+- Handlers extract request data and delegate to domain services; no direct repository access.
+- All routes are composed in `services/server/routes.rs`; extensions are discovered via `services/server/discovery.rs`.
+- Middleware order is significant — see `services/server/builder.rs`.
+- The gateway path mints a UUID v5 `ContextId` from `GatewayConversationId`; it does not read upstream `x-context-id`.
+- Static content requires prebuilt web assets under the configured system path.
 
 ## Dependencies
 
-### Internal Crates
+### Internal crates
 
-- `systemprompt-runtime` - Application context and configuration
-- `systemprompt-oauth` - Authentication and session management
-- `systemprompt-agent` - Agent registry and orchestration
-- `systemprompt-mcp` - MCP server registry and proxy
-- `systemprompt-content` - Content repository and serving
-- `systemprompt-analytics` - Session and event tracking
-- `systemprompt-scheduler` - Background job execution
-- `systemprompt-database` - Connection pooling
-- `systemprompt-models` - Shared types and configuration
-- `systemprompt-identifiers` - Type-safe ID wrappers
-- `systemprompt-security` - Token extraction and validation
-- `systemprompt-users` - User services and IP banning
-- `systemprompt-events` - Event broadcasting
-- `systemprompt-logging` - Structured logging
-- `systemprompt-traits` - Shared traits and interfaces
-- `systemprompt-files` - File system configuration
-- `systemprompt-extension` - Extension loading
+- `systemprompt-runtime` — application context and configuration
+- `systemprompt-oauth` — authentication and session management
+- `systemprompt-agent` — agent registry, A2A protocol, orchestration
+- `systemprompt-mcp` — MCP server registry and proxy
+- `systemprompt-content` — content repository and serving
+- `systemprompt-analytics` — session and event tracking
+- `systemprompt-scheduler` — background job execution
+- `systemprompt-marketplace` — marketplace catalog
+- `systemprompt-ai` — Claude gateway integrations
+- `systemprompt-database` — connection pooling
+- `systemprompt-security` — token extraction and validation
+- `systemprompt-users` — user services and IP banning
+- `systemprompt-events` — event broadcasting
+- `systemprompt-files` — file system configuration
+- `systemprompt-extension` — extension loading and routing
+- `systemprompt-config`, `systemprompt-loader`, `systemprompt-logging`, `systemprompt-models`, `systemprompt-identifiers`, `systemprompt-traits`
 
-### External Crates
+### External crates
 
-- `axum` - HTTP framework
-- `tokio` - Async runtime
-- `tower` - Middleware utilities
-- `reqwest` - HTTP client
-- `jsonwebtoken` - JWT handling
-- `governor` - Rate limiting
+- `axum`, `tower`, `tower-http`, `tower_governor`, `governor` — HTTP framework and middleware
+- `tokio`, `tokio-stream`, `async-stream`, `futures-util` — async runtime
+- `reqwest` — upstream HTTP client
+- `rmcp` — MCP transport
+- `jsonwebtoken`, `webauthn-rs`, `bcrypt`, `ed25519-dalek` — auth primitives
+- `opentelemetry-proto`, `prost` — OTLP ingest
+- `flate2`, `tar` — sync payload (de)compression
+- `sqlx` — database access
 
 ## License
 

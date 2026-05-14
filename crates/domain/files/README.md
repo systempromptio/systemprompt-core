@@ -42,7 +42,7 @@ This crate provides file storage, metadata management, and content-file linking 
 
 ```toml
 [dependencies]
-systemprompt-files = "0.9.0"
+systemprompt-files = "0.9.2"
 ```
 
 Configured via `files.yaml`:
@@ -65,78 +65,109 @@ files:
 
 ```
 src/
-├── lib.rs                    Public API exports
-├── config.rs                 FilesConfig, FileUploadConfig, persistence modes
+├── lib.rs                    Public API exports and crate docs
+├── error.rs                  FilesError, FilesResult
+├── extension.rs              FilesExtension with schema registration
+│
+├── config/
+│   ├── mod.rs                FilesConfig surface and YAML loading
+│   ├── types.rs              FileUploadConfig, AllowedFileTypes, FilePersistenceMode
+│   └── validator.rs          FilesConfigValidator for profile-driven settings
 │
 ├── jobs/
-│   └── file_ingestion.rs     Background job scanning storage for images
+│   ├── mod.rs                Job registration entry point
+│   └── file_ingestion.rs     FileIngestionJob scanning storage for images
 │
 ├── models/
+│   ├── mod.rs                Re-exports for File, metadata, content_file
 │   ├── file.rs               File entity with typed identifiers
-│   ├── content_file.rs       Junction table model, FileRole enum
+│   ├── content_file.rs       Junction model and FileRole enum
 │   ├── metadata.rs           FileMetadata with type-specific variants
 │   └── image_metadata.rs     ImageMetadata, ImageGenerationInfo
 │
 ├── repository/
-│   ├── file/mod.rs           Core CRUD: insert, find, list, delete, stats
+│   ├── mod.rs                Repository re-exports
+│   ├── file/
+│   │   ├── mod.rs            FileRepository CRUD operations
+│   │   ├── request.rs        InsertFileRequest builder
+│   │   └── stats.rs          FileStats aggregation queries
 │   ├── content/mod.rs        Content linking: link, unlink, featured
-│   └── ai/mod.rs             AI image queries: list, count by user
+│   └── ai/mod.rs             AI image queries by user and tenant
 │
 └── services/
-    ├── file/mod.rs           FileService wrapper over repository
-    ├── content/mod.rs        ContentService for file-content relations
-    ├── ai/mod.rs             AiService for AI-generated images
+    ├── mod.rs                Service re-exports
+    ├── ai_provider.rs        FilesAiPersistenceProvider implementation
+    ├── providers.rs          Provider trait wiring
     └── upload/
-        ├── mod.rs            FileUploadService with storage logic
-        └── validator.rs      MIME type validation, extension extraction
+        ├── mod.rs            Upload module entry point
+        ├── service.rs        FileUploadService with storage and persistence
+        ├── request.rs        FileUploadRequest, FileUploadRequestBuilder, UploadedFile
+        ├── validator.rs      FileValidator, FileCategory, MIME enforcement
+        └── error.rs          FileUploadError, FileValidationError
 ```
 
 ## Modules
 
 | Module | Purpose |
 |--------|---------|
-| `config` | Configuration loading from YAML, validation, path resolution |
-| `jobs` | Background file ingestion job with inventory registration |
-| `models` | Data structures: File, ContentFile, FileRole, metadata types |
-| `repository` | Database access layer with SQLX queries |
-| `services` | Business logic wrappers providing clean API |
+| `config` | Profile-driven configuration loading, validation, and persistence modes |
+| `error` | `FilesError` and `FilesResult` shared across the crate |
+| `extension` | `FilesExtension` registering schemas and jobs via the extension framework |
+| `jobs` | Background file ingestion with inventory registration |
+| `models` | Data structures: `File`, `ContentFile`, `FileRole`, metadata variants |
+| `repository` | Database access layer using compile-time verified `sqlx` macros |
+| `services` | Upload, validation, and AI-persistence service wrappers |
 
 ## Public Types
 
 | Type | Description |
 |------|-------------|
-| `File` | File entity with path, URL, metadata, identifiers |
-| `ContentFile` | Links file to content with role and display order |
+| `File` | File entity with path, URL, metadata, and typed identifiers |
+| `ContentFile` | Links a file to content with role and display order |
 | `FileRole` | Featured, Attachment, Inline, OgImage, Thumbnail |
 | `FileMetadata` | Container for checksums and type-specific metadata |
-| `ImageMetadata` | Dimensions, alt text, generation info |
-| `FileUploadRequest` | Builder for file upload operations |
-| `FilesConfig` | Runtime configuration for storage paths and URLs |
-
-## Services
-
-| Service | Methods |
-|---------|---------|
-| `FileService` | insert, find_by_id, find_by_path, list_by_user, list_all, delete, update_metadata, get_stats |
-| `ContentService` | link_to_content, unlink_from_content, list_files_by_content, find_featured_image, set_featured |
-| `AiService` | list_ai_images, list_ai_images_by_user, count_ai_images_by_user, count_ai_images |
-| `FileUploadService` | upload_file with validation, storage, and database insertion |
+| `TypeSpecificMetadata` | Enum variant carrying image, audio, document, or video metadata |
+| `ImageMetadata` / `ImageGenerationInfo` | Image dimensions, alt text, and AI generation provenance |
+| `AudioMetadata` / `DocumentMetadata` / `VideoMetadata` | Type-specific metadata records |
+| `FileChecksums` | SHA-256 / content checksum container |
+| `FileUploadRequest` / `FileUploadRequestBuilder` | Builder for upload operations |
+| `UploadedFile` | Result returned by `FileUploadService` |
+| `FileCategory` / `FileValidator` | Upload validation surface |
+| `FilesConfig` / `FilesConfigYaml` / `FilesConfigValidator` | Configuration types and validation |
+| `FileUploadConfig` / `AllowedFileTypes` / `FilePersistenceMode` | Upload policy configuration |
+| `InsertFileRequest` / `FileRepository` / `FileStats` | Repository surface |
+| `FilesAiPersistenceProvider` | Provider implementation for AI-generated image persistence |
+| `FilesExtension` | Extension entry point registered via `inventory` |
+| `FileIngestionJob` | Scheduled job that reconciles storage with database rows |
+| `FilesError` / `FilesResult` | Crate-level error type and result alias |
 
 ## Jobs
 
-| Job | Schedule | Description |
-|-----|----------|-------------|
-| `FileIngestionJob` | Every 30 min | Scans storage directory for images, creates DB entries |
+| Job | Description |
+|-----|-------------|
+| `FileIngestionJob` | Scans the configured storage root and reconciles on-disk image files with database rows |
+
+## Schemas
+
+| File | Purpose |
+|------|---------|
+| `schema/files.sql` | Core `files` table definition |
+| `schema/content_files.sql` | Junction table linking files to content |
+| `schema/ai_image_analytics.sql` | View/table for AI-generated image analytics |
 
 ## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| systemprompt-database | DbPool for database connections |
-| systemprompt-identifiers | FileId, UserId, ContentId, SessionId, TraceId, ContextId |
-| systemprompt-traits | Job trait for background jobs |
-| systemprompt-models | AppPaths, ProfileBootstrap |
-| systemprompt-cloud | Storage path constants |
+| `systemprompt-database` | `DbPool` and `sqlx` query macros |
+| `systemprompt-identifiers` | `FileId`, `UserId`, `ContentId`, `SessionId`, `TraceId`, `ContextId` |
+| `systemprompt-traits` | `Job` trait for background jobs |
+| `systemprompt-models` | `AppPaths`, `ProfileBootstrap`, shared models |
+| `systemprompt-cloud` | Storage path constants and cloud integration |
+| `systemprompt-config` | Profile and YAML configuration loading |
+| `systemprompt-extension` | Extension trait and registration macros |
+| `systemprompt-provider-contracts` | Provider trait contracts implemented by this crate |
+| `systemprompt-logging` | Structured `tracing` integration |
 
 ## License
 

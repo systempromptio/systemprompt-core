@@ -42,7 +42,7 @@ This crate provides the core template system for discovering, loading, and rende
 
 ```toml
 [dependencies]
-systemprompt-templates = "0.9.0"
+systemprompt-templates = "0.9.2"
 ```
 
 ```rust
@@ -73,15 +73,19 @@ async fn setup_templates() -> Result<(), Box<dyn std::error::Error>> {
 
 ```
 src/
-├── lib.rs              # Public exports and re-exports from template-provider
-├── builder.rs          # TemplateRegistryBuilder for fluent construction
-├── core_provider.rs    # CoreTemplateProvider for filesystem template discovery
-├── error.rs            # TemplateError enum for error handling
-└── registry.rs         # TemplateRegistry for managing templates and rendering
+├── lib.rs                  # Public exports and re-exports from template-provider
+├── builder.rs              # TemplateRegistryBuilder for fluent construction
+├── core_provider.rs        # CoreTemplateProvider for filesystem template discovery
+├── embedded_defaults.rs    # EmbeddedDefaultsProvider bundling the in-tree defaults/
+├── error.rs                # TemplateError and TemplateResult
+└── registry/
+    ├── mod.rs              # TemplateRegistry struct and Handlebars wiring
+    ├── lifecycle.rs        # Initialization, partial registration, template loading
+    ├── queries.rs          # render, has_template, and component lookup
+    └── stats.rs            # RegistryStats reporter
 
-tests/
-├── core_provider_tests.rs  # Tests for CoreTemplateProvider
-└── registry_tests.rs       # Tests for TemplateRegistry
+defaults/
+└── templates/              # Embedded HTML templates shipped with the crate
 ```
 
 ## Modules
@@ -92,11 +96,14 @@ Provides `TemplateRegistryBuilder` for fluent construction of `TemplateRegistry`
 ### `core_provider`
 Implements `CoreTemplateProvider` which discovers HTML templates from a filesystem directory. Reads optional `templates.yaml` manifests for metadata and infers content types from template name suffixes (`-post`, `-list`).
 
+### `embedded_defaults`
+`EmbeddedDefaultsProvider` exposes the in-tree `defaults/templates/` bundle so consumers get a working engine without filesystem access.
+
 ### `error`
-Defines `TemplateError` with variants for common failure modes: `NotFound`, `LoadError`, `CompileError`, `RenderError`, `NoLoader`, and `NotInitialized`.
+Defines `TemplateError` with variants for common failure modes (`NotFound`, `LoadError`, `CompileError`, `RenderError`, `NoLoader`, `NotInitialized`) plus the `TemplateResult` alias.
 
 ### `registry`
-Core `TemplateRegistry` struct that coordinates template providers, loaders, extenders, and component renderers. Uses Handlebars for template compilation and rendering. Resolves template conflicts by priority (lower values win).
+Core `TemplateRegistry` that coordinates providers, loaders, extenders, and component renderers. Uses Handlebars for compilation and rendering, registers a `json` helper for JSON-LD safe serialisation, and resolves template conflicts by priority (lower values win). Split into `lifecycle`, `queries`, and `stats` submodules.
 
 ## Priority System
 

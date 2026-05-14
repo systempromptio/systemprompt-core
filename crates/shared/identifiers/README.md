@@ -34,74 +34,115 @@ Typed newtype identifiers (`UserId`, `TraceId`, `AgentId`, `McpServerId`, and mo
 
 ## Overview
 
-Provides strongly-typed wrappers for all domain identifiers, ensuring type safety and preventing accidental mixing of different ID types.
+Strongly-typed newtype wrappers for every domain identifier in systemprompt.io. Distinct ID types cannot be mixed at call sites; the compiler rejects passing a `UserId` where an `AgentId` is expected.
 
-## Architecture
+## Layout
 
-- `SessionId` — User session identifier
-- `UserId` — User identifier
-- `AgentId` — Agent UUID identifier
-- `AgentName` — Agent name string
-- `TaskId` — Task identifier
-- `ContextId` — Conversation context identifier
-- `TraceId` — Distributed tracing identifier
-- `ClientId` — OAuth client identifier
-- `McpExecutionId` — MCP execution tracking ID
-- `McpServerId` — MCP server name
-- `SkillId` — Skill identifier
-- `SourceId` — Content source identifier
-- `CategoryId` — Content category identifier
-- `JwtToken` — JWT token wrapper
+```
+src/
+├── lib.rs                  // crate root, re-exports
+├── macros/                 // define_id! / define_token! and helpers
+│   ├── id.rs
+│   ├── token.rs
+│   ├── helpers.rs
+│   └── mod.rs
+├── db_value/               // database boundary types
+│   ├── value.rs            // DbValue enum
+│   ├── to_value.rs         // ToDbValue trait
+│   ├── from_value.rs       // FromDbValue trait + JsonRow
+│   └── mod.rs
+├── auth/                   // ApiKeyId, ApiKeySecret, CloudAuthToken,
+│   │                       // DeviceCertId, JwtToken, SessionToken
+│   └── …
+├── error.rs                // IdValidationError
+├── headers.rs              // HTTP header name constants
+├── agent.rs                // AgentId, AgentName, ExternalAgentId
+├── ai.rs                   // AiGatewayPolicyId, AiQuotaBucketId,
+│                           // AiRequestId, AiSafetyFindingId,
+│                           // ConfigId, MessageId
+├── client.rs               // ClientId, ClientType
+├── cloud.rs                // CheckoutSessionId, PriceId, TransactionId
+├── connection.rs           // ConnectionId
+├── content.rs              // CategoryId, ContentId, FileId, SkillId,
+│                           // SourceId, TagId
+├── context.rs              // ContextId
+├── email.rs                // Email (validated)
+├── execution.rs            // ArtifactId, ExecutionStepId, LogId, TokenId
+├── funnel.rs               // EngagementEventId, FunnelId,
+│                           // FunnelProgressId
+├── gateway_conversation.rs // GatewayConversationId
+├── hook.rs                 // HookId
+├── jobs.rs                 // JobName, ScheduledJobId
+├── links.rs                // CampaignId, LinkClickId, LinkId
+├── locale.rs               // LocaleCode
+├── marketplace.rs          // MarketplaceId
+├── mcp.rs                  // AiToolCallId, McpExecutionId, McpServerId
+├── oauth.rs                // AccessTokenId, AuthorizationCode,
+│                           // ChallengeId, RefreshTokenId
+├── path.rs                 // ValidatedFilePath
+├── plugin.rs               // PluginId
+├── policy.rs               // PolicyVersion
+├── profile.rs              // ProfileName (validated)
+├── provider_request.rs     // ProviderRequestId
+├── roles.rs                // RoleId
+├── section.rs              // SectionId
+├── session.rs              // SessionId, SessionSource
+├── task.rs                 // TaskId
+├── tenant.rs               // TenantId
+├── trace.rs                // TraceId
+├── url.rs                  // ValidatedUrl
+├── user.rs                 // UserId
+└── webhook.rs              // WebhookEndpointId
+```
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-identifiers = "0.9.0"
+systemprompt-identifiers = "0.9.2"
 ```
 
 ```rust
-use systemprompt_identifiers::{UserId, TaskId, ContextId};
+use systemprompt_identifiers::{AgentId, TaskId, UserId};
 
-let user_id = UserId::new();
-let task_id = TaskId::new();
-let context_id = ContextId::new();
+// Known string value (literal, parsed input, DB row).
+let user = UserId::new("user_42");
+let agent = AgentId::new("developer_agent");
 
-println!("User: {}, Task: {}, Context: {}", user_id, task_id, context_id);
+// Mint a fresh UUID-backed identifier.
+let task = TaskId::generate();
+
+// Mixing newtype IDs is a compile error.
+// let broken: AgentId = user; // error[E0308]: mismatched types
+
+println!("agent={agent}, user={user}, task={task}");
 ```
+
+Validated identifiers (`Email`, `ProfileName`, `ValidatedUrl`, `ValidatedFilePath`, `AgentName`, `McpServerId`) expose a fallible constructor:
 
 ```rust
-use systemprompt_identifiers::{AgentId, UserId};
-
-fn main() {
-    let agent = AgentId::new("developer_agent");
-    let user = UserId::new("user_42");
-
-    // Mixing newtype IDs is a compile error — the types are distinct.
-    // let broken: AgentId = user; // error[E0308]: mismatched types
-
-    println!("agent = {agent}, user = {user}");
-}
+use systemprompt_identifiers::Email;
+let email = Email::try_new("alice@example.com")?;
 ```
 
-## Types
+## Traits Implemented
 
-All ID types implement:
-- `Clone`, `Debug`, `PartialEq`, `Eq`, `Hash`
-- `Serialize`, `Deserialize` (with `#[serde(transparent)]`)
-- `AsRef<str>`, `Display`
+All ID types implement `Clone`, `Debug`, `PartialEq`, `Eq`, `Hash`, `Serialize`, `Deserialize` (`#[serde(transparent)]`), `AsRef<str>`, and `Display`. With the `sqlx` feature, every identifier also derives `sqlx::Type` for direct binding in `query_as!` macros.
 
 ## Feature Flags
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `sqlx` | No | SQLx type implementations for database queries |
+| `sqlx` | off | Derives `sqlx::Type` on every identifier for database binding. |
 
 ## Dependencies
 
-- `serde` — Serialization
+- `serde`, `serde_json` — serialisation
 - `uuid` — UUID generation
 - `schemars` — JSON schema generation
+- `chrono` — timestamps on `DbValue`
+- `thiserror` — `IdValidationError`
+- `sqlx` (optional) — database type derivation
 
 ## License
 

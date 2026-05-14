@@ -2,6 +2,7 @@
 //! format
 
 use axum::http::{HeaderMap, HeaderValue};
+use systemprompt_identifiers::SessionId;
 use systemprompt_models::auth::UserType;
 use systemprompt_security::AuthMode;
 
@@ -41,7 +42,7 @@ fn test_validate_request_optional_valid_token() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session_456".to_string()),
+        Some(SessionId::new("session_456")),
     );
 
     let mut headers = HeaderMap::new();
@@ -64,7 +65,7 @@ fn test_validate_request_extracts_trace_id() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session".to_string()),
+        Some(SessionId::new("session")),
     );
 
     let mut headers = HeaderMap::new();
@@ -86,7 +87,7 @@ fn test_validate_request_extracts_context_id() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session".to_string()),
+        Some(SessionId::new("session")),
     );
 
     let mut headers = HeaderMap::new();
@@ -114,7 +115,7 @@ fn test_validate_request_extracts_agent_name() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session".to_string()),
+        Some(SessionId::new("session")),
     );
 
     let mut headers = HeaderMap::new();
@@ -136,7 +137,7 @@ fn test_validate_request_generates_trace_id_if_missing() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session".to_string()),
+        Some(SessionId::new("session")),
     );
 
     let mut headers = HeaderMap::new();
@@ -179,7 +180,7 @@ fn test_validate_request_lowercase_authorization() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session".to_string()),
+        Some(SessionId::new("session")),
     );
 
     let mut headers = HeaderMap::new();
@@ -199,7 +200,7 @@ fn test_validate_request_no_bearer_prefix() {
     let token = create_valid_jwt(
         "test_secret_key",
         "test_issuer",
-        Some("session".to_string()),
+        Some(SessionId::new("session")),
     );
 
     let mut headers = HeaderMap::new();

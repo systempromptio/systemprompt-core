@@ -2,56 +2,57 @@
 
 ## [0.2.0] - 2026-04-15
 
-### Changed (BREAKING)
-- `ContextProvider`, `UserProvider`, `RoleProvider` trait methods now take typed identifiers (`&UserId`, `&ContextId`, `Option<&SessionId>`) instead of `&str`. `ContextWithStats` fields `context_id` and `user_id` are now `ContextId` / `UserId`.
+### Breaking
+- **Breaking:** `ContextProvider`, `UserProvider`, and `RoleProvider` trait methods now take typed identifiers (`&UserId`, `&ContextId`, `Option<&SessionId>`) instead of `&str`, and `ContextWithStats::context_id` / `ContextWithStats::user_id` are now `ContextId` / `UserId`. Migrate by replacing string arguments and field accesses with the corresponding typed identifier from `systemprompt-identifiers`.
 
-### Removed (BREAKING)
-- Deleted `AuthProvider` trait (and `DynAuthProvider` alias) — single dead impl, zero callers.
-- Deleted `AuthorizationProvider` trait (and `DynAuthorizationProvider` alias) — single dead impl returning stub values regardless of input, zero callers. Latent authorization footgun.
-- Deleted associated dead types: `AuthAction`, `AuthPermission`, `TokenPair`, `TokenClaims`.
+### Removed
+- **Breaking:** Removed `AuthProvider` and its `DynAuthProvider` alias. Migrate by depending on `UserProvider` and `RoleProvider` directly.
+- **Breaking:** Removed `AuthorizationProvider` and its `DynAuthorizationProvider` alias. Migrate by implementing authorization in the calling domain.
+- **Breaking:** Removed `AuthAction`, `AuthPermission`, `TokenPair`, and `TokenClaims`. Migrate by switching to `AgentJwtClaims` and the JWT provider trait.
 
 ## [0.1.18] - 2026-03-27
 
 ### Changed
-- Upgrade to Rust 2024 edition
+- Bumped to the Rust 2024 edition.
 
 ### Removed
-- Remove `ExtensionError` type
-- Remove doc comments and inline comments from trait definitions
+- Removed the `ExtensionError` concrete type from this crate; downstream errors now implement the `ExtensionError` trait directly.
 
 ## [0.1.2] - 2026-02-03
 
 ### Changed
-- Version bump for workspace consistency
+- Synchronised the crate version with the workspace.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release; aligned with the workspace 0.1.0 baseline.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
+- Synchronised the crate version with the workspace.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Migration system infrastructure to support distributed schema registration.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Schema validation now accepts `VIEW`-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
+### Added
+- Distributed schema registration via the `Extension` trait; each domain crate owns its SQL schemas.
+
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Centralised module loaders previously hosted in `systemprompt-loader` are no longer exposed from this crate.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- `include_str!` paths now resolve inside the crate directory, allowing the crate to build standalone from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

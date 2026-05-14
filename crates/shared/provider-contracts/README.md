@@ -38,21 +38,28 @@ Defines the core provider trait contracts used throughout systemprompt.io. These
 
 ## Architecture
 
-| Type | Description |
-|------|-------------|
-| `LlmProvider` | Trait for LLM chat completions |
-| `ToolProvider` | Trait for tool discovery and execution |
-| `Job` | Trait for background job execution |
-| `TemplateProvider` | Trait for template loading |
-| `ComponentRenderer` | Trait for component rendering |
-| `PageDataProvider` | Trait for page data injection |
-| `TemplateDataExtender` | Trait for extending template context |
+| Module | Trait / Type | Purpose |
+|--------|--------------|---------|
+| `llm` | `LlmProvider`, `ToolExecutor`, `ChatRequest`, `ChatResponse`, `ChatStream` | LLM chat completions, streaming, and tool-call execution |
+| `tool` | `ToolProvider`, `ToolDefinition`, `ToolCallRequest`, `ToolCallResult`, `ToolContent` | Tool discovery and invocation |
+| `job` | `Job`, `JobContext`, `JobResult` | Background job execution |
+| `template` | `TemplateProvider`, `TemplateDefinition`, `TemplateSource` | Template loading and resolution |
+| `component` | `ComponentRenderer`, `ComponentContext`, `PartialTemplate`, `RenderedComponent` | Component rendering and partial sources |
+| `page` | `PageDataProvider`, `PageContext` | Page data injection |
+| `page_prerenderer` | `PagePrerenderer`, `PagePrepareContext`, `PageRenderSpec` | Static page prerendering |
+| `extender` | `TemplateDataExtender`, `ExtenderContext`, `ExtendedData` | Template context extension |
+| `frontmatter` | `FrontmatterProcessor`, `FrontmatterContext` | Frontmatter parsing and transformation |
+| `content_data` | `ContentDataProvider`, `ContentDataContext` | Content data injection |
+| `rss` | `RssFeedProvider`, `RssFeedSpec`, `RssFeedItem`, `RssFeedMetadata` | RSS feed generation |
+| `sitemap` | `SitemapProvider`, `SitemapSourceSpec`, `SitemapUrlEntry`, `SitemapAlternate` | Sitemap generation with placeholder mapping |
+| `web_config` | `WebConfig`, `BrandingConfig`, `ColorsConfig`, `TypographyConfig`, `LayoutConfig`, … | Declarative web/theme configuration loaded from YAML |
+| `error` | `ProviderError`, `ProviderResult` | Shared error type for non-LLM, non-tool providers |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-provider-contracts = "0.9.0"
+systemprompt-provider-contracts = "0.9.2"
 ```
 
 ```rust
@@ -67,7 +74,6 @@ struct MyLlmProvider;
 #[async_trait]
 impl LlmProvider for MyLlmProvider {
     async fn chat(&self, request: ChatRequest) -> LlmProviderResult<ChatResponse> {
-        // Implementation
         todo!()
     }
 }
@@ -96,9 +102,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Crate | Purpose |
 |-------|---------|
-| `async-trait` | Async trait support |
-| `inventory` | Compile-time registration |
-| `serde` | Serialization |
+| `async-trait` | Async trait support for `dyn`-compatible providers |
+| `futures` | Stream primitives for `ChatStream` |
+| `inventory` | Compile-time provider registration |
+| `serde`, `serde_json`, `serde_yaml` | Request/response and config (de)serialization |
+| `thiserror` | Typed error enums |
+| `chrono` | Timestamps in feed and sitemap entries |
 
 ## License
 

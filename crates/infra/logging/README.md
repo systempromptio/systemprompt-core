@@ -52,6 +52,7 @@ src/
 │
 ├── layer/
 │   ├── mod.rs                          - DatabaseLayer: async batch persistence to PostgreSQL
+│   ├── proxy.rs                        - ProxyDatabaseLayer: late-bound sink swap-in for ensure_subscriber
 │   └── visitor.rs                      - FieldVisitor, SpanVisitor for field extraction
 │
 ├── models/
@@ -79,6 +80,7 @@ src/
 │   │
 │   ├── cli/
 │   │   ├── mod.rs                      - Module declarations and re-exports
+│   │   ├── banners.rs                  - Startup, profile, and section banners
 │   │   ├── display.rs                  - Display traits, DisplayUtils, StatusDisplay, CollectionDisplay
 │   │   ├── macros.rs                   - cli_success!, cli_warning!, cli_error!, cli_info! macros
 │   │   ├── module.rs                   - ModuleDisplay, ModuleInstall, ModuleUpdate
@@ -104,14 +106,25 @@ src/
 │
 ├── trace/
 │   ├── mod.rs                          - Re-exports
-│   ├── models.rs                       - TraceEvent, TaskInfo, ExecutionStep, AiRequestInfo,
-│   │                                     McpToolExecution, ConversationMessage, ToolLogEntry
+│   ├── models/
+│   │   ├── mod.rs                      - Re-exports
+│   │   ├── ai.rs                       - AiRequestInfo, AiRequestDetail, AiRequestSummary, model/provider stats
+│   │   ├── log.rs                      - LogSearchFilter, LogSearchItem, LogTimeRange, LevelCount
+│   │   ├── tool.rs                     - McpToolExecution, ToolExecutionFilter, ToolLogEntry, AuditToolCallRow
+│   │   └── trace.rs                    - TraceEvent, TaskInfo, ExecutionStep, ConversationMessage, TraceListItem
 │   ├── service.rs                      - TraceQueryService: generic trace querying
 │   ├── queries.rs                      - SQL queries for log events and AI request summaries
 │   ├── step_queries.rs                 - SQL queries for MCP executions and execution steps
 │   ├── ai_trace_service.rs             - AiTraceService: AI/MCP operation tracing
 │   ├── ai_trace_queries.rs             - SQL queries for tasks, AI requests, messages
-│   └── mcp_trace_queries.rs            - SQL queries for MCP executions, tool logs, artifacts
+│   ├── audit_queries.rs                - SQL queries for audit lookup across logs and tool calls
+│   ├── list_queries.rs                 - SQL queries for paginated trace lists
+│   ├── log_lookup_queries.rs           - SQL queries for single-log retrieval and context
+│   ├── log_search_queries.rs           - SQL queries for filtered log search
+│   ├── log_summary_queries.rs          - SQL queries for log level counts and time ranges
+│   ├── mcp_trace_queries.rs            - SQL queries for MCP executions, tool logs, artifacts
+│   ├── request_queries.rs              - SQL queries for AI request detail and stats
+│   └── tool_queries.rs                 - SQL queries for tool execution lookup and filtering
 │
 schema/
 ├── log.sql                             - logs table, indexes, analytical views
@@ -122,19 +135,21 @@ schema/
 
 ```toml
 [dependencies]
-systemprompt-logging = "0.9.0"
+systemprompt-logging = "0.9.2"
 ```
 
 ```rust
 use systemprompt_database::DbPool;
 use systemprompt_logging::{LoggingRepository, LogFilter, LogLevel};
 
-async fn recent_errors(pool: &DbPool) -> anyhow::Result<()> {
+use systemprompt_logging::LoggingError;
+
+async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
     let repo = LoggingRepository::new(pool.clone());
     let filter = LogFilter::default().with_level(LogLevel::Error).with_limit(20);
     let entries = repo.list_logs_paginated(&filter).await?;
     for entry in entries {
-        println!("{}: {}", entry.level, entry.message);
+        tracing::info!(level = %entry.level, message = %entry.message, "log");
     }
     Ok(())
 }
@@ -145,6 +160,8 @@ async fn recent_errors(pool: &DbPool) -> anyhow::Result<()> {
 ### Initialization
 - `init_logging(db_pool)` - Initialize with database persistence
 - `init_console_logging()` - Initialize console-only logging
+- `init_console_logging_with_level(level)` - Initialize console logging at a specific level
+- `LoggingExtension` - Inventory-registered schema/extension entry point
 
 ### Core Types
 - `LogEntry` - Log entry with metadata and context IDs
@@ -194,16 +211,23 @@ async fn recent_errors(pool: &DbPool) -> anyhow::Result<()> {
 
 ### Internal
 - `systemprompt-database` - Database pool management
-- `systemprompt-traits` - Shared trait definitions (LogService)
+- `systemprompt-extension` - Extension framework (schema registration)
 - `systemprompt-identifiers` - Typed identifiers (UserId, SessionId, etc.)
+- `systemprompt-models` - Shared model types
+- `systemprompt-traits` - Shared trait definitions (`LogService`)
 
 ### External
 - `tracing`, `tracing-subscriber` - Structured logging framework
 - `tokio` - Async runtime
 - `sqlx` - Type-safe SQL
+- `serde`, `serde_json`, `serde_yaml` - Serialisation
 - `chrono` - Timestamp handling
+- `uuid` - Log entry identifiers
 - `tokio-cron-scheduler` - Retention job scheduling
-- `colored`, `console`, `indicatif`, `dialoguer` - CLI utilities
+- `axum` - HTTP surface for log/trace endpoints
+- `validator` - Input validation
+- `async-trait`, `thiserror`, `inventory` - Trait, error, and registration utilities
+- `console`, `indicatif`, `dialoguer` - CLI utilities (`cli` feature)
 
 ## License
 

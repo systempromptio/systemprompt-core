@@ -1,63 +1,65 @@
 # Changelog
 
-## [0.1.21] - 2026-04-01
-
-### Fixed
-- Remove silent error swallowing in `DatabaseLayer::flush()` — "does not exist" errors were silently dropped, hiding missing table issues
+## [0.9.2] - 2026-05-14
 
 ### Changed
-- Replace fragile `OnceLock` initialization with `ProxyDatabaseLayer` — `init_logging(db_pool)` now works regardless of prior `init_console_logging()` calls
-- Unified subscriber setup via `ensure_subscriber()` — both init paths use the same registry with fmt + proxy layers
-- Extract `ProxyDatabaseLayer` and shared span/event helpers into `layer/proxy.rs`
+- Normalised CHANGELOG to the workspace consumer-facing format.
+
+## [0.1.21] - 2026-04-01
+
+### Changed
+- Replaced `OnceLock`-based subscriber initialisation with `ProxyDatabaseLayer` so `init_logging` and `init_console_logging` compose in any order.
+- Unified subscriber setup behind `ensure_subscriber` so both init paths register the same registry with fmt and proxy layers.
+- Extracted span and event field helpers into `layer/proxy`.
+
+### Fixed
+- Surface errors from `DatabaseLayer::flush` instead of silently dropping them when the `logs` table is missing.
 
 ## [0.1.18] - 2026-03-27
 
 ### Changed
-- Upgrade to Rust 2024 edition
-- Simplify log visitor field extraction
+- Upgraded to the Rust 2024 edition.
+- Simplified field extraction in the tracing visitor.
 
 ## [0.1.2] - 2026-02-03
 
 ### Changed
-- Updated trace queries to use `cost_microdollars` for cost tracking
-- Regenerated SQLx offline query cache
+- Switched trace queries to `cost_microdollars` for cost tracking.
+- Regenerated the SQLx offline query cache.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release at workspace-aligned `0.1.0`.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
+- Version bump for workspace alignment.
 
 ## [0.0.11] - 2026-01-26
 
 ### Added
-- Include error message in MCP execution trace events for failed tool calls
-- `CliService::profile_banner()` method for displaying active profile information to stderr
+- `CliService::profile_banner` for printing the active profile to stderr.
+- Error messages are now attached to MCP execution trace events for failed tool calls.
 
 ### Changed
-- Improve CLI service output and prompts handling
+- Tightened CLI service output and prompt handling.
 
 ## [0.0.3] - 2026-01-22
 
 ### Changed
-- Logging extension marked as required (`is_required() -> true`)
+- Marked the logging extension as required via `Extension::is_required`.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Moved schema registration to the per-crate `Extension` trait and dropped the centralised loaders in `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- Corrected `include_str!` paths so the crate builds standalone from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

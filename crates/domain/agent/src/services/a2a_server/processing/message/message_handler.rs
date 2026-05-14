@@ -86,7 +86,9 @@ impl MessageProcessor {
             })
             .await
         {
-            return Err(AgentServiceError::Internal(format!("Failed to persist task at start: {e}")));
+            return Err(AgentServiceError::Internal(format!(
+                "Failed to persist task at start: {e}"
+            )));
         }
 
         tracing::info!(task_id = %task_id, "Task persisted to database");
@@ -156,7 +158,7 @@ impl MessageProcessor {
                     {
                         tracing::debug!(error = %e, "Failed to broadcast error event");
                     }
-                    return Err(AgentServiceError::Internal(format!("{error}")));
+                    return Err(AgentServiceError::Internal(error.clone()));
                 },
                 _ => {},
             }

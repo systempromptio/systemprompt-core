@@ -43,7 +43,9 @@ impl PersistenceService {
                 agent_name,
             })
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist task at start: {}", e)))?;
+            .map_err(|e| {
+                AgentServiceError::Internal(format!("Failed to persist task at start: {}", e))
+            })?;
 
         tracing::info!(task_id = %task.id, "Task persisted to database");
 
@@ -86,7 +88,12 @@ impl PersistenceService {
                 trace_id: context.trace_id(),
             })
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to update task and save messages: {}", e)))?;
+            .map_err(|e| {
+                AgentServiceError::Internal(format!(
+                    "Failed to update task and save messages: {}",
+                    e
+                ))
+            })?;
 
         if !artifacts_already_published {
             if let Some(artifacts) = &task.artifacts {
@@ -97,7 +104,10 @@ impl PersistenceService {
                         .publish_from_a2a(artifact, &task.id, context_id)
                         .await
                         .map_err(|e| {
-                            AgentServiceError::Internal(format!("Failed to publish artifact {}: {}", artifact.id, e))
+                            AgentServiceError::Internal(format!(
+                                "Failed to publish artifact {}: {}",
+                                artifact.id, e
+                            ))
                         })?;
                 }
 

@@ -193,9 +193,8 @@ fn test_orchestration_error_io_from() {
 }
 
 #[test]
-fn test_orchestration_error_generic_from_anyhow() {
-    let anyhow_err = anyhow::anyhow!("something went wrong");
-    let orch_err: OrchestrationError = anyhow_err.into();
+fn test_orchestration_error_generic_variant() {
+    let orch_err = OrchestrationError::Generic("something went wrong".to_string());
 
     assert!(orch_err.to_string().contains("something went wrong"));
 }

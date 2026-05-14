@@ -49,9 +49,12 @@ This crate is the application-layer orchestrator that:
 ```
 src/
 ├── lib.rs                    # Public exports and registration macros
-├── context.rs                # AppContext builder and runtime state
+├── builder.rs                # AppContextBuilder fluent construction
+├── context.rs                # AppContext runtime state container
+├── context_loaders.rs        # GeoIP and content config loaders
+├── context_traits.rs         # Context-facing trait surfaces
 ├── database_context.rs       # Standalone database context for CLI tools
-├── installation.rs           # Module schema and seed installation
+├── error.rs                  # RuntimeError / RuntimeResult
 ├── registry.rs               # Module API registry and routing
 ├── span.rs                   # Request tracing span construction
 ├── startup_validation/       # Multi-domain configuration validation
@@ -65,14 +68,15 @@ src/
 └── wellknown.rs              # Well-known endpoint metadata registry
 ```
 
-### `context.rs`
+### `context.rs` / `builder.rs`
 
 **Purpose:** Central runtime state container providing access to all shared resources.
 
 | Export | Description |
 |--------|-------------|
 | `AppContext` | Holds database pool, config, registries, analytics, and GeoIP reader |
-| `AppContextBuilder` | Fluent builder for customized context initialization |
+| `AppContextParts` | Grouped construction parameters for `AppContext::from_parts` |
+| `AppContextBuilder` | Fluent builder, including `with_extensions` and `with_marketplace_filter` |
 
 Key behaviors:
 - Loads configuration via `ProfileBootstrap` and `Config::get()`
@@ -81,6 +85,28 @@ Key behaviors:
 - Optionally loads GeoIP database and content configuration
 - Initializes tracing with database persistence
 
+### `context_loaders.rs`
+
+**Purpose:** Resource loaders consumed by `AppContextBuilder`.
+
+| Export | Description |
+|--------|-------------|
+| `load_geoip_database` | Loads the MaxMind GeoIP reader when `geolocation` is enabled |
+| `load_content_config` | Loads the optional content routing configuration |
+
+### `context_traits.rs`
+
+**Purpose:** Trait surfaces exposed by `AppContext` to consumers.
+
+### `error.rs`
+
+**Purpose:** Typed error model for runtime construction and validation.
+
+| Export | Description |
+|--------|-------------|
+| `RuntimeError` | `thiserror` enum covering bootstrap, validation, and IO failures |
+| `RuntimeResult` | Result alias bound to `RuntimeError` |
+
 ### `database_context.rs`
 
 **Purpose:** Lightweight database-only context for CLI tools that don't need full runtime.
@@ -88,17 +114,6 @@ Key behaviors:
 | Export | Description |
 |--------|-------------|
 | `DatabaseContext` | Minimal context with just a database pool |
-
-### `installation.rs`
-
-**Purpose:** Module installation orchestration for schema and seed data.
-
-| Export | Description |
-|--------|-------------|
-| `install_module` | Installs a module using a new AppContext |
-| `install_module_with_db` | Installs a module with an existing database connection |
-
-Delegates to `systemprompt-database` for actual SQL execution.
 
 ### `registry.rs`
 
@@ -159,7 +174,7 @@ Validates: files, rate limits, web config, content config, agents, MCP servers, 
 
 ```toml
 [dependencies]
-systemprompt-runtime = "0.9.0"
+systemprompt-runtime = "0.9.2"
 ```
 
 ### Macros

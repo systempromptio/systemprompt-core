@@ -36,13 +36,13 @@ Native Model Context Protocol (MCP) implementation for systemprompt.io. Orchestr
 
 **Capabilities** · [MCP Governance](https://systemprompt.io/features/mcp-governance)
 
-MCP (Model Context Protocol) server lifecycle management module.
+Native MCP server lifecycle, orchestration, and governance. Manages MCP process spawning, port allocation, proxy routing, RBAC middleware, schema validation, tool execution, artifact persistence, and UI rendering for the systemprompt.io platform.
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-mcp = "0.9.0"
+systemprompt-mcp = "0.9.2"
 ```
 
 ## Architecture
@@ -51,53 +51,67 @@ systemprompt-mcp = "0.9.0"
 
 | Trait | Implementation | Location |
 |-------|----------------|----------|
-| `ToolProvider` | `McpToolProvider` | `services/tool_provider.rs:135` |
+| `ToolProvider` | `McpToolProvider` | `services/tool_provider/mod.rs` |
 | `McpRegistry` | `RegistryManager` | `services/registry/trait_impl.rs` |
 | `McpToolProvider` | `RegistryManager` | `services/registry/trait_impl.rs` |
 | `McpDeploymentProvider` | `McpDeploymentProviderImpl` | `services/registry/trait_impl.rs` |
+| `Extension` | `McpExtension` | `extension.rs` |
 
 ## Structure
 
 ```
 src/
 ├── lib.rs                          # Crate entry, router creation, re-exports
-├── orchestration/
-│   ├── mod.rs                      # Orchestration module exports
-│   ├── loader.rs                   # McpToolLoader - batch tool loading with permissions
-│   ├── state.rs                    # ServiceStateManager - service state queries
-│   └── models.rs                   # McpServiceState, ServerStatus, SkillLoadingResult
-├── api/
-│   ├── mod.rs                      # API router definitions
-│   └── routes/
-│       ├── mod.rs                  # Route aggregation
-│       └── registry.rs             # Registry query endpoints
+├── capabilities.rs                 # MCP Apps UI extension helpers
+├── error.rs                        # McpDomainError and error types
+├── extension.rs                    # McpExtension - schema registration, jobs, routes
+├── progress.rs                     # Tool execution progress reporting
+├── resources.rs                    # MCP resource definitions
+├── response.rs                     # McpResponseBuilder and artifact response shaping
+├── schema.rs                       # McpOutputSchema trait + artifact type bindings
+├── state.rs                        # Shared crate state
+├── tool.rs                         # Tool trait, McpToolExecutor
 ├── cli/
 │   ├── mod.rs                      # CLI command exports
-│   ├── commands/mod.rs             # CLI command handlers
-│   └── display.rs                  # Terminal output formatting
+│   └── commands/mod.rs             # CLI command handlers
+├── jobs/
+│   ├── mod.rs                      # Background job exports
+│   └── mcp_session_cleanup.rs      # Stale session cleanup job
 ├── middleware/
 │   ├── mod.rs                      # Middleware exports
-│   ├── rbac.rs                     # Role-based access control
-│   └── session_manager.rs          # MCP session management
+│   ├── session_manager.rs          # DatabaseSessionManager
+│   ├── rbac.rs                     # RBAC entry point
+│   └── rbac/
+│       ├── jwt.rs                  # JWT-based RBAC
+│       └── proxy.rs                # Proxy-verified identity RBAC
 ├── models/
 │   └── mod.rs                      # ExecutionStatus, ValidationResultType, ToolExecution
+├── orchestration/
+│   ├── mod.rs                      # Orchestration module exports
+│   ├── loader.rs                   # McpToolLoader - batch tool loading
+│   ├── state.rs                    # ServiceStateManager - service state queries
+│   └── models.rs                   # McpServiceState, ServerStatus, SkillLoadingResult
 ├── repository/
 │   ├── mod.rs                      # Repository exports
+│   ├── artifact/mod.rs             # McpArtifactRepository
+│   ├── session/mod.rs              # McpSessionRepository
 │   └── tool_usage/
-│       └── mod.rs                  # Tool execution persistence
+│       ├── mod.rs                  # Tool execution persistence
+│       └── stats.rs                # Tool usage statistics
 └── services/
     ├── mod.rs                      # Service traits, manager exports
+    ├── auth.rs                     # Auth helpers
+    ├── providers.rs                # Provider trait wiring
     ├── client/
     │   ├── mod.rs                  # MCP client
-    │   ├── http_client_with_context.rs  # HTTP client with context
+    │   ├── http_client_with_context.rs  # HTTP client with context propagation
     │   ├── types.rs                # Client types
     │   └── validation.rs           # Connection validation
     ├── database/
     │   ├── mod.rs                  # Database manager
     │   ├── state.rs                # State operations
-    │   └── sync.rs                 # State synchronization
-    ├── deployment/
-    │   └── mod.rs                  # Deployment configuration
+    │   └── sync.rs                 # State synchronisation
+    ├── deployment/mod.rs           # Deployment configuration
     ├── lifecycle/
     │   ├── mod.rs                  # Lifecycle manager
     │   ├── health.rs               # Health checks
@@ -117,40 +131,54 @@ src/
     ├── orchestrator/
     │   ├── mod.rs                  # McpOrchestrator coordinator
     │   ├── daemon.rs               # Background daemon
-    │   ├── event_bus.rs            # Pub/sub events
+    │   ├── event_bus.rs            # Pub/sub event bus
     │   ├── events.rs               # McpEvent definitions
+    │   ├── lifecycle_ops.rs        # Lifecycle operations
     │   ├── process_cleanup.rs      # Stale process cleanup
     │   ├── reconciliation.rs       # State reconciliation
+    │   ├── schema_sync.rs          # Schema synchronisation
+    │   ├── server_startup.rs       # Server startup orchestration
     │   ├── service_validation.rs   # Service validation
+    │   ├── target_resolution.rs    # Server target routing
     │   └── handlers/
     │       ├── mod.rs              # EventHandler trait
-    │       ├── database_sync.rs    # DB sync handling
-    │       ├── health_check.rs     # Health check handling
-    │       ├── lifecycle.rs        # Lifecycle handling
-    │       └── monitoring.rs       # Monitoring handling
+    │       ├── database_sync.rs    # DB sync handler
+    │       ├── health_check.rs     # Health check handler
+    │       ├── lifecycle.rs        # Lifecycle handler
+    │       └── monitoring.rs       # Monitoring handler
     ├── process/
     │   ├── mod.rs                  # Process manager
     │   ├── cleanup.rs              # Process termination
     │   ├── monitor.rs              # Process monitoring
     │   ├── pid_manager.rs          # PID tracking
-    │   └── spawner.rs              # Process spawning
+    │   ├── spawner.rs              # Process spawning
+    │   └── utils.rs                # Process utilities
     ├── registry/
     │   ├── mod.rs                  # Registry manager
-    │   ├── manager.rs              # Registry implementation
-    │   ├── trait_impl.rs           # McpRegistry, McpToolProvider trait impls
-    │   └── validator.rs            # Registry validation
-    ├── tool_provider.rs            # ToolProvider implementation
-    └── schema/
-        ├── mod.rs                  # Schema service
-        ├── loader.rs               # Schema loading
-        └── validator.rs            # Schema validation
+    │   ├── manager.rs              # RegistryManager implementation
+    │   ├── trait_impl.rs           # McpRegistry, McpToolProvider, McpDeploymentProvider impls
+    │   └── validator.rs            # RegistryValidator
+    ├── schema/
+    │   ├── mod.rs                  # Schema service
+    │   ├── loader.rs               # Schema loading
+    │   └── validator.rs            # Schema validation
+    ├── tool_provider/
+    │   ├── mod.rs                  # McpToolProvider implementation
+    │   ├── context.rs              # Tool invocation context
+    │   └── conversions.rs          # Type conversions
+    └── ui_renderer/
+        ├── mod.rs                  # UI renderer entry point
+        ├── csp.rs                  # CspPolicy builder
+        └── registry.rs             # Renderer registry
 ```
 
 ## Database
 
-Schema: `schema/mcp_tool_executions.sql`
+Schemas (in `schema/`):
 
-Uses `ToolUsageRepository` for tool execution tracking.
+- `mcp_tool_executions.sql` — tool execution audit trail (`ToolUsageRepository`).
+- `mcp_artifacts.sql` — persisted MCP tool output artifacts (`McpArtifactRepository`).
+- `mcp_sessions.sql` — MCP session state for cross-restart resumption (`McpSessionRepository`).
 
 ## License
 

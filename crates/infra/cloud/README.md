@@ -41,19 +41,17 @@ Cloud infrastructure services including API client, credentials, OAuth, and tena
 ```
 cloud/
 ├── Cargo.toml
-├── status.md
 └── src/
     ├── lib.rs                      # Crate root, public exports, Environment, OAuthProvider enums
     ├── constants.rs                # OAuth, checkout, credential, path constants
     ├── context.rs                  # CloudContext, ResolvedTenant
     ├── credentials.rs              # CloudCredentials management
-    ├── credentials_bootstrap.rs    # CredentialsBootstrap global initialization
-    ├── error.rs                    # CloudError, CloudResult
-    ├── tenants.rs                  # TenantStore, StoredTenant, TenantType
     │
     ├── api_client/
     │   ├── mod.rs                  # API client exports
-    │   ├── client.rs               # CloudApiClient core HTTP methods
+    │   ├── client.rs               # CloudApiClient core HTTP transport
+    │   ├── endpoints.rs            # Endpoint path constants
+    │   ├── methods.rs              # Typed request methods on CloudApiClient
     │   ├── tenant_api.rs           # Tenant-specific API methods
     │   ├── streams.rs              # SSE streaming for provisioning/checkout events
     │   └── types.rs                # Re-exports from systemprompt-models
@@ -64,24 +62,38 @@ cloud/
     │
     ├── checkout/
     │   ├── mod.rs                  # Checkout exports
-    │   ├── client.rs               # Checkout callback flow handling
-    │   └── provisioning.rs         # Wait for provisioning (SSE + polling)
+    │   ├── provisioning.rs         # Wait for provisioning (SSE + polling)
+    │   └── client/
+    │       ├── mod.rs              # Checkout callback flow entry point
+    │       └── handler.rs          # Callback request handler
     │
     ├── cli_session/
     │   ├── mod.rs                  # Session exports, SessionKey enum
     │   ├── session.rs              # CliSession, CliSessionBuilder
     │   └── store.rs                # SessionStore (multi-session management)
     │
+    ├── credentials_bootstrap/
+    │   ├── mod.rs                  # CredentialsBootstrap global initialization
+    │   └── error.rs                # Bootstrap-specific error types
+    │
+    ├── error/
+    │   ├── mod.rs                  # CloudError, CloudResult
+    │   └── messages.rs             # Recovery hints and error message helpers
+    │
     ├── oauth/
     │   ├── mod.rs                  # OAuth exports
     │   └── client.rs               # OAuth flow with local callback server
     │
-    └── paths/
-        ├── mod.rs                  # Path resolution exports
-        ├── cloud.rs                # CloudPath, CloudPaths (credential/tenant paths)
-        ├── context.rs              # UnifiedContext (combined path resolution)
-        ├── discovery.rs            # DiscoveredProject (project root discovery)
-        └── project.rs              # ProjectPath, ProfilePath, ProjectContext
+    ├── paths/
+    │   ├── mod.rs                  # Path resolution exports
+    │   ├── cloud.rs                # CloudPath, CloudPaths (credential/tenant paths)
+    │   ├── context.rs              # UnifiedContext (combined path resolution)
+    │   ├── discovery.rs            # DiscoveredProject (project root discovery)
+    │   └── project.rs              # ProjectPath, ProfilePath, ProjectContext
+    │
+    └── tenants/
+        ├── mod.rs                  # TenantType and re-exports
+        └── tenant_store.rs         # TenantStore, StoredTenant
 ```
 
 ### Module Overview
@@ -104,13 +116,13 @@ cloud/
 
 ```toml
 [dependencies]
-systemprompt-cloud = "0.9.0"
+systemprompt-cloud = "0.9.2"
 ```
 
 ```rust
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, Environment};
 
-async fn whoami() -> anyhow::Result<()> {
+async fn whoami() -> Result<(), Box<dyn std::error::Error>> {
     let creds = CloudCredentials::load()?;
     let client = CloudApiClient::new(Environment::Production, creds);
     let me = client.user_me().await?;
@@ -130,13 +142,13 @@ async fn whoami() -> anyhow::Result<()> {
 | `CredentialsBootstrap` | `credentials_bootstrap.rs` | Global credential initialization |
 | `CloudContext` | `context.rs` | Resolved cloud context with tenant info |
 | `ResolvedTenant` | `context.rs` | Resolved tenant information |
-| `CliSession` | `cli_session.rs` | CLI session with auth tokens |
-| `SessionStore` | `cli_session.rs` | Multi-session storage |
-| `SessionKey` | `cli_session.rs` | Session identifier (Local or Tenant) |
-| `TenantStore` | `tenants.rs` | Local tenant cache storage |
-| `StoredTenant` | `tenants.rs` | Cached tenant data |
-| `TenantType` | `tenants.rs` | Local or Cloud tenant type |
-| `CloudError` | `error.rs` | Cloud operation errors |
+| `CliSession` | `cli_session/session.rs` | CLI session with auth tokens |
+| `SessionStore` | `cli_session/store.rs` | Multi-session storage |
+| `SessionKey` | `cli_session/mod.rs` | Session identifier (Local or Tenant) |
+| `TenantStore` | `tenants/tenant_store.rs` | Local tenant cache storage |
+| `StoredTenant` | `tenants/tenant_store.rs` | Cached tenant data |
+| `TenantType` | `tenants/mod.rs` | Local or Cloud tenant type |
+| `CloudError` | `error/mod.rs` | Cloud operation errors |
 | `Environment` | `lib.rs` | Production or Sandbox environment |
 | `OAuthProvider` | `lib.rs` | GitHub or Google OAuth |
 | `CloudPath` | `paths/cloud.rs` | User-scoped paths (credentials, tenants) |
@@ -168,7 +180,7 @@ async fn whoami() -> anyhow::Result<()> {
 | Function | Source | Description |
 |----------|--------|-------------|
 | `run_oauth_flow` | `oauth/client.rs` | Execute OAuth authentication flow |
-| `run_checkout_callback_flow` | `checkout/client.rs` | Handle Paddle checkout callback |
+| `run_checkout_callback_flow` | `checkout/client/mod.rs` | Handle Paddle checkout callback |
 | `wait_for_provisioning` | `checkout/provisioning.rs` | Wait for tenant provisioning |
 | `resolve_path` | `paths/mod.rs` | Resolve path relative to base directory |
 | `expand_home` | `paths/mod.rs` | Expand ~ in paths |
@@ -179,7 +191,7 @@ async fn whoami() -> anyhow::Result<()> {
 | Type | Source | Description |
 |------|--------|-------------|
 | `OAuthTemplates` | `oauth/client.rs` | HTML templates for OAuth callbacks |
-| `CheckoutTemplates` | `checkout/client.rs` | HTML templates for checkout callbacks |
+| `CheckoutTemplates` | `checkout/client/mod.rs` | HTML templates for checkout callbacks |
 
 ## Dependencies
 
@@ -191,7 +203,7 @@ async fn whoami() -> anyhow::Result<()> {
 - `axum` - Callback server
 - `serde` / `serde_json` - Serialization
 - `chrono` - Timestamps
-- `anyhow` / `thiserror` - Error handling
+- `thiserror` - Error handling
 - `tokio` - Async runtime
 - `tracing` - Logging
 - `clap` - CLI argument parsing

@@ -1,182 +1,176 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Normalized changelog formatting for consistency with downstream crate conventions.
+
 ## [0.3.0] - 2026-04-22
 
 ### Changed
-- Gateway service: `quota::post_update_tokens` now takes `PostUpdateParams` struct
-- Gateway service: reduced redundant clones in `finalize` by moving owned values directly into spawn tasks
-- Gateway quota, audit, safety, stream_tap, upstream: clippy and formatting cleanup
-- `manifest_signing::signing_key` handles concurrent initialization without `expect`
+- Gateway quota update API now takes a `PostUpdateParams` struct.
+- Gateway request finalization moves owned values into spawn tasks instead of cloning.
+- `manifest_signing::signing_key` handles concurrent initialization without panicking.
 
 ## [0.2.2] - 2026-04-17
 
 ### Fixed
-- macOS build — `statvfs` type mismatch in `get_disk_usage()` (`services/server/health.rs`). `nix::sys::statvfs` returns `u32` for `blocks()`/`blocks_available()`/`blocks_free()` on Darwin but `u64` on Linux, and `fragment_size()` is platform-varying. Added explicit `u64::from()` casts so the `saturating_mul` arithmetic is portable.
+- Disk usage probe in the health endpoint builds on macOS where `statvfs` field widths differ from Linux.
 
 ## [0.2.0] - 2026-04-15
 
 ### Fixed
-- Resolved clippy `needless_borrow` in `routes/oauth/endpoints/anonymous.rs` (`generate_admin_jwt(&user_id, ...)` → `generate_admin_jwt(user_id, ...)`).
-- Resolved clippy `needless_borrow` in `routes/oauth/endpoints/token/generation.rs` (`repo.update_client_last_used(&params.client_id)` → `repo.update_client_last_used(params.client_id)`).
+- Removed redundant borrow in the anonymous OAuth admin JWT issuer.
+- Removed redundant borrow when recording OAuth client last-used timestamps.
 
 ## [0.1.21] - 2026-04-02
 
 ### Changed
-- Use `ApiPaths` constants for sync, analytics, and admin route paths instead of hardcoded strings
-- Use `ApiPaths::mcp_server_endpoint()` for MCP registry endpoint URLs
+- Sync, analytics, and admin routes now resolve their paths through `ApiPaths` constants instead of hard-coded strings.
+- MCP registry endpoint URLs now resolve through `ApiPaths::mcp_server_endpoint()`.
 
 ## [0.1.17] - 2026-03-20
 
 ### Fixed
-- Remove needless `..Default::default()` spread in JWT config construction
+- Removed redundant `..Default::default()` spread in JWT config construction.
 
 ## [0.1.16] - 2026-03-05
 
 ### Changed
-- Remove `form_post` from supported response modes in OAuth discovery metadata
-- Simplify OAuth authorize request scope resolution logic
-- Remove unused `McpServerRegistry` and `McpRegistryProvider` imports from authorize validation
-- Simplify token generation by removing redundant resource scope validation
+- Dropped `form_post` from the supported response modes advertised by OAuth discovery metadata.
+- Simplified scope resolution in the OAuth authorize endpoint.
+- Removed redundant resource-scope validation from the token endpoint.
+- Removed unused `McpServerRegistry` and `McpRegistryProvider` imports from authorize validation.
 
 ## [0.1.15] - 2026-02-19
 
 ### Changed
-- `site_auth_gate` now uses exact permission match instead of hierarchy-based `implies()`
+- `site_auth_gate` now requires an exact permission match instead of hierarchy-based `implies()`.
 
 ## [0.1.14] - 2026-02-18
 
 ### Changed
-- Refactor `site_auth_gate` to use iterator chain with `and_then` instead of nested `if let` blocks
-- Add structured `tracing::debug!` and `tracing::warn!` for token extraction and JWT validation failures in site auth
+- `site_auth_gate` is now expressed as an iterator chain.
+- Token extraction and JWT validation failures in site auth now emit structured `tracing` events.
 
 ## [0.1.13] - 2026-02-11
 
 ### Changed
-- OAuth authorize endpoint now passes `register_class` template variable based on `Config.allow_registration`
+- OAuth authorize template now receives `register_class` derived from `Config.allow_registration`.
 
 ## [0.1.12] - 2026-02-11
 
-### Fixed
-- Fix Claude Code authentication flow by removing `Accept` header check that blocked programmatic OAuth clients
-
 ### Added
-- Security headers middleware (`inject_security_headers`) with configurable HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and CSP
-- System stats in health endpoint: database size, top tables, disk usage, audit log metrics
-- Path-based `/.well-known/oauth-protected-resource/{*path}` endpoint for per-MCP-server resource metadata
-- `refresh_token` grant type in MCP authorization server metadata
-- ETag support with `If-None-Match` → `304 Not Modified` on all static file responses
-- `Cache-Control: no-cache` headers on HTML page responses (previously missing entirely)
-- `Cache-Control: public, max-age=3600` headers on metadata files (sitemap, robots, feed)
+- Security headers middleware (`inject_security_headers`) covering HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and CSP.
+- Health endpoint exposes database size, top tables, disk usage, and audit log metrics.
+- Path-based `/.well-known/oauth-protected-resource/{*path}` endpoint for per-MCP-server resource metadata.
+- `refresh_token` grant type in MCP authorization server metadata.
+- ETag and `If-None-Match` support on static file responses, returning `304 Not Modified` on match.
+- `Cache-Control: no-cache` on HTML responses and `Cache-Control: public, max-age=3600` on metadata files (sitemap, robots, feed).
 
 ### Changed
-- Use typed OAuth enums (`ResponseType`, `GrantType`, `PkceMethod`, `TokenAuthMethod`) instead of raw strings in MCP OAuth metadata
-- `resource_documentation` in protected resource responses now uses base URL instead of `/docs` suffix
-- Rename `vite.rs` → `static_files.rs` (no Vite dependency exists)
-- Replace blocking `std::fs::read()` with `tokio::fs::read()` in all static file handlers
-- Refactor `serve_static_content` into focused functions under 75-line limit
-- Remove dead `serve_html_with_analytics` function (analytics handled by middleware + client JS)
+- MCP OAuth metadata is emitted using typed enums (`ResponseType`, `GrantType`, `PkceMethod`, `TokenAuthMethod`).
+- `resource_documentation` in protected-resource responses now uses the base URL.
+- Static file handlers now use `tokio::fs::read()` instead of blocking I/O.
+- Renamed the static file module from `vite.rs` to `static_files.rs`.
+
+### Fixed
+- Restored the Claude Code OAuth flow by removing the `Accept` header check that blocked programmatic clients.
+
+### Removed
+- Dead `serve_html_with_analytics` helper (analytics are handled by middleware and client JS).
 
 ## [0.1.11] - 2026-02-08
 
 ### Added
-- Content routing integration for analytics and engagement routes
-- Automatic content ID resolution from URL slugs in analytics events
-- Content routing passed through `AnalyticsState` and `EngagementState`
+- Content routing in analytics and engagement routes, resolving content IDs from URL slugs.
+- `AnalyticsState` and `EngagementState` now carry content routing.
 
 ### Fixed
-- `record_events_batch` now correctly passes content routing to `resolve_content_id`
+- `record_events_batch` now forwards content routing to `resolve_content_id`.
 
 ## [0.1.10] - 2026-02-06
 
 ### Added
-- Site-wide authentication gate middleware (`site_auth_gate`)
-- Extensions can now declare site auth requirements via `site_auth()` trait method
-- Unauthenticated static content requests redirect to configured login path
-- Static assets (CSS, JS, images, fonts) bypass the auth gate
-- Extension-declared public prefixes bypass the auth gate
+- Site-wide authentication gate middleware (`site_auth_gate`).
+- Extensions can declare site auth requirements via a new `site_auth()` trait method.
+- Unauthenticated static content requests now redirect to the configured login path.
+- Static assets and extension-declared public prefixes bypass the auth gate.
 
 ## [0.1.9] - 2026-02-05
 
 ### Added
-- Content negotiation middleware with `Accept` header parsing
-- `AcceptedFormat` extractor for determining requested response format
-- `AcceptedMediaType` enum supporting JSON and Markdown formats
-- Support for `.md` URL suffix as alternate markdown format request
-- HTTP `Link` header with alternate format URLs in content responses
-- Markdown response format for blog/content endpoints
+- Content negotiation middleware with an `AcceptedFormat` extractor and `AcceptedMediaType` enum supporting JSON and Markdown.
+- `.md` URL suffix is recognized as a Markdown format request.
+- Content responses now include an HTTP `Link` header pointing to alternate formats.
 
 ### Changed
-- Content handlers now use `AppContext` instead of direct `DbPool` injection
-- Blog content endpoint returns markdown when `Accept: text/markdown` or `.md` suffix used
+- Content handlers now receive `AppContext` instead of `DbPool`.
+- Blog content endpoint returns Markdown when requested via `Accept: text/markdown` or a `.md` suffix.
 
 ## [0.1.4] - 2026-02-04
 
 ### Added
-- RFC 8707 `resource` parameter support in authorize endpoint
-- RFC 8707 `resource` parameter support in token endpoint
-- Resource URI validation (must be valid HTTPS/HTTP URI without fragment)
-- `TokenGenerationParams.resource` field for resource-scoped tokens
+- RFC 8707 `resource` parameter support on the authorize and token endpoints, with HTTP(S) URI validation.
+- `TokenGenerationParams.resource` field for resource-scoped tokens.
 
 ### Changed
-- `AuthorizeQuery` and `AuthorizeRequest` now include `resource` field
-- `TokenRequest` now includes `resource` field
-- `WebAuthnCompleteQuery` now includes `resource` field
-- WebAuthn form template context now includes `resource` parameter
+- `AuthorizeQuery`, `AuthorizeRequest`, `TokenRequest`, and `WebAuthnCompleteQuery` now carry a `resource` field.
+- WebAuthn form template context now includes `resource`.
 
 ## [0.1.3] - 2026-02-03
 
-### Changed
-- Simplified `create_oauth_state()` - removed webhook publisher configuration (now uses cloud activity API)
+### Removed
+- Webhook publisher configuration from `create_oauth_state()`; cloud activity API is used instead.
 
 ## [0.1.2] - 2026-02-03
 
 ### Changed
-- Regenerated SQLx offline query cache
+- Regenerated the SQLx offline query cache.
 
 ## [0.1.1] - 2026-02-03
 
 ### Fixed
-- Session middleware now gracefully handles JWT tokens referencing non-existent users by creating new anonymous session instead of error spam
+- Session middleware now creates a fresh anonymous session when a JWT references a missing user instead of returning an error.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release; all workspace crates aligned at 0.1.0.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Use `expect()` instead of `unwrap()` in artifact response builder for better error messages
+- Artifact response builder now uses `expect()` with a message instead of `unwrap()`.
 
 ## [0.0.11] - 2026-01-26
 
-### Changed
-- Rename `AnalyticsState` fields to remove redundant `_repo` postfix
-- Improve session middleware handling
-
 ### Added
-- Fan out engagement metrics from `PageExit` events in analytics routes
-- Batch analytics event processing with engagement fan-out
-- Session validation in `JwtContextExtractor` to auto-create missing sessions for OAuth tokens issued before session persistence fix
+- Engagement metrics fan out from `PageExit` events in analytics routes.
+- Batched analytics event processing with engagement fan-out.
+- `JwtContextExtractor` validates and auto-creates sessions for OAuth tokens issued before the session persistence fix.
+
+### Changed
+- Renamed `AnalyticsState` fields to drop the redundant `_repo` postfix.
+- Improved session middleware handling.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Migration system infrastructure.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Schema validation now accepts view-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Each domain crate now owns its SQL schemas through the `Extension` trait; centralized loaders in `systemprompt-loader` are gone.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- `include_str!` paths now resolve inside the crate so it compiles standalone from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

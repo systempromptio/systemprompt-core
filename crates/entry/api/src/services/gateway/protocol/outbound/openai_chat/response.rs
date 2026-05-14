@@ -18,19 +18,19 @@ pub(super) fn parse_response(value: &Value, fallback_model: &str) -> CanonicalRe
         .and_then(Value::as_str)
         .unwrap_or(fallback_model)
         .to_string();
-    let usage = value
-        .get("usage")
-        .map(|u| CanonicalUsage {
+    let usage = value.get("usage").map_or(
+        CanonicalUsage {
+            input_tokens: 0,
+            output_tokens: 0,
+        },
+        |u| CanonicalUsage {
             input_tokens: u.get("prompt_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
             output_tokens: u
                 .get("completion_tokens")
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as u32,
-        })
-        .unwrap_or(CanonicalUsage {
-            input_tokens: 0,
-            output_tokens: 0,
-        });
+        },
+    );
 
     let mut content: Vec<CanonicalContent> = Vec::new();
     let mut stop_reason = None;

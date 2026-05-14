@@ -49,61 +49,68 @@ This crate provides comprehensive analytics capabilities including:
 
 ```toml
 [dependencies]
-systemprompt-analytics = "0.9.0"
+systemprompt-analytics = "0.9.2"
 ```
 
-```rust
-pub use error::{AnalyticsError, Result as AnalyticsResult};
-pub use models::{...};  // 40+ model types
-pub use repository::{...};  // 15 repositories + types
-pub use services::{...};  // Services + detection helpers
-pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;
+Optional `geolocation` feature enables MaxMind GeoIP enrichment via `maxminddb`:
+
+```toml
+systemprompt-analytics = { version = "0.9.2", features = ["geolocation"] }
 ```
 
 ## Directory Structure
 
 ```
 src/
-├── lib.rs                     # Public exports and GeoIpReader type alias
-├── error.rs                   # AnalyticsError enum with thiserror
+├── lib.rs                          # Public exports and GeoIpReader type alias
+├── error.rs                        # AnalyticsError enum (thiserror)
+├── extension.rs                    # AnalyticsExtension schema registration
 ├── models/
-│   ├── mod.rs                 # Core analytics models (sessions, stats, trends)
-│   ├── cli.rs                 # CLI-specific row types for analytics queries
-│   ├── engagement.rs          # Engagement event models
-│   ├── events.rs              # Analytics event types and data structures
-│   ├── fingerprint.rs         # Fingerprint reputation models
-│   └── funnel.rs              # Funnel tracking models
+│   ├── mod.rs                      # Core analytics models (sessions, stats, trends)
+│   ├── engagement.rs               # Engagement event models
+│   ├── events.rs                   # Analytics event types and payloads
+│   ├── fingerprint.rs              # Fingerprint reputation models
+│   ├── funnel.rs                   # Funnel tracking models
+│   └── cli/
+│       ├── mod.rs                  # CLI row-type re-exports
+│       ├── agent.rs                # Agent CLI row types
+│       ├── content.rs              # Content CLI row types
+│       ├── overview.rs             # Overview CLI row types
+│       ├── request.rs              # Request CLI row types
+│       ├── session.rs              # Session CLI row types
+│       └── tool.rs                 # Tool CLI row types
 ├── repository/
-│   ├── mod.rs                 # Repository re-exports
-│   ├── agents.rs              # Agent task analytics queries
-│   ├── cli_sessions.rs        # CLI session statistics
-│   ├── content_analytics.rs   # Content performance metrics
-│   ├── conversations.rs       # Conversation analytics
-│   ├── core_stats.rs          # Platform-wide statistics
-│   ├── costs.rs               # Cost breakdown queries
-│   ├── engagement.rs          # Engagement event CRUD
-│   ├── events.rs              # Analytics event storage
-│   ├── fingerprint.rs         # Fingerprint reputation operations
-│   ├── funnel.rs              # Funnel progress tracking
-│   ├── overview.rs            # Dashboard overview metrics
-│   ├── queries.rs             # AI provider usage queries
-│   ├── requests.rs            # AI request analytics
-│   ├── tools.rs               # MCP tool execution analytics
-│   ├── traffic.rs             # Traffic source analysis
-│   └── session/
-│       ├── mod.rs             # SessionRepository facade
-│       ├── mutations.rs       # Session create/update operations
-│       ├── queries.rs         # Session read operations
-│       └── types.rs           # Session parameter types
+│   ├── mod.rs                      # Repository re-exports
+│   ├── cli_sessions.rs             # CLI session statistics
+│   ├── content_analytics.rs        # Content performance metrics
+│   ├── conversations.rs            # Conversation analytics
+│   ├── costs.rs                    # Cost breakdown queries
+│   ├── engagement.rs               # Engagement event CRUD
+│   ├── events.rs                   # Analytics event storage
+│   ├── overview.rs                 # Dashboard overview metrics
+│   ├── queries.rs                  # AI provider usage queries
+│   ├── requests.rs                 # AI request analytics
+│   ├── traffic.rs                  # Traffic source analysis
+│   ├── agents/                     # Agent analytics (list, detail, stats)
+│   ├── core_stats/                 # Platform stats (overview, activity, breakdowns, leaderboards)
+│   ├── fingerprint/                # Fingerprint reputation (queries, mutations)
+│   ├── funnel/                     # Funnel tracking (finders, mutations, stats, types)
+│   ├── session/                    # Session lifecycle (queries, mutations, behavioral, types)
+│   └── tools/                      # MCP tool execution analytics (list, detail)
 └── services/
-    ├── mod.rs                 # Service re-exports
-    ├── anomaly_detection.rs   # Real-time anomaly detection
-    ├── behavioral_detector.rs # 7-signal bot detection
-    ├── detection.rs           # Detection constants and helpers
-    ├── extractor.rs           # Request parsing and bot detection
-    ├── service.rs             # AnalyticsService for session lifecycle
-    ├── session_cleanup.rs     # Inactive session cleanup
-    └── throttle.rs            # Progressive rate limiting
+    ├── mod.rs                      # Service re-exports
+    ├── ai_crawler_keywords.rs      # AI crawler user-agent patterns
+    ├── ai_provider.rs              # AnalyticsAiSessionProvider
+    ├── anomaly_detection.rs        # Threshold and trend anomaly detection
+    ├── bot_keywords.rs             # matches_bot_pattern helper
+    ├── detection.rs                # Detection constants
+    ├── providers.rs                # Provider helpers
+    ├── service.rs                  # AnalyticsService for session lifecycle
+    ├── session_cleanup.rs          # Inactive session cleanup
+    ├── throttle.rs                 # Progressive rate limiting
+    ├── user_agent.rs               # User-agent parsing
+    ├── behavioral_detector/        # 7-signal bot detection (checks, fingerprint_checks, helpers, types)
+    └── extractor/                  # Request parsing and GeoIP enrichment
 
 schema/
 ├── anomaly_thresholds.sql
@@ -112,10 +119,7 @@ schema/
 ├── funnels.sql
 ├── funnel_progress.sql
 └── migrations/
-    ├── 001_engagement_not_null.sql
-    ├── 002_add_content_id.sql
-    ├── 003_backfill_content_id.sql
-    └── 004_add_funnels.sql
+    └── 003_seed_anomaly_thresholds.sql
 ```
 
 ## Key Components
@@ -168,9 +172,11 @@ schema/
 | Crate | Purpose |
 |-------|---------|
 | `systemprompt-database` | Database pool access |
-| `systemprompt-models` | Shared types including ContentRouting |
-| `systemprompt-identifiers` | SessionId, UserId, FunnelId, etc. |
+| `systemprompt-extension` | Extension trait and schema registration |
+| `systemprompt-models` | Shared types including `ContentRouting` |
+| `systemprompt-identifiers` | `SessionId`, `UserId`, `FunnelId`, and other typed IDs |
 | `systemprompt-traits` | Repository trait |
+| `maxminddb` (optional) | GeoIP database reader behind `geolocation` feature |
 
 ## Behavioral Bot Detection
 

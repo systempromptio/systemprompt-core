@@ -136,8 +136,9 @@ struct LoadedDiskSkill {
 }
 
 fn resolve_skills_root() -> Result<PathBuf> {
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| AgentServiceError::Internal(format!("Profile not initialized for SkillService: {e}")))?;
+    let profile = ProfileBootstrap::get().map_err(|e| {
+        AgentServiceError::Internal(format!("Profile not initialized for SkillService: {e}"))
+    })?;
     Ok(PathBuf::from(profile.paths.skills()))
 }
 
@@ -153,10 +154,12 @@ fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskS
         )));
     }
 
-    let config_text = std::fs::read_to_string(&config_path)
-        .map_err(|e| AgentServiceError::Internal(format!("Failed to read {}: {e}", config_path.display())))?;
-    let config: DiskSkillConfig = serde_yaml::from_str(&config_text)
-        .map_err(|e| AgentServiceError::Internal(format!("Invalid YAML in {}: {e}", config_path.display())))?;
+    let config_text = std::fs::read_to_string(&config_path).map_err(|e| {
+        AgentServiceError::Internal(format!("Failed to read {}: {e}", config_path.display()))
+    })?;
+    let config: DiskSkillConfig = serde_yaml::from_str(&config_text).map_err(|e| {
+        AgentServiceError::Internal(format!("Invalid YAML in {}: {e}", config_path.display()))
+    })?;
 
     let resolved_id = if config.id.as_str().is_empty() {
         skill_id.clone()
@@ -166,8 +169,9 @@ fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskS
 
     let content_path = skill_dir.join(config.content_file());
     let instructions = if content_path.exists() {
-        let raw = std::fs::read_to_string(&content_path)
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to read {}: {e}", content_path.display())))?;
+        let raw = std::fs::read_to_string(&content_path).map_err(|e| {
+            AgentServiceError::Internal(format!("Failed to read {}: {e}", content_path.display()))
+        })?;
         strip_frontmatter(&raw)
     } else {
         String::new()
@@ -193,9 +197,12 @@ fn list_enabled_skill_ids(skills_root: &Path) -> Result<Vec<String>> {
     }
 
     let mut ids: Vec<String> = Vec::new();
-    for entry in std::fs::read_dir(skills_root)
-        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to read skills dir {}", skills_root.display()))))?
-    {
+    for entry in std::fs::read_dir(skills_root).map_err(|e| {
+        AgentServiceError::Internal(format!(
+            "Failed to read skills dir {}: {e}",
+            skills_root.display()
+        ))
+    })? {
         let entry = entry?;
         let path = entry.path();
         if !path.is_dir() {
@@ -222,10 +229,12 @@ fn list_enabled_skill_ids(skills_root: &Path) -> Result<Vec<String>> {
         if !config.enabled {
             continue;
         }
-        let dir_name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| AgentServiceError::Internal(format!("Invalid skill dir entry under {}", skills_root.display())))?;
+        let dir_name = path.file_name().and_then(|n| n.to_str()).ok_or_else(|| {
+            AgentServiceError::Internal(format!(
+                "Invalid skill dir entry under {}",
+                skills_root.display()
+            ))
+        })?;
         let id = if config.id.as_str().is_empty() {
             dir_name.to_string()
         } else {

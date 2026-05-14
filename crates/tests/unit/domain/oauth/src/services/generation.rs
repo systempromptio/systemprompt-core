@@ -360,8 +360,8 @@ fn test_generate_anonymous_jwt_with_expiry_claims_contain_client_id() {
     .unwrap();
 
     let claims = decode_token(&token, signing.secret);
-    assert_eq!(claims.client_id, Some("my-client-123".to_string()));
-    assert_eq!(claims.session_id, Some("session-4".to_string()));
+    assert_eq!(claims.client_id, Some(ClientId::new("my-client-123")));
+    assert_eq!(claims.session_id, Some(SessionId::new("session-4")));
     assert_eq!(claims.username, "anon-user-4");
     assert_eq!(claims.email, "anon-user-4");
 }
@@ -422,8 +422,8 @@ fn test_generate_admin_jwt_with_expiry_claims_contain_email_and_roles() {
     let claims = decode_token(&token, signing.secret);
     assert_eq!(claims.email, "super@example.com");
     assert_eq!(claims.username, "super@example.com");
-    assert_eq!(claims.client_id, Some("admin-client-3".to_string()));
-    assert_eq!(claims.session_id, Some("admin-session-3".to_string()));
+    assert_eq!(claims.client_id, Some(ClientId::new("admin-client-3")));
+    assert_eq!(claims.session_id, Some(SessionId::new("admin-session-3")));
     assert!(claims.roles.contains(&"admin".to_string()));
     assert!(claims.roles.contains(&"user".to_string()));
 }

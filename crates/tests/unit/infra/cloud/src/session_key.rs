@@ -16,7 +16,7 @@ fn test_session_key_from_tenant_id_none() {
 
 #[test]
 fn test_session_key_from_tenant_id_some() {
-    let key = SessionKey::from_tenant_id(Some("tenant-123"));
+    let key = SessionKey::from_tenant_id(Some(&TenantId::new("tenant-123")));
     assert!(matches!(key, SessionKey::Tenant(_)));
 }
 

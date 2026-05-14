@@ -43,16 +43,20 @@ Background job scheduling and execution module. Discovers jobs via the `inventor
 
 ```
 src/
-├── lib.rs                                    # Public exports
+├── lib.rs                                    # Public exports and crate docs
+├── error.rs                                  # SchedulerError, SchedulerResult
+├── extension.rs                              # SchedulerExtension (schemas, jobs)
 ├── jobs/
 │   ├── mod.rs                                # Job exports
-│   ├── behavioral_analysis.rs                # Analyzes fingerprint behavior patterns
+│   ├── behavioral_analysis.rs                # Analyses fingerprint behaviour patterns
 │   ├── cleanup_empty_contexts.rs             # Removes empty conversation contexts
 │   ├── cleanup_inactive_sessions.rs          # Closes inactive sessions
 │   ├── database_cleanup.rs                   # Orphaned logs, MCP, OAuth cleanup
-│   └── malicious_ip_blacklist.rs             # Detects and blacklists malicious IPs
+│   ├── ghost_session_cleanup.rs              # Reaps abandoned ghost sessions
+│   ├── malicious_ip_blacklist.rs             # Detects and blacklists malicious IPs
+│   └── no_js_cleanup.rs                      # Cleans no-JavaScript fingerprint rows
 ├── models/
-│   └── mod.rs                                # JobStatus, SchedulerError, ScheduledJob
+│   └── mod.rs                                # JobConfig, JobStatus, ScheduledJob, SchedulerConfig
 ├── repository/
 │   ├── mod.rs                                # SchedulerRepository facade
 │   ├── analytics/
@@ -63,12 +67,17 @@ src/
 │       └── mod.rs                            # IP session queries for malicious detection
 └── services/
     ├── mod.rs                                # Service exports
-    ├── service_management.rs                 # Service lifecycle management
+    ├── providers.rs                          # Provider-contract registration glue
+    ├── service_management.rs                 # ServiceManagementService
     ├── scheduling/
-    │   └── mod.rs                            # SchedulerService - job discovery and execution
+    │   ├── mod.rs                            # SchedulerService - job discovery and execution
+    │   └── dispatch.rs                       # Job dispatch and panic isolation
     └── orchestration/
         ├── mod.rs                            # Orchestration exports
-        ├── process_cleanup.rs                # Process management utilities
+        ├── process_cleanup/
+        │   ├── mod.rs                        # Cross-platform process cleanup facade
+        │   ├── posix.rs                      # POSIX signal + /proc-based cleanup
+        │   └── winnt.rs                      # Windows process cleanup
         ├── reconciler.rs                     # Service state reconciliation
         ├── state_manager.rs                  # Service state verification
         ├── state_types.rs                    # DesiredStatus, RuntimeStatus, ServiceAction
@@ -84,16 +93,21 @@ Background jobs that implement the `Job` trait from `systemprompt-traits`. Each 
 | `CleanupInactiveSessionsJob` | Every 10 min | Closes sessions inactive for 1 hour |
 | `CleanupEmptyContextsJob` | Every 2 hours | Removes conversation contexts with no messages |
 | `DatabaseCleanupJob` | Daily at 3 AM | Deletes orphaned logs, MCP executions, expired OAuth tokens |
-| `BehavioralAnalysisJob` | Hourly | Analyzes fingerprint patterns, flags suspicious activity, bans repeat offenders |
+| `BehavioralAnalysisJob` | Hourly | Analyses fingerprint patterns, flags suspicious activity, bans repeat offenders |
 | `MaliciousIpBlacklistJob` | Every 6 hours | Detects high-volume, scanner, datacenter, and high-risk country IPs |
+| `GhostSessionCleanupJob` | Periodic | Reaps abandoned ghost sessions left by disconnected clients |
+| `NoJsCleanupJob` | Periodic | Prunes no-JavaScript fingerprint rows past retention |
 
 ### models/
 
 Domain types for the scheduler:
 
 - **JobStatus** - Enum: `Success`, `Failed`, `Running`
-- **SchedulerError** - Error types with `thiserror` derive
+- **JobConfig** - Per-job configuration
+- **SchedulerConfig** - Scheduler-wide configuration
 - **ScheduledJob** - Database model for job tracking
+
+`SchedulerError` and `SchedulerResult` live in `error.rs` at the crate root.
 
 ### repository/
 
@@ -109,12 +123,13 @@ Data access layer for scheduler operations:
 #### scheduling/
 
 **SchedulerService** - Core scheduler that:
-- Discovers jobs via `inventory` crate
+- Discovers jobs via the `inventory` crate (`submit_job!`)
 - Registers jobs with `tokio-cron-scheduler`
+- Dispatches jobs through `scheduling/dispatch.rs` with panic isolation
 - Tracks job execution status
 - Uses `SystemSpan` for structured logging
 
-#### service_management/
+#### service_management.rs
 
 **ServiceManagementService** - Service lifecycle operations:
 - Query services by type
@@ -139,7 +154,7 @@ State types:
 
 ```toml
 [dependencies]
-systemprompt-scheduler = "0.9.0"
+systemprompt-scheduler = "0.9.2"
 ```
 
 ### Job Discovery
@@ -147,7 +162,9 @@ systemprompt-scheduler = "0.9.0"
 Jobs are discovered via the `inventory` crate. Any crate can register jobs:
 
 ```rust
-inventory::submit! { &MyCustomJob }
+use systemprompt_provider_contracts::submit_job;
+
+submit_job!(MyCustomJob);
 ```
 
 The scheduler discovers all registered jobs at startup and schedules them based on configuration.
@@ -166,12 +183,16 @@ service.start().await?;
 |-------|---------|
 | `systemprompt-runtime` | AppContext |
 | `systemprompt-database` | Database pool and repositories |
+| `systemprompt-extension` | Extension trait |
 | `systemprompt-logging` | SystemSpan for tracing |
 | `systemprompt-analytics` | SessionRepository, FingerprintRepository |
 | `systemprompt-users` | BannedIpRepository |
 | `systemprompt-traits` | Job trait definition |
+| `systemprompt-provider-contracts` | `submit_job!` macro and provider registry |
 | `systemprompt-identifiers` | ScheduledJobId |
 | `systemprompt-models` | Config types |
+| `tokio-cron-scheduler` | Cron scheduling runtime |
+| `nix` (unix) | POSIX process signals for orchestration cleanup |
 
 ## License
 

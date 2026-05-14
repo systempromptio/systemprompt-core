@@ -95,7 +95,9 @@ impl MessageService {
                 trace_id,
             })
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist message: {}", e)))?;
+            .map_err(|e| {
+                AgentServiceError::Internal(format!("Failed to persist message: {}", e))
+            })?;
 
         tracing::info!(
             message_id = %message.message_id,

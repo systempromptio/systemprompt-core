@@ -4,28 +4,25 @@
 //! Architectural invariant — declarative schema vs. imperative migration:
 //! - `schema/*.sql` files are **pure declarative target state**: only
 //!   idempotent `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`,
-//!   `CREATE [OR REPLACE] FUNCTION/VIEW/TRIGGER`, `CREATE TYPE`, and
-//!   `CREATE EXTENSION IF NOT EXISTS` statements. The runner lints each
-//!   schema before execution and **hard-rejects** `ALTER TABLE`, `DROP`,
-//!   top-level `DO $$` blocks, `UPDATE`/`INSERT`/`DELETE`, `TRUNCATE`,
-//!   `GRANT`/`REVOKE`, and renames. Imperative state transitions belong
-//!   in `schema/migrations/NNN_<name>.sql` declared via
-//!   [`Extension::migrations`].
+//!   `CREATE [OR REPLACE] FUNCTION/VIEW/TRIGGER`, `CREATE TYPE`, and `CREATE
+//!   EXTENSION IF NOT EXISTS` statements. The runner lints each schema before
+//!   execution and **hard-rejects** `ALTER TABLE`, `DROP`, top-level `DO $$`
+//!   blocks, `UPDATE`/`INSERT`/`DELETE`, `TRUNCATE`, `GRANT`/`REVOKE`, and
+//!   renames. Imperative state transitions belong in
+//!   `schema/migrations/NNN_<name>.sql` declared via [`Extension::migrations`].
 //! - Install order per extension is **migrations first, then schema**.
-//!   Migrations bring legacy tables to the current shape; the schema then
-//!   sees a target-state-compliant table and every `CREATE … IF NOT
-//!   EXISTS` is a clean no-op. This is the same separation Diesel,
-//!   Alembic, Flyway, and `sqlx migrate` converged on — for the same
-//!   reason: mixing them produces 3 a.m. `column "x" does not exist`
-//!   failures on legacy databases.
-//! - Every `SchemaDefinition.sql` runs on every boot. Schemas are
-//!   expected to be idempotent by construction (the linter enforces it).
+//!   Migrations bring legacy tables to the current shape; the schema then sees
+//!   a target-state-compliant table and every `CREATE … IF NOT EXISTS` is a
+//!   clean no-op. This is the same separation Diesel, Alembic, Flyway, and
+//!   `sqlx migrate` converged on — for the same reason: mixing them produces 3
+//!   a.m. `column "x" does not exist` failures on legacy databases.
+//! - Every `SchemaDefinition.sql` runs on every boot. Schemas are expected to
+//!   be idempotent by construction (the linter enforces it).
 //! - The full set of statements for one extension runs inside a single
-//!   transaction. On failure, the transaction is rolled back and the
-//!   failing statement (with its 1-based index and SQL text) is surfaced.
-//! - A session-scoped advisory lock serialises concurrent boot processes
-//!   so rolling deploys or accidental double-invocations cannot
-//!   interleave DDL.
+//!   transaction. On failure, the transaction is rolled back and the failing
+//!   statement (with its 1-based index and SQL text) is surfaced.
+//! - A session-scoped advisory lock serialises concurrent boot processes so
+//!   rolling deploys or accidental double-invocations cannot interleave DDL.
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info};
@@ -155,9 +152,9 @@ async fn install_extension_schema(
         return Err(LoaderError::SchemaInstallationFailed {
             extension: extension_id,
             message: format!(
-                "Imperative SQL detected in declarative schema. Move offending \
-                 statements to schema/migrations/NNN_<name>.sql and declare them \
-                 via Extension::migrations():\n{}",
+                "Imperative SQL detected in declarative schema. Move offending statements to \
+                 schema/migrations/NNN_<name>.sql and declare them via \
+                 Extension::migrations():\n{}",
                 lint_errors.join("\n")
             ),
         });

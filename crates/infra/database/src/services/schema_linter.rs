@@ -6,15 +6,14 @@
 //! tokens. Each top-level statement is classified by leading keywords:
 //!
 //! - **Allowed**: `CREATE TABLE [IF NOT EXISTS]`, `CREATE [UNIQUE] INDEX [IF
-//!   NOT EXISTS]`, `CREATE [OR REPLACE] FUNCTION`, `CREATE [OR REPLACE]
-//!   VIEW`, `CREATE [OR REPLACE] TRIGGER`, `CREATE TYPE`,
-//!   `CREATE EXTENSION IF NOT EXISTS`, `COMMENT ON`.
-//! - **Rejected**: `ALTER`, `DROP`, top-level `DO $$ … $$`, `UPDATE`,
-//!   `INSERT`, `DELETE`, `TRUNCATE`, `GRANT`, `REVOKE`, anything containing
-//!   `RENAME`.
-//! - **Naked `CREATE TABLE foo (…)`** without `IF NOT EXISTS` is permitted
-//!   but emitted as an informational warning (still reported as a
-//!   [`LintError`] with [`LintSeverity::Warning`]).
+//!   NOT EXISTS]`, `CREATE [OR REPLACE] FUNCTION`, `CREATE [OR REPLACE] VIEW`,
+//!   `CREATE [OR REPLACE] TRIGGER`, `CREATE TYPE`, `CREATE EXTENSION IF NOT
+//!   EXISTS`, `COMMENT ON`.
+//! - **Rejected**: `ALTER`, `DROP`, top-level `DO $$ … $$`, `UPDATE`, `INSERT`,
+//!   `DELETE`, `TRUNCATE`, `GRANT`, `REVOKE`, anything containing `RENAME`.
+//! - **Naked `CREATE TABLE foo (…)`** without `IF NOT EXISTS` is permitted but
+//!   emitted as an informational warning (still reported as a [`LintError`]
+//!   with [`LintSeverity::Warning`]).
 //!
 //! The lexer mirrors the splitter rather than calling into it because the
 //! linter needs byte offsets — preserved as `(line, column)` — to surface
@@ -154,7 +153,8 @@ fn split_top_level_statements(
                     has_content = true;
                     if let Some(tag_end) = dollar_tag_end(bytes, i) {
                         let tag = sql[i..=tag_end].to_string();
-                        for _ in i..=tag_end {
+                        let advance_by = tag_end - i + 1;
+                        for _ in 0..advance_by {
                             advance(&mut i, &mut line, &mut col, b'$');
                         }
                         state = LexState::DollarQuote(tag);
@@ -205,8 +205,7 @@ fn split_top_level_statements(
             },
             LexState::DollarQuote(tag) => {
                 let tag_bytes = tag.as_bytes();
-                if i + tag_bytes.len() <= bytes.len()
-                    && &bytes[i..i + tag_bytes.len()] == tag_bytes
+                if i + tag_bytes.len() <= bytes.len() && &bytes[i..i + tag_bytes.len()] == tag_bytes
                 {
                     for _ in 0..tag_bytes.len() {
                         advance(&mut i, &mut line, &mut col, b'$');
@@ -305,7 +304,8 @@ fn classify(stmt: &TopStatement, source: &str) -> Option<LintError> {
         column: stmt.start_column,
         severity: LintSeverity::Error,
         message: format!(
-            "imperative SQL in declarative schema: {reason} — move to schema/migrations/NNN_<name>.sql"
+            "imperative SQL in declarative schema: {reason} — move to \
+             schema/migrations/NNN_<name>.sql"
         ),
         source: source.to_string(),
     };
@@ -336,7 +336,8 @@ fn classify(stmt: &TopStatement, source: &str) -> Option<LintError> {
             line: stmt.start_line,
             column: stmt.start_column,
             severity: LintSeverity::Error,
-            message: "imperative SQL in declarative schema: SELECT — move to schema/migrations/NNN_<name>.sql"
+            message: "imperative SQL in declarative schema: SELECT — move to \
+                      schema/migrations/NNN_<name>.sql"
                 .into(),
             source: source.to_string(),
         });
@@ -373,16 +374,14 @@ fn classify_create(tokens: &[&str], stmt: &TopStatement, source: &str) -> Option
                     line: stmt.start_line,
                     column: stmt.start_column,
                     severity: LintSeverity::Warning,
-                    message:
-                        "CREATE TABLE without IF NOT EXISTS — add IF NOT EXISTS for idempotency"
-                            .into(),
+                    message: "CREATE TABLE without IF NOT EXISTS — add IF NOT EXISTS for \
+                              idempotency"
+                        .into(),
                     source: source.to_string(),
                 });
             }
             None
         },
-        "INDEX" => None,
-        "FUNCTION" | "VIEW" | "TRIGGER" | "TYPE" | "MATERIALIZED" | "SCHEMA" => None,
         "EXTENSION" => {
             if !has_if_not_exists {
                 return Some(LintError {

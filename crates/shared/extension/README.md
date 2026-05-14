@@ -34,39 +34,41 @@ Compile-time extension framework for systemprompt.io AI governance infrastructur
 
 ## Overview
 
-Provides the infrastructure for building and loading systemprompt.io extensions. Extensions can add new routes, services, and capabilities to the platform.
+Provides the compile-time framework for building and loading systemprompt.io extensions. Extensions declare schemas, API routes, jobs, providers, and assets through the `Extension` trait, are registered via the `inventory` crate, and are collected by the host runtime at startup.
 
-## Architecture
+## Module Map
 
-- `ExtensionContext` — Runtime context for extensions
-- `ExtensionError` — Error types for extension operations
-- `ExtensionLoader` — Registration and loading system
+| Module | Purpose |
+|--------|---------|
+| `any` | Type-erased wrappers (`AnyExtension`, `ApiExtensionWrapper`, `SchemaExtensionWrapper`). |
+| `asset` | `AssetDefinition`, `AssetDefinitionBuilder`, `AssetPaths`, `AssetType`. |
+| `builder` | `ExtensionBuilder` — fluent builder enforcing dependency ordering via typestate. |
+| `capabilities` | `CapabilityContext`, `FullContext`, and `Has*` capability traits. |
+| `context` | `ExtensionContext` and `DynExtensionContext`. |
+| `error` | `LoaderError`, `ConfigError`. |
+| `hlist` | Heterogeneous list machinery (`TypeList`, `Contains`, `Subset`, `NotSame`). |
+| `metadata` | `ExtensionMetadata`, `ExtensionRole`, `SchemaDefinition`. |
+| `migration` | `Migration` value type for versioned extension migrations. |
+| `registry` | `ExtensionRegistry`, `ExtensionRegistration`, discovery, queries, validation. |
+| `router` | `ExtensionRouter`, `ExtensionRouterConfig`, `SiteAuthConfig`. |
+| `runtime_config` | Runtime configuration surface for extensions. |
+| `traits` | The `Extension` trait and `register_extension!` macro. |
+| `typed` | Compile-time-checked sub-traits: `SchemaExtensionTyped`, `ApiExtensionTyped`, `ConfigExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`. |
+| `typed_registry` | `TypedExtensionRegistry` and `RESERVED_PATHS`. |
+| `types` | `Dependencies`, `DependencyList`, `ExtensionMeta`, `ExtensionType`, `MissingDependency`, `NoDependencies`. |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.9.0"
+systemprompt-extension = "0.9.2"
 ```
 
 ```rust
 use systemprompt_extension::prelude::*;
 
+#[derive(Default)]
 struct MyExtension;
-
-impl Extension for MyExtension {
-    fn id(&self) -> &str { "my-extension" }
-    fn name(&self) -> &str { "My Extension" }
-    fn version(&self) -> &str { "1.0.0" }
-}
-
-register_extension!(MyExtension);
-```
-
-```rust
-use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRole};
-
-pub struct MyExtension;
 
 impl Extension for MyExtension {
     fn metadata(&self) -> ExtensionMetadata {
@@ -78,21 +80,24 @@ impl Extension for MyExtension {
         }
     }
 }
+
+register_extension!(MyExtension);
 ```
 
 ## Feature Flags
 
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `web` | Yes | HTTP API routes via Axum |
-| `plugin-discovery` | No | Dynamic plugin loading |
+None. This crate has no Cargo features; everything compiles into every build.
 
 ## Dependencies
 
-- `async-trait` — Async trait support
-- `axum` — Router types (optional, with `web` feature)
-- `inventory` — Compile-time extension registration
-- `reqwest` — HTTP client (optional, with `web` feature)
+- `inventory` — Compile-time extension registration.
+- `axum` — Router types for `ExtensionRouter`.
+- `reqwest` — HTTP client types exposed through capability traits.
+- `serde` / `serde_json` — Metadata and configuration serialisation.
+- `thiserror` — Typed error enums.
+- `tracing` — Structured logging.
+- `systemprompt-provider-contracts` — Provider trait definitions re-exported from the prelude.
+- `systemprompt-traits` — Core shared traits (with `web` feature).
 
 ## License
 

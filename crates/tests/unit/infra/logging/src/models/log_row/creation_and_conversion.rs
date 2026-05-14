@@ -1,7 +1,7 @@
 //! Unit tests for LogRow creation and level conversion
 
 use chrono::Utc;
-use systemprompt_identifiers::LogId;
+use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_logging::models::LogRow;
 use systemprompt_logging::{LogEntry, LogLevel};
 
@@ -14,12 +14,12 @@ fn test_log_row_creation() {
         module: "test::module".to_string(),
         message: "Test message".to_string(),
         metadata: Some(r#"{"key": "value"}"#.to_string()),
-        user_id: Some("user-123".to_string()),
-        session_id: Some("session-456".to_string()),
-        task_id: Some("task-789".to_string()),
-        trace_id: Some("trace-abc".to_string()),
-        context_id: Some("context-def".to_string()),
-        client_id: Some("client-ghi".to_string()),
+        user_id: Some(UserId::new("user-123")),
+        session_id: Some(SessionId::new("session-456")),
+        task_id: Some(TaskId::new("task-789")),
+        trace_id: Some(TraceId::new("trace-abc")),
+        context_id: Some(ContextId::new("00000000-0000-4000-8000-00000000def0")),
+        client_id: Some(ClientId::new("client-ghi")),
     };
 
     assert_eq!(row.level, "info");

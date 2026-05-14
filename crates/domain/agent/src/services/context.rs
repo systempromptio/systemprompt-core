@@ -29,7 +29,9 @@ impl ContextService {
             .task_repo
             .list_tasks_by_context(context_id)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to load conversation history: {}", e)))?;
+            .map_err(|e| {
+                AgentServiceError::Internal(format!("Failed to load conversation history: {}", e))
+            })?;
 
         let mut history_messages = Vec::new();
 

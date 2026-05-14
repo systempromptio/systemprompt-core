@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{DbValue, SessionId, SessionSource, ToDbValue};
+use systemprompt_identifiers::{ClientId, DbValue, SessionId, SessionSource, ToDbValue};
 
 #[test]
 fn session_id_generate_has_sess_prefix() {
@@ -103,25 +103,34 @@ fn session_source_from_str_unknown_for_unrecognized() {
 
 #[test]
 fn session_source_from_client_id_web() {
-    assert_eq!(SessionSource::from_client_id("sp_web"), SessionSource::Web);
+    assert_eq!(
+        SessionSource::from_client_id(&ClientId::new("sp_web")),
+        SessionSource::Web
+    );
 }
 
 #[test]
 fn session_source_from_client_id_cli() {
-    assert_eq!(SessionSource::from_client_id("sp_cli"), SessionSource::Cli);
+    assert_eq!(
+        SessionSource::from_client_id(&ClientId::new("sp_cli")),
+        SessionSource::Cli
+    );
 }
 
 #[test]
 fn session_source_from_client_id_unknown_for_others() {
     assert_eq!(
-        SessionSource::from_client_id("sp_mobile_ios"),
+        SessionSource::from_client_id(&ClientId::new("sp_mobile_ios")),
         SessionSource::Unknown
     );
     assert_eq!(
-        SessionSource::from_client_id("client_abc"),
+        SessionSource::from_client_id(&ClientId::new("client_abc")),
         SessionSource::Unknown
     );
-    assert_eq!(SessionSource::from_client_id(""), SessionSource::Unknown);
+    assert_eq!(
+        SessionSource::from_client_id(&ClientId::new("")),
+        SessionSource::Unknown
+    );
 }
 
 #[test]

@@ -104,16 +104,20 @@ impl McpClient {
 
         let mut tools = Vec::new();
         for tool in tools_response.tools {
-            let input_schema = serde_json::to_value(tool.input_schema).map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", {
-                format!("Failed to serialize input schema for tool '{}'", tool.name)
-            })))?;
+            let input_schema = serde_json::to_value(tool.input_schema).map_err(|e| {
+                crate::error::McpDomainError::Internal(format!("{}: {e}", {
+                    format!("Failed to serialize input schema for tool '{}'", tool.name)
+                }))
+            })?;
 
             let output_schema = tool
                 .output_schema
                 .map(|schema| {
-                    serde_json::to_value(schema.as_ref()).map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", {
-                        format!("Failed to serialize output schema for tool '{}'", tool.name)
-                    })))
+                    serde_json::to_value(schema.as_ref()).map_err(|e| {
+                        crate::error::McpDomainError::Internal(format!("{}: {e}", {
+                            format!("Failed to serialize output schema for tool '{}'", tool.name)
+                        }))
+                    })
                 })
                 .transpose()?;
 

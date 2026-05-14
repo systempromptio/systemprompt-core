@@ -47,11 +47,19 @@ The loader crate sits in the infrastructure layer and depends only on `systempro
 ```
 src/
 ├── lib.rs                       # Public API exports
-├── config_loader.rs             # Services configuration loader with include merging
+├── error.rs                     # ConfigLoad / ConfigWrite / ExtensionLoad / ProfileLoad error types
+├── config_loader/               # Services configuration loader
+│   ├── mod.rs                   # ConfigLoader entry point
+│   ├── includes.rs              # Recursive `includes:` resolution with cycle detection
+│   ├── merge.rs                 # Deep-merge logic for included fragments
+│   └── types.rs                 # Loader-internal types
 ├── config_writer.rs             # Agent configuration file writer
-├── extension_loader.rs          # Extension manifest discovery and loading
+├── extension_loader/            # Extension manifest discovery and loading
+│   ├── mod.rs                   # ExtensionLoader entry point
+│   ├── manifest.rs              # manifest.yaml parsing
+│   └── result.rs                # ExtensionValidationResult
 ├── extension_registry.rs        # Runtime extension binary registry
-├── module_loader.rs             # Module definition aggregator
+├── module_loader.rs             # `inventory`-driven extension aggregator
 ├── profile_loader.rs            # Profile YAML loader with validation
 └── modules/
     └── mod.rs                   # Module collection aggregator
@@ -87,8 +95,14 @@ The `modules/` directory contains definitions for each systemprompt.io module. E
 
 ```toml
 [dependencies]
-systemprompt-loader = "0.9.0"
+systemprompt-loader = "0.9.2"
 ```
+
+### Features
+
+| Feature | Default | Purpose |
+|---------|---------|---------|
+| `expose-internals` | off | Exposes test-only entry points such as `ConfigLoader::load_from_content` to dependent crates outside `cfg(test)`. |
 
 ```rust
 use systemprompt_loader::{
@@ -109,12 +123,14 @@ let extensions = ExtensionLoader::discover(project_root);
 
 ## Dependencies
 
-- `anyhow` - Error handling
-- `thiserror` - Error type definitions
-- `serde` / `serde_yaml` / `serde_json` - Serialization
-- `tokio` - Async runtime
-- `tracing` - Logging
-- `systemprompt-models` - Shared model types
+- `thiserror` — typed error variants
+- `serde` / `serde_yaml` / `serde_json` — serialisation
+- `tokio` — async runtime
+- `tracing` — structured logging
+- `systemprompt-config` — profile and config primitives
+- `systemprompt-extension` — extension trait registry
+- `systemprompt-identifiers` — typed IDs
+- `systemprompt-models` — shared model types
 
 ## License
 

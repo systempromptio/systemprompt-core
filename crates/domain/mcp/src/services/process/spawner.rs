@@ -25,21 +25,24 @@ fn rotate_log_if_needed(log_path: &Path) {
 }
 
 pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
-    let binary_path = paths
-        .build()
-        .resolve_binary(&config.binary)
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", {
+    let binary_path = paths.build().resolve_binary(&config.binary).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!("{}: {e}", {
             format!(
                 "Failed to find binary '{}' for {}",
                 config.binary, config.name
             )
-        })))?;
+        }))
+    })?;
 
     let config_global = systemprompt_models::Config::get()?;
 
     let log_dir = paths.system().logs();
-    fs::create_dir_all(&log_dir)
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("Failed to create logs directory: {}", log_dir.display()))))?;
+    fs::create_dir_all(&log_dir).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Failed to create logs directory: {}: {e}",
+            log_dir.display()
+        ))
+    })?;
 
     let log_file_path = log_dir.join(format!("mcp-{}.log", config.name));
     rotate_log_if_needed(&log_file_path);
@@ -48,17 +51,32 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .create(true)
         .append(true)
         .open(&log_file_path)
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("Failed to create log file: {}", log_file_path.display()))))?;
+        .map_err(|e| {
+            crate::error::McpDomainError::Internal(format!(
+                "Failed to create log file: {}: {e}",
+                log_file_path.display()
+            ))
+        })?;
 
-    let tools_config_json =
-        serde_json::to_string(&config.tools).map_err(|e| crate::error::McpDomainError::Internal(format!("Failed to serialize tools config: {e}")))?;
-    let server_model_config_json = serde_json::to_string(&config.model_config)
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("Failed to serialize server model config: {e}")))?;
+    let tools_config_json = serde_json::to_string(&config.tools).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!("Failed to serialize tools config: {e}"))
+    })?;
+    let server_model_config_json = serde_json::to_string(&config.model_config).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Failed to serialize server model config: {e}"
+        ))
+    })?;
 
-    let profile_path = ProfileBootstrap::get_path()
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server: {e}")))?;
-    let secrets =
-        SecretsBootstrap::get().map_err(|e| crate::error::McpDomainError::Internal(format!("Secrets not available - cannot spawn MCP server: {e}")))?;
+    let profile_path = ProfileBootstrap::get_path().map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server: {e}"
+        ))
+    })?;
+    let secrets = SecretsBootstrap::get().map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Secrets not available - cannot spawn MCP server: {e}"
+        ))
+    })?;
 
     let mut child_command = Command::new(&binary_path);
 
@@ -122,7 +140,12 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null())
         .spawn()
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("Failed to start detached {}", config.name))))?;
+        .map_err(|e| {
+            crate::error::McpDomainError::Internal(format!(
+                "Failed to start detached {}: {e}",
+                config.name
+            ))
+        })?;
 
     let pid = child.id();
 
@@ -134,8 +157,12 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
 pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {
     let binary_path = paths.build().resolve_binary(&config.binary)?;
 
-    let metadata = fs::metadata(&binary_path)
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", format!("Binary not found: {}", binary_path.display()))))?;
+    let metadata = fs::metadata(&binary_path).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Binary not found: {}: {e}",
+            binary_path.display()
+        ))
+    })?;
 
     tracing::debug!(
         service = %config.name,
@@ -159,12 +186,14 @@ pub fn build_server(config: &McpServerConfig) -> McpDomainResult<()> {
             &config.binary,
         ])
         .output()
-        .map_err(|e| crate::error::McpDomainError::Internal(format!("{}: {e}", {
-            format!(
-                "Failed to build {} (binary: {})",
-                config.name, config.binary
-            )
-        })))?;
+        .map_err(|e| {
+            crate::error::McpDomainError::Internal(format!("{}: {e}", {
+                format!(
+                    "Failed to build {} (binary: {})",
+                    config.name, config.binary
+                )
+            }))
+        })?;
 
     if output.status.success() {
         tracing::info!(service = %config.name, binary = %config.binary, "Build completed (debug)");

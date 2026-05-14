@@ -1,102 +1,109 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Document `SyncService::sync_all` partial-state reporting via `SyncOpState` (`NotStarted`, `Partial`, `Completed`, `Failed`).
+
+### Removed
+- Drop `SkillsDiffCalculator`, `SkillsLocalSync`, and skill export helpers; skills are now disk-only and no longer routed through this crate.
+- Drop user upsert helpers from database sync; database round-trip now covers contexts only.
+
 ## [0.1.8] - 2026-03-20
 
 ### Fixed
-- Fix test compilation for `SyncApiClient::new()` returning `SyncResult<Self>`
+- Fix test compilation for `SyncApiClient::new` returning `SyncResult<Self>`.
 
 ## [0.1.7] - 2026-02-19
 
 ### Added
-- `AgentsDiffCalculator` for comparing disk agents vs database agents using SHA-256 hashes
-- `AgentsLocalSync` with bidirectional disk-to-database and database-to-disk sync
-- `export_agent_to_disk()`, `generate_agent_config()`, `generate_agent_system_prompt()` export functions
-- `AgentDiffItem`, `AgentsDiffResult`, `DiskAgent` sync model types
+- Add `AgentsDiffCalculator` for SHA-256 hash comparison of disk vs database agents.
+- Add `AgentsLocalSync` for bidirectional disk-to-database agent sync.
+- Add `export_agent_to_disk`, `generate_agent_config`, and `generate_agent_system_prompt` export helpers.
+- Add `AgentDiffItem`, `AgentsDiffResult`, and `DiskAgent` sync model types.
 
 ## [0.1.6] - 2026-02-18
 
 ### Changed
-- Replace local `SkillConfig` and `strip_frontmatter` with shared `DiskSkillConfig` from `systemprompt_models`
-- Replace magic string literals with `SKILL_CONFIG_FILENAME` constant
-- Add `plugins` and `hooks` directories to `INCLUDE_DIRS` for cloud sync
+- Replace local `SkillConfig` and `strip_frontmatter` with shared `DiskSkillConfig` from `systemprompt_models`.
+- Replace magic string literals with the `SKILL_CONFIG_FILENAME` constant.
+- Add `plugins` and `hooks` directories to `INCLUDE_DIRS` for cloud sync.
 
 ## [0.1.5] - 2026-02-17
 
 ### Changed
-- Replace raw `String` IDs with typed `SkillId` and `SourceId` from `systemprompt_identifiers`
-- Replace `direction: String` with `LocalSyncDirection` enum on `LocalSyncResult`
-- Use `SkillId` as HashMap key in `SkillsDiffCalculator` (eliminates wasteful `.as_str().to_string()`)
-- Remove all inline comments and doc comments from `files.rs` per Rust standards
+- Replace raw `String` IDs with typed `SkillId` and `SourceId` from `systemprompt_identifiers`.
+- Replace `direction: String` with the `LocalSyncDirection` enum on `LocalSyncResult`.
+- Use `SkillId` as `HashMap` key in `SkillsDiffCalculator`.
 
 ### Removed
-- Remove playbook support: `PlaybooksDiffCalculator`, `PlaybooksLocalSync`, playbook diff models, export functions
+- Remove playbook support: `PlaybooksDiffCalculator`, `PlaybooksLocalSync`, playbook diff models, and export helpers.
 
 ## [0.1.4] - 2026-02-11
 
 ### Changed
-- Add connect timeout (10s) and request timeout (60s) to sync HTTP client
+- Add connect timeout (10s) and request timeout (60s) to the sync HTTP client.
 
 ## [0.1.3] - 2026-02-07
 
 ### Fixed
-- Cloud proxy sync now forwards `Authorization: Bearer` header to tenant VMs (was missing, causing all proxied sync requests to fail with 401)
-- Align upload response type (`files_uploaded`) between tenant API and cloud proxy (field name mismatch caused deserialization failures)
-- Upload handler now returns parsed server response instead of discarding it
-- Increase retry resilience: 5 attempts with 2s initial delay (was 3 attempts / 500ms) for better handling of transient Fly.io 502 errors
+- Forward `Authorization: Bearer` header through cloud proxy sync so tenant VMs no longer reject requests with 401.
+- Align upload response field name (`files_uploaded`) between tenant API and cloud proxy.
+- Return parsed upload server response instead of discarding it.
+- Raise retry budget to 5 attempts with 2s initial delay for transient upstream 502 errors.
 
 ### Removed
-- Remove unused `handle_empty_response` method from `SyncApiClient`
+- Remove unused `handle_empty_response` method from `SyncApiClient`.
 
 ## [0.1.2] - 2026-02-03
 
 ### Changed
-- Regenerated SQLx offline query cache
+- Regenerate SQLx offline query cache.
 
 ## [0.1.1] - 2026-02-03
 
 ### Changed
-- Support nested playbook directory structures in diff calculator and sync
-- Use recursive WalkDir scanning (no depth limit) for playbook discovery
-- Export playbooks to nested directories based on domain path separators
-- Clean up empty parent directories when deleting orphan playbooks
+- Support nested playbook directory structures in diff calculator and sync.
+- Use recursive `WalkDir` scanning for playbook discovery.
+- Export playbooks to nested directories based on domain path separators.
+- Clean up empty parent directories when deleting orphan playbooks.
 
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- First stable release; align with workspace `0.1.0`.
 
 ## [0.0.13] - 2026-01-26
 
 ### Added
-- Add `PlaybooksDiffCalculator` for comparing disk and database playbooks
-- Add `PlaybooksLocalSync` with bidirectional sync support (disk ↔ database)
-- Add `export_playbook_to_disk()` and `generate_playbook_markdown()` functions
-- Add playbook diff models: `DiskPlaybook`, `PlaybookDiffItem`, `PlaybooksDiffResult`
-- Support playbook directory structure: `services/playbook/{category}/{domain}.md`
+- Add `PlaybooksDiffCalculator` for comparing disk and database playbooks.
+- Add `PlaybooksLocalSync` for bidirectional disk-database playbook sync.
+- Add `export_playbook_to_disk` and `generate_playbook_markdown` helpers.
+- Add `DiskPlaybook`, `PlaybookDiffItem`, and `PlaybooksDiffResult` models.
+- Support `services/playbook/{category}/{domain}.md` directory layout.
 
 ## [0.0.11] - 2026-01-26
 
 ### Changed
-- Update content sync to use simplified ingestion API without content type filtering
+- Update content sync to use the simplified ingestion API without content-type filtering.
 
 ## [0.0.3] - 2026-01-22
 
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Fix schema validation for VIEW-based schemas.
+- Add migration system infrastructure.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Implement distributed schema registration: each domain crate owns its SQL schemas via the `Extension` trait.
+- Remove centralised module loaders from `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- Fix `include_str!` paths that pointed outside the crate directory.
+- Ensure the crate compiles standalone when downloaded from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

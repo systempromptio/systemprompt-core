@@ -51,7 +51,8 @@ impl ToolResultHandler {
         } = params;
         if !context.is_authenticated() || context.is_system() {
             return Err(AgentServiceError::Internal(
-                "Invalid user - unauthenticated and system users cannot create artifacts".to_string(),
+                "Invalid user - unauthenticated and system users cannot create artifacts"
+                    .to_string(),
             ));
         }
 
@@ -72,12 +73,13 @@ impl ToolResultHandler {
                 task_id: task_id.as_str(),
                 tool_arguments: *tool_arguments,
             })
-            .map_err(|e| AgentServiceError::Internal(format!("Artifact transform failed: {}", e)))?;
+            .map_err(|e| {
+                AgentServiceError::Internal(format!("Artifact transform failed: {}", e))
+            })?;
 
-        artifact
-            .metadata
-            .validate()
-            .map_err(|e| AgentServiceError::Internal(format!("Artifact metadata validation failed: {}", e)))?;
+        artifact.metadata.validate().map_err(|e| {
+            AgentServiceError::Internal(format!("Artifact metadata validation failed: {}", e))
+        })?;
 
         tracing::info!(
             artifact_id = %artifact.id,

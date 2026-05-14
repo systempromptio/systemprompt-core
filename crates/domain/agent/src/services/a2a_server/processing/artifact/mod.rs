@@ -102,7 +102,10 @@ impl ArtifactBuilder {
                         },
                     )
                     .map_err(|e| {
-                        AgentServiceError::Internal(format!("Tool '{}' artifact transform failed: {e}", tool_call.name))
+                        AgentServiceError::Internal(format!(
+                            "Tool '{}' artifact transform failed: {e}",
+                            tool_call.name
+                        ))
                     })?;
 
                     artifact.metadata = artifact.metadata.with_execution_index(index);

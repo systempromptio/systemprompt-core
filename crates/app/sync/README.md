@@ -39,38 +39,45 @@ Part of the App layer in the systemprompt.io architecture.
 
 This crate provides bidirectional sync capabilities for:
 
-- **File Sync** - Upload/download service configuration files (agents, skills, content, config)
-- **Database Sync** - Export/import users, skills, and contexts between local and cloud databases
-- **Local Sync** - Synchronize content and skills between disk and local database
+- **File Sync** - Upload/download service configuration files (agents, skills, content, config) as gzipped tarballs
+- **Database Sync** - Export/import contexts between local and cloud Postgres databases
+- **Local Sync** - Synchronise content and access-control rules between disk and the local database
 - **Crate Deploy** - Build and deploy Docker images to Fly.io
+- **Scheduled Jobs** - Background sync jobs registered with the systemprompt scheduler
 
 ## Architecture
 
 ```
 src/
-├── lib.rs                    # Crate root, public exports, SyncService orchestrator
-├── error.rs                  # SyncError enum with MissingConfig variant
-├── api_client.rs             # HTTP client for cloud API communication
-├── files.rs                  # FileSyncService - tarball creation/extraction
+├── lib.rs                    # Crate root, SyncService, SyncConfig, SyncOpState, public exports
+├── error.rs                  # SyncError enum and SyncResult alias
+├── files.rs                  # FileSyncService - tarball creation, manifest, push/pull
+├── file_bundler.rs           # Internal tarball assembly helper (private)
 ├── crate_deploy.rs           # CrateDeployService - Docker build and deploy
+├── api_client/
+│   ├── mod.rs                # SyncApiClient - direct-sync vs cloud-relay endpoint selection
+│   ├── response.rs           # Typed JSON / binary response handling
+│   └── retry.rs              # RetryConfig and exponential backoff
 ├── database/
-│   ├── mod.rs                # DatabaseSyncService, export models, import logic
-│   └── upsert.rs             # Database upsert functions for users, skills, contexts
+│   ├── mod.rs                # DatabaseSyncService, ContextExport, DatabaseExport
+│   └── upsert.rs             # Compile-time-checked context upserts
 ├── diff/
-│   ├── mod.rs                # Diff module exports, hash computation functions
-│   ├── content.rs            # ContentDiffCalculator - compare disk vs DB content
-│   └── skills.rs             # SkillsDiffCalculator - compare disk vs DB skills
+│   ├── mod.rs                # Diff module exports, compute_content_hash
+│   └── content.rs            # ContentDiffCalculator - disk vs database content
 ├── export/
-│   ├── mod.rs                # Export utilities, YAML escape function
-│   ├── content.rs            # Content markdown generation and file export
-│   └── skills.rs             # Skill markdown/config generation and file export
+│   ├── mod.rs                # Export utilities, escape_yaml
+│   └── content.rs            # Content markdown generation and file export
 ├── local/
-│   ├── mod.rs                # Local sync module exports
+│   ├── mod.rs                # Local sync drivers
 │   ├── content_sync.rs       # ContentLocalSync - bidirectional content sync
-│   └── skills_sync.rs        # SkillsLocalSync - bidirectional skills sync
+│   └── access_control_sync.rs # AccessControlLocalSync - bidirectional ACL sync
+├── jobs/
+│   ├── mod.rs                # Scheduled jobs
+│   ├── content_sync.rs       # ContentSyncJob
+│   └── access_control_sync.rs # AccessControlSyncJob
 └── models/
     ├── mod.rs                # Model exports
-    └── local_sync.rs         # Sync direction, diff items, and result types
+    └── local_sync.rs         # LocalSyncDirection, DiffStatus, diff items, result types
 ```
 
 ### Module Details
@@ -78,14 +85,15 @@ src/
 | Module | Purpose |
 |--------|---------|
 | `SyncService` | Top-level orchestrator for file and database sync operations |
-| `SyncApiClient` | HTTP client with direct sync and cloud API endpoints |
-| `FileSyncService` | Creates/extracts gzipped tarballs for file sync |
-| `DatabaseSyncService` | Exports and imports users, skills, contexts via SQL |
-| `CrateDeployService` | Builds release, Docker image, and deploys to Fly.io |
-| `ContentDiffCalculator` | Computes hash-based diffs between disk and database content |
-| `SkillsDiffCalculator` | Computes hash-based diffs between disk and database skills |
-| `ContentLocalSync` | Syncs content to/from disk using ingestion services |
-| `SkillsLocalSync` | Syncs skills to/from disk using ingestion services |
+| `SyncConfig` / `SyncConfigBuilder` | Configuration façade with builder semantics |
+| `SyncApiClient` | HTTP client with direct-sync and cloud-relay endpoints |
+| `FileSyncService` | Creates and extracts gzipped tarballs for file sync |
+| `DatabaseSyncService` | Round-trips context records between local and cloud Postgres |
+| `CrateDeployService` | Builds release artefacts, Docker image, and deploys to Fly.io |
+| `ContentDiffCalculator` | Hash-based diff between disk and database content |
+| `ContentLocalSync` | Syncs content to and from disk via ingestion services |
+| `AccessControlLocalSync` | Syncs access-control rules to and from disk |
+| `ContentSyncJob` / `AccessControlSyncJob` | Scheduler-registered background jobs |
 
 ### Sync Directions
 
@@ -93,14 +101,25 @@ src/
 |-----------|-------------|
 | `Push` | Local to cloud (upload files, push database) |
 | `Pull` | Cloud to local (download files, pull database) |
-| `ToDisk` | Database to local files |
-| `ToDatabase` | Local files to database |
+
+Local disk-database sync uses `LocalSyncDirection` (`ToDisk`, `ToDatabase`) on `LocalSyncResult`.
+
+### Operation State
+
+`SyncService::sync_all` returns per-operation results with a `SyncOpState`:
+
+| State | Meaning |
+|-------|---------|
+| `NotStarted` | Operation was skipped (e.g. missing local database URL) |
+| `Partial { completed, total }` | Operation imported a subset of items before failing |
+| `Completed` | Operation finished successfully |
+| `Failed` | Operation failed without partial progress |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-sync = "0.9.0"
+systemprompt-sync = "0.9.2"
 ```
 
 ```rust
@@ -137,8 +156,9 @@ The crate uses `SyncError` for all error conditions:
 |-------|---------|
 | `systemprompt-database` | Database pool and provider traits |
 | `systemprompt-content` | Content repository and ingestion |
-| `systemprompt-agent` | Skill repository and ingestion |
-| `systemprompt-identifiers` | Typed identifiers (SkillId, SourceId, etc.) |
+| `systemprompt-agent` | Agent and access-control repositories |
+| `systemprompt-security` | Access-control rule models |
+| `systemprompt-identifiers` | Typed identifiers (`TenantId`, `ContextId`, `UserId`, etc.) |
 | `systemprompt-logging` | Tracing integration |
 
 ## License

@@ -37,8 +37,9 @@ pub fn terminate_process(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
-    signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
-        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to send SIGTERM to PID {pid}"))))?;
+    signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM).map_err(|e| {
+        AgentServiceError::Internal(format!("Failed to send SIGTERM to PID {pid}: {e}"))
+    })?;
 
     Ok(())
 }
@@ -48,10 +49,17 @@ pub fn terminate_process(pid: u32) -> Result<()> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string()])
         .output()
-        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to run taskkill for PID {pid}"))))?;
+        .map_err(|e| {
+            AgentServiceError::Internal(format!(
+                "{}: {e}",
+                format!("Failed to run taskkill for PID {pid}")
+            ))
+        })?;
 
     if !output.status.success() {
-        return Err(AgentServiceError::Internal(format!("taskkill failed for PID {pid}")));
+        return Err(AgentServiceError::Internal(format!(
+            "taskkill failed for PID {pid}"
+        )));
     }
     Ok(())
 }
@@ -61,8 +69,9 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
-    signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL)
-        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to send SIGKILL to PID {pid}"))))?;
+    signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL).map_err(|e| {
+        AgentServiceError::Internal(format!("Failed to send SIGKILL to PID {pid}: {e}"))
+    })?;
 
     Ok(())
 }
@@ -72,10 +81,17 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/F"])
         .output()
-        .map_err(|e| AgentServiceError::Internal(format!("{}: {e}", format!("Failed to force-kill PID {pid}"))))?;
+        .map_err(|e| {
+            AgentServiceError::Internal(format!(
+                "{}: {e}",
+                format!("Failed to force-kill PID {pid}")
+            ))
+        })?;
 
     if !output.status.success() {
-        return Err(AgentServiceError::Internal(format!("taskkill /F failed for PID {pid}")));
+        return Err(AgentServiceError::Internal(format!(
+            "taskkill /F failed for PID {pid}"
+        )));
     }
     Ok(())
 }

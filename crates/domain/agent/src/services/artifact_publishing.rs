@@ -130,7 +130,9 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(task_id, context_id, &validated_artifact)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {}", e)))?;
+            .map_err(|e| {
+                AgentServiceError::Internal(format!("Failed to persist artifact: {}", e))
+            })?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,
@@ -166,7 +168,9 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(task_id, context_id, &validated_artifact)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {}", e)))?;
+            .map_err(|e| {
+                AgentServiceError::Internal(format!("Failed to persist artifact: {}", e))
+            })?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,

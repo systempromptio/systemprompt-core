@@ -56,30 +56,34 @@ use systemprompt_content::{
     // Models
     Content, ContentMetadata, IngestionOptions, IngestionReport,
     IngestionSource, SearchFilters, SearchRequest, SearchResponse,
-    SearchResult, UpdateContentParams,
+    SearchResult, UpdateContentParams, LinkType, TrackClickParams, UtmParams,
 
     // Repositories
     ContentRepository, LinkAnalyticsRepository, SearchRepository,
 
     // Services
-    DefaultContentProvider, IngestionService, LinkAnalyticsService, SearchService,
+    DefaultContentProvider, IngestionService, LinkAnalyticsService,
+    LinkGenerationService, SearchService, GenerateLinkParams,
 
     // Jobs
-    ContentIngestionJob,
+    execute_content_ingestion,
+
+    // Extension
+    ContentExtension,
+
+    // Default providers
+    DefaultBrandingProvider, DefaultHomepagePrerenderer,
+    DefaultListBrandingProvider, ListItemsCardRenderer,
 
     // Config
     ContentConfigValidated, ContentReady, ContentSourceConfigValidated,
     LoadStats, ParsedContent, ValidationResult,
 
-    // API
-    router, get_content_handler, list_content_by_source_handler, query_handler,
-
     // Error
-    ContentError,
+    ContentError, ContentResult,
 
     // Validation
-    validate_content_metadata, validate_paper_metadata,
-    validate_paper_section_ids_unique,
+    validate_content_metadata,
 };
 ```
 
@@ -87,33 +91,22 @@ use systemprompt_content::{
 
 ```
 src/
-├── api/
-│   ├── mod.rs                      # Router exports
-│   └── routes/
-│       ├── mod.rs                  # Route composition
-│       ├── blog.rs                 # Content handlers (list, get by slug)
-│       ├── query.rs                # Search handler
-│       └── links/
-│           ├── mod.rs              # Link route exports
-│           ├── handlers.rs         # Link CRUD + redirect handlers
-│           └── types.rs            # Request/response types
 ├── config/
 │   ├── mod.rs                      # Config exports
 │   ├── validated.rs                # ContentConfigValidated (validation logic)
 │   └── ready.rs                    # ContentReady (loaded content cache)
 ├── jobs/
 │   ├── mod.rs                      # Job exports
-│   └── content_ingestion.rs        # ContentIngestionJob (implements Job trait)
+│   └── content_ingestion.rs        # execute_content_ingestion entrypoint
 ├── models/
 │   ├── mod.rs                      # Model exports
 │   ├── builders/
 │   │   ├── mod.rs                  # Builder exports
 │   │   ├── content.rs              # CreateContentParams, UpdateContentParams
 │   │   └── link.rs                 # CreateLinkParams, RecordClickParams, TrackClickParams
-│   ├── content.rs                  # Content, ContentMetadata, IngestionReport
-│   ├── content_error.rs            # ContentError (validation errors)
-│   ├── link.rs                     # CampaignLink, LinkClick, LinkPerformance
-│   ├── paper.rs                    # PaperMetadata, PaperSection
+│   ├── content.rs                  # Content, ContentMetadata, IngestionReport, Tag
+│   ├── content_error.rs            # ContentValidationError
+│   ├── link.rs                     # CampaignLink, LinkClick, LinkPerformance, UtmParams
 │   └── search.rs                   # SearchRequest, SearchResponse, SearchResult
 ├── repository/
 │   ├── mod.rs                      # Repository exports
@@ -128,11 +121,9 @@ src/
 │       └── mod.rs                  # SearchRepository
 ├── services/
 │   ├── mod.rs                      # Service exports
-│   ├── content.rs                  # ContentService
 │   ├── content_provider.rs         # DefaultContentProvider (implements ContentProvider)
 │   ├── ingestion/
 │   │   ├── mod.rs                  # IngestionService
-│   │   ├── parser.rs               # Paper chapter loading, frontmatter validation
 │   │   └── scanner.rs              # Directory scanning, file validation
 │   ├── link/
 │   │   ├── mod.rs                  # Link service exports
@@ -141,16 +132,17 @@ src/
 │   ├── search/
 │   │   └── mod.rs                  # SearchService
 │   └── validation/
-│       └── mod.rs                  # Content and paper metadata validation
+│       └── mod.rs                  # Content metadata validation
+├── branding_provider.rs            # DefaultBrandingProvider
+├── homepage_prerenderer.rs         # DefaultHomepagePrerenderer
+├── list_branding_provider.rs       # DefaultListBrandingProvider
+├── list_items_renderer.rs          # ListItemsCardRenderer
+├── extension.rs                    # ContentExtension (schema + job registration)
 ├── error.rs                        # ContentError enum (thiserror)
 └── lib.rs                          # Crate root with public exports
 ```
 
 ## Modules
-
-### api/routes/
-
-HTTP route handlers for content retrieval, search queries, and link management. Routes delegate to services, never directly to repositories.
 
 ### config/
 
@@ -158,7 +150,7 @@ Content source configuration validation and caching. `ContentConfigValidated` va
 
 ### jobs/
 
-Background jobs for content processing. `ContentIngestionJob` scans configured directories and syncs markdown content to the database.
+Background jobs for content processing. `execute_content_ingestion` scans configured directories and syncs markdown content to the database, registered via `ContentExtension`.
 
 ### models/
 
@@ -172,7 +164,7 @@ Database access layer using SQLX macros for compile-time SQL verification. Repos
 
 Business logic layer. Services coordinate repositories and implement domain operations:
 
-- `ContentService`: Content retrieval by source and slug
+- `DefaultContentProvider`: Implements the `ContentProvider` trait for downstream consumers
 - `IngestionService`: Directory scanning and content parsing
 - `SearchService`: Category and keyword search
 - `LinkGenerationService`: Campaign link creation with UTM parameters
@@ -189,12 +181,13 @@ Business logic layer. Services coordinate repositories and implement domain oper
 **Internal (infra/):**
 - `systemprompt-database` - Database pool abstraction
 - `systemprompt-logging` - Logging infrastructure
-- `systemprompt-config` - Configuration management
+- `systemprompt-cloud` - Cloud integration types
+- `systemprompt-extension` - Extension framework
 
 ## Traits Implemented
 
 - `ContentProvider` (systemprompt-traits) - `DefaultContentProvider`
-- `Job` (systemprompt-traits) - `ContentIngestionJob`
+- `Extension` (systemprompt-extension) - `ContentExtension` (registers schema + ingestion job)
 - `ContentRouting` (systemprompt-models) - `ContentConfigValidated`, `ContentReady`
 
 ## License

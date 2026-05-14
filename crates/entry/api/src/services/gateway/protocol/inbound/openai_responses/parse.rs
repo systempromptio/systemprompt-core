@@ -51,8 +51,9 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
     let tools = value
         .get("tools")
         .and_then(Value::as_array)
-        .map(|arr| arr.iter().filter_map(parse_tool).collect::<Vec<_>>())
-        .unwrap_or_else(Vec::new);
+        .map_or_else(Vec::new, |arr| {
+            arr.iter().filter_map(parse_tool).collect::<Vec<_>>()
+        });
     let tool_choice = value.get("tool_choice").and_then(parse_tool_choice);
     let stream = value
         .get("stream")
@@ -168,13 +169,12 @@ fn parse_reasoning_item(item: &Value) -> Option<CanonicalMessage> {
     let text = item
         .get("summary")
         .and_then(Value::as_array)
-        .map(|arr| {
+        .map_or_else(String::new, |arr| {
             arr.iter()
                 .filter_map(|v| v.get("text").and_then(Value::as_str))
                 .collect::<Vec<_>>()
                 .join("\n")
-        })
-        .unwrap_or_else(String::new);
+        });
     if text.is_empty() {
         return None;
     }

@@ -188,16 +188,16 @@ impl WebAuthnService {
         let (state, timestamp) = {
             let mut states = self.reg_states.lock().await;
             states.remove(challenge_id).ok_or_else(|| {
-                crate::error::OauthError::Internal(format!(
-                    "Registration state not found or expired"
-                ))
+                crate::error::OauthError::Internal(
+                    "Registration state not found or expired".to_string(),
+                )
             })?
         };
 
         if timestamp.elapsed() > std::time::Duration::from_secs(120) {
-            return Err(crate::error::OauthError::Internal(format!(
-                "Registration challenge expired"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "Registration challenge expired".to_string(),
+            ));
         }
 
         Ok(state)

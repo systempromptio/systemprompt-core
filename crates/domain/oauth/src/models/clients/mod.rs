@@ -76,34 +76,34 @@ impl OAuthClient {
 
     pub fn validate(&self) -> Result<()> {
         if self.client_id.as_str().is_empty() {
-            return Err(crate::error::OauthError::Internal(format!(
-                "client_id cannot be empty"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "client_id cannot be empty".to_string(),
+            ));
         }
         if self.client_name.is_empty() {
-            return Err(crate::error::OauthError::Internal(format!(
-                "client_name cannot be empty"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "client_name cannot be empty".to_string(),
+            ));
         }
         if self.redirect_uris.is_empty() {
-            return Err(crate::error::OauthError::Internal(format!(
-                "redirect_uris cannot be empty"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "redirect_uris cannot be empty".to_string(),
+            ));
         }
         if self.grant_types.is_empty() {
-            return Err(crate::error::OauthError::Internal(format!(
-                "grant_types cannot be empty"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "grant_types cannot be empty".to_string(),
+            ));
         }
         if self.response_types.is_empty() {
-            return Err(crate::error::OauthError::Internal(format!(
-                "response_types cannot be empty"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "response_types cannot be empty".to_string(),
+            ));
         }
         if self.scopes.is_empty() {
-            return Err(crate::error::OauthError::Internal(format!(
-                "scopes cannot be empty"
-            )));
+            return Err(crate::error::OauthError::Internal(
+                "scopes cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }

@@ -1,33 +1,41 @@
 # Changelog
 
+## [0.9.2] - 2026-05-14
+
+### Changed
+- Normalized changelog format to maintainer style with explicit categories.
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed
-- First stable release milestone
-- All crates now at consistent 0.1.0 version
+- Aligned to workspace 0.1.0 release.
 
 ## [0.0.13] - 2026-01-27
 
 ### Changed
-- Version bump for workspace consistency
+- Workspace version bump.
 
 ## [0.0.3] - 2026-01-22
 
+### Added
+- Migration system infrastructure.
+
 ### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+- Schema validation now handles VIEW-based schemas.
 
 ## [0.0.2] - 2026-01-22
 
 ### Changed
-- Implement distributed schema registration pattern
-- Each domain crate now owns its SQL schemas via Extension trait
-- Remove centralized module loaders from systemprompt-loader
+- Each domain crate now owns its SQL schemas via the `Extension` trait.
+
+### Removed
+- Centralized module loaders from `systemprompt-loader`.
 
 ### Fixed
-- Fix `include_str!` paths that pointed outside crate directory
-- Ensure crate compiles standalone when downloaded from crates.io
+- Corrected `include_str!` paths that pointed outside the crate directory.
+- Ensured the crate compiles standalone when downloaded from crates.io.
 
 ## [0.0.1] - 2026-01-21
 
-- Initial release
+### Added
+- Initial release.

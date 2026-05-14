@@ -84,9 +84,8 @@ Comprehensive error handling with variants:
 | `Timeout` | Request exceeded time limit |
 | `ServerUnavailable` | Server unreachable |
 | `ConfigError` | Invalid client configuration |
-| `Other` | Catch-all for unexpected errors |
 
-Includes `is_retryable()` helper for retry logic.
+Includes `is_retryable()` helper (`Timeout`, `ServerUnavailable`, `HttpError`) for retry logic.
 
 ### `http.rs`
 Internal module providing low-level HTTP operations:
@@ -101,7 +100,7 @@ All functions handle authorization headers and error response parsing uniformly.
 
 ```toml
 [dependencies]
-systemprompt-client = "0.9.0"
+systemprompt-client = "0.9.2"
 ```
 
 ```rust
@@ -216,8 +215,8 @@ client.set_token(token);
 | `serde` / `serde_json` | JSON serialization |
 | `chrono` | DateTime handling for auto-naming |
 | `thiserror` | Derive macro for error types |
-| `anyhow` | Error wrapping for `Other` variant |
 | `tracing` | Structured logging for error diagnostics |
+| `futures` | Async combinator utilities |
 | `systemprompt-models` | Shared API types (`AgentCard`, `Task`, etc.) |
 | `systemprompt-identifiers` | Typed identifiers (`ContextId`, `JwtToken`) |
 

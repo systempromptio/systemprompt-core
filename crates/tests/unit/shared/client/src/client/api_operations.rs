@@ -1,7 +1,7 @@
 //! Tests for context, task, authorization, and admin API methods.
 
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{ContextId, JwtToken, TaskId};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -51,13 +51,17 @@ async fn test_delete_context_success() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/api/v1/core/contexts/ctx-123"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000123",
+        ))
         .respond_with(ResponseTemplate::new(204))
         .mount(&mock_server)
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.delete_context("ctx-123").await;
+    let result = client
+        .delete_context(&ContextId::new("00000000-0000-4000-8000-000000000123"))
+        .await;
 
     result.expect("delete_context should succeed");
 }
@@ -67,13 +71,17 @@ async fn test_delete_context_not_found() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/api/v1/core/contexts/nonexistent"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-0000000000ff",
+        ))
         .respond_with(ResponseTemplate::new(404).set_body_string("Not found"))
         .mount(&mock_server)
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.delete_context("nonexistent").await;
+    let result = client
+        .delete_context(&ContextId::new("00000000-0000-4000-8000-0000000000ff"))
+        .await;
 
     result.unwrap_err();
 }
@@ -89,7 +97,7 @@ async fn test_delete_task_success() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.delete_task("task-456").await;
+    let result = client.delete_task(&TaskId::new("task-456")).await;
 
     result.expect("delete_task should succeed");
 }

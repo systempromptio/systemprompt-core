@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, job_name, schedule, enabled, last_run, next_run,\n                   last_status, last_error, run_count, created_at, updated_at\n            FROM scheduled_jobs\n            WHERE last_run IS NOT NULL\n            ORDER BY last_run DESC\n            LIMIT $1\n            ",
+  "query": "\n            SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,\n                   run_count, created_at, updated_at\n            FROM scheduled_jobs\n            WHERE last_run IS NOT NULL\n            ORDER BY last_run DESC\n            LIMIT $1\n            ",
   "describe": {
     "columns": [
       {
@@ -78,5 +78,5 @@
       false
     ]
   },
-  "hash": "cbe082147edc7e9766d6e4b6890d0431ed77bcbc7494cbd4fdfe62839eb72a98"
+  "hash": "f2cbc40f82cd27dcff94a514d8c209ddcf0d842f0a230647e89bae69ef8ef924"
 }
