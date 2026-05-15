@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.0] - 2026-05-15
+
+### Changed
+- Migration SQL moved into `schema/migrations/NNN_*.sql` files, discovered by the
+  crate `build.rs` and surfaced through `Extension::migrations()`.
+
 ## [0.9.2] - 2026-05-14
 
 ### Added
