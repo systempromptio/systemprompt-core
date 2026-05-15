@@ -6,10 +6,10 @@ All notable changes to `systemprompt-database` are documented here. Format follo
 
 ### Breaking
 - **Breaking:** `SqlExecutor::parse_sql_statements` now returns `DatabaseResult<Vec<String>>` instead of `Vec<String>`. Migrate by propagating the new `Result` and handling `RepositoryError::Internal` for unparseable SQL.
-- **Breaking:** Removed internal helpers `SqlExecutor::should_skip_line` and `SqlExecutor::is_statement_complete`. Migrate by relying on `sqlparser`-driven parsing exposed through `parse_sql_statements`.
+- **Breaking:** Removed internal helpers `SqlExecutor::should_skip_line` and `SqlExecutor::is_statement_complete`. Migrate by relying on the statement splitting exposed through `parse_sql_statements`.
 
 ### Changed
-- Replaced the line-scanner statement splitter with `sqlparser` against `PostgreSqlDialect`, with correct handling of named dollar-quoted bodies (`$tag$ … $tag$`) and apostrophe-quoted function bodies.
+- Replaced the line-scanner statement splitter with a hand-rolled byte-state-machine splitter that splits on top-level `;` while ignoring semicolons inside single-quoted strings, dollar-quoted bodies (`$$ … $$` and `$tag$ … $tag$`), `--` line comments, and nested `/* … */` block comments. The splitter preserves the original statement text verbatim — a parse-and-reprint approach drops syntactic detail such as the empty parameter list on `CREATE FUNCTION foo()`, which PostgreSQL then rejects.
 
 ## [0.9.2] - 2026-05-12
 
