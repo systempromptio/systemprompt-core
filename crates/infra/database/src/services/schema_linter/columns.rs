@@ -102,7 +102,9 @@ pub(super) fn check_view_columns(
         .map(|v| v.relname.clone())
         .unwrap_or_default();
 
-    errors.extend(check_view_targets(select, &view_from, tables, loc, &view_name));
+    errors.extend(check_view_targets(
+        select, &view_from, tables, loc, &view_name,
+    ));
 }
 
 /// The `FROM` shape of a view's `SELECT`: table aliases, the sole table when

@@ -18,9 +18,7 @@ pub(super) struct PreparedSchema {
 
 /// Lint, parse, and classify one extension's declarative schema. Performs no
 /// database I/O.
-pub(super) fn prepare_extension_schema(
-    ext: &dyn Extension,
-) -> Result<PreparedSchema, LoaderError> {
+pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSchema, LoaderError> {
     let schemas = ext.schemas();
     let extension_id = ext.metadata().id.to_string();
 

@@ -30,6 +30,9 @@
 //!   extension surface.
 //! - The `Extension` trait and the [`register_extension!`] macro form the core
 //!   extensibility contract.
+//! - [`build`] — build-script helper that generates `Extension::migrations()`
+//!   from `schema/migrations/*.sql` files, paired with the
+//!   [`extension_migrations!`] macro.
 //! - [`typed`] — compile-time-checked sub-traits (`SchemaExtensionTyped`,
 //!   `ApiExtensionTyped`, ...).
 //! - [`registry`] / [`typed_registry`] — runtime stores of registered
@@ -49,6 +52,14 @@
 
 pub mod any;
 mod asset;
+#[allow(
+    clippy::panic,
+    clippy::manual_assert,
+    clippy::print_stdout,
+    reason = "build-script support code: a panic is the correct way to abort a build, and \
+              println! is how a build script emits cargo directives"
+)]
+pub mod build;
 pub mod builder;
 pub mod capabilities;
 pub mod context;
@@ -99,7 +110,7 @@ pub mod prelude {
     pub use crate::seed::Seed;
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
-        SiteAuthConfig, register_extension,
+        SiteAuthConfig, extension_migrations, register_extension,
     };
 
     pub use crate::any::AnyExtension;

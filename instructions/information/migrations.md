@@ -32,28 +32,53 @@ This is the same separation Diesel, Alembic, Flyway, and `sqlx migrate` converge
 
 The pre-merge scanner `./ci/lint-schema.sh crates` runs the same checks via grep; it is wired into `just check`.
 
+## How an extension declares migrations
+
+Migrations are discovered from the filesystem, not hand-listed in Rust. A crate
+that has migrations is wired once:
+
+- a one-line `build.rs` at the crate root:
+
+  ```rust
+  fn main() {
+      systemprompt_extension::build::emit_migrations();
+  }
+  ```
+
+- `systemprompt-extension` as a `[build-dependencies]` entry, and `build.rs`
+  added to the package `include` list so it ships on `cargo publish`;
+- `Extension::migrations()` returns the `extension_migrations!()` macro:
+
+  ```rust
+  fn migrations(&self) -> Vec<Migration> {
+      extension_migrations!()
+  }
+  ```
+
+At build time the script scans `<crate>/schema/migrations/`, derives each
+migration's version (`NNN`) and name from the filename, and generates the
+`Vec<Migration>` body. Because the filename is the single source of version and
+name, those values cannot drift from the SQL they label. `cargo:rerun-if-changed`
+makes a newly added file retrigger the build. Inline migration SQL as a Rust
+string constant, or a hand-written `Migration::new(...)` list, is rejected by
+`just lint-extensions`.
+
+A migration whose first non-blank line is `-- @no-transaction` is run outside a
+transaction (for `CREATE INDEX CONCURRENTLY`). A paired
+`<crate>/schema/migrations/NNN_<name>.down.sql` supplies the down migration.
+
 ## Adding a column to an existing table
 
 1. Update the declarative `<crate>/schema/<table>.sql` so the `CREATE TABLE IF NOT EXISTS` block includes the new column. Fresh installs pick it up directly.
-2. Add a migration `<crate>/schema/migrations/NNN_<name>.sql`:
+2. Add a migration file `<crate>/schema/migrations/NNN_<name>.sql` — the next number after the current highest:
 
    ```sql
    ALTER TABLE markdown_content
        ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'en';
    ```
 
-3. Declare the migration in `Extension::migrations()`:
-
-   ```rust
-   fn migrations(&self) -> Vec<Migration> {
-       vec![
-           Migration::new(1, "add_locale_column",
-               include_str!("../schema/migrations/001_add_locale_column.sql")),
-       ]
-   }
-   ```
-
-4. Optionally adjust matching indexes in the schema. The migration runs first; the schema's `CREATE INDEX IF NOT EXISTS` then succeeds against the new column.
+   That is the whole change. The build script picks the file up; there is no Rust list to edit.
+3. Optionally adjust matching indexes in the schema. The migration runs first; the schema's `CREATE INDEX IF NOT EXISTS` then succeeds against the new column.
 
 ## Renaming or dropping a column
 

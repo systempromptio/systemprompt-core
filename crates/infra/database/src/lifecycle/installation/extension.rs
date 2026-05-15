@@ -12,10 +12,10 @@
 //!   `schema/migrations/NNN_<name>.sql` declared via [`Extension::migrations`].
 //! - Installation runs in three global phases across every extension —
 //!   structural DDL, then migrations, then dependent DDL. Phasing globally
-//!   (rather than per-extension) is what lets a legacy database reach its
-//!   target shape before the schema's `CREATE … IF NOT EXISTS` and `CREATE
-//!   INDEX` statements run, without 3 a.m. `column "x" does not exist`
-//!   failures. The phases are:
+//!   (rather than per-extension) lets a legacy database reach its target shape
+//!   before the schema's `CREATE … IF NOT EXISTS` and `CREATE INDEX` statements
+//!   run, so dependent DDL never references a column that a pending migration
+//!   has not yet added. The phases are:
 //!   1. **Structural DDL** — `CREATE TABLE`/`TYPE`/`EXTENSION` — so every table
 //!      exists before any migration runs.
 //!   2. **Migrations** — pending `Extension::migrations()` for every extension.

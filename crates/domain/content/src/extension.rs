@@ -64,11 +64,7 @@ impl Extension for ContentExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(
-            1,
-            "markdown_content_locale_unique",
-            include_str!("../schema/migrations/001_markdown_content_locale_unique.sql"),
-        )]
+        extension_migrations!()
     }
 
     fn owned_tables(&self) -> Vec<&'static str> {
