@@ -32,6 +32,165 @@ fn dollar_tag_end(bytes: &[u8], start: usize) -> Option<usize> {
     None
 }
 
+struct Splitter<'a> {
+    sql: &'a str,
+    bytes: &'a [u8],
+    i: usize,
+    start: usize,
+    has_content: bool,
+    statements: Vec<String>,
+}
+
+impl<'a> Splitter<'a> {
+    const fn new(sql: &'a str) -> Self {
+        Self {
+            sql,
+            bytes: sql.as_bytes(),
+            i: 0,
+            start: 0,
+            has_content: false,
+            statements: Vec::new(),
+        }
+    }
+
+    fn emit(&mut self, end: usize) {
+        if self.has_content {
+            let stmt = self.sql[self.start..end].trim();
+            if !stmt.is_empty() {
+                self.statements.push(stmt.to_string());
+            }
+        }
+        self.has_content = false;
+    }
+
+    fn step_normal(&mut self) -> SplitState {
+        match self.bytes[self.i] {
+            b'\'' => {
+                self.has_content = true;
+                self.i += 1;
+                SplitState::SingleQuote
+            },
+            b'-' if self.bytes.get(self.i + 1) == Some(&b'-') => {
+                self.i += 2;
+                SplitState::LineComment
+            },
+            b'/' if self.bytes.get(self.i + 1) == Some(&b'*') => {
+                self.i += 2;
+                SplitState::BlockComment(1)
+            },
+            b'$' => {
+                self.has_content = true;
+                if let Some(tag_end) = dollar_tag_end(self.bytes, self.i) {
+                    let tag = self.sql[self.i..=tag_end].to_string();
+                    self.i = tag_end + 1;
+                    SplitState::DollarQuote(tag)
+                } else {
+                    self.i += 1;
+                    SplitState::Normal
+                }
+            },
+            b';' => {
+                self.emit(self.i);
+                self.i += 1;
+                self.start = self.i;
+                SplitState::Normal
+            },
+            b => {
+                if !b.is_ascii_whitespace() {
+                    self.has_content = true;
+                }
+                self.i += 1;
+                SplitState::Normal
+            },
+        }
+    }
+
+    fn step_single_quote(&mut self) -> SplitState {
+        if self.bytes[self.i] == b'\'' {
+            if self.bytes.get(self.i + 1) == Some(&b'\'') {
+                self.i += 2;
+                SplitState::SingleQuote
+            } else {
+                self.i += 1;
+                SplitState::Normal
+            }
+        } else {
+            self.i += 1;
+            SplitState::SingleQuote
+        }
+    }
+
+    fn step_dollar_quote(&mut self, tag: String) -> SplitState {
+        let tag_bytes = tag.as_bytes();
+        if self.i + tag_bytes.len() <= self.bytes.len()
+            && self.bytes[self.i..self.i + tag_bytes.len()] == *tag_bytes
+        {
+            self.i += tag_bytes.len();
+            SplitState::Normal
+        } else {
+            self.i += 1;
+            SplitState::DollarQuote(tag)
+        }
+    }
+
+    fn step_line_comment(&mut self) -> SplitState {
+        let next = if self.bytes[self.i] == b'\n' {
+            SplitState::Normal
+        } else {
+            SplitState::LineComment
+        };
+        self.i += 1;
+        next
+    }
+
+    fn step_block_comment(&mut self, depth: u32) -> SplitState {
+        if self.bytes[self.i] == b'/' && self.bytes.get(self.i + 1) == Some(&b'*') {
+            self.i += 2;
+            SplitState::BlockComment(depth + 1)
+        } else if self.bytes[self.i] == b'*' && self.bytes.get(self.i + 1) == Some(&b'/') {
+            self.i += 2;
+            if depth == 1 {
+                SplitState::Normal
+            } else {
+                SplitState::BlockComment(depth - 1)
+            }
+        } else {
+            self.i += 1;
+            SplitState::BlockComment(depth)
+        }
+    }
+
+    fn run(mut self) -> DatabaseResult<Vec<String>> {
+        let mut state = SplitState::Normal;
+        while self.i < self.bytes.len() {
+            state = match state {
+                SplitState::Normal => self.step_normal(),
+                SplitState::SingleQuote => self.step_single_quote(),
+                SplitState::DollarQuote(tag) => self.step_dollar_quote(tag),
+                SplitState::LineComment => self.step_line_comment(),
+                SplitState::BlockComment(depth) => self.step_block_comment(depth),
+            };
+        }
+
+        match state {
+            SplitState::Normal | SplitState::LineComment => {
+                let end = self.sql.len();
+                self.emit(end);
+                Ok(self.statements)
+            },
+            SplitState::SingleQuote => Err(RepositoryError::Internal(
+                "Unterminated string literal in SQL".into(),
+            )),
+            SplitState::DollarQuote(tag) => Err(RepositoryError::Internal(format!(
+                "Unterminated dollar-quoted string: {tag}"
+            ))),
+            SplitState::BlockComment(_) => Err(RepositoryError::Internal(
+                "Unterminated block comment in SQL".into(),
+            )),
+        }
+    }
+}
+
 impl SqlExecutor {
     pub async fn execute_statements(db: &Database, sql: &str) -> DatabaseResult<()> {
         db.execute_batch(sql).await.map_err(|e| {
@@ -68,121 +227,7 @@ impl SqlExecutor {
     /// empty parameter list on `CREATE FUNCTION foo()`, which Postgres then
     /// rejects.
     pub fn parse_sql_statements(sql: &str) -> DatabaseResult<Vec<String>> {
-        let bytes = sql.as_bytes();
-        let mut statements = Vec::new();
-        let mut start = 0usize;
-        let mut i = 0usize;
-        let mut state = SplitState::Normal;
-        let mut has_content = false;
-        let mut emit = |sql: &str, start: usize, end: usize, has_content: &mut bool| {
-            if *has_content {
-                let stmt = sql[start..end].trim();
-                if !stmt.is_empty() {
-                    statements.push(stmt.to_string());
-                }
-            }
-            *has_content = false;
-        };
-
-        while i < bytes.len() {
-            match &mut state {
-                SplitState::Normal => match bytes[i] {
-                    b'\'' => {
-                        has_content = true;
-                        state = SplitState::SingleQuote;
-                        i += 1;
-                    },
-                    b'-' if bytes.get(i + 1) == Some(&b'-') => {
-                        state = SplitState::LineComment;
-                        i += 2;
-                    },
-                    b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                        state = SplitState::BlockComment(1);
-                        i += 2;
-                    },
-                    b'$' => {
-                        has_content = true;
-                        if let Some(tag_end) = dollar_tag_end(bytes, i) {
-                            let tag = sql[i..=tag_end].to_string();
-                            state = SplitState::DollarQuote(tag);
-                            i = tag_end + 1;
-                        } else {
-                            i += 1;
-                        }
-                    },
-                    b';' => {
-                        emit(sql, start, i, &mut has_content);
-                        i += 1;
-                        start = i;
-                    },
-                    b => {
-                        if !b.is_ascii_whitespace() {
-                            has_content = true;
-                        }
-                        i += 1;
-                    },
-                },
-                SplitState::SingleQuote => {
-                    if bytes[i] == b'\'' {
-                        if bytes.get(i + 1) == Some(&b'\'') {
-                            i += 2;
-                        } else {
-                            state = SplitState::Normal;
-                            i += 1;
-                        }
-                    } else {
-                        i += 1;
-                    }
-                },
-                SplitState::DollarQuote(tag) => {
-                    let tag_bytes = tag.as_bytes();
-                    if i + tag_bytes.len() <= bytes.len()
-                        && &bytes[i..i + tag_bytes.len()] == tag_bytes
-                    {
-                        i += tag_bytes.len();
-                        state = SplitState::Normal;
-                    } else {
-                        i += 1;
-                    }
-                },
-                SplitState::LineComment => {
-                    if bytes[i] == b'\n' {
-                        state = SplitState::Normal;
-                    }
-                    i += 1;
-                },
-                SplitState::BlockComment(depth) => {
-                    if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
-                        *depth += 1;
-                        i += 2;
-                    } else if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
-                        *depth -= 1;
-                        i += 2;
-                        if *depth == 0 {
-                            state = SplitState::Normal;
-                        }
-                    } else {
-                        i += 1;
-                    }
-                },
-            }
-        }
-
-        match state {
-            SplitState::Normal | SplitState::LineComment => {
-                emit(sql, start, sql.len(), &mut has_content);
-                Ok(statements)
-            },
-            SplitState::SingleQuote => Err(RepositoryError::Internal(
-                "Unterminated string literal in SQL".into(),
-            )),
-            SplitState::DollarQuote(tag) => Err(RepositoryError::Internal(format!(
-                "Unterminated dollar-quoted string: {tag}"
-            ))),
-            SplitState::BlockComment(_) => Err(RepositoryError::Internal(
-                "Unterminated block comment in SQL".into(),
-            )),
-        }
+        Splitter::new(sql).run()
     }
 
     pub async fn execute_query(db: &Database, query: &str) -> DatabaseResult<QueryResult> {
@@ -213,7 +258,7 @@ impl SqlExecutor {
             .query_with(
                 &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = \
                   'public' AND table_name = $1) as exists",
-                vec![serde_json::Value::String(table_name.to_string())],
+                &[&table_name],
             )
             .await?;
 
@@ -233,10 +278,7 @@ impl SqlExecutor {
             .query_with(
                 &"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = \
                   'public' AND table_name = $1 AND column_name = $2) as exists",
-                vec![
-                    serde_json::Value::String(table_name.to_string()),
-                    serde_json::Value::String(column_name.to_string()),
-                ],
+                &[&table_name, &column_name],
             )
             .await?;
 

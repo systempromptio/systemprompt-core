@@ -79,12 +79,16 @@ impl Database {
         )
     }
 
-    #[must_use]
-    pub fn write_pool(&self) -> Option<Arc<sqlx::PgPool>> {
+    fn effective_pool(&self) -> Option<Arc<sqlx::PgPool>> {
         self.write_provider
             .as_ref()
             .and_then(|wp| wp.get_postgres_pool())
             .or_else(|| self.provider.get_postgres_pool())
+    }
+
+    #[must_use]
+    pub fn write_pool(&self) -> Option<Arc<sqlx::PgPool>> {
+        self.effective_pool()
     }
 
     #[must_use]
@@ -109,7 +113,7 @@ impl Database {
     pub async fn query_with(
         &self,
         sql: &dyn crate::models::QuerySelector,
-        params: Vec<serde_json::Value>,
+        params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<QueryResult> {
         self.provider.query_raw_with(sql, params).await
     }
@@ -132,10 +136,7 @@ impl Database {
 
     #[must_use]
     pub fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.write_provider
-            .as_ref()
-            .and_then(|wp| wp.get_postgres_pool())
-            .or_else(|| self.provider.get_postgres_pool())
+        self.effective_pool()
     }
 
     pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
@@ -180,10 +181,7 @@ impl DatabaseExt for Arc<Database> {
 #[async_trait::async_trait]
 impl DatabaseProvider for Database {
     fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.write_provider
-            .as_ref()
-            .and_then(|wp| wp.get_postgres_pool())
-            .or_else(|| self.provider.get_postgres_pool())
+        self.effective_pool()
     }
 
     async fn execute(
@@ -258,7 +256,7 @@ impl DatabaseProvider for Database {
     async fn query_raw_with(
         &self,
         query: &dyn crate::models::QuerySelector,
-        params: Vec<serde_json::Value>,
+        params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<QueryResult> {
         self.provider.query_raw_with(query, params).await
     }

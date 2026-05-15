@@ -178,11 +178,7 @@ async fn validate_single_column(
         .query_raw_with(
             &"SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND \
               table_name = $1 AND column_name = $2",
-            // JSON: required by the `query_raw_with` trait contract
-            vec![
-                serde_json::Value::String(table.to_string()),
-                serde_json::Value::String(column.to_string()),
-            ],
+            &[&table, &column],
         )
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {

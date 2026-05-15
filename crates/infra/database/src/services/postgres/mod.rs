@@ -208,40 +208,12 @@ impl DatabaseProvider for PostgresProvider {
     async fn query_raw_with(
         &self,
         query: &dyn QuerySelector,
-        params: Vec<serde_json::Value>,
+        params: &[&dyn ToDbValue],
     ) -> DatabaseResult<QueryResult> {
         let sql = query.select_query();
         let start = std::time::Instant::now();
 
-        let mut query_obj = sqlx::query(sql);
-        for param in params {
-            query_obj = match param {
-                serde_json::Value::String(s) => query_obj.bind(s),
-                serde_json::Value::Number(n) => {
-                    if let Some(i) = n.as_i64() {
-                        query_obj.bind(i)
-                    } else if let Some(f) = n.as_f64() {
-                        query_obj.bind(f)
-                    } else {
-                        query_obj.bind(None::<i64>)
-                    }
-                },
-                serde_json::Value::Bool(b) => query_obj.bind(b),
-                serde_json::Value::Null => query_obj.bind(None::<String>),
-                serde_json::Value::Array(arr) => {
-                    let strings: Vec<String> = arr
-                        .into_iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect();
-                    query_obj.bind(strings)
-                },
-                serde_json::Value::Object(_) => {
-                    let json_str = serde_json::to_string(&param)?;
-                    query_obj.bind(Some(json_str))
-                },
-            };
-        }
-
+        let query_obj = bind_params(sqlx::query(sql), params);
         let rows = query_obj.fetch_all(&*self.pool).await?;
 
         Ok(rows_to_result(rows, start))

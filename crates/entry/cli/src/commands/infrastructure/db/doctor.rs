@@ -143,7 +143,7 @@ async fn fetch_live_tables(db: &dyn DatabaseProvider) -> Result<BTreeSet<String>
     let result = db
         .query_raw_with(
             &"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
-            vec![],
+            &[],
         )
         .await
         .context("Failed to list live tables")?;
@@ -162,7 +162,7 @@ async fn fetch_live_columns(
         .query_raw_with(
             &"SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = \
               'public'",
-            vec![],
+            &[],
         )
         .await
         .context("Failed to list live columns")?;

@@ -155,31 +155,27 @@ impl MigrationService<'_> {
         baseline_name: &str,
         checksum: &str,
     ) -> Result<(), LoaderError> {
-        let escaped_ext = ext_id.replace('\'', "''");
-        let escaped_name = baseline_name.replace('\'', "''");
         let baseline_id = format!("{ext_id}_000");
-        let escaped_id = baseline_id.replace('\'', "''");
 
-        let upsert = format!(
-            "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) VALUES \
-             ('{escaped_id}', '{escaped_ext}', 0, '{escaped_name}', '{checksum}') ON CONFLICT \
-             (extension_id, version) DO UPDATE SET name = EXCLUDED.name, checksum = \
-             EXCLUDED.checksum"
-        );
         self.db
-            .execute_raw(&upsert)
+            .execute(
+                &"INSERT INTO extension_migrations (id, extension_id, version, name, checksum) \
+                  VALUES ($1, $2, 0, $3, $4) ON CONFLICT (extension_id, version) DO UPDATE SET \
+                  name = EXCLUDED.name, checksum = EXCLUDED.checksum",
+                &[&baseline_id, &ext_id, &baseline_name, &checksum],
+            )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
                 extension: ext_id.to_string(),
                 message: format!("Failed to record baseline migration row: {e}"),
             })?;
 
-        let delete = format!(
-            "DELETE FROM extension_migrations WHERE extension_id = '{escaped_ext}' AND version \
-             BETWEEN 1 AND {through}"
-        );
         self.db
-            .execute_raw(&delete)
+            .execute(
+                &"DELETE FROM extension_migrations WHERE extension_id = $1 AND version BETWEEN 1 \
+                  AND $2",
+                &[&ext_id, &through],
+            )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
                 extension: ext_id.to_string(),

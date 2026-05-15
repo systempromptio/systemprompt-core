@@ -357,7 +357,7 @@ impl DatabaseProvider for RecordingProvider {
     async fn query_raw_with(
         &self,
         _query: &dyn QuerySelector,
-        _params: Vec<serde_json::Value>,
+        _params: &[&dyn ToDbValue],
     ) -> DatabaseResult<QueryResult> {
         Ok(QueryResult::default())
     }
