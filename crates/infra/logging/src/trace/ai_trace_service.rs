@@ -24,7 +24,7 @@ impl AiTraceService {
     pub async fn resolve_task_id(&self, partial_id: &str) -> Result<TaskId> {
         ai_trace_queries::resolve_task_id(&self.pool, partial_id)
             .await?
-            .map(TaskId::from)
+            .map(TaskId::new)
             .ok_or_else(|| LoggingError::TaskNotFound {
                 partial_id: partial_id.to_string(),
             })
