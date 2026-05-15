@@ -6,7 +6,7 @@
 //! [`TemplateLoader`], [`TemplateDataExtender`], [`ComponentRenderer`],
 //! [`PageDataProvider`], and [`PagePrerenderer`] — together with two ready-made
 //! loaders ([`EmbeddedLoader`] and, behind the `tokio` feature,
-//! [`FileSystemLoader`]).
+//! `FileSystemLoader`).
 //!
 //! Concrete provider implementations live in `systemprompt-templates`;
 //! consumers depend on this crate only when they need to **plug in** to that
@@ -16,7 +16,7 @@
 //!
 //! | Feature | Default | Adds |
 //! |---------|---------|------|
-//! | `tokio` | no | [`FileSystemLoader`], a `tokio::fs`-backed [`TemplateLoader`] with base-path sandboxing |
+//! | `tokio` | no | `FileSystemLoader`, a `tokio::fs`-backed [`TemplateLoader`] with base-path sandboxing |
 //!
 //! All public items are documented and `docs.rs` is built with
 //! `--all-features`.
