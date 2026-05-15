@@ -1,4 +1,7 @@
-//! `time_format` module — see crate-level docs for context.
+//! Human-readable timestamp and duration formatting.
+//!
+//! Display helpers for rendering [`DateTime<Utc>`] values, date ranges,
+//! period labels, and millisecond durations in dashboards and logs.
 
 use chrono::{DateTime, Utc};
 

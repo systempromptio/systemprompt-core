@@ -1,4 +1,9 @@
-//! `events` module — see crate-level docs for context.
+//! Event envelopes flowing across the system bus.
+//!
+//! Three event families with builders: [`A2AEvent`] (agent protocol),
+//! [`AnalyticsEvent`] (page views, sessions, engagement), and
+//! [`SystemEvent`] (lifecycle/health). Re-exports the AG-UI event types
+//! for callers that consume all event streams from one import.
 
 mod a2a_event;
 mod a2a_event_type;

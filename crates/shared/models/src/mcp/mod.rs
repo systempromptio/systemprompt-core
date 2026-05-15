@@ -1,4 +1,9 @@
-//! `mcp` module — see crate-level docs for context.
+//! MCP protocol metadata helpers.
+//!
+//! Non-wire MCP support types: server capabilities and UI/CSP config,
+//! deployment descriptors, the registry and tool/deployment provider
+//! traits (with `dyn`-compatible aliases), server lifecycle state, and
+//! tool-result metadata extensions.
 
 mod call_tool_result_ext;
 pub mod capabilities;

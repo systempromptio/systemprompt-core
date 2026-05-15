@@ -1,4 +1,9 @@
-//! `paths` module — see crate-level docs for context.
+//! Well-known directory layout helpers.
+//!
+//! [`AppPaths`] resolves the system, web, build, and storage path trees
+//! from a profile's [`crate::profile::PathsConfig`]. Submodules expose
+//! each tree plus shared directory/file-name constants.
+//! Resolution returns [`PathError`].
 
 mod build;
 pub mod constants;

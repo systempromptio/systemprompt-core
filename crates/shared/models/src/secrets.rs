@@ -1,4 +1,9 @@
-//! `secrets` module — see crate-level docs for context.
+//! Secrets document model.
+//!
+//! [`Secrets`] is the deserialized on-disk secrets file: JWT signing
+//! secret, database URLs, and provider credentials. [`JWT_SECRET_MIN_LENGTH`]
+//! is the enforced minimum for the signing secret.
+//! Validation returns [`crate::errors::SecretsError`].
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

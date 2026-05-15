@@ -1,4 +1,10 @@
-//! `admin` module — see crate-level docs for context.
+//! Admin-dashboard read models.
+//!
+//! Aggregate DTOs surfaced by the admin API: user metrics with trend
+//! deltas, content statistics, recent conversations, activity trends,
+//! and traffic breakdowns (browser, device, geography, bot share).
+//! These are projection types — they carry no behaviour and are never
+//! persisted directly.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
