@@ -16,11 +16,14 @@
 //! `AiProvider for AiService` in
 //! `crate::services::core::ai_service` (the `provider_impl` submodule).
 
+use std::time::Duration;
+
 use thiserror::Error;
 use uuid::Uuid;
 
 use systemprompt_identifiers::McpServerId;
 use systemprompt_provider_contracts::LlmProviderError;
+use systemprompt_resilience::Outcome;
 
 #[derive(Debug, Error)]
 pub enum AiError {
@@ -75,6 +78,23 @@ pub enum AiError {
     #[error("Rate limit exceeded for provider {provider}: {details}")]
     RateLimit { provider: String, details: String },
 
+    #[error("Provider {provider} returned HTTP {status}: {body}")]
+    HttpStatus {
+        provider: String,
+        status: u16,
+        retry_after: Option<Duration>,
+        body: String,
+    },
+
+    #[error("Provider {provider} request timed out after {after_ms}ms")]
+    Timeout { provider: String, after_ms: u64 },
+
+    #[error("Circuit breaker open for provider {provider}; failing fast")]
+    CircuitOpen { provider: String },
+
+    #[error("Provider {provider} unavailable: concurrency limit reached")]
+    DependencyUnavailable { provider: String },
+
     #[error("Invalid API credentials for provider {provider}")]
     AuthenticationFailed { provider: String },
 
@@ -125,6 +145,62 @@ pub enum RepositoryError {
 
     #[error("Database pool initialization failed: {0}")]
     PoolInitialization(String),
+}
+
+impl AiError {
+    /// Build an [`AiError::HttpStatus`] from a non-success provider response,
+    /// consuming the body and parsing any `Retry-After` header.
+    pub async fn from_error_response(provider: &str, response: reqwest::Response) -> Self {
+        let status = response.status().as_u16();
+        let retry_after = parse_retry_after(response.headers());
+        let body = response.text().await.unwrap_or_default();
+        Self::HttpStatus {
+            provider: provider.to_string(),
+            status,
+            retry_after,
+            body,
+        }
+    }
+
+    /// Classify this error for the resilience layer — which failures are worth
+    /// retrying (transient) and which cannot be helped by a retry (permanent).
+    #[must_use]
+    pub fn classify(&self) -> Outcome {
+        match self {
+            Self::HttpStatus {
+                status,
+                retry_after,
+                ..
+            } => {
+                if matches!(*status, 408 | 425 | 429 | 500 | 502 | 503 | 504) {
+                    Outcome::Transient {
+                        retry_after: *retry_after,
+                    }
+                } else {
+                    Outcome::Permanent
+                }
+            },
+            Self::RateLimit { .. } | Self::Timeout { .. } => {
+                Outcome::Transient { retry_after: None }
+            },
+            Self::Http(err) if err.is_timeout() || err.is_connect() => {
+                Outcome::Transient { retry_after: None }
+            },
+            _ => Outcome::Permanent,
+        }
+    }
+}
+
+/// Parse a `Retry-After` header expressed as an integer number of seconds.
+fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
+    headers
+        .get(reqwest::header::RETRY_AFTER)?
+        .to_str()
+        .ok()?
+        .trim()
+        .parse::<u64>()
+        .ok()
+        .map(Duration::from_secs)
 }
 
 pub type Result<T> = std::result::Result<T, AiError>;

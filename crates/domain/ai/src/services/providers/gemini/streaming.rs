@@ -40,10 +40,7 @@ pub async fn generate_stream(
     let response = provider.client.post(&url).json(&request).send().await?;
 
     if !response.status().is_success() {
-        let error_text = response.text().await?;
-        return Err(crate::error::AiError::Internal(format!(
-            "Gemini streaming API error: {error_text}"
-        )));
+        return Err(crate::error::AiError::from_error_response("gemini", response).await);
     }
 
     let byte_stream = response.bytes_stream();

@@ -9,12 +9,14 @@ pub mod anthropic;
 pub mod gemini;
 pub mod gemini_images;
 mod gemini_images_helpers;
+pub mod http_client;
 pub mod image_provider_factory;
 pub mod image_provider_trait;
 pub mod openai;
 pub mod openai_images;
 pub mod provider_factory;
 pub mod provider_trait;
+pub mod resilient_provider;
 pub mod shared;
 
 pub use anthropic::AnthropicProvider;
@@ -29,3 +31,4 @@ pub use provider_trait::{
     AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
+pub use resilient_provider::ResilientProvider;

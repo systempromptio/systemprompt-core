@@ -101,19 +101,20 @@ impl ConfigValidator {
     }
 
     fn validate_mcp(config: &AiConfig) -> Result<()> {
-        if config.mcp.connect_timeout_ms == 0 {
+        let resilience = &config.mcp.resilience;
+        if resilience.connect_timeout_ms == 0 {
             return Err(crate::error::AiError::Internal(
                 "MCP connect timeout must be greater than 0".to_string(),
             ));
         }
 
-        if config.mcp.execution_timeout_ms == 0 {
+        if resilience.request_timeout_ms == 0 {
             return Err(crate::error::AiError::Internal(
                 "MCP execution timeout must be greater than 0".to_string(),
             ));
         }
 
-        if config.mcp.retry_attempts == 0 {
+        if resilience.retry_attempts == 0 {
             warn!("MCP retry attempts set to 0, failures will not be retried");
         }
 

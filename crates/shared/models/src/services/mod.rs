@@ -23,7 +23,8 @@ pub use agent_config::{
 };
 pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
-    ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
+    ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig, ToolModelConfig,
+    ToolModelSettings,
 };
 pub use content::ContentConfig;
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};

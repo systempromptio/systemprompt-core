@@ -62,10 +62,7 @@ pub async fn generate(
         .await?;
 
     if !response.status().is_success() {
-        let error_text = response.text().await?;
-        return Err(crate::error::AiError::Internal(format!(
-            "OpenAI API error: {error_text}"
-        )));
+        return Err(crate::error::AiError::from_error_response("openai", response).await);
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
@@ -118,10 +115,7 @@ pub async fn generate_with_tools(
         .await?;
 
     if !response.status().is_success() {
-        let error_text = response.text().await?;
-        return Err(crate::error::AiError::Internal(format!(
-            "OpenAI API error: {error_text}"
-        )));
+        return Err(crate::error::AiError::from_error_response("openai", response).await);
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
@@ -211,10 +205,7 @@ pub async fn generate_structured(
         .await?;
 
     if !response.status().is_success() {
-        let error_text = response.text().await?;
-        return Err(crate::error::AiError::Internal(format!(
-            "OpenAI API error: {error_text}"
-        )));
+        return Err(crate::error::AiError::from_error_response("openai", response).await);
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
@@ -272,10 +263,7 @@ pub async fn generate_with_schema(
         .await?;
 
     if !response.status().is_success() {
-        let error_text = response.text().await?;
-        return Err(crate::error::AiError::Internal(format!(
-            "OpenAI API error: {error_text}"
-        )));
+        return Err(crate::error::AiError::from_error_response("openai", response).await);
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
