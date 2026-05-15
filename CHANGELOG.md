@@ -18,6 +18,11 @@ Database lifecycle hardening: transactional migrations, reversible migrations, a
 ### Changed
 
 - **The declarative schema linter is now parser-based.** `schema_linter` parses each schema with `pg_query` and classifies statements by AST node variant rather than a hand-rolled keyword scanner. It additionally resolves column references in `CREATE INDEX` and view definitions against sibling `CREATE TABLE` statements and rejects unknown columns at lint time (`LintError::UnknownColumn`). This adds a C-toolchain build dependency (`pg_query`/`libpg_query`). Schemas that previously passed the keyword scanner but reference a column not declared in the same extension's schema files will now fail `just lint-schema`.
+- **The schema linter permits `DROP` of a stateless derived object** — `VIEW`, `MATERIALIZED VIEW`, `INDEX`, or `TRIGGER` — when guarded by `IF EXISTS`. Such a drop loses no data and is rebuilt by the sibling `CREATE` statement. `DROP TABLE` and `DROP COLUMN` remain rejected in declarative schemas.
+
+### Fixed
+
+- **User-session analytics views install correctly on databases carrying the previous view shape.** PostgreSQL's `CREATE OR REPLACE VIEW` cannot rename or reorder output columns; the views are now dropped with `DROP VIEW IF EXISTS … CASCADE` before recreation, so a column rename no longer fails at install time.
 
 ## [0.10.1] - 2026-05-14
 
