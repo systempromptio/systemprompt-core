@@ -40,6 +40,9 @@ impl AuthzSource {
     }
 }
 
+/// `#[async_trait]`: this trait is consumed as `Arc<dyn AuthzAuditSink>` by
+/// every hook implementation, so it must be `dyn`-compatible — native
+/// `async fn` in traits is not yet object-safe.
 #[async_trait]
 pub trait AuthzAuditSink: Send + Sync + std::fmt::Debug {
     async fn record(&self, req: &AuthzRequest, decision: &AuthzDecision, source: AuthzSource);
