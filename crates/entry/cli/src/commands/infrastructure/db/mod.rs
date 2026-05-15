@@ -67,6 +67,26 @@ pub enum DbCommands {
         #[command(subcommand)]
         cmd: MigrationsCommands,
     },
+    #[command(
+        about = "Show pending migrations (dry-run / plan, no DB writes)",
+        name = "migrate-plan"
+    )]
+    MigratePlan {
+        #[arg(help = "Filter by extension ID (default: all extensions)")]
+        extension: Option<String>,
+        #[arg(long, help = "Emit JSON instead of a text table")]
+        json: bool,
+    },
+    #[command(
+        about = "Detailed introspectable migration status (applied, pending, drift)",
+        name = "migrate-status"
+    )]
+    MigrateStatus {
+        #[arg(help = "Filter by extension ID (default: all extensions)")]
+        extension: Option<String>,
+        #[arg(long, help = "Emit JSON instead of a text table")]
+        json: bool,
+    },
     #[command(about = "Assign admin role to a user")]
     AssignAdmin { user: String },
     #[command(about = "Show database connection status")]
@@ -163,6 +183,12 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
         DbCommands::Migrate { .. } | DbCommands::MigrateDown { .. } => unreachable!(),
         DbCommands::Migrations { cmd } => admin::execute_migrations(&db.ctx, cmd, config).await,
+        DbCommands::MigratePlan { extension, json } => {
+            admin::execute_migrate_plan(&db.ctx, extension.as_deref(), json, config).await
+        },
+        DbCommands::MigrateStatus { extension, json } => {
+            admin::execute_migrate_status(&db.ctx, extension.as_deref(), json, config).await
+        },
         DbCommands::AssignAdmin { user } => {
             admin::execute_assign_admin(&db.ctx, &user, config).await
         },
@@ -227,6 +253,13 @@ pub async fn execute_with_db(
         },
         DbCommands::Migrations { cmd } => {
             admin::execute_migrations_standalone(db_ctx, cmd, config).await
+        },
+        DbCommands::MigratePlan { extension, json } => {
+            admin::execute_migrate_plan_standalone(db_ctx, extension.as_deref(), json, config).await
+        },
+        DbCommands::MigrateStatus { extension, json } => {
+            admin::execute_migrate_status_standalone(db_ctx, extension.as_deref(), json, config)
+                .await
         },
         DbCommands::AssignAdmin { .. } => {
             bail!("assign-admin requires full profile context")

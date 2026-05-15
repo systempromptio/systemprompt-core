@@ -1,14 +1,15 @@
-//! Unit tests for AppliedMigration, MigrationResult, MigrationStatus
-//! structs and the `MigrationService` runner (transactional wrapping,
+//! Unit tests for AppliedMigration, MigrationResult, MigrationStatus,
+//! PendingMigration, ChecksumDrift, and ExtensionMigrationStatus structs,
+//! plus the `MigrationService` runner (transactional wrapping,
 //! `no_transaction` opt-out, and `run_down_migrations` reversibility).
 
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use systemprompt_database::{
-    AppliedMigration, DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue,
-    JsonRow, MigrationResult, MigrationService, MigrationStatus, QueryResult, QuerySelector,
-    ToDbValue,
+    AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
+    DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MigrationResult,
+    MigrationService, MigrationStatus, PendingMigration, QueryResult, QuerySelector, ToDbValue,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
@@ -21,6 +22,7 @@ fn test_applied_migration_creation() {
         version: 1,
         name: "create_users_table".to_string(),
         checksum: "abc123".to_string(),
+        applied_at: None,
     };
 
     assert_eq!(migration.extension_id, "users");
@@ -36,6 +38,7 @@ fn test_applied_migration_debug() {
         version: 2,
         name: "add_column".to_string(),
         checksum: "def456".to_string(),
+        applied_at: Some("2026-01-01T00:00:00Z".to_string()),
     };
 
     let debug = format!("{:?}", migration);
@@ -51,6 +54,7 @@ fn test_applied_migration_clone() {
         version: 5,
         name: "migration_name".to_string(),
         checksum: "checksum123".to_string(),
+        applied_at: None,
     };
 
     let cloned = migration.clone();
@@ -67,6 +71,7 @@ fn test_applied_migration_with_high_version() {
         version: u32::MAX,
         name: "max_version".to_string(),
         checksum: "hash".to_string(),
+        applied_at: None,
     };
 
     assert_eq!(migration.version, u32::MAX);
@@ -79,6 +84,7 @@ fn test_applied_migration_with_empty_strings() {
         version: 0,
         name: String::new(),
         checksum: String::new(),
+        applied_at: None,
     };
 
     assert!(migration.extension_id.is_empty());
@@ -193,12 +199,14 @@ fn test_migration_status_with_applied_migrations() {
             version: 1,
             name: "v1".to_string(),
             checksum: "hash1".to_string(),
+            applied_at: None,
         },
         AppliedMigration {
             extension_id: "test".to_string(),
             version: 2,
             name: "v2".to_string(),
             checksum: "hash2".to_string(),
+            applied_at: None,
         },
     ];
 
@@ -596,4 +604,80 @@ fn test_migration_status_all_pending() {
 
     assert_eq!(status.total_applied, 0);
     assert_eq!(status.pending_count, status.total_defined);
+}
+
+#[test]
+fn test_pending_migration_fields() {
+    let p = PendingMigration {
+        extension_id: "ext".to_string(),
+        version: 7,
+        name: "add_index".to_string(),
+        sql: "CREATE INDEX idx ON t(c)",
+        checksum: "abc".to_string(),
+        no_tx: false,
+    };
+
+    assert_eq!(p.extension_id, "ext");
+    assert_eq!(p.version, 7);
+    assert_eq!(p.name, "add_index");
+    assert_eq!(p.sql, "CREATE INDEX idx ON t(c)");
+    assert_eq!(p.checksum, "abc");
+    assert!(!p.no_tx);
+}
+
+#[test]
+fn test_checksum_drift_fields() {
+    let d = ChecksumDrift {
+        extension_id: "ext".to_string(),
+        version: 3,
+        name: "modify".to_string(),
+        stored_checksum: "stored".to_string(),
+        current_checksum: "current".to_string(),
+    };
+
+    assert_eq!(d.version, 3);
+    assert_ne!(d.stored_checksum, d.current_checksum);
+}
+
+#[test]
+fn test_extension_migration_status_default_empty() {
+    let s = ExtensionMigrationStatus::default();
+    assert!(s.extension_id.is_empty());
+    assert!(s.applied.is_empty());
+    assert!(s.pending.is_empty());
+    assert!(s.drift.is_empty());
+}
+
+#[test]
+fn test_extension_migration_status_with_drift_and_pending() {
+    let s = ExtensionMigrationStatus {
+        extension_id: "users".to_string(),
+        applied: vec![AppliedMigration {
+            extension_id: "users".to_string(),
+            version: 1,
+            name: "v1".to_string(),
+            checksum: "old".to_string(),
+            applied_at: Some("2026-05-15T10:00:00+00:00".to_string()),
+        }],
+        pending: vec![PendingMigration {
+            extension_id: "users".to_string(),
+            version: 2,
+            name: "v2".to_string(),
+            sql: "ALTER TABLE x ADD c INT",
+            checksum: "newcs".to_string(),
+            no_tx: false,
+        }],
+        drift: vec![ChecksumDrift {
+            extension_id: "users".to_string(),
+            version: 1,
+            name: "v1".to_string(),
+            stored_checksum: "old".to_string(),
+            current_checksum: "edited".to_string(),
+        }],
+    };
+
+    assert_eq!(s.applied.len(), 1);
+    assert_eq!(s.pending.len(), 1);
+    assert_eq!(s.drift.len(), 1);
+    assert_eq!(s.drift[0].version, s.applied[0].version);
 }

@@ -171,3 +171,45 @@ pub struct AppliedMigrationInfo {
     pub checksum: String,
     pub applied_at: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingMigrationInfo {
+    pub extension_id: String,
+    pub version: u32,
+    pub name: String,
+    pub checksum: String,
+    pub no_tx: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigratePlanOutput {
+    pub pending: Vec<PendingMigrationInfo>,
+    pub total_pending: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrationDriftInfo {
+    pub extension_id: String,
+    pub version: u32,
+    pub name: String,
+    pub stored_checksum: String,
+    pub current_checksum: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrateStatusRow {
+    pub extension_id: String,
+    pub version: u32,
+    pub name: String,
+    pub status: String,
+    pub applied_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrateStatusOutput {
+    pub rows: Vec<MigrateStatusRow>,
+    pub drift: Vec<MigrationDriftInfo>,
+    pub total_applied: usize,
+    pub total_pending: usize,
+    pub total_drift: usize,
+}
