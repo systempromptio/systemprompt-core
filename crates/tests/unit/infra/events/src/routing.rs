@@ -2,7 +2,7 @@ use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
     EventRouter,
 };
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,
@@ -78,7 +78,7 @@ async fn test_route_agui_with_registered_connection() {
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     AGUI_BROADCASTER
-        .register(&user_id, "agui-conn", sender)
+        .register(&user_id, &ConnectionId::new("agui-conn"), sender)
         .await;
 
     let event = test_agui_event();
@@ -90,7 +90,7 @@ async fn test_route_agui_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    AGUI_BROADCASTER.unregister(&user_id, "agui-conn").await;
+    AGUI_BROADCASTER.unregister(&user_id, &ConnectionId::new("agui-conn")).await;
 }
 
 #[tokio::test]
@@ -109,7 +109,7 @@ async fn test_route_a2a_with_registered_connection() {
     let user_id = UserId::new("a2a-test-user");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    A2A_BROADCASTER.register(&user_id, "a2a-conn", sender).await;
+    A2A_BROADCASTER.register(&user_id, &ConnectionId::new("a2a-conn"), sender).await;
 
     let event = test_a2a_event();
     let (a2a_count, _context_count) = EventRouter::route_a2a(&user_id, event).await;
@@ -120,7 +120,7 @@ async fn test_route_a2a_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    A2A_BROADCASTER.unregister(&user_id, "a2a-conn").await;
+    A2A_BROADCASTER.unregister(&user_id, &ConnectionId::new("a2a-conn")).await;
 }
 
 #[tokio::test]
@@ -139,7 +139,7 @@ async fn test_route_system_with_registered_connection() {
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
-        .register(&user_id, "context-conn", sender)
+        .register(&user_id, &ConnectionId::new("context-conn"), sender)
         .await;
 
     let event = test_system_event();
@@ -152,7 +152,7 @@ async fn test_route_system_with_registered_connection() {
         .expect("receiver.recv().await should be present");
 
     CONTEXT_BROADCASTER
-        .unregister(&user_id, "context-conn")
+        .unregister(&user_id, &ConnectionId::new("context-conn"))
         .await;
 }
 
@@ -163,7 +163,7 @@ async fn test_route_agui_broadcasts_to_context() {
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
-        .register(&user_id, "context-only-conn", context_sender)
+        .register(&user_id, &ConnectionId::new("context-only-conn"), context_sender)
         .await;
 
     let event = test_agui_event();
@@ -176,7 +176,7 @@ async fn test_route_agui_broadcasts_to_context() {
         .expect("context_receiver.recv().await should be present");
 
     CONTEXT_BROADCASTER
-        .unregister(&user_id, "context-only-conn")
+        .unregister(&user_id, &ConnectionId::new("context-only-conn"))
         .await;
 }
 
@@ -187,7 +187,7 @@ async fn test_route_a2a_broadcasts_to_context() {
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
-        .register(&user_id, "a2a-context-conn", context_sender)
+        .register(&user_id, &ConnectionId::new("a2a-context-conn"), context_sender)
         .await;
 
     let event = test_a2a_event();
@@ -200,7 +200,7 @@ async fn test_route_a2a_broadcasts_to_context() {
         .expect("context_receiver.recv().await should be present");
 
     CONTEXT_BROADCASTER
-        .unregister(&user_id, "a2a-context-conn")
+        .unregister(&user_id, &ConnectionId::new("a2a-context-conn"))
         .await;
 }
 
@@ -260,7 +260,7 @@ async fn test_route_analytics_with_registered_connection() {
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
-        .register(&user_id, "analytics-conn", sender)
+        .register(&user_id, &ConnectionId::new("analytics-conn"), sender)
         .await;
 
     let event = test_analytics_event();
@@ -273,7 +273,7 @@ async fn test_route_analytics_with_registered_connection() {
         .expect("receiver.recv().await should be present");
 
     ANALYTICS_BROADCASTER
-        .unregister(&user_id, "analytics-conn")
+        .unregister(&user_id, &ConnectionId::new("analytics-conn"))
         .await;
 }
 
@@ -284,10 +284,10 @@ async fn test_route_analytics_multiple_connections() {
     let (sender2, mut rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
-        .register(&user_id, "analytics-conn-1", sender1)
+        .register(&user_id, &ConnectionId::new("analytics-conn-1"), sender1)
         .await;
     ANALYTICS_BROADCASTER
-        .register(&user_id, "analytics-conn-2", sender2)
+        .register(&user_id, &ConnectionId::new("analytics-conn-2"), sender2)
         .await;
 
     let event = test_analytics_event();
@@ -304,10 +304,10 @@ async fn test_route_analytics_multiple_connections() {
         .expect("rx2.recv().await should be present");
 
     ANALYTICS_BROADCASTER
-        .unregister(&user_id, "analytics-conn-1")
+        .unregister(&user_id, &ConnectionId::new("analytics-conn-1"))
         .await;
     ANALYTICS_BROADCASTER
-        .unregister(&user_id, "analytics-conn-2")
+        .unregister(&user_id, &ConnectionId::new("analytics-conn-2"))
         .await;
 }
 
@@ -319,13 +319,13 @@ async fn test_analytics_broadcaster_connection_count() {
     assert_eq!(ANALYTICS_BROADCASTER.connection_count(&user_id).await, 0);
 
     ANALYTICS_BROADCASTER
-        .register(&user_id, "count-conn", sender)
+        .register(&user_id, &ConnectionId::new("count-conn"), sender)
         .await;
 
     assert_eq!(ANALYTICS_BROADCASTER.connection_count(&user_id).await, 1);
 
     ANALYTICS_BROADCASTER
-        .unregister(&user_id, "count-conn")
+        .unregister(&user_id, &ConnectionId::new("count-conn"))
         .await;
 }
 
@@ -342,7 +342,7 @@ async fn test_route_analytics_heartbeat_event() {
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
-        .register(&user_id, "heartbeat-conn", sender)
+        .register(&user_id, &ConnectionId::new("heartbeat-conn"), sender)
         .await;
 
     let heartbeat = AnalyticsEventBuilder::heartbeat();
@@ -354,7 +354,7 @@ async fn test_route_analytics_heartbeat_event() {
         .expect("receiver.recv().await should be present");
 
     ANALYTICS_BROADCASTER
-        .unregister(&user_id, "heartbeat-conn")
+        .unregister(&user_id, &ConnectionId::new("heartbeat-conn"))
         .await;
 }
 
@@ -364,7 +364,7 @@ async fn test_route_analytics_session_ended_event() {
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
-        .register(&user_id, "session-end-conn", sender)
+        .register(&user_id, &ConnectionId::new("session-end-conn"), sender)
         .await;
 
     let session_end =
@@ -377,6 +377,6 @@ async fn test_route_analytics_session_ended_event() {
         .expect("receiver.recv().await should be present");
 
     ANALYTICS_BROADCASTER
-        .unregister(&user_id, "session-end-conn")
+        .unregister(&user_id, &ConnectionId::new("session-end-conn"))
         .await;
 }

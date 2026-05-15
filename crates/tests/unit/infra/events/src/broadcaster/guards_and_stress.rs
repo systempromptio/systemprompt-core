@@ -47,7 +47,7 @@ async fn test_connection_guard_drop_unregisters() {
     let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     DROP_TEST_BROADCASTER
-        .register(&user_id, conn_id.as_str(), sender)
+        .register(&user_id, &conn_id, sender)
         .await;
 
     assert_eq!(DROP_TEST_BROADCASTER.connection_count(&user_id).await, 1);
@@ -71,10 +71,10 @@ async fn test_connection_guard_multiple_guards_same_user() {
     let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     MULTI_GUARD_BROADCASTER
-        .register(&user_id, "conn-1", sender1)
+        .register(&user_id, &ConnectionId::new("conn-1"), sender1)
         .await;
     MULTI_GUARD_BROADCASTER
-        .register(&user_id, "conn-2", sender2)
+        .register(&user_id, &ConnectionId::new("conn-2"), sender2)
         .await;
 
     assert_eq!(MULTI_GUARD_BROADCASTER.connection_count(&user_id).await, 2);
@@ -112,9 +112,9 @@ async fn test_broadcaster_broadcast_all_failed_senders() {
     let (sender2, rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender3, rx3) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    broadcaster.register(&user_id, "conn-1", sender1).await;
-    broadcaster.register(&user_id, "conn-2", sender2).await;
-    broadcaster.register(&user_id, "conn-3", sender3).await;
+    broadcaster.register(&user_id, &ConnectionId::new("conn-1"), sender1).await;
+    broadcaster.register(&user_id, &ConnectionId::new("conn-2"), sender2).await;
+    broadcaster.register(&user_id, &ConnectionId::new("conn-3"), sender3).await;
 
     drop(rx1);
     drop(rx2);
@@ -136,7 +136,7 @@ async fn test_broadcaster_many_connections_stress() {
     for i in 0..10 {
         let (sender, receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster
-            .register(&user_id, &format!("conn-{}", i), sender)
+            .register(&user_id, &ConnectionId::new(format!("conn-{i}")), sender)
             .await;
         receivers.push(receiver);
     }
@@ -164,7 +164,7 @@ async fn test_broadcaster_many_users() {
         let user_id = UserId::new(&format!("user-{}", i));
         let (sender, receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster
-            .register(&user_id, &format!("conn-{}", i), sender)
+            .register(&user_id, &ConnectionId::new(format!("conn-{i}")), sender)
             .await;
         receivers.push((user_id, receiver));
     }
