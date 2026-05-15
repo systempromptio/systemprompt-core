@@ -1,3 +1,9 @@
+//! Extension registration for the files domain.
+//!
+//! Registers the `files`, `content_files`, and `ai_image_analytics` schemas
+//! with the platform extension framework and declares dependencies on the
+//! `users` and `content` extensions.
+
 use systemprompt_extension::prelude::*;
 
 #[derive(Debug, Clone, Copy, Default)]
