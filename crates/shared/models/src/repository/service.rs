@@ -1,3 +1,9 @@
+//! Managed-service record and lifecycle trait.
+//!
+//! [`ServiceLifecycle`] is invoked through trait objects, so it uses
+//! `#[async_trait]` — native `async fn` in traits is not yet
+//! `dyn`-compatible.
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use systemprompt_traits::RepositoryError;

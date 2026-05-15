@@ -1,4 +1,8 @@
-//! `repository` module — see crate-level docs for context.
+//! Repository lifecycle traits and query value objects.
+//!
+//! [`ServiceLifecycle`] and [`ServiceRecord`] model managed-service
+//! state, [`WhereClause`] composes filter predicates, and
+//! [`process_utils`] filters records by running-process status.
 
 pub mod process_utils;
 pub mod query_builder;
