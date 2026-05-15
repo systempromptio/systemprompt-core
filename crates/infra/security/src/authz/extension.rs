@@ -61,6 +61,10 @@ impl Extension for AuthzExtension {
             include_str!("schema/migrations/001_access_control_rules_evolution.sql"),
         )]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["access_control_rules"]
+    }
 }
 
 register_extension!(AuthzExtension);

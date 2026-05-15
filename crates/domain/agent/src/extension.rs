@@ -142,6 +142,14 @@ impl Extension for AgentExtension {
             ),
         ]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["agent_tasks", "services"]
+    }
+
+    fn cross_extension_tables(&self) -> Vec<&'static str> {
+        vec!["ai_requests"]
+    }
 }
 
 register_extension!(AgentExtension);

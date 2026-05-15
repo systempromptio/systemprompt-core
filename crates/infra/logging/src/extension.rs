@@ -61,6 +61,10 @@ impl Extension for LoggingExtension {
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["database", "users"]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["analytics_events", "logs"]
+    }
 }
 
 register_extension!(LoggingExtension);
