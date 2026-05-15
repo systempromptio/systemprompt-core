@@ -24,7 +24,7 @@ impl Extension for AuthzExtension {
         vec![
             SchemaDefinition::new(
                 "access_control_rules",
-                include_str!("schema/access_control_rules.sql"),
+                include_str!("../../schema/access_control_rules.sql"),
             )
             .with_required_columns(vec![
                 "id".into(),
@@ -36,7 +36,7 @@ impl Extension for AuthzExtension {
             ]),
             SchemaDefinition::new(
                 "governance_decisions",
-                include_str!("schema/governance_decisions.sql"),
+                include_str!("../../schema/governance_decisions.sql"),
             )
             .with_required_columns(vec![
                 "id".into(),

@@ -25,8 +25,6 @@ fn baseline_checksum(sql: &str) -> String {
     format!("{:x}", hasher.finish())
 }
 
-/// Select the contiguous migration range `1..=through` to squash, rejecting an
-/// out-of-range, empty, or non-contiguous selection.
 fn collect_squash_range<'m>(
     ext_id: &str,
     migrations: &'m [Migration],
@@ -130,9 +128,6 @@ impl MigrationService<'_> {
         })
     }
 
-    /// Fail unless every migration in `1..=through` is already recorded as
-    /// applied — squashing an unapplied migration would retire it behind the
-    /// baseline without ever running it.
     async fn verify_range_applied(&self, ext_id: &str, through: u32) -> Result<(), LoaderError> {
         self.ensure_migrations_table_exists().await?;
         let applied = self.get_applied_migrations(ext_id).await?;
