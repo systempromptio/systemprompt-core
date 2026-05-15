@@ -36,9 +36,9 @@ pub mod error;
 pub mod services;
 pub mod sse;
 
-use async_trait::async_trait;
 use axum::response::sse::Event;
-use systemprompt_identifiers::UserId;
+use std::future::Future;
+use systemprompt_identifiers::{ConnectionId, UserId};
 use tokio::sync::mpsc::Sender;
 
 pub type EventSender = Sender<Result<Event, std::convert::Infallible>>;
@@ -48,19 +48,34 @@ pub const SSE_BUFFER: usize = 1024;
 pub use error::{EventError, EventResult};
 pub use sse::ToSse;
 
-#[async_trait]
 pub trait Broadcaster: Send + Sync {
     type Event: Clone + Send;
 
-    async fn register(&self, user_id: &UserId, connection_id: &str, sender: EventSender);
+    fn register(
+        &self,
+        user_id: &UserId,
+        connection_id: &ConnectionId,
+        sender: EventSender,
+    ) -> impl Future<Output = ()> + Send;
 
-    async fn unregister(&self, user_id: &UserId, connection_id: &str);
+    fn unregister(
+        &self,
+        user_id: &UserId,
+        connection_id: &ConnectionId,
+    ) -> impl Future<Output = ()> + Send;
 
-    async fn broadcast(&self, user_id: &UserId, event: Self::Event) -> usize;
+    fn broadcast(
+        &self,
+        user_id: &UserId,
+        event: Self::Event,
+    ) -> impl Future<Output = usize> + Send;
 
-    async fn connection_count(&self, user_id: &UserId) -> usize;
+    fn connection_count(
+        &self,
+        user_id: &UserId,
+    ) -> impl Future<Output = usize> + Send;
 
-    async fn total_connections(&self) -> usize;
+    fn total_connections(&self) -> impl Future<Output = usize> + Send;
 }
 
 pub use services::{
