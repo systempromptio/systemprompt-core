@@ -44,6 +44,30 @@ pub enum LoaderError {
         dependency: String,
         dependency_weight: u32,
     },
+
+    #[error(
+        "Extension '{extension}' migration ALTERs table '{table}' but does not declare it in \
+         owned_tables() or cross_extension_tables(); cross-extension table mutations must be \
+         declared explicitly"
+    )]
+    CrossExtensionAlterUndeclared { extension: String, table: String },
+
+    #[error(
+        "Extension '{extension}' seed '{seed}' contains forbidden statement '{statement}'; seeds \
+         may only contain INSERT … ON CONFLICT, UPDATE, MERGE, or WITH … INSERT"
+    )]
+    InvalidSeedStatement {
+        extension: String,
+        seed: String,
+        statement: String,
+    },
+
+    #[error("Extension '{extension}' seed '{seed}' failed to parse or apply: {message}")]
+    SeedFailed {
+        extension: String,
+        seed: String,
+        message: String,
+    },
 }
 
 #[derive(Debug, Error)]

@@ -91,6 +91,10 @@ impl Extension for LogsExtension {
     fn migrations(&self) -> Vec<Migration> {
         vec![Migration::new(1, "add_gateway_conversation_id", self.migration_sql)]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec![self.table]
+    }
 }
 
 struct ViewExtension {
@@ -118,6 +122,10 @@ impl Extension for ViewExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         vec![Migration::new(1, "add_payload_column", self.migration_sql)]
+    }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec![self.table]
     }
 }
 

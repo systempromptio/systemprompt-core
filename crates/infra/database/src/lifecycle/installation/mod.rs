@@ -2,6 +2,7 @@
 //! [`systemprompt_extension::Extension`] instances.
 
 mod extension;
+mod seeds;
 
 pub use extension::{
     install_extension_schemas, install_extension_schemas_full,

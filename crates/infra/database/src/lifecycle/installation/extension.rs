@@ -27,6 +27,7 @@
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info};
 
+use super::seeds::apply_seeds;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::schema_linter::lint_declarative_schema;
 use crate::services::{DatabaseProvider, SqlExecutor};
@@ -107,6 +108,8 @@ async fn run_install(
                 .run_pending_migrations(ext.as_ref())
                 .await?;
         }
+
+        apply_seeds(ext.as_ref(), db).await?;
     }
     Ok(())
 }

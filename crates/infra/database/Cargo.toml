@@ -43,8 +43,8 @@ rust_decimal = { workspace = true }
 # Extension registration
 inventory = { workspace = true }
 
-# SQL parsing for declarative schema linter
-pg_query = "5.1"
+# SQL parsing: schema linter, cross-extension ALTER detection, seed classification
+pg_query = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

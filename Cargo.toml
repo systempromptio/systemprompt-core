@@ -190,6 +190,7 @@ ctrlc = "3.5"
 
 # Utilities
 inventory = "0.3"
+pg_query = "6.1"
 tempfile = "3.0"
 walkdir = "2.0"
 flate2 = "1.1"

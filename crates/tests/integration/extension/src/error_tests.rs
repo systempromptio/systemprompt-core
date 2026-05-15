@@ -250,6 +250,28 @@ fn test_loader_error_variant_matching() {
                 assert!(!extension.is_empty());
                 assert!(!dependency.is_empty());
             },
+            LoaderError::CrossExtensionAlterUndeclared { extension, table } => {
+                assert!(!extension.is_empty());
+                assert!(!table.is_empty());
+            },
+            LoaderError::InvalidSeedStatement {
+                extension,
+                seed,
+                statement,
+            } => {
+                assert!(!extension.is_empty());
+                assert!(!seed.is_empty());
+                assert!(!statement.is_empty());
+            },
+            LoaderError::SeedFailed {
+                extension,
+                seed,
+                message,
+            } => {
+                assert!(!extension.is_empty());
+                assert!(!seed.is_empty());
+                assert!(!message.is_empty());
+            },
         }
     }
 }

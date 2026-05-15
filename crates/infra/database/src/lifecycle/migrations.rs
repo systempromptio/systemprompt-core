@@ -6,6 +6,26 @@ use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 use tracing::{debug, info, warn};
 
+/// Inspect a migration's SQL with `pg_query` and return every table name that
+/// appears as the target of an `ALTER TABLE` statement. Returns parser errors
+/// as `Err` so callers can attribute them to the originating extension /
+/// migration.
+fn alter_table_targets(sql: &str) -> Result<Vec<String>, String> {
+    let parsed = pg_query::parse(sql).map_err(|e| e.to_string())?;
+    let mut out: Vec<String> = Vec::new();
+    for stmt in parsed.protobuf.stmts {
+        let Some(node) = stmt.stmt.and_then(|s| s.node) else {
+            continue;
+        };
+        if let pg_query::NodeEnum::AlterTableStmt(alter) = node {
+            if let Some(rv) = alter.relation {
+                out.push(rv.relname);
+            }
+        }
+    }
+    Ok(out)
+}
+
 #[derive(Debug, Clone)]
 pub struct AppliedMigration {
     pub extension_id: String,
@@ -156,7 +176,7 @@ impl<'a> MigrationService<'a> {
                 continue;
             }
 
-            self.execute_migration(ext_id, migration).await?;
+            self.execute_migration(extension, migration).await?;
             migrations_run += 1;
         }
 
@@ -177,9 +197,38 @@ impl<'a> MigrationService<'a> {
 
     async fn execute_migration(
         &self,
-        ext_id: &str,
+        extension: &dyn Extension,
         migration: &Migration,
     ) -> Result<(), LoaderError> {
+        let ext_id = extension.metadata().id;
+
+        let altered =
+            alter_table_targets(migration.sql).map_err(|e| LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!(
+                    "Failed to parse migration {} ({}) for cross-extension ALTER check: {e}",
+                    migration.version, migration.name
+                ),
+            })?;
+
+        if !altered.is_empty() {
+            let mut allowed: HashSet<&str> = HashSet::new();
+            for t in extension.owned_tables() {
+                allowed.insert(t);
+            }
+            for t in extension.cross_extension_tables() {
+                allowed.insert(t);
+            }
+            for table in &altered {
+                if !allowed.contains(table.as_str()) {
+                    return Err(LoaderError::CrossExtensionAlterUndeclared {
+                        extension: ext_id.to_string(),
+                        table: table.clone(),
+                    });
+                }
+            }
+        }
+
         info!(
             extension = %ext_id,
             version = migration.version,
