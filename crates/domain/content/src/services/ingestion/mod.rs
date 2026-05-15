@@ -1,19 +1,18 @@
+//! Markdown ingestion: scans content directories, parses frontmatter, and
+//! reconciles each file against the content repository.
+
+mod builder;
+mod processors;
 mod scanner;
 
 use crate::error::ContentError;
 use crate::models::{
-    Content, ContentLinkMetadata, ContentMetadata, CreateContentParams, IngestionOptions,
-    IngestionReport, IngestionSource, UpdateContentParams,
+    CreateContentParams, IngestionOptions, IngestionReport, IngestionSource, UpdateContentParams,
 };
 use crate::repository::ContentRepository;
-use scanner::ParsedFrontmatter;
-use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
-use systemprompt_provider_contracts::FrontmatterContext;
 
 #[derive(Debug)]
 enum IngestFileResult {
@@ -99,7 +98,7 @@ impl IngestionService {
             .clone()
             .unwrap_or_else(|| source.category_id.to_string());
 
-        let new_content = Self::create_content_from_metadata(
+        let new_content = builder::create_content_from_metadata(
             &parsed.metadata,
             &parsed.body,
             source.source_id.clone(),
@@ -116,7 +115,7 @@ impl IngestionService {
             .await?;
 
         let slug = new_content.slug.clone();
-        let new_hash = Self::compute_version_hash(&new_content);
+        let new_hash = builder::compute_version_hash(&new_content);
 
         match existing_content {
             None => {
@@ -143,7 +142,8 @@ impl IngestionService {
 
                 let created_content = self.content_repo.create(&params).await?;
 
-                self.call_frontmatter_processors(
+                processors::call_frontmatter_processors(
+                    &self.db_pool,
                     created_content.id.as_str(),
                     &slug,
                     source.source_name,
@@ -183,7 +183,8 @@ impl IngestionService {
                 .with_public(parsed.metadata.public);
                 self.content_repo.update(&update_params).await?;
 
-                self.call_frontmatter_processors(
+                processors::call_frontmatter_processors(
+                    &self.db_pool,
                     existing.id.as_str(),
                     &slug,
                     source.source_name,
@@ -194,112 +195,5 @@ impl IngestionService {
                 Ok(IngestFileResult::Updated)
             },
         }
-    }
-
-    async fn call_frontmatter_processors(
-        &self,
-        content_id_str: &str,
-        slug: &str,
-        source_name: &str,
-        parsed: &ParsedFrontmatter,
-    ) {
-        let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-            tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-            ExtensionRegistry::new()
-        });
-
-        for ext in registry.extensions() {
-            for processor in ext.frontmatter_processors() {
-                let applies = processor.applies_to_sources();
-                if !applies.is_empty() && !applies.contains(&source_name.to_string()) {
-                    continue;
-                }
-
-                let ctx = FrontmatterContext::new(
-                    content_id_str,
-                    slug,
-                    source_name,
-                    &parsed.raw_yaml,
-                    &self.db_pool,
-                );
-
-                if let Err(e) = processor.process_frontmatter(&ctx).await {
-                    tracing::warn!(
-                        processor = %processor.processor_id(),
-                        content_id = %content_id_str,
-                        error = %e,
-                        "Frontmatter processor failed"
-                    );
-                }
-            }
-        }
-    }
-
-    fn create_content_from_metadata(
-        metadata: &ContentMetadata,
-        content_text: &str,
-        source_id: SourceId,
-        category_id: String,
-    ) -> Result<Content, ContentError> {
-        let id = ContentId::new(uuid::Uuid::new_v4().to_string());
-        let slug = metadata.slug.clone();
-
-        let published_at = chrono::NaiveDate::parse_from_str(&metadata.published_at, "%Y-%m-%d")
-            .map_err(|e| {
-                ContentError::Parse(format!(
-                    "Invalid published_at date '{}': {}",
-                    metadata.published_at, e
-                ))
-            })?
-            .and_hms_opt(0, 0, 0)
-            .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_string()))?
-            .and_local_timezone(chrono::Utc)
-            .single()
-            .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_string()))?;
-
-        let links_vec: Vec<ContentLinkMetadata> = metadata
-            .links
-            .iter()
-            .map(|link| ContentLinkMetadata {
-                title: link.title.clone(),
-                url: link.url.clone(),
-            })
-            .collect();
-
-        let links = serde_json::to_value(&links_vec)?;
-
-        Ok(Content {
-            id,
-            slug,
-            locale: metadata
-                .locale
-                .clone()
-                .unwrap_or_else(|| LocaleCode::new("en")),
-            title: metadata.title.clone(),
-            description: metadata.description.clone(),
-            body: content_text.to_string(),
-            author: metadata.author.clone(),
-            published_at,
-            keywords: metadata.keywords.clone(),
-            kind: metadata.kind.clone(),
-            image: metadata.image.clone(),
-            category_id: Some(CategoryId::new(category_id)),
-            source_id,
-            version_hash: String::new(),
-            public: metadata.public.unwrap_or(true),
-            links,
-            updated_at: chrono::Utc::now(),
-        })
-    }
-
-    fn compute_version_hash(content: &Content) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(content.title.as_bytes());
-        hasher.update(content.body.as_bytes());
-        hasher.update(content.description.as_bytes());
-        hasher.update(content.author.as_bytes());
-        hasher.update(content.published_at.to_string().as_bytes());
-        hasher.update(content.public.to_string().as_bytes());
-        hex::encode(hasher.finalize())
     }
 }
