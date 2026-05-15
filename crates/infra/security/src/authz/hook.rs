@@ -23,6 +23,9 @@ use super::audit::{AuthzAuditSink, AuthzSource, NullAuditSink};
 use super::error::AuthzResult;
 use super::types::{AuthzDecision, AuthzRequest};
 
+/// `#[async_trait]`: this trait is consumed as `Arc<dyn AuthzDecisionHook>`
+/// (see `authz::runtime`), so it must be `dyn`-compatible — native
+/// `async fn` in traits is not yet object-safe.
 #[async_trait]
 pub trait AuthzDecisionHook: Send + Sync + std::fmt::Debug {
     async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision;
