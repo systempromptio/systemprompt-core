@@ -6,6 +6,7 @@
 //! `SELECT 1` for connection probing. Static SQL goes through the verified
 //! macros elsewhere.
 
+pub mod connection;
 pub mod conversion;
 mod ext;
 mod introspection;
@@ -52,14 +53,9 @@ impl PostgresProvider {
             connect_options = connect_options.ssl_root_cert(&ca_cert_path);
         }
 
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .max_connections(50)
-            .min_connections(0)
-            .max_lifetime(std::time::Duration::from_secs(1800))
-            .acquire_timeout(std::time::Duration::from_secs(30))
-            .idle_timeout(std::time::Duration::from_secs(300))
-            .connect_with(connect_options)
-            .await?;
+        let pool =
+            connection::connect_with_retry(connection::build_pool_options(), connect_options)
+                .await?;
 
         Ok(Self {
             pool: Arc::new(pool),
