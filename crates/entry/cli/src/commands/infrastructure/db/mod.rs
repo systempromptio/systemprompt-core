@@ -1,6 +1,7 @@
 mod admin;
 mod admin_migrate;
 mod admin_migrations;
+mod admin_squash;
 mod doctor;
 mod helpers;
 mod introspect;
@@ -61,6 +62,25 @@ pub enum DbCommands {
         extension: String,
         #[arg(help = "Number of migrations to revert")]
         count: u32,
+    },
+    #[command(
+        about = "Squash an extension's migrations 1..=N into a baseline at version 0 (dry-run by \
+                 default)"
+    )]
+    MigrateSquash {
+        #[arg(long, help = "Extension ID whose migrations should be squashed")]
+        extension: String,
+        #[arg(
+            long,
+            help = "Squash migrations with version 1..=through into the baseline"
+        )]
+        through: u32,
+        #[arg(
+            long,
+            help = "Apply the squash (write baseline file + rewrite DB rows). Without this flag, \
+                    the command is a dry-run."
+        )]
+        apply: bool,
     },
     #[command(about = "Show migration status and history")]
     Migrations {
@@ -151,6 +171,23 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         return admin::execute_migrate_down(config, &extension, count).await;
     }
 
+    if let DbCommands::MigrateSquash {
+        extension,
+        through,
+        apply,
+    } = cmd
+    {
+        return admin_squash::execute_squash(
+            config,
+            admin_squash::SquashArgs {
+                extension: &extension,
+                through,
+                apply,
+            },
+        )
+        .await;
+    }
+
     let db = DatabaseTool::new().await?;
 
     match cmd {
@@ -181,7 +218,9 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
             schema::execute_describe(&db.admin_service, &table_name, config).await
         },
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
-        DbCommands::Migrate { .. } | DbCommands::MigrateDown { .. } => unreachable!(),
+        DbCommands::Migrate { .. }
+        | DbCommands::MigrateDown { .. }
+        | DbCommands::MigrateSquash { .. } => unreachable!(),
         DbCommands::Migrations { cmd } => admin::execute_migrations(&db.ctx, cmd, config).await,
         DbCommands::MigratePlan { extension, json } => {
             admin::execute_migrate_plan(&db.ctx, extension.as_deref(), json, config).await
@@ -250,6 +289,22 @@ pub async fn execute_with_db(
         } => admin::execute_migrate_standalone(db_ctx, config, allow_checksum_drift).await,
         DbCommands::MigrateDown { extension, count } => {
             admin::execute_migrate_down_standalone(db_ctx, config, &extension, count).await
+        },
+        DbCommands::MigrateSquash {
+            extension,
+            through,
+            apply,
+        } => {
+            admin_squash::execute_squash_standalone(
+                db_ctx,
+                config,
+                admin_squash::SquashArgs {
+                    extension: &extension,
+                    through,
+                    apply,
+                },
+            )
+            .await
         },
         DbCommands::Migrations { cmd } => {
             admin::execute_migrations_standalone(db_ctx, cmd, config).await

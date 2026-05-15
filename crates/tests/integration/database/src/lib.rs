@@ -17,3 +17,7 @@ mod down_migration;
 #[cfg(test)]
 #[path = "../migration_plan_status.rs"]
 mod migration_plan_status;
+
+#[cfg(test)]
+#[path = "../squash.rs"]
+mod squash;
