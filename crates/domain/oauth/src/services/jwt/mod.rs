@@ -3,15 +3,18 @@
 pub mod authentication;
 pub mod authorization;
 
-use async_trait::async_trait;
+use std::future::Future;
+
 use systemprompt_models::auth::{AuthError, AuthenticatedUser};
 
 pub use authentication::AuthenticationService;
 pub use authorization::AuthorizationService;
 
-#[async_trait]
 pub trait TokenValidator: Send + Sync {
-    async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError>;
+    fn validate_token(
+        &self,
+        token: &str,
+    ) -> impl Future<Output = Result<AuthenticatedUser, AuthError>> + Send;
 }
 
 pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, AuthError> {

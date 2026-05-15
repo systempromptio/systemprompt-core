@@ -1,7 +1,6 @@
 //! WebAuthn-issued JWT validator.
 
 use crate::TokenValidator;
-use async_trait::async_trait;
 use systemprompt_models::auth::{AuthError, AuthenticatedUser, JwtAudience};
 use uuid::Uuid;
 
@@ -41,7 +40,6 @@ impl JwtTokenValidator {
     }
 }
 
-#[async_trait]
 impl TokenValidator for JwtTokenValidator {
     async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError> {
         let claims = jwt::validate_jwt_token(token, &self.secret, &self.issuer, &self.audiences)
