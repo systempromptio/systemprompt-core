@@ -41,7 +41,6 @@ impl SchemaDefinition {
         self
     }
 
-    /// Resolved Postgres schema name, defaulting to `public`.
     #[must_use]
     pub fn schema_name(&self) -> &str {
         self.schema.as_deref().unwrap_or("public")
