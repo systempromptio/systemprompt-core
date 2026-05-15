@@ -96,17 +96,17 @@ async fn run_install(
     let migration_service = MigrationService::new(db).with_config(migration_config);
 
     for ext in schema_extensions {
+        install_extension_schema(ext.as_ref(), db).await?;
+
         if ext.has_migrations() {
             debug!(
                 extension = %ext.id(),
-                "Running pending migrations before schema install"
+                "Running pending migrations after schema install"
             );
             migration_service
                 .run_pending_migrations(ext.as_ref())
                 .await?;
         }
-
-        install_extension_schema(ext.as_ref(), db).await?;
     }
     Ok(())
 }
