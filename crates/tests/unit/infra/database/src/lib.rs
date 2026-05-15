@@ -34,4 +34,7 @@ mod lifecycle;
 mod extension;
 
 #[cfg(test)]
+mod resilience;
+
+#[cfg(test)]
 mod services;

@@ -3,8 +3,8 @@
 use std::future::Future;
 use std::time::Duration;
 
-use crate::classify::Outcome;
-use crate::config::RetryConfig;
+use super::classify::Outcome;
+use super::config::RetryConfig;
 
 /// Run `op`, retrying transient failures per `cfg`.
 ///

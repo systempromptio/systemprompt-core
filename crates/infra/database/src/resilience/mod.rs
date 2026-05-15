@@ -1,12 +1,12 @@
-//! `systemprompt-resilience` — composable resilience primitives for outbound
-//! calls.
+//! Composable resilience primitives for outbound calls.
 //!
-//! The crate wraps fallible async operations (HTTP calls to AI providers, RPCs
-//! to MCP servers) so a slow or failing dependency cannot pin workers or
-//! cascade into a platform-wide outage. It is deliberately domain-agnostic:
-//! every primitive is generic over a caller-supplied error type and an error
-//! [`classify`]r, so it can be reused by `systemprompt-ai`, `systemprompt-mcp`,
-//! or any other caller without this crate depending on their error enums.
+//! This module wraps fallible async operations (HTTP calls to AI providers,
+//! RPCs to MCP servers, the crate's own connection and transaction retries) so
+//! a slow or failing dependency cannot pin workers or cascade into a
+//! platform-wide outage. It is deliberately domain-agnostic: every primitive is
+//! generic over a caller-supplied error type and an error [`classify`]r, so it
+//! can be reused by `systemprompt-ai`, `systemprompt-mcp`, or any other caller
+//! without depending on their error enums.
 //!
 //! # Primitives
 //!

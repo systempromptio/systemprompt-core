@@ -98,6 +98,28 @@ impl fmt::Display for LintError {
     }
 }
 
+/// Names of every table created by a `CREATE TABLE` in `sql`.
+///
+/// This is the single source of truth for which tables an extension *owns*:
+/// ownership is derived from its declarative schema, never hand-authored. A
+/// parse failure yields an empty list — the linter reports the parse error
+/// separately.
+#[must_use]
+pub fn created_table_names(sql: &str) -> Vec<String> {
+    let Ok(parsed) = pg_query::parse(sql) else {
+        return Vec::new();
+    };
+    parsed
+        .protobuf
+        .stmts
+        .iter()
+        .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
+            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.name().to_string()),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Lint a single declarative schema file. Returns the list of violations,
 /// or `Ok(())` if the script is purely declarative.
 ///

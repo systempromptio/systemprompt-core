@@ -245,17 +245,26 @@ fn test_loader_error_variant_matching() {
             LoaderError::DependencyCycle { chain } => {
                 assert!(!chain.is_empty());
             },
-            LoaderError::InvalidDependencyOrdering {
-                extension,
-                dependency,
-                ..
-            } => {
-                assert!(!extension.is_empty());
-                assert!(!dependency.is_empty());
-            },
             LoaderError::CrossExtensionAlterUndeclared { extension, table } => {
                 assert!(!extension.is_empty());
                 assert!(!table.is_empty());
+            },
+            LoaderError::DuplicateTableOwner {
+                table,
+                extension_a,
+                extension_b,
+            } => {
+                assert!(!table.is_empty());
+                assert!(!extension_a.is_empty());
+                assert!(!extension_b.is_empty());
+            },
+            LoaderError::CrossExtensionTableNotOwned { extension, table } => {
+                assert!(!extension.is_empty());
+                assert!(!table.is_empty());
+            },
+            LoaderError::SeedInsertNotIdempotent { extension, seed } => {
+                assert!(!extension.is_empty());
+                assert!(!seed.is_empty());
             },
             LoaderError::InvalidSeedStatement {
                 extension,

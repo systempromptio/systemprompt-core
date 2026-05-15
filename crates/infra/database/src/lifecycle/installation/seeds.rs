@@ -89,6 +89,14 @@ fn lint_seed(ext_id: &str, seed: &Seed) -> Result<(), LoaderError> {
                 statement: kind.to_string(),
             });
         }
+        if let pg_query::NodeEnum::InsertStmt(insert) = node {
+            if insert.on_conflict_clause.is_none() {
+                return Err(LoaderError::SeedInsertNotIdempotent {
+                    extension: ext_id.to_string(),
+                    seed: seed.id.to_string(),
+                });
+            }
+        }
     }
 
     Ok(())

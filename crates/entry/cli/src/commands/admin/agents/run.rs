@@ -43,7 +43,10 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         jwt_provider,
     ));
 
-    let tool_provider = Arc::new(McpToolProvider::new(Arc::clone(&db_pool)));
+    let tool_provider = Arc::new(McpToolProvider::new(
+        Arc::clone(&db_pool),
+        &services_config.ai.mcp.resilience,
+    ));
     let ai_service = Arc::new(
         AiService::new(db_pool, &services_config.ai, tool_provider, None)
             .context("Failed to create AI service")?,

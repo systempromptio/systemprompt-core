@@ -64,9 +64,7 @@ impl Database {
         })
     }
 
-    fn require_postgres(
-        pool: Option<Arc<sqlx::PgPool>>,
-    ) -> DatabaseResult<Arc<sqlx::PgPool>> {
+    fn require_postgres(pool: Option<Arc<sqlx::PgPool>>) -> DatabaseResult<Arc<sqlx::PgPool>> {
         pool.ok_or_else(|| RepositoryError::invalid_state("Database is not PostgreSQL"))
     }
 

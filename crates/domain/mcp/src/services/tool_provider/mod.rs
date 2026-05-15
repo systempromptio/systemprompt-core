@@ -2,16 +2,20 @@ mod context;
 mod conversions;
 
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use async_trait::async_trait;
 use tracing::{info, warn};
 
 use systemprompt_database::DbPool;
+use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
+use systemprompt_models::services::ResilienceSettings;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
     ToolProviderResult,
 };
 
+use crate::error::McpDomainError;
 use crate::services::client::{
     McpClient, rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
 };
@@ -20,18 +24,58 @@ use crate::services::registry::RegistryManager;
 use context::{create_request_context, load_agent_servers};
 use conversions::{to_tool_definition, to_tool_result};
 
+/// Map a resilience-layer failure into the tool-provider error type.
+fn map_resilience_err(err: ResilienceError<McpDomainError>, server: &str) -> ToolProviderError {
+    match err {
+        ResilienceError::Inner(inner) => ToolProviderError::ExecutionFailed(inner.to_string()),
+        ResilienceError::CircuitOpen { .. } => ToolProviderError::ExecutionFailed(format!(
+            "circuit breaker open for MCP server {server}; failing fast"
+        )),
+        ResilienceError::BulkheadFull { .. } => ToolProviderError::ExecutionFailed(format!(
+            "MCP server {server} unavailable: concurrency limit reached"
+        )),
+        ResilienceError::Timeout { after } => ToolProviderError::ExecutionFailed(format!(
+            "MCP server {server} timed out after {after:?}"
+        )),
+    }
+}
+
+type GuardMap = Arc<Mutex<HashMap<String, Arc<ResilienceGuard>>>>;
+
 #[derive(Debug, Clone)]
 pub struct McpToolProvider {
     db_pool: DbPool,
+    resilience: ResilienceSettings,
+    guards: GuardMap,
 }
 
 impl McpToolProvider {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
+    pub fn new(db_pool: DbPool, resilience: &ResilienceSettings) -> Self {
+        Self {
+            db_pool,
+            resilience: *resilience,
+            guards: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     pub const fn db_pool(&self) -> &DbPool {
         &self.db_pool
+    }
+
+    /// The resilience guard for `server`, created on first use. Guards are
+    /// shared across clones of the provider so breaker and bulkhead state
+    /// accumulates.
+    fn guard_for(&self, server: &str) -> Arc<ResilienceGuard> {
+        let mut guards = self.guards.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(existing) = guards.get(server) {
+            return Arc::clone(existing);
+        }
+        let guard = Arc::new(ResilienceGuard::new(
+            server,
+            ResilienceConfig::from(&self.resilience),
+        ));
+        guards.insert(server.to_string(), Arc::clone(&guard));
+        guard
     }
 }
 
@@ -100,15 +144,19 @@ impl ToolProvider for McpToolProvider {
             "Executing tool via MCP"
         );
 
-        let result = McpClient::call_tool(
-            service_id,
-            request.name.clone(),
-            Some(request.arguments.clone()),
-            &request_ctx,
-            &self.db_pool,
-        )
-        .await
-        .map_err(|e| ToolProviderError::ExecutionFailed(e.to_string()))?;
+        let guard = self.guard_for(service_id);
+        let result = guard
+            .execute(McpDomainError::classify, || {
+                McpClient::call_tool(
+                    service_id,
+                    request.name.clone(),
+                    Some(request.arguments.clone()),
+                    &request_ctx,
+                    &self.db_pool,
+                )
+            })
+            .await
+            .map_err(|err| map_resilience_err(err, service_id))?;
 
         Ok(to_tool_result(&result))
     }
@@ -152,6 +200,12 @@ impl ToolProvider for McpToolProvider {
             for server in servers {
                 let is_healthy =
                     check_server_health(&server.name, server.port, &config_api_server_url).await;
+                let breaker = self.guard_for(&server.name);
+                if is_healthy {
+                    breaker.breaker().record_success();
+                } else {
+                    breaker.breaker().record_failure();
+                }
                 health_status.insert(server.name, is_healthy);
             }
         }

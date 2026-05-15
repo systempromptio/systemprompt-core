@@ -45,13 +45,6 @@ fn test_files_extension_metadata_version() {
 }
 
 #[test]
-fn test_files_extension_migration_weight() {
-    let ext = FilesExtension;
-    let weight = ext.migration_weight();
-    assert_eq!(weight, 500);
-}
-
-#[test]
 fn test_files_extension_schemas_count() {
     let ext = FilesExtension;
     let schemas = ext.schemas();

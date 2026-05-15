@@ -69,7 +69,8 @@ impl<'a> FrontmatterContext<'a> {
 }
 
 // Why: processor is consumed as a trait object by the generator crate; an
-// async fn in a bare trait is not dyn-compatible, so #[async_trait] is required.
+// async fn in a bare trait is not dyn-compatible, so #[async_trait] is
+// required.
 #[async_trait]
 pub trait FrontmatterProcessor: Send + Sync {
     fn processor_id(&self) -> &'static str;

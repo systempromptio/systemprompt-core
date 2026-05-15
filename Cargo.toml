@@ -8,7 +8,6 @@ members = [
     "crates/shared/identifiers",
     "crates/shared/extension",
     "crates/shared/template-provider",
-    "crates/shared/resilience",
     # Infrastructure layer
     "crates/infra/database",
     "crates/infra/logging",
@@ -242,7 +241,6 @@ systemprompt-extension = { path = "crates/shared/extension", version = "0.10.1" 
 systemprompt-models = { path = "crates/shared/models", version = "0.10.1" }
 systemprompt-client = { path = "crates/shared/client", version = "0.10.1" }
 systemprompt-template-provider = { path = "crates/shared/template-provider", version = "0.10.1" }
-systemprompt-resilience = { path = "crates/shared/resilience", version = "0.10.1" }
 systemprompt-database = { path = "crates/infra/database", version = "0.10.1" }
 systemprompt-logging = { path = "crates/infra/logging", version = "0.10.1" }
 systemprompt-config = { path = "crates/infra/config", version = "0.10.1" }

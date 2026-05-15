@@ -43,22 +43,27 @@ pub enum LoaderError {
     DependencyCycle { chain: String },
 
     #[error(
-        "Extension '{extension}' (weight {extension_weight}) depends on '{dependency}' (weight \
-         {dependency_weight}); a dependency must have a lower migration_weight than its dependent"
+        "Extension '{extension}' migration ALTERs table '{table}' but does not create it in its \
+         schemas() nor declare it in cross_extension_tables(); cross-extension table mutations \
+         must be declared explicitly"
     )]
-    InvalidDependencyOrdering {
-        extension: String,
-        extension_weight: u32,
-        dependency: String,
-        dependency_weight: u32,
+    CrossExtensionAlterUndeclared { extension: String, table: String },
+
+    #[error(
+        "Table '{table}' is created by both extension '{extension_a}' and '{extension_b}'; every \
+         table must be declared by exactly one extension"
+    )]
+    DuplicateTableOwner {
+        table: String,
+        extension_a: String,
+        extension_b: String,
     },
 
     #[error(
-        "Extension '{extension}' migration ALTERs table '{table}' but does not declare it in \
-         owned_tables() or cross_extension_tables(); cross-extension table mutations must be \
-         declared explicitly"
+        "Extension '{extension}' declares cross_extension_tables() entry '{table}', which is not \
+         a table created by any other loaded extension"
     )]
-    CrossExtensionAlterUndeclared { extension: String, table: String },
+    CrossExtensionTableNotOwned { extension: String, table: String },
 
     #[error(
         "Extension '{extension}' seed '{seed}' contains forbidden statement '{statement}'; seeds \
@@ -69,6 +74,12 @@ pub enum LoaderError {
         seed: String,
         statement: String,
     },
+
+    #[error(
+        "Extension '{extension}' seed '{seed}' contains a bare INSERT with no ON CONFLICT clause; \
+         seeds run on every boot and must be idempotent — add ON CONFLICT … DO NOTHING/UPDATE"
+    )]
+    SeedInsertNotIdempotent { extension: String, seed: String },
 
     #[error("Extension '{extension}' seed '{seed}' failed to parse or apply: {message}")]
     SeedFailed {

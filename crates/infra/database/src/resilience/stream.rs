@@ -9,7 +9,7 @@ use tokio::sync::OwnedSemaphorePermit;
 /// Wrap `inner` so each chunk must arrive within `idle_timeout`.
 ///
 /// `permit` (a bulkhead permit from
-/// [`crate::guard::ResilienceGuard::acquire_permit`]) is held until the stream
+/// [`super::guard::ResilienceGuard::acquire_permit`]) is held until the stream
 /// ends, so a streaming response counts against the dependency's concurrency
 /// limit for its whole lifetime. If a chunk stalls past `idle_timeout` the
 /// stream yields one final error built by `on_idle_timeout`, then terminates.

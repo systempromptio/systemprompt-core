@@ -106,28 +106,6 @@ fn schema_extension_typed_schemas_returns_definitions() {
 }
 
 #[test]
-fn schema_extension_typed_default_migration_weight() {
-    #[derive(Debug, Default)]
-    struct DefaultWeightExt;
-
-    impl ExtensionType for DefaultWeightExt {
-        const ID: &'static str = "default-weight";
-        const NAME: &'static str = "Default Weight";
-        const VERSION: &'static str = "1.0.0";
-    }
-
-    impl NoDependencies for DefaultWeightExt {}
-
-    impl SchemaExtensionTyped for DefaultWeightExt {
-        fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-            vec![]
-        }
-    }
-
-    assert_eq!(DefaultWeightExt.migration_weight(), 100);
-}
-
-#[test]
 fn config_extension_typed_prefix() {
     let ext = TestConfigExt;
     assert_eq!(ext.config_prefix(), "myconfig");

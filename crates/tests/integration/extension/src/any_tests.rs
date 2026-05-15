@@ -40,10 +40,6 @@ impl SchemaExtensionTyped for SchemaTestExtension {
             "CREATE TABLE test_table (id INTEGER PRIMARY KEY)",
         )]
     }
-
-    fn migration_weight(&self) -> u32 {
-        10
-    }
 }
 
 #[derive(Default, Debug)]
@@ -166,8 +162,6 @@ fn test_schema_extension_wrapper_as_schema_returns_some() {
     schema.as_ref().expect("schema should be present");
 
     let schema_ext = schema.expect("should have schema");
-    assert_eq!(schema_ext.migration_weight(), 10);
-
     let schemas = schema_ext.schemas();
     assert_eq!(schemas.len(), 1);
     assert_eq!(schemas[0].table, "test_table");

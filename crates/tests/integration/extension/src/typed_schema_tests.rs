@@ -69,30 +69,6 @@ impl SchemaExtensionTyped for TestSchemaExtension {
             SchemaDefinitionTyped::new("table_b", "CREATE TABLE table_b (id INT)"),
         ]
     }
-
-    fn migration_weight(&self) -> u32 {
-        50
-    }
-}
-
-#[derive(Default, Debug)]
-struct DefaultWeightExtension;
-
-impl ExtensionType for DefaultWeightExtension {
-    const ID: &'static str = "default-weight";
-    const NAME: &'static str = "Default Weight Extension";
-    const VERSION: &'static str = "1.0.0";
-}
-
-impl NoDependencies for DefaultWeightExtension {}
-
-impl SchemaExtensionTyped for DefaultWeightExtension {
-    fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::new(
-            "default_table",
-            "CREATE TABLE default_table ()",
-        )]
-    }
 }
 
 #[test]
@@ -106,80 +82,12 @@ fn test_schema_extension_typed_schemas() {
 }
 
 #[test]
-fn test_schema_extension_typed_custom_migration_weight() {
-    let ext = TestSchemaExtension;
-    assert_eq!(ext.migration_weight(), 50);
-}
-
-#[test]
-fn test_schema_extension_typed_default_migration_weight() {
-    let ext = DefaultWeightExtension;
-    assert_eq!(ext.migration_weight(), 100);
-}
-
-#[test]
 fn test_schema_extension_typed_metadata() {
     let ext = TestSchemaExtension;
 
     assert_eq!(ext.id(), "test-schema");
     assert_eq!(ext.name(), "Test Schema Extension");
     assert_eq!(ext.version(), "1.0.0");
-}
-
-#[derive(Default, Debug)]
-struct LowPrioritySchemaExt;
-
-impl ExtensionType for LowPrioritySchemaExt {
-    const ID: &'static str = "low-priority-schema";
-    const NAME: &'static str = "Low Priority Schema";
-    const VERSION: &'static str = "1.0.0";
-}
-
-impl NoDependencies for LowPrioritySchemaExt {}
-
-impl SchemaExtensionTyped for LowPrioritySchemaExt {
-    fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::new("low", "CREATE TABLE low ()")]
-    }
-
-    fn migration_weight(&self) -> u32 {
-        10
-    }
-}
-
-#[derive(Default, Debug)]
-struct HighPrioritySchemaExt;
-
-impl ExtensionType for HighPrioritySchemaExt {
-    const ID: &'static str = "high-priority-schema";
-    const NAME: &'static str = "High Priority Schema";
-    const VERSION: &'static str = "1.0.0";
-}
-
-impl NoDependencies for HighPrioritySchemaExt {}
-
-impl SchemaExtensionTyped for HighPrioritySchemaExt {
-    fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
-        vec![SchemaDefinitionTyped::new("high", "CREATE TABLE high ()")]
-    }
-
-    fn migration_weight(&self) -> u32 {
-        200
-    }
-}
-
-#[test]
-fn test_schema_extension_ordering_by_weight() {
-    let low = LowPrioritySchemaExt;
-    let high = HighPrioritySchemaExt;
-
-    let extensions: Vec<&dyn SchemaExtensionTyped> = vec![&high, &low];
-
-    let mut sorted: Vec<_> = extensions.iter().collect();
-    sorted.sort_by_key(|e| e.migration_weight());
-
-    assert_eq!(sorted[0].migration_weight(), 10);
-    assert_eq!(sorted[1].migration_weight(), 200);
 }
 
 #[test]

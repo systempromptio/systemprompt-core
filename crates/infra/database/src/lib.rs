@@ -19,6 +19,10 @@
 //!   extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
+//! - [`resilience`] — domain-agnostic resilience primitives
+//!   ([`resilience::ResilienceGuard`], [`resilience::CircuitBreaker`],
+//!   [`resilience::Bulkhead`], [`resilience::retry_async`]) wrapping outbound
+//!   calls; the crate's own connection and transaction retries run on them.
 //!
 //! ## Feature flags
 //!
@@ -48,6 +52,7 @@ pub mod lifecycle;
 pub mod models;
 #[macro_use]
 pub mod repository;
+pub mod resilience;
 pub mod services;
 
 pub use extension::DatabaseExtension;

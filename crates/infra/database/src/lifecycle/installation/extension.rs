@@ -84,6 +84,8 @@ async fn run_install(
         prepared.push(prepare_extension_schema(ext.as_ref())?);
     }
 
+    validate_table_ownership(&prepared, schema_extensions)?;
+
     for p in &prepared {
         execute_statements_transactional(db, &p.structural, &p.extension_id).await?;
     }
@@ -99,13 +101,52 @@ async fn run_install(
 
     for p in &prepared {
         execute_statements_transactional(db, &p.dependent, &p.extension_id).await?;
-        for (table, columns) in &p.columns_to_validate {
-            validate_extension_columns(db, table, columns, &p.extension_id).await?;
+        for cols in &p.columns_to_validate {
+            validate_extension_columns(db, cols, &p.extension_id).await?;
         }
     }
 
     for ext in schema_extensions {
         apply_seeds(ext.as_ref(), db).await?;
+    }
+
+    Ok(())
+}
+
+/// Reject schemas where two extensions create the same table, and reject a
+/// `cross_extension_tables()` entry that no *other* loaded extension owns.
+/// Ownership is derived from the parsed `CREATE TABLE` statements, so this is
+/// the boot-time guard against silent schema divergence.
+fn validate_table_ownership(
+    prepared: &[PreparedSchema],
+    schema_extensions: &[std::sync::Arc<dyn Extension>],
+) -> Result<(), LoaderError> {
+    let mut owners: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+    for p in prepared {
+        for table in &p.owned_tables {
+            if let Some(prev) = owners.insert(table.as_str(), p.extension_id.as_str()) {
+                if prev != p.extension_id {
+                    return Err(LoaderError::DuplicateTableOwner {
+                        table: table.clone(),
+                        extension_a: prev.to_string(),
+                        extension_b: p.extension_id.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    for ext in schema_extensions {
+        let ext_id = ext.id();
+        for table in ext.cross_extension_tables() {
+            let owned_elsewhere = owners.get(table).is_some_and(|&owner| owner != ext_id);
+            if !owned_elsewhere {
+                return Err(LoaderError::CrossExtensionTableNotOwned {
+                    extension: ext_id.to_string(),
+                    table: table.to_string(),
+                });
+            }
+        }
     }
 
     Ok(())
@@ -158,27 +199,27 @@ async fn execute_statements_transactional(
 
 async fn validate_extension_columns(
     db: &dyn DatabaseProvider,
-    table: &str,
-    required_columns: &[String],
+    cols: &super::prepare::ColumnsToValidate,
     extension_id: &str,
 ) -> Result<(), LoaderError> {
-    for column in required_columns {
-        validate_single_column(db, table, column, extension_id).await?;
+    for column in &cols.columns {
+        validate_single_column(db, &cols.schema, &cols.table, column, extension_id).await?;
     }
     Ok(())
 }
 
 async fn validate_single_column(
     db: &dyn DatabaseProvider,
+    schema: &str,
     table: &str,
     column: &str,
     extension_id: &str,
 ) -> Result<(), LoaderError> {
     let result = db
         .query_raw_with(
-            &"SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND \
-              table_name = $1 AND column_name = $2",
-            &[&table, &column],
+            &"SELECT 1 FROM information_schema.columns WHERE table_schema = $1 AND table_name = \
+              $2 AND column_name = $3",
+            &[&schema, &table, &column],
         )
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {
@@ -189,7 +230,7 @@ async fn validate_single_column(
     if result.rows.is_empty() {
         return Err(LoaderError::SchemaInstallationFailed {
             extension: extension_id.to_string(),
-            message: format!("Required column '{column}' not found in table '{table}'"),
+            message: format!("Required column '{column}' not found in table '{schema}.{table}'"),
         });
     }
 

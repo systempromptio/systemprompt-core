@@ -12,10 +12,6 @@ impl Extension for AuthzExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        110
-    }
-
     fn is_required(&self) -> bool {
         true
     }
@@ -56,10 +52,6 @@ impl Extension for AuthzExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["access_control_rules"]
     }
 }
 

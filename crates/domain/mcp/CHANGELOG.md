@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.2] - 2026-05-15
+
+### Added
+- Resilience layer around MCP tool calls: a per-attempt timeout, retry with
+  exponential backoff, a per-server circuit breaker, and a concurrency limit,
+  configured via the `mcp.resilience` block. Health-check failures feed the same breaker.
+- `McpDomainError::Timeout`, `CircuitOpen`, and `DependencyUnavailable` variants,
+  plus `McpDomainError::classify`.
+
+### Changed
+- **Breaking:** `McpToolProvider::new` now takes a `&ResilienceSettings` argument.
+- **Breaking:** the `mcp` config block replaces the flat `connect_timeout_ms`,
+  `execution_timeout_ms`, and `retry_attempts` keys with a nested `resilience` block.
+- MCP tool-call RPCs are now bounded by an execution timeout; previously only
+  connection setup was bounded.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

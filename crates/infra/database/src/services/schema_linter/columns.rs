@@ -13,6 +13,12 @@ pub(super) struct TableDef {
     columns: Vec<String>,
 }
 
+impl TableDef {
+    pub(super) fn name(&self) -> &str {
+        &self.name
+    }
+}
+
 pub(super) fn collect_create_stmt(create: &CreateStmt) -> Option<TableDef> {
     let relation = create.relation.as_ref()?;
     let name = relation.relname.clone();

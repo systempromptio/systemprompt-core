@@ -3,9 +3,13 @@
 
 use crate::error::RepositoryError;
 use crate::repository::PgDbPool;
+use crate::resilience::classify::Outcome;
+use crate::resilience::config::RetryConfig;
+use crate::resilience::retry::retry_async;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::future::Future;
 use std::pin::Pin;
+use std::time::Duration;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
@@ -37,37 +41,40 @@ pub async fn with_transaction_retry<F, T>(
     f: F,
 ) -> Result<T, RepositoryError>
 where
+    T: Send,
     F: for<'c> Fn(&'c mut Transaction<'_, Postgres>) -> BoxFuture<'c, Result<T, RepositoryError>>
-        + Send,
+        + Send
+        + Sync,
 {
-    let mut attempts = 0;
-    let base_delay_ms = 10u64;
-
-    loop {
+    let cfg = RetryConfig {
+        max_attempts: max_retries.saturating_add(1),
+        base_delay: Duration::from_millis(20),
+        max_delay: Duration::from_millis(640),
+        jitter: false,
+    };
+    let classify = |err: &RepositoryError| {
+        if is_retriable_error(err) {
+            Outcome::Transient { retry_after: None }
+        } else {
+            Outcome::Permanent
+        }
+    };
+    let attempt = || async {
         let mut tx = pool.begin().await?;
-
         match f(&mut tx).await {
             Ok(result) => {
                 tx.commit().await?;
-                return Ok(result);
+                Ok(result)
             },
             Err(e) => {
-                if attempts < max_retries && is_retriable_error(&e) {
-                    if let Err(rollback_err) = tx.rollback().await {
-                        tracing::error!(error = %rollback_err, "Transaction rollback failed during retry");
-                    }
-                    attempts += 1;
-                    let delay_ms = base_delay_ms * (1 << attempts.min(6));
-                    tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
-                    continue;
-                }
                 if let Err(rollback_err) = tx.rollback().await {
                     tracing::error!(error = %rollback_err, "Transaction rollback failed");
                 }
-                return Err(e);
+                Err(e)
             },
         }
-    }
+    };
+    retry_async(&cfg, "transaction", classify, attempt).await
 }
 
 fn is_retriable_error(error: &RepositoryError) -> bool {

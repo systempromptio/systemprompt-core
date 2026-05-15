@@ -4,14 +4,18 @@
 //! transient startup races (Postgres still booting, SSL handshake racing
 //! the TCP listener) recover without surfacing as user-visible failures.
 //! The retry loop intentionally targets a narrow set of error shapes so
-//! permanent failures (auth, missing database, bad URL) fail fast.
+//! permanent failures (auth, missing database, bad URL) fail fast. The
+//! backoff itself runs on [`crate::resilience::retry::retry_async`].
 
 use std::future::Future;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
 
 use crate::error::DatabaseResult;
+use crate::resilience::classify::Outcome;
+use crate::resilience::config::RetryConfig;
+use crate::resilience::retry::retry_async;
 
 const RETRY_DELAYS_MS: &[u64] = &[100, 200, 400, 800, 1600];
 const MAX_ATTEMPTS: u32 = 5;
@@ -44,43 +48,28 @@ pub async fn connect_with_retry_using<T, F, Fut>(
     connector: F,
 ) -> DatabaseResult<T>
 where
-    F: Fn(PgConnectOptions) -> Fut,
-    Fut: Future<Output = Result<T, sqlx::Error>>,
+    T: Send,
+    F: Fn(PgConnectOptions) -> Fut + Send + Sync,
+    Fut: Future<Output = Result<T, sqlx::Error>> + Send,
 {
-    let started = Instant::now();
-    let mut attempt: u32 = 0;
-    loop {
-        attempt += 1;
-        match connector(connect_options.clone()).await {
-            Ok(pool) => {
-                if attempt > 1 {
-                    tracing::info!(
-                        attempts = attempt,
-                        elapsed_ms =
-                            u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
-                        "connected after {attempt} attempts"
-                    );
-                }
-                return Ok(pool);
-            },
-            Err(err) => {
-                let retryable = is_retryable(&err);
-                if !retryable || attempt >= max_attempts {
-                    return Err(err.into());
-                }
-                let delay_idx = usize::try_from(attempt.saturating_sub(1)).unwrap_or(usize::MAX);
-                let delay = delays_ms.get(delay_idx).copied().unwrap_or(0);
-                tracing::warn!(
-                    attempt,
-                    elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
-                    next_delay_ms = delay,
-                    error = %err,
-                    "postgres connect failed, retrying"
-                );
-                tokio::time::sleep(Duration::from_millis(delay)).await;
-            },
+    let cfg = RetryConfig {
+        max_attempts,
+        base_delay: Duration::from_millis(delays_ms.first().copied().unwrap_or(100)),
+        max_delay: Duration::from_millis(delays_ms.iter().copied().max().unwrap_or(1600)),
+        jitter: false,
+    };
+    let classify = |err: &sqlx::Error| {
+        if is_retryable(err) {
+            Outcome::Transient { retry_after: None }
+        } else {
+            Outcome::Permanent
         }
-    }
+    };
+    retry_async(&cfg, "postgres-connect", classify, || {
+        connector(connect_options.clone())
+    })
+    .await
+    .map_err(Into::into)
 }
 
 fn is_retryable(err: &sqlx::Error) -> bool {

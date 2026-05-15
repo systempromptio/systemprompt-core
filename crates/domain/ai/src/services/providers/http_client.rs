@@ -12,13 +12,19 @@ use reqwest::Client;
 
 /// Build a `reqwest::Client` with a bounded request and connect timeout.
 ///
-/// The builder cannot fail for a timeout-only configuration; the fallback to a
-/// default client exists only to keep the function infallible.
+/// A timeout-only configuration cannot make the builder fail for any reason
+/// other than the TLS backend failing to initialise — and `Client::new()`
+/// panics on that same condition. The fallback therefore only ever runs in a
+/// process that is already doomed; it logs the builder error first so the
+/// failure is diagnosable rather than silent.
 #[must_use]
 pub fn build_client(request_timeout: Duration, connect_timeout: Duration) -> Client {
     Client::builder()
         .timeout(request_timeout)
         .connect_timeout(connect_timeout)
         .build()
-        .unwrap_or_else(|_| Client::new())
+        .unwrap_or_else(|err| {
+            tracing::error!(%err, "reqwest client builder failed; falling back to default client");
+            Client::new()
+        })
 }

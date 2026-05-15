@@ -42,13 +42,6 @@ mod extension_config_tests {
     use super::*;
 
     #[test]
-    fn migration_weight_is_100() {
-        let ext = UsersExtension;
-
-        assert_eq!(ext.migration_weight(), 100);
-    }
-
-    #[test]
     fn is_required_returns_true() {
         let ext = UsersExtension;
 

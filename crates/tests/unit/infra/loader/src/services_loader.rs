@@ -561,9 +561,10 @@ ai:
       default_model: claude-sonnet-4-20250514
   mcp:
     auto_discover: true
-    connect_timeout_ms: 5000
-    execution_timeout_ms: 30000
-    retry_attempts: 3
+    resilience:
+      connect_timeout_ms: 5000
+      request_timeout_ms: 30000
+      retry_attempts: 3
   history:
     retention_days: 30
     log_tool_executions: true

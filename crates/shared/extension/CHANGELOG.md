@@ -2,6 +2,15 @@
 
 ## [0.9.2] - 2026-05-14
 
+### Breaking
+- Removed `Extension::migration_weight()` and `SchemaExtensionTyped::migration_weight()`; extension ordering is the dependency graph only.
+- Removed `Extension::owned_tables()`; an extension's owned tables are derived from the `CREATE TABLE` statements in its `schemas()`.
+- Removed `LoaderError::InvalidDependencyOrdering`.
+
+### Added
+- `LoaderError::DuplicateTableOwner`, `CrossExtensionTableNotOwned`, and `SeedInsertNotIdempotent`.
+- `SchemaDefinition::with_schema` and `schema_name()` for non-`public` schema-qualified tables.
+
 ### Changed
 - Align crate version with the `systemprompt-core` workspace release cadence.
 

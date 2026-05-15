@@ -22,10 +22,6 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
-    fn migration_weight(&self) -> u32 {
-        100
-    }
-
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         None
     }
@@ -118,10 +114,10 @@ pub trait Extension: Send + Sync + 'static {
         Vec::new()
     }
 
-    fn owned_tables(&self) -> Vec<&'static str> {
-        Vec::new()
-    }
-
+    /// Tables this extension is permitted to mutate with a cross-extension
+    /// `ALTER` even though another extension creates them. The tables an
+    /// extension *owns* are derived from the `CREATE TABLE` statements in its
+    /// [`Extension::schemas`] and must not be repeated here.
     fn cross_extension_tables(&self) -> Vec<&'static str> {
         Vec::new()
     }

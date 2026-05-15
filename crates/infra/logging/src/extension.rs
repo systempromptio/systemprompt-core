@@ -12,10 +12,6 @@ impl Extension for LoggingExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        150
-    }
-
     fn is_required(&self) -> bool {
         true
     }
@@ -49,10 +45,6 @@ impl Extension for LoggingExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["database", "users"]
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["analytics_events", "logs"]
     }
 }
 

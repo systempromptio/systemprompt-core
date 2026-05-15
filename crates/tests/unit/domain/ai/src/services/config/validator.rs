@@ -19,6 +19,7 @@ fn create_valid_config() -> AiConfig {
             default_image_resolution: String::new(),
             google_search_enabled: false,
             models: HashMap::new(),
+            ..AiProviderConfig::default()
         },
     );
 
@@ -31,12 +32,7 @@ fn create_valid_config() -> AiConfig {
             enable_smart_routing: true,
             fallback_enabled: true,
         },
-        mcp: McpConfig {
-            auto_discover: false,
-            connect_timeout_ms: 5000,
-            execution_timeout_ms: 30000,
-            retry_attempts: 3,
-        },
+        mcp: McpConfig::default(),
         history: HistoryConfig {
             retention_days: 30,
             log_tool_executions: true,
@@ -120,6 +116,7 @@ mod validate_providers_tests {
                 default_image_resolution: String::new(),
                 google_search_enabled: false,
                 models: HashMap::new(),
+                ..AiProviderConfig::default()
             },
         );
 
@@ -144,6 +141,7 @@ mod validate_providers_tests {
                 default_image_resolution: String::new(),
                 google_search_enabled: false,
                 models: HashMap::new(),
+                ..AiProviderConfig::default()
             },
         );
 
@@ -157,7 +155,7 @@ mod validate_mcp_tests {
     #[test]
     fn rejects_zero_connect_timeout() {
         let mut config = create_valid_config();
-        config.mcp.connect_timeout_ms = 0;
+        config.mcp.resilience.connect_timeout_ms = 0;
 
         let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
@@ -167,7 +165,7 @@ mod validate_mcp_tests {
     #[test]
     fn rejects_zero_execution_timeout() {
         let mut config = create_valid_config();
-        config.mcp.execution_timeout_ms = 0;
+        config.mcp.resilience.request_timeout_ms = 0;
 
         let err = ConfigValidator::validate(&config, &[]).unwrap_err();
 
@@ -177,7 +175,7 @@ mod validate_mcp_tests {
     #[test]
     fn accepts_zero_retry_attempts() {
         let mut config = create_valid_config();
-        config.mcp.retry_attempts = 0;
+        config.mcp.resilience.retry_attempts = 0;
 
         ConfigValidator::validate(&config, &[]).expect("zero retry attempts should pass");
     }

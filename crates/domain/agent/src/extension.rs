@@ -12,10 +12,6 @@ impl Extension for AgentExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        400
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new("user_contexts", include_str!("../schema/user_contexts.sql"))
@@ -105,10 +101,6 @@ impl Extension for AgentExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["agent_tasks", "services"]
     }
 
     fn cross_extension_tables(&self) -> Vec<&'static str> {

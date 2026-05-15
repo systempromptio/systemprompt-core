@@ -123,7 +123,6 @@ pub struct SchemaWithExtension {
     pub extension_name: String,
     pub table: String,
     pub source: String,
-    pub migration_weight: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
