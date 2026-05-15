@@ -1,7 +1,10 @@
-//! Invariant under test: per-extension install runs `Extension::migrations()`
-//! BEFORE `Extension::schemas()`, so legacy tables can be brought to the
-//! shape that the declarative schema references in the same boot — without
-//! tripping the schema linter that hard-rejects imperative SQL in schemas.
+//! Invariant under test: install is globally phased — structural DDL
+//! (`CREATE TABLE`/`TYPE`/`EXTENSION`), then `Extension::migrations()`, then
+//! dependent DDL (`CREATE INDEX`/`VIEW`/etc.). A migration therefore runs
+//! after a legacy table exists but before the index or view that references a
+//! column the migration introduces, so a legacy database reaches the target
+//! shape in the same boot — without tripping the schema linter that
+//! hard-rejects imperative SQL in schemas.
 
 use std::env;
 use std::sync::Arc;

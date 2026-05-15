@@ -10,15 +10,24 @@
 //!   blocks, `UPDATE`/`INSERT`/`DELETE`, `TRUNCATE`, `GRANT`/`REVOKE`, and
 //!   renames. Imperative state transitions belong in
 //!   `schema/migrations/NNN_<name>.sql` declared via [`Extension::migrations`].
-//! - Install order per extension is **migrations first, then schema**.
-//!   Migrations bring legacy tables to the current shape; the schema then sees
-//!   a target-state-compliant table and every `CREATE … IF NOT EXISTS` is a
-//!   clean no-op. This is the same separation Diesel, Alembic, Flyway, and
-//!   `sqlx migrate` converged on — for the same reason: mixing them produces 3
-//!   a.m. `column "x" does not exist` failures on legacy databases.
+//! - Installation runs in three global phases across every extension —
+//!   structural DDL, then migrations, then dependent DDL. Phasing globally
+//!   (rather than per-extension) is what lets a legacy database reach its
+//!   target shape before the schema's `CREATE … IF NOT EXISTS` and `CREATE
+//!   INDEX` statements run, without 3 a.m. `column "x" does not exist`
+//!   failures. The phases are:
+//!   1. **Structural DDL** — `CREATE TABLE`/`TYPE`/`EXTENSION` — so every
+//!      table exists before any migration runs.
+//!   2. **Migrations** — pending `Extension::migrations()` for every
+//!      extension. Because all tables already exist, a migration may legally
+//!      `ALTER` a table owned by another extension (subject to the
+//!      cross-extension ownership contract).
+//!   3. **Dependent DDL** — `CREATE INDEX`/`VIEW`/`FUNCTION`/`TRIGGER`,
+//!      `COMMENT`, and stateless `DROP … IF EXISTS` — which may reference a
+//!      column introduced by a Phase 2 migration.
 //! - Every `SchemaDefinition.sql` runs on every boot. Schemas are expected to
 //!   be idempotent by construction (the linter enforces it).
-//! - The full set of statements for one extension runs inside a single
+//! - Each phase's statements for one extension run inside a single
 //!   transaction. On failure, the transaction is rolled back and the failing
 //!   statement (with its 1-based index and SQL text) is surfaced.
 //! - A session-scoped advisory lock serialises concurrent boot processes so
@@ -89,6 +98,15 @@ pub async fn install_extension_schemas_full(
     Ok(())
 }
 
+/// One extension's declarative schema, parsed and split into the structural
+/// statements (run in Phase 1) and the dependent statements (run in Phase 3).
+struct PreparedSchema {
+    extension_id: String,
+    structural: Vec<String>,
+    dependent: Vec<String>,
+    columns_to_validate: Vec<(String, Vec<String>)>,
+}
+
 async fn run_install(
     db: &dyn DatabaseProvider,
     schema_extensions: &[std::sync::Arc<dyn Extension>],
@@ -96,49 +114,51 @@ async fn run_install(
 ) -> Result<(), LoaderError> {
     let migration_service = MigrationService::new(db).with_config(migration_config);
 
+    let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
     for ext in schema_extensions {
-        install_extension_schema(ext.as_ref(), db).await?;
+        prepared.push(prepare_extension_schema(ext.as_ref())?);
+    }
 
+    for p in &prepared {
+        execute_statements_transactional(db, &p.structural, &p.extension_id).await?;
+    }
+
+    for ext in schema_extensions {
         if ext.has_migrations() {
-            debug!(
-                extension = %ext.id(),
-                "Running pending migrations after schema install"
-            );
+            debug!(extension = %ext.id(), "Running pending migrations");
             migration_service
                 .run_pending_migrations(ext.as_ref())
                 .await?;
         }
+    }
 
+    for p in &prepared {
+        execute_statements_transactional(db, &p.dependent, &p.extension_id).await?;
+        for (table, columns) in &p.columns_to_validate {
+            validate_extension_columns(db, table, columns, &p.extension_id).await?;
+        }
+    }
+
+    for ext in schema_extensions {
         apply_seeds(ext.as_ref(), db).await?;
     }
+
     Ok(())
 }
 
-async fn install_extension_schema(
-    ext: &dyn Extension,
-    db: &dyn DatabaseProvider,
-) -> Result<(), LoaderError> {
+/// Lint, parse, and classify one extension's declarative schema. Performs no
+/// database I/O — the resulting [`PreparedSchema`] is executed by `run_install`
+/// in the correct global phase.
+fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSchema, LoaderError> {
     let schemas = ext.schemas();
     let extension_id = ext.metadata().id.to_string();
 
-    if schemas.is_empty() {
-        return Ok(());
-    }
-
-    debug!(
-        "Installing {} schema(s) for extension '{}' (weight: {})",
-        schemas.len(),
-        extension_id,
-        ext.migration_weight()
-    );
-
     let mut all_sql = Vec::new();
-    let mut schemas_to_validate = Vec::new();
+    let mut columns_to_validate: Vec<(String, Vec<String>)> = Vec::new();
     let mut lint_errors: Vec<String> = Vec::new();
 
     for schema in &schemas {
-        let source = schema.table.as_str();
-        if let Err(errors) = lint_declarative_schema(&schema.sql, source) {
+        if let Err(errors) = lint_declarative_schema(&schema.sql, schema.table.as_str()) {
             for err in errors {
                 lint_errors.push(err.to_string());
             }
@@ -147,7 +167,7 @@ async fn install_extension_schema(
         all_sql.push(schema.sql.as_str());
 
         if !schema.required_columns.is_empty() {
-            schemas_to_validate.push(schema);
+            columns_to_validate.push((schema.table.clone(), schema.required_columns.clone()));
         }
     }
 
@@ -171,14 +191,46 @@ async fn install_extension_schema(
         }
     })?;
 
-    execute_statements_transactional(db, &parsed, &extension_id).await?;
-
-    for schema in schemas_to_validate {
-        validate_extension_columns(db, &schema.table, &schema.required_columns, &extension_id)
-            .await?;
+    let mut structural = Vec::new();
+    let mut dependent = Vec::new();
+    for statement in parsed {
+        if statement_is_structural(&statement) {
+            structural.push(statement);
+        } else {
+            dependent.push(statement);
+        }
     }
 
-    Ok(())
+    Ok(PreparedSchema {
+        extension_id,
+        structural,
+        dependent,
+        columns_to_validate,
+    })
+}
+
+/// A statement is *structural* if it only creates objects that a migration
+/// may need to exist first — tables, types, and Postgres extensions. Indexes,
+/// views, functions, triggers, comments, and drops are dependent: they may
+/// reference a column a migration introduces, so they run after Phase 2.
+fn statement_is_structural(statement: &str) -> bool {
+    let Ok(parsed) = pg_query::parse(statement) else {
+        return false;
+    };
+    let mut saw_structural = false;
+    for raw in parsed.protobuf.stmts {
+        let Some(node) = raw.stmt.and_then(|s| s.node) else {
+            continue;
+        };
+        match node {
+            pg_query::NodeEnum::CreateStmt(_)
+            | pg_query::NodeEnum::CompositeTypeStmt(_)
+            | pg_query::NodeEnum::CreateEnumStmt(_)
+            | pg_query::NodeEnum::CreateExtensionStmt(_) => saw_structural = true,
+            _ => return false,
+        }
+    }
+    saw_structural
 }
 
 async fn execute_statements_transactional(
