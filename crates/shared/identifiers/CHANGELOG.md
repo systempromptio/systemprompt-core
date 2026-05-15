@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.0] - 2026-05-14
+
+### Changed
+- Version bump for the 0.10.0 workspace release. No changes to the public API.
+
 ## [0.9.2] - 2026-05-14
 
 ### Breaking
