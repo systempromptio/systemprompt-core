@@ -3,7 +3,7 @@
 ## [0.9.2] - 2026-05-14
 
 ### Added
-- `EventError` and `EventResult` for fallible broadcaster operations.
+- `EventError` and `EventResult` as the crate's public, `thiserror`-derived error surface.
 - `AnalyticsBroadcaster`, `ANALYTICS_BROADCASTER`, and `EventRouter::route_analytics` for analytics-event fan-out.
 - `ConnectionGuard` RAII wrapper that unregisters SSE connections on drop.
 - `standard_keep_alive`, `HEARTBEAT_INTERVAL`, and `HEARTBEAT_JSON` for SSE keep-alive configuration.

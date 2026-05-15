@@ -26,7 +26,7 @@ pub async fn stream_context_state(
     let (tx, rx) = mpsc::channel(1024);
 
     CONTEXT_BROADCASTER
-        .register(&user_id, conn_id.as_str(), tx.clone())
+        .register(&user_id, &conn_id, tx.clone())
         .await;
 
     match state

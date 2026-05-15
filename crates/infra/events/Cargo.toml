@@ -19,7 +19,6 @@ workspace = true
 # Core runtime
 tokio = { workspace = true }
 tracing = { workspace = true }
-async-trait = { workspace = true }
 thiserror = { workspace = true }
 
 # Web framework
