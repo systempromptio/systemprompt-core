@@ -4955,7 +4955,6 @@ dependencies = [
 name = "systemprompt-events"
 version = "0.10.1"
 dependencies = [
- "async-trait",
  "axum",
  "serde",
  "serde_json",
