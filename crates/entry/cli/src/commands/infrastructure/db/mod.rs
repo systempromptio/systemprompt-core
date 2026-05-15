@@ -55,6 +55,13 @@ pub enum DbCommands {
         )]
         allow_checksum_drift: bool,
     },
+    #[command(about = "Revert the most recently applied migrations for an extension")]
+    MigrateDown {
+        #[arg(help = "Extension ID")]
+        extension: String,
+        #[arg(help = "Number of migrations to revert")]
+        count: u32,
+    },
     #[command(about = "Show migration status and history")]
     Migrations {
         #[command(subcommand)]
@@ -120,6 +127,10 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         return admin::execute_migrate(config, allow_checksum_drift).await;
     }
 
+    if let DbCommands::MigrateDown { extension, count } = cmd {
+        return admin::execute_migrate_down(config, &extension, count).await;
+    }
+
     let db = DatabaseTool::new().await?;
 
     match cmd {
@@ -150,7 +161,7 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
             schema::execute_describe(&db.admin_service, &table_name, config).await
         },
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
-        DbCommands::Migrate { .. } => unreachable!(),
+        DbCommands::Migrate { .. } | DbCommands::MigrateDown { .. } => unreachable!(),
         DbCommands::Migrations { cmd } => admin::execute_migrations(&db.ctx, cmd, config).await,
         DbCommands::AssignAdmin { user } => {
             admin::execute_assign_admin(&db.ctx, &user, config).await
@@ -211,6 +222,9 @@ pub async fn execute_with_db(
         DbCommands::Migrate {
             allow_checksum_drift,
         } => admin::execute_migrate_standalone(db_ctx, config, allow_checksum_drift).await,
+        DbCommands::MigrateDown { extension, count } => {
+            admin::execute_migrate_down_standalone(db_ctx, config, &extension, count).await
+        },
         DbCommands::Migrations { cmd } => {
             admin::execute_migrations_standalone(db_ctx, cmd, config).await
         },

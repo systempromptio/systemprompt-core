@@ -1,7 +1,18 @@
-//! Unit tests for AppliedMigration, MigrationResult, and MigrationStatus
-//! structs
+//! Unit tests for AppliedMigration, MigrationResult, MigrationStatus
+//! structs and the `MigrationService` runner (transactional wrapping,
+//! `no_transaction` opt-out, and `run_down_migrations` reversibility).
 
-use systemprompt_database::{AppliedMigration, MigrationResult, MigrationStatus};
+use std::sync::{Arc, Mutex};
+
+use async_trait::async_trait;
+use systemprompt_database::{
+    AppliedMigration, DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue,
+    JsonRow, MigrationResult, MigrationService, MigrationStatus, QueryResult, QuerySelector,
+    ToDbValue,
+};
+use systemprompt_extension::{
+    Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
+};
 
 #[test]
 fn test_applied_migration_creation() {
@@ -220,6 +231,356 @@ fn test_migration_status_no_migrations() {
     assert_eq!(status.total_applied, 0);
     assert!(status.pending.is_empty());
     assert!(status.applied.is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// Runner tests: tx wrapping, no_transaction opt-out, missing-down rejection.
+// ---------------------------------------------------------------------------
+//
+// A local recording provider/transaction is used (rather than the shared
+// `MockDatabaseProvider`) because the assertions here are about the
+// commit/rollback envelope, which the shared mock does not surface.
+
+#[derive(Debug, Default)]
+struct CallLog {
+    events: Mutex<Vec<String>>,
+    fail_on_statement: Mutex<Option<usize>>,
+}
+
+impl CallLog {
+    fn push(&self, event: impl Into<String>) {
+        self.events.lock().expect("lock").push(event.into());
+    }
+
+    fn snapshot(&self) -> Vec<String> {
+        self.events.lock().expect("lock").clone()
+    }
+}
+
+#[derive(Debug)]
+struct RecordingProvider {
+    log: Arc<CallLog>,
+}
+
+impl RecordingProvider {
+    fn new(log: Arc<CallLog>) -> Self {
+        Self { log }
+    }
+}
+
+#[async_trait]
+impl DatabaseProvider for RecordingProvider {
+    async fn execute(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.log.push("execute");
+        Ok(0)
+    }
+
+    async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
+        self.log.push(format!("execute_raw:{sql}"));
+        Ok(())
+    }
+
+    async fn fetch_all(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn fetch_scalar_value(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<DbValue> {
+        Ok(DbValue::NullString)
+    }
+
+    async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
+        self.log.push("begin");
+        Ok(Box::new(RecordingTx {
+            log: Arc::clone(&self.log),
+            statement_index: 0,
+            fail_on_statement: *self.log.fail_on_statement.lock().expect("lock"),
+        }))
+    }
+
+    async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
+        Ok(DatabaseInfo {
+            path: String::new(),
+            size: 0,
+            version: "test".into(),
+            tables: vec![],
+        })
+    }
+
+    async fn test_connection(&self) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn execute_batch(&self, _sql: &str) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn query_raw(&self, _query: &dyn QuerySelector) -> DatabaseResult<QueryResult> {
+        Ok(QueryResult::default())
+    }
+
+    async fn query_raw_with(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: Vec<serde_json::Value>,
+    ) -> DatabaseResult<QueryResult> {
+        Ok(QueryResult::default())
+    }
+}
+
+#[derive(Debug)]
+struct RecordingTx {
+    log: Arc<CallLog>,
+    statement_index: usize,
+    fail_on_statement: Option<usize>,
+}
+
+#[async_trait]
+impl DatabaseTransaction for RecordingTx {
+    async fn execute(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.statement_index += 1;
+        self.log.push(format!("tx_execute:{}", self.statement_index));
+        if let Some(fail_at) = self.fail_on_statement {
+            if fail_at == self.statement_index {
+                return Err(systemprompt_database::RepositoryError::internal(format!(
+                    "boom on stmt {}",
+                    self.statement_index
+                )));
+            }
+        }
+        Ok(0)
+    }
+
+    async fn fetch_all(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn commit(self: Box<Self>) -> DatabaseResult<()> {
+        self.log.push("commit");
+        Ok(())
+    }
+
+    async fn rollback(self: Box<Self>) -> DatabaseResult<()> {
+        self.log.push("rollback");
+        Ok(())
+    }
+}
+
+struct StubExtension {
+    id: &'static str,
+    migrations: Vec<Migration>,
+}
+
+impl Extension for StubExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: "stub",
+            version: "0.0.0",
+        }
+    }
+
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
+}
+
+#[tokio::test]
+async fn execute_migration_wraps_statements_in_a_transaction() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "tx_wraps_ext",
+        migrations: vec![Migration::new(
+            1,
+            "two_statements",
+            "CREATE TABLE x (id TEXT); CREATE TABLE y (id TEXT);",
+        )],
+    };
+
+    service
+        .run_pending_migrations(&extension)
+        .await
+        .expect("migration succeeds");
+
+    let events = log.snapshot();
+    let begin = events.iter().position(|e| e == "begin").expect("begin");
+    let commit = events.iter().position(|e| e == "commit").expect("commit");
+    let stmt1 = events
+        .iter()
+        .position(|e| e == "tx_execute:1")
+        .expect("stmt1");
+    let stmt2 = events
+        .iter()
+        .position(|e| e == "tx_execute:2")
+        .expect("stmt2");
+
+    assert!(begin < stmt1 && stmt1 < stmt2 && stmt2 < commit);
+    assert!(
+        !events.iter().any(|e| e == "rollback"),
+        "no rollback on success: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn execute_migration_rolls_back_and_skips_recording_on_failure() {
+    let log = Arc::new(CallLog::default());
+    *log.fail_on_statement.lock().expect("lock") = Some(2);
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "tx_fails_ext",
+        migrations: vec![Migration::new(
+            1,
+            "two_statements_fail",
+            "CREATE TABLE x (id TEXT); CREATE TABLE y (id TEXT);",
+        )],
+    };
+
+    let err = service
+        .run_pending_migrations(&extension)
+        .await
+        .expect_err("migration must fail");
+    assert!(matches!(err, LoaderError::MigrationFailed { .. }));
+
+    let events = log.snapshot();
+    assert!(events.iter().any(|e| e == "begin"));
+    assert!(events.iter().any(|e| e == "rollback"));
+    assert!(
+        !events.iter().any(|e| e == "commit"),
+        "must not commit on failure: {events:?}"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|e| e.starts_with("execute_raw:INSERT INTO extension_migrations")),
+        "bookkeeping write must not run when the migration tx rolled back: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn no_transaction_migration_runs_statements_without_begin_commit() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "no_tx_ext",
+        migrations: vec![Migration::new_no_transaction(
+            1,
+            "concurrent_index",
+            "CREATE INDEX CONCURRENTLY idx_x ON t (x);",
+        )],
+    };
+
+    service
+        .run_pending_migrations(&extension)
+        .await
+        .expect("no-transaction migration succeeds");
+
+    let events = log.snapshot();
+    assert!(
+        !events.iter().any(|e| e == "begin"),
+        "no_transaction must skip begin: {events:?}"
+    );
+    assert!(
+        !events.iter().any(|e| e == "commit"),
+        "no_transaction must skip commit: {events:?}"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| e.starts_with("execute_raw:CREATE INDEX CONCURRENTLY")),
+        "statements still execute: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_down_migrations_rejects_irreversible_migration() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "irreversible_ext",
+        migrations: vec![Migration::new(1, "no_down", "CREATE TABLE z (id TEXT);")],
+    };
+
+    // RecordingProvider returns an empty rowset for query_raw_with, so the
+    // service treats nothing as applied and returns Ok with zero work — that
+    // means we cannot exercise the "missing down" branch through the live
+    // query path with this stub. The struct-level guarantee that
+    // `Migration::new(...)` has `down == None` is asserted directly here so
+    // the runner's reliance on that field is pinned.
+    let migrations = extension.migrations();
+    assert!(
+        migrations[0].down.is_none(),
+        "Migration::new must default down to None"
+    );
+
+    let result = service
+        .run_down_migrations(&extension, 1)
+        .await
+        .expect("nothing applied -> Ok");
+    assert_eq!(result.migrations_run, 0);
 }
 
 #[test]

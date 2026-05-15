@@ -272,6 +272,9 @@ fn test_loader_error_variant_matching() {
                 assert!(!seed.is_empty());
                 assert!(!message.is_empty());
             },
+            LoaderError::MigrationNotReversible { extension, .. } => {
+                assert!(!extension.is_empty());
+            },
         }
     }
 }
