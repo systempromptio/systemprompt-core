@@ -61,7 +61,7 @@ impl UserProvider for UserService {
 
 fn user_to_auth_user(user: &User) -> AuthUser {
     AuthUser {
-        id: UserId::new(user.id.to_string()),
+        id: user.id.clone(),
         name: user.name.clone(),
         email: user.email.clone(),
         roles: user.roles.clone(),

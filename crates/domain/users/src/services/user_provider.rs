@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{AuthProviderError, AuthResult, AuthUser, UserProvider};
 
+
 use crate::UserService;
 
 #[derive(Debug, Clone)]
@@ -17,12 +18,13 @@ impl UserProviderImpl {
 
 impl From<crate::User> for AuthUser {
     fn from(user: crate::User) -> Self {
+        let is_active = user.is_active();
         Self {
-            id: UserId::new(user.id.to_string()),
+            id: user.id,
             name: user.name,
             email: user.email,
             roles: user.roles,
-            is_active: user.status.as_deref() == Some("active"),
+            is_active,
         }
     }
 }
