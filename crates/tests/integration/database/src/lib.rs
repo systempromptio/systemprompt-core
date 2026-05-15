@@ -9,3 +9,7 @@
 #[cfg(test)]
 #[path = "../schema_migration_order.rs"]
 mod schema_migration_order;
+
+#[cfg(test)]
+#[path = "../down_migration.rs"]
+mod down_migration;

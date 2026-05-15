@@ -47,3 +47,46 @@ fn migration_debug_format() {
     assert!(debug.contains("debug_test"));
     assert!(debug.contains("3"));
 }
+
+#[test]
+fn migration_new_defaults_no_down_and_transactional() {
+    let migration = Migration::new(1, "tx_default", "SELECT 1");
+    assert!(migration.down.is_none());
+    assert!(!migration.no_transaction);
+}
+
+#[test]
+fn migration_with_down_records_revert_sql() {
+    let migration = Migration::with_down(
+        7,
+        "add_email",
+        "ALTER TABLE users ADD COLUMN email TEXT",
+        "ALTER TABLE users DROP COLUMN email",
+    );
+    assert_eq!(migration.version, 7);
+    assert_eq!(migration.name, "add_email");
+    assert_eq!(migration.sql, "ALTER TABLE users ADD COLUMN email TEXT");
+    assert_eq!(
+        migration.down,
+        Some("ALTER TABLE users DROP COLUMN email")
+    );
+    assert!(!migration.no_transaction);
+}
+
+#[test]
+fn migration_new_no_transaction_sets_opt_out_flag() {
+    let migration = Migration::new_no_transaction(
+        9,
+        "concurrent_index",
+        "CREATE INDEX CONCURRENTLY idx_x ON t (x)",
+    );
+    assert!(migration.no_transaction);
+    assert!(migration.down.is_none());
+}
+
+#[test]
+fn migration_checksum_only_depends_on_up_sql() {
+    let plain = Migration::new(1, "n", "SELECT 1");
+    let with_down = Migration::with_down(1, "n", "SELECT 1", "SELECT 2");
+    assert_eq!(plain.checksum(), with_down.checksum());
+}

@@ -6947,6 +6947,7 @@ name = "systemprompt-database-tests"
 version = "0.0.11"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "serde_json",
  "systemprompt-database",

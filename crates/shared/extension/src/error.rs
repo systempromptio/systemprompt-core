@@ -22,6 +22,11 @@ pub enum LoaderError {
     #[error("Migration failed for extension '{extension}': {message}")]
     MigrationFailed { extension: String, message: String },
 
+    #[error(
+        "Migration {version} for extension '{extension}' is not reversible (no down SQL provided)"
+    )]
+    MigrationNotReversible { extension: String, version: u32 },
+
     #[error("Configuration validation failed for extension '{extension}': {message}")]
     ConfigValidationFailed { extension: String, message: String },
 

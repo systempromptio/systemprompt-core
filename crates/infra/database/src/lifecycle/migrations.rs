@@ -26,6 +26,67 @@ fn alter_table_targets(sql: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
+/// Per-statement counterpart of
+/// [`crate::lifecycle::installation::extension::execute_statements_transactional`],
+/// scoped to a single migration. Lives here so the migration runner can apply
+/// a `BEGIN; … COMMIT` envelope around an already-parsed statement list and
+/// fall back to `ROLLBACK` on any failure — the bookkeeping write is only
+/// recorded after the commit succeeds.
+async fn execute_statements_transactional(
+    db: &dyn DatabaseProvider,
+    statements: &[String],
+    ext_id: &str,
+    migration: &Migration,
+) -> Result<(), LoaderError> {
+    if statements.is_empty() {
+        return Ok(());
+    }
+
+    let mut tx = db
+        .begin_transaction()
+        .await
+        .map_err(|e| LoaderError::MigrationFailed {
+            extension: ext_id.to_string(),
+            message: format!(
+                "Failed to begin transaction for migration {} ({}): {e}",
+                migration.version, migration.name
+            ),
+        })?;
+
+    let total = statements.len();
+    for (idx, statement) in statements.iter().enumerate() {
+        let sql_str: &str = statement.as_str();
+        if let Err(e) = tx.execute(&sql_str, &[]).await {
+            let rollback_note = match tx.rollback().await {
+                Ok(()) => String::new(),
+                Err(rb) => format!(" (rollback also failed: {rb})"),
+            };
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!(
+                    "Migration {ver} ({name}) statement {n}/{total} failed: \
+                     {e}{rollback_note}\nSQL:\n{statement}",
+                    ver = migration.version,
+                    name = migration.name,
+                    n = idx + 1,
+                ),
+            });
+        }
+    }
+
+    tx.commit()
+        .await
+        .map_err(|e| LoaderError::MigrationFailed {
+            extension: ext_id.to_string(),
+            message: format!(
+                "Failed to commit migration {} ({}): {e}",
+                migration.version, migration.name
+            ),
+        })?;
+
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 pub struct AppliedMigration {
     pub extension_id: String,
@@ -233,20 +294,140 @@ impl<'a> MigrationService<'a> {
             extension = %ext_id,
             version = migration.version,
             name = %migration.name,
+            no_transaction = migration.no_transaction,
             "Running migration"
         );
 
-        SqlExecutor::execute_statements_parsed(self.db, migration.sql)
+        if migration.no_transaction {
+            SqlExecutor::execute_statements_parsed(self.db, migration.sql)
+                .await
+                .map_err(|e| LoaderError::MigrationFailed {
+                    extension: ext_id.to_string(),
+                    message: format!(
+                        "Failed to execute migration {} ({}): {e}",
+                        migration.version, migration.name
+                    ),
+                })?;
+        } else {
+            let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
+                LoaderError::MigrationFailed {
+                    extension: ext_id.to_string(),
+                    message: format!(
+                        "Failed to parse migration {} ({}): {e}",
+                        migration.version, migration.name
+                    ),
+                }
+            })?;
+            execute_statements_transactional(self.db, &statements, ext_id, migration).await?;
+        }
+
+        self.record_migration(ext_id, migration).await?;
+
+        Ok(())
+    }
+
+    pub async fn run_down_migrations(
+        &self,
+        extension: &dyn Extension,
+        count: u32,
+    ) -> Result<MigrationResult, LoaderError> {
+        if count == 0 {
+            return Ok(MigrationResult::default());
+        }
+
+        let ext_id = extension.metadata().id;
+        self.ensure_migrations_table_exists().await?;
+
+        let result = self
+            .db
+            .query_raw_with(
+                &"SELECT version FROM extension_migrations WHERE extension_id = $1 ORDER BY \
+                  version DESC LIMIT $2",
+                vec![
+                    serde_json::Value::String(ext_id.to_string()),
+                    serde_json::Value::Number(serde_json::Number::from(count)),
+                ],
+            )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
                 extension: ext_id.to_string(),
-                message: format!(
-                    "Failed to execute migration {} ({}): {e}",
-                    migration.version, migration.name
-                ),
+                message: format!("Failed to query applied migrations for revert: {e}"),
             })?;
 
-        self.record_migration(ext_id, migration).await?;
+        let versions: Vec<u32> = result
+            .rows
+            .iter()
+            .filter_map(|row| row.get("version")?.as_i64().map(|v| v as u32))
+            .collect();
+
+        if versions.is_empty() {
+            return Ok(MigrationResult::default());
+        }
+
+        let migrations = extension.migrations();
+        let mut migrations_run = 0;
+
+        for version in versions {
+            let migration = migrations
+                .iter()
+                .find(|m| m.version == version)
+                .ok_or_else(|| LoaderError::MigrationFailed {
+                    extension: ext_id.to_string(),
+                    message: format!(
+                        "Cannot revert migration {version}: not declared in \
+                         Extension::migrations()"
+                    ),
+                })?;
+
+            let down_sql = migration
+                .down
+                .ok_or_else(|| LoaderError::MigrationNotReversible {
+                    extension: ext_id.to_string(),
+                    version,
+                })?;
+
+            info!(
+                extension = %ext_id,
+                version = migration.version,
+                name = %migration.name,
+                "Reverting migration"
+            );
+
+            let statements = SqlExecutor::parse_sql_statements(down_sql).map_err(|e| {
+                LoaderError::MigrationFailed {
+                    extension: ext_id.to_string(),
+                    message: format!(
+                        "Failed to parse down migration {} ({}): {e}",
+                        migration.version, migration.name
+                    ),
+                }
+            })?;
+            execute_statements_transactional(self.db, &statements, ext_id, migration).await?;
+
+            self.delete_migration_record(ext_id, version).await?;
+            migrations_run += 1;
+        }
+
+        Ok(MigrationResult {
+            migrations_run,
+            migrations_skipped: 0,
+        })
+    }
+
+    async fn delete_migration_record(&self, ext_id: &str, version: u32) -> Result<(), LoaderError> {
+        self.db
+            .query_raw_with(
+                &"DELETE FROM extension_migrations WHERE extension_id = $1 AND version = $2",
+                vec![
+                    serde_json::Value::String(ext_id.to_string()),
+                    serde_json::Value::Number(serde_json::Number::from(version)),
+                ],
+            )
+            .await
+            .map_err(|e| LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!("Failed to delete migration record {version}: {e}"),
+            })?;
 
         Ok(())
     }
