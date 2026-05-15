@@ -1,4 +1,10 @@
-//! `config` module — see crate-level docs for context.
+//! Global runtime [`Config`] singleton and validation helpers.
+//!
+//! [`Config`] is the resolved, flat configuration installed once at
+//! startup into a process-wide `OnceLock` and read via [`Config::get`].
+//! Submodules cover environment classification, path/postgres-URL
+//! validation, rate-limit shapes, and verbosity levels.
+//! Accessors return [`crate::errors::ConfigError`] when not initialized.
 
 use std::sync::OnceLock;
 use systemprompt_traits::ConfigProvider;
