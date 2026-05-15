@@ -1,4 +1,9 @@
-//! `agui` module — see crate-level docs for context.
+//! AG-UI streaming event protocol shapes.
+//!
+//! Wire types for the AG-UI event stream: the [`AgUiEvent`] envelope and
+//! its [`AgUiEventBuilder`], the [`AgUiEventType`] discriminant, JSON
+//! Patch state-delta operations, and the per-event payload structs
+//! (run lifecycle, text messages, tool calls, state snapshots).
 
 mod event_type;
 mod events;

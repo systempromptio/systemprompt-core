@@ -1,4 +1,8 @@
-//! `text` module — see crate-level docs for context.
+//! Text-formatting helpers.
+//!
+//! [`truncate_with_ellipsis`] shortens a string to a maximum byte
+//! length, appending `...` and snapping to a UTF-8 character boundary
+//! so the result is never split mid-codepoint.
 
 pub fn truncate_with_ellipsis(text: &str, max_len: usize) -> String {
     if text.len() <= max_len {

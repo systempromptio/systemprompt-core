@@ -1,4 +1,9 @@
-//! `auth` module — see crate-level docs for context.
+//! Authentication and authorization value types.
+//!
+//! JWT and cloud claim shapes, the [`AuthenticatedUser`] request
+//! identity, [`Permission`] parsing, base role definitions, and the
+//! OAuth/PKCE enums (`GrantType`, `ResponseType`, `PkceMethod`).
+//! Public functions return [`AuthError`].
 
 pub mod claims;
 pub mod cloud_claims;

@@ -1,3 +1,9 @@
+//! MCP registry and provider traits.
+//!
+//! These traits are consumed as trait objects (`DynMcpRegistry` and
+//! friends), so they use `#[async_trait]` — native `async fn` in traits
+//! is not yet `dyn`-compatible.
+
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;

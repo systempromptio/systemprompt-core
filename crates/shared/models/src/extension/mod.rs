@@ -1,4 +1,10 @@
-//! `extension` module — see crate-level docs for context.
+//! Extension manifest types.
+//!
+//! Deserialized shape of an extension's `manifest.toml`:
+//! [`ExtensionManifest`] / [`Extension`] metadata, [`ExtensionType`]
+//! and [`BuildType`] discriminants, declared roles and CLI commands.
+//! [`DiscoveredExtension`] pairs a parsed manifest with its on-disk
+//! location after loader discovery.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

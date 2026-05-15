@@ -1,4 +1,8 @@
-//! `net` module — see crate-level docs for context.
+//! Shared network timeout constants.
+//!
+//! Centralised [`Duration`] values for HTTP client configuration, TCP
+//! readiness probes, and long-poll image generation, so every caller
+//! uses the same tuned timeouts.
 
 use std::time::Duration;
 

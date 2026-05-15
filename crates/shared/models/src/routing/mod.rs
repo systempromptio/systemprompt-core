@@ -1,4 +1,9 @@
-//! `routing` module — see crate-level docs for context.
+//! Request-routing classification.
+//!
+//! [`RouteClassifier`] maps an incoming request path to a [`RouteType`]
+//! (HTML content, API endpoint, static asset, or not-found), drives
+//! analytics-tracking decisions, and yields the [`EventMetadata`] used
+//! to tag emitted events.
 
 use crate::ContentRouting;
 use crate::modules::ApiPaths;

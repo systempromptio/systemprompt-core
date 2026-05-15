@@ -1,4 +1,9 @@
-//! `content_config` module — see crate-level docs for context.
+//! Content-configuration model and routing trait.
+//!
+//! The deserialized `content.yaml` shape — sources, categories,
+//! organization metadata, sitemap and structured-data settings — plus
+//! the [`ContentRouting`] trait that maps request paths to content
+//! sources. Parsing returns [`ContentConfigError`].
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
