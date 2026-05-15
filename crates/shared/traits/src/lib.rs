@@ -36,7 +36,7 @@
 //! | Feature | Effect |
 //! |---------|--------|
 //! | `default` | No optional features. |
-//! | `web`     | Enables the [`ApiModule`] trait and pulls in `axum` for HTTP routing. |
+//! | `web`     | Enables the `ApiModule` trait and pulls in `axum` for HTTP routing. |
 
 pub mod ai_providers;
 pub mod analytics;
