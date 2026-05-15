@@ -17,11 +17,15 @@
 //! - `CreateEnumStmt` — `CREATE TYPE … AS ENUM`
 //! - `CreateExtensionStmt`
 //! - `CommentStmt` — `COMMENT ON …`
+//! - `DropStmt` — only `DROP VIEW`/`MATERIALIZED VIEW`/`INDEX`/`TRIGGER … IF
+//!   EXISTS`. These objects are stateless derived artifacts: dropping one
+//!   loses no data and the sibling `CREATE …` statement rebuilds it, so the
+//!   pair stays idempotent. `DROP TABLE`/`DROP COLUMN` remain rejected.
 //!
 //! ## Rejected top-level statements
 //!
 //! - `AlterTableStmt`
-//! - `DropStmt`
+//! - `DropStmt` — except the stateless-object carve-out above
 //! - `InsertStmt` / `UpdateStmt` / `DeleteStmt` / `TruncateStmt`
 //! - `GrantStmt` / `RevokeStmt`
 //! - `RenameStmt` — any object rename
@@ -51,7 +55,7 @@
 use std::fmt;
 
 use pg_query::protobuf::node::Node;
-use pg_query::protobuf::{ColumnDef, CreateStmt, IndexStmt, ViewStmt};
+use pg_query::protobuf::{ColumnDef, CreateStmt, DropStmt, IndexStmt, ObjectType, ViewStmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LintSeverity {
@@ -239,9 +243,10 @@ fn warn_create_table_missing_if_not_exists(
     })
 }
 
-const fn imperative_reason(node: &Node) -> Option<&'static str> {
+fn imperative_reason(node: &Node) -> Option<&'static str> {
     Some(match node {
         Node::AlterTableStmt(_) => "ALTER TABLE",
+        Node::DropStmt(drop) if is_safe_drop(drop) => return None,
         Node::DropStmt(_) => "DROP",
         Node::InsertStmt(_) => "INSERT",
         Node::UpdateStmt(_) => "UPDATE",
@@ -264,6 +269,24 @@ const fn imperative_reason(node: &Node) -> Option<&'static str> {
         | Node::AlterDefaultPrivilegesStmt(_) => "ALTER",
         _ => return None,
     })
+}
+
+/// `DROP` of a stateless derived object — `VIEW`, `MATERIALIZED VIEW`,
+/// `INDEX`, or `TRIGGER` — guarded by `IF EXISTS` is declarative-safe: the
+/// object holds no data and is rebuilt from the same schema file on the next
+/// statement. `DROP TABLE` / `DROP COLUMN` are not — they destroy data and
+/// must move to a migration.
+fn is_safe_drop(drop: &DropStmt) -> bool {
+    if !drop.missing_ok {
+        return false;
+    }
+    matches!(
+        ObjectType::try_from(drop.remove_type),
+        Ok(ObjectType::ObjectView
+            | ObjectType::ObjectMatview
+            | ObjectType::ObjectIndex
+            | ObjectType::ObjectTrigger)
+    )
 }
 
 fn find_table<'a>(tables: &'a [TableDef], name: &str) -> Option<&'a TableDef> {
