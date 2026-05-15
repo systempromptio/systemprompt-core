@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.10.2] - 2026-05-15
+
+Database lifecycle hardening: transactional migrations, reversible migrations, an AST-based schema linter, a cross-extension table-ownership contract, post-migration seeds, dependency-ordered extension loading, squash tooling, connection retry, and introspectable migration status.
+
+### Added
+
+- **Transactional migrations.** Each migration runs inside a single `BEGIN`/`COMMIT` envelope; on failure the runner issues `ROLLBACK` and does not record the migration, so a partially-applied migration is no longer possible. `Migration::new_no_transaction` opts a migration out of the envelope for statements that cannot run inside a transaction block (for example `CREATE INDEX CONCURRENTLY`).
+- **Reversible migrations.** `Migration` gains an optional `down` field; construct with `Migration::with_down(version, name, up, down)`. `MigrationService::run_down_migrations` reverts the most recently applied migrations, and `infra db migrate down <extension> <count>` exposes this on the CLI. Reverting a migration with no `down` SQL fails with `LoaderError::MigrationNotReversible`.
+- **Cross-extension table-ownership contract.** `Extension::owned_tables()` declares the tables an extension's schemas create; `Extension::cross_extension_tables()` declares tables owned elsewhere that its migrations may legally `ALTER`. The migration runner rejects an undeclared cross-extension `ALTER` with `LoaderError::CrossExtensionAlterUndeclared`. Both methods default to empty, so existing extensions are unaffected.
+- **Post-migration seeds.** `Extension::seeds()` returns idempotent `Seed` values applied after migrations on every boot and intentionally not tracked in `extension_migrations`. Seed SQL is restricted to `INSERT … ON CONFLICT` / `UPDATE` / `MERGE`; `CREATE`/`ALTER`/`DROP` are rejected.
+- **Dependency-ordered extension loading.** The extension registry topologically sorts by `Extension::dependencies()` before falling back to `priority()`. A dependency cycle is a boot-time panic with the offending chain; a missing dependency warns and is skipped.
+- **`infra db migrate plan`** lists pending migrations without applying them, and **`infra db migrate status`** reports applied and pending migrations plus checksum drift. Both render a text table or, with `--json`, structured output.
+- **`infra db migrate squash --extension <id> --through <N>`** concatenates an extension's first `N` migrations into a `000_baseline_v{N}.sql` file and, with `--apply`, retires their bookkeeping rows behind a synthetic version-0 baseline. It is a dry-run by default and refuses to run unless migrations `1..=N` are all already applied.
+- **First-connect retry.** The initial database connection retries transient failures (connection refused, the SSL-handshake race, and "starting up") with exponential backoff at 100/200/400/800ms, capped at five attempts. Non-retryable errors such as authentication failures fail immediately; every attempt is logged at `WARN`.
+
+### Changed
+
+- **The declarative schema linter is now parser-based.** `schema_linter` parses each schema with `pg_query` and classifies statements by AST node variant rather than a hand-rolled keyword scanner. It additionally resolves column references in `CREATE INDEX` and view definitions against sibling `CREATE TABLE` statements and rejects unknown columns at lint time (`LintError::UnknownColumn`). This adds a C-toolchain build dependency (`pg_query`/`libpg_query`). Schemas that previously passed the keyword scanner but reference a column not declared in the same extension's schema files will now fail `just lint-schema`.
+
+## [0.10.1] - 2026-05-14
+
+### Fixed
+
+- **Pending migrations now run before an extension's declarative schema is installed**, so a legacy database reaches the target table shape before the schema's `CREATE … IF NOT EXISTS` statements run.
+- **The CLI degrades gracefully on expired or invalid cloud credentials** instead of failing startup outright.
+
 ## [0.10.0] - 2026-05-14
 
 Friction-reduction follow-ups from the 0.9.2 fresh-clone retro plus a structural rule for schema files. Bumped to a minor because schema files now have a hard linter at boot and `SqlExecutor::parse_sql_statements` changes its public return type.
