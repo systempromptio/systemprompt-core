@@ -4,8 +4,7 @@ use std::sync::Arc;
 use tracing::{debug, info, warn};
 
 impl ExtensionRegistry {
-    #[must_use]
-    pub fn discover() -> Self {
+    pub fn discover() -> Result<Self, LoaderError> {
         let mut registry = Self::new();
 
         debug!("Starting extension discovery via inventory");
@@ -50,7 +49,7 @@ impl ExtensionRegistry {
             }
         }
 
-        registry.sort_by_priority();
+        registry.sort_by_priority()?;
 
         let extension_names: Vec<_> = registry
             .sorted_extensions
@@ -73,13 +72,13 @@ impl ExtensionRegistry {
             );
         }
 
-        registry
+        Ok(registry)
     }
 
     pub fn discover_and_merge(
         injected: Vec<Arc<dyn crate::Extension>>,
     ) -> Result<Self, LoaderError> {
-        let mut registry = Self::discover();
+        let mut registry = Self::discover()?;
         registry.merge(injected)?;
         registry.validate()?;
         Ok(registry)

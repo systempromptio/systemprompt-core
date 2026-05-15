@@ -86,7 +86,7 @@ pub async fn load_prerender_context(
         .with_provider(embedded_defaults)
         .with_loader(loader);
 
-    let extensions = ExtensionRegistry::discover();
+    let extensions = ExtensionRegistry::discover().map_err(PublishError::other)?;
     tracing::debug!(
         extension_count = extensions.extensions().len(),
         "Discovered extensions for prerender context"

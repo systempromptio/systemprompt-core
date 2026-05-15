@@ -15,7 +15,10 @@ pub fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> CommandResult<ExtensionValidationOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 

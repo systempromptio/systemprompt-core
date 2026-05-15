@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
             .context("Failed to connect to Postgres")?,
     );
 
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
     let count = registry.schema_extensions().len();
     println!("Discovered {count} schema-bearing extensions");
 

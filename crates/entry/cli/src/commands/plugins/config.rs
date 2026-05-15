@@ -21,7 +21,7 @@ pub enum ConfigResult {
 }
 
 pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandResult<ConfigResult>> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
 
     if let Some(id) = &args.id {
         let ext = registry

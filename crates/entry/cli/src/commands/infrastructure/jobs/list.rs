@@ -6,7 +6,10 @@ use super::types::{JobInfo, JobListOutput};
 use crate::shared::{CommandResult, RenderingHints};
 
 pub fn execute() -> CommandResult<JobListOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
     let mut seen_names: HashSet<String> = HashSet::new();
     let mut jobs: Vec<JobInfo> = Vec::new();
 

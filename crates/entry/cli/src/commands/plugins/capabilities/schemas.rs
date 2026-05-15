@@ -12,7 +12,10 @@ pub struct SchemasArgs {
 }
 
 pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<SchemasListOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
 
     let mut schemas: Vec<SchemaWithExtension> = registry
         .extensions()

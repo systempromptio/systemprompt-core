@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
+use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry, LoaderError};
 
 struct FakeExt {
     meta: ExtensionMetadata,
@@ -329,11 +329,16 @@ fn registry_topo_sort_missing_dependency_warns_but_orders() {
 }
 
 #[test]
-#[should_panic(expected = "dependency cycle")]
-fn registry_topo_sort_cycle_panics() {
+fn registry_topo_sort_cycle_returns_err() {
     let mut registry = ExtensionRegistry::new();
     registry
         .register(Arc::new(FakeExt::new("a", "A").with_deps(vec!["b"])))
         .expect("register a");
-    let _ = registry.register(Arc::new(FakeExt::new("b", "B").with_deps(vec!["a"])));
+    let err = registry
+        .register(Arc::new(FakeExt::new("b", "B").with_deps(vec!["a"])))
+        .expect_err("registering b should detect the a<->b cycle");
+    assert!(
+        matches!(err, LoaderError::DependencyCycle { .. }),
+        "expected DependencyCycle, got {err:?}"
+    );
 }

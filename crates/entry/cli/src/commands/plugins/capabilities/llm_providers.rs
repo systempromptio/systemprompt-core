@@ -15,7 +15,10 @@ pub fn execute(
     args: &LlmProvidersArgs,
     _config: &CliConfig,
 ) -> CommandResult<LlmProvidersListOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
 
     let providers: Vec<LlmProviderWithExtension> = registry
         .extensions()

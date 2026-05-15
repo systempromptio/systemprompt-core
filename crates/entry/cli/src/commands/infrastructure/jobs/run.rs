@@ -35,7 +35,7 @@ pub struct RunArgs {
 
 pub async fn execute(args: RunArgs) -> Result<CommandResult<BatchJobRunOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
 
     let parameters = parse_params(&args.params)?;
 

@@ -66,7 +66,10 @@ pub fn execute(args: CapabilitiesArgs, config: &CliConfig) {
 }
 
 pub fn execute_summary(_config: &CliConfig) -> CommandResult<CapabilitiesSummaryOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
 
     let mut jobs = 0;
     let mut templates = 0;

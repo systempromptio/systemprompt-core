@@ -12,7 +12,10 @@ pub struct RolesArgs {
 }
 
 pub fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesListOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
 
     let roles: Vec<RoleWithExtension> = registry
         .extensions()

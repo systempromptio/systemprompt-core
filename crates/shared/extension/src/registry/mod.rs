@@ -41,10 +41,10 @@ impl ExtensionRegistry {
     /// ties with [`Extension::priority`] (lower runs first).
     ///
     /// Missing dependencies are warned and ignored — an extension may
-    /// optionally depend on another that was not loaded in this build.
-    /// Dependency cycles are a boot-time invariant violation and panic with a
-    /// human-readable chain (`"dependency cycle: A -> B -> A"`).
-    pub(crate) fn sort_by_priority(&mut self) {
+    /// optionally depend on another that was not loaded in this build. A
+    /// dependency cycle returns [`LoaderError::DependencyCycle`] with a
+    /// human-readable chain (`"A -> B -> A"`).
+    pub(crate) fn sort_by_priority(&mut self) -> Result<(), LoaderError> {
         let ids: Vec<String> = self
             .sorted_extensions
             .iter()
@@ -70,12 +70,13 @@ impl ExtensionRegistry {
             }
         }
 
-        let order = topo_sort(&ids, &by_id);
+        let order = topo_sort(&ids, &by_id)?;
 
         self.sorted_extensions = order
             .into_iter()
             .filter_map(|id| by_id.remove(&id))
             .collect();
+        Ok(())
     }
 
     pub fn register(&mut self, ext: Arc<dyn Extension>) -> Result<(), LoaderError> {
@@ -85,7 +86,7 @@ impl ExtensionRegistry {
         }
         self.extensions.insert(id, Arc::clone(&ext));
         self.sorted_extensions.push(ext);
-        self.sort_by_priority();
+        self.sort_by_priority()?;
         Ok(())
     }
 
@@ -112,7 +113,10 @@ impl ExtensionRegistry {
     }
 }
 
-fn topo_sort(ids: &[String], by_id: &HashMap<String, Arc<dyn Extension>>) -> Vec<String> {
+fn topo_sort(
+    ids: &[String],
+    by_id: &HashMap<String, Arc<dyn Extension>>,
+) -> Result<Vec<String>, LoaderError> {
     const WHITE: u8 = 0;
     const GRAY: u8 = 1;
     const BLACK: u8 = 2;
@@ -123,19 +127,18 @@ fn topo_sort(ids: &[String], by_id: &HashMap<String, Arc<dyn Extension>>) -> Vec
         color: &mut HashMap<String, u8>,
         path: &mut Vec<String>,
         out: &mut Vec<String>,
-    ) {
+    ) -> Result<(), LoaderError> {
         let state = color.get(node).copied().unwrap_or(WHITE);
         if state == BLACK {
-            return;
+            return Ok(());
         }
         if state == GRAY {
             let cycle_start = path.iter().position(|p| p == node).unwrap_or(0);
             let mut chain: Vec<String> = path[cycle_start..].to_vec();
             chain.push(node.to_string());
-            #[allow(clippy::panic)]
-            {
-                panic!("dependency cycle: {}", chain.join(" -> "));
-            }
+            return Err(LoaderError::DependencyCycle {
+                chain: chain.join(" -> "),
+            });
         }
         color.insert(node.to_string(), GRAY);
         path.push(node.to_string());
@@ -152,13 +155,14 @@ fn topo_sort(ids: &[String], by_id: &HashMap<String, Arc<dyn Extension>>) -> Vec
                 })
             });
             for dep in deps {
-                visit(dep, by_id, color, path, out);
+                visit(dep, by_id, color, path, out)?;
             }
         }
 
         path.pop();
         color.insert(node.to_string(), BLACK);
         out.push(node.to_string());
+        Ok(())
     }
 
     let mut roots: Vec<&String> = ids.iter().collect();
@@ -172,9 +176,9 @@ fn topo_sort(ids: &[String], by_id: &HashMap<String, Arc<dyn Extension>>) -> Vec
     let mut path: Vec<String> = Vec::new();
     let mut out: Vec<String> = Vec::with_capacity(ids.len());
     for id in roots {
-        visit(id, by_id, &mut color, &mut path, &mut out);
+        visit(id, by_id, &mut color, &mut path, &mut out)?;
     }
-    out
+    Ok(out)
 }
 
 #[derive(Debug, Clone, Copy)]

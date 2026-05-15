@@ -12,7 +12,10 @@ pub struct TemplatesArgs {
 }
 
 pub fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandResult<TemplatesListOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
 
     let templates: Vec<TemplateWithExtension> = registry
         .extensions()

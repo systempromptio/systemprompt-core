@@ -36,7 +36,7 @@ pub async fn execute_migrations_standalone(
     config: &CliConfig,
 ) -> Result<()> {
     let db = db_ctx.db_pool();
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
 
     match cmd {
         MigrationsCommands::Status => {
