@@ -82,6 +82,8 @@ impl PageRenderSpec {
 
 pub type DynPagePrerenderer = std::sync::Arc<dyn PagePrerenderer>;
 
+// Why: prerenderer is consumed as `Arc<dyn PagePrerenderer>` (see DynPagePrerenderer);
+// an async fn in a bare trait is not dyn-compatible, so #[async_trait] is required.
 #[async_trait]
 pub trait PagePrerenderer: Send + Sync {
     fn page_type(&self) -> &str;
