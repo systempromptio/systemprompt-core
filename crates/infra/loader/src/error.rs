@@ -104,12 +104,6 @@ pub enum ExtensionLoadError {
     ManifestMissing(String),
 }
 
-pub type ConfigLoadResult<T> = Result<T, ConfigLoadError>;
-
-pub type ConfigWriteResult<T> = Result<T, ConfigWriteError>;
-
-pub type ExtensionLoadResult<T> = Result<T, ExtensionLoadError>;
-
 #[derive(Debug, Error)]
 pub enum ProfileLoadError {
     #[error("io error at {path}: {source}")]
@@ -122,5 +116,11 @@ pub enum ProfileLoadError {
     #[error(transparent)]
     Profile(#[from] systemprompt_models::profile::ProfileError),
 }
+
+pub type ConfigLoadResult<T> = Result<T, ConfigLoadError>;
+
+pub type ConfigWriteResult<T> = Result<T, ConfigWriteError>;
+
+pub type ExtensionLoadResult<T> = Result<T, ExtensionLoadError>;
 
 pub type ProfileLoadResult<T> = Result<T, ProfileLoadError>;
