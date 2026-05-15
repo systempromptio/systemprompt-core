@@ -66,10 +66,7 @@ fn migration_with_down_records_revert_sql() {
     assert_eq!(migration.version, 7);
     assert_eq!(migration.name, "add_email");
     assert_eq!(migration.sql, "ALTER TABLE users ADD COLUMN email TEXT");
-    assert_eq!(
-        migration.down,
-        Some("ALTER TABLE users DROP COLUMN email")
-    );
+    assert_eq!(migration.down, Some("ALTER TABLE users DROP COLUMN email"));
     assert!(!migration.no_transaction);
 }
 

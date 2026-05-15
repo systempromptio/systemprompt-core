@@ -378,7 +378,8 @@ impl DatabaseTransaction for RecordingTx {
         _params: &[&dyn ToDbValue],
     ) -> DatabaseResult<u64> {
         self.statement_index += 1;
-        self.log.push(format!("tx_execute:{}", self.statement_index));
+        self.log
+            .push(format!("tx_execute:{}", self.statement_index));
         if let Some(fail_at) = self.fail_on_statement {
             if fail_at == self.statement_index {
                 return Err(systemprompt_database::RepositoryError::internal(format!(

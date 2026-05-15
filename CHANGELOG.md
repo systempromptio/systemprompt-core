@@ -31,6 +31,7 @@ Database lifecycle hardening: transactional migrations, reversible migrations, a
 
 - **Schema installation no longer fails on legacy databases when a schema references a migration-added column.** Installation runs in three global phases — structural DDL (`CREATE SCHEMA`/`TABLE`/`TYPE`/`EXTENSION`), then all pending migrations, then dependent DDL (`CREATE INDEX`/`VIEW`/`FUNCTION`/`TRIGGER`). Previously a schema's `CREATE INDEX` or `CREATE VIEW` could run before the migration that added the column it references. Because every table now exists before the migration phase, a migration may also `ALTER` a table owned by another extension.
 - **User-session analytics views install correctly on databases carrying the previous view shape.** PostgreSQL's `CREATE OR REPLACE VIEW` cannot rename or reorder output columns; the views are now dropped with `DROP VIEW IF EXISTS … CASCADE` before recreation, so a column rename no longer fails at install time.
+- **The `database` extension installs ahead of every other extension.** With `migration_weight` removed, install order is the dependency graph tie-broken by `priority()`; no extension declares `database` as a dependency, so the shared `update_timestamp_trigger()` helper and the `extension_migrations` table could be ordered after an extension that needs them. `DatabaseExtension` now declares the lowest priority so it always installs first.
 
 ## [0.10.1] - 2026-05-14
 

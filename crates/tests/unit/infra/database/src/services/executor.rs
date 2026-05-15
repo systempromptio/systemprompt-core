@@ -21,7 +21,8 @@ CREATE TABLE next_thing (id INT);
     assert_eq!(
         stmts.len(),
         2,
-        "CREATE TRIGGER must terminate at its trailing semicolon, not swallow the next statement — got {stmts:#?}"
+        "CREATE TRIGGER must terminate at its trailing semicolon, not swallow the next statement \
+         — got {stmts:#?}"
     );
     assert!(stmts[0].to_uppercase().contains("CREATE TRIGGER"));
     assert!(stmts[0].to_uppercase().contains("EXECUTE FUNCTION"));
@@ -113,7 +114,8 @@ $$ LANGUAGE plpgsql;
     assert_eq!(stmts.len(), 1, "got {stmts:#?}");
     assert!(
         stmts[0].contains("update_timestamp_trigger()"),
-        "splitter must preserve the empty parameter list verbatim — Postgres rejects `CREATE FUNCTION foo RETURNS …` without it. Got: {}",
+        "splitter must preserve the empty parameter list verbatim — Postgres rejects `CREATE \
+         FUNCTION foo RETURNS …` without it. Got: {}",
         stmts[0]
     );
 }

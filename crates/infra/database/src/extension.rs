@@ -32,6 +32,13 @@ impl Extension for DatabaseExtension {
     fn dependencies(&self) -> Vec<&'static str> {
         vec![]
     }
+
+    fn priority(&self) -> u32 {
+        // No extension declares `database` as a dependency, so install order is
+        // decided purely by priority among roots; 0 keeps the shared helper
+        // functions and `extension_migrations` ahead of every other extension.
+        0
+    }
 }
 
 register_extension!(DatabaseExtension);

@@ -98,7 +98,11 @@ fn test_files_extension_schemas_have_sql() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
     for schema in schemas {
-        assert!(!schema.sql.is_empty(), "Schema {} has empty SQL", schema.table);
+        assert!(
+            !schema.sql.is_empty(),
+            "Schema {} has empty SQL",
+            schema.table
+        );
     }
 }
 

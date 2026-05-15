@@ -106,12 +106,7 @@ async fn sync_one_plugin(
 
     let plugin_id_typed = systemprompt_identifiers::PluginId::new(plugin.id.as_str());
     materialize_hook_token(client, bearer, &plugin_id_typed, &target).await?;
-    write_hooks_json(
-        client.base_url_str(),
-        &plugin_id_typed,
-        &target,
-        user_hooks,
-    )?;
+    write_hooks_json(client.base_url_str(), &plugin_id_typed, &target, user_hooks)?;
     ensure_plugin_json_hooks_field(&target)?;
 
     Ok(Some(if was_present {

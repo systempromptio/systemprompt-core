@@ -89,12 +89,10 @@ fn derived_from_gateway_conversation_is_deterministic() {
 
 #[test]
 fn derived_from_gateway_conversation_diverges_on_input() {
-    let a = ContextId::derived_from_gateway_conversation(&GatewayConversationId::from_prefix_hash(
-        0,
-    ));
-    let b = ContextId::derived_from_gateway_conversation(&GatewayConversationId::from_prefix_hash(
-        1,
-    ));
+    let a =
+        ContextId::derived_from_gateway_conversation(&GatewayConversationId::from_prefix_hash(0));
+    let b =
+        ContextId::derived_from_gateway_conversation(&GatewayConversationId::from_prefix_hash(1));
     assert_ne!(a, b);
 }
 

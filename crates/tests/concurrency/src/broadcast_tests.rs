@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use systemprompt_events::{Broadcaster, GenericBroadcaster};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::A2AEvent;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
@@ -34,7 +34,7 @@ async fn concurrent_register_unregister_no_panic() {
         let b = broadcaster.clone();
         let u = user.clone();
         join_set.spawn(async move {
-            let conn_id = format!("conn-{i}");
+            let conn_id = ConnectionId::new(format!("conn-{i}"));
             let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
             b.register(&u, &conn_id, tx).await;
             b.unregister(&u, &conn_id).await;
@@ -67,7 +67,7 @@ async fn concurrent_broadcast_during_registration_storm() {
         let b = broadcaster.clone();
         let u = user.clone();
         join_set.spawn(async move {
-            let conn_id = format!("storm-{i}");
+            let conn_id = ConnectionId::new(format!("storm-{i}"));
             let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
             b.register(&u, &conn_id, tx).await;
             tokio::task::yield_now().await;
@@ -88,7 +88,9 @@ async fn concurrent_cleanup_under_contention() {
 
     for i in 0..100 {
         let (tx, rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
-        broadcaster.register(&user, &format!("conn-{i}"), tx).await;
+        broadcaster
+            .register(&user, &ConnectionId::new(format!("conn-{i}")), tx)
+            .await;
         receivers.push(rx);
     }
 
@@ -99,7 +101,8 @@ async fn concurrent_cleanup_under_contention() {
         let b = broadcaster.clone();
         let u = user.clone();
         join_set.spawn(async move {
-            b.unregister(&u, &format!("conn-{i}")).await;
+            b.unregister(&u, &ConnectionId::new(format!("conn-{i}")))
+                .await;
         });
     }
 
@@ -119,7 +122,9 @@ async fn broadcast_to_active_connections_succeeds() {
 
     for i in 0..10 {
         let (tx, rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
-        broadcaster.register(&user, &format!("conn-{i}"), tx).await;
+        broadcaster
+            .register(&user, &ConnectionId::new(format!("conn-{i}")), tx)
+            .await;
         receivers.push(rx);
     }
 
@@ -134,7 +139,9 @@ async fn broadcast_to_dropped_receivers_cleans_up() {
 
     for i in 0..10 {
         let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
-        broadcaster.register(&user, &format!("conn-{i}"), tx).await;
+        broadcaster
+            .register(&user, &ConnectionId::new(format!("conn-{i}")), tx)
+            .await;
     }
 
     let sent = broadcaster.broadcast(&user, test_event()).await;
@@ -153,11 +160,13 @@ async fn multiple_users_concurrent_operations() {
             let user = test_user_id(u);
             for c in 0..5 {
                 let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
-                b.register(&user, &format!("conn-{c}"), tx).await;
+                b.register(&user, &ConnectionId::new(format!("conn-{c}")), tx)
+                    .await;
             }
             b.broadcast(&user, test_event()).await;
             for c in 0..5 {
-                b.unregister(&user, &format!("conn-{c}")).await;
+                b.unregister(&user, &ConnectionId::new(format!("conn-{c}")))
+                    .await;
             }
         });
     }

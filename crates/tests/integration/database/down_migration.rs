@@ -14,8 +14,9 @@ use systemprompt_extension::{
 };
 use uuid::Uuid;
 
-const DEFAULT_DATABASE_URL: &str =
-    "postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web";
+const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
+                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
+                                    systemprompt-web";
 
 fn database_url() -> String {
     env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
@@ -83,8 +84,8 @@ impl Extension for IrreversibleExtension {
 
 async fn table_exists(pool: &PgPool, table: &str) -> bool {
     let row = sqlx::query(
-        "SELECT 1 AS one FROM information_schema.tables \
-         WHERE table_schema = 'public' AND table_name = $1",
+        "SELECT 1 AS one FROM information_schema.tables WHERE table_schema = 'public' AND \
+         table_name = $1",
     )
     .bind(table)
     .fetch_optional(pool)

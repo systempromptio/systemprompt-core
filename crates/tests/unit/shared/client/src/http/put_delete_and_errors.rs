@@ -33,7 +33,10 @@ async fn test_put_request_success() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .update_context_name(&ContextId::new("00000000-0000-4000-8000-000000000123"), "New Name")
+        .update_context_name(
+            &ContextId::new("00000000-0000-4000-8000-000000000123"),
+            "New Name",
+        )
         .await;
 
     result.expect("PUT request should succeed");
@@ -58,7 +61,10 @@ async fn test_put_request_with_json_body() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .update_context_name(&ContextId::new("00000000-0000-4000-8000-000000000123"), "Updated Context")
+        .update_context_name(
+            &ContextId::new("00000000-0000-4000-8000-000000000123"),
+            "Updated Context",
+        )
         .await;
 
     result.expect("PUT with JSON body should succeed");
@@ -78,7 +84,10 @@ async fn test_put_request_404_not_found() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .update_context_name(&ContextId::new("00000000-0000-4000-8000-0000000000ff"), "Name")
+        .update_context_name(
+            &ContextId::new("00000000-0000-4000-8000-0000000000ff"),
+            "Name",
+        )
         .await;
 
     result.unwrap_err();
@@ -97,7 +106,9 @@ async fn test_delete_request_success() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.delete_context(&ContextId::new("00000000-0000-4000-8000-000000000de1")).await;
+    let result = client
+        .delete_context(&ContextId::new("00000000-0000-4000-8000-000000000de1"))
+        .await;
 
     result.expect("DELETE request should succeed");
 }
@@ -139,7 +150,9 @@ async fn test_delete_request_403_forbidden() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let result = client.delete_context(&ContextId::new("00000000-0000-4000-8000-0000000000aa")).await;
+    let result = client
+        .delete_context(&ContextId::new("00000000-0000-4000-8000-0000000000aa"))
+        .await;
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("403"));

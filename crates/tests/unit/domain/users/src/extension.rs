@@ -157,7 +157,11 @@ mod extension_schema_tests {
         let schemas = ext.schemas();
 
         for schema in &schemas {
-            assert!(!schema.sql.is_empty(), "Schema {} has empty SQL", schema.table);
+            assert!(
+                !schema.sql.is_empty(),
+                "Schema {} has empty SQL",
+                schema.table
+            );
         }
     }
 

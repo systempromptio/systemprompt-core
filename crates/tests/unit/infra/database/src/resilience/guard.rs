@@ -89,7 +89,7 @@ async fn breaker_opens_and_fast_fails_after_repeated_failures() {
     let result: Result<(), ResilienceError<Error>> =
         guard.execute(classify, || async { Ok(()) }).await;
     match result {
-        Err(ResilienceError::CircuitOpen { .. }) => {}
+        Err(ResilienceError::CircuitOpen { .. }) => {},
         other => panic!("expected CircuitOpen, got {other:?}"),
     }
 }
@@ -106,7 +106,7 @@ async fn an_attempt_exceeding_the_timeout_surfaces_as_timeout() {
         .await;
 
     match result {
-        Err(ResilienceError::Timeout { .. }) => {}
+        Err(ResilienceError::Timeout { .. }) => {},
         other => panic!("expected Timeout, got {other:?}"),
     }
 }
