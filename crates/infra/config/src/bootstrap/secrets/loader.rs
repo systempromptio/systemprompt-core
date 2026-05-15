@@ -1,7 +1,7 @@
 //! File and environment loaders for the secrets singleton.
 //!
-//! Split out of `mod.rs` to keep the bootstrap state machine readable
-//! and the file-size budget under 300 lines.
+//! Resolves the secrets document from the active profile, falling back
+//! to environment variables in subprocess and Fly.io container modes.
 
 use std::collections::HashMap;
 use std::path::Path;
