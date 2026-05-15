@@ -1,4 +1,6 @@
-//! `ai` module — see crate-level docs for context.
+//! AI provider models — requests, responses, tool calls, sampling
+//! parameters, execution plans, and the `AiProvider` trait shared
+//! across LLM integrations.
 
 pub mod execution_plan;
 pub mod media_types;
