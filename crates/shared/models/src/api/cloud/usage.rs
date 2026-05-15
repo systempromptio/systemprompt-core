@@ -1,4 +1,5 @@
-//! Cloud usage and conversation-analytics DTOs surfaced in bridge profile reports.
+//! Cloud usage and conversation-analytics DTOs surfaced in bridge profile
+//! reports.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ContextId;

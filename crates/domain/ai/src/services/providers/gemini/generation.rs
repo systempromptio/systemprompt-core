@@ -14,6 +14,7 @@ use super::{converters, request_builders};
 
 pub fn build_client() -> Result<Client> {
     Client::builder()
+        .timeout(systemprompt_models::net::AI_PROVIDER_REQUEST_TIMEOUT)
         .connect_timeout(timeout::CONNECT_TIMEOUT)
         .build()
         .map_err(|e| {

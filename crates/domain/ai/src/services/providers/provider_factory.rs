@@ -4,7 +4,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::services::AiProviderConfig;
 
-use super::{AiProvider, AnthropicProvider, GeminiProvider, OpenAiProvider};
+use super::{AiProvider, AnthropicProvider, GeminiProvider, OpenAiProvider, ResilientProvider};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ProviderFactory;
@@ -21,7 +21,7 @@ impl ProviderFactory {
             )));
         }
 
-        let provider: Arc<dyn AiProvider> = match name {
+        let inner: Arc<dyn AiProvider> = match name {
             "openai" => {
                 let provider = config.endpoint.as_ref().map_or_else(
                     || OpenAiProvider::new(config.api_key.clone()),
@@ -78,7 +78,11 @@ impl ProviderFactory {
             },
         };
 
-        Ok(provider)
+        Ok(Arc::new(ResilientProvider::new(
+            name,
+            inner,
+            &config.resilience,
+        )))
     }
 
     pub fn create_all(

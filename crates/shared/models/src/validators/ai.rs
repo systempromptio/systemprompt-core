@@ -174,15 +174,15 @@ impl AiConfigValidator {
     }
 
     fn validate_mcp_config(report: &mut ValidationReport, ai_config: &crate::AiConfig) {
-        if ai_config.mcp.connect_timeout_ms == 0 {
+        if ai_config.mcp.resilience.connect_timeout_ms == 0 {
             report.add_error(ValidationError::new(
-                "ai.mcp.connect_timeout_ms",
+                "ai.mcp.resilience.connect_timeout_ms",
                 "MCP connect timeout must be greater than 0",
             ));
         }
-        if ai_config.mcp.execution_timeout_ms == 0 {
+        if ai_config.mcp.resilience.request_timeout_ms == 0 {
             report.add_error(ValidationError::new(
-                "ai.mcp.execution_timeout_ms",
+                "ai.mcp.resilience.request_timeout_ms",
                 "MCP execution timeout must be greater than 0",
             ));
         }

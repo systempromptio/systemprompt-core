@@ -1,4 +1,5 @@
-//! Cloud tenant, plan, and subscription DTOs exchanged between the CLI and the cloud API.
+//! Cloud tenant, plan, and subscription DTOs exchanged between the CLI and the
+//! cloud API.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

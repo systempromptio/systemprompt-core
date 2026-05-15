@@ -25,3 +25,12 @@ pub const AGENT_READINESS_TCP_TIMEOUT: Duration = Duration::from_secs(2);
 pub const IMAGE_GEN_LONG_POLL_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub const IMAGE_GEN_OPENAI_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Default per-attempt timeout for a non-streaming AI provider request.
+pub const AI_PROVIDER_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// Default maximum gap between two chunks of a streaming AI response.
+pub const AI_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// Default timeout for a single MCP tool-call RPC (excludes connection setup).
+pub const MCP_TOOL_EXECUTION_TIMEOUT: Duration = Duration::from_secs(30);

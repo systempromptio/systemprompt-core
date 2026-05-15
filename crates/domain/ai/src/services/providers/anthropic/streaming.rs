@@ -52,11 +52,7 @@ impl AnthropicProvider {
             .await?;
 
         if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await?;
-            return Err(crate::error::AiError::Internal(format!(
-                "Anthropic streaming API error ({status}): {error_text}"
-            )));
+            return Err(crate::error::AiError::from_error_response("anthropic", response).await);
         }
 
         let stream = response

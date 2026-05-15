@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.2] - 2026-05-15
+
+### Added
+- Resilience layer around every provider call: a per-attempt timeout, retry with
+  exponential backoff and jitter, a circuit breaker, and a concurrency limit,
+  configured via `AiProviderConfig.resilience`.
+- `AiError::HttpStatus`, `Timeout`, `CircuitOpen`, and `DependencyUnavailable`
+  variants, plus `AiError::classify` distinguishing transient from permanent failures.
+
+### Changed
+- Provider HTTP clients now always apply a request and connect timeout; a hung
+  connection can no longer block a request indefinitely.
+- Non-success provider responses now produce `AiError::HttpStatus` carrying the
+  status code and any `Retry-After` header, instead of a flattened `Internal` string.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed
