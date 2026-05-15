@@ -225,19 +225,20 @@ impl SystempromptClient {
         http::post(&self.client, &url, &request, self.token.as_ref()).await
     }
 
+    fn limited_url(&self, path: &str, limit: Option<u32>) -> String {
+        limit.map_or_else(
+            || format!("{}{}", self.base_url, path),
+            |l| format!("{}{}?limit={}", self.base_url, path, l),
+        )
+    }
+
     pub async fn list_logs(&self, limit: Option<u32>) -> ClientResult<Vec<LogEntry>> {
-        let url = limit.map_or_else(
-            || format!("{}{}", self.base_url, ApiPaths::ADMIN_LOGS),
-            |l| format!("{}{}?limit={}", self.base_url, ApiPaths::ADMIN_LOGS, l),
-        );
+        let url = self.limited_url(ApiPaths::ADMIN_LOGS, limit);
         http::get(&self.client, &url, self.token.as_ref()).await
     }
 
     pub async fn list_users(&self, limit: Option<u32>) -> ClientResult<Vec<UserInfo>> {
-        let url = limit.map_or_else(
-            || format!("{}{}", self.base_url, ApiPaths::ADMIN_USERS),
-            |l| format!("{}{}?limit={}", self.base_url, ApiPaths::ADMIN_USERS, l),
-        );
+        let url = self.limited_url(ApiPaths::ADMIN_USERS, limit);
         http::get(&self.client, &url, self.token.as_ref()).await
     }
 
@@ -250,10 +251,7 @@ impl SystempromptClient {
         &self,
         limit: Option<u32>,
     ) -> ClientResult<Vec<serde_json::Value>> {
-        let url = limit.map_or_else(
-            || format!("{}{}", self.base_url, ApiPaths::CORE_ARTIFACTS),
-            |l| format!("{}{}?limit={}", self.base_url, ApiPaths::CORE_ARTIFACTS, l),
-        );
+        let url = self.limited_url(ApiPaths::CORE_ARTIFACTS, limit);
         http::get(&self.client, &url, self.token.as_ref()).await
     }
 
