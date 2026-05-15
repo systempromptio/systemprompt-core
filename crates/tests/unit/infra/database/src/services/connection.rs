@@ -102,9 +102,9 @@ async fn gives_up_after_five_attempts() {
 
 #[tokio::test]
 async fn non_retryable_error_fails_immediately() {
-    let errors = Mutex::new(vec![
-        sqlx::Error::Protocol("password authentication failed for user".to_string()),
-    ]);
+    let errors = Mutex::new(vec![sqlx::Error::Protocol(
+        "password authentication failed for user".to_string(),
+    )]);
     let calls = AtomicU32::new(0);
     let result = connect_with_retry_using::<u8, _, _>(opts(), 5, &[1, 1, 1, 1, 1], |_| {
         calls.fetch_add(1, Ordering::SeqCst);

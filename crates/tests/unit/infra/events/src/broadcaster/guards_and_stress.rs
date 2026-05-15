@@ -112,9 +112,15 @@ async fn test_broadcaster_broadcast_all_failed_senders() {
     let (sender2, rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender3, rx3) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    broadcaster.register(&user_id, &ConnectionId::new("conn-1"), sender1).await;
-    broadcaster.register(&user_id, &ConnectionId::new("conn-2"), sender2).await;
-    broadcaster.register(&user_id, &ConnectionId::new("conn-3"), sender3).await;
+    broadcaster
+        .register(&user_id, &ConnectionId::new("conn-1"), sender1)
+        .await;
+    broadcaster
+        .register(&user_id, &ConnectionId::new("conn-2"), sender2)
+        .await;
+    broadcaster
+        .register(&user_id, &ConnectionId::new("conn-3"), sender3)
+        .await;
 
     drop(rx1);
     drop(rx2);

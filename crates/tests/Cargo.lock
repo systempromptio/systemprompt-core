@@ -6964,7 +6964,6 @@ dependencies = [
 name = "systemprompt-events"
 version = "0.10.1"
 dependencies = [
- "async-trait",
  "axum",
  "serde",
  "serde_json",
@@ -7344,7 +7343,6 @@ dependencies = [
 name = "systemprompt-oauth"
 version = "0.10.1"
 dependencies = [
- "async-trait",
  "axum",
  "base64 0.22.1",
  "bcrypt 0.19.0",

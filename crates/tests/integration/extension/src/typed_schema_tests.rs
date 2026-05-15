@@ -26,8 +26,8 @@ fn test_schema_definition_typed_with_required_columns() {
 
 #[test]
 fn test_schema_definition_typed_empty_required_columns() {
-    let schema = SchemaDefinitionTyped::new("empty", "CREATE TABLE empty ()")
-        .with_required_columns(vec![]);
+    let schema =
+        SchemaDefinitionTyped::new("empty", "CREATE TABLE empty ()").with_required_columns(vec![]);
 
     assert!(schema.required_columns.is_empty());
 }

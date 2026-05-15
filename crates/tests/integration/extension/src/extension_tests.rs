@@ -81,9 +81,12 @@ fn test_schema_definition_with_required_columns() {
 
 #[test]
 fn test_schema_definition_chained_required_columns() {
-    let schema = SchemaDefinition::new("events", "CREATE TABLE events ()").with_required_columns(
-        vec!["id".to_string(), "timestamp".to_string(), "type".to_string()],
-    );
+    let schema =
+        SchemaDefinition::new("events", "CREATE TABLE events ()").with_required_columns(vec![
+            "id".to_string(),
+            "timestamp".to_string(),
+            "type".to_string(),
+        ]);
 
     assert_eq!(schema.required_columns.len(), 3);
 }

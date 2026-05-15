@@ -16,8 +16,9 @@ use systemprompt_extension::{
 };
 use uuid::Uuid;
 
-const DEFAULT_DATABASE_URL: &str =
-    "postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web";
+const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
+                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
+                                    systemprompt-web";
 
 fn database_url() -> String {
     env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
@@ -92,11 +93,11 @@ impl Extension for LogsExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(1, "add_gateway_conversation_id", self.migration_sql)]
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec![self.table]
+        vec![Migration::new(
+            1,
+            "add_gateway_conversation_id",
+            self.migration_sql,
+        )]
     }
 }
 
@@ -126,16 +127,12 @@ impl Extension for ViewExtension {
     fn migrations(&self) -> Vec<Migration> {
         vec![Migration::new(1, "add_payload_column", self.migration_sql)]
     }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec![self.table]
-    }
 }
 
 async fn column_exists(pool: &PgPool, table: &str, column: &str) -> bool {
     let row = sqlx::query(
-        "SELECT 1 AS one FROM information_schema.columns \
-         WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2",
+        "SELECT 1 AS one FROM information_schema.columns WHERE table_schema = 'public' AND \
+         table_name = $1 AND column_name = $2",
     )
     .bind(table)
     .bind(column)
@@ -158,9 +155,8 @@ async fn index_exists(pool: &PgPool, index: &str) -> bool {
 
 async fn view_definition(pool: &PgPool, view: &str) -> Option<String> {
     let row = sqlx::query(
-        "SELECT pg_get_viewdef(c.oid, true) AS def \
-         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
-         WHERE n.nspname = 'public' AND c.relname = $1 AND c.relkind IN ('v','m')",
+        "SELECT pg_get_viewdef(c.oid, true) AS def FROM pg_class c JOIN pg_namespace n ON n.oid = \
+         c.relnamespace WHERE n.nspname = 'public' AND c.relname = $1 AND c.relkind IN ('v','m')",
     )
     .bind(view)
     .fetch_optional(pool)
@@ -201,14 +197,9 @@ async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
     };
 
     let schema_sql: &'static str = leak_str(format!(
-        "CREATE TABLE IF NOT EXISTS {table} (\n    \
-            id TEXT PRIMARY KEY,\n    \
-            level TEXT,\n    \
-            message TEXT,\n    \
-            gateway_conversation_id VARCHAR(255)\n        \
-        );\n\
-        CREATE INDEX IF NOT EXISTS {index_name} \
-            ON {table} (gateway_conversation_id);"
+        "CREATE TABLE IF NOT EXISTS {table} (\n    id TEXT PRIMARY KEY,\n    level TEXT,\n    \
+         message TEXT,\n    gateway_conversation_id VARCHAR(255)\n        );\nCREATE INDEX IF NOT \
+         EXISTS {index_name} ON {table} (gateway_conversation_id);"
     ));
     let migration_sql: &'static str = leak_str(format!(
         "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS gateway_conversation_id VARCHAR(255);"
@@ -277,13 +268,9 @@ async fn view_in_schema_can_reference_column_added_by_migration() {
     };
 
     let schema_sql: &'static str = leak_str(format!(
-        "CREATE TABLE IF NOT EXISTS {table} (\n    \
-            id TEXT PRIMARY KEY,\n    \
-            kind TEXT,\n    \
-            payload JSONB\n        \
-        );\n\
-        CREATE OR REPLACE VIEW {view} AS \
-            SELECT id, payload FROM {table};"
+        "CREATE TABLE IF NOT EXISTS {table} (\n    id TEXT PRIMARY KEY,\n    kind TEXT,\n    \
+         payload JSONB\n        );\nCREATE OR REPLACE VIEW {view} AS SELECT id, payload FROM \
+         {table};"
     ));
     let migration_sql: &'static str = leak_str(format!(
         "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS payload JSONB;"

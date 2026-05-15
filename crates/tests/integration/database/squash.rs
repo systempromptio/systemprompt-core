@@ -16,8 +16,9 @@ use systemprompt_extension::{
 };
 use uuid::Uuid;
 
-const DEFAULT_DATABASE_URL: &str =
-    "postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web";
+const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
+                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
+                                    systemprompt-web";
 
 fn database_url() -> String {
     env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
@@ -83,10 +84,6 @@ impl Extension for SquashExtension {
     fn migrations(&self) -> Vec<Migration> {
         self.migrations.clone()
     }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec![self.table]
-    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -108,22 +105,20 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
     };
 
     let schema_sql: &'static str = leak(format!(
-        "CREATE TABLE IF NOT EXISTS {table} (\n    \
-            id TEXT PRIMARY KEY,\n    \
-            col_a TEXT,\n    \
-            col_b TEXT,\n    \
-            col_c TEXT\n        \
-        );"
+        "CREATE TABLE IF NOT EXISTS {table} (\n    id TEXT PRIMARY KEY,\n    col_a TEXT,\n    \
+         col_b TEXT,\n    col_c TEXT\n        );"
     ));
 
     let m1_sql: &'static str = leak(format!(
-        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY); ALTER TABLE {table} ADD \
-         COLUMN IF NOT EXISTS col_a TEXT;"
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY); ALTER TABLE {table} ADD COLUMN \
+         IF NOT EXISTS col_a TEXT;"
     ));
-    let m2_sql: &'static str =
-        leak(format!("ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_b TEXT;"));
-    let m3_sql: &'static str =
-        leak(format!("ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_c TEXT;"));
+    let m2_sql: &'static str = leak(format!(
+        "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_b TEXT;"
+    ));
+    let m3_sql: &'static str = leak(format!(
+        "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_c TEXT;"
+    ));
 
     let ext_full = SquashExtension {
         id: ext_id,
@@ -146,17 +141,21 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
         .await
         .expect("install must apply migrations 1..=3");
 
-    let applied_before: Vec<i32> =
-        sqlx::query("SELECT version FROM extension_migrations WHERE extension_id = $1 ORDER BY \
-                     version")
-            .bind(ext_id)
-            .fetch_all(&pool)
-            .await
-            .expect("read applied")
-            .into_iter()
-            .map(|r| r.get::<i32, _>("version"))
-            .collect();
-    assert_eq!(applied_before, vec![1, 2, 3], "all three migrations must be applied");
+    let applied_before: Vec<i32> = sqlx::query(
+        "SELECT version FROM extension_migrations WHERE extension_id = $1 ORDER BY version",
+    )
+    .bind(ext_id)
+    .fetch_all(&pool)
+    .await
+    .expect("read applied")
+    .into_iter()
+    .map(|r| r.get::<i32, _>("version"))
+    .collect();
+    assert_eq!(
+        applied_before,
+        vec![1, 2, 3],
+        "all three migrations must be applied"
+    );
 
     let ext_for_squash = SquashExtension {
         id: ext_id,
@@ -200,7 +199,11 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
     })
     .collect();
 
-    assert_eq!(applied_after.len(), 2, "only baseline + version 3 should remain");
+    assert_eq!(
+        applied_after.len(),
+        2,
+        "only baseline + version 3 should remain"
+    );
     assert_eq!(applied_after[0].0, 0, "baseline must be at version 0");
     assert_eq!(applied_after[0].1, "baseline_v2");
     assert_eq!(applied_after[0].2, plan.baseline_checksum);
@@ -226,16 +229,16 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
         .await
         .expect("re-running install on a squashed DB must be a no-op");
 
-    let applied_final: Vec<i32> =
-        sqlx::query("SELECT version FROM extension_migrations WHERE extension_id = $1 ORDER BY \
-                     version")
-            .bind(ext_id)
-            .fetch_all(&pool)
-            .await
-            .expect("read applied final")
-            .into_iter()
-            .map(|r| r.get::<i32, _>("version"))
-            .collect();
+    let applied_final: Vec<i32> = sqlx::query(
+        "SELECT version FROM extension_migrations WHERE extension_id = $1 ORDER BY version",
+    )
+    .bind(ext_id)
+    .fetch_all(&pool)
+    .await
+    .expect("read applied final")
+    .into_iter()
+    .map(|r| r.get::<i32, _>("version"))
+    .collect();
     assert_eq!(applied_final, vec![0, 3], "no new rows after re-install");
 }
 
@@ -261,11 +264,12 @@ async fn squash_refuses_when_target_range_not_fully_applied() {
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, col_a TEXT, col_b TEXT);"
     ));
     let m1_sql: &'static str = leak(format!(
-        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY); ALTER TABLE {table} ADD \
-         COLUMN IF NOT EXISTS col_a TEXT;"
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY); ALTER TABLE {table} ADD COLUMN \
+         IF NOT EXISTS col_a TEXT;"
     ));
-    let m2_sql: &'static str =
-        leak(format!("ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_b TEXT;"));
+    let m2_sql: &'static str = leak(format!(
+        "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_b TEXT;"
+    ));
 
     let ext_v1_only = SquashExtension {
         id: ext_id,

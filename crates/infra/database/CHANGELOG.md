@@ -14,6 +14,9 @@ All notable changes to `systemprompt-database` are documented here. Format follo
 - Seed linting rejects a non-idempotent `INSERT` (one with no `ON CONFLICT` clause).
 - Required-column validation is schema-qualified rather than assuming the `public` schema.
 
+### Fixed
+- `DatabaseExtension` declares priority `0` so its shared SQL helpers and the `extension_migrations` table install before every other extension; without it, install order tie-broke alphabetically and could place a dependent extension first.
+
 ## [0.10.0] - 2026-05-12
 
 ### Breaking

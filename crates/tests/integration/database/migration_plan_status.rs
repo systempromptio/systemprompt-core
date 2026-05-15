@@ -12,8 +12,9 @@ use systemprompt_extension::{
 };
 use uuid::Uuid;
 
-const DEFAULT_DATABASE_URL: &str =
-    "postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web";
+const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
+                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
+                                    systemprompt-web";
 
 fn database_url() -> String {
     env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
@@ -87,10 +88,6 @@ impl Extension for TwoMigrationExt {
             Migration::new(2, "second", self.m2),
         ]
     }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec![self.table]
-    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -114,10 +111,12 @@ async fn plan_pending_lists_all_then_none_after_apply() {
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, a INT, b INT);"
     ));
-    let m1: &'static str = leak_str(format!("CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"));
+    let m1: &'static str = leak_str(format!(
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
+    ));
     let m2: &'static str = leak_str(format!(
-        "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS a INT; \
-         ALTER TABLE {table} ADD COLUMN IF NOT EXISTS b INT;"
+        "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS a INT; ALTER TABLE {table} ADD COLUMN IF \
+         NOT EXISTS b INT;"
     ));
 
     let ext = TwoMigrationExt {
@@ -188,7 +187,9 @@ async fn status_reports_applied_pending_and_drift() {
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
     ));
-    let m1: &'static str = leak_str(format!("CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"));
+    let m1: &'static str = leak_str(format!(
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
+    ));
     let m2: &'static str = leak_str(format!(
         "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS payload JSONB;"
     ));
@@ -218,10 +219,7 @@ async fn status_reports_applied_pending_and_drift() {
         .expect("install m1 only");
 
     let svc = MigrationService::new(db_arc.write_provider());
-    let status = svc
-        .status(&ext_v1_only)
-        .await
-        .expect("status must succeed");
+    let status = svc.status(&ext_v1_only).await.expect("status must succeed");
 
     assert_eq!(status.extension_id, ext_id);
     assert_eq!(status.applied.len(), 1);
@@ -234,16 +232,16 @@ async fn status_reports_applied_pending_and_drift() {
     assert_eq!(status.pending[0].version, 2);
     assert!(status.drift.is_empty());
 
-    query("UPDATE extension_migrations SET checksum = 'tampered' WHERE extension_id = $1 AND version = 1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await
-        .expect("tamper checksum");
+    query(
+        "UPDATE extension_migrations SET checksum = 'tampered' WHERE extension_id = $1 AND \
+         version = 1",
+    )
+    .bind(ext_id)
+    .execute(&pool)
+    .await
+    .expect("tamper checksum");
 
-    let drifted = svc
-        .status(&ext_v1_only)
-        .await
-        .expect("status after tamper");
+    let drifted = svc.status(&ext_v1_only).await.expect("status after tamper");
 
     assert_eq!(drifted.drift.len(), 1, "v1 should be flagged as drifted");
     assert_eq!(drifted.drift[0].version, 1);
@@ -281,9 +279,5 @@ impl Extension for SingleMigrationExt {
 
     fn migrations(&self) -> Vec<Migration> {
         vec![Migration::new(1, "first", self.m1)]
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec![self.table]
     }
 }

@@ -210,9 +210,7 @@ fn registry_validate_satisfied_deps_succeeds() {
     let mut registry = ExtensionRegistry::new();
     let base = Arc::new(FakeExt::new("base", "Base"));
     registry.register(base).expect("register base");
-    let dependent = Arc::new(
-        FakeExt::new("child", "Child").with_deps(vec!["base"]),
-    );
+    let dependent = Arc::new(FakeExt::new("child", "Child").with_deps(vec!["base"]));
     registry.register(dependent).expect("register child");
     assert!(registry.validate().is_ok());
 }
@@ -253,17 +251,19 @@ fn registry_topo_sort_linear_chain() {
     let mut registry = ExtensionRegistry::new();
     registry
         .register(Arc::new(
-            FakeExt::new("c", "C").with_deps(vec!["b"]).with_priority(50),
+            FakeExt::new("c", "C")
+                .with_deps(vec!["b"])
+                .with_priority(50),
         ))
         .expect("register c");
     registry
-        .register(Arc::new(
-            FakeExt::new("a", "A").with_priority(10),
-        ))
+        .register(Arc::new(FakeExt::new("a", "A").with_priority(10)))
         .expect("register a");
     registry
         .register(Arc::new(
-            FakeExt::new("b", "B").with_deps(vec!["a"]).with_priority(20),
+            FakeExt::new("b", "B")
+                .with_deps(vec!["a"])
+                .with_priority(20),
         ))
         .expect("register b");
 

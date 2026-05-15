@@ -353,7 +353,12 @@ async fn breakdown_by_model_for_user_only_includes_self() -> Result<()> {
 
     let repo = fx.repo()?;
     let rows = repo
-        .get_breakdown_by_model_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end, 10)
+        .get_breakdown_by_model_for_user(
+            &UserId::new(&fx.user_id),
+            fx.window_start,
+            fx.window_end,
+            10,
+        )
         .await?;
     let names: std::collections::HashSet<&str> = rows.iter().map(|r| r.name.as_str()).collect();
     assert!(names.contains("model-x"));
@@ -410,7 +415,12 @@ async fn contexts_by_agent_groups_by_agent_name() -> Result<()> {
 
     let repo = fx.repo()?;
     let rows = repo
-        .get_contexts_by_agent_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end, 10)
+        .get_contexts_by_agent_for_user(
+            &UserId::new(&fx.user_id),
+            fx.window_start,
+            fx.window_end,
+            10,
+        )
         .await?;
     let by_name: std::collections::HashMap<&str, &_> =
         rows.iter().map(|r| (r.name.as_str(), r)).collect();

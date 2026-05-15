@@ -1,7 +1,6 @@
-use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_events::{Broadcaster, EventSender};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ConnectionId, UserId};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -13,7 +12,7 @@ pub struct BroadcastCall<E> {
 #[derive(Debug, Clone)]
 pub struct RegisterCall {
     pub user_id: UserId,
-    pub connection_id: String,
+    pub connection_id: ConnectionId,
 }
 
 pub struct MockBroadcaster<E: Clone + Send> {
@@ -75,21 +74,20 @@ impl<E: Clone + Send> Default for MockBroadcaster<E> {
     }
 }
 
-#[async_trait]
 impl<E: Clone + Send + Sync + 'static> Broadcaster for MockBroadcaster<E> {
     type Event = E;
 
-    async fn register(&self, user_id: &UserId, connection_id: &str, _sender: EventSender) {
+    async fn register(&self, user_id: &UserId, connection_id: &ConnectionId, _sender: EventSender) {
         self.registrations.lock().await.push(RegisterCall {
             user_id: user_id.clone(),
-            connection_id: connection_id.to_string(),
+            connection_id: connection_id.clone(),
         });
     }
 
-    async fn unregister(&self, user_id: &UserId, connection_id: &str) {
+    async fn unregister(&self, user_id: &UserId, connection_id: &ConnectionId) {
         self.unregistrations.lock().await.push(RegisterCall {
             user_id: user_id.clone(),
-            connection_id: connection_id.to_string(),
+            connection_id: connection_id.clone(),
         });
     }
 

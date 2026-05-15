@@ -90,7 +90,9 @@ async fn test_route_agui_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    AGUI_BROADCASTER.unregister(&user_id, &ConnectionId::new("agui-conn")).await;
+    AGUI_BROADCASTER
+        .unregister(&user_id, &ConnectionId::new("agui-conn"))
+        .await;
 }
 
 #[tokio::test]
@@ -109,7 +111,9 @@ async fn test_route_a2a_with_registered_connection() {
     let user_id = UserId::new("a2a-test-user");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    A2A_BROADCASTER.register(&user_id, &ConnectionId::new("a2a-conn"), sender).await;
+    A2A_BROADCASTER
+        .register(&user_id, &ConnectionId::new("a2a-conn"), sender)
+        .await;
 
     let event = test_a2a_event();
     let (a2a_count, _context_count) = EventRouter::route_a2a(&user_id, event).await;
@@ -120,7 +124,9 @@ async fn test_route_a2a_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    A2A_BROADCASTER.unregister(&user_id, &ConnectionId::new("a2a-conn")).await;
+    A2A_BROADCASTER
+        .unregister(&user_id, &ConnectionId::new("a2a-conn"))
+        .await;
 }
 
 #[tokio::test]
@@ -163,7 +169,11 @@ async fn test_route_agui_broadcasts_to_context() {
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
-        .register(&user_id, &ConnectionId::new("context-only-conn"), context_sender)
+        .register(
+            &user_id,
+            &ConnectionId::new("context-only-conn"),
+            context_sender,
+        )
         .await;
 
     let event = test_agui_event();
@@ -187,7 +197,11 @@ async fn test_route_a2a_broadcasts_to_context() {
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
-        .register(&user_id, &ConnectionId::new("a2a-context-conn"), context_sender)
+        .register(
+            &user_id,
+            &ConnectionId::new("a2a-context-conn"),
+            context_sender,
+        )
         .await;
 
     let event = test_a2a_event();
