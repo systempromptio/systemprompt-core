@@ -1,3 +1,6 @@
+//! Tool-call models — MCP tool descriptors, provider tool-call requests,
+//! and their execution results.
+
 pub mod mcp_tool;
 pub mod tool_call;
 

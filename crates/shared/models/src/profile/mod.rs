@@ -1,4 +1,9 @@
-//! `profile` module — see crate-level docs for context.
+//! Profile configuration models — the deserialized shape of a
+//! `.systemprompt/profiles/<name>/profile.yaml` document.
+//!
+//! Covers server, database, paths, secrets, security, rate limits,
+//! gateway, governance, and runtime sections, plus validation rules and
+//! environment-variable interpolation.
 
 mod cloud;
 mod database;

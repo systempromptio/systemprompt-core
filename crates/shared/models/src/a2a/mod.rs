@@ -1,4 +1,6 @@
-//! `a2a` module — see crate-level docs for context.
+//! A2A protocol models — agent cards, messages, tasks, artifacts, and
+//! transport descriptors. Protocol types retain raw `String` fields to
+//! match the external JSON-RPC specification.
 
 pub mod agent_card;
 pub mod artifact;
