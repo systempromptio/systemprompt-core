@@ -165,6 +165,21 @@ pub struct MigrationHistoryOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbSquashOutput {
+    pub extension_id: String,
+    pub through: u32,
+    pub baseline_name: String,
+    pub baseline_checksum: String,
+    pub source_versions: Vec<u32>,
+    pub already_applied_versions: Vec<u32>,
+    pub baseline_path: String,
+    pub baseline_path_written: bool,
+    pub applied: bool,
+    pub message: String,
+    pub follow_up: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppliedMigrationInfo {
     pub version: u32,
     pub name: String,

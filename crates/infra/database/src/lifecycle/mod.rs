@@ -8,6 +8,6 @@ pub use installation::{
 };
 pub use migrations::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationConfig, MigrationResult,
-    MigrationService, MigrationStatus, PendingMigration,
+    MigrationService, MigrationStatus, PendingMigration, SquashPlan,
 };
 pub use validation::{validate_column_exists, validate_database_connection, validate_table_exists};

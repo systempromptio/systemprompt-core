@@ -613,3 +613,184 @@ pub struct MigrationStatus {
     pub pending: Vec<Migration>,
     pub applied: Vec<AppliedMigration>,
 }
+
+#[derive(Debug, Clone)]
+pub struct SquashPlan {
+    pub extension_id: String,
+    pub through: u32,
+    pub baseline_name: String,
+    pub baseline_sql: String,
+    pub baseline_checksum: String,
+    pub source_versions: Vec<u32>,
+    pub already_applied_versions: Vec<u32>,
+    pub applied: bool,
+}
+
+fn baseline_checksum(sql: &str) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    sql.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
+}
+
+impl MigrationService<'_> {
+    pub async fn squash_through(
+        &self,
+        extension: &dyn Extension,
+        through: u32,
+        apply: bool,
+    ) -> Result<SquashPlan, LoaderError> {
+        let ext_id = extension.metadata().id;
+
+        if through == 0 {
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: "--through must be >= 1; version 0 is reserved for the squash baseline"
+                    .to_string(),
+            });
+        }
+
+        let mut migrations = extension.migrations();
+        migrations.sort_by_key(|m| m.version);
+
+        let to_squash: Vec<&Migration> = migrations
+            .iter()
+            .filter(|m| m.version >= 1 && m.version <= through)
+            .collect();
+
+        if to_squash.is_empty() {
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!(
+                    "No migrations in range 1..={through} are defined for extension '{ext_id}'"
+                ),
+            });
+        }
+
+        let mut covered: Vec<u32> = to_squash.iter().map(|m| m.version).collect();
+        covered.sort_unstable();
+        let expected: Vec<u32> = (1..=through).collect();
+        if covered != expected {
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!(
+                    "Migrations 1..={through} are not contiguous for extension '{ext_id}': have \
+                     {covered:?}"
+                ),
+            });
+        }
+
+        let mut baseline_sql = String::new();
+        for m in &to_squash {
+            baseline_sql.push_str(&format!(
+                "-- migration {ver:03}: {name}\n",
+                ver = m.version,
+                name = m.name
+            ));
+            baseline_sql.push_str(m.sql);
+            if !m.sql.ends_with('\n') {
+                baseline_sql.push('\n');
+            }
+            baseline_sql.push('\n');
+        }
+
+        let checksum = baseline_checksum(&baseline_sql);
+        let baseline_name = format!("baseline_v{through}");
+
+        self.ensure_migrations_table_exists().await?;
+        let applied = self.get_applied_migrations(ext_id).await?;
+
+        let beyond: Vec<u32> = applied
+            .iter()
+            .map(|m| m.version)
+            .filter(|v| *v > through)
+            .collect();
+        if !beyond.is_empty() {
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!(
+                    "Refusing to squash through {through}: extension '{ext_id}' already has \
+                     migrations applied beyond {through}: {beyond:?}. Squash before applying \
+                     newer migrations or pick a higher --through."
+                ),
+            });
+        }
+
+        let already_applied: Vec<u32> = applied
+            .iter()
+            .map(|m| m.version)
+            .filter(|v| *v >= 1 && *v <= through)
+            .collect();
+
+        let plan = SquashPlan {
+            extension_id: ext_id.to_string(),
+            through,
+            baseline_name: baseline_name.clone(),
+            baseline_sql: baseline_sql.clone(),
+            baseline_checksum: checksum.clone(),
+            source_versions: covered,
+            already_applied_versions: already_applied,
+            applied: false,
+        };
+
+        if !apply {
+            return Ok(plan);
+        }
+
+        self.apply_squash_rows(ext_id, through, &baseline_name, &checksum)
+            .await?;
+
+        Ok(SquashPlan {
+            applied: true,
+            ..plan
+        })
+    }
+
+    async fn apply_squash_rows(
+        &self,
+        ext_id: &str,
+        through: u32,
+        baseline_name: &str,
+        checksum: &str,
+    ) -> Result<(), LoaderError> {
+        let escaped_ext = ext_id.replace('\'', "''");
+        let escaped_name = baseline_name.replace('\'', "''");
+        let baseline_id = format!("{ext_id}_000");
+        let escaped_id = baseline_id.replace('\'', "''");
+
+        let upsert = format!(
+            "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) VALUES \
+             ('{escaped_id}', '{escaped_ext}', 0, '{escaped_name}', '{checksum}') ON CONFLICT \
+             (extension_id, version) DO UPDATE SET name = EXCLUDED.name, checksum = \
+             EXCLUDED.checksum"
+        );
+        self.db
+            .execute_raw(&upsert)
+            .await
+            .map_err(|e| LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!("Failed to record baseline migration row: {e}"),
+            })?;
+
+        let delete = format!(
+            "DELETE FROM extension_migrations WHERE extension_id = '{escaped_ext}' AND version \
+             BETWEEN 1 AND {through}"
+        );
+        self.db
+            .execute_raw(&delete)
+            .await
+            .map_err(|e| LoaderError::MigrationFailed {
+                extension: ext_id.to_string(),
+                message: format!("Failed to retire squashed migration rows: {e}"),
+            })?;
+
+        info!(
+            extension = %ext_id,
+            through,
+            baseline_name = %baseline_name,
+            "Squash applied: baseline row inserted, source rows retired"
+        );
+
+        Ok(())
+    }
+}
