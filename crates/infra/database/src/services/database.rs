@@ -64,6 +64,12 @@ impl Database {
         })
     }
 
+    fn require_postgres(
+        pool: Option<Arc<sqlx::PgPool>>,
+    ) -> DatabaseResult<Arc<sqlx::PgPool>> {
+        pool.ok_or_else(|| RepositoryError::invalid_state("Database is not PostgreSQL"))
+    }
+
     pub fn get_postgres_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
         self.pool_arc()
     }
@@ -71,11 +77,7 @@ impl Database {
     pub fn write_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
         self.write_provider.as_ref().map_or_else(
             || self.get_postgres_pool_arc(),
-            |wp| {
-                wp.get_postgres_pool().ok_or_else(|| {
-                    RepositoryError::invalid_state("Write database is not PostgreSQL")
-                })
-            },
+            |wp| Self::require_postgres(wp.get_postgres_pool()),
         )
     }
 
@@ -140,8 +142,7 @@ impl Database {
     }
 
     pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        self.get_postgres_pool()
-            .ok_or_else(|| RepositoryError::invalid_state("Database is not PostgreSQL"))
+        Self::require_postgres(self.get_postgres_pool())
     }
 
     #[must_use]
@@ -155,9 +156,7 @@ impl Database {
     }
 
     pub fn read_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        self.provider
-            .get_postgres_pool()
-            .ok_or_else(|| RepositoryError::invalid_state("Database is not PostgreSQL"))
+        Self::require_postgres(self.provider.get_postgres_pool())
     }
 
     pub async fn begin(&self) -> DatabaseResult<sqlx::Transaction<'_, sqlx::Postgres>> {
