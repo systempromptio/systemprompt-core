@@ -51,7 +51,7 @@ impl TraceQueryService {
     pub async fn get_task_id(&self, trace_id: &str) -> Result<Option<TaskId>> {
         Ok(queries::fetch_task_id_for_trace(&self.pool, trace_id)
             .await?
-            .map(TaskId::from))
+            .map(TaskId::new))
     }
 
     pub async fn get_execution_step_summary(&self, trace_id: &str) -> Result<ExecutionStepSummary> {
