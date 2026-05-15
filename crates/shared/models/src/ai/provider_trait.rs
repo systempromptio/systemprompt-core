@@ -34,6 +34,9 @@ pub struct GoogleSearchParams<'a> {
     pub response_schema: Option<serde_json::Value>,
 }
 
+/// `#[async_trait]` is required: this trait is consumed exclusively as
+/// `DynAiProvider` (`Arc<dyn AiProvider>`), and a `dyn`-compatible trait
+/// cannot use native `async fn`.
 #[async_trait]
 pub trait AiProvider: Send + Sync {
     fn default_provider(&self) -> &str;
