@@ -1,25 +1,57 @@
 //! Declarative-schema linter.
 //!
-//! Walks a SQL script using the same lex states as
-//! [`crate::services::executor::SqlExecutor::parse_sql_statements`] (single
-//! quote, dollar quote, line/block comment) so it inspects only top-level
-//! tokens. Each top-level statement is classified by leading keywords:
+//! Parses each schema with [`pg_query`] (the actual `PostgreSQL` parser,
+//! exposed as a protobuf AST) and walks top-level statements. Classification is
+//! by AST node variant rather than keyword tokens, so identifier-equal strings
+//! such as a column literally named `alter` do not produce false positives,
+//! and dollar-quoted PL/pgSQL bodies are skipped at the parser level.
 //!
-//! - **Allowed**: `CREATE TABLE [IF NOT EXISTS]`, `CREATE [UNIQUE] INDEX [IF
-//!   NOT EXISTS]`, `CREATE [OR REPLACE] FUNCTION`, `CREATE [OR REPLACE] VIEW`,
-//!   `CREATE [OR REPLACE] TRIGGER`, `CREATE TYPE`, `CREATE EXTENSION IF NOT
-//!   EXISTS`, `COMMENT ON`.
-//! - **Rejected**: `ALTER`, `DROP`, top-level `DO $$ … $$`, `UPDATE`, `INSERT`,
-//!   `DELETE`, `TRUNCATE`, `GRANT`, `REVOKE`, anything containing `RENAME`.
-//! - **Naked `CREATE TABLE foo (…)`** without `IF NOT EXISTS` is permitted but
-//!   emitted as an informational warning (still reported as a [`LintError`]
-//!   with [`LintSeverity::Warning`]).
+//! ## Allowed top-level statements
 //!
-//! The lexer mirrors the splitter rather than calling into it because the
-//! linter needs byte offsets — preserved as `(line, column)` — to surface
-//! useful error messages.
+//! - `CreateStmt` — `CREATE TABLE`
+//! - `IndexStmt` — `CREATE [UNIQUE] INDEX`
+//! - `CreateFunctionStmt`
+//! - `ViewStmt` — `CREATE [OR REPLACE] VIEW`
+//! - `CreateTrigStmt`
+//! - `CompositeTypeStmt` — `CREATE TYPE … AS (…)`
+//! - `CreateEnumStmt` — `CREATE TYPE … AS ENUM`
+//! - `CreateExtensionStmt`
+//! - `CommentStmt` — `COMMENT ON …`
+//!
+//! ## Rejected top-level statements
+//!
+//! - `AlterTableStmt`
+//! - `DropStmt`
+//! - `InsertStmt` / `UpdateStmt` / `DeleteStmt` / `TruncateStmt`
+//! - `GrantStmt` / `RevokeStmt`
+//! - `RenameStmt` — any object rename
+//! - `DoStmt` — anonymous `DO $$ … $$` blocks
+//! - Any bare `SELECT`/`COPY`/imperative statement
+//!
+//! ## Semantic checks
+//!
+//! For statements that reference columns of a table defined elsewhere in the
+//! same input (`CREATE INDEX`, `CREATE VIEW`), the linter resolves the
+//! `(table, column)` pair against an in-input schema graph built from sibling
+//! `CREATE TABLE` nodes. References to tables that are not declared in the
+//! same input (e.g. cross-extension `REFERENCES`) are intentionally not
+//! resolved — the parser sees those as forward references the database itself
+//! validates at apply-time.
+//!
+//! Column resolution does not descend into:
+//!
+//! - PL/pgSQL function bodies (resolved by Postgres at function call time)
+//! - `CHECK` constraint expressions (resolved by Postgres at table creation)
+//! - Trigger function bodies
+//!
+//! These are deferred so the linter behaves identically to the database for
+//! anything it cannot statically prove, avoiding false positives on
+//! late-bound names.
 
 use std::fmt;
+
+use pg_query::protobuf::node::Node;
+use pg_query::protobuf::{ColumnDef, CreateStmt, IndexStmt, ViewStmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LintSeverity {
@@ -61,13 +93,101 @@ impl fmt::Display for LintError {
 /// `source` is the label included in error messages (typically the schema
 /// table name or the file path).
 pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintError>> {
-    let statements = split_top_level_statements(sql, source)?;
-    let mut errors = Vec::new();
-    for stmt in &statements {
-        if let Some(err) = classify(stmt, source) {
-            errors.push(err);
+    let parsed = match pg_query::parse(sql) {
+        Ok(p) => p,
+        Err(e) => {
+            return Err(vec![LintError {
+                line: 1,
+                column: 1,
+                severity: LintSeverity::Error,
+                message: format!("SQL parse failed: {e}"),
+                source: source.to_string(),
+            }]);
+        },
+    };
+
+    let line_index = LineIndex::new(sql);
+    let mut errors: Vec<LintError> = Vec::new();
+    let mut tables: Vec<TableDef> = Vec::new();
+
+    for raw in &parsed.protobuf.stmts {
+        let location = stmt_start_offset(sql, raw.stmt_location.max(0) as usize);
+        let (line, col) = line_index.position(location);
+
+        let Some(stmt) = raw.stmt.as_ref() else {
+            continue;
+        };
+        let Some(node) = stmt.node.as_ref() else {
+            continue;
+        };
+
+        match node {
+            Node::CreateStmt(create) => {
+                if let Some(table) = collect_create_stmt(create) {
+                    tables.push(table);
+                }
+                if let Some(warn) =
+                    warn_create_table_missing_if_not_exists(create, line, col, source)
+                {
+                    errors.push(warn);
+                }
+            },
+            Node::IndexStmt(_)
+            | Node::CreateFunctionStmt(_)
+            | Node::ViewStmt(_)
+            | Node::CreateTrigStmt(_)
+            | Node::CompositeTypeStmt(_)
+            | Node::CreateEnumStmt(_)
+            | Node::CommentStmt(_) => {},
+            Node::CreateExtensionStmt(ext) => {
+                if !ext.if_not_exists {
+                    errors.push(LintError {
+                        line,
+                        column: col,
+                        severity: LintSeverity::Warning,
+                        message: "CREATE EXTENSION without IF NOT EXISTS".into(),
+                        source: source.to_string(),
+                    });
+                }
+            },
+            other => {
+                if let Some(reason) = imperative_reason(other) {
+                    errors.push(LintError {
+                        line,
+                        column: col,
+                        severity: LintSeverity::Error,
+                        message: format!(
+                            "imperative SQL in declarative schema: {reason} — move to \
+                             schema/migrations/NNN_<name>.sql"
+                        ),
+                        source: source.to_string(),
+                    });
+                }
+            },
         }
     }
+
+    for raw in &parsed.protobuf.stmts {
+        let Some(stmt) = raw.stmt.as_ref() else {
+            continue;
+        };
+        let Some(node) = stmt.node.as_ref() else {
+            continue;
+        };
+        let location = stmt_start_offset(sql, raw.stmt_location.max(0) as usize);
+        let (line, col) = line_index.position(location);
+
+        match node {
+            Node::IndexStmt(idx) => {
+                check_index_columns(idx, &tables, line, col, source, &mut errors);
+            },
+            Node::ViewStmt(view) => {
+                check_view_columns(view, &tables, line, col, source, &mut errors);
+            },
+            _ => {},
+        }
+    }
+
     if errors.iter().any(|e| e.severity == LintSeverity::Error) {
         return Err(errors);
     }
@@ -75,391 +195,251 @@ pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintEr
 }
 
 #[derive(Debug, Clone)]
-struct TopStatement {
-    text: String,
-    start_line: u32,
-    start_column: u32,
+struct TableDef {
+    name: String,
+    columns: Vec<String>,
 }
 
-enum LexState {
-    Normal,
-    SingleQuote,
-    DollarQuote(String),
-    LineComment,
-    BlockComment(u32),
-}
-
-fn dollar_tag_end(bytes: &[u8], start: usize) -> Option<usize> {
-    debug_assert_eq!(bytes[start], b'$');
-    let mut j = start + 1;
-    while j < bytes.len() {
-        let c = bytes[j];
-        if c == b'$' {
-            return Some(j);
-        }
-        if !(c.is_ascii_alphanumeric() || c == b'_') {
-            return None;
-        }
-        j += 1;
+fn collect_create_stmt(create: &CreateStmt) -> Option<TableDef> {
+    let relation = create.relation.as_ref()?;
+    let name = relation.relname.clone();
+    if name.is_empty() {
+        return None;
     }
-    None
+    let mut columns = Vec::new();
+    for elt in &create.table_elts {
+        if let Some(Node::ColumnDef(cd)) = elt.node.as_ref() {
+            push_column(&mut columns, cd);
+        }
+    }
+    Some(TableDef { name, columns })
 }
 
-fn split_top_level_statements(
-    sql: &str,
+fn push_column(columns: &mut Vec<String>, cd: &ColumnDef) {
+    if !cd.colname.is_empty() {
+        columns.push(cd.colname.clone());
+    }
+}
+
+fn warn_create_table_missing_if_not_exists(
+    create: &CreateStmt,
+    line: u32,
+    col: u32,
     source: &str,
-) -> Result<Vec<TopStatement>, Vec<LintError>> {
-    let bytes = sql.as_bytes();
-    let mut statements: Vec<TopStatement> = Vec::new();
-    let mut state = LexState::Normal;
-    let mut start = 0usize;
-    let mut i = 0usize;
-    let mut start_line: u32 = 1;
-    let mut start_col: u32 = 1;
-    let mut line: u32 = 1;
-    let mut col: u32 = 1;
-    let mut stmt_line: u32 = 1;
-    let mut stmt_col: u32 = 1;
-    let mut has_content = false;
-
-    while i < bytes.len() {
-        let b = bytes[i];
-        match &mut state {
-            LexState::Normal => match b {
-                b'\'' => {
-                    if !has_content {
-                        stmt_line = line;
-                        stmt_col = col;
-                    }
-                    has_content = true;
-                    state = LexState::SingleQuote;
-                    advance(&mut i, &mut line, &mut col, b);
-                },
-                b'-' if bytes.get(i + 1) == Some(&b'-') => {
-                    state = LexState::LineComment;
-                    advance(&mut i, &mut line, &mut col, b);
-                    advance(&mut i, &mut line, &mut col, b'-');
-                },
-                b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                    state = LexState::BlockComment(1);
-                    advance(&mut i, &mut line, &mut col, b);
-                    advance(&mut i, &mut line, &mut col, b'*');
-                },
-                b'$' => {
-                    if !has_content {
-                        stmt_line = line;
-                        stmt_col = col;
-                    }
-                    has_content = true;
-                    if let Some(tag_end) = dollar_tag_end(bytes, i) {
-                        let tag = sql[i..=tag_end].to_string();
-                        let advance_by = tag_end - i + 1;
-                        for _ in 0..advance_by {
-                            advance(&mut i, &mut line, &mut col, b'$');
-                        }
-                        state = LexState::DollarQuote(tag);
-                    } else {
-                        advance(&mut i, &mut line, &mut col, b);
-                    }
-                },
-                b';' => {
-                    if has_content {
-                        let text = sql[start..i].trim().to_string();
-                        if !text.is_empty() {
-                            statements.push(TopStatement {
-                                text,
-                                start_line: stmt_line,
-                                start_column: stmt_col,
-                            });
-                        }
-                    }
-                    has_content = false;
-                    advance(&mut i, &mut line, &mut col, b);
-                    start = i;
-                    start_line = line;
-                    start_col = col;
-                },
-                _ => {
-                    if !b.is_ascii_whitespace() {
-                        if !has_content {
-                            stmt_line = line;
-                            stmt_col = col;
-                        }
-                        has_content = true;
-                    }
-                    advance(&mut i, &mut line, &mut col, b);
-                },
-            },
-            LexState::SingleQuote => {
-                if b == b'\'' {
-                    if bytes.get(i + 1) == Some(&b'\'') {
-                        advance(&mut i, &mut line, &mut col, b);
-                        advance(&mut i, &mut line, &mut col, b'\'');
-                    } else {
-                        state = LexState::Normal;
-                        advance(&mut i, &mut line, &mut col, b);
-                    }
-                } else {
-                    advance(&mut i, &mut line, &mut col, b);
-                }
-            },
-            LexState::DollarQuote(tag) => {
-                let tag_bytes = tag.as_bytes();
-                if i + tag_bytes.len() <= bytes.len() && &bytes[i..i + tag_bytes.len()] == tag_bytes
-                {
-                    for _ in 0..tag_bytes.len() {
-                        advance(&mut i, &mut line, &mut col, b'$');
-                    }
-                    state = LexState::Normal;
-                } else {
-                    advance(&mut i, &mut line, &mut col, b);
-                }
-            },
-            LexState::LineComment => {
-                if b == b'\n' {
-                    state = LexState::Normal;
-                }
-                advance(&mut i, &mut line, &mut col, b);
-            },
-            LexState::BlockComment(depth) => {
-                if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
-                    *depth += 1;
-                    advance(&mut i, &mut line, &mut col, b);
-                    advance(&mut i, &mut line, &mut col, b'*');
-                } else if b == b'*' && bytes.get(i + 1) == Some(&b'/') {
-                    *depth -= 1;
-                    let zero = *depth == 0;
-                    advance(&mut i, &mut line, &mut col, b);
-                    advance(&mut i, &mut line, &mut col, b'/');
-                    if zero {
-                        state = LexState::Normal;
-                    }
-                } else {
-                    advance(&mut i, &mut line, &mut col, b);
-                }
-            },
-        }
-    }
-
-    match state {
-        LexState::Normal | LexState::LineComment => {
-            if has_content {
-                let text = sql[start..].trim().to_string();
-                if !text.is_empty() {
-                    statements.push(TopStatement {
-                        text,
-                        start_line: stmt_line,
-                        start_column: stmt_col,
-                    });
-                }
-            }
-            Ok(statements)
-        },
-        LexState::SingleQuote => Err(vec![LintError {
-            line: start_line,
-            column: start_col,
-            severity: LintSeverity::Error,
-            message: "unterminated string literal".into(),
-            source: source.to_string(),
-        }]),
-        LexState::DollarQuote(tag) => Err(vec![LintError {
-            line: start_line,
-            column: start_col,
-            severity: LintSeverity::Error,
-            message: format!("unterminated dollar-quoted string: {tag}"),
-            source: source.to_string(),
-        }]),
-        LexState::BlockComment(_) => Err(vec![LintError {
-            line: start_line,
-            column: start_col,
-            severity: LintSeverity::Error,
-            message: "unterminated block comment".into(),
-            source: source.to_string(),
-        }]),
-    }
-}
-
-fn advance(i: &mut usize, line: &mut u32, col: &mut u32, b: u8) {
-    *i += 1;
-    if b == b'\n' {
-        *line += 1;
-        *col = 1;
-    } else {
-        *col += 1;
-    }
-}
-
-fn classify(stmt: &TopStatement, source: &str) -> Option<LintError> {
-    let stripped = strip_sql_comments(&stmt.text);
-    let upper = uppercase_keywords(&stripped);
-    let tokens: Vec<&str> = upper.split_whitespace().collect();
-    if tokens.is_empty() {
+) -> Option<LintError> {
+    if create.if_not_exists {
         return None;
     }
-
-    let leading = tokens[0];
-
-    let reject = |reason: &str| LintError {
-        line: stmt.start_line,
-        column: stmt.start_column,
-        severity: LintSeverity::Error,
-        message: format!(
-            "imperative SQL in declarative schema: {reason} — move to \
-             schema/migrations/NNN_<name>.sql"
-        ),
+    Some(LintError {
+        line,
+        column: col,
+        severity: LintSeverity::Warning,
+        message: "CREATE TABLE without IF NOT EXISTS — add IF NOT EXISTS for idempotency".into(),
         source: source.to_string(),
-    };
-
-    match leading {
-        "ALTER" => return Some(reject("ALTER")),
-        "DROP" => return Some(reject("DROP")),
-        "UPDATE" => return Some(reject("UPDATE")),
-        "INSERT" => return Some(reject("INSERT")),
-        "DELETE" => return Some(reject("DELETE")),
-        "TRUNCATE" => return Some(reject("TRUNCATE")),
-        "GRANT" => return Some(reject("GRANT")),
-        "REVOKE" => return Some(reject("REVOKE")),
-        "DO" => return Some(reject("DO $$ block")),
-        _ => {},
-    }
-
-    if leading == "CREATE" {
-        return classify_create(&tokens, stmt, source);
-    }
-
-    if leading == "COMMENT" && tokens.get(1) == Some(&"ON") {
-        return None;
-    }
-
-    if leading == "SELECT" {
-        return Some(LintError {
-            line: stmt.start_line,
-            column: stmt.start_column,
-            severity: LintSeverity::Error,
-            message: "imperative SQL in declarative schema: SELECT — move to \
-                      schema/migrations/NNN_<name>.sql"
-                .into(),
-            source: source.to_string(),
-        });
-    }
-
-    None
+    })
 }
 
-fn classify_create(tokens: &[&str], stmt: &TopStatement, source: &str) -> Option<LintError> {
-    let mut idx = 1;
+const fn imperative_reason(node: &Node) -> Option<&'static str> {
+    Some(match node {
+        Node::AlterTableStmt(_) => "ALTER TABLE",
+        Node::DropStmt(_) => "DROP",
+        Node::InsertStmt(_) => "INSERT",
+        Node::UpdateStmt(_) => "UPDATE",
+        Node::DeleteStmt(_) => "DELETE",
+        Node::TruncateStmt(_) => "TRUNCATE",
+        Node::GrantStmt(_) => "GRANT/REVOKE",
+        Node::RenameStmt(_) => "RENAME",
+        Node::DoStmt(_) => "DO $$ block",
+        Node::SelectStmt(_) => "SELECT",
+        Node::CopyStmt(_) => "COPY",
+        Node::AlterDatabaseStmt(_)
+        | Node::AlterDatabaseSetStmt(_)
+        | Node::AlterRoleStmt(_)
+        | Node::AlterRoleSetStmt(_)
+        | Node::AlterOwnerStmt(_)
+        | Node::AlterSeqStmt(_)
+        | Node::AlterEnumStmt(_)
+        | Node::AlterFunctionStmt(_)
+        | Node::AlterObjectSchemaStmt(_)
+        | Node::AlterDefaultPrivilegesStmt(_) => "ALTER",
+        _ => return None,
+    })
+}
 
-    if tokens.get(idx) == Some(&"OR") && tokens.get(idx + 1) == Some(&"REPLACE") {
-        idx += 2;
-    }
+fn find_table<'a>(tables: &'a [TableDef], name: &str) -> Option<&'a TableDef> {
+    tables.iter().find(|t| t.name.eq_ignore_ascii_case(name))
+}
 
-    if tokens.get(idx) == Some(&"UNIQUE") {
-        idx += 1;
-    }
-
-    let kind = match tokens.get(idx) {
-        Some(k) => *k,
-        None => return None,
+#[allow(clippy::too_many_arguments)]
+fn check_index_columns(
+    idx: &IndexStmt,
+    tables: &[TableDef],
+    line: u32,
+    col: u32,
+    source: &str,
+    errors: &mut Vec<LintError>,
+) {
+    let Some(rel) = idx.relation.as_ref() else {
+        return;
     };
-    idx += 1;
-
-    let has_if_not_exists = tokens.get(idx) == Some(&"IF")
-        && tokens.get(idx + 1) == Some(&"NOT")
-        && tokens.get(idx + 2) == Some(&"EXISTS");
-
-    match kind {
-        "TABLE" => {
-            if !has_if_not_exists {
-                return Some(LintError {
-                    line: stmt.start_line,
-                    column: stmt.start_column,
-                    severity: LintSeverity::Warning,
-                    message: "CREATE TABLE without IF NOT EXISTS — add IF NOT EXISTS for \
-                              idempotency"
-                        .into(),
-                    source: source.to_string(),
-                });
-            }
-            None
-        },
-        "EXTENSION" => {
-            if !has_if_not_exists {
-                return Some(LintError {
-                    line: stmt.start_line,
-                    column: stmt.start_column,
-                    severity: LintSeverity::Warning,
-                    message: "CREATE EXTENSION without IF NOT EXISTS".into(),
-                    source: source.to_string(),
-                });
-            }
-            None
-        },
-        _ => None,
+    let Some(table) = find_table(tables, &rel.relname) else {
+        return;
+    };
+    for param in &idx.index_params {
+        let Some(Node::IndexElem(ie)) = param.node.as_ref() else {
+            continue;
+        };
+        if ie.expr.is_some() {
+            continue;
+        }
+        let column_name = &ie.name;
+        if column_name.is_empty() {
+            continue;
+        }
+        if !table
+            .columns
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(column_name))
+        {
+            errors.push(LintError {
+                line,
+                column: col,
+                severity: LintSeverity::Error,
+                message: format!(
+                    "unknown column `{}` on table `{}` (index `{}`) — declare the column in the \
+                     same schema or move the index to a migration",
+                    column_name, table.name, idx.idxname
+                ),
+                source: source.to_string(),
+            });
+        }
     }
 }
 
-fn strip_sql_comments(text: &str) -> String {
-    let bytes = text.as_bytes();
-    let mut out = String::with_capacity(text.len());
-    let mut i = 0;
-    let mut in_single = false;
-    let mut in_dollar: Option<String> = None;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if let Some(tag) = &in_dollar {
-            let tag_b = tag.as_bytes();
-            if i + tag_b.len() <= bytes.len() && &bytes[i..i + tag_b.len()] == tag_b {
-                out.push_str(tag);
-                i += tag_b.len();
-                in_dollar = None;
+#[allow(clippy::too_many_arguments)]
+fn check_view_columns(
+    view: &ViewStmt,
+    tables: &[TableDef],
+    line: u32,
+    col: u32,
+    source: &str,
+    errors: &mut Vec<LintError>,
+) {
+    let Some(query) = view.query.as_ref() else {
+        return;
+    };
+    let Some(Node::SelectStmt(select)) = query.node.as_ref() else {
+        return;
+    };
+
+    let mut alias_map: Vec<(String, String)> = Vec::new();
+    let mut single_table: Option<String> = None;
+    let mut from_count = 0usize;
+    for f in &select.from_clause {
+        if let Some(Node::RangeVar(rv)) = f.node.as_ref() {
+            from_count += 1;
+            if from_count == 1 {
+                single_table = Some(rv.relname.clone());
             } else {
-                out.push(b as char);
-                i += 1;
+                single_table = None;
             }
-            continue;
-        }
-        if in_single {
-            out.push(b as char);
-            if b == b'\'' {
-                if bytes.get(i + 1) == Some(&b'\'') {
-                    out.push('\'');
-                    i += 2;
-                    continue;
+            if let Some(alias) = rv.alias.as_ref() {
+                if !alias.aliasname.is_empty() {
+                    alias_map.push((alias.aliasname.clone(), rv.relname.clone()));
                 }
-                in_single = false;
             }
-            i += 1;
+        } else {
+            return;
+        }
+    }
+
+    let view_name = view
+        .view
+        .as_ref()
+        .map(|v| v.relname.clone())
+        .unwrap_or_default();
+
+    for target in &select.target_list {
+        let Some(Node::ResTarget(rt)) = target.node.as_ref() else {
+            continue;
+        };
+        let Some(val) = rt.val.as_ref() else {
+            continue;
+        };
+        let Some(Node::ColumnRef(cref)) = val.node.as_ref() else {
+            continue;
+        };
+
+        let parts: Vec<String> = cref
+            .fields
+            .iter()
+            .filter_map(|f| match f.node.as_ref()? {
+                Node::String(s) => Some(s.sval.clone()),
+                _ => None,
+            })
+            .collect();
+
+        if parts.iter().any(|p| p == "*") {
             continue;
         }
-        if b == b'\'' {
-            in_single = true;
-            out.push('\'');
-            i += 1;
+
+        let (table_ref, column_name) = match parts.as_slice() {
+            [t, c] => (Some(t.clone()), c.clone()),
+            [c] if from_count == 1 => (single_table.clone(), c.clone()),
+            _ => continue,
+        };
+        let Some(table_ref) = table_ref else {
             continue;
+        };
+
+        let resolved_table = alias_map
+            .iter()
+            .find(|(a, _)| a.eq_ignore_ascii_case(&table_ref))
+            .map_or(table_ref.as_str(), |(_, t)| t.as_str());
+
+        let Some(table) = find_table(tables, resolved_table) else {
+            continue;
+        };
+        if !table
+            .columns
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(&column_name))
+        {
+            errors.push(LintError {
+                line,
+                column: col,
+                severity: LintSeverity::Error,
+                message: format!(
+                    "unknown column `{}` on table `{}` (view `{}`)",
+                    column_name, table.name, view_name
+                ),
+                source: source.to_string(),
+            });
         }
-        if b == b'$' {
-            if let Some(end) = dollar_tag_end(bytes, i) {
-                let tag = text[i..=end].to_string();
-                out.push_str(&tag);
-                i = end + 1;
-                in_dollar = Some(tag);
-                continue;
-            }
+    }
+}
+
+fn stmt_start_offset(sql: &str, start: usize) -> usize {
+    let bytes = sql.as_bytes();
+    let mut i = start;
+    loop {
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
         }
-        if b == b'-' && bytes.get(i + 1) == Some(&b'-') {
+        if i + 1 < bytes.len() && bytes[i] == b'-' && bytes[i + 1] == b'-' {
             while i < bytes.len() && bytes[i] != b'\n' {
                 i += 1;
             }
             continue;
         }
-        if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
-            let mut depth = 1u32;
+        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
             i += 2;
-            while i < bytes.len() && depth > 0 {
-                if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            let mut depth = 1u32;
+            while i + 1 < bytes.len() && depth > 0 {
+                if bytes[i] == b'/' && bytes[i + 1] == b'*' {
                     depth += 1;
                     i += 2;
-                } else if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                } else if bytes[i] == b'*' && bytes[i + 1] == b'/' {
                     depth -= 1;
                     i += 2;
                 } else {
@@ -468,54 +448,34 @@ fn strip_sql_comments(text: &str) -> String {
             }
             continue;
         }
-        out.push(b as char);
-        i += 1;
+        break;
     }
-    out
+    i
 }
 
-fn uppercase_keywords(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut in_string = false;
-    let mut in_dollar = false;
-    let bytes = text.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if !in_string && !in_dollar && b == b'$' {
-            if let Some(end) = dollar_tag_end(bytes, i) {
-                out.push_str(&text[i..=end]);
-                i = end + 1;
-                in_dollar = true;
-                continue;
+struct LineIndex {
+    line_starts: Vec<usize>,
+}
+
+impl LineIndex {
+    fn new(text: &str) -> Self {
+        let mut line_starts = vec![0usize];
+        for (i, b) in text.bytes().enumerate() {
+            if b == b'\n' {
+                line_starts.push(i + 1);
             }
         }
-        if in_dollar && b == b'$' {
-            if let Some(end) = dollar_tag_end(bytes, i) {
-                out.push_str(&text[i..=end]);
-                i = end + 1;
-                in_dollar = false;
-                continue;
-            }
-        }
-        if in_dollar {
-            out.push(b as char);
-            i += 1;
-            continue;
-        }
-        if b == b'\'' {
-            in_string = !in_string;
-            out.push('\'');
-            i += 1;
-            continue;
-        }
-        if in_string {
-            out.push(b as char);
-            i += 1;
-            continue;
-        }
-        out.push(b.to_ascii_uppercase() as char);
-        i += 1;
+        Self { line_starts }
     }
-    out
+
+    fn position(&self, byte_offset: usize) -> (u32, u32) {
+        let line_idx = match self.line_starts.binary_search(&byte_offset) {
+            Ok(i) => i,
+            Err(i) => i.saturating_sub(1),
+        };
+        let line_start = self.line_starts[line_idx];
+        let line = (line_idx as u32) + 1;
+        let col = ((byte_offset - line_start) as u32) + 1;
+        (line, col)
+    }
 }
