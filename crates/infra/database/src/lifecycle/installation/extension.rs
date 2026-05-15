@@ -113,10 +113,9 @@ async fn run_install(
     Ok(())
 }
 
-/// Reject schemas where two extensions create the same table, and reject a
-/// `cross_extension_tables()` entry that no *other* loaded extension owns.
-/// Ownership is derived from the parsed `CREATE TABLE` statements, so this is
-/// the boot-time guard against silent schema divergence.
+/// Ownership is derived from each extension's parsed `CREATE TABLE`
+/// statements, never declared — this is the boot-time guard against two
+/// extensions silently diverging on a table both create.
 fn validate_table_ownership(
     prepared: &[PreparedSchema],
     schema_extensions: &[std::sync::Arc<dyn Extension>],
