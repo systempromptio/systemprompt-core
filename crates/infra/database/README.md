@@ -144,7 +144,7 @@ Core database services and providers.
 |------|---------|
 | `database.rs` | `Database` wrapper, `DbPool`, `DatabaseExt` |
 | `display.rs` | `DatabaseCliDisplay` trait for CLI output |
-| `executor.rs` | `SqlExecutor` for `sqlparser`-driven statement splitting and execution |
+| `executor.rs` | `SqlExecutor` for hand-rolled byte-state-machine statement splitting and execution |
 | `provider.rs` | `DatabaseProvider`, `DatabaseProviderExt` traits |
 | `schema_linter.rs` | Boot-time linter that rejects imperative DDL in `schema/*.sql` |
 | `transaction.rs` | `with_transaction`, `with_transaction_raw`, `with_transaction_retry`, `BoxFuture` |
