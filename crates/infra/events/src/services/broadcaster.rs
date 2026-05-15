@@ -5,7 +5,6 @@
 //! trait. Concrete type aliases (`A2ABroadcaster`, `AgUiBroadcaster`, etc.)
 //! pick the event kind so that callers never need to spell out the generic.
 
-use async_trait::async_trait;
 use axum::response::sse::{Event, KeepAlive};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -71,21 +70,20 @@ impl<E: ToSse + Clone + Send + Sync> Default for GenericBroadcaster<E> {
     }
 }
 
-#[async_trait]
 impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaster<E> {
     type Event = E;
 
-    async fn register(&self, user_id: &UserId, connection_id: &str, sender: EventSender) {
+    async fn register(&self, user_id: &UserId, connection_id: &ConnectionId, sender: EventSender) {
         let mut connections = self.connections.write().await;
         let user_connections = connections.entry(user_id.to_string()).or_default();
         user_connections.insert(connection_id.to_string(), sender);
         drop(connections);
     }
 
-    async fn unregister(&self, user_id: &UserId, connection_id: &str) {
+    async fn unregister(&self, user_id: &UserId, connection_id: &ConnectionId) {
         let mut connections = self.connections.write().await;
         if let Some(user_connections) = connections.get_mut(user_id.as_str()) {
-            user_connections.remove(connection_id);
+            user_connections.remove(connection_id.as_str());
             if user_connections.is_empty() {
                 connections.remove(user_id.as_str());
             }
@@ -194,7 +192,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Drop for ConnectionGuard<E> {
         let conn_id = self.connection_id.clone();
 
         tokio::spawn(async move {
-            broadcaster.unregister(&user_id, conn_id.as_str()).await;
+            broadcaster.unregister(&user_id, &conn_id).await;
         });
     }
 }
