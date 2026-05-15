@@ -203,7 +203,10 @@ impl IngestionService {
         source_name: &str,
         parsed: &ParsedFrontmatter,
     ) {
-        let registry = ExtensionRegistry::discover();
+        let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+            tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+            ExtensionRegistry::new()
+        });
 
         for ext in registry.extensions() {
             for processor in ext.frontmatter_processors() {

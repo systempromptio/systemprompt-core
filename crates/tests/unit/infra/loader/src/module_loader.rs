@@ -2,7 +2,8 @@ use systemprompt_loader::ModuleLoader;
 
 #[test]
 fn test_extensions_have_required_metadata() {
-    let extensions = ModuleLoader::discover_extensions();
+    let extensions =
+        ModuleLoader::discover_extensions().expect("extension discovery should succeed");
 
     for ext in &extensions {
         assert!(!ext.id().is_empty(), "Extension id should not be empty");
@@ -16,7 +17,8 @@ fn test_extensions_have_required_metadata() {
 
 #[test]
 fn test_schemas_have_required_fields() {
-    let schemas = ModuleLoader::collect_extension_schemas();
+    let schemas =
+        ModuleLoader::collect_extension_schemas().expect("schema collection should succeed");
 
     for schema in &schemas {
         assert!(!schema.table.is_empty(), "Schema table should not be empty");

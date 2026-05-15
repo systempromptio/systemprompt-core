@@ -19,7 +19,7 @@ pub fn execute(
     args: &ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ExtensionDetailOutput>> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
 
     let ext = registry
         .get(&args.id)

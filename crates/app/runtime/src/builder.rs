@@ -110,9 +110,10 @@ impl AppContextBuilder {
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
 
-        let registry = self
-            .extension_registry
-            .unwrap_or_else(ExtensionRegistry::discover);
+        let registry = match self.extension_registry {
+            Some(registry) => registry,
+            None => ExtensionRegistry::discover()?,
+        };
         registry.validate()?;
 
         if self.install_schemas {

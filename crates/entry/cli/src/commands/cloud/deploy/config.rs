@@ -75,7 +75,7 @@ impl DeployConfig {
             storage_files: self.project_root.join("storage/files"),
             web_dist: self.project_root.join("web/dist"),
         };
-        let registry = ExtensionRegistry::discover();
+        let registry = ExtensionRegistry::discover()?;
         let mut missing = Vec::new();
         let mut outside_context = Vec::new();
 

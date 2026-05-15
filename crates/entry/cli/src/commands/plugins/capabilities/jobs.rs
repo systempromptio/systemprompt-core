@@ -15,7 +15,10 @@ pub struct JobsArgs {
 }
 
 pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
 
     let jobs: Vec<JobWithExtension> = registry
         .extensions()

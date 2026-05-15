@@ -12,7 +12,10 @@ pub struct ToolsArgs {
 }
 
 pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<ToolsListOutput> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    });
 
     let tools: Vec<ToolWithExtension> = registry
         .extensions()

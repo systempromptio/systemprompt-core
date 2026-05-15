@@ -123,7 +123,10 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     }
 
     fn extension_storage_dirs() -> String {
-        let registry = ExtensionRegistry::discover();
+        let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+            tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+            ExtensionRegistry::new()
+        });
         let paths = registry.all_required_storage_paths();
         if paths.is_empty() {
             return String::new();

@@ -14,7 +14,18 @@ pub(super) fn validate_extensions(
     report: &mut StartupValidationReport,
     verbose: bool,
 ) {
-    let extensions = ExtensionRegistry::discover();
+    let extensions = match ExtensionRegistry::discover() {
+        Ok(extensions) => extensions,
+        Err(e) => {
+            let mut ext_report = ValidationReport::new("ext:registry".to_string());
+            ext_report.add_error(ValidationError::new(
+                "extension_discovery",
+                format!("Failed to discover extensions: {}", e),
+            ));
+            report.add_extension(ext_report);
+            return;
+        },
+    };
     let config_extensions = extensions.config_extensions();
     let asset_extensions = extensions.asset_extensions();
 

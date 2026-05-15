@@ -24,7 +24,7 @@ struct MissingColumn {
 }
 
 pub async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Result<()> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
     let write_provider = db_pool.write_provider();
 
     let mut declared_columns: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();

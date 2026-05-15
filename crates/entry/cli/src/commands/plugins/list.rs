@@ -25,7 +25,10 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<ExtensionL
     let include_manifest = matches!(args.r#type.as_str(), "all" | "manifest" | "cli" | "mcp");
 
     if include_compiled {
-        let registry = ExtensionRegistry::discover();
+        let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
+            tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+            ExtensionRegistry::new()
+        });
 
         extensions.extend(
             registry

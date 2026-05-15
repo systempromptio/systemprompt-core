@@ -5,7 +5,7 @@
 //! re-export point in this crate.
 
 use std::sync::Arc;
-use systemprompt_extension::{Extension, SchemaDefinition};
+use systemprompt_extension::{Extension, LoaderError, SchemaDefinition};
 
 use crate::modules;
 
@@ -13,13 +13,11 @@ use crate::modules;
 pub struct ModuleLoader;
 
 impl ModuleLoader {
-    #[must_use]
-    pub fn discover_extensions() -> Vec<Arc<dyn Extension>> {
+    pub fn discover_extensions() -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
         modules::discover_extensions()
     }
 
-    #[must_use]
-    pub fn collect_extension_schemas() -> Vec<SchemaDefinition> {
+    pub fn collect_extension_schemas() -> Result<Vec<SchemaDefinition>, LoaderError> {
         modules::collect_extension_schemas()
     }
 }

@@ -1,15 +1,15 @@
 use std::sync::Arc;
-use systemprompt_extension::{Extension, ExtensionRegistry, SchemaDefinition};
+use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaDefinition};
 
-pub fn discover_extensions() -> Vec<Arc<dyn Extension>> {
-    ExtensionRegistry::discover().extensions().to_vec()
+pub fn discover_extensions() -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+    Ok(ExtensionRegistry::discover()?.extensions().to_vec())
 }
 
-pub fn collect_extension_schemas() -> Vec<SchemaDefinition> {
-    let registry = ExtensionRegistry::discover();
-    registry
+pub fn collect_extension_schemas() -> Result<Vec<SchemaDefinition>, LoaderError> {
+    let registry = ExtensionRegistry::discover()?;
+    Ok(registry
         .schema_extensions()
         .into_iter()
         .flat_map(|ext| ext.schemas())
-        .collect()
+        .collect())
 }

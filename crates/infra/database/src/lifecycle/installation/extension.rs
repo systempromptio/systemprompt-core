@@ -16,30 +16,30 @@
 //!   target shape before the schema's `CREATE … IF NOT EXISTS` and `CREATE
 //!   INDEX` statements run, without 3 a.m. `column "x" does not exist`
 //!   failures. The phases are:
-//!   1. **Structural DDL** — `CREATE TABLE`/`TYPE`/`EXTENSION` — so every
-//!      table exists before any migration runs.
-//!   2. **Migrations** — pending `Extension::migrations()` for every
-//!      extension. Because all tables already exist, a migration may legally
-//!      `ALTER` a table owned by another extension (subject to the
-//!      cross-extension ownership contract).
+//!   1. **Structural DDL** — `CREATE TABLE`/`TYPE`/`EXTENSION` — so every table
+//!      exists before any migration runs.
+//!   2. **Migrations** — pending `Extension::migrations()` for every extension.
+//!      Because all tables already exist, a migration may legally `ALTER` a
+//!      table owned by another extension (subject to the cross-extension
+//!      ownership contract).
 //!   3. **Dependent DDL** — `CREATE INDEX`/`VIEW`/`FUNCTION`/`TRIGGER`,
 //!      `COMMENT`, and stateless `DROP … IF EXISTS` — which may reference a
 //!      column introduced by a Phase 2 migration.
 //! - Every `SchemaDefinition.sql` runs on every boot. Schemas are expected to
 //!   be idempotent by construction (the linter enforces it).
-//! - Each phase's statements for one extension run inside a single
-//!   transaction. On failure, the transaction is rolled back and the failing
-//!   statement (with its 1-based index and SQL text) is surfaced.
+//! - Each phase's statements for one extension run inside a single transaction.
+//!   On failure, the transaction is rolled back and the failing statement (with
+//!   its 1-based index and SQL text) is surfaced.
 //! - A session-scoped advisory lock serialises concurrent boot processes so
 //!   rolling deploys or accidental double-invocations cannot interleave DDL.
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info};
 
+use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::seeds::apply_seeds;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
-use crate::services::schema_linter::lint_declarative_schema;
-use crate::services::{DatabaseProvider, SqlExecutor};
+use crate::services::DatabaseProvider;
 
 /// Stable 64-bit key for `pg_advisory_lock`. Chosen as a constant so all
 /// `systemprompt`-managed processes serialise on the same lock.
@@ -98,15 +98,6 @@ pub async fn install_extension_schemas_full(
     Ok(())
 }
 
-/// One extension's declarative schema, parsed and split into the structural
-/// statements (run in Phase 1) and the dependent statements (run in Phase 3).
-struct PreparedSchema {
-    extension_id: String,
-    structural: Vec<String>,
-    dependent: Vec<String>,
-    columns_to_validate: Vec<(String, Vec<String>)>,
-}
-
 async fn run_install(
     db: &dyn DatabaseProvider,
     schema_extensions: &[std::sync::Arc<dyn Extension>],
@@ -144,93 +135,6 @@ async fn run_install(
     }
 
     Ok(())
-}
-
-/// Lint, parse, and classify one extension's declarative schema. Performs no
-/// database I/O — the resulting [`PreparedSchema`] is executed by `run_install`
-/// in the correct global phase.
-fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSchema, LoaderError> {
-    let schemas = ext.schemas();
-    let extension_id = ext.metadata().id.to_string();
-
-    let mut all_sql = Vec::new();
-    let mut columns_to_validate: Vec<(String, Vec<String>)> = Vec::new();
-    let mut lint_errors: Vec<String> = Vec::new();
-
-    for schema in &schemas {
-        if let Err(errors) = lint_declarative_schema(&schema.sql, schema.table.as_str()) {
-            for err in errors {
-                lint_errors.push(err.to_string());
-            }
-        }
-
-        all_sql.push(schema.sql.as_str());
-
-        if !schema.required_columns.is_empty() {
-            columns_to_validate.push((schema.table.clone(), schema.required_columns.clone()));
-        }
-    }
-
-    if !lint_errors.is_empty() {
-        return Err(LoaderError::SchemaInstallationFailed {
-            extension: extension_id,
-            message: format!(
-                "Imperative SQL detected in declarative schema. Move offending statements to \
-                 schema/migrations/NNN_<name>.sql and declare them via \
-                 Extension::migrations():\n{}",
-                lint_errors.join("\n")
-            ),
-        });
-    }
-
-    let combined = all_sql.join("\n");
-    let parsed = SqlExecutor::parse_sql_statements(&combined).map_err(|e| {
-        LoaderError::SchemaInstallationFailed {
-            extension: extension_id.clone(),
-            message: format!("SQL parse failed: {e}"),
-        }
-    })?;
-
-    let mut structural = Vec::new();
-    let mut dependent = Vec::new();
-    for statement in parsed {
-        if statement_is_structural(&statement) {
-            structural.push(statement);
-        } else {
-            dependent.push(statement);
-        }
-    }
-
-    Ok(PreparedSchema {
-        extension_id,
-        structural,
-        dependent,
-        columns_to_validate,
-    })
-}
-
-/// A statement is *structural* if it only creates objects that a migration
-/// may need to exist first — tables, types, and Postgres extensions. Indexes,
-/// views, functions, triggers, comments, and drops are dependent: they may
-/// reference a column a migration introduces, so they run after Phase 2.
-fn statement_is_structural(statement: &str) -> bool {
-    let Ok(parsed) = pg_query::parse(statement) else {
-        return false;
-    };
-    let mut saw_structural = false;
-    for raw in parsed.protobuf.stmts {
-        let Some(node) = raw.stmt.and_then(|s| s.node) else {
-            continue;
-        };
-        match node {
-            pg_query::NodeEnum::CreateStmt(_)
-            | pg_query::NodeEnum::CompositeTypeStmt(_)
-            | pg_query::NodeEnum::CreateEnumStmt(_)
-            | pg_query::NodeEnum::CreateExtensionStmt(_) => saw_structural = true,
-            _ => return false,
-        }
-    }
-    saw_structural
 }
 
 async fn execute_statements_transactional(
@@ -300,6 +204,7 @@ async fn validate_single_column(
         .query_raw_with(
             &"SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND \
               table_name = $1 AND column_name = $2",
+            // JSON: required by the `query_raw_with` trait contract
             vec![
                 serde_json::Value::String(table.to_string()),
                 serde_json::Value::String(column.to_string()),

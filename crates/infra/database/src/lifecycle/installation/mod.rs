@@ -2,6 +2,7 @@
 //! [`systemprompt_extension::Extension`] instances.
 
 mod extension;
+mod prepare;
 mod seeds;
 
 pub use extension::{

@@ -33,7 +33,7 @@ pub async fn execute_squash(config: &CliConfig, args: SquashArgs<'_>) -> Result<
         .context("Failed to connect to database")?,
     );
 
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
     run_squash(&registry, database.write_provider(), config, &args).await
 }
 
@@ -42,7 +42,7 @@ pub async fn execute_squash_standalone(
     config: &CliConfig,
     args: SquashArgs<'_>,
 ) -> Result<()> {
-    let registry = ExtensionRegistry::discover();
+    let registry = ExtensionRegistry::discover()?;
     run_squash(&registry, db_ctx.db_pool().write_provider(), config, &args).await
 }
 
@@ -110,42 +110,52 @@ async fn run_squash(
         let result = CommandResult::text(output).with_title("Database Migration Squash");
         render_result(&result);
     } else {
-        if apply {
-            CliService::success(&message);
-        } else {
-            CliService::warning(&message);
-        }
-        CliService::info(&format!(
-            "  Source versions     : {:?}",
-            plan.source_versions
-        ));
-        CliService::info(&format!(
-            "  Already applied     : {:?}",
-            plan.already_applied_versions
-        ));
-        CliService::info(&format!("  Baseline name       : {}", plan.baseline_name));
-        CliService::info(&format!(
-            "  Baseline checksum   : {}",
-            plan.baseline_checksum
-        ));
-        CliService::info(&format!(
-            "  Baseline file       : {}",
-            baseline_path.display()
-        ));
-        CliService::info("");
-        CliService::info("Follow-up steps:");
-        for step in &follow_up {
-            CliService::info(&format!("  - {step}"));
-        }
-        if !apply {
-            CliService::info("");
-            CliService::info(
-                "Dry-run only — no rows changed and no file written. Re-run with --apply.",
-            );
-        }
+        render_squash_text(&plan, &baseline_path, &follow_up, &message, apply);
     }
 
     Ok(())
+}
+
+fn render_squash_text(
+    plan: &SquashPlan,
+    baseline_path: &Path,
+    follow_up: &[String],
+    message: &str,
+    apply: bool,
+) {
+    if apply {
+        CliService::success(message);
+    } else {
+        CliService::warning(message);
+    }
+    CliService::info(&format!(
+        "  Source versions     : {:?}",
+        plan.source_versions
+    ));
+    CliService::info(&format!(
+        "  Already applied     : {:?}",
+        plan.already_applied_versions
+    ));
+    CliService::info(&format!("  Baseline name       : {}", plan.baseline_name));
+    CliService::info(&format!(
+        "  Baseline checksum   : {}",
+        plan.baseline_checksum
+    ));
+    CliService::info(&format!(
+        "  Baseline file       : {}",
+        baseline_path.display()
+    ));
+    CliService::info("");
+    CliService::info("Follow-up steps:");
+    for step in follow_up {
+        CliService::info(&format!("  - {step}"));
+    }
+    if !apply {
+        CliService::info("");
+        CliService::info(
+            "Dry-run only — no rows changed and no file written. Re-run with --apply.",
+        );
+    }
 }
 
 fn build_follow_up(plan: &SquashPlan, baseline_path: &Path, apply: bool) -> Vec<String> {
