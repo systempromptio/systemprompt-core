@@ -272,7 +272,7 @@ impl DatabaseProvider for MockDatabaseProvider {
     async fn query_raw_with(
         &self,
         _query: &dyn QuerySelector,
-        _params: Vec<serde_json::Value>,
+        _params: &[&dyn ToDbValue],
     ) -> DatabaseResult<QueryResult> {
         self.record_call("query_raw_with");
         match self.next_response() {

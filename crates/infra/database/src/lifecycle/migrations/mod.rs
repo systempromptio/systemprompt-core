@@ -71,8 +71,7 @@ impl<'a> MigrationService<'a> {
             .query_raw_with(
                 &"SELECT extension_id, version, name, checksum, applied_at FROM \
                   extension_migrations WHERE extension_id = $1 ORDER BY version",
-                // JSON: required by the `query_raw_with` trait contract
-                vec![serde_json::Value::String(extension_id.to_string())],
+                &[&extension_id],
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
@@ -124,33 +123,11 @@ impl<'a> MigrationService<'a> {
 
         for migration in &migrations {
             if applied_versions.contains(&migration.version) {
-                let current_checksum = migration.checksum();
-                if let Some(&stored_checksum) = applied_checksums.get(&migration.version) {
-                    if stored_checksum != current_checksum {
-                        if self.config.allow_checksum_drift {
-                            warn!(
-                                extension = %ext_id,
-                                version = migration.version,
-                                name = %migration.name,
-                                stored_checksum = %stored_checksum,
-                                current_checksum = %current_checksum,
-                                "Migration checksum mismatch tolerated by --allow-checksum-drift"
-                            );
-                        } else {
-                            return Err(LoaderError::MigrationFailed {
-                                extension: ext_id.to_string(),
-                                message: format!(
-                                    "Migration {ver} ('{name}') has been edited since it was \
-                                     applied (stored checksum {stored_checksum}, current \
-                                     {current_checksum}). Refusing to proceed. Re-run with \
-                                     --allow-checksum-drift to override.",
-                                    ver = migration.version,
-                                    name = migration.name,
-                                ),
-                            });
-                        }
-                    }
-                }
+                self.verify_checksum(
+                    ext_id,
+                    migration,
+                    applied_checksums.get(&migration.version).copied(),
+                )?;
                 migrations_skipped += 1;
                 debug!(
                     extension = %ext_id,
@@ -176,6 +153,42 @@ impl<'a> MigrationService<'a> {
         Ok(MigrationResult {
             migrations_run,
             migrations_skipped,
+        })
+    }
+
+    fn verify_checksum(
+        &self,
+        ext_id: &str,
+        migration: &Migration,
+        stored: Option<&str>,
+    ) -> Result<(), LoaderError> {
+        let Some(stored_checksum) = stored else {
+            return Ok(());
+        };
+        let current_checksum = migration.checksum();
+        if stored_checksum == current_checksum {
+            return Ok(());
+        }
+        if self.config.allow_checksum_drift {
+            warn!(
+                extension = %ext_id,
+                version = migration.version,
+                name = %migration.name,
+                stored_checksum = %stored_checksum,
+                current_checksum = %current_checksum,
+                "Migration checksum mismatch tolerated by --allow-checksum-drift"
+            );
+            return Ok(());
+        }
+        Err(LoaderError::MigrationFailed {
+            extension: ext_id.to_string(),
+            message: format!(
+                "Migration {ver} ('{name}') has been edited since it was applied (stored checksum \
+                 {stored_checksum}, current {current_checksum}). Refusing to proceed. Re-run with \
+                 --allow-checksum-drift to override.",
+                ver = migration.version,
+                name = migration.name,
+            ),
         })
     }
 
@@ -231,16 +244,13 @@ impl<'a> MigrationService<'a> {
     ) -> Result<(), LoaderError> {
         let id = format!("{}_{:03}", ext_id, migration.version);
         let checksum = migration.checksum();
-        let name = migration.name.replace('\'', "''");
-
-        let sql = format!(
-            "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) VALUES \
-             ('{}', '{}', {}, '{}', '{}')",
-            id, ext_id, migration.version, name, checksum
-        );
 
         self.db
-            .execute_raw(&sql)
+            .execute(
+                &"INSERT INTO extension_migrations (id, extension_id, version, name, checksum) \
+                  VALUES ($1, $2, $3, $4, $5)",
+                &[&id, &ext_id, &migration.version, &migration.name, &checksum],
+            )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
                 extension: ext_id.to_string(),

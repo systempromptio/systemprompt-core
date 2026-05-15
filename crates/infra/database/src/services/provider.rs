@@ -67,7 +67,7 @@ pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
     async fn query_raw_with(
         &self,
         query: &dyn QuerySelector,
-        params: Vec<serde_json::Value>,
+        params: &[&dyn ToDbValue],
     ) -> DatabaseResult<QueryResult>;
 }
 

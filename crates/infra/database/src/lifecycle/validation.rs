@@ -17,7 +17,7 @@ pub async fn validate_table_exists(
         .query_raw_with(
             &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = \
               'public' AND table_name = $1) as exists",
-            vec![serde_json::Value::String(table_name.to_string())],
+            &[&table_name],
         )
         .await?;
 
@@ -41,10 +41,7 @@ pub async fn validate_column_exists(
         .query_raw_with(
             &"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = \
               'public' AND table_name = $1 AND column_name = $2) as exists",
-            vec![
-                serde_json::Value::String(table_name.to_string()),
-                serde_json::Value::String(column_name.to_string()),
-            ],
+            &[&table_name, &column_name],
         )
         .await?;
 
