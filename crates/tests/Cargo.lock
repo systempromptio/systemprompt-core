@@ -6950,6 +6950,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "serde_json",
+ "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
  "thiserror 2.0.18",

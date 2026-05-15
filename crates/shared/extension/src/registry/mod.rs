@@ -147,11 +147,9 @@ fn topo_sort(ids: &[String], by_id: &HashMap<String, Arc<dyn Extension>>) -> Vec
                 .filter(|d| by_id.contains_key(*d))
                 .collect();
             deps.sort_by_key(|d| {
-                by_id
-                    .get(*d)
-                    .map_or((u32::MAX, String::new()), |e| {
-                        (e.priority(), e.id().to_string())
-                    })
+                by_id.get(*d).map_or((u32::MAX, String::new()), |e| {
+                    (e.priority(), e.id().to_string())
+                })
             });
             for dep in deps {
                 visit(dep, by_id, color, path, out);
@@ -165,11 +163,9 @@ fn topo_sort(ids: &[String], by_id: &HashMap<String, Arc<dyn Extension>>) -> Vec
 
     let mut roots: Vec<&String> = ids.iter().collect();
     roots.sort_by_key(|id| {
-        by_id
-            .get(*id)
-            .map_or((u32::MAX, String::new()), |e| {
-                (e.priority(), e.id().to_string())
-            })
+        by_id.get(*id).map_or((u32::MAX, String::new()), |e| {
+            (e.priority(), e.id().to_string())
+        })
     });
 
     let mut color: HashMap<String, u8> = HashMap::with_capacity(ids.len());

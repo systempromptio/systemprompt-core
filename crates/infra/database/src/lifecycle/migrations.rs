@@ -700,27 +700,22 @@ impl MigrationService<'_> {
         self.ensure_migrations_table_exists().await?;
         let applied = self.get_applied_migrations(ext_id).await?;
 
-        let beyond: Vec<u32> = applied
-            .iter()
-            .map(|m| m.version)
-            .filter(|v| *v > through)
+        let applied_versions: HashSet<u32> = applied.iter().map(|m| m.version).collect();
+        let not_applied: Vec<u32> = (1..=through)
+            .filter(|v| !applied_versions.contains(v))
             .collect();
-        if !beyond.is_empty() {
+        if !not_applied.is_empty() {
             return Err(LoaderError::MigrationFailed {
                 extension: ext_id.to_string(),
                 message: format!(
-                    "Refusing to squash through {through}: extension '{ext_id}' already has \
-                     migrations applied beyond {through}: {beyond:?}. Squash before applying \
-                     newer migrations or pick a higher --through."
+                    "Refusing to squash through {through}: extension '{ext_id}' has not applied \
+                     migrations {not_applied:?}. Squashing would retire them behind the baseline \
+                     without ever running them. Apply migrations 1..={through} first."
                 ),
             });
         }
 
-        let already_applied: Vec<u32> = applied
-            .iter()
-            .map(|m| m.version)
-            .filter(|v| *v >= 1 && *v <= through)
-            .collect();
+        let already_applied: Vec<u32> = (1..=through).collect();
 
         let plan = SquashPlan {
             extension_id: ext_id.to_string(),

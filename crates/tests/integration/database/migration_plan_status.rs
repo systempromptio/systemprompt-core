@@ -87,6 +87,10 @@ impl Extension for TwoMigrationExt {
             Migration::new(2, "second", self.m2),
         ]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec![self.table]
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -277,5 +281,9 @@ impl Extension for SingleMigrationExt {
 
     fn migrations(&self) -> Vec<Migration> {
         vec![Migration::new(1, "first", self.m1)]
+    }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec![self.table]
     }
 }
