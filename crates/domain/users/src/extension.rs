@@ -12,10 +12,6 @@ impl Extension for UsersExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        100
-    }
-
     fn is_required(&self) -> bool {
         true
     }
@@ -75,10 +71,6 @@ impl Extension for UsersExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["user_sessions"]
     }
 }
 

@@ -95,14 +95,12 @@ impl TypedExtensionRegistry {
             .and_then(|&idx| self.extensions[idx].as_any().downcast_ref())
     }
 
+    /// Schema-bearing extensions in registration order. The typed
+    /// [`crate::ExtensionBuilder`] enforces dependency-before-dependent at
+    /// compile time via its `Subset` typestate, and `build()` stores them in
+    /// `priority()` order — so iteration order already respects dependencies.
     pub fn schema_extensions(&self) -> impl Iterator<Item = &dyn SchemaExtensionTyped> {
-        let mut schemas: Vec<_> = self
-            .extensions
-            .iter()
-            .filter_map(|e| e.as_schema())
-            .collect();
-        schemas.sort_by_key(|s| s.migration_weight());
-        schemas.into_iter()
+        self.extensions.iter().filter_map(|e| e.as_schema())
     }
 
     pub fn api_extensions(&self) -> impl Iterator<Item = &dyn ApiExtensionTypedDyn> {

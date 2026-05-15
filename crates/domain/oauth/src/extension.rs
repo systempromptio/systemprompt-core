@@ -14,10 +14,6 @@ impl Extension for OauthExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        300
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new("oauth_clients", include_str!("../schema/oauth_clients.sql"))
@@ -129,10 +125,6 @@ impl Extension for OauthExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["oauth_auth_codes"]
     }
 }
 

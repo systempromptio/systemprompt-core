@@ -39,6 +39,8 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 base64 = { workspace = true }
 rust_decimal = { workspace = true }
+rand = { workspace = true }
+futures-util = { workspace = true }
 
 # Extension registration
 inventory = { workspace = true }

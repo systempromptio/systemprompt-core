@@ -10,15 +10,13 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::stream::Stream;
-use systemprompt_models::services::ResilienceSettings;
-use systemprompt_resilience::{
-    BreakerConfig, BulkheadConfig, ResilienceConfig, ResilienceError, ResilienceGuard, RetryConfig,
-    guarded_stream,
+use systemprompt_database::resilience::{
+    ResilienceConfig, ResilienceError, ResilienceGuard, guarded_stream,
 };
+use systemprompt_models::services::ResilienceSettings;
 
 use crate::error::{AiError, Result};
 use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
@@ -31,30 +29,6 @@ use super::provider_trait::{
 };
 
 type StreamResult = Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>>;
-
-/// Translate the loaded [`ResilienceSettings`] into the runtime form consumed
-/// by `systemprompt-resilience`.
-#[must_use]
-pub fn to_resilience_config(settings: &ResilienceSettings) -> ResilienceConfig {
-    ResilienceConfig {
-        request_timeout: Duration::from_millis(settings.request_timeout_ms),
-        stream_idle_timeout: Duration::from_millis(settings.stream_idle_timeout_ms),
-        retry: RetryConfig {
-            max_attempts: settings.retry_attempts.max(1),
-            base_delay: Duration::from_millis(settings.retry_base_delay_ms),
-            max_delay: Duration::from_millis(settings.retry_max_delay_ms),
-            jitter: true,
-        },
-        breaker: BreakerConfig {
-            failure_threshold: settings.breaker_failure_threshold.max(1),
-            open_cooldown: Duration::from_millis(settings.breaker_open_cooldown_ms),
-            half_open_max_probes: settings.breaker_half_open_probes.max(1),
-        },
-        bulkhead: BulkheadConfig {
-            max_concurrent: settings.max_concurrent.max(1),
-        },
-    }
-}
 
 /// An [`AiProvider`] wrapped in a per-provider [`ResilienceGuard`].
 pub struct ResilientProvider {
@@ -82,7 +56,7 @@ impl ResilientProvider {
         settings: &ResilienceSettings,
     ) -> Self {
         let provider = provider.into();
-        let guard = ResilienceGuard::new(provider.clone(), to_resilience_config(settings));
+        let guard = ResilienceGuard::new(provider.clone(), ResilienceConfig::from(settings));
         Self {
             provider,
             inner,

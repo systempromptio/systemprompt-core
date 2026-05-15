@@ -43,6 +43,8 @@ pub struct McpConfig {
     #[serde(default)]
     pub auto_discover: bool,
 
+    /// Resilience policy applied to outbound MCP tool RPCs (timeouts, retry,
+    /// circuit breaker, bulkhead).
     #[serde(default = "default_mcp_resilience")]
     pub resilience: ResilienceSettings,
 }
@@ -69,8 +71,8 @@ fn default_mcp_resilience() -> ResilienceSettings {
 /// bulkhead.
 ///
 /// Plain serde data loaded from profile config (all values in milliseconds or
-/// counts). Domain crates translate this into the runtime form consumed by
-/// `systemprompt-resilience`.
+/// counts). Translated into the runtime form consumed by the resilience
+/// primitives in `systemprompt-database`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ResilienceSettings {
     /// Timeout for a single (non-streaming) attempt.
@@ -294,6 +296,8 @@ pub struct AiProviderConfig {
     #[serde(default)]
     pub models: HashMap<String, ModelDefinition>,
 
+    /// Resilience policy applied to outbound AI provider calls (timeouts,
+    /// retry, circuit breaker, bulkhead).
     #[serde(default)]
     pub resilience: ResilienceSettings,
 }

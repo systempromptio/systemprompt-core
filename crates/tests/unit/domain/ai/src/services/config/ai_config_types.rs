@@ -64,6 +64,7 @@ mod ai_config_serde {
                 default_image_resolution: "1024x1024".to_string(),
                 google_search_enabled: false,
                 models: HashMap::new(),
+                ..AiProviderConfig::default()
             },
         );
 
@@ -78,9 +79,7 @@ mod ai_config_serde {
             },
             mcp: McpConfig {
                 auto_discover: true,
-                connect_timeout_ms: 10000,
-                execution_timeout_ms: 60000,
-                retry_attempts: 5,
+                ..McpConfig::default()
             },
             history: HistoryConfig {
                 retention_days: 90,
@@ -96,7 +95,6 @@ mod ai_config_serde {
         assert!(deserialized.sampling.enable_smart_routing);
         assert!(!deserialized.sampling.fallback_enabled);
         assert!(deserialized.mcp.auto_discover);
-        assert_eq!(deserialized.mcp.connect_timeout_ms, 10000);
         assert_eq!(deserialized.history.retention_days, 90);
         assert!(deserialized.history.log_tool_executions);
     }
@@ -131,9 +129,9 @@ mod mcp_config_tests {
     #[test]
     fn default_has_sensible_timeouts() {
         let config = McpConfig::default();
-        assert_eq!(config.connect_timeout_ms, 5000);
-        assert_eq!(config.execution_timeout_ms, 30000);
-        assert_eq!(config.retry_attempts, 3);
+        assert_eq!(config.resilience.connect_timeout_ms, 5000);
+        assert_eq!(config.resilience.request_timeout_ms, 30000);
+        assert_eq!(config.resilience.retry_attempts, 3);
         assert!(!config.auto_discover);
     }
 
@@ -141,24 +139,20 @@ mod mcp_config_tests {
     fn serde_roundtrip() {
         let config = McpConfig {
             auto_discover: true,
-            connect_timeout_ms: 7000,
-            execution_timeout_ms: 45000,
-            retry_attempts: 1,
+            ..McpConfig::default()
         };
         let json = serde_json::to_string(&config).expect("serialize");
         let deserialized: McpConfig = serde_json::from_str(&json).expect("deserialize");
         assert!(deserialized.auto_discover);
-        assert_eq!(deserialized.connect_timeout_ms, 7000);
-        assert_eq!(deserialized.execution_timeout_ms, 45000);
-        assert_eq!(deserialized.retry_attempts, 1);
+        assert_eq!(deserialized.resilience.request_timeout_ms, 30000);
     }
 
     #[test]
     fn deserialize_with_defaults_for_missing_fields() {
         let config: McpConfig = serde_json::from_str("{}").expect("deserialize");
-        assert_eq!(config.connect_timeout_ms, 5000);
-        assert_eq!(config.execution_timeout_ms, 30000);
-        assert_eq!(config.retry_attempts, 3);
+        assert_eq!(config.resilience.connect_timeout_ms, 5000);
+        assert_eq!(config.resilience.request_timeout_ms, 30000);
+        assert_eq!(config.resilience.retry_attempts, 3);
     }
 }
 
@@ -241,6 +235,7 @@ mod ai_provider_config_tests {
             default_image_resolution: String::new(),
             google_search_enabled: false,
             models,
+            ..AiProviderConfig::default()
         };
 
         let json = serde_json::to_string(&config).expect("serialize");

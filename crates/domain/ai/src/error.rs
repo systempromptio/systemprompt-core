@@ -21,9 +21,9 @@ use std::time::Duration;
 use thiserror::Error;
 use uuid::Uuid;
 
+use systemprompt_database::resilience::Outcome;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_provider_contracts::LlmProviderError;
-use systemprompt_resilience::Outcome;
 
 #[derive(Debug, Error)]
 pub enum AiError {

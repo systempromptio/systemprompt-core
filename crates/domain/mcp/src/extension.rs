@@ -12,10 +12,6 @@ impl Extension for McpExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        250
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new(

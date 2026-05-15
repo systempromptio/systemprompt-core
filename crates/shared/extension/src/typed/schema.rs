@@ -31,8 +31,4 @@ impl SchemaDefinitionTyped {
 
 pub trait SchemaExtensionTyped: ExtensionMeta {
     fn schemas(&self) -> Vec<SchemaDefinitionTyped>;
-
-    fn migration_weight(&self) -> u32 {
-        100
-    }
 }

@@ -3,7 +3,7 @@
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Instant;
 
-use crate::config::BreakerConfig;
+use super::config::BreakerConfig;
 
 /// Breaker mode. `Open` rejects calls until its cooldown elapses; `HalfOpen`
 /// admits a limited number of probes to test recovery.

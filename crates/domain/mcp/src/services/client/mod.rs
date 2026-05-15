@@ -6,10 +6,10 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use rmcp::{ClientHandler, RoleClient, ServiceExt};
-use std::time::Duration;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::Config;
 use systemprompt_models::ai::tools::McpTool;
+use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_TIMEOUT};
 use tokio::time::timeout;
 
 mod http_client_with_context;
@@ -161,9 +161,7 @@ impl McpClient {
         let url = rewrite_url_for_internal_use(&url);
 
         let transport = build_transport(&url, server_config.oauth.required, context)?;
-        execute_tool_call(transport, &name, arguments)
-            .await
-            .map_err(|e| crate::error::McpDomainError::ToolExecutionFailed(e.to_string()))
+        execute_tool_call(transport, service_name, &name, arguments).await
     }
 }
 
@@ -192,6 +190,7 @@ fn build_transport(
 
 async fn execute_tool_call(
     transport: StreamableHttpClientTransport<HttpClientWithContext>,
+    server: &str,
     name: &str,
     arguments: Option<serde_json::Value>,
 ) -> McpDomainResult<systemprompt_models::CallToolResult> {
@@ -202,13 +201,16 @@ async fn execute_tool_call(
 
     let handler = McpClientHandler::new(client_info);
 
-    let client_service = match timeout(Duration::from_secs(30), handler.serve(transport)).await {
+    let client_service = match timeout(HTTP_STREAM_CONNECT_TIMEOUT, handler.serve(transport)).await
+    {
         Ok(Ok(c)) => c,
         Ok(Err(e)) => return Err(e.into()),
         Err(_) => {
-            return Err(crate::error::McpDomainError::Internal(
-                "MCP transport serve timed out after 30 seconds".to_string(),
-            ));
+            return Err(crate::error::McpDomainError::Timeout {
+                server: server.to_string(),
+                after_ms: u64::try_from(HTTP_STREAM_CONNECT_TIMEOUT.as_millis())
+                    .unwrap_or(u64::MAX),
+            });
         },
     };
 
@@ -217,9 +219,24 @@ async fn execute_tool_call(
         params = params.with_arguments(args);
     }
 
-    let result = client_service.call_tool(params).await.map_err(|e| {
-        crate::error::McpDomainError::ToolExecutionFailed(format!("MCP tool call failed: {e}"))
-    });
+    let result = timeout(MCP_TOOL_EXECUTION_TIMEOUT, client_service.call_tool(params))
+        .await
+        .map_or_else(
+            |_| {
+                Err(crate::error::McpDomainError::Timeout {
+                    server: server.to_string(),
+                    after_ms: u64::try_from(MCP_TOOL_EXECUTION_TIMEOUT.as_millis())
+                        .unwrap_or(u64::MAX),
+                })
+            },
+            |inner| {
+                inner.map_err(|e| {
+                    crate::error::McpDomainError::ToolExecutionFailed(format!(
+                        "MCP tool call failed: {e}"
+                    ))
+                })
+            },
+        );
 
     client_service.cancel().await?;
     result

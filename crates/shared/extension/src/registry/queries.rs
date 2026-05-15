@@ -28,14 +28,11 @@ impl ExtensionRegistry {
 
     #[must_use]
     pub fn schema_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        let mut exts: Vec<_> = self
-            .sorted_extensions
+        self.sorted_extensions
             .iter()
             .filter(|e| e.has_schemas())
             .cloned()
-            .collect();
-        exts.sort_by_key(|e| e.migration_weight());
-        exts
+            .collect()
     }
 
     #[must_use]
@@ -59,15 +56,15 @@ impl ExtensionRegistry {
             .collect()
     }
 
+    /// Schema-bearing extensions in dependency (topological) order — the
+    /// single ordering authority for schema installation. `enabled_extensions`
+    /// already preserves `sorted_extensions` topo order, so this only filters.
     #[must_use]
     pub fn enabled_schema_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
-        let mut exts: Vec<_> = self
-            .enabled_extensions(disabled_ids)
+        self.enabled_extensions(disabled_ids)
             .into_iter()
             .filter(|e| e.has_schemas() || e.has_migrations())
-            .collect();
-        exts.sort_by_key(|e| e.migration_weight());
-        exts
+            .collect()
     }
 
     #[must_use]

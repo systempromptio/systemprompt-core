@@ -17,7 +17,7 @@ pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<Schemas
         ExtensionRegistry::new()
     });
 
-    let mut schemas: Vec<SchemaWithExtension> = registry
+    let schemas: Vec<SchemaWithExtension> = registry
         .extensions()
         .iter()
         .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
@@ -29,13 +29,10 @@ pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<Schemas
                     extension_name: ext.name().to_string(),
                     table: schema.table.clone(),
                     source: "inline".to_string(),
-                    migration_weight: ext.migration_weight(),
                 })
                 .collect::<Vec<_>>()
         })
         .collect();
-
-    schemas.sort_by_key(|s| s.migration_weight);
 
     let total = schemas.len();
 
@@ -46,7 +43,6 @@ pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<Schemas
         .with_columns(vec![
             "extension_id".to_string(),
             "table".to_string(),
-            "migration_weight".to_string(),
             "source".to_string(),
         ])
 }

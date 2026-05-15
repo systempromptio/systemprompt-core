@@ -16,10 +16,6 @@ impl Extension for AnalyticsExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        200
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new(
@@ -61,10 +57,6 @@ impl Extension for AnalyticsExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["engagement_events"]
     }
 }
 

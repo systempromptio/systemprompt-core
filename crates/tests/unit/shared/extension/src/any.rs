@@ -32,10 +32,6 @@ impl SchemaExtensionTyped for SchemaExt {
             "CREATE TABLE test_table (id TEXT PRIMARY KEY)",
         )]
     }
-
-    fn migration_weight(&self) -> u32 {
-        50
-    }
 }
 
 #[test]
@@ -120,13 +116,6 @@ fn schema_extension_wrapper_schemas_content() {
     let schemas = schema_trait.schemas();
     assert_eq!(schemas.len(), 1);
     assert_eq!(schemas[0].table, "test_table");
-}
-
-#[test]
-fn schema_extension_wrapper_migration_weight() {
-    let wrapper = SchemaExtensionWrapper::new(SchemaExt);
-    let schema_trait = wrapper.as_schema().expect("should have schema");
-    assert_eq!(schema_trait.migration_weight(), 50);
 }
 
 #[test]

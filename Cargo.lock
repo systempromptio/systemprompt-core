@@ -4654,7 +4654,6 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
- "systemprompt-resilience",
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.18",
@@ -4934,8 +4933,10 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "chrono",
+ "futures-util",
  "inventory",
  "pg_query",
+ "rand 0.10.1",
  "rust_decimal",
  "serde",
  "serde_json",
@@ -5155,7 +5156,6 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
- "systemprompt-resilience",
  "systemprompt-security",
  "systemprompt-traits",
  "thiserror 2.0.18",
@@ -5248,17 +5248,6 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-identifiers",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "systemprompt-resilience"
-version = "0.10.1"
-dependencies = [
- "futures-util",
- "rand 0.10.1",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]

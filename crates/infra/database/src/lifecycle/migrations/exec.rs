@@ -78,8 +78,8 @@ pub(super) async fn execute_statements_transactional(
     Ok(())
 }
 
-/// Reject a migration that `ALTER`s a table the extension declares in neither
-/// `owned_tables()` nor `cross_extension_tables()`.
+/// Reject a migration that `ALTER`s a table the extension neither creates in
+/// its `schemas()` nor declares in `cross_extension_tables()`.
 pub(super) fn check_cross_extension_alters(
     extension: &dyn Extension,
     migration: &Migration,
@@ -97,12 +97,14 @@ pub(super) fn check_cross_extension_alters(
         return Ok(());
     }
 
-    let mut allowed: HashSet<&str> = HashSet::new();
-    for t in extension.owned_tables() {
-        allowed.insert(t);
+    let mut allowed: HashSet<String> = HashSet::new();
+    for schema in extension.schemas() {
+        for t in crate::services::schema_linter::created_table_names(&schema.sql) {
+            allowed.insert(t);
+        }
     }
     for t in extension.cross_extension_tables() {
-        allowed.insert(t);
+        allowed.insert(t.to_string());
     }
     for table in &altered {
         if !allowed.contains(table.as_str()) {

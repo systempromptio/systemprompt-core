@@ -263,12 +263,6 @@ fn test_extension_default_schemas() {
 }
 
 #[test]
-fn test_extension_default_migration_weight() {
-    let ext = TestExtension { id: "test" };
-    assert_eq!(ext.migration_weight(), 100);
-}
-
-#[test]
 fn test_extension_default_router() {
     let ext = TestExtension { id: "test" };
     let ctx = MockExtensionContext {

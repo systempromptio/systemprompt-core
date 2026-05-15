@@ -12,10 +12,6 @@ impl Extension for AiExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        350
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new("ai_requests", include_str!("../schema/ai_requests.sql"))
@@ -80,10 +76,6 @@ impl Extension for AiExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "mcp"]
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["ai_requests", "ai_request_tool_calls"]
     }
 }
 

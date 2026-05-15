@@ -37,6 +37,15 @@ domain_error! {
         #[error("Transport error: {0}")]
         Transport(String),
 
+        #[error("MCP server {server} timed out after {after_ms}ms")]
+        Timeout { server: String, after_ms: u64 },
+
+        #[error("Circuit breaker open for MCP server {server}; failing fast")]
+        CircuitOpen { server: String },
+
+        #[error("MCP server {server} unavailable: concurrency limit reached")]
+        DependencyUnavailable { server: String },
+
         #[error("{0}")]
         Internal(String),
 
@@ -93,6 +102,22 @@ impl From<systemprompt_models::errors::ConfigValidationError> for McpDomainError
 impl From<systemprompt_models::paths::PathError> for McpDomainError {
     fn from(e: systemprompt_models::paths::PathError) -> Self {
         Self::Path(e.to_string())
+    }
+}
+
+impl McpDomainError {
+    /// Classify this error for the resilience layer — which failures are worth
+    /// retrying (transient) and which cannot be helped by a retry (permanent).
+    #[must_use]
+    pub const fn classify(&self) -> systemprompt_database::resilience::Outcome {
+        use systemprompt_database::resilience::Outcome;
+        match self {
+            Self::ConnectionFailed { .. }
+            | Self::Transport(_)
+            | Self::Timeout { .. }
+            | Self::ServiceError(_) => Outcome::Transient { retry_after: None },
+            _ => Outcome::Permanent,
+        }
     }
 }
 

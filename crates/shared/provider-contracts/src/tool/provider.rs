@@ -9,7 +9,8 @@ use super::definition::ToolDefinition;
 use super::error::ToolProviderResult;
 
 // Why: provider is consumed as a trait object so tool backends swap at profile
-// level; an async fn in a bare trait is not dyn-compatible, so #[async_trait] is required.
+// level; an async fn in a bare trait is not dyn-compatible, so #[async_trait]
+// is required.
 #[async_trait]
 pub trait ToolProvider: Send + Sync {
     async fn list_tools(

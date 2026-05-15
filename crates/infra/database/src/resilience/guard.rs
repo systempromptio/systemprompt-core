@@ -5,12 +5,12 @@ use std::future::Future;
 
 use tokio::sync::OwnedSemaphorePermit;
 
-use crate::breaker::CircuitBreaker;
-use crate::bulkhead::Bulkhead;
-use crate::classify::Outcome;
-use crate::config::ResilienceConfig;
-use crate::error::ResilienceError;
-use crate::retry::retry_async;
+use super::breaker::CircuitBreaker;
+use super::bulkhead::Bulkhead;
+use super::classify::Outcome;
+use super::config::ResilienceConfig;
+use super::error::ResilienceError;
+use super::retry::retry_async;
 
 /// Wraps a caller error so a per-attempt timeout can flow through the retry
 /// loop as a transient failure without the caller's `E` needing a timeout

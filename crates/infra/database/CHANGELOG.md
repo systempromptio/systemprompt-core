@@ -2,6 +2,18 @@
 
 All notable changes to `systemprompt-database` are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2026-05-15
+
+### Added
+- `resilience` module: domain-agnostic resilience primitives (`ResilienceGuard`, `CircuitBreaker`, `Bulkhead`, `retry_async`, `guarded_stream`) for wrapping outbound calls, generic over a caller-supplied error type and classifier.
+- Boot-time table-ownership validation: schema installation rejects two extensions creating the same table, and a `cross_extension_tables()` entry no other extension creates, before any DDL runs.
+
+### Changed
+- `connect_with_retry` and `with_transaction_retry` now run their backoff on `resilience::retry::retry_async` instead of a hand-written loop. Retry behaviour (attempt counts, delays, error classification) is unchanged.
+- The schema-install statement classifier matches every `pg_query` DDL node variant explicitly; an unrecognised node fails installation instead of being silently treated as a dependent statement.
+- Seed linting rejects a non-idempotent `INSERT` (one with no `ON CONFLICT` clause).
+- Required-column validation is schema-qualified rather than assuming the `public` schema.
+
 ## [0.10.0] - 2026-05-12
 
 ### Breaking

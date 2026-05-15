@@ -87,7 +87,7 @@ Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) →
 - **Naming**: `*Service` by default, `*Handler` only for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
 - **Schema DDL & migrations**: schema DDL lives in `{crate}/schema/*.sql`, embedded via `include_str!()` in `extension.rs`. Migration SQL lives in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by the crate's `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via the `extension_migrations!()` macro — never inline SQL string constants or a hand-written `Migration::new(...)` list. Pre-merge: `just lint-extensions`.
 
-Run after changes: `cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features && just file-size`.
+Run after changes: `cargo +nightly fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features && just file-size`.
 
 ### Typed Identifiers
 

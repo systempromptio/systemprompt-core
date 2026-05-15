@@ -19,10 +19,6 @@ impl Extension for ContentExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        450
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new(
@@ -65,10 +61,6 @@ impl Extension for ContentExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
-    }
-
-    fn owned_tables(&self) -> Vec<&'static str> {
-        vec!["markdown_content"]
     }
 
     fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {

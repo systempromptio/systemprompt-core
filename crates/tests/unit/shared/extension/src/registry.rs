@@ -7,7 +7,6 @@ struct FakeExt {
     deps: Vec<&'static str>,
     priority_val: u32,
     required: bool,
-    weight: u32,
 }
 
 impl FakeExt {
@@ -21,7 +20,6 @@ impl FakeExt {
             deps: vec![],
             priority_val: 100,
             required: false,
-            weight: 100,
         }
     }
 
@@ -37,11 +35,6 @@ impl FakeExt {
 
     fn required(mut self) -> Self {
         self.required = true;
-        self
-    }
-
-    fn with_weight(mut self, w: u32) -> Self {
-        self.weight = w;
         self
     }
 }
@@ -61,10 +54,6 @@ impl Extension for FakeExt {
 
     fn is_required(&self) -> bool {
         self.required
-    }
-
-    fn migration_weight(&self) -> u32 {
-        self.weight
     }
 }
 
@@ -219,30 +208,13 @@ fn registry_validate_missing_dep_fails() {
 #[test]
 fn registry_validate_satisfied_deps_succeeds() {
     let mut registry = ExtensionRegistry::new();
-    let base = Arc::new(FakeExt::new("base", "Base").with_weight(50));
+    let base = Arc::new(FakeExt::new("base", "Base"));
     registry.register(base).expect("register base");
     let dependent = Arc::new(
-        FakeExt::new("child", "Child")
-            .with_deps(vec!["base"])
-            .with_weight(200),
+        FakeExt::new("child", "Child").with_deps(vec!["base"]),
     );
     registry.register(dependent).expect("register child");
     assert!(registry.validate().is_ok());
-}
-
-#[test]
-fn registry_validate_dep_with_equal_or_higher_weight_fails() {
-    let mut registry = ExtensionRegistry::new();
-    let base = Arc::new(FakeExt::new("base", "Base").with_weight(100));
-    registry.register(base).expect("register base");
-    let dependent = Arc::new(
-        FakeExt::new("child", "Child")
-            .with_deps(vec!["base"])
-            .with_weight(100),
-    );
-    registry.register(dependent).expect("register child");
-    let err = registry.validate().expect_err("must reject equal weights");
-    assert!(err.to_string().contains("InvalidDependencyOrdering") || err.to_string().contains("migration_weight"));
 }
 
 #[test]

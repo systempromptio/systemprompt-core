@@ -123,13 +123,13 @@ check: lint-schema lint-extensions
 check-offline:
     SQLX_OFFLINE=true cargo check --workspace
 
-# Format code
+# Format code (nightly: rustfmt.toml uses unstable options)
 fmt:
-    cargo fmt --all
+    cargo +nightly fmt --all
 
 # Check formatting without making changes
 format-check:
-    cargo fmt --all -- --check
+    cargo +nightly fmt --all -- --check
 
 # Run clippy linter with strict settings
 lint:
@@ -163,7 +163,7 @@ style-check:
     echo "🎨 Running style checks..."
     echo ""
     echo "1️⃣  Checking code formatting..."
-    cargo fmt --all -- --check
+    cargo +nightly fmt --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
     cargo clippy --workspace -- -D warnings

@@ -1,6 +1,6 @@
 //! Runtime configuration for the resilience primitives.
 //!
-//! These are the in-memory form used by [`crate::guard::ResilienceGuard`].
+//! These are the in-memory form used by [`super::guard::ResilienceGuard`].
 //! Callers that load configuration from disk (e.g. `systemprompt-models` config
 //! structs in milliseconds) translate into these `Duration`-typed structs at
 //! construction.
@@ -89,6 +89,35 @@ impl Default for ResilienceConfig {
             retry: RetryConfig::default(),
             breaker: BreakerConfig::default(),
             bulkhead: BulkheadConfig::default(),
+        }
+    }
+}
+
+impl From<&systemprompt_models::services::ResilienceSettings> for ResilienceConfig {
+    /// Translate the disk-loaded [`ResilienceSettings`] (milliseconds and raw
+    /// counts) into the runtime `Duration`-typed policy. Count fields are
+    /// clamped to a minimum of `1`, since a zero attempt/probe/permit budget
+    /// would deadlock every guarded call.
+    ///
+    /// [`ResilienceSettings`]: systemprompt_models::services::ResilienceSettings
+    fn from(settings: &systemprompt_models::services::ResilienceSettings) -> Self {
+        Self {
+            request_timeout: Duration::from_millis(settings.request_timeout_ms),
+            stream_idle_timeout: Duration::from_millis(settings.stream_idle_timeout_ms),
+            retry: RetryConfig {
+                max_attempts: settings.retry_attempts.max(1),
+                base_delay: Duration::from_millis(settings.retry_base_delay_ms),
+                max_delay: Duration::from_millis(settings.retry_max_delay_ms),
+                jitter: true,
+            },
+            breaker: BreakerConfig {
+                failure_threshold: settings.breaker_failure_threshold.max(1),
+                open_cooldown: Duration::from_millis(settings.breaker_open_cooldown_ms),
+                half_open_max_probes: settings.breaker_half_open_probes.max(1),
+            },
+            bulkhead: BulkheadConfig {
+                max_concurrent: settings.max_concurrent.max(1),
+            },
         }
     }
 }

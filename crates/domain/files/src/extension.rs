@@ -12,10 +12,6 @@ impl Extension for FilesExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        500
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new("files", include_str!("../schema/files.sql"))

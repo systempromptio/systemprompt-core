@@ -14,6 +14,8 @@ pub struct SchemaDefinition {
     pub table: String,
     pub sql: String,
     pub required_columns: Vec<String>,
+    #[serde(default)]
+    pub schema: Option<String>,
 }
 
 impl SchemaDefinition {
@@ -23,6 +25,7 @@ impl SchemaDefinition {
             table: table.into(),
             sql: sql.into(),
             required_columns: Vec::new(),
+            schema: None,
         }
     }
 
@@ -30,6 +33,18 @@ impl SchemaDefinition {
     pub fn with_required_columns(mut self, columns: Vec<String>) -> Self {
         self.required_columns = columns;
         self
+    }
+
+    #[must_use]
+    pub fn with_schema(mut self, schema: impl Into<String>) -> Self {
+        self.schema = Some(schema.into());
+        self
+    }
+
+    /// Resolved Postgres schema name, defaulting to `public`.
+    #[must_use]
+    pub fn schema_name(&self) -> &str {
+        self.schema.as_deref().unwrap_or("public")
     }
 }
 

@@ -56,14 +56,6 @@ pub fn execute(
                 }
             }
         }
-
-        if ext.has_schemas() && ext.migration_weight() == 100 && args.verbose {
-            warnings.push(ValidationWarning {
-                extension_id: Some(ext.id().to_string()),
-                warning_type: "migration_weight".to_string(),
-                message: "Using default migration weight (100)".to_string(),
-            });
-        }
     }
 
     for ext in registry.asset_extensions() {

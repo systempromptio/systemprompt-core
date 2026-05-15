@@ -76,13 +76,12 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
     let mut structural = Vec::new();
     let mut dependent = Vec::new();
     for statement in parsed {
-        let phase =
-            classify_statement(&statement).map_err(|message| {
-                LoaderError::SchemaInstallationFailed {
-                    extension: extension_id.clone(),
-                    message,
-                }
-            })?;
+        let phase = classify_statement(&statement).map_err(|message| {
+            LoaderError::SchemaInstallationFailed {
+                extension: extension_id.clone(),
+                message,
+            }
+        })?;
         match phase {
             StatementPhase::Structural => structural.push(statement),
             StatementPhase::Dependent => dependent.push(statement),
@@ -119,8 +118,8 @@ enum StatementPhase {
 fn classify_statement(statement: &str) -> Result<StatementPhase, String> {
     use pg_query::NodeEnum;
 
-    let parsed =
-        pg_query::parse(statement).map_err(|e| format!("SQL parse failed: {e}\nSQL:\n{statement}"))?;
+    let parsed = pg_query::parse(statement)
+        .map_err(|e| format!("SQL parse failed: {e}\nSQL:\n{statement}"))?;
 
     let mut phase: Option<StatementPhase> = None;
     for raw in parsed.protobuf.stmts {

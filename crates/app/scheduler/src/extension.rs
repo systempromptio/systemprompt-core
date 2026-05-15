@@ -18,10 +18,6 @@ impl Extension for SchedulerExtension {
         }
     }
 
-    fn migration_weight(&self) -> u32 {
-        550
-    }
-
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new(
