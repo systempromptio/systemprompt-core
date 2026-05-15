@@ -43,6 +43,9 @@ rust_decimal = { workspace = true }
 # Extension registration
 inventory = { workspace = true }
 
+# SQL parsing for declarative schema linter
+pg_query = "5.1"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
