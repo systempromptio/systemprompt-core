@@ -12,6 +12,9 @@ use std::path::{Component, PathBuf};
 #[cfg(feature = "tokio")]
 use tokio::fs;
 
+/// `#[async_trait]` is required: this trait is consumed as
+/// `Arc<dyn TemplateLoader>` (see `DynTemplateLoader`), so it must be
+/// `dyn`-compatible — native `async fn` in traits is not.
 #[async_trait]
 pub trait TemplateLoader: Send + Sync {
     async fn load(&self, source: &TemplateSource) -> Result<String>;
