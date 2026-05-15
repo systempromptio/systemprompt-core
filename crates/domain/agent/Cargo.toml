@@ -11,7 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 description = "Agent-to-Agent (A2A) protocol for systemprompt.io AI governance: streaming, JSON-RPC models, task lifecycle, .well-known discovery, and governed agent orchestration."
 readme = "README.md"
-include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
+include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -19,6 +19,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [lints]
 workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core traits for interface definitions (no circular dependencies)

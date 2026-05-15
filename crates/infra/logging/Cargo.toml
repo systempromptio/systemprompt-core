@@ -11,10 +11,13 @@ keywords.workspace = true
 categories.workspace = true
 description = "Tracing and audit infrastructure for systemprompt.io AI governance. Structured events, five-point audit traces, and SIEM-ready JSON output — part of the MCP governance pipeline."
 readme = "README.md"
-include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
+include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core dependencies

@@ -11,13 +11,16 @@ keywords.workspace = true
 categories.workspace = true
 description = "Markdown content management, sources, and event tracking for systemprompt.io AI governance dashboards. Governed publishing pipeline for the MCP governance platform."
 readme = "README.md"
-include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
+include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [package.metadata.docs.rs]
 all-features = true
 
 [lints]
 workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core modules

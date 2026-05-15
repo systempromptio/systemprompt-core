@@ -55,11 +55,7 @@ impl Extension for AuthzExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(
-            1,
-            "access_control_rules_evolution",
-            include_str!("schema/migrations/001_access_control_rules_evolution.sql"),
-        )]
+        extension_migrations!()
     }
 
     fn owned_tables(&self) -> Vec<&'static str> {

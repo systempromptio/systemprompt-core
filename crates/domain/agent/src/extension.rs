@@ -104,43 +104,7 @@ impl Extension for AgentExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![
-            Migration::new(
-                1,
-                "drop_playbooks_table",
-                include_str!("../schema/migrations/001_drop_playbooks.sql"),
-            ),
-            Migration::new(
-                2,
-                "add_server_type_column",
-                include_str!("../schema/migrations/002_add_server_type.sql"),
-            ),
-            Migration::new(
-                3,
-                "a2a_v1_task_states",
-                include_str!("../schema/migrations/003_a2a_v1_task_states.sql"),
-            ),
-            Migration::new(
-                4,
-                "ai_requests_task_fk",
-                include_str!("../schema/migrations/004_ai_requests_task_fk.sql"),
-            ),
-            Migration::new(
-                5,
-                "add_task_version",
-                include_str!("../schema/migrations/005_add_task_version.sql"),
-            ),
-            Migration::new(
-                6,
-                "drop_agent_skills",
-                include_str!("../schema/migrations/006_drop_agent_skills.sql"),
-            ),
-            Migration::new(
-                7,
-                "drop_agents",
-                include_str!("../schema/migrations/007_drop_agents.sql"),
-            ),
-        ]
+        extension_migrations!()
     }
 
     fn owned_tables(&self) -> Vec<&'static str> {

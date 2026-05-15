@@ -111,8 +111,12 @@ release BUMP="patch":
 lint-schema:
     ./ci/lint-schema.sh crates
 
+# Reject inline SQL and hand-built migrations in extension.rs files
+lint-extensions:
+    ./ci/lint-extensions.sh crates
+
 # Check without building
-check: lint-schema
+check: lint-schema lint-extensions
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)

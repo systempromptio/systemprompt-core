@@ -11,10 +11,13 @@ keywords.workspace = true
 categories.workspace = true
 description = "Security infrastructure for systemprompt.io AI governance: JWT, OAuth2 token extraction, scope enforcement, ChaCha20-Poly1305 secret encryption, the four-layer tool-call governance pipeline, and the unified authz decision plane (deny-overrides resolver + AuthzDecisionHook) shared by gateway and MCP enforcement."
 readme = "README.md"
-include = ["src/**/*", "Cargo.toml", "README.md", ".sqlx/**/*"]
+include = ["src/**/*", "build.rs", "Cargo.toml", "README.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core runtime

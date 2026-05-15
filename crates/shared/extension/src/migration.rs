@@ -1,5 +1,25 @@
 //! Schema migration value type.
 
+/// Expand to the body of
+/// [`Extension::migrations`](crate::Extension::migrations), generated from
+/// `schema/migrations/NNN_<name>.sql` files by
+/// [`build::emit_migrations`](crate::build::emit_migrations).
+///
+/// The using crate must have a `build.rs` that calls
+/// `systemprompt_extension::build::emit_migrations()`.
+///
+/// ```rust,ignore
+/// fn migrations(&self) -> Vec<Migration> {
+///     extension_migrations!()
+/// }
+/// ```
+#[macro_export]
+macro_rules! extension_migrations {
+    () => {
+        include!(concat!(env!("OUT_DIR"), "/migrations.rs"))
+    };
+}
+
 #[derive(Debug, Clone)]
 pub struct Migration {
     pub version: u32,
