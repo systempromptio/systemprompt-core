@@ -102,7 +102,7 @@ pub async fn execute_migrate_down_standalone(
 
 async fn run_down(
     registry: &ExtensionRegistry,
-    write_provider: &dyn systemprompt_database::services::DatabaseProvider,
+    write_provider: &dyn DatabaseProvider,
     config: &CliConfig,
     extension_id: &str,
     count: u32,

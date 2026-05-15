@@ -11,9 +11,9 @@ use super::helpers::format_bytes;
 use super::types::{DbAssignAdminOutput, DbStatusOutput};
 
 pub use super::admin_migrate::{
-    execute_migrate, execute_migrate_down, execute_migrate_down_standalone,
-    execute_migrate_plan, execute_migrate_plan_standalone, execute_migrate_standalone,
-    execute_migrate_status, execute_migrate_status_standalone,
+    execute_migrate, execute_migrate_down, execute_migrate_down_standalone, execute_migrate_plan,
+    execute_migrate_plan_standalone, execute_migrate_standalone, execute_migrate_status,
+    execute_migrate_status_standalone,
 };
 pub use super::admin_migrations::{execute_migrations, execute_migrations_standalone};
 

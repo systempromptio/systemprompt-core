@@ -61,6 +61,7 @@ struct SquashExtension {
     id: &'static str,
     schema_sql: &'static str,
     migrations: Vec<Migration>,
+    table: &'static str,
 }
 
 impl Extension for SquashExtension {
@@ -81,6 +82,10 @@ impl Extension for SquashExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         self.migrations.clone()
+    }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec![self.table]
     }
 }
 
@@ -128,6 +133,7 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
             Migration::new(2, "add_col_b", m2_sql),
             Migration::new(3, "add_col_c", m3_sql),
         ],
+        table,
     };
 
     let db_arc = Arc::new(db);
@@ -160,6 +166,7 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
             Migration::new(2, "add_col_b", m2_sql),
             Migration::new(3, "add_col_c", m3_sql),
         ],
+        table,
     };
 
     let migration_service = MigrationService::new(db_arc.write_provider());
@@ -207,6 +214,7 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
             Migration::new(0, "baseline_v2", baseline_sql_static),
             Migration::new(3, "add_col_c", m3_sql),
         ],
+        table,
     };
 
     let mut registry_post = ExtensionRegistry::new();
@@ -232,7 +240,7 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn squash_refuses_when_versions_beyond_through_already_applied() {
+async fn squash_refuses_when_target_range_not_fully_applied() {
     let url = database_url();
     let db = Database::new_postgres(&url)
         .await
@@ -250,34 +258,30 @@ async fn squash_refuses_when_versions_beyond_through_already_applied() {
     };
 
     let schema_sql: &'static str = leak(format!(
-        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, col_a TEXT, col_b TEXT, col_c \
-         TEXT);"
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, col_a TEXT, col_b TEXT);"
     ));
-    let m1_sql: &'static str =
-        leak(format!("ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_a TEXT;"));
+    let m1_sql: &'static str = leak(format!(
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY); ALTER TABLE {table} ADD \
+         COLUMN IF NOT EXISTS col_a TEXT;"
+    ));
     let m2_sql: &'static str =
         leak(format!("ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_b TEXT;"));
-    let m3_sql: &'static str =
-        leak(format!("ALTER TABLE {table} ADD COLUMN IF NOT EXISTS col_c TEXT;"));
 
-    let ext_full = SquashExtension {
+    let ext_v1_only = SquashExtension {
         id: ext_id,
         schema_sql,
-        migrations: vec![
-            Migration::new(1, "m1", m1_sql),
-            Migration::new(2, "m2", m2_sql),
-            Migration::new(3, "m3", m3_sql),
-        ],
+        migrations: vec![Migration::new(1, "m1", m1_sql)],
+        table,
     };
 
     let db_arc = Arc::new(db);
     let mut registry = ExtensionRegistry::new();
     registry
-        .register(Arc::new(ext_full))
+        .register(Arc::new(ext_v1_only))
         .expect("registry accepts extension");
     install_extension_schemas(&registry, db_arc.as_ref())
         .await
-        .expect("install applies all three");
+        .expect("install applies migration 1 only");
 
     let ext_for_squash = SquashExtension {
         id: ext_id,
@@ -285,18 +289,18 @@ async fn squash_refuses_when_versions_beyond_through_already_applied() {
         migrations: vec![
             Migration::new(1, "m1", m1_sql),
             Migration::new(2, "m2", m2_sql),
-            Migration::new(3, "m3", m3_sql),
         ],
+        table,
     };
 
     let migration_service = MigrationService::new(db_arc.write_provider());
     let err = migration_service
         .squash_through(&ext_for_squash, 2, false)
         .await
-        .expect_err("squash must refuse when version 3 is already applied");
+        .expect_err("squash must refuse when migration 2 has not been applied");
     let msg = err.to_string();
     assert!(
-        msg.contains("beyond"),
-        "error message must mention applied-beyond rows, got: {msg}"
+        msg.contains("not applied"),
+        "error message must mention the unapplied migration, got: {msg}"
     );
 }
