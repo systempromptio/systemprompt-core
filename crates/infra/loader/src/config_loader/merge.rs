@@ -127,7 +127,7 @@ pub(super) fn resolve_system_prompt_includes(
         if let Some(ref system_prompt) = agent.metadata.system_prompt {
             if let Some(include_path) = system_prompt.strip_prefix("!include ") {
                 let full_path = base_path.join(include_path.trim());
-                let resolved = read_include(&full_path).map_err(|e| ConfigLoadError::Io {
+                let resolved = fs::read_to_string(&full_path).map_err(|e| ConfigLoadError::Io {
                     path: full_path.clone(),
                     source: e,
                 })?;
@@ -154,7 +154,7 @@ pub(super) fn resolve_skill_instruction_includes(
         };
         if let IncludableString::Include { path } = instructions {
             let full_path = base_path.join(path.trim());
-            let resolved = read_include(&full_path).map_err(|e| ConfigLoadError::Io {
+            let resolved = fs::read_to_string(&full_path).map_err(|e| ConfigLoadError::Io {
                 path: full_path.clone(),
                 source: e,
             })?;
@@ -167,8 +167,4 @@ pub(super) fn resolve_skill_instruction_includes(
         }
     }
     Ok(())
-}
-
-fn read_include(path: &Path) -> std::io::Result<String> {
-    fs::read_to_string(path)
 }

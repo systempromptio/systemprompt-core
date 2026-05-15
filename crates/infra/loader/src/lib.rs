@@ -20,7 +20,9 @@
 //!
 //! # Feature flags
 //!
-//! This crate has no Cargo features; everything compiles by default.
+//! - `expose-internals` — exposes test-only entry points (notably
+//!   `ConfigLoader::load_from_content`) to dependent crates that exercise the
+//!   loader from outside `cfg(test)`. Off by default.
 
 pub mod config_loader;
 pub mod config_writer;
