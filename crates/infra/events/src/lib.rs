@@ -64,16 +64,10 @@ pub trait Broadcaster: Send + Sync {
         connection_id: &ConnectionId,
     ) -> impl Future<Output = ()> + Send;
 
-    fn broadcast(
-        &self,
-        user_id: &UserId,
-        event: Self::Event,
-    ) -> impl Future<Output = usize> + Send;
+    fn broadcast(&self, user_id: &UserId, event: Self::Event)
+    -> impl Future<Output = usize> + Send;
 
-    fn connection_count(
-        &self,
-        user_id: &UserId,
-    ) -> impl Future<Output = usize> + Send;
+    fn connection_count(&self, user_id: &UserId) -> impl Future<Output = usize> + Send;
 
     fn total_connections(&self) -> impl Future<Output = usize> + Send;
 }
