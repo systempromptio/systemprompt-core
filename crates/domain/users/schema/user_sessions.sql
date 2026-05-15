@@ -106,6 +106,22 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_session_source ON user_sessions(ses
 CREATE INDEX IF NOT EXISTS idx_user_sessions_visitor_traffic
     ON user_sessions(started_at)
     WHERE session_source = 'web' AND is_bot = false;
+
+-- Views are dropped before recreation: CREATE OR REPLACE VIEW cannot rename or
+-- reorder output columns, so an analytics column rename on an existing install
+-- would otherwise fail. Views are stateless — dropping loses nothing.
+DROP VIEW IF EXISTS v_session_analytics_by_client CASCADE;
+DROP VIEW IF EXISTS v_client_rate_limits CASCADE;
+DROP VIEW IF EXISTS v_client_conversion_rates CASCADE;
+DROP VIEW IF EXISTS v_scanner_activity CASCADE;
+DROP VIEW IF EXISTS v_clean_traffic CASCADE;
+DROP VIEW IF EXISTS v_clean_human_traffic CASCADE;
+DROP VIEW IF EXISTS v_ai_crawler_activity CASCADE;
+DROP VIEW IF EXISTS v_engaged_traffic CASCADE;
+DROP VIEW IF EXISTS v_security_threats CASCADE;
+DROP VIEW IF EXISTS v_top_referrer_sources CASCADE;
+DROP VIEW IF EXISTS v_utm_campaign_performance CASCADE;
+DROP VIEW IF EXISTS v_behavioral_bot_analysis CASCADE;
 CREATE OR REPLACE VIEW v_session_analytics_by_client AS
 SELECT
     client_id,
