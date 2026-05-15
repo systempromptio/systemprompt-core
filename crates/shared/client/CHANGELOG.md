@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.1] - 2026-05-15
+
+### Changed
+- Version bump for workspace consistency.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed
