@@ -71,6 +71,10 @@ impl Extension for ContentExtension {
         )]
     }
 
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["markdown_content"]
+    }
+
     fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
         vec![Arc::new(DefaultHomepagePrerenderer)]
     }

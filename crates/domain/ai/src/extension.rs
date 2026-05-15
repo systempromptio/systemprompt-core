@@ -92,6 +92,10 @@ impl Extension for AiExtension {
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "mcp"]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["ai_requests", "ai_request_tool_calls"]
+    }
 }
 
 register_extension!(AiExtension);
