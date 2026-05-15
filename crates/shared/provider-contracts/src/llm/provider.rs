@@ -13,6 +13,8 @@ use crate::tool::{ToolCallRequest, ToolCallResult, ToolDefinition};
 
 pub type ChatStream = Pin<Box<dyn Stream<Item = LlmProviderResult<String>> + Send>>;
 
+// Why: provider is consumed as a trait object so models swap at profile level;
+// an async fn in a bare trait is not dyn-compatible, so #[async_trait] is required.
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     async fn chat(&self, request: &ChatRequest) -> LlmProviderResult<ChatResponse>;
@@ -28,6 +30,8 @@ pub trait LlmProvider: Send + Sync {
     fn supports_tools(&self) -> bool;
 }
 
+// Why: executor is consumed as a trait object by the ai crate; an async fn in
+// a bare trait is not dyn-compatible, so #[async_trait] is required.
 #[async_trait]
 pub trait ToolExecutor: Send + Sync {
     async fn execute(
