@@ -2,6 +2,8 @@ use axum::http::HeaderMap;
 use std::error::Error;
 use std::fmt;
 
+use super::cookie::{CookieExtractionError, CookieExtractor};
+
 const DEFAULT_COOKIE_NAME: &str = "access_token";
 const DEFAULT_MCP_HEADER_NAME: &str = "x-mcp-proxy-auth";
 const BEARER_PREFIX: &str = "Bearer ";
@@ -148,23 +150,17 @@ impl TokenExtractor {
     }
 
     pub fn extract_from_cookie(&self, headers: &HeaderMap) -> Result<String, TokenExtractionError> {
-        let cookie_header = headers
-            .get("cookie")
-            .ok_or(TokenExtractionError::MissingCookie)?
-            .to_str()
-            .map_err(|_| TokenExtractionError::InvalidCookieFormat)?;
-
-        for cookie in cookie_header.split(';') {
-            let cookie = cookie.trim();
-            let cookie_prefix = format!("{}=", self.cookie_name);
-            if let Some(value) = cookie.strip_prefix(&cookie_prefix) {
-                if !value.is_empty() {
-                    return Ok(value.to_string());
-                }
-            }
-        }
-
-        Err(TokenExtractionError::TokenNotFoundInCookie)
+        CookieExtractor::new(self.cookie_name.clone())
+            .extract(headers)
+            .map_err(|err| match err {
+                CookieExtractionError::MissingCookie => TokenExtractionError::MissingCookie,
+                CookieExtractionError::InvalidCookieFormat => {
+                    TokenExtractionError::InvalidCookieFormat
+                },
+                CookieExtractionError::TokenNotFoundInCookie => {
+                    TokenExtractionError::TokenNotFoundInCookie
+                },
+            })
     }
 }
 
