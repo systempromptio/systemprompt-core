@@ -1,4 +1,5 @@
-//! `execution` module — see crate-level docs for context.
+//! Execution models — request context propagation, per-run execution
+//! steps, and the shared context carried through an agent run.
 
 pub mod context;
 pub mod shared_context;
