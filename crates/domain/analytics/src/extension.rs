@@ -79,6 +79,10 @@ impl Extension for AnalyticsExtension {
             ),
         ]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["engagement_events"]
+    }
 }
 
 register_extension!(AnalyticsExtension);
