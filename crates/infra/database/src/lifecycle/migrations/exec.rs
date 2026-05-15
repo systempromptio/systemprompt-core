@@ -5,10 +5,6 @@ use crate::services::DatabaseProvider;
 use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 
-/// Inspect a migration's SQL with `pg_query` and return every table name that
-/// appears as the target of an `ALTER TABLE` statement. Parser errors are
-/// returned as `Err` so callers can attribute them to the originating
-/// extension / migration.
 fn alter_table_targets(sql: &str) -> Result<Vec<String>, String> {
     let parsed = pg_query::parse(sql).map_err(|e| e.to_string())?;
     let mut out: Vec<String> = Vec::new();
@@ -25,9 +21,8 @@ fn alter_table_targets(sql: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// Apply an already-parsed statement list inside a `BEGIN; … COMMIT` envelope,
-/// falling back to `ROLLBACK` on any failure. The bookkeeping write must only
-/// be recorded after the commit succeeds.
+/// The caller must record the migration bookkeeping row only after this
+/// returns `Ok` — a rolled-back migration must leave no row behind.
 pub(super) async fn execute_statements_transactional(
     db: &dyn DatabaseProvider,
     statements: &[String],
@@ -83,9 +78,8 @@ pub(super) async fn execute_statements_transactional(
     Ok(())
 }
 
-/// Reject a migration whose `ALTER TABLE` targets a table the extension has not
-/// declared in `owned_tables()` or `cross_extension_tables()`. Cross-extension
-/// table mutations must be declared explicitly.
+/// Reject a migration that `ALTER`s a table the extension declares in neither
+/// `owned_tables()` nor `cross_extension_tables()`.
 pub(super) fn check_cross_extension_alters(
     extension: &dyn Extension,
     migration: &Migration,

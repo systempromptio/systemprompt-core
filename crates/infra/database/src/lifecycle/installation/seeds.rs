@@ -1,15 +1,9 @@
-//! Idempotent seed application for extensions.
+//! Idempotent seed application.
 //!
-//! Seeds run **after** an extension's schemas and migrations have been
-//! applied. They are not tracked in `extension_migrations` — the contract is
-//! that every seed body is idempotent (`INSERT … ON CONFLICT`, `UPDATE`,
-//! `MERGE`, or a `WITH … INSERT` CTE) and re-running it on every boot is
-//! cheap.
-//!
-//! The classifier rejects any statement that is not one of those four shapes
-//! using `pg_query`. Schema-mutating statements (`CREATE`, `ALTER`, `DROP`,
-//! `TRUNCATE`, `GRANT`/`REVOKE`) belong in declarative schemas or migrations,
-//! never seeds.
+//! Seeds run after an extension's schemas and migrations, on every boot, and
+//! are deliberately not tracked in `extension_migrations` — every seed body
+//! must be idempotent. The classifier rejects any statement that is not
+//! `INSERT`, `UPDATE`, or `MERGE`.
 
 use crate::services::DatabaseProvider;
 use systemprompt_extension::{Extension, LoaderError, Seed};

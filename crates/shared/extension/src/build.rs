@@ -5,8 +5,8 @@
 //! an extension crate's `build.rs`: it discovers those files, derives each
 //! migration's version and name from the filename, and writes the body of
 //! [`Extension::migrations`](crate::Extension) to `OUT_DIR`. The extension
-//! consumes the generated body with the [`extension_migrations!
-//! `](crate::extension_migrations) macro.
+//! consumes the generated body with the
+//! [`extension_migrations!`](crate::extension_migrations) macro.
 //!
 //! Because the filename is the single source of version and name, those values
 //! cannot drift from the SQL they label, and `cargo:rerun-if-changed` makes a
@@ -38,18 +38,8 @@ use std::path::{Path, PathBuf};
 /// Panics if invoked outside a build script, if a file in the migrations
 /// directory is not named `NNN_<name>.sql`, or if two files share a version.
 pub fn emit_migrations() {
-    emit_migrations_from("schema/migrations");
-}
-
-/// As [`emit_migrations`], for a migrations directory at a non-default path
-/// relative to the crate manifest.
-///
-/// # Panics
-///
-/// See [`emit_migrations`].
-pub fn emit_migrations_from(relative_dir: &str) {
     let manifest = required_env("CARGO_MANIFEST_DIR");
-    let dir = Path::new(&manifest).join(relative_dir);
+    let dir = Path::new(&manifest).join("schema/migrations");
     println!("cargo:rerun-if-changed={}", dir.display());
 
     let mut migrations = discover(&dir);

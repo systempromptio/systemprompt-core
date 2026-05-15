@@ -1,37 +1,11 @@
-//! Schema installation from compile-time-registered
+//! Schema installation for compile-time-registered
 //! [`systemprompt_extension::Extension`] instances.
 //!
-//! Architectural invariant — declarative schema vs. imperative migration:
-//! - `schema/*.sql` files are **pure declarative target state**: only
-//!   idempotent `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`,
-//!   `CREATE [OR REPLACE] FUNCTION/VIEW/TRIGGER`, `CREATE TYPE`, and `CREATE
-//!   EXTENSION IF NOT EXISTS` statements. The runner lints each schema before
-//!   execution and **hard-rejects** `ALTER TABLE`, `DROP`, top-level `DO $$`
-//!   blocks, `UPDATE`/`INSERT`/`DELETE`, `TRUNCATE`, `GRANT`/`REVOKE`, and
-//!   renames. Imperative state transitions belong in
-//!   `schema/migrations/NNN_<name>.sql` declared via [`Extension::migrations`].
-//! - Installation runs in three global phases across every extension —
-//!   structural DDL, then migrations, then dependent DDL. Phasing globally
-//!   (rather than per-extension) lets a legacy database reach its target shape
-//!   before the schema's `CREATE … IF NOT EXISTS` and `CREATE INDEX` statements
-//!   run, so dependent DDL never references a column that a pending migration
-//!   has not yet added. The phases are:
-//!   1. **Structural DDL** — `CREATE TABLE`/`TYPE`/`EXTENSION` — so every table
-//!      exists before any migration runs.
-//!   2. **Migrations** — pending `Extension::migrations()` for every extension.
-//!      Because all tables already exist, a migration may legally `ALTER` a
-//!      table owned by another extension (subject to the cross-extension
-//!      ownership contract).
-//!   3. **Dependent DDL** — `CREATE INDEX`/`VIEW`/`FUNCTION`/`TRIGGER`,
-//!      `COMMENT`, and stateless `DROP … IF EXISTS` — which may reference a
-//!      column introduced by a Phase 2 migration.
-//! - Every `SchemaDefinition.sql` runs on every boot. Schemas are expected to
-//!   be idempotent by construction (the linter enforces it).
-//! - Each phase's statements for one extension run inside a single transaction.
-//!   On failure, the transaction is rolled back and the failing statement (with
-//!   its 1-based index and SQL text) is surfaced.
-//! - A session-scoped advisory lock serialises concurrent boot processes so
-//!   rolling deploys or accidental double-invocations cannot interleave DDL.
+//! Installation runs globally in three phases — structural DDL, then
+//! migrations, then dependent DDL — so a legacy database reaches its target
+//! shape before any `CREATE INDEX`/`VIEW` references a migration-added column.
+//! A session-scoped advisory lock serialises concurrent boots. See
+//! `instructions/information/migrations.md`.
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info};
@@ -41,8 +15,8 @@ use super::seeds::apply_seeds;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
-/// Stable 64-bit key for `pg_advisory_lock`. Chosen as a constant so all
-/// `systemprompt`-managed processes serialise on the same lock.
+/// Every `systemprompt` process must lock on this same value for the advisory
+/// lock to serialise concurrent boots.
 const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
 
 pub async fn install_extension_schemas(

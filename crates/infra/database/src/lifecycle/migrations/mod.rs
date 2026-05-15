@@ -1,10 +1,7 @@
 //! Extension migration runner backed by the `extension_migrations`
-//! bookkeeping table.
-//!
-//! [`MigrationService`] applies, reverts, inspects, and squashes the
-//! per-extension migration history. The forward runner and its shared helpers
-//! live here; reverts are in [`down`], status/plan queries in [`status`], and
-//! squash in [`squash`].
+//! bookkeeping table. [`MigrationService`] applies, reverts, inspects, and
+//! squashes per-extension migration history; reverts live in [`down`],
+//! status/plan queries in [`status`], squash in [`squash`].
 
 mod down;
 mod exec;

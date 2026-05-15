@@ -7,8 +7,6 @@ use systemprompt_extension::{Extension, LoaderError};
 use crate::services::SqlExecutor;
 use crate::services::schema_linter::lint_declarative_schema;
 
-/// One extension's declarative schema, parsed and split into the structural
-/// statements (run in Phase 1) and the dependent statements (run in Phase 3).
 pub(super) struct PreparedSchema {
     pub(super) extension_id: String,
     pub(super) structural: Vec<String>,
@@ -16,8 +14,6 @@ pub(super) struct PreparedSchema {
     pub(super) columns_to_validate: Vec<(String, Vec<String>)>,
 }
 
-/// Lint, parse, and classify one extension's declarative schema. Performs no
-/// database I/O.
 pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSchema, LoaderError> {
     let schemas = ext.schemas();
     let extension_id = ext.metadata().id.to_string();
@@ -78,10 +74,9 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
     })
 }
 
-/// A statement is *structural* if it only creates objects that a migration
-/// may need to exist first — tables, types, and Postgres extensions. Indexes,
-/// views, functions, triggers, comments, and drops are dependent: they may
-/// reference a column a migration introduces, so they run after Phase 2.
+/// Structural statements (Phase 1) only create schemas, tables, types, or
+/// extensions — objects a Phase 2 migration may depend on. Everything else is
+/// dependent (Phase 3) and may reference a migration-added column.
 fn statement_is_structural(statement: &str) -> bool {
     let Ok(parsed) = pg_query::parse(statement) else {
         return false;
@@ -92,7 +87,8 @@ fn statement_is_structural(statement: &str) -> bool {
             continue;
         };
         match node {
-            pg_query::NodeEnum::CreateStmt(_)
+            pg_query::NodeEnum::CreateSchemaStmt(_)
+            | pg_query::NodeEnum::CreateStmt(_)
             | pg_query::NodeEnum::CompositeTypeStmt(_)
             | pg_query::NodeEnum::CreateEnumStmt(_)
             | pg_query::NodeEnum::CreateExtensionStmt(_) => saw_structural = true,
