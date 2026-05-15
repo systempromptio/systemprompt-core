@@ -67,10 +67,10 @@ pub use services::{
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
-    AppliedMigration, MigrationConfig, MigrationResult, MigrationService, MigrationStatus,
-    install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config, validate_column_exists, validate_database_connection,
-    validate_table_exists,
+    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationConfig, MigrationResult,
+    MigrationService, MigrationStatus, PendingMigration, install_extension_schemas,
+    install_extension_schemas_full, install_extension_schemas_with_config, validate_column_exists,
+    validate_database_connection, validate_table_exists,
 };
 pub use repository::{
     CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PgDbPool, ServiceConfig,

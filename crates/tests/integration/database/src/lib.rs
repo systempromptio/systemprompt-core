@@ -13,3 +13,7 @@ mod schema_migration_order;
 #[cfg(test)]
 #[path = "../down_migration.rs"]
 mod down_migration;
+
+#[cfg(test)]
+#[path = "../migration_plan_status.rs"]
+mod migration_plan_status;
