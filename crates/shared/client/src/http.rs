@@ -22,18 +22,21 @@ fn apply_auth(
     }
 }
 
+async fn send_checked(request: reqwest::RequestBuilder) -> ClientResult<Response> {
+    let response = request.send().await?;
+    if response.status().is_success() {
+        Ok(response)
+    } else {
+        Err(extract_error(response).await)
+    }
+}
+
 pub async fn get<T: DeserializeOwned>(
     client: &Client,
     url: &str,
     token: Option<&JwtToken>,
 ) -> ClientResult<T> {
-    let request = apply_auth(client.get(url), token);
-    let response = request.send().await?;
-
-    if !response.status().is_success() {
-        return Err(extract_error(response).await);
-    }
-
+    let response = send_checked(apply_auth(client.get(url), token)).await?;
     Ok(response.json().await?)
 }
 
@@ -43,13 +46,7 @@ pub async fn post<T: DeserializeOwned, B: serde::Serialize + Sync>(
     body: &B,
     token: Option<&JwtToken>,
 ) -> ClientResult<T> {
-    let request = apply_auth(client.post(url), token).json(body);
-    let response = request.send().await?;
-
-    if !response.status().is_success() {
-        return Err(extract_error(response).await);
-    }
-
+    let response = send_checked(apply_auth(client.post(url), token).json(body)).await?;
     Ok(response.json().await?)
 }
 
@@ -59,23 +56,11 @@ pub async fn put<B: serde::Serialize + Sync>(
     body: &B,
     token: Option<&JwtToken>,
 ) -> ClientResult<()> {
-    let request = apply_auth(client.put(url), token).json(body);
-    let response = request.send().await?;
-
-    if !response.status().is_success() {
-        return Err(extract_error(response).await);
-    }
-
+    send_checked(apply_auth(client.put(url), token).json(body)).await?;
     Ok(())
 }
 
 pub async fn delete(client: &Client, url: &str, token: Option<&JwtToken>) -> ClientResult<()> {
-    let request = apply_auth(client.delete(url), token);
-    let response = request.send().await?;
-
-    if !response.status().is_success() {
-        return Err(extract_error(response).await);
-    }
-
+    send_checked(apply_auth(client.delete(url), token)).await?;
     Ok(())
 }
