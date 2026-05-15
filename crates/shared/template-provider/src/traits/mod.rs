@@ -2,7 +2,7 @@
 //!
 //! Re-exports the [`TemplateLoader`] family defined locally and the
 //! higher-level provider traits that live in `systemprompt-provider-contracts`.
-//! Splitting the loader trait out keeps the `tokio`-gated [`FileSystemLoader`]
+//! Splitting the loader trait out keeps the `tokio`-gated `FileSystemLoader`
 //! in the same crate as its trait, while the cross-crate provider contracts
 //! stay filesystem-agnostic.
 
