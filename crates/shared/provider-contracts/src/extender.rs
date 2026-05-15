@@ -159,6 +159,8 @@ impl ExtendedData {
     }
 }
 
+// Why: extender is consumed as a trait object by the generator crate; an
+// async fn in a bare trait is not dyn-compatible, so #[async_trait] is required.
 #[async_trait]
 pub trait TemplateDataExtender: Send + Sync {
     fn extender_id(&self) -> &str;

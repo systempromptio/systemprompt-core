@@ -140,6 +140,8 @@ impl JobContext {
     }
 }
 
+// Why: jobs are collected as `&'static dyn Job` via `inventory`; an async fn
+// in a bare trait is not dyn-compatible, so #[async_trait] is required.
 #[async_trait]
 pub trait Job: Send + Sync + 'static {
     fn name(&self) -> &'static str;
