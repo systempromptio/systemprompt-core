@@ -13,6 +13,7 @@ use crate::error::ConfigError;
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
 use crate::router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
+use crate::seed::Seed;
 
 pub trait Extension: Send + Sync + 'static {
     fn metadata(&self) -> ExtensionMetadata;
@@ -111,6 +112,18 @@ pub trait Extension: Send + Sync + 'static {
 
     fn migrations(&self) -> Vec<Migration> {
         vec![]
+    }
+
+    fn seeds(&self) -> Vec<Seed> {
+        Vec::new()
+    }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        Vec::new()
+    }
+
+    fn cross_extension_tables(&self) -> Vec<&'static str> {
+        Vec::new()
     }
 
     fn roles(&self) -> Vec<ExtensionRole> {

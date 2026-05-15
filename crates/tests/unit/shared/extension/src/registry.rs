@@ -275,3 +275,65 @@ fn registry_debug_format() {
     let debug = format!("{registry:?}");
     assert!(debug.contains("ExtensionRegistry"));
 }
+
+#[test]
+fn registry_topo_sort_linear_chain() {
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(
+            FakeExt::new("c", "C").with_deps(vec!["b"]).with_priority(50),
+        ))
+        .expect("register c");
+    registry
+        .register(Arc::new(
+            FakeExt::new("a", "A").with_priority(10),
+        ))
+        .expect("register a");
+    registry
+        .register(Arc::new(
+            FakeExt::new("b", "B").with_deps(vec!["a"]).with_priority(20),
+        ))
+        .expect("register b");
+
+    let ids: Vec<_> = registry.extensions().iter().map(|e| e.id()).collect();
+    let pos = |id: &str| ids.iter().position(|x| *x == id).expect("present");
+    assert!(pos("a") < pos("b"));
+    assert!(pos("b") < pos("c"));
+}
+
+#[test]
+fn registry_topo_sort_priority_breaks_ties() {
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(FakeExt::new("hi", "Hi").with_priority(200)))
+        .expect("register hi");
+    registry
+        .register(Arc::new(FakeExt::new("lo", "Lo").with_priority(10)))
+        .expect("register lo");
+
+    let ids: Vec<_> = registry.extensions().iter().map(|e| e.id()).collect();
+    assert_eq!(ids, vec!["lo", "hi"]);
+}
+
+#[test]
+fn registry_topo_sort_missing_dependency_warns_but_orders() {
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(
+            FakeExt::new("only", "Only").with_deps(vec!["nope"]),
+        ))
+        .expect("register only");
+
+    let ids: Vec<_> = registry.extensions().iter().map(|e| e.id()).collect();
+    assert_eq!(ids, vec!["only"]);
+}
+
+#[test]
+#[should_panic(expected = "dependency cycle")]
+fn registry_topo_sort_cycle_panics() {
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(FakeExt::new("a", "A").with_deps(vec!["b"])))
+        .expect("register a");
+    let _ = registry.register(Arc::new(FakeExt::new("b", "B").with_deps(vec!["a"])));
+}

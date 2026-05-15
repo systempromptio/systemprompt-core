@@ -59,6 +59,7 @@ pub mod migration;
 pub mod registry;
 pub mod router;
 pub mod runtime_config;
+pub mod seed;
 mod traits;
 pub mod typed;
 pub mod typed_registry;
@@ -71,6 +72,7 @@ pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
+pub use seed::Seed;
 pub use traits::Extension;
 
 pub use any::{AnyExtension, ApiExtensionWrapper, ExtensionWrapper, SchemaExtensionWrapper};
@@ -94,6 +96,7 @@ pub mod prelude {
     pub use crate::context::{DynExtensionContext, ExtensionContext};
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
+    pub use crate::seed::Seed;
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
         SiteAuthConfig, register_extension,
