@@ -37,9 +37,6 @@ systemprompt-config = { workspace = true }
 # Database
 sqlx = { workspace = true }
 
-# Traits
-async-trait = { workspace = true }
-
 # Error handling
 thiserror = { workspace = true }
 
