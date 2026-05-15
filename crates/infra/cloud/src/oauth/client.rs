@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::extract::Query;
+use axum::extract::{Query, State};
 use axum::response::Html;
 use axum::routing::get;
 use reqwest::Client;
@@ -33,61 +33,63 @@ pub struct OAuthTemplates {
     pub error_html: &'static str,
 }
 
+struct CallbackState {
+    tx: Mutex<Option<oneshot::Sender<CloudResult<String>>>>,
+    success_html: String,
+    error_html: String,
+}
+
+async fn callback_handler(
+    State(state): State<Arc<CallbackState>>,
+    Query(params): Query<CallbackParams>,
+) -> Html<String> {
+    let result: CloudResult<String> = if let Some(error) = params.error {
+        let desc = params
+            .error_description
+            .unwrap_or_else(|| "(no description provided)".into());
+        Err(CloudError::OAuthFlow {
+            message: format!("OAuth error: {error} - {desc}"),
+        })
+    } else if let Some(token) = params.access_token {
+        Ok(token)
+    } else {
+        Err(CloudError::OAuthFlow {
+            message: "No token received in callback".to_string(),
+        })
+    };
+
+    let sender = state.tx.lock().await.take();
+    let Some(sender) = sender else {
+        return Html(state.error_html.clone());
+    };
+
+    let is_success = result.is_ok();
+    if sender.send(result).is_err() {
+        tracing::warn!("OAuth result receiver dropped before result could be sent");
+    }
+
+    if is_success {
+        Html(state.success_html.clone())
+    } else {
+        Html(state.error_html.clone())
+    }
+}
+
 pub async fn run_oauth_flow(
     api_url: &str,
     provider: OAuthProvider,
     templates: OAuthTemplates,
 ) -> CloudResult<String> {
     let (tx, rx) = oneshot::channel::<CloudResult<String>>();
-    let tx = Arc::new(Mutex::new(Some(tx)));
+    let state = Arc::new(CallbackState {
+        tx: Mutex::new(Some(tx)),
+        success_html: templates.success_html.to_string(),
+        error_html: templates.error_html.to_string(),
+    });
 
-    let success_html = templates.success_html.to_string();
-    let error_html = templates.error_html.to_string();
-
-    let callback_handler = {
-        let tx = Arc::clone(&tx);
-        let success_html = success_html.clone();
-        let error_html = error_html.clone();
-        move |Query(params): Query<CallbackParams>| {
-            let tx = Arc::clone(&tx);
-            let success_html = success_html.clone();
-            let error_html = error_html.clone();
-            async move {
-                let result: CloudResult<String> = if let Some(error) = params.error {
-                    let desc = params
-                        .error_description
-                        .unwrap_or_else(|| "(no description provided)".into());
-                    Err(CloudError::OAuthFlow {
-                        message: format!("OAuth error: {error} - {desc}"),
-                    })
-                } else if let Some(token) = params.access_token {
-                    Ok(token)
-                } else {
-                    Err(CloudError::OAuthFlow {
-                        message: "No token received in callback".to_string(),
-                    })
-                };
-
-                let sender = tx.lock().await.take();
-                if let Some(sender) = sender {
-                    let is_success = result.is_ok();
-                    if sender.send(result).is_err() {
-                        tracing::warn!("OAuth result receiver dropped before result could be sent");
-                    }
-
-                    if is_success {
-                        Html(success_html)
-                    } else {
-                        Html(error_html)
-                    }
-                } else {
-                    Html(error_html)
-                }
-            }
-        }
-    };
-
-    let app = Router::new().route("/callback", get(callback_handler));
+    let app = Router::new()
+        .route("/callback", get(callback_handler))
+        .with_state(state);
     let addr = format!("127.0.0.1:{CALLBACK_PORT}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
