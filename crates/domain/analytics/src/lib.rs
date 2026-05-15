@@ -11,7 +11,7 @@
 //! | Feature       | Description                                                                  |
 //! |---------------|------------------------------------------------------------------------------|
 //! | _(default)_   | Core analytics — repositories, services, events, no geolocation enrichment.  |
-//! | `geolocation` | Enables MaxMind GeoIP enrichment via [`maxminddb`] for [`GeoIpReader`].      |
+//! | `geolocation` | Enables MaxMind GeoIP enrichment via `maxminddb` for [`GeoIpReader`].        |
 
 pub mod error;
 pub mod extension;
