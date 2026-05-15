@@ -11,31 +11,18 @@
 //! Both implement `std::error::Error` so callers can compose them into
 //! larger `thiserror`-derived enums via `#[from]`.
 
-use std::fmt;
-
 use thiserror::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Error)]
 pub enum IdValidationError {
-    Empty {
-        id_type: &'static str,
-    },
+    #[error("{id_type} cannot be empty")]
+    Empty { id_type: &'static str },
+    #[error("{id_type}: {message}")]
     Invalid {
         id_type: &'static str,
         message: String,
     },
 }
-
-impl fmt::Display for IdValidationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Empty { id_type } => write!(f, "{} cannot be empty", id_type),
-            Self::Invalid { id_type, message } => write!(f, "{}: {}", id_type, message),
-        }
-    }
-}
-
-impl std::error::Error for IdValidationError {}
 
 impl IdValidationError {
     #[must_use]
