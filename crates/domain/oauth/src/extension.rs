@@ -161,6 +161,10 @@ impl Extension for OauthExtension {
             ),
         ]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["oauth_auth_codes"]
+    }
 }
 
 register_extension!(OauthExtension);

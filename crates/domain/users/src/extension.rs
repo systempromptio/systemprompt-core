@@ -131,6 +131,10 @@ impl Extension for UsersExtension {
             ),
         ]
     }
+
+    fn owned_tables(&self) -> Vec<&'static str> {
+        vec!["user_sessions"]
+    }
 }
 
 register_extension!(UsersExtension);
