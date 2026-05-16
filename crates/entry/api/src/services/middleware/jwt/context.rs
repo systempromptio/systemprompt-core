@@ -135,11 +135,6 @@ impl JwtContextExtractor {
         self.extract_standard(headers).await
     }
 
-    /// Decode a JWT for the gateway authn path and confirm the user
-    /// still exists. Returns the parsed claim set; the caller assembles
-    /// whatever request-scoped struct it needs (the gateway builds an
-    /// `AuthedPrincipal` directly — there's no need to materialise a
-    /// full `RequestContext` at the auth/gate stage).
     pub async fn decode_for_gateway(
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
