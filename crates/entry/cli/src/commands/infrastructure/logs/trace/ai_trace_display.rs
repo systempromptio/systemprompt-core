@@ -63,6 +63,14 @@ pub async fn execute_ai_trace(
         CliService::info(&"═".repeat(60));
     }
 
+    let output = build_trace_output(task_id, &task_info, &ai_requests, &mcp_executions, &steps);
+
+    Ok(CommandResult::card(output)
+        .with_title("AI Trace Details")
+        .with_skip_render())
+}
+
+fn ai_summary(ai_requests: &[systemprompt_logging::AiRequestInfo]) -> AiSummaryRow {
     let total_input_tokens: i64 = ai_requests
         .iter()
         .map(|r| i64::from(r.input_tokens.unwrap_or(0)))
@@ -77,22 +85,32 @@ pub async fn execute_ai_trace(
         .map(|r| i64::from(r.latency_ms.unwrap_or(0)))
         .sum();
 
+    AiSummaryRow {
+        request_count: ai_requests.len() as i64,
+        total_tokens: total_input_tokens + total_output_tokens,
+        input_tokens: total_input_tokens,
+        output_tokens: total_output_tokens,
+        cost_dollars: total_cost_microdollars as f64 / 1_000_000.0,
+        total_latency_ms,
+    }
+}
+
+fn build_trace_output(
+    task_id: &TaskId,
+    task_info: &systemprompt_logging::TaskInfo,
+    ai_requests: &[systemprompt_logging::AiRequestInfo],
+    mcp_executions: &[systemprompt_logging::McpToolExecution],
+    steps: &[systemprompt_logging::ExecutionStep],
+) -> TraceViewOutput {
     let duration_ms = task_info
         .started_at
         .zip(task_info.completed_at)
         .map(|(s, e)| (e - s).num_milliseconds());
 
-    let output = TraceViewOutput {
+    TraceViewOutput {
         trace_id: systemprompt_identifiers::TraceId::new(task_id.as_str()),
         events: Vec::new(),
-        ai_summary: AiSummaryRow {
-            request_count: ai_requests.len() as i64,
-            total_tokens: total_input_tokens + total_output_tokens,
-            input_tokens: total_input_tokens,
-            output_tokens: total_output_tokens,
-            cost_dollars: total_cost_microdollars as f64 / 1_000_000.0,
-            total_latency_ms,
-        },
+        ai_summary: ai_summary(ai_requests),
         mcp_summary: McpSummaryRow {
             execution_count: mcp_executions.len() as i64,
             total_execution_time_ms: mcp_executions
@@ -111,12 +129,8 @@ pub async fn execute_ai_trace(
         },
         task: Some(task_id.as_str().to_string()),
         duration_ms,
-        status: task_info.status,
-    };
-
-    Ok(CommandResult::card(output)
-        .with_title("AI Trace Details")
-        .with_skip_render())
+        status: task_info.status.clone(),
+    }
 }
 
 const NOISE_DETAILS: &[&str] = &[
