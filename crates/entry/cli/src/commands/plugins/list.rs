@@ -1,7 +1,7 @@
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::ExtensionLoader;
 
+use super::discover_registry;
 use super::types::{CapabilitySummary, ExtensionListOutput, ExtensionSource, ExtensionSummary};
 use crate::CliConfig;
 use crate::shared::CommandResult;
@@ -25,10 +25,7 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<ExtensionL
     let include_manifest = matches!(args.r#type.as_str(), "all" | "manifest" | "cli" | "mcp");
 
     if include_compiled {
-        let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-            tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-            ExtensionRegistry::new()
-        });
+        let registry = discover_registry();
 
         extensions.extend(
             registry

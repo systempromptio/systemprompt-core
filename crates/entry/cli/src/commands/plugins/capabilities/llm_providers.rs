@@ -1,7 +1,7 @@
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
 
 use crate::CliConfig;
+use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{LlmProviderWithExtension, LlmProvidersListOutput};
 use crate::shared::CommandResult;
 
@@ -15,10 +15,7 @@ pub fn execute(
     args: &LlmProvidersArgs,
     _config: &CliConfig,
 ) -> CommandResult<LlmProvidersListOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
+    let registry = discover_registry();
 
     let providers: Vec<LlmProviderWithExtension> = registry
         .extensions()

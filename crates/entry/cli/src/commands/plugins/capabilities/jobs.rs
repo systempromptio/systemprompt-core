@@ -1,7 +1,7 @@
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
 
 use crate::CliConfig;
+use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{JobWithExtension, JobsListOutput};
 use crate::shared::CommandResult;
 
@@ -15,10 +15,7 @@ pub struct JobsArgs {
 }
 
 pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
+    let registry = discover_registry();
 
     let jobs: Vec<JobWithExtension> = registry
         .extensions()

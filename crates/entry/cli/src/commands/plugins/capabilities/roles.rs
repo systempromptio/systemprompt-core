@@ -1,7 +1,7 @@
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
 
 use crate::CliConfig;
+use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{RoleWithExtension, RolesListOutput};
 use crate::shared::CommandResult;
 
@@ -12,10 +12,7 @@ pub struct RolesArgs {
 }
 
 pub fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesListOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
+    let registry = discover_registry();
 
     let roles: Vec<RoleWithExtension> = registry
         .extensions()

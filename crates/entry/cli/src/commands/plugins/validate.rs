@@ -1,6 +1,6 @@
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
 
+use super::discover_registry;
 use super::types::{ExtensionValidationOutput, ValidationError, ValidationWarning};
 use crate::CliConfig;
 use crate::shared::CommandResult;
@@ -15,10 +15,7 @@ pub fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> CommandResult<ExtensionValidationOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
+    let registry = discover_registry();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
