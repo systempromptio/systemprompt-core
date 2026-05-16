@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.2] - 2026-05-16
+
+### Changed
+
+- `bootstrap::init_credentials_gracefully` now recovers from any local-mode-recoverable cloud credential error (`CloudError::is_local_mode_recoverable`), broadening the earlier fresh-clone-only handling to also cover expired or invalid credentials.
+
 ## [0.9.2] - 2026-05-12
 
 ### Fixed
