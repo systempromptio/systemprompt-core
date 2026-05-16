@@ -11,10 +11,18 @@ pub mod mcp;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
+use systemprompt_extension::ExtensionRegistry;
 
 use crate::CliConfig;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::render_result;
+
+fn discover_registry() -> ExtensionRegistry {
+    ExtensionRegistry::discover().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
+        ExtensionRegistry::new()
+    })
+}
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {

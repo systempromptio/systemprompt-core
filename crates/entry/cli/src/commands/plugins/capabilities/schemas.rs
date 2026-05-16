@@ -1,7 +1,7 @@
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
 
 use crate::CliConfig;
+use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{SchemaWithExtension, SchemasListOutput};
 use crate::shared::CommandResult;
 
@@ -12,10 +12,7 @@ pub struct SchemasArgs {
 }
 
 pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<SchemasListOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
+    let registry = discover_registry();
 
     let schemas: Vec<SchemaWithExtension> = registry
         .extensions()
