@@ -10,7 +10,6 @@ use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::McpManager;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
 use systemprompt_mcp::services::database::DatabaseManager;
 use systemprompt_runtime::AppContext;
@@ -37,8 +36,6 @@ pub async fn execute(
         .await
         .context("Failed to initialize application context")?;
 
-    let _manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
-        .context("Failed to initialize MCP manager")?;
     let database = DatabaseManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()));
 
     let servers_to_validate: Vec<String> =

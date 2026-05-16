@@ -1,7 +1,7 @@
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
 
 use crate::CliConfig;
+use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{ToolWithExtension, ToolsListOutput};
 use crate::shared::CommandResult;
 
@@ -12,10 +12,7 @@ pub struct ToolsArgs {
 }
 
 pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<ToolsListOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
+    let registry = discover_registry();
 
     let tools: Vec<ToolWithExtension> = registry
         .extensions()
