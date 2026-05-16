@@ -144,6 +144,7 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [package.metadata.docs.rs]
