@@ -9,8 +9,8 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
 
-use super::selection::prompt_content_type_selection;
 use super::super::types::ContentTypeDeleteOutput;
+use super::selection::prompt_content_type_selection;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {

@@ -9,9 +9,9 @@ use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 
-use super::selection::prompt_template_selection;
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDetailOutput, TemplatesConfig};
+use super::selection::prompt_template_selection;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

@@ -8,10 +8,10 @@ use crate::shared::CommandResult;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::content_config::ContentConfigRaw;
 
-use super::selection::prompt_content_type_selection;
 use super::super::types::{
     BrandingInfo, ContentTypeDetailOutput, IndexingInfo, ParentRouteInfo, SitemapInfo,
 };
+use super::selection::prompt_content_type_selection;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

@@ -6,9 +6,9 @@ use walkdir::WalkDir;
 use crate::CliConfig;
 use crate::shared::CommandResult;
 
-use super::asset_type::determine_asset_type;
 use super::super::paths::WebPaths;
 use super::super::types::{AssetListOutput, AssetSummary, AssetType};
+use super::asset_type::determine_asset_type;
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum AssetTypeFilter {

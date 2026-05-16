@@ -12,7 +12,6 @@ use systemprompt_ai::repository::AiSafetyFindingRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 
-use super::REQUEST_ID_HEADER;
 use super::super::audit::GatewayAudit;
 use super::super::policy::GatewayPolicySpec;
 use super::super::protocol::canonical::CanonicalRequest;
@@ -21,6 +20,7 @@ use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::OutboundOutcome;
 use super::super::safety::{Finding, HeuristicScanner, SafetyScanner};
 use super::super::{parse, quota, stream_tap};
+use super::REQUEST_ID_HEADER;
 
 pub(super) struct FinalizeCtx {
     pub(super) audit: Arc<GatewayAudit>,

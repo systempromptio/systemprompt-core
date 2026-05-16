@@ -7,9 +7,9 @@ use crate::CliConfig;
 use crate::shared::CommandResult;
 use systemprompt_config::ProfileBootstrap;
 
-use super::asset_type::determine_asset_type;
 use super::super::paths::WebPaths;
 use super::super::types::AssetDetailOutput;
+use super::asset_type::determine_asset_type;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

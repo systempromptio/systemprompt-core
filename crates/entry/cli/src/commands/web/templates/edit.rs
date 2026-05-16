@@ -9,9 +9,9 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_logging::CliService;
 
-use super::selection::prompt_template_selection;
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateEditOutput, TemplatesConfig};
+use super::selection::prompt_template_selection;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
