@@ -1,3 +1,8 @@
+//! MCP client.
+//!
+//! Connects to running MCP servers over streamable HTTP, lists their tools,
+//! executes tool calls, and validates reachability.
+
 use crate::error::McpDomainResult;
 use rmcp::handler::client::progress::ProgressDispatcher;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProgressNotificationParam};

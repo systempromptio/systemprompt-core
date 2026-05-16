@@ -30,11 +30,11 @@ pub async fn start_server(
 
     let pid = ProcessManager::spawn_server(manager.app_paths(), config)?;
 
-    let startup_time = wait_for_startup(config, pid, events).await?;
+    wait_for_startup(config, pid, events).await?;
 
     manager
         .database()
-        .register_service(config, pid, startup_time)
+        .register_service(config, pid)
         .await?;
 
     tracing::info!("MCP started: {} :{}", config.name, config.port);

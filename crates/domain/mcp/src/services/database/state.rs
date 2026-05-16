@@ -29,7 +29,6 @@ pub async fn register_service(
     paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
-    _startup_time: Option<i32>,
 ) -> McpDomainResult<String> {
     let repo = ServiceRepository::new(db_pool)?;
     let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
@@ -108,18 +107,6 @@ pub async fn get_running_servers(
     }
 
     Ok(running_configs)
-}
-
-pub async fn update_service_state(
-    db_pool: &systemprompt_database::DbPool,
-    name: &str,
-    status: &str,
-    _pid: Option<u32>,
-) -> McpDomainResult<()> {
-    let repo = ServiceRepository::new(db_pool)?;
-    repo.update_service_status(name, status)
-        .await
-        .map_err(Into::into)
 }
 
 pub async fn register_existing_process(
