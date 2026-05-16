@@ -5389,14 +5389,11 @@ dependencies = [
 name = "systemprompt-templates"
 version = "0.10.2"
 dependencies = [
- "async-trait",
  "handlebars",
- "indexmap",
  "serde",
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-template-provider",
- "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
