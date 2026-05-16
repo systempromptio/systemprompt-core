@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.0] - 2026-05-15
+
+### Removed
+- **Breaking:** `SchedulerExtension::migration_weight()`. Extension ordering is now derived solely from the dependency graph; the scheduler declares its `users` dependency via `Extension::dependencies()`.
+
 ## [0.9.2] - 2026-05-14
 
 ### Added
