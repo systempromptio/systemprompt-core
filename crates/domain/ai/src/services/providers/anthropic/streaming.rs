@@ -9,6 +9,7 @@ use crate::services::providers::GenerationParams;
 use systemprompt_models::ai::StreamChunk;
 
 use super::provider::AnthropicProvider;
+use super::request::{post_messages, sampling_tuple};
 use super::{converters, thinking};
 
 impl AnthropicProvider {
@@ -18,12 +19,7 @@ impl AnthropicProvider {
         tools: Option<Vec<AnthropicTool>>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
-
-        let (temperature, top_p, top_k, stop_sequences) =
-            params.sampling.map_or((None, None, None, None), |s| {
-                (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
-            });
-
+        let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.sampling);
         let thinking_config = thinking::build_thinking_config(params.model);
 
         let request = AnthropicRequest {
@@ -41,19 +37,7 @@ impl AnthropicProvider {
             thinking: thinking_config,
         };
 
-        let response = self
-            .client
-            .post(format!("{}/messages", self.endpoint))
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
-            .json(&request)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(crate::error::AiError::from_error_response("anthropic", response).await);
-        }
+        let response = post_messages(self, &request).await?;
 
         let stream = response
             .bytes_stream()
