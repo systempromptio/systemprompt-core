@@ -4,7 +4,6 @@ use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
 use systemprompt_models::auth::Permission;
 use systemprompt_security::TokenExtractor;
-use tracing;
 
 use super::jwt::JwtExtractor;
 

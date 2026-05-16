@@ -10,6 +10,8 @@ impl PayloadSource {
     pub fn extract_context_source(
         body_bytes: &[u8],
     ) -> Result<ContextIdSource, ContextExtractionError> {
+        // JSON: A2A JSON-RPC envelope is an external protocol boundary; the
+        // method name drives which typed field is read, so the shape is dynamic.
         let payload: Value = serde_json::from_slice(body_bytes).map_err(|e| {
             ContextExtractionError::InvalidHeaderValue {
                 header: "payload".to_string(),
