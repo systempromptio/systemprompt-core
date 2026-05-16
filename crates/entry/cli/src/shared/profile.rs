@@ -185,7 +185,9 @@ fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfi
     }
 
     let name = entry.file_name().to_string_lossy().to_string();
-    let profile = ProfileLoader::load_from_path(&profile_yaml).ok()?;
+    let profile = ProfileLoader::load_from_path(&profile_yaml)
+        .map_err(|e| tracing::warn!(profile = %name, error = %e, "Skipping unreadable profile during discovery"))
+        .ok()?;
 
     Some(DiscoveredProfile {
         name,

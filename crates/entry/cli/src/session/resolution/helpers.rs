@@ -183,7 +183,9 @@ pub(super) async fn try_validate_context(
         )
         .ok()?;
     let db_pool = DbPool::from(Arc::new(db));
-    let context_repo = ContextRepository::new(&db_pool).ok()?;
+    let context_repo = ContextRepository::new(&db_pool)
+        .map_err(|e| tracing::debug!(error = %e, "Failed to build context repository"))
+        .ok()?;
 
     let is_valid = context_repo
         .validate_context_ownership(&session.context_id, &session.user_id)
@@ -203,6 +205,7 @@ pub(super) async fn try_validate_context(
             &format!("CLI Session - {}", profile_name),
         )
         .await
+        .map_err(|e| tracing::warn!(error = %e, "Failed to create replacement session context"))
         .ok()?;
 
     session.set_context_id(new_context_id);
