@@ -5,12 +5,11 @@ use std::fs;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
 
+use super::selection::prompt_content_type_selection;
 use super::super::types::ContentTypeEditOutput;
 
 #[derive(Debug, Args)]
@@ -61,7 +60,7 @@ pub fn execute(
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {
-        prompt_content_type_selection(&content_config)
+        prompt_content_type_selection(&content_config, "Select content type to edit")
     })?;
 
     let source = content_config
@@ -197,8 +196,20 @@ fn apply_set_key(
                 .map_err(|_| anyhow!("Invalid boolean value for enabled: '{}'", value))?;
             changes.push(format!("enabled: {}", value));
         },
-        "sitemap.url_pattern" | "sitemap.priority" | "sitemap.changefreq" => {
-            apply_sitemap_set(source, key, value, changes)?;
+        "sitemap.url_pattern" => {
+            sitemap_mut(source)?.url_pattern = value.to_string();
+            changes.push(format!("sitemap.url_pattern: {}", value));
+        },
+        "sitemap.priority" => {
+            let priority: f32 = value
+                .parse()
+                .map_err(|_| anyhow!("Invalid float value for priority: '{}'", value))?;
+            sitemap_mut(source)?.priority = priority;
+            changes.push(format!("sitemap.priority: {}", value));
+        },
+        "sitemap.changefreq" => {
+            sitemap_mut(source)?.changefreq = value.to_string();
+            changes.push(format!("sitemap.changefreq: {}", value));
         },
         _ => {
             return Err(anyhow!(
@@ -211,51 +222,11 @@ fn apply_set_key(
     Ok(())
 }
 
-fn apply_sitemap_set(
+fn sitemap_mut(
     source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
-    key: &str,
-    value: &str,
-    changes: &mut Vec<String>,
-) -> Result<()> {
-    let sitemap = source
+) -> Result<&mut systemprompt_models::content_config::SitemapConfig> {
+    source
         .sitemap
         .as_mut()
-        .ok_or_else(|| anyhow!("No sitemap configuration exists"))?;
-    match key {
-        "sitemap.url_pattern" => {
-            sitemap.url_pattern = value.to_string();
-            changes.push(format!("sitemap.url_pattern: {}", value));
-        },
-        "sitemap.priority" => {
-            let priority: f32 = value
-                .parse()
-                .map_err(|_| anyhow!("Invalid float value for priority: '{}'", value))?;
-            sitemap.priority = priority;
-            changes.push(format!("sitemap.priority: {}", value));
-        },
-        "sitemap.changefreq" => {
-            sitemap.changefreq = value.to_string();
-            changes.push(format!("sitemap.changefreq: {}", value));
-        },
-        _ => unreachable!("apply_sitemap_set called with non-sitemap key: {}", key),
-    }
-    Ok(())
-}
-
-fn prompt_content_type_selection(config: &ContentConfigRaw) -> Result<String> {
-    let mut names: Vec<&String> = config.content_sources.keys().collect();
-    names.sort();
-
-    if names.is_empty() {
-        return Err(anyhow!("No content types configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select content type to edit")
-        .items(&names)
-        .default(0)
-        .interact()
-        .context("Failed to get content type selection")?;
-
-    Ok(names[selection].clone())
+        .ok_or_else(|| anyhow!("No sitemap configuration exists"))
 }

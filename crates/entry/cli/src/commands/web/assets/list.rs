@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
-use std::path::Path;
 use walkdir::WalkDir;
 
 use crate::CliConfig;
 use crate::shared::CommandResult;
 
+use super::asset_type::determine_asset_type;
 use super::super::paths::WebPaths;
 use super::super::types::{AssetListOutput, AssetSummary, AssetType};
 
@@ -97,35 +97,6 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Asse
             "size_bytes".to_string(),
             "modified".to_string(),
         ]))
-}
-
-fn determine_asset_type(path: &Path, relative_path: &str) -> AssetType {
-    let extension = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    let filename = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    if filename.starts_with("favicon") {
-        return AssetType::Favicon;
-    }
-
-    if relative_path.starts_with("logos/") || filename.contains("logo") {
-        return AssetType::Logo;
-    }
-
-    match extension.as_str() {
-        "css" => AssetType::Css,
-        "ttf" | "woff" | "woff2" | "otf" | "eot" => AssetType::Font,
-        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "ico" => AssetType::Image,
-        _ => AssetType::Other,
-    }
 }
 
 fn matches_filter(asset_type: AssetType, filter: AssetTypeFilter) -> bool {
