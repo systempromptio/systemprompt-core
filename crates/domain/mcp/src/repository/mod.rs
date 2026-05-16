@@ -1,4 +1,5 @@
-//! Publicly re-exported submodule. See submodule rustdoc for details.
+//! Postgres persistence for MCP: tool-execution records and aggregate stats,
+//! session state, and tool-output artifacts.
 
 mod artifact;
 mod session;

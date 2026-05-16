@@ -1,4 +1,5 @@
-//! Publicly re-exported submodule. See submodule rustdoc for details.
+//! HTTP-facing middleware for the MCP server: RBAC enforcement, database-backed
+//! session management, and request-context/bearer-token extraction helpers.
 
 pub mod rbac;
 pub mod session_manager;
