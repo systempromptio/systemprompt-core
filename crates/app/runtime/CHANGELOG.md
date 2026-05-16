@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.2] - 2026-05-15
+
+### Changed
+
+- Adapt to `ExtensionRegistry::discover()` returning `Result`: `AppContextBuilder::build` and startup extension validation now propagate or report `LoaderError` instead of consuming an infallible value.
+
 ## [0.9.2] - 2026-05-14
 
 ### Added
