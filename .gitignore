@@ -121,3 +121,4 @@ youtube-walkthrough.md
 ci/
 .sentrux/
 Screenshot*.png
+!crates/entry/api/src/services/gateway/audit/
