@@ -32,6 +32,7 @@ pub struct RenderingHints {
     pub chart_type: Option<ChartType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<String>,
+    // JSON: open-ended renderer hint bag; keys are renderer-defined and not known at compile time
     #[serde(flatten)]
     pub extra: HashMap<String, serde_json::Value>,
 }

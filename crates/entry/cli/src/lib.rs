@@ -169,9 +169,14 @@ async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Prof
             context,
         }) => {
             let args = args::reconstruct_args(cli);
-            let exit_code =
-                routing::remote::execute_remote(&hostname, &token, context.as_str(), &args, 300)
-                    .await?;
+            let exit_code = routing::remote::execute_remote(
+                &hostname,
+                token.as_str(),
+                context.as_str(),
+                &args,
+                300,
+            )
+            .await?;
             if exit_code != 0 {
                 bail!("Remote command exited with code {}", exit_code);
             }

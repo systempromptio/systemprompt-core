@@ -3,7 +3,7 @@ pub mod remote;
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::ContextId;
+use systemprompt_identifiers::{ContextId, SessionToken};
 
 use crate::paths::ResolvedPaths;
 
@@ -11,7 +11,7 @@ pub enum ExecutionTarget {
     Local,
     Remote {
         hostname: String,
-        token: String,
+        token: SessionToken,
         context: ContextId,
     },
 }
@@ -62,8 +62,8 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
 
     Ok(ExecutionTarget::Remote {
         hostname,
-        token: session.session_token.as_str().to_string(),
-        context: session.context_id.clone(),
+        token: session.session_token,
+        context: session.context_id,
     })
 }
 
