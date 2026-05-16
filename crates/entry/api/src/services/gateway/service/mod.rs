@@ -1,42 +1,49 @@
+//! Gateway dispatch entry point: route resolution, policy and quota checks,
+//! upstream send, and response finalization.
 #![allow(clippy::clone_on_ref_ptr)]
+
+mod finalize;
+
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
-use http::HeaderValue;
-use systemprompt_ai::InsertSafetyFinding;
-use systemprompt_ai::repository::AiSafetyFindingRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::profile::GatewayConfig;
 
+use self::finalize::{FinalizeCtx, attach_request_id, finalize, run_request_safety_scan};
 use super::audit::{GatewayAudit, GatewayRequestContext};
-use super::policy::{GatewayPolicySpec, PolicyResolver};
+use super::policy::PolicyResolver;
 use super::protocol::canonical::CanonicalRequest;
-use super::protocol::canonical_response::CanonicalResponse;
 use super::protocol::inbound::InboundAdapter;
-use super::protocol::outbound::{OutboundCtx, OutboundOutcome};
+use super::protocol::outbound::OutboundCtx;
+use super::quota;
 use super::registry::GatewayUpstreamRegistry;
-use super::safety::{HeuristicScanner, SafetyScanner};
-use super::{parse, quota, stream_tap};
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayService;
 
-/// Per-request inputs to [`GatewayService::dispatch`].
-///
-/// Bundles `request`, `raw_body`, `ctx`, and `inbound` so that the
-/// surrounding env (`config`, `db`) stays as explicit arguments.
 #[derive(Debug)]
 pub struct DispatchInputs {
     pub request: CanonicalRequest,
     pub raw_body: Bytes,
     pub ctx: GatewayRequestContext,
     pub inbound: Arc<dyn InboundAdapter>,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct PolicyDenied(pub String);
+
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct QuotaExceeded {
+    pub message: String,
+    pub retry_after_seconds: i32,
 }
 
 impl GatewayService {
@@ -172,143 +179,4 @@ impl GatewayService {
         .await;
         Ok(attach_request_id(response, &ai_request_id))
     }
-}
-
-struct FinalizeCtx {
-    audit: Arc<GatewayAudit>,
-    db: DbPool,
-    ai_request_id: AiRequestId,
-    policy: GatewayPolicySpec,
-    inbound: Arc<dyn InboundAdapter>,
-    request_model: String,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct PolicyDenied(pub String);
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct QuotaExceeded {
-    pub message: String,
-    pub retry_after_seconds: i32,
-}
-
-async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Response<Body> {
-    let FinalizeCtx {
-        audit,
-        db,
-        ai_request_id,
-        policy,
-        inbound,
-        request_model,
-    } = fctx;
-    match outcome {
-        OutboundOutcome::Buffered(canonical) => {
-            let body_bytes = inbound.render_response(&canonical);
-            let audit_clone = Arc::clone(&audit);
-            let body_for_task = body_bytes.clone();
-            tokio::spawn(async move {
-                let canonical_for_task = canonical;
-                let served_model = canonical_for_task.model.clone();
-                if !served_model.is_empty() {
-                    audit_clone.set_served_model(&served_model).await;
-                }
-                let (usage, tool_calls) = parse::extract_from_canonical(&canonical_for_task);
-                if let Err(e) = audit_clone
-                    .complete(usage, tool_calls, &canonical_for_task, &body_for_task)
-                    .await
-                {
-                    tracing::warn!(error = %e, "buffered audit complete failed");
-                }
-                quota::post_update_tokens(
-                    &db,
-                    quota::PostUpdateParams {
-                        tenant_id: audit_clone.ctx.tenant_id.as_ref(),
-                        user_id: &audit_clone.ctx.user_id,
-                        windows: &policy.quota_windows,
-                        input_tokens: usage.input_tokens,
-                        output_tokens: usage.output_tokens,
-                    },
-                )
-                .await;
-                run_response_safety_scan(&db, &ai_request_id, &canonical_for_task).await;
-            });
-            Response::builder()
-                .status(http::StatusCode::OK)
-                .header(http::header::CONTENT_TYPE, "application/json")
-                .body(Body::from(body_bytes))
-                .unwrap_or_else(|_| Response::new(Body::empty()))
-        },
-        OutboundOutcome::Streaming(stream) => {
-            let body = stream_tap::tap(stream, Arc::clone(&inbound), request_model, audit);
-            Response::builder()
-                .status(http::StatusCode::OK)
-                .header(http::header::CONTENT_TYPE, inbound.streaming_content_type())
-                .header("cache-control", "no-cache")
-                .header("x-accel-buffering", "no")
-                .body(body)
-                .unwrap_or_else(|_| Response::new(Body::empty()))
-        },
-    }
-}
-
-async fn run_request_safety_scan(
-    db: &DbPool,
-    ai_request_id: &AiRequestId,
-    request: &CanonicalRequest,
-) {
-    let scanner = HeuristicScanner;
-    let findings = scanner.scan_request(request).await;
-    if findings.is_empty() {
-        return;
-    }
-    persist_findings(db, ai_request_id, findings).await;
-}
-
-async fn run_response_safety_scan(
-    db: &DbPool,
-    ai_request_id: &AiRequestId,
-    response: &CanonicalResponse,
-) {
-    let scanner = HeuristicScanner;
-    let findings = scanner.scan_response_final(response).await;
-    if findings.is_empty() {
-        return;
-    }
-    persist_findings(db, ai_request_id, findings).await;
-}
-
-async fn persist_findings(
-    db: &DbPool,
-    ai_request_id: &AiRequestId,
-    findings: Vec<super::safety::Finding>,
-) {
-    let repo = match AiSafetyFindingRepository::new(db) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "safety findings repo init failed");
-            return;
-        },
-    };
-    for f in findings {
-        let params = InsertSafetyFinding {
-            ai_request_id,
-            phase: f.phase,
-            severity: f.severity.as_str(),
-            category: &f.category,
-            scanner: f.scanner,
-            excerpt: f.excerpt.as_deref(),
-        };
-        if let Err(e) = repo.insert(params).await {
-            tracing::warn!(error = %e, "safety finding insert failed");
-        }
-    }
-}
-
-fn attach_request_id(mut response: Response<Body>, id: &AiRequestId) -> Response<Body> {
-    if let Ok(v) = HeaderValue::from_str(id.as_str()) {
-        response.headers_mut().insert(REQUEST_ID_HEADER, v);
-    }
-    response
 }
