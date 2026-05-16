@@ -32,6 +32,8 @@ pub struct Finding {
     pub scanner: &'static str,
 }
 
+// Why: #[async_trait] is required — scanners are selected by policy and held as
+// trait objects, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait SafetyScanner: Send + Sync {
     fn name(&self) -> &'static str;
