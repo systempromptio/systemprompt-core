@@ -10,6 +10,8 @@ use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 pub type CallToolResult = rmcp::model::CallToolResult;
 
+/// `#[async_trait]` is required: `execute_tools_sequentially` takes the
+/// executor as `&dyn ToolExecutorTrait`, so the trait must be `dyn`-compatible.
 #[async_trait]
 pub trait ToolExecutorTrait: Send + Sync {
     async fn execute_tool(
