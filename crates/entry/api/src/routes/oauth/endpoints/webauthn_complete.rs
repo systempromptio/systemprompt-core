@@ -34,60 +34,55 @@ pub struct WebAuthnCompleteError {
     pub error_description: String,
 }
 
-#[allow(unused_qualifications)]
-pub async fn handle_webauthn_complete(
-    headers: HeaderMap,
-    Query(params): Query<WebAuthnCompleteQuery>,
-    State(state): State<OAuthState>,
-    OAuthRepo(repo): OAuthRepo,
-) -> impl IntoResponse {
-    let auth_token = match &params.auth_token {
-        Some(token) => token.clone(),
-        None => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(WebAuthnCompleteError {
-                    error: "invalid_request".to_string(),
-                    error_description: "Missing auth_token parameter".to_string(),
-                }),
-            )
-                .into_response();
-        },
-    };
-
-    let user_provider = state.user_provider();
-    let webauthn_service = match WebAuthnRegistry::get_or_create_service(
-        repo.clone(),
-        Arc::clone(user_provider),
+fn error_response(
+    status: StatusCode,
+    error: &str,
+    description: impl Into<String>,
+) -> axum::response::Response {
+    (
+        status,
+        Json(WebAuthnCompleteError {
+            error: error.to_string(),
+            error_description: description.into(),
+        }),
     )
-    .await
-    {
-        Ok(service) => service,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(WebAuthnCompleteError {
-                    error: "server_error".to_string(),
-                    error_description: format!("WebAuthn service initialization failed: {e}"),
-                }),
-            )
-                .into_response();
-        },
+        .into_response()
+}
+
+async fn verify_completion(
+    params: &WebAuthnCompleteQuery,
+    state: &OAuthState,
+    repo: &OAuthRepository,
+) -> Result<(UserId, String), axum::response::Response> {
+    let Some(auth_token) = &params.auth_token else {
+        return Err(error_response(
+            StatusCode::BAD_REQUEST,
+            "invalid_request",
+            "Missing auth_token parameter",
+        ));
     };
 
-    let Ok(verified_user_id) = webauthn_service
-        .consume_verified_authentication(&auth_token)
+    let webauthn_service =
+        WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(state.user_provider()))
+            .await
+            .map_err(|e| {
+                error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "server_error",
+                    format!("WebAuthn service initialization failed: {e}"),
+                )
+            })?;
+
+    let verified_user_id = webauthn_service
+        .consume_verified_authentication(auth_token)
         .await
-    else {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(WebAuthnCompleteError {
-                error: "access_denied".to_string(),
-                error_description: "Invalid or expired authentication token".to_string(),
-            }),
-        )
-            .into_response();
-    };
+        .map_err(|_| {
+            error_response(
+                StatusCode::UNAUTHORIZED,
+                "access_denied",
+                "Invalid or expired authentication token",
+            )
+        })?;
 
     if params.user_id != verified_user_id {
         tracing::warn!(
@@ -95,85 +90,76 @@ pub async fn handle_webauthn_complete(
             verified_user_id = %verified_user_id,
             "WebAuthn complete user_id mismatch"
         );
-        return (
+        return Err(error_response(
             StatusCode::UNAUTHORIZED,
-            Json(WebAuthnCompleteError {
-                error: "access_denied".to_string(),
-                error_description: "User identity verification failed".to_string(),
-            }),
-        )
-            .into_response();
+            "access_denied",
+            "User identity verification failed",
+        ));
     }
 
     if params.client_id.is_none() {
-        return (
+        return Err(error_response(
             StatusCode::BAD_REQUEST,
-            Json(WebAuthnCompleteError {
-                error: "invalid_request".to_string(),
-                error_description: "Missing client_id parameter".to_string(),
-            }),
-        )
-            .into_response();
+            "invalid_request",
+            "Missing client_id parameter",
+        ));
     }
 
     let Some(redirect_uri) = &params.redirect_uri else {
-        return (
+        return Err(error_response(
             StatusCode::BAD_REQUEST,
-            Json(WebAuthnCompleteError {
-                error: "invalid_request".to_string(),
-                error_description: "Missing redirect_uri parameter".to_string(),
-            }),
-        )
-            .into_response();
+            "invalid_request",
+            "Missing redirect_uri parameter",
+        ));
     };
 
-    match user_provider.find_by_id(&verified_user_id).await {
+    Ok((verified_user_id, redirect_uri.clone()))
+}
+
+#[allow(unused_qualifications)]
+pub async fn handle_webauthn_complete(
+    headers: HeaderMap,
+    Query(params): Query<WebAuthnCompleteQuery>,
+    State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
+) -> impl IntoResponse {
+    let (verified_user_id, redirect_uri) = match verify_completion(&params, &state, &repo).await {
+        Ok(verified) => verified,
+        Err(response) => return response,
+    };
+
+    match state.user_provider().find_by_id(&verified_user_id).await {
         Ok(Some(_)) => {
             let authorization_code = generate_secure_token("auth_code");
 
             match store_authorization_code(&repo, &authorization_code, &params).await {
-                Ok(()) => {
-                    create_successful_response(&headers, redirect_uri, &authorization_code, &params)
-                },
-                Err(error) => (
+                Ok(()) => create_successful_response(
+                    &headers,
+                    &redirect_uri,
+                    &authorization_code,
+                    &params,
+                ),
+                Err(error) => error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(WebAuthnCompleteError {
-                        error: "server_error".to_string(),
-                        error_description: error.to_string(),
-                    }),
-                )
-                    .into_response(),
+                    "server_error",
+                    error.to_string(),
+                ),
             }
         },
-        Ok(None) => (
-            StatusCode::UNAUTHORIZED,
-            Json(WebAuthnCompleteError {
-                error: "access_denied".to_string(),
-                error_description: "User not found".to_string(),
-            }),
-        )
-            .into_response(),
+        Ok(None) => error_response(StatusCode::UNAUTHORIZED, "access_denied", "User not found"),
         Err(error) => {
-            let status_code = if error.to_string().contains("User not found") {
+            let is_not_found = error.to_string().contains("User not found");
+            let status_code = if is_not_found {
                 StatusCode::UNAUTHORIZED
             } else {
                 StatusCode::INTERNAL_SERVER_ERROR
             };
-
-            let error_type = if status_code == StatusCode::UNAUTHORIZED {
+            let error_type = if is_not_found {
                 "access_denied"
             } else {
                 "server_error"
             };
-
-            (
-                status_code,
-                Json(WebAuthnCompleteError {
-                    error: error_type.to_string(),
-                    error_description: error.to_string(),
-                }),
-            )
-                .into_response()
+            error_response(status_code, error_type, error.to_string())
         },
     }
 }
