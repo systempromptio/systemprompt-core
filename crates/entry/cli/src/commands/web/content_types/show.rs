@@ -5,11 +5,10 @@ use std::fs;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::content_config::ContentConfigRaw;
 
+use super::selection::prompt_content_type_selection;
 use super::super::types::{
     BrandingInfo, ContentTypeDetailOutput, IndexingInfo, ParentRouteInfo, SitemapInfo,
 };
@@ -34,7 +33,7 @@ pub fn execute(
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
     let name = resolve_required(args.name, "name", config, || {
-        prompt_content_type_selection(&content_config)
+        prompt_content_type_selection(&content_config, "Select content type")
     })?;
 
     let source = content_config
@@ -77,22 +76,4 @@ pub fn execute(
     };
 
     Ok(CommandResult::card(output).with_title(format!("Content Type: {}", name)))
-}
-
-fn prompt_content_type_selection(config: &ContentConfigRaw) -> Result<String> {
-    let mut names: Vec<&String> = config.content_sources.keys().collect();
-    names.sort();
-
-    if names.is_empty() {
-        return Err(anyhow!("No content types configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select content type")
-        .items(&names)
-        .default(0)
-        .interact()
-        .context("Failed to get content type selection")?;
-
-    Ok(names[selection].clone())
 }

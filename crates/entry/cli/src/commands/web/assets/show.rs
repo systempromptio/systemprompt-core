@@ -2,14 +2,14 @@ use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::fs;
-use std::path::Path;
 
 use crate::CliConfig;
 use crate::shared::CommandResult;
 use systemprompt_config::ProfileBootstrap;
 
+use super::asset_type::determine_asset_type;
 use super::super::paths::WebPaths;
-use super::super::types::{AssetDetailOutput, AssetType};
+use super::super::types::AssetDetailOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -56,35 +56,6 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<Ass
     };
 
     Ok(CommandResult::card(output).with_title(format!("Asset: {}", args.path)))
-}
-
-fn determine_asset_type(path: &Path, relative_path: &str) -> AssetType {
-    let extension = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    let filename = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    if filename.starts_with("favicon") {
-        return AssetType::Favicon;
-    }
-
-    if relative_path.starts_with("logos/") || filename.contains("logo") {
-        return AssetType::Logo;
-    }
-
-    match extension.as_str() {
-        "css" => AssetType::Css,
-        "ttf" | "woff" | "woff2" | "otf" | "eot" => AssetType::Font,
-        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "ico" => AssetType::Image,
-        _ => AssetType::Other,
-    }
 }
 
 fn find_config_references(asset_path: &str, profile: &systemprompt_models::Profile) -> Vec<String> {
