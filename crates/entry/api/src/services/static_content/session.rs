@@ -48,7 +48,7 @@ pub async fn ensure_session(
     let session_service =
         SessionCreationService::new(analytics, Arc::new(UserProviderImpl::new(user_service)));
 
-    let client_id = ClientId::new("sp_web".to_string());
+    let client_id = ClientId::new("sp_web");
     let session_info = session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
             headers,
