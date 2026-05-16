@@ -2,7 +2,6 @@ use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::{McpArtifactRepository, ToolUsageRepository};
 use crate::response::McpResponseBuilder;
 use crate::schema::McpOutputSchema;
-use async_trait::async_trait;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
@@ -14,7 +13,6 @@ use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::RequestContext;
 
-#[async_trait]
 pub trait McpToolHandler: Send + Sync {
     type Input: DeserializeOwned + JsonSchema + Send;
     type Output: Serialize + JsonSchema + McpOutputSchema + Send;
@@ -40,12 +38,12 @@ pub trait McpToolHandler: Send + Sync {
         Self::Output::validated_schema()
     }
 
-    async fn handle(
+    fn handle(
         &self,
         input: Self::Input,
         ctx: &RequestContext,
         exec_id: &McpExecutionId,
-    ) -> Result<(Self::Output, String), McpError>;
+    ) -> impl Future<Output = Result<(Self::Output, String), McpError>> + Send;
 }
 
 #[derive(Clone, Debug)]
