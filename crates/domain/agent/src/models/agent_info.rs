@@ -1,3 +1,5 @@
+//! Lightweight directory record summarising an agent for listing surfaces.
+
 use crate::models::a2a::{AgentCard, AgentSkill};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::AgentId;

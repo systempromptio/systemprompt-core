@@ -1,3 +1,6 @@
+//! Runtime configuration for agent services: connection, runtime, and service
+//! settings, plus a builder and validation for assembling them.
+
 use crate::services::shared::error::{AgentServiceError, Result};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

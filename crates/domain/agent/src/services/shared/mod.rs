@@ -1,3 +1,7 @@
+//! Cross-cutting helpers shared by the agent service layer: the service-local
+//! error type, JWT authentication, runtime configuration, resilience wrappers,
+//! and slug generation.
+
 pub mod auth;
 pub mod config;
 pub mod error;

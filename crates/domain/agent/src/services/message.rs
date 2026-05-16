@@ -1,3 +1,6 @@
+//! Persisting A2A conversation messages, including transactional writes and
+//! synthetic messages for MCP tool executions.
+
 use crate::services::shared::{AgentServiceError, Result};
 use serde_json::json;
 use uuid::Uuid;

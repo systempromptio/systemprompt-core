@@ -1,3 +1,6 @@
+//! Conversational context models: contexts, their messages, per-user views
+//! with aggregate statistics, and create/update request shapes.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, SkillId, TaskId};

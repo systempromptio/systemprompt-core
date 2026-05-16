@@ -1,3 +1,6 @@
+//! JSON-RPC 2.0 framing primitives: request identifiers and the request and
+//! response envelopes used by the A2A protocol.
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
