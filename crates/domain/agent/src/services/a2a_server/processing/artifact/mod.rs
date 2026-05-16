@@ -1,5 +1,4 @@
 use crate::services::shared::{AgentServiceError, Result};
-use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, ContextId, TaskId};
 use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, ToolCall};
@@ -7,7 +6,6 @@ use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, T
 use crate::models::a2a::Artifact;
 use crate::services::mcp::McpToA2aTransformer;
 
-#[async_trait]
 pub trait ToolProvider: Send + Sync {
     async fn list_available_tools_for_agent(
         &self,
@@ -34,7 +32,6 @@ impl AiServiceToolProvider {
     }
 }
 
-#[async_trait]
 impl ToolProvider for AiServiceToolProvider {
     async fn list_available_tools_for_agent(
         &self,
