@@ -1,3 +1,6 @@
+//! OS-process lifecycle for MCP servers: spawning, PID discovery,
+//! liveness monitoring, and graceful/forced termination.
+
 pub mod cleanup;
 pub mod monitor;
 pub mod pid_manager;
