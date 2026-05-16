@@ -1,3 +1,10 @@
+//! A2A JSON-RPC protocol types.
+//!
+//! Agent cards, tasks, messages, artifacts, and request/response envelopes.
+//! Core shapes are re-exported from `systemprompt_models`; this module adds the
+//! JSON-RPC framing and the request parameter types specific to the agent
+//! crate.
+
 pub mod jsonrpc;
 pub mod protocol;
 mod service_status;

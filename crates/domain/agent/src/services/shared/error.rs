@@ -1,3 +1,9 @@
+//! Service-layer error type, distinct from the crate-public [`AgentError`]:
+//! it models failures internal to runtime services and converts into
+//! `AgentError` at the crate boundary.
+//!
+//! [`AgentError`]: crate::error::AgentError
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]

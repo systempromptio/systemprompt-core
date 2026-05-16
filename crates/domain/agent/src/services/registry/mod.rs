@@ -1,3 +1,7 @@
+//! Agent registry: a snapshot of configured agents loaded from services
+//! config, with lookups and [`AgentCard`] assembly (security schemes, skills,
+//! runtime extensions).
+
 pub mod security;
 pub mod skills;
 
@@ -28,10 +32,8 @@ impl AgentRegistry {
         })
     }
 
-    // The lookup methods below are `async` for caller-surface compatibility
-    // with `AgentRegistryProvider` (which is `#[async_trait]`) and historical
-    // callers that `.await` them. Since the snapshot is now `Arc<ServicesConfig>`
-    // with no lock, the bodies are pure synchronous lookups.
+    // The lookup methods below are `async` to match the `AgentRegistryProvider`
+    // trait surface; their bodies are pure synchronous reads of an `Arc` snapshot.
 
     #[allow(clippy::unused_async)]
     pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {

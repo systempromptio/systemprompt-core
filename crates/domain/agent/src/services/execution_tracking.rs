@@ -1,3 +1,6 @@
+//! Recording agent execution steps (understanding, planning, skill usage, tool
+//! calls, completion) and transitioning them through their lifecycle.
+
 use crate::services::shared::Result;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;

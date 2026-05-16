@@ -1,3 +1,6 @@
+//! JWT validation for agent requests: decoding bearer tokens into typed
+//! session claims and extracting the authenticated [`UserId`].
+
 use crate::services::shared::error::{AgentServiceError, Result};
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use systemprompt_identifiers::UserId;

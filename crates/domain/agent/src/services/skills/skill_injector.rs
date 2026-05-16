@@ -1,3 +1,6 @@
+//! Merging skill instructions into an agent's base prompt before tool
+//! execution.
+
 use crate::services::shared::Result;
 use crate::services::skills::{SkillMetadata, SkillService};
 use std::sync::Arc;
