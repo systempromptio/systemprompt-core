@@ -1,3 +1,6 @@
+//! Reconstructing conversation history for a context into AI-ready messages,
+//! including decoding file parts and serializing artifacts as context.
+
 use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
 use systemprompt_database::DbPool;

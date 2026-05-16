@@ -1,3 +1,6 @@
+//! A2A protocol message types: streaming task-update events, push-notification
+//! configuration requests, and the JSON-RPC request/response set.
+
 mod events;
 mod push_notification;
 mod requests;
