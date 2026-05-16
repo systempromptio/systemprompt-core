@@ -9,10 +9,10 @@ pub use constructor::TaskConstructor;
 pub use mutations::{
     CreateTaskParams, create_task, task_state_to_db_string, track_agent_in_context,
 };
-pub use state::{apply_notification_status, update_task_failed_with_error, update_task_state};
 pub use queries::{
     TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
 };
+pub use state::{apply_notification_status, update_task_failed_with_error, update_task_state};
 pub use task_updates::UpdateTaskAndSaveMessagesParams;
 
 use crate::models::a2a::{Task, TaskState};

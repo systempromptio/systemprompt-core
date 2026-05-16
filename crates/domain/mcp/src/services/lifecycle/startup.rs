@@ -32,10 +32,7 @@ pub async fn start_server(
 
     wait_for_startup(config, pid, events).await?;
 
-    manager
-        .database()
-        .register_service(config, pid)
-        .await?;
+    manager.database().register_service(config, pid).await?;
 
     tracing::info!("MCP started: {} :{}", config.name, config.port);
 
