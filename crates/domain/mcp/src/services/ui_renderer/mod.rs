@@ -1,3 +1,10 @@
+//! Rendering of A2A artifacts into MCP UI resources.
+//!
+//! The [`UiRenderer`] trait maps an [`ArtifactType`] to an HTML/text resource;
+//! concrete renderers live in [`templates`] and are dispatched through
+//! [`UiRendererRegistry`]. [`CspPolicy`] carries the content-security-policy
+//! constraints attached to rendered resources.
+
 mod csp;
 pub mod registry;
 pub mod templates;
@@ -111,6 +118,8 @@ impl UiMetadata {
     }
 }
 
+// `#[async_trait]` required: renderers are stored and dispatched as `Arc<dyn UiRenderer>`
+// in `UiRendererRegistry`, so the trait must stay `dyn`-compatible.
 #[async_trait]
 pub trait UiRenderer: Send + Sync {
     fn artifact_type(&self) -> ArtifactType;

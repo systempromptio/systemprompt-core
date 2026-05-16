@@ -1,3 +1,7 @@
+//! Concrete [`UiRenderer`](super::UiRenderer) implementations, one per
+//! artifact type (chart, dashboard, form, image, list, table, text).
+//! [`html`] provides the shared HTML-escaping and element helpers.
+
 mod chart;
 mod dashboard;
 mod form;

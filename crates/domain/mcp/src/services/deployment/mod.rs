@@ -1,3 +1,9 @@
+//! Read-only access to MCP server deployment configuration.
+//!
+//! [`DeploymentService`] resolves per-server deployment records (port, binary,
+//! enabled state) from the loaded `ServicesConfig`. All operations fail with
+//! [`McpDomainError`] when the named server is absent.
+
 use crate::Deployment;
 use crate::error::{McpDomainError, McpDomainResult};
 use systemprompt_loader::ConfigLoader;
