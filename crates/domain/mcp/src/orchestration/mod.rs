@@ -1,4 +1,5 @@
-//! Publicly re-exported submodule. See submodule rustdoc for details.
+//! Multi-server lifecycle and state orchestration: tool discovery/loading
+//! across MCP servers and runtime service-state lookups backed by the database.
 
 mod loader;
 mod models;
