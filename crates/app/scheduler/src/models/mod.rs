@@ -4,8 +4,7 @@
 //! `systemprompt-models` and defines the persistence-layer types
 //! ([`ScheduledJob`], [`JobStatus`]) used by [`crate::repository`].
 //!
-//! The crate-wide error type lives in [`crate::error`]; it is re-exported here
-//! as [`SchedulerError`] for backwards-compatible access via `crate::models`.
+//! The crate-wide error type lives in [`crate::error`].
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,8 +12,6 @@ use sqlx::FromRow;
 use systemprompt_identifiers::ScheduledJobId;
 
 pub use systemprompt_models::services::{JobConfig, SchedulerConfig};
-
-pub use crate::error::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
