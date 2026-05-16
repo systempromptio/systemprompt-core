@@ -1,5 +1,5 @@
-//! Sync configuration: the [`SyncConfig`] value passed to [`crate::SyncService`]
-//! and its [`SyncConfigBuilder`].
+//! Sync configuration: the [`SyncConfig`] value passed to
+//! [`crate::SyncService`] and its [`SyncConfigBuilder`].
 
 use systemprompt_identifiers::TenantId;
 
