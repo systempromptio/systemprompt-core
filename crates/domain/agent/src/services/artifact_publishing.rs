@@ -1,3 +1,9 @@
+//! Artifact persistence for agent and MCP tool output.
+//!
+//! Persists artifacts, enriches them with skill metadata, validates
+//! execution-id foreign keys, and creates the accompanying conversation
+//! messages for direct MCP calls.
+
 use crate::services::shared::{AgentServiceError, Result};
 use serde_json::json;
 use std::sync::Arc;

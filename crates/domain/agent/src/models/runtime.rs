@@ -1,3 +1,5 @@
+//! Runtime metadata describing a live agent process.
+
 use serde::{Deserialize, Serialize};
 use systemprompt_models::ai::ToolModelOverrides;
 

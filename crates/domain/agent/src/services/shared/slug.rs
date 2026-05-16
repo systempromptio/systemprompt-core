@@ -1,3 +1,6 @@
+//! URL-safe slug generation for agent names, including collision-free
+//! uniquification against an existing set of slugs.
+
 pub fn generate_slug(name: &str) -> String {
     let slug = name
         .to_lowercase()

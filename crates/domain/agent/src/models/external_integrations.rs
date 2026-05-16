@@ -1,3 +1,6 @@
+//! Descriptors for downstream integrations an agent can reach: registered MCP
+//! servers and webhook endpoints.
+
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentId, McpServerId, WebhookEndpointId};
 use systemprompt_models::ai::tools::McpTool;

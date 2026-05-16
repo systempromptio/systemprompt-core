@@ -1,3 +1,7 @@
+//! Disk-backed skill service: resolving the skills root, loading skill
+//! definitions and metadata, broadcasting skill events, and recording skill
+//! usage as execution steps.
+
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::streaming::webhook_client::{WebhookError, broadcast_agui_event};

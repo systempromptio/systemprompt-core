@@ -1,3 +1,7 @@
+//! Translation of agent OAuth configuration into A2A agent-card security
+//! schemes and requirements, including resolving relative OAuth endpoint URLs
+//! against the API's external base URL.
+
 use std::collections::HashMap;
 use systemprompt_models::AgentOAuthConfig;
 

@@ -1,3 +1,6 @@
+//! Loading agent skill definitions from disk into A2A [`AgentSkill`] records,
+//! reading metadata from `SKILL.md` frontmatter and an optional `config.yaml`.
+
 use crate::services::shared::{AgentServiceError, Result};
 use std::fs;
 use std::path::Path;
