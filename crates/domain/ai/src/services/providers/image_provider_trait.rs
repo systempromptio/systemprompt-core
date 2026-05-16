@@ -16,6 +16,8 @@ pub struct ImageProviderCapabilities {
     pub cost_per_image_cents: f32,
 }
 
+// Why: image providers are dispatched as `BoxedImageProvider` (a boxed trait
+// object), so the trait must be dyn-compatible — native `async fn` is not.
 #[async_trait]
 pub trait ImageProvider: Send + Sync {
     fn name(&self) -> &str;

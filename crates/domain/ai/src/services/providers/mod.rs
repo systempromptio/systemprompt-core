@@ -7,8 +7,8 @@
 
 pub mod anthropic;
 pub mod gemini;
+mod gemini_image_mapping;
 pub mod gemini_images;
-mod gemini_images_helpers;
 pub mod http_client;
 pub mod image_provider_factory;
 pub mod image_provider_trait;

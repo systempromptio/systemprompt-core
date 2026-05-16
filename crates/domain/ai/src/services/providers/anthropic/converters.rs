@@ -15,26 +15,29 @@ pub fn convert_messages(messages: &[AiMessage]) -> (Option<String>, Vec<Anthropi
             MessageRole::System => {
                 system_prompt = Some(message.content.clone());
             },
-            MessageRole::User | MessageRole::Assistant => {
-                let role = match message.role {
-                    MessageRole::User => "user",
-                    MessageRole::Assistant => "assistant",
-                    MessageRole::System => unreachable!(),
-                }
-                .to_string();
-
-                let content = if message.parts.is_empty() {
-                    AnthropicContent::Text(message.content.clone())
-                } else {
-                    AnthropicContent::Blocks(convert_to_blocks(message))
-                };
-
-                anthropic_messages.push(AnthropicMessage { role, content });
+            MessageRole::User => {
+                anthropic_messages.push(build_role_message("user", message));
+            },
+            MessageRole::Assistant => {
+                anthropic_messages.push(build_role_message("assistant", message));
             },
         }
     }
 
     (system_prompt, anthropic_messages)
+}
+
+fn build_role_message(role: &str, message: &AiMessage) -> AnthropicMessage {
+    let content = if message.parts.is_empty() {
+        AnthropicContent::Text(message.content.clone())
+    } else {
+        AnthropicContent::Blocks(convert_to_blocks(message))
+    };
+
+    AnthropicMessage {
+        role: role.to_string(),
+        content,
+    }
 }
 
 fn convert_to_blocks(message: &AiMessage) -> Vec<AnthropicContentBlock> {
