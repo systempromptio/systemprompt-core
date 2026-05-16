@@ -23,8 +23,7 @@ workspace = true
 # Template provider traits
 systemprompt-template-provider = { workspace = true, features = ["tokio"] }
 
-# Core async
-async-trait = { workspace = true }
+# Errors
 thiserror = { workspace = true }
 
 # Template engine
@@ -40,10 +39,3 @@ tokio = { workspace = true, features = ["fs", "sync"] }
 
 # Tracing
 tracing = { workspace = true }
-
-# Collections
-indexmap = { workspace = true }
-
-[dev-dependencies]
-tokio = { workspace = true }
-tempfile = { workspace = true }
