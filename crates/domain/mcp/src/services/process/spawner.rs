@@ -4,9 +4,86 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_models::AppPaths;
+use systemprompt_models::{AppPaths, Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
+
+struct SpawnEnvironment<'a> {
+    config: &'a McpServerConfig,
+    paths: &'a AppPaths,
+    config_global: &'a Config,
+    secrets: &'a Secrets,
+    profile_path: &'a str,
+    tools_config_json: &'a str,
+    server_model_config_json: &'a str,
+}
+
+fn configure_environment(command: &mut Command, env: &SpawnEnvironment<'_>) {
+    let SpawnEnvironment {
+        config,
+        paths,
+        config_global,
+        secrets,
+        profile_path,
+        tools_config_json,
+        server_model_config_json,
+    } = env;
+
+    command
+        .env("SYSTEMPROMPT_PROFILE", profile_path)
+        .env("SYSTEMPROMPT_SUBPROCESS", "1")
+        .env("JWT_SECRET", &secrets.jwt_secret)
+        .env(
+            "MANIFEST_SIGNING_SECRET_SEED",
+            secrets
+                .manifest_signing_secret_seed
+                .as_deref()
+                .unwrap_or(""),
+        )
+        .env("DATABASE_URL", &secrets.database_url)
+        .env("DATABASE_TYPE", &config_global.database_type)
+        .env("MCP_SERVICE_ID", &config.name)
+        .env("MCP_PORT", config.port.to_string())
+        .env("MCP_TOOLS_CONFIG", tools_config_json)
+        .env("MCP_SERVER_MODEL_CONFIG", server_model_config_json)
+        .env("SYSTEM_PATH", paths.system().root());
+
+    if let Some(key) = &secrets.gemini {
+        command.env("GEMINI_API_KEY", key);
+    }
+    if let Some(key) = &secrets.anthropic {
+        command.env("ANTHROPIC_API_KEY", key);
+    }
+    if let Some(key) = &secrets.openai {
+        command.env("OPENAI_API_KEY", key);
+    }
+    if let Some(key) = &secrets.github {
+        command.env("GITHUB_TOKEN", key);
+    }
+
+    if !secrets.custom.is_empty() {
+        let uppercase_keys = secrets.custom_env_var_names();
+        command.env("SYSTEMPROMPT_CUSTOM_SECRETS", uppercase_keys.join(","));
+        for (env_name, value) in secrets.custom_env_vars() {
+            command.env(env_name, value);
+        }
+    }
+
+    for var_name in &config.env_vars {
+        match std::env::var(var_name) {
+            Ok(value) => {
+                command.env(var_name, value);
+            },
+            Err(_) => {
+                tracing::warn!(
+                    var = %var_name,
+                    service = %config.name,
+                    "Optional env var not set for MCP server"
+                );
+            },
+        }
+    }
+}
 
 fn rotate_log_if_needed(log_path: &Path) {
     if let Ok(metadata) = fs::metadata(log_path) {
@@ -34,7 +111,7 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         }))
     })?;
 
-    let config_global = systemprompt_models::Config::get()?;
+    let config_global = Config::get()?;
 
     let log_dir = paths.system().logs();
     fs::create_dir_all(&log_dir).map_err(|e| {
@@ -79,61 +156,18 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
     })?;
 
     let mut child_command = Command::new(&binary_path);
-
-    child_command
-        .env("SYSTEMPROMPT_PROFILE", profile_path)
-        .env("SYSTEMPROMPT_SUBPROCESS", "1")
-        .env("JWT_SECRET", &secrets.jwt_secret)
-        .env(
-            "MANIFEST_SIGNING_SECRET_SEED",
-            secrets
-                .manifest_signing_secret_seed
-                .as_deref()
-                .unwrap_or(""),
-        )
-        .env("DATABASE_URL", &secrets.database_url)
-        .env("DATABASE_TYPE", &config_global.database_type)
-        .env("MCP_SERVICE_ID", &config.name)
-        .env("MCP_PORT", config.port.to_string())
-        .env("MCP_TOOLS_CONFIG", &tools_config_json)
-        .env("MCP_SERVER_MODEL_CONFIG", &server_model_config_json)
-        .env("SYSTEM_PATH", paths.system().root());
-
-    if let Some(key) = &secrets.gemini {
-        child_command.env("GEMINI_API_KEY", key);
-    }
-    if let Some(key) = &secrets.anthropic {
-        child_command.env("ANTHROPIC_API_KEY", key);
-    }
-    if let Some(key) = &secrets.openai {
-        child_command.env("OPENAI_API_KEY", key);
-    }
-    if let Some(key) = &secrets.github {
-        child_command.env("GITHUB_TOKEN", key);
-    }
-
-    if !secrets.custom.is_empty() {
-        let uppercase_keys = secrets.custom_env_var_names();
-        child_command.env("SYSTEMPROMPT_CUSTOM_SECRETS", uppercase_keys.join(","));
-        for (env_name, value) in secrets.custom_env_vars() {
-            child_command.env(env_name, value);
-        }
-    }
-
-    for var_name in &config.env_vars {
-        match std::env::var(var_name) {
-            Ok(value) => {
-                child_command.env(var_name, value);
-            },
-            Err(_) => {
-                tracing::warn!(
-                    var = %var_name,
-                    service = %config.name,
-                    "Optional env var not set for MCP server"
-                );
-            },
-        }
-    }
+    configure_environment(
+        &mut child_command,
+        &SpawnEnvironment {
+            config,
+            paths,
+            config_global,
+            secrets,
+            profile_path,
+            tools_config_json: &tools_config_json,
+            server_model_config_json: &server_model_config_json,
+        },
+    );
 
     let child = child_command
         .stdout(std::process::Stdio::null())
