@@ -13,7 +13,7 @@ use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_
 use systemprompt_models::services::ModelDefinition;
 use tracing::error;
 
-use super::gemini_images_helpers::{build_image_request, extract_image_from_response};
+use super::gemini_image_mapping::{build_image_request, extract_image_from_response};
 
 #[derive(Debug)]
 pub struct GeminiImageProvider {
