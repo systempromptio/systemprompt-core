@@ -1,3 +1,8 @@
+//! Database-backed MCP service state.
+//!
+//! Registers and unregisters running servers, reconciles persisted state
+//! against the live registry, and prunes stale or disabled service records.
+
 pub mod state;
 pub mod sync;
 
@@ -26,9 +31,8 @@ impl DatabaseManager {
         &self,
         config: &McpServerConfig,
         pid: u32,
-        startup_time: Option<i32>,
     ) -> McpDomainResult<String> {
-        state::register_service(&self.db_pool, &self.app_paths, config, pid, startup_time).await
+        state::register_service(&self.db_pool, &self.app_paths, config, pid).await
     }
 
     pub async fn unregister_service(&self, service_name: &str) -> McpDomainResult<()> {

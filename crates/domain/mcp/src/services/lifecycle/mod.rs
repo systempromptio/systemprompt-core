@@ -1,3 +1,8 @@
+//! MCP server process lifecycle.
+//!
+//! Start, stop, restart, and health-check flows, coordinating the process,
+//! network, database, and monitoring services behind a single handle.
+
 pub mod health;
 pub mod restart;
 pub mod shutdown;

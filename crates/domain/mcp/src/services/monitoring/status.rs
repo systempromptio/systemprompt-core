@@ -47,15 +47,18 @@ async fn get_service_status(config: &McpServerConfig) -> McpDomainResult<Service
                 auth_required: config.oauth.required,
             })
         },
-        Err(_) => Ok(ServiceStatus {
-            state: STOPPED.to_string(),
-            pid: None,
-            health: "unreachable".to_string(),
-            uptime_seconds: None,
-            tools_count: 0,
-            latency_ms: None,
-            auth_required: config.oauth.required,
-        }),
+        Err(e) => {
+            tracing::debug!(service = %config.name, error = %e, "Health check failed; reporting service unreachable");
+            Ok(ServiceStatus {
+                state: STOPPED.to_string(),
+                pid: None,
+                health: "unreachable".to_string(),
+                uptime_seconds: None,
+                tools_count: 0,
+                latency_ms: None,
+                auth_required: config.oauth.required,
+            })
+        },
     }
 }
 

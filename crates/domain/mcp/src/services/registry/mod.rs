@@ -1,3 +1,8 @@
+//! MCP server registry.
+//!
+//! Resolves configured servers from the loader config and adapts them onto
+//! the `McpRegistry`, `McpToolProvider`, and `McpRegistryProvider` traits.
+
 pub mod manager;
 pub mod trait_impl;
 pub mod validator;

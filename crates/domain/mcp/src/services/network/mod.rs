@@ -1,3 +1,8 @@
+//! Network plumbing for MCP servers.
+//!
+//! Port allocation and release, the base Axum router with CORS, and
+//! reverse-proxy routers to upstream services.
+
 pub mod port_manager;
 pub mod proxy;
 pub mod routing;

@@ -1,3 +1,8 @@
+//! Health and status monitoring for running MCP servers.
+//!
+//! Health probes, proxy reachability checks, and aggregated per-service
+//! status snapshots.
+
 pub mod health;
 pub mod proxy_health;
 pub mod status;

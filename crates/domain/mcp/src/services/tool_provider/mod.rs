@@ -1,3 +1,8 @@
+//! `ToolProvider` implementation backed by MCP servers.
+//!
+//! Resolves an agent's assigned servers, lists their tools, and routes tool
+//! calls through per-server resilience guards (circuit breaker and bulkhead).
+
 mod context;
 mod conversions;
 
