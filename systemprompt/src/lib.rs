@@ -19,11 +19,11 @@
 //! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + extension injection | `RuntimeBuilder` for embedding with custom extensions. |
-//! | `test-utils` | `cloud` plus credential fixtures | Test scaffolding; not for production. |
+//! | `test-utils` | `cloud` | Enables `cloud` for test scaffolding; not for production. |
 //! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `scheduler`, `generator`, `files`) | Building a product binary. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.5", features = ["full"] }
+//! systemprompt = { version = "0.10", features = ["full"] }
 //! ```
 
 /// Core trait surface from `systemprompt-traits`.
@@ -292,11 +292,6 @@ pub mod profile {
 pub mod credentials {
     pub use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError};
 }
-
-/// Top-level re-exports of `CredentialsBootstrap` and its error.
-#[cfg(feature = "cloud")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]
-pub use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError};
 
 /// Curated re-exports for ergonomic `use systemprompt::prelude::*`. See
 /// [`prelude`] for the full list.

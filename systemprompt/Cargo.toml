@@ -139,12 +139,8 @@ axum = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true }
 rmcp = { workspace = true, optional = true }
 
-# Error handling and utilities
+# Used by the `runtime` module's typed error
 thiserror = { workspace = true }
-chrono = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
