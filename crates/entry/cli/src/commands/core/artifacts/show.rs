@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use serde_json::Value as JsonValue;
+use systemprompt_agent::models::a2a::Artifact;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ArtifactId;
@@ -82,86 +83,93 @@ pub async fn execute_with_pool(
     };
 
     if !config.is_json_output() {
-        CliService::section("Artifact Details");
-        CliService::key_value("ID", artifact.id.as_str());
-
-        if let Some(ref name) = artifact.title {
-            CliService::key_value("Name", name);
-        }
-
-        if let Some(ref desc) = artifact.description {
-            CliService::key_value("Description", desc);
-        }
-
-        CliService::key_value("Type", &artifact.metadata.artifact_type);
-
-        if let Some(ref tool) = artifact.metadata.tool_name {
-            CliService::key_value("Tool", tool);
-        }
-
-        if let Some(ref source) = artifact.metadata.source {
-            CliService::key_value("Source", source);
-        }
-
-        CliService::key_value("Task ID", artifact.metadata.task_id.as_str());
-        CliService::key_value("Context ID", artifact.metadata.context_id.as_str());
-
-        if let Some(ref skill_name) = artifact.metadata.skill_name {
-            CliService::key_value("Skill", skill_name);
-        }
-
-        if let Some(ref mcp_id) = artifact.metadata.mcp_execution_id {
-            CliService::key_value("MCP Execution", mcp_id);
-        }
-
-        if let Some(ref fingerprint) = artifact.metadata.fingerprint {
-            CliService::key_value("Fingerprint", fingerprint);
-        }
-
-        CliService::key_value("Created", &artifact.metadata.created_at);
-
-        CliService::info("");
-        CliService::section("Parts");
-
-        for (i, part) in parts.iter().enumerate() {
-            CliService::info(&format!("Part {} [{}]:", i + 1, part.kind));
-
-            if let Some(ref text) = part.text {
-                let display_text = if args.full || text.len() <= 500 {
-                    text.clone()
-                } else {
-                    format!(
-                        "{}...\n[Truncated - use --full for complete content]",
-                        &text[..500]
-                    )
-                };
-
-                for line in display_text.lines() {
-                    CliService::info(&format!("  {}", line));
-                }
-            }
-
-            if let Some(ref data) = part.data {
-                let formatted =
-                    serde_json::to_string_pretty(data).unwrap_or_else(|_| data.to_string());
-
-                let display_data = if args.full || formatted.len() <= 1000 {
-                    formatted
-                } else {
-                    format!(
-                        "{}...\n[Truncated - use --full for complete content]",
-                        &formatted[..1000]
-                    )
-                };
-
-                for line in display_data.lines() {
-                    CliService::info(&format!("  {}", line));
-                }
-            }
-        }
+        render_artifact(&artifact, &parts, args.full);
     }
 
     Ok(CommandResult::card(output).with_title("Artifact Details"))
+}
+
+fn render_artifact(artifact: &Artifact, parts: &[ArtifactPartOutput], full: bool) {
+    CliService::section("Artifact Details");
+    CliService::key_value("ID", artifact.id.as_str());
+
+    if let Some(ref name) = artifact.title {
+        CliService::key_value("Name", name);
+    }
+
+    if let Some(ref desc) = artifact.description {
+        CliService::key_value("Description", desc);
+    }
+
+    CliService::key_value("Type", &artifact.metadata.artifact_type);
+
+    if let Some(ref tool) = artifact.metadata.tool_name {
+        CliService::key_value("Tool", tool);
+    }
+
+    if let Some(ref source) = artifact.metadata.source {
+        CliService::key_value("Source", source);
+    }
+
+    CliService::key_value("Task ID", artifact.metadata.task_id.as_str());
+    CliService::key_value("Context ID", artifact.metadata.context_id.as_str());
+
+    if let Some(ref skill_name) = artifact.metadata.skill_name {
+        CliService::key_value("Skill", skill_name);
+    }
+
+    if let Some(ref mcp_id) = artifact.metadata.mcp_execution_id {
+        CliService::key_value("MCP Execution", mcp_id);
+    }
+
+    if let Some(ref fingerprint) = artifact.metadata.fingerprint {
+        CliService::key_value("Fingerprint", fingerprint);
+    }
+
+    CliService::key_value("Created", &artifact.metadata.created_at);
+
+    CliService::info("");
+    CliService::section("Parts");
+
+    for (i, part) in parts.iter().enumerate() {
+        render_part(i, part, full);
+    }
+}
+
+fn render_part(index: usize, part: &ArtifactPartOutput, full: bool) {
+    CliService::info(&format!("Part {} [{}]:", index + 1, part.kind));
+
+    if let Some(ref text) = part.text {
+        let display_text = if full || text.len() <= 500 {
+            text.clone()
+        } else {
+            format!(
+                "{}...\n[Truncated - use --full for complete content]",
+                &text[..500]
+            )
+        };
+
+        for line in display_text.lines() {
+            CliService::info(&format!("  {}", line));
+        }
+    }
+
+    if let Some(ref data) = part.data {
+        let formatted = serde_json::to_string_pretty(data).unwrap_or_else(|_| data.to_string());
+
+        let display_data = if full || formatted.len() <= 1000 {
+            formatted
+        } else {
+            format!(
+                "{}...\n[Truncated - use --full for complete content]",
+                &formatted[..1000]
+            )
+        };
+
+        for line in display_data.lines() {
+            CliService::info(&format!("  {}", line));
+        }
+    }
 }
 
 async fn resolve_artifact_id(input: &str, repo: &ArtifactRepository) -> Result<ArtifactId> {
