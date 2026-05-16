@@ -106,10 +106,6 @@ impl CanonicalRequest {
         out
     }
 
-    /// Deterministic gateway conversation id derived from the system
-    /// prompt and first message in the canonical request. Returns
-    /// `None` only when the request has no messages at all (which the
-    /// gateway already rejects upstream as malformed).
     pub fn derived_gateway_conversation_id(&self) -> Option<GatewayConversationId> {
         let first = self.messages.first()?;
         let mut content = String::new();

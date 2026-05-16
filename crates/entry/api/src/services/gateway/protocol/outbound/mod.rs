@@ -26,6 +26,8 @@ pub enum OutboundOutcome {
     Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),
 }
 
+// Why: #[async_trait] is required — the upstream registry stores adapters as
+// `Arc<dyn OutboundAdapter>`, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait OutboundAdapter: Send + Sync {
     fn provider_tag(&self) -> &'static str;

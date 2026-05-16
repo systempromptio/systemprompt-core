@@ -16,11 +16,6 @@
 use systemprompt_models::profile::GatewayConfig;
 use systemprompt_models::services::ModelPricing;
 
-/// Resolve pricing for `(provider, model)`, consulting profile overrides
-/// first and falling back to the static default catalog.
-///
-/// `gateway` is `None` when the profile carries no gateway config; the
-/// resolver then degrades to defaults-only.
 pub fn resolve(provider: &str, model: &str, gateway: Option<&GatewayConfig>) -> ModelPricing {
     if let Some(gw) = gateway {
         if let Some(route) = gw.find_route(model) {
