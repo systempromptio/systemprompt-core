@@ -118,8 +118,9 @@ impl UiMetadata {
     }
 }
 
-// `#[async_trait]` required: renderers are stored and dispatched as `Arc<dyn UiRenderer>`
-// in `UiRendererRegistry`, so the trait must stay `dyn`-compatible.
+// `#[async_trait]` required: renderers are stored and dispatched as `Arc<dyn
+// UiRenderer>` in `UiRendererRegistry`, so the trait must stay
+// `dyn`-compatible.
 #[async_trait]
 pub trait UiRenderer: Send + Sync {
     fn artifact_type(&self) -> ArtifactType;
