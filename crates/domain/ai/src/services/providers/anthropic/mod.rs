@@ -4,6 +4,8 @@
 pub mod converters;
 mod generation;
 mod provider;
+mod request;
+mod response;
 pub mod search;
 mod streaming;
 pub mod thinking;
