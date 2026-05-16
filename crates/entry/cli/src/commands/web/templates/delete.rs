@@ -5,10 +5,9 @@ use std::fs;
 use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_logging::CliService;
 
+use super::selection::prompt_template_selection;
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDeleteOutput, TemplatesConfig};
 
@@ -48,7 +47,7 @@ pub fn execute(
         })?;
 
     let name = resolve_required(args.name, "name", config, || {
-        prompt_template_selection(&templates_config)
+        prompt_template_selection(&templates_config, "Select template to delete")
     })?;
 
     if !templates_config.templates.contains_key(&name) {
@@ -103,22 +102,4 @@ pub fn execute(
     };
 
     Ok(CommandResult::text(output).with_title("Template Deleted"))
-}
-
-fn prompt_template_selection(config: &TemplatesConfig) -> Result<String> {
-    let mut names: Vec<&String> = config.templates.keys().collect();
-    names.sort();
-
-    if names.is_empty() {
-        return Err(anyhow!("No templates configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select template to delete")
-        .items(&names)
-        .default(0)
-        .interact()
-        .context("Failed to get template selection")?;
-
-    Ok(names[selection].clone())
 }

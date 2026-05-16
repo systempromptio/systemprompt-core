@@ -23,12 +23,3 @@ pub struct CoreBuildOutput {
     pub status: String,
     pub duration_secs: Option<f64>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct WebBuildOutput {
-    pub target: String,
-    pub mode: String,
-    pub status: String,
-    pub output_dir: String,
-    pub duration_secs: Option<f64>,
-}

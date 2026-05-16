@@ -7,10 +7,9 @@ use std::path::Path;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_logging::CliService;
 
+use super::selection::prompt_template_selection;
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateEditOutput, TemplatesConfig};
 
@@ -53,7 +52,7 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Templ
         })?;
 
     let name = resolve_required(args.name, "name", config, || {
-        prompt_template_selection(&templates_config)
+        prompt_template_selection(&templates_config, "Select template to edit")
     })?;
 
     let entry = templates_config
@@ -141,22 +140,4 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Templ
     };
 
     Ok(CommandResult::text(output).with_title(format!("Edit Template: {}", name)))
-}
-
-fn prompt_template_selection(config: &TemplatesConfig) -> Result<String> {
-    let mut names: Vec<&String> = config.templates.keys().collect();
-    names.sort();
-
-    if names.is_empty() {
-        return Err(anyhow!("No templates configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select template to edit")
-        .items(&names)
-        .default(0)
-        .interact()
-        .context("Failed to get template selection")?;
-
-    Ok(names[selection].clone())
 }

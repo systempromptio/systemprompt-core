@@ -1,3 +1,4 @@
+mod asset_type;
 mod list;
 mod show;
 

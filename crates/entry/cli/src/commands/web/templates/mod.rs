@@ -2,6 +2,7 @@ mod create;
 mod delete;
 mod edit;
 mod list;
+mod selection;
 mod show;
 
 use anyhow::{Context, Result};
