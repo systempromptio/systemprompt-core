@@ -1,3 +1,6 @@
+//! Resilience primitives for agent services: bounded retry with backoff and
+//! operation timeouts.
+
 use crate::services::shared::error::{AgentServiceError, Result};
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
@@ -32,7 +35,8 @@ where
         match operation().await {
             Ok(result) => return Ok(result),
             Err(error) if attempt == config.max_attempts => return Err(error),
-            Err(_) => {
+            Err(error) => {
+                tracing::warn!(attempt, error = %error, "Operation failed, retrying");
                 sleep(current_delay).await;
                 current_delay = calculate_next_delay(current_delay, &config);
             },
