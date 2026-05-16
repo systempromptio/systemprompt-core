@@ -1,49 +1,9 @@
 use crate::services::shared::{AgentServiceError, Result};
-use std::sync::Arc;
-use systemprompt_identifiers::{AgentName, ContextId, TaskId};
-use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, ToolCall};
+use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_models::{CallToolResult, McpTool, ToolCall};
 
 use crate::models::a2a::Artifact;
 use crate::services::mcp::McpToA2aTransformer;
-
-pub trait ToolProvider: Send + Sync {
-    async fn list_available_tools_for_agent(
-        &self,
-        agent_name: &AgentName,
-        context: &RequestContext,
-    ) -> Result<Vec<McpTool>>;
-}
-
-pub struct AiServiceToolProvider {
-    ai_service: Arc<dyn AiProvider>,
-}
-
-impl std::fmt::Debug for AiServiceToolProvider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AiServiceToolProvider")
-            .field("ai_service", &"<AiProvider>")
-            .finish()
-    }
-}
-
-impl AiServiceToolProvider {
-    pub fn new(ai_service: Arc<dyn AiProvider>) -> Self {
-        Self { ai_service }
-    }
-}
-
-impl ToolProvider for AiServiceToolProvider {
-    async fn list_available_tools_for_agent(
-        &self,
-        agent_name: &AgentName,
-        context: &RequestContext,
-    ) -> Result<Vec<McpTool>> {
-        self.ai_service
-            .list_available_tools_for_agent(agent_name, context)
-            .await
-            .map_err(|e| AgentServiceError::Internal(format!("{e}")))
-    }
-}
 
 #[derive(Debug)]
 pub struct ArtifactBuilder {
