@@ -6,8 +6,8 @@ mod templates;
 mod tools;
 
 use clap::{Args, Subcommand};
-use systemprompt_extension::ExtensionRegistry;
 
+use super::discover_registry;
 use super::types::CapabilitiesSummaryOutput;
 use crate::CliConfig;
 use crate::shared::{CommandResult, render_result};
@@ -66,10 +66,7 @@ pub fn execute(args: CapabilitiesArgs, config: &CliConfig) {
 }
 
 pub fn execute_summary(_config: &CliConfig) -> CommandResult<CapabilitiesSummaryOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
+    let registry = discover_registry();
 
     let mut jobs = 0;
     let mut templates = 0;
