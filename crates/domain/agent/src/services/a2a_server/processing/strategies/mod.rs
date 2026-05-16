@@ -62,6 +62,9 @@ impl Default for ExecutionResult {
     }
 }
 
+/// `#[async_trait]` is required: the strategy is selected at runtime and
+/// returned as a `Box<dyn ExecutionStrategy>` (see `selector.rs`), so the
+/// trait must be `dyn`-compatible.
 #[async_trait]
 pub trait ExecutionStrategy: Send + Sync {
     async fn execute(
