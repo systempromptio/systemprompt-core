@@ -913,17 +913,6 @@ postgres-status:
     echo ""
     docker ps -a --filter "name=systemprompt-postgres" --format "table {{{{.Names}}\t{{{{.Status}}\t{{{{.Ports}}"
 
-# Remove PostgreSQL containers and volumes (DESTRUCTIVE!)
-postgres-nuke:
-    #!/usr/bin/env bash
-    echo "⚠️  This will DELETE all PostgreSQL containers and data volumes!"
-    echo "Press Enter to continue or Ctrl+C to abort..."
-    read
-    docker stop systemprompt-postgres-test systemprompt-postgres-prod 2>/dev/null || true
-    docker rm systemprompt-postgres-test systemprompt-postgres-prod 2>/dev/null || true
-    docker volume rm systemprompt-os-rust-2_postgres_test_data systemprompt-os-rust-2_postgres_prod_data 2>/dev/null || true
-    echo "✅ PostgreSQL containers and volumes removed"
-
 # =============================================================================
 # REMOTE POSTGRESQL (Deployed on GCP)
 # =============================================================================

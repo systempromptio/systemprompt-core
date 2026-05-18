@@ -5,9 +5,11 @@
 
 mod down;
 mod exec;
+mod repair;
 mod squash;
 mod status;
 
+pub use repair::RepairResult;
 pub use squash::SquashPlan;
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
@@ -184,8 +186,9 @@ impl<'a> MigrationService<'a> {
             extension: ext_id.to_string(),
             message: format!(
                 "Migration {ver} ('{name}') has been edited since it was applied (stored checksum \
-                 {stored_checksum}, current {current_checksum}). Refusing to proceed. Re-run with \
-                 --allow-checksum-drift to override.",
+                 {stored_checksum}, current {current_checksum}). Refusing to proceed. Run \
+                 `systemprompt infra db migrate-repair --apply` to reconcile the tracking table, \
+                 or pass --allow-checksum-drift to bypass the check without fixing it.",
                 ver = migration.version,
                 name = migration.name,
             ),

@@ -254,6 +254,88 @@ async fn status_reports_applied_pending_and_drift() {
     assert_eq!(drifted.pending.len(), 1);
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn repair_drift_reconciles_tampered_checksum() {
+    let url = database_url();
+    let db = Database::new_postgres(&url)
+        .await
+        .expect("connect to test postgres");
+    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+
+    let suffix = fresh_suffix();
+    let table: &'static str = leak_str(format!("repair_test_{suffix}"));
+    let ext_id: &'static str = leak_str(format!("repair-ext-{suffix}"));
+
+    let _cleanup = Cleanup {
+        pool: pool.clone(),
+        tables: vec![table],
+        extension_ids: vec![ext_id],
+    };
+
+    let schema_sql: &'static str = leak_str(format!(
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
+    ));
+    let m1: &'static str = leak_str(format!(
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
+    ));
+
+    let ext = SingleMigrationExt {
+        id: ext_id,
+        schema_sql,
+        table,
+        m1,
+    };
+
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(SingleMigrationExt {
+            id: ext_id,
+            schema_sql,
+            table,
+            m1,
+        }))
+        .expect("register");
+
+    let db_arc = Arc::new(db);
+    install_extension_schemas(&registry, db_arc.as_ref())
+        .await
+        .expect("install");
+
+    let svc = MigrationService::new(db_arc.write_provider());
+
+    let noop = svc.repair_drift(&ext).await.expect("repair with no drift");
+    assert!(noop.repaired.is_empty(), "no drift means nothing repaired");
+    assert_eq!(noop.migrations_run, 0);
+
+    query(
+        "UPDATE extension_migrations SET checksum = 'tampered' WHERE extension_id = $1 AND \
+         version = 1",
+    )
+    .bind(ext_id)
+    .execute(&pool)
+    .await
+    .expect("tamper checksum");
+
+    assert_eq!(
+        svc.status(&ext).await.expect("status").drift.len(),
+        1,
+        "tampering should produce drift"
+    );
+
+    let repaired = svc.repair_drift(&ext).await.expect("repair_drift");
+    assert_eq!(repaired.repaired.len(), 1);
+    assert_eq!(repaired.repaired[0].version, 1);
+    assert_eq!(repaired.repaired[0].stored_checksum, "tampered");
+    assert_eq!(
+        repaired.migrations_run, 1,
+        "the drifted migration is re-applied"
+    );
+
+    let after = svc.status(&ext).await.expect("status after repair");
+    assert!(after.drift.is_empty(), "drift reconciled by repair");
+    assert_eq!(after.applied.len(), 1);
+}
+
 struct SingleMigrationExt {
     id: &'static str,
     schema_sql: &'static str,

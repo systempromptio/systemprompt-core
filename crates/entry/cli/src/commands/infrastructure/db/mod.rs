@@ -2,6 +2,7 @@ mod admin;
 mod admin_migrate;
 mod admin_migrate_down;
 mod admin_migrate_plan;
+mod admin_migrate_repair;
 mod admin_migrate_status;
 mod admin_migrations;
 mod admin_squash;
@@ -58,6 +59,23 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         return admin::execute_migrate_down(config, &extension, count).await;
     }
 
+    if let DbCommands::MigrateRepair {
+        extension,
+        apply,
+        json,
+    } = cmd
+    {
+        return admin::execute_migrate_repair(
+            config,
+            admin::RepairArgs {
+                extension: extension.as_deref(),
+                apply,
+                json,
+            },
+        )
+        .await;
+    }
+
     if let DbCommands::MigrateSquash {
         extension,
         through,
@@ -107,7 +125,8 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
         DbCommands::Migrate { .. }
         | DbCommands::MigrateDown { .. }
-        | DbCommands::MigrateSquash { .. } => unreachable!(),
+        | DbCommands::MigrateSquash { .. }
+        | DbCommands::MigrateRepair { .. } => unreachable!(),
         DbCommands::Migrations { cmd } => admin::execute_migrations(&db.ctx, cmd, config).await,
         DbCommands::MigratePlan { extension, json } => {
             admin::execute_migrate_plan(&db.ctx, extension.as_deref(), json, config).await
@@ -202,6 +221,22 @@ pub async fn execute_with_db(
         DbCommands::MigrateStatus { extension, json } => {
             admin::execute_migrate_status_standalone(db_ctx, extension.as_deref(), json, config)
                 .await
+        },
+        DbCommands::MigrateRepair {
+            extension,
+            apply,
+            json,
+        } => {
+            admin::execute_migrate_repair_standalone(
+                db_ctx,
+                config,
+                admin::RepairArgs {
+                    extension: extension.as_deref(),
+                    apply,
+                    json,
+                },
+            )
+            .await
         },
         DbCommands::AssignAdmin { .. } => {
             bail!("assign-admin requires full profile context")
