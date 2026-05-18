@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.10.3] - 2026-05-18
 
 ### Added
 
@@ -9,6 +9,11 @@
 ### Changed
 
 - The migration checksum-drift error now points at `infra db migrate-repair --apply` to reconcile the tracking table, rather than only `--allow-checksum-drift` — which suppresses the error without resolving the drift, so it recurs on every boot.
+- `McpToolHandler` is now a native `async fn` trait. The trait has associated types and is never `dyn`-compatible, so `#[async_trait]` was unnecessary. Implementors must drop the `#[async_trait]` attribute from their `impl` block and write `handle` as a plain `async fn`.
+
+### Removed
+
+- The dead `ToolProvider` trait and `AiServiceToolProvider` in `systemprompt-agent`, which had no callers.
 
 ## [0.10.2] - 2026-05-15
 
