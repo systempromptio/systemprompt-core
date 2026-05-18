@@ -13,6 +13,9 @@ use super::types::{DbAssignAdminOutput, DbStatusOutput};
 pub use super::admin_migrate::{execute_migrate, execute_migrate_standalone};
 pub use super::admin_migrate_down::{execute_migrate_down, execute_migrate_down_standalone};
 pub use super::admin_migrate_plan::{execute_migrate_plan, execute_migrate_plan_standalone};
+pub use super::admin_migrate_repair::{
+    RepairArgs, execute_migrate_repair, execute_migrate_repair_standalone,
+};
 pub use super::admin_migrate_status::{execute_migrate_status, execute_migrate_status_standalone};
 pub use super::admin_migrations::{execute_migrations, execute_migrations_standalone};
 

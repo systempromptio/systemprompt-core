@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **`infra db migrate-repair`** reconciles migration checksum drift in place. When an already-applied migration file is edited, its stored checksum stops matching the file and `infra db migrate` halts. The command drops the drifted bookkeeping rows and re-applies those migrations — every migration is idempotent, so re-running re-records the current checksum without touching data. It lists drift as a dry-run by default; `--apply` performs the repair and `--extension <id>` limits it to one extension. `MigrationService::repair_drift` exposes the same operation to library callers.
+
+### Changed
+
+- The migration checksum-drift error now points at `infra db migrate-repair --apply` to reconcile the tracking table, rather than only `--allow-checksum-drift` — which suppresses the error without resolving the drift, so it recurs on every boot.
+
 ## [0.10.2] - 2026-05-15
 
 Database lifecycle hardening: transactional migrations, reversible migrations, an AST-based schema linter, a cross-extension table-ownership contract, post-migration seeds, dependency-ordered extension loading, squash tooling, connection retry, and introspectable migration status.

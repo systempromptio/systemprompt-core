@@ -221,6 +221,13 @@ pub struct MigrateStatusRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrateRepairOutput {
+    pub applied: bool,
+    pub drift: Vec<MigrationDriftInfo>,
+    pub migrations_run: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrateStatusOutput {
     pub rows: Vec<MigrateStatusRow>,
     pub drift: Vec<MigrationDriftInfo>,

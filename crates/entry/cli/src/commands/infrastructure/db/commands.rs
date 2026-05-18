@@ -87,6 +87,23 @@ pub enum DbCommands {
         #[arg(long, help = "Emit JSON instead of a text table")]
         json: bool,
     },
+    #[command(
+        about = "Repair migration checksum drift — re-applies edited migrations in place (no data \
+                 loss)",
+        name = "migrate-repair"
+    )]
+    MigrateRepair {
+        #[arg(help = "Limit repair to a single extension (default: all extensions)")]
+        extension: Option<String>,
+        #[arg(
+            long,
+            help = "Apply the repair. Without this flag, the command is a dry-run that only lists \
+                    drift."
+        )]
+        apply: bool,
+        #[arg(long, help = "Emit JSON instead of a text table")]
+        json: bool,
+    },
     #[command(about = "Assign admin role to a user")]
     AssignAdmin { user: String },
     #[command(about = "Show database connection status")]
