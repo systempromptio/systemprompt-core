@@ -5092,8 +5092,12 @@ name = "systemprompt-events"
 version = "0.10.3"
 dependencies = [
  "axum",
+ "chrono",
+ "inventory",
  "serde",
  "serde_json",
+ "sqlx",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.18",

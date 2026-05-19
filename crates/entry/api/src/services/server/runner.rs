@@ -3,12 +3,16 @@ use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
-use super::lifecycle::{initialize_scheduler, reconcile_agents, reconcile_system_services};
+use super::lifecycle::{
+    initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
+};
 
 pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> Result<()> {
     let start_time = std::time::Instant::now();
 
     let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
+
+    start_event_bridge(&ctx);
     reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
 
     if let Some(ref tx) = events {

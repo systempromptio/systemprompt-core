@@ -33,6 +33,7 @@
 //! ```
 
 pub mod error;
+pub mod extension;
 pub mod services;
 pub mod sse;
 
@@ -72,8 +73,10 @@ pub trait Broadcaster: Send + Sync {
     fn total_connections(&self) -> impl Future<Output = usize> + Send;
 }
 
+pub use extension::EventsExtension;
 pub use services::{
     A2A_BROADCASTER, A2ABroadcaster, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, AgUiBroadcaster,
     AnalyticsBroadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ContextBroadcaster, EventRouter,
-    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, standard_keep_alive,
+    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, OUTBOX_CHANNEL, OutboxChannel,
+    PostgresEventBridge, standard_keep_alive,
 };
