@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use crate::config::Thresholds;
+use crate::config::{NodeId, ScenarioId, Thresholds};
 
 pub struct Metrics {
     inner: Mutex<MetricsInner>,
@@ -92,47 +92,15 @@ impl MetricsSnapshot {
             p95_ms: self.p95().as_millis(),
             p99_ms: self.p99().as_millis(),
             error_rate: self.error_rate(),
-            passed: self.check_thresholds_quiet(thresholds),
+            passed: self.check_thresholds(thresholds),
+            nodes: BTreeMap::new(),
         }
-    }
-
-    fn check_thresholds_quiet(&self, thresholds: &Thresholds) -> bool {
-        (self.p95().as_millis() as u64) <= thresholds.p95_ms
-            && (self.p99().as_millis() as u64) <= thresholds.p99_ms
-            && self.error_rate() <= thresholds.max_error_rate
     }
 
     pub fn check_thresholds(&self, thresholds: &Thresholds) -> bool {
-        let mut passed = true;
-
-        if self.p95().as_millis() as u64 > thresholds.p95_ms {
-            eprintln!(
-                "  FAIL p95 latency: {}ms > {}ms",
-                self.p95().as_millis(),
-                thresholds.p95_ms
-            );
-            passed = false;
-        }
-
-        if self.p99().as_millis() as u64 > thresholds.p99_ms {
-            eprintln!(
-                "  FAIL p99 latency: {}ms > {}ms",
-                self.p99().as_millis(),
-                thresholds.p99_ms
-            );
-            passed = false;
-        }
-
-        if self.error_rate() > thresholds.max_error_rate {
-            eprintln!(
-                "  FAIL error rate: {:.2}% > {:.2}%",
-                self.error_rate() * 100.0,
-                thresholds.max_error_rate * 100.0
-            );
-            passed = false;
-        }
-
-        passed
+        (self.p95().as_millis() as u64) <= thresholds.p95_ms
+            && (self.p99().as_millis() as u64) <= thresholds.p99_ms
+            && self.error_rate() <= thresholds.max_error_rate
     }
 }
 
@@ -144,10 +112,38 @@ pub struct ScenarioJson {
     pub p99_ms: u128,
     pub error_rate: f64,
     pub passed: bool,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub nodes: BTreeMap<String, NodeJson>,
+}
+
+#[derive(serde::Serialize)]
+pub struct NodeJson {
+    pub requests: u64,
+    pub p50_ms: u128,
+    pub p95_ms: u128,
+    pub p99_ms: u128,
+    pub error_rate: f64,
+}
+
+impl MetricsSnapshot {
+    pub fn to_node_json(&self) -> NodeJson {
+        NodeJson {
+            requests: self.total(),
+            p50_ms: self.p50().as_millis(),
+            p95_ms: self.p95().as_millis(),
+            p99_ms: self.p99().as_millis(),
+            error_rate: self.error_rate(),
+        }
+    }
+}
+
+pub struct ScenarioReport {
+    pub aggregate: MetricsSnapshot,
+    pub per_node: BTreeMap<NodeId, MetricsSnapshot>,
 }
 
 pub struct Report {
-    pub scenarios: BTreeMap<String, MetricsSnapshot>,
+    pub scenarios: BTreeMap<ScenarioId, ScenarioReport>,
 }
 
 impl Report {
@@ -157,39 +153,47 @@ impl Report {
         }
     }
 
-    pub fn add(&mut self, name: String, metrics: &Metrics) {
-        self.scenarios.insert(name, metrics.snapshot());
+    pub fn add(&mut self, name: ScenarioId, metrics: &Metrics) {
+        self.scenarios.insert(
+            name,
+            ScenarioReport {
+                aggregate: metrics.snapshot(),
+                per_node: BTreeMap::new(),
+            },
+        );
     }
 
-    pub fn print(&self, thresholds: &Thresholds) -> bool {
-        let mut all_passed = true;
+    pub fn add_distributed(&mut self, name: ScenarioId, per_node: &[(NodeId, MetricsSnapshot)]) {
+        let mut latencies = Vec::new();
+        let mut errors = 0u64;
+        let mut total = 0u64;
+        let mut nodes = BTreeMap::new();
 
-        println!("\n{:=<70}", "");
-        println!("  Load Test Results");
-        println!("{:=<70}\n", "");
-
-        for (name, snapshot) in &self.scenarios {
-            println!("  {name}:");
-            println!("    requests:   {}", snapshot.total());
-            println!("    p50:        {}ms", snapshot.p50().as_millis());
-            println!("    p95:        {}ms", snapshot.p95().as_millis());
-            println!("    p99:        {}ms", snapshot.p99().as_millis());
-            println!("    error rate: {:.2}%", snapshot.error_rate() * 100.0);
-
-            if !snapshot.check_thresholds(thresholds) {
-                all_passed = false;
-            }
-
-            println!();
+        for (node, snapshot) in per_node {
+            latencies.extend(snapshot.latencies.iter().copied());
+            errors += snapshot.errors;
+            total += snapshot.total;
+            nodes.insert(
+                *node,
+                MetricsSnapshot {
+                    latencies: snapshot.latencies.clone(),
+                    errors: snapshot.errors,
+                    total: snapshot.total,
+                },
+            );
         }
+        latencies.sort();
 
-        if all_passed {
-            println!("  All thresholds passed.");
-        } else {
-            println!("  Some thresholds FAILED.");
-        }
-
-        println!("{:=<70}\n", "");
-        all_passed
+        self.scenarios.insert(
+            name,
+            ScenarioReport {
+                aggregate: MetricsSnapshot {
+                    latencies,
+                    errors,
+                    total,
+                },
+                per_node: nodes,
+            },
+        );
     }
 }

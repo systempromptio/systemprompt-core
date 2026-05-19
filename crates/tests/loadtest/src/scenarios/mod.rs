@@ -6,4 +6,5 @@ pub mod governance_only;
 pub mod hook_track;
 pub mod oauth_session;
 pub mod send_message;
+pub mod sse_stream;
 pub mod task_read;
