@@ -149,7 +149,7 @@ mod sitemap_tests {
 }
 
 mod markdown_tests {
-    use comrak::{markdown_to_html, ComrakOptions};
+    use comrak::{ComrakOptions, markdown_to_html};
 
     fn strip_first_h1(content: &str) -> String {
         let lines: Vec<&str> = content.lines().collect();

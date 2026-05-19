@@ -13,6 +13,7 @@ members = [
     "integration/database",
     "integration/extension",
     "integration/oauth",
+    "integration/scheduler",
     # Unit tests - shared layer
     "unit/shared/extension",
     "unit/shared/traits",
