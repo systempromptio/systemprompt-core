@@ -9,7 +9,6 @@ use std::time::Duration;
 use systemprompt_events::ToSse;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{ApiError, CliExecuteRequest, CliOutputEvent};
-use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -32,10 +31,6 @@ async fn execute_cli(
     Extension(req_ctx): Extension<RequestContext>,
     Json(request): Json<CliExecuteRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    if req_ctx.user_type() != UserType::Admin {
-        return Err(ApiError::forbidden("Admin role required for CLI gateway"));
-    }
-
     let args = request.args;
     let timeout_secs = request.timeout_secs.min(MAX_TIMEOUT_SECS);
     let timeout = Duration::from_secs(timeout_secs);

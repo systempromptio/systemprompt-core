@@ -88,7 +88,6 @@ impl GatewayService {
         tracing::info!(
             ai_request_id = %ai_request_id,
             user_id = %ctx.user_id,
-            tenant_id = ctx.tenant_id.as_ref().map_or("-", |t| t.as_str()),
             model = %request.model,
             provider = %route.provider,
             upstream = %route.endpoint,
@@ -98,7 +97,7 @@ impl GatewayService {
         );
 
         let resolver = PolicyResolver::new(db)?;
-        let policy = resolver.resolve(ctx.tenant_id.as_ref()).await;
+        let policy = resolver.resolve().await;
 
         if !policy.model_allowed(&request.model) {
             tracing::warn!(
@@ -121,13 +120,8 @@ impl GatewayService {
             tracing::error!(error = %e, "audit open failed — proceeding without audit row");
         }
 
-        if let Some(decision) = quota::precheck_and_reserve(
-            db,
-            ctx.tenant_id.as_ref(),
-            &ctx.user_id,
-            &policy.quota_windows,
-        )
-        .await?
+        if let Some(decision) =
+            quota::precheck_and_reserve(db, &ctx.user_id, &policy.quota_windows).await?
         {
             if !decision.allow {
                 let msg = format!(
