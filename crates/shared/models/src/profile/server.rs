@@ -36,7 +36,7 @@ pub struct ServerConfig {
     pub max_concurrent_streams: usize,
 }
 
-fn default_max_concurrent_streams() -> usize {
+const fn default_max_concurrent_streams() -> usize {
     crate::config::DEFAULT_MAX_CONCURRENT_STREAMS
 }
 
