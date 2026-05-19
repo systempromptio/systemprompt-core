@@ -33,8 +33,7 @@ struct Cli {
     #[arg(long, default_value = "../systemprompt-web")]
     web_dir: String,
 
-    /// Admin email forwarded to `admin session login --email`. Required for
-    /// token self-acquisition on cloud-less (air-gapped) deployments.
+    // Required for token self-acquisition on cloud-less (air-gapped) deployments.
     #[arg(long, env = "SYSTEMPROMPT_ADMIN_EMAIL")]
     admin_email: Option<String>,
 

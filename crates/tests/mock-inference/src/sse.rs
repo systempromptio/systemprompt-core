@@ -10,19 +10,16 @@ use serde_json::Value;
 
 use crate::Mode;
 
-/// Serialises a JSON value as a single SSE `data:` frame.
 pub fn frame(value: &Value) -> String {
     format!("data: {value}\n\n")
 }
 
-/// Builds a streaming `text/event-stream` response from pre-rendered frames.
-/// In `SlowLoris` mode each frame is trickled out after a delay; otherwise
-/// frames are yielded back-to-back.
 pub fn response(frames: Vec<String>, mode: Mode) -> Response {
     let trickle = matches!(mode, Mode::SlowLoris);
     let stream = async_stream::stream! {
         for frame in frames {
             if trickle {
+                // Trickle frames so a slow-loris client sees byte-starved streaming.
                 tokio::time::sleep(Duration::from_millis(250)).await;
             }
             yield Ok::<_, Infallible>(frame.into_bytes());

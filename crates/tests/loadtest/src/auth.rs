@@ -1,12 +1,9 @@
 use std::process::Command;
 
-/// Acquires an admin JWT by invoking the `systemprompt` CLI's
-/// `admin session login --token-only`.
-///
-/// `admin_email`, when set, is forwarded as `--email`. This is required on
-/// cloud-less deployments (e.g. air-gapped): without it the CLI falls back to
-/// resolving the admin identity from cloud credentials, which an air-gapped box
-/// will never have. When `None`, the CLI's cloud-credential path is used.
+// `admin_email`, when set, is forwarded as `--email`. This is required on
+// cloud-less deployments (e.g. air-gapped): without it the CLI falls back to
+// resolving the admin identity from cloud credentials, which an air-gapped box
+// will never have. When `None`, the CLI's cloud-credential path is used.
 pub fn acquire_token(web_dir: &str, admin_email: Option<&str>) -> Result<String, String> {
     let profile_path = format!("{web_dir}/.systemprompt/profiles/local/profile.yaml");
 
@@ -32,8 +29,8 @@ pub fn acquire_token(web_dir: &str, admin_email: Option<&str>) -> Result<String,
         .ok_or_else(|| {
             let stderr = String::from_utf8_lossy(&output.stderr);
             format!(
-                "No JWT in CLI output. On a cloud-less deployment, pass --admin-email \
-                 (or export SYSTEMPROMPT_ADMIN_EMAIL). stderr: {stderr}"
+                "No JWT in CLI output. On a cloud-less deployment, pass --admin-email (or export \
+                 SYSTEMPROMPT_ADMIN_EMAIL). stderr: {stderr}"
             )
         })
 }

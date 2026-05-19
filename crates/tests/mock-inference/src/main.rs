@@ -21,20 +21,16 @@ use clap::{Parser, ValueEnum};
 use rand::Rng;
 use serde_json::Value;
 
-/// Fixed number of output tokens emitted by every mock response. A constant
-/// here keeps body size — and therefore serialisation latency — reproducible.
+// Fixed count keeps body size — and therefore serialisation latency —
+// reproducible.
 pub const FIXED_OUTPUT_TOKENS: u32 = 32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Mode {
-    /// Normal responses subject to latency/fail-rate settings.
     Ok,
-    /// Never respond (sleep effectively forever).
     Timeout,
-    /// Always return HTTP 500.
     #[value(name = "5xx")]
     FiveXx,
-    /// Trickle SSE bytes very slowly.
     SlowLoris,
 }
 
@@ -44,20 +40,16 @@ pub enum Mode {
     about = "Mock inference endpoint for load testing"
 )]
 struct Cli {
-    /// Port to listen on.
     #[arg(long, default_value_t = 9100)]
     port: u16,
 
-    /// Pre-response latency: fixed `N` milliseconds or a `min:max` jitter
-    /// range (also in milliseconds).
+    // Accepts a fixed `N` or a `min:max` jitter range, both in milliseconds.
     #[arg(long, default_value = "0")]
     latency_ms: String,
 
-    /// Probability in `0.0..=1.0` of returning HTTP 500.
     #[arg(long, default_value_t = 0.0)]
     fail_rate: f64,
 
-    /// Degradation mode.
     #[arg(long, value_enum, default_value_t = Mode::Ok)]
     mode: Mode,
 }
@@ -92,19 +84,17 @@ impl Latency {
     }
 }
 
-/// Shared request-handling configuration injected into both protocol handlers.
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub latency: Latency,
     pub fail_rate: f64,
     pub mode: Mode,
-    /// Count of inference requests served — the air-gap egress proof reads this
-    /// (via `GET /stats`) to assert e.g. policy-denied requests never reach here.
+    // The air-gap egress proof reads this (via `GET /stats`) to assert e.g.
+    // policy-denied requests never reach here.
     pub requests: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl AppState {
-    /// Records that an inference request reached a protocol handler and logs it.
     pub fn note_request(&self, route: &str, model: &str) {
         let n = self
             .requests
@@ -113,8 +103,6 @@ impl AppState {
         tracing::info!(route, model, count = n, "inference request served");
     }
 
-    /// Applies the configured pre-response latency. In `Timeout` mode this
-    /// sleeps far longer than any sane client timeout.
     pub async fn apply_latency(&self) {
         if matches!(self.mode, Mode::Timeout) {
             tokio::time::sleep(Duration::from_secs(3600)).await;
@@ -126,8 +114,6 @@ impl AppState {
         }
     }
 
-    /// Returns `true` when this request should be failed with HTTP 500,
-    /// accounting for both `5xx` mode and the random fail rate.
     pub fn should_fail(&self) -> bool {
         if matches!(self.mode, Mode::FiveXx) {
             return true;
@@ -136,8 +122,6 @@ impl AppState {
     }
 }
 
-/// Estimates input tokens from the request body's textual content. Roughly
-/// `chars / 4`, matching the common heuristic; deterministic for a given body.
 pub fn count_input_tokens(body: &Value) -> u32 {
     let mut chars = 0usize;
     collect_text_len(body, &mut chars);
