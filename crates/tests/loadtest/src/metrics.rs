@@ -85,6 +85,23 @@ impl MetricsSnapshot {
         self.total
     }
 
+    pub fn to_json(&self, thresholds: &Thresholds) -> ScenarioJson {
+        ScenarioJson {
+            requests: self.total(),
+            p50_ms: self.p50().as_millis(),
+            p95_ms: self.p95().as_millis(),
+            p99_ms: self.p99().as_millis(),
+            error_rate: self.error_rate(),
+            passed: self.check_thresholds_quiet(thresholds),
+        }
+    }
+
+    fn check_thresholds_quiet(&self, thresholds: &Thresholds) -> bool {
+        (self.p95().as_millis() as u64) <= thresholds.p95_ms
+            && (self.p99().as_millis() as u64) <= thresholds.p99_ms
+            && self.error_rate() <= thresholds.max_error_rate
+    }
+
     pub fn check_thresholds(&self, thresholds: &Thresholds) -> bool {
         let mut passed = true;
 
@@ -117,6 +134,16 @@ impl MetricsSnapshot {
 
         passed
     }
+}
+
+#[derive(serde::Serialize)]
+pub struct ScenarioJson {
+    pub requests: u64,
+    pub p50_ms: u128,
+    pub p95_ms: u128,
+    pub p99_ms: u128,
+    pub error_rate: f64,
+    pub passed: bool,
 }
 
 pub struct Report {

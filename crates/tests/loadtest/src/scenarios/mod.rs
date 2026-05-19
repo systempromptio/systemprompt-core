@@ -1,6 +1,8 @@
 pub mod agent_registry;
 pub mod api_latency;
 pub mod context_lifecycle;
+pub mod gateway_inference;
+pub mod governance_only;
 pub mod hook_track;
 pub mod oauth_session;
 pub mod send_message;
