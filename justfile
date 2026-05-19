@@ -220,6 +220,22 @@ mock-inference *ARGS:
 loadtest-airgap *ARGS:
     cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --profile airgap {{ARGS}}
 
+# Run the staged-ramp load test (100->250->500->1000 users)
+loadtest-scaled *ARGS:
+    cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --profile scaled {{ARGS}}
+
+# Run the soak load test (~20 users sustained ~1h)
+loadtest-soak *ARGS:
+    cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --profile soak {{ARGS}}
+
+# Run the spike load test (baseline -> ~800 burst -> recovery)
+loadtest-spike *ARGS:
+    cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --profile spike {{ARGS}}
+
+# Run a load test fanned out across replica base URLs (comma-separated)
+loadtest-distributed NODES *ARGS:
+    cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --nodes {{NODES}} {{ARGS}}
+
 # Generate coverage report (text summary)
 #
 # Architecture: The test workspace (crates/tests/) has its own .cargo/config.toml
