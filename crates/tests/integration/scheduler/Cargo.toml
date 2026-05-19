@@ -1,0 +1,38 @@
+[package]
+name = "systemprompt-scheduler-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for the systemprompt scheduler (distributed advisory lock, single-execution guarantee)"
+publish = false
+
+[lib]
+path = "mod.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-analytics = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-marketplace = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-scheduler = { workspace = true }
+systemprompt-traits = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }
+inventory = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sqlx = { workspace = true }
+comrak = "0.29"
+
+[dev-dependencies]
+tokio = { workspace = true }
