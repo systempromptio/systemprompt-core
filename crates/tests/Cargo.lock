@@ -7112,6 +7112,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-events-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-events-tests"
 version = "0.0.11"
 dependencies = [
