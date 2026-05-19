@@ -60,3 +60,63 @@ jobs:
             exit 1
           fi
       - run: cargo check --workspace --locked
+
+  test:
+    name: Test suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Strip [unstable] and [profile.dev] from cargo configs
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
+              p = pathlib.Path(path)
+              if not p.exists():
+                  continue
+              s = p.read_text()
+              # The committed test config selects the unstable codegen-backend
+              # and forces sccache; the stable CI toolchain has neither.
+              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
+              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
+              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
+              p.write_text(s)
+          PY
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            crates/tests
+
+      - name: Migrate test database
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+        run: |
+          cargo run \
+            --manifest-path crates/tests/Cargo.toml \
+            -p systemprompt-test-migrate \
+            --release
+
+      - name: Run test suite
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+        run: |
+          cargo test \
+            --manifest-path crates/tests/Cargo.toml \
+            --workspace --lib
