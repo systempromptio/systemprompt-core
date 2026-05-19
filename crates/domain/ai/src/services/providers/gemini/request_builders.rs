@@ -116,7 +116,7 @@ pub fn parse_response<T: serde::de::DeserializeOwned>(response_text: &str) -> Re
         crate::error::AiError::Internal(format!(
             "Failed to parse Gemini response: {}. Preview: {}",
             e,
-            &response_text.chars().take(500).collect::<String>()
+            response_text.chars().take(500).collect::<String>()
         ))
     })
 }
