@@ -64,6 +64,10 @@ jobs:
   test:
     name: Test suite
     runs-on: ubuntu-latest
+    # This job verifies tests pass; linting the (separate) test workspace
+    # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
+    env:
+      RUSTFLAGS: ""
     services:
       postgres:
         image: postgres:16
