@@ -173,6 +173,10 @@ tower = { version = "0.5", features = ["util"] }
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
 governor = "0.10"
 
+# Metrics / observability
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.18", default-features = false }
+
 # CLI (for system crate)
 clap = { version = "4.6", features = ["derive", "env"] }
 console = "0.16"

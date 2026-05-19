@@ -3,6 +3,7 @@ mod discovery;
 mod health;
 mod health_detail;
 mod lifecycle;
+pub mod metrics;
 pub mod readiness;
 mod routes;
 pub mod runner;
