@@ -212,6 +212,14 @@ fuzz TARGET DURATION="60":
 loadtest SCENARIO="all" PROFILE="ci" *ARGS:
     cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --scenario {{SCENARIO}} --profile {{PROFILE}} {{ARGS}}
 
+# Run the mock internal inference server (stands in for the customer's endpoint)
+mock-inference *ARGS:
+    cargo run --manifest-path crates/tests/mock-inference/Cargo.toml -- {{ARGS}}
+
+# Run load tests against the air-gapped profile (strict thresholds)
+loadtest-airgap *ARGS:
+    cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --profile airgap {{ARGS}}
+
 # Generate coverage report (text summary)
 #
 # Architecture: The test workspace (crates/tests/) has its own .cargo/config.toml
