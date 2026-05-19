@@ -29,14 +29,14 @@ updated_at: "{}"
         escape_yaml(&content.title),
         escape_yaml(&content.description),
         escape_yaml(&content.author),
-        &content.slug,
+        content.slug,
         escape_yaml(&content.keywords),
         image_str,
-        &content.kind,
+        content.kind,
         content.public,
         content.published_at.format("%Y-%m-%d"),
         content.updated_at.format("%Y-%m-%d"),
-        &content.body
+        content.body
     )
 }
 
