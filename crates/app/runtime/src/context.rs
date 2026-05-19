@@ -6,7 +6,6 @@
 
 use std::sync::{Arc, OnceLock};
 
-use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
@@ -35,10 +34,6 @@ pub struct AppContext {
     pub(crate) user_service: Option<Arc<UserService>>,
     pub(crate) app_paths: Arc<AppPaths>,
     pub(crate) marketplace_filter: Arc<dyn MarketplaceFilter>,
-    pub(crate) stream_semaphore: Arc<Semaphore>,
-    /// Reserved slot for the Phase-A1 cross-replica event-bus bridge
-    /// task. Initialised empty; the bridge owner sets it once at startup
-    /// so the handle outlives `build()` without changing this struct.
     pub(crate) event_bridge: Arc<OnceLock<JoinHandle<()>>>,
 }
 
@@ -57,10 +52,6 @@ impl std::fmt::Debug for AppContext {
             .field("user_service", &self.user_service.is_some())
             .field("app_paths", &"AppPaths")
             .field("marketplace_filter", &self.marketplace_filter)
-            .field(
-                "stream_semaphore",
-                &self.stream_semaphore.available_permits(),
-            )
             .field("event_bridge", &self.event_bridge.get().is_some())
             .finish()
     }
@@ -80,7 +71,6 @@ pub struct AppContextParts {
     pub user_service: Option<Arc<UserService>>,
     pub app_paths: Arc<AppPaths>,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
-    pub stream_semaphore: Arc<Semaphore>,
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
 }
 
@@ -108,7 +98,6 @@ impl AppContext {
             user_service: parts.user_service,
             app_paths: parts.app_paths,
             marketplace_filter: parts.marketplace_filter,
-            stream_semaphore: parts.stream_semaphore,
             event_bridge: parts.event_bridge,
         }
     }
@@ -182,12 +171,6 @@ impl AppContext {
         &self.marketplace_filter
     }
 
-    pub const fn stream_semaphore(&self) -> &Arc<Semaphore> {
-        &self.stream_semaphore
-    }
-
-    /// Reserved handle slot for the Phase-A1 event-bus bridge task. The
-    /// bridge owner calls `set` on it once during startup.
     pub const fn event_bridge(&self) -> &Arc<OnceLock<JoinHandle<()>>> {
         &self.event_bridge
     }

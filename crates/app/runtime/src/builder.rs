@@ -6,8 +6,6 @@
 
 use std::sync::{Arc, OnceLock};
 
-use tokio::sync::Semaphore;
-
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
@@ -162,7 +160,6 @@ impl AppContextBuilder {
             .marketplace_filter
             .unwrap_or_else(|| build_marketplace_filter(&database));
 
-        let stream_semaphore = Arc::new(Semaphore::new(config.max_concurrent_streams));
         let event_bridge = Arc::new(OnceLock::new());
 
         Ok(AppContext::from_parts(AppContextParts {
@@ -178,7 +175,6 @@ impl AppContextBuilder {
             user_service,
             app_paths,
             marketplace_filter,
-            stream_semaphore,
             event_bridge,
         }))
     }
