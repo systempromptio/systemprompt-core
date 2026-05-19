@@ -70,6 +70,8 @@ impl LocalProfileBuilder {
                 cors_allowed_origins: vec![local_url, "http://localhost:5173".to_string()],
                 content_negotiation: ContentNegotiationConfig::default(),
                 security_headers: SecurityHeadersConfig::default(),
+                instance_id: None,
+                max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             },
             paths: PathsConfig {
                 system: system_path,
@@ -188,6 +190,8 @@ impl CloudProfileBuilder {
                 cors_allowed_origins: vec![external],
                 content_negotiation: ContentNegotiationConfig::default(),
                 security_headers: SecurityHeadersConfig::default(),
+                instance_id: None,
+                max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             },
             paths: PathsConfig {
                 system: container::APP.to_string(),
