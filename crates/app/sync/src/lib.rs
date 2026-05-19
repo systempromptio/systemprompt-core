@@ -68,7 +68,7 @@ pub struct SyncService {
 impl SyncService {
     pub fn new(config: SyncConfig) -> SyncResult<Self> {
         let api_client = SyncApiClient::new(&config.api_url, &config.api_token)?
-            .with_direct_sync(config.hostname.clone(), config.sync_token.clone());
+            .with_direct_sync(config.hostname.clone(), config.sync_client_secret.clone());
         Ok(Self { config, api_client })
     }
 
