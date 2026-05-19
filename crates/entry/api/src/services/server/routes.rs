@@ -19,6 +19,12 @@ pub fn configure_routes(
 ) -> Result<Router, LoaderError> {
     let mut router = Router::new();
 
+    let metrics_handle =
+        super::metrics::install_recorder().map_err(|e| LoaderError::InitializationFailed {
+            extension: "prometheus_metrics".to_string(),
+            message: e.to_string(),
+        })?;
+
     let jwt_extractor = build_jwt_extractor(ctx)?;
 
     let public_middleware = ContextMiddleware::public(jwt_extractor.clone());
@@ -45,7 +51,9 @@ pub fn configure_routes(
 
     router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 
-    router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
+    router = router.merge(
+        discovery_router(ctx, metrics_handle).with_auth_middleware(public_middleware.clone()),
+    );
     router =
         router.merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware));
     router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
@@ -68,10 +76,12 @@ pub fn configure_routes(
         }
     })?);
 
-    Ok(router.layer(axum::middleware::from_fn(move |req, next| {
+    router = router.layer(axum::middleware::from_fn(move |req, next| {
         let repo = Arc::clone(&banned_ip_repo);
         async move { ip_ban_middleware(req, next, repo).await }
-    })))
+    }));
+
+    Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
 }
 
 fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
@@ -90,8 +100,11 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
     })
 }
 
-fn discovery_router(ctx: &AppContext) -> Router {
-    super::builder::discovery_router(ctx)
+fn discovery_router(
+    ctx: &AppContext,
+    metrics_handle: metrics_exporter_prometheus::PrometheusHandle,
+) -> Router {
+    super::builder::discovery_router(ctx, metrics_handle)
 }
 
 fn authenticated_discovery_router(ctx: &AppContext) -> Router {
