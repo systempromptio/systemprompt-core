@@ -5,7 +5,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{AgentConfig, AiProvider};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Semaphore};
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
@@ -19,6 +19,7 @@ pub struct Server {
     oauth_state: Arc<AgentOAuthState>,
     agent_state: Arc<AgentState>,
     ai_service: Arc<dyn AiProvider>,
+    stream_semaphore: Arc<Semaphore>,
     port: u16,
 }
 
@@ -30,6 +31,10 @@ impl std::fmt::Debug for Server {
             .field("oauth_state", &"Arc<AgentOAuthState>")
             .field("agent_state", &"Arc<AgentState>")
             .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field(
+                "stream_semaphore",
+                &self.stream_semaphore.available_permits(),
+            )
             .field("port", &self.port)
             .finish()
     }
@@ -85,6 +90,7 @@ impl Server {
             oauth_state: Arc::new(oauth_state),
             agent_state,
             ai_service,
+            stream_semaphore: Arc::new(Semaphore::new(global_config.max_concurrent_streams)),
             port,
         })
     }
@@ -117,6 +123,7 @@ impl Server {
             oauth_state: Arc::clone(&self.oauth_state),
             agent_state: Arc::clone(&self.agent_state),
             ai_service: Arc::clone(&self.ai_service),
+            stream_semaphore: Arc::clone(&self.stream_semaphore),
         });
 
         let post_router = Router::new()

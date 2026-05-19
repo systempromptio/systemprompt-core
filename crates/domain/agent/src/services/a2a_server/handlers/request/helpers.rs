@@ -63,6 +63,10 @@ pub async fn parse_a2a_request(
     }
 }
 
+/// Suggested client back-off, in seconds, advertised via `Retry-After` when
+/// the global stream-concurrency cap rejects a streaming request.
+const STREAM_RETRY_AFTER_SECONDS: u32 = 5;
+
 pub async fn handle_streaming_path(
     a2a_request: A2aRequestParams,
     state: Arc<AgentHandlerState>,
@@ -72,7 +76,27 @@ pub async fn handle_streaming_path(
 ) -> axum::response::Response {
     tracing::info!("Processing SendStreamingMessage request with SSE response");
 
-    let stream = handle_streaming_request(a2a_request, state, request_id, context).await;
+    let Ok(stream) =
+        handle_streaming_request(a2a_request, state, request_id.clone(), context).await
+    else {
+        tracing::warn!("Streaming request rejected: global stream-concurrency cap reached");
+
+        let error_response = JsonRpcErrorBuilder::internal_error()
+            .with_data(json!(
+                "Server stream-concurrency limit reached; retry shortly"
+            ))
+            .build(&request_id);
+
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            [(
+                axum::http::header::RETRY_AFTER,
+                STREAM_RETRY_AFTER_SECONDS.to_string(),
+            )],
+            Json(error_response),
+        )
+            .into_response();
+    };
 
     let latency_ms = start_time.elapsed().as_millis();
     tracing::info!(latency_ms = %latency_ms, "SSE stream initialized for SendStreamingMessage");
