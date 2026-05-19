@@ -63,6 +63,10 @@ thiserror = { workspace = true }
 # Logging
 tracing = { workspace = true }
 
+# Metrics
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+
 
 # systemprompt.io crates
 systemprompt-models = { workspace = true, features = ["web"] }

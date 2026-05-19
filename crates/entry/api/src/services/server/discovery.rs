@@ -1,5 +1,6 @@
 use axum::routing::get;
 use axum::{Json, Router};
+use metrics_exporter_prometheus::PrometheusHandle;
 use serde_json::json;
 use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
@@ -7,6 +8,7 @@ use systemprompt_runtime::AppContext;
 
 use super::health::handle_health;
 use super::health_detail::handle_health_detail;
+use super::metrics::handle_metrics;
 
 #[allow(clippy::unused_async)]
 pub async fn handle_root_discovery(
@@ -154,7 +156,11 @@ pub async fn handle_mcp_discovery(
     Json(SingleResponse::new(data))
 }
 
-pub fn discovery_router(ctx: &AppContext) -> Router {
+pub fn discovery_router(ctx: &AppContext, metrics_handle: PrometheusHandle) -> Router {
+    let metrics_route = Router::new()
+        .route("/metrics", get(handle_metrics))
+        .with_state(metrics_handle);
+
     Router::new()
         .route(ApiPaths::DISCOVERY, get(handle_root_discovery))
         .route(ApiPaths::HEALTH, get(handle_health))
@@ -163,6 +169,7 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))
         .with_state(ctx.clone())
+        .merge(metrics_route)
 }
 
 pub fn authenticated_discovery_router(ctx: &AppContext) -> Router {
