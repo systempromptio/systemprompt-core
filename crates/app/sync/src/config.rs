@@ -15,7 +15,7 @@ pub struct SyncConfig {
     pub api_token: String,
     pub services_path: String,
     pub hostname: Option<String>,
-    pub sync_token: Option<String>,
+    pub sync_client_secret: Option<String>,
     pub local_database_url: Option<String>,
 }
 
@@ -29,7 +29,7 @@ pub struct SyncConfigBuilder {
     api_token: String,
     services_path: String,
     hostname: Option<String>,
-    sync_token: Option<String>,
+    sync_client_secret: Option<String>,
     local_database_url: Option<String>,
 }
 
@@ -49,7 +49,7 @@ impl SyncConfigBuilder {
             api_token: api_token.into(),
             services_path: services_path.into(),
             hostname: None,
-            sync_token: None,
+            sync_client_secret: None,
             local_database_url: None,
         }
     }
@@ -74,8 +74,8 @@ impl SyncConfigBuilder {
         self
     }
 
-    pub fn with_sync_token(mut self, sync_token: Option<String>) -> Self {
-        self.sync_token = sync_token;
+    pub fn with_sync_client_secret(mut self, sync_client_secret: Option<String>) -> Self {
+        self.sync_client_secret = sync_client_secret;
         self
     }
 
@@ -94,7 +94,7 @@ impl SyncConfigBuilder {
             api_token: self.api_token,
             services_path: self.services_path,
             hostname: self.hostname,
-            sync_token: self.sync_token,
+            sync_client_secret: self.sync_client_secret,
             local_database_url: self.local_database_url,
         }
     }

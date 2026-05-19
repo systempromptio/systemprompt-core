@@ -168,12 +168,14 @@ pub(super) fn mount_content_and_misc(
             .with_auth(public_middleware.clone(), AuthzPolicy::public()),
     );
 
-    // `/sync` authenticates with the machine `SYNC_TOKEN` shared secret
-    // (see routes::sync::auth), not the JWT context middleware — a deliberate
-    // bespoke-auth exception, like the gateway. It does not use `with_auth`.
     router = router.nest(
         ApiPaths::SYNC_BASE,
-        crate::routes::sync::router().with_state(ctx.clone()),
+        crate::routes::sync::router()
+            .with_state(ctx.clone())
+            .with_auth(
+                user_middleware.clone(),
+                AuthzPolicy::restricted_to(&[UserType::Service]),
+            ),
     );
 
     router = router.nest(

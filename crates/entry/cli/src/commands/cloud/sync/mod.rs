@@ -159,7 +159,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         api_token: creds.api_token.clone(),
         services_path,
         hostname: Some(hostname),
-        sync_token: Some(sync_token),
+        sync_client_secret: Some(sync_token),
         local_database_url: None,
     };
 

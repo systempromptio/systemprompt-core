@@ -53,11 +53,13 @@ pub async fn build_sync_config(
     .with_direction(SyncDirection::Pull)
     .with_dry_run(dry_run)
     .with_hostname(hostname)
-    .with_sync_token(sync_token)
+    .with_sync_client_secret(sync_token)
     .build();
 
-    let api_client = SyncApiClient::new(&creds.api_url, &creds.api_token)?
-        .with_direct_sync(sync_config.hostname.clone(), sync_config.sync_token.clone());
+    let api_client = SyncApiClient::new(&creds.api_url, &creds.api_token)?.with_direct_sync(
+        sync_config.hostname.clone(),
+        sync_config.sync_client_secret.clone(),
+    );
 
     Ok((sync_config, api_client))
 }
