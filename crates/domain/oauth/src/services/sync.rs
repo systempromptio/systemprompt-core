@@ -14,7 +14,9 @@ use crate::services::generation::hash_client_secret;
 
 const SYNC_CLIENT_SCOPES: &[&str] = &["service"];
 
-/// Idempotent: re-running with a different `sync_token` rotates the stored
+/// Idempotently provision the `sys_sync` OAuth client.
+///
+/// Re-running with a different `sync_token` rotates the stored
 /// `client_secret_hash`, so editing `SYNC_TOKEN` and rebooting is the
 /// supported rotation path. `sync_token` is reused verbatim as the OAuth
 /// `client_secret`; the database stores only its hash.

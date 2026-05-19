@@ -40,6 +40,39 @@ fn print_snapshot(snapshot: &MetricsSnapshot, indent: &str) {
     println!("{indent}p95:        {}ms", snapshot.p95().as_millis());
     println!("{indent}p99:        {}ms", snapshot.p99().as_millis());
     println!("{indent}error rate: {:.2}%", snapshot.error_rate() * 100.0);
+
+    let served_by = snapshot.served_by();
+    if !served_by.is_empty() {
+        println!("{indent}served by:");
+        for (instance, count) in served_by {
+            let share = if snapshot.total() == 0 {
+                0.0
+            } else {
+                *count as f64 / snapshot.total() as f64 * 100.0
+            };
+            println!("{indent}  {instance:<24} {count:>8}  ({share:.1}%)");
+        }
+    }
+
+    let time_series = snapshot.time_series();
+    if !time_series.is_empty() {
+        println!("{indent}time series:");
+        println!(
+            "{indent}  {:>10}  {:>8}  {:>9}  {:>7}  {:>7}  {:>7}",
+            "window(s)", "requests", "err rate", "p50", "p95", "p99"
+        );
+        for point in time_series {
+            println!(
+                "{indent}  {:>10}  {:>8}  {:>8.2}%  {:>5}ms  {:>5}ms  {:>5}ms",
+                point.window_start_secs,
+                point.requests,
+                point.error_rate * 100.0,
+                point.p50_ms,
+                point.p95_ms,
+                point.p99_ms,
+            );
+        }
+    }
 }
 
 fn check(snapshot: &MetricsSnapshot, thresholds: &Thresholds) -> bool {

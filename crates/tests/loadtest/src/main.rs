@@ -51,6 +51,10 @@ struct Cli {
     // Comma-separated replica base URLs; virtual users round-robin across them.
     #[arg(long, value_delimiter = ',')]
     nodes: Vec<String>,
+
+    // Time-series window size in seconds; 0 disables time-series capture.
+    #[arg(long, default_value_t = 60)]
+    sample_interval_secs: u64,
 }
 
 #[tokio::main]
@@ -64,7 +68,7 @@ async fn main() {
         },
         None => {
             println!("  Acquiring token from CLI...");
-            match auth::acquire_token(&cli.web_dir, cli.admin_email.as_deref()) {
+            match auth::acquire_token(&cli.web_dir, &cli.profile, cli.admin_email.as_deref()) {
                 Ok(t) => {
                     println!("  Token acquired ({} chars).", t.len());
                     Some(t)
@@ -125,6 +129,7 @@ async fn main() {
             "governance-only",
             "gateway-inference",
             "sse-stream",
+            "lb-fairness",
         ],
         s => vec![s],
     };
@@ -141,14 +146,15 @@ async fn main() {
         println!("  running: {scenario_name}");
 
         if nodes.is_empty() {
-            let metrics = Arc::new(Metrics::new());
+            let metrics = Arc::new(Metrics::new(cli.sample_interval_secs));
             if !dispatch_single(scenario_name, &config, &metrics, &cli.agent_id).await {
                 std::process::exit(1);
             }
             report.add(ScenarioId::new(scenario_name), &metrics);
         } else {
-            let per_node: Vec<Arc<Metrics>> =
-                (0..nodes.len()).map(|_| Arc::new(Metrics::new())).collect();
+            let per_node: Vec<Arc<Metrics>> = (0..nodes.len())
+                .map(|_| Arc::new(Metrics::new(0)))
+                .collect();
             if !dispatch_distributed(scenario_name, &config, &nodes, &per_node, &cli.agent_id).await
             {
                 std::process::exit(1);
@@ -248,6 +254,12 @@ async fn dispatch_single(
             })
             .await;
         },
+        "lb-fairness" => {
+            runner::run_scenario(config, Arc::clone(metrics), |c, u, t, m| {
+                scenarios::lb_fairness::run(c, u, t, m)
+            })
+            .await;
+        },
         "send-message" => {
             let agent_id = agent_id.to_string();
             runner::run_scenario(config, Arc::clone(metrics), move |c, u, t, m| {
@@ -330,6 +342,12 @@ async fn dispatch_distributed(
             })
             .await;
         },
+        "lb-fairness" => {
+            run_scenario_distributed(config, nodes, per_node, |c, u, t, m| {
+                scenarios::lb_fairness::run(c, u, t, m)
+            })
+            .await;
+        },
         "send-message" => {
             let agent_id = agent_id.to_string();
             run_scenario_distributed(config, nodes, per_node, move |c, u, t, m| {
@@ -352,6 +370,6 @@ fn report_unknown_scenario(name: &str) {
     eprintln!("Unknown scenario: {name}");
     eprintln!(
         "Available: api-latency, agent-registry, context-lifecycle, hook-track, oauth-session, \
-         task-read, governance-only, gateway-inference, sse-stream, send-message, all"
+         task-read, governance-only, gateway-inference, sse-stream, lb-fairness, send-message, all"
     );
 }

@@ -53,7 +53,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::LazyLock;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ExtensionsConfig {
     #[serde(default)]
     pub disabled: Vec<String>,
@@ -84,7 +85,9 @@ fn substitute_env_vars(content: &str) -> String {
         .to_string()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum ProfileType {
     #[default]
@@ -102,7 +105,8 @@ impl ProfileType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Profile {
     pub name: String,
 

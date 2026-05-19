@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use crate::errors::ParseEnumError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum JwtAudience {
     Web,

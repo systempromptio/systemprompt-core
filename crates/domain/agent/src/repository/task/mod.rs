@@ -156,7 +156,7 @@ impl TaskRepository {
 
     pub async fn apply_notification_status(
         &self,
-        task_id: &str,
+        task_id: &systemprompt_identifiers::TaskId,
         state: &str,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {

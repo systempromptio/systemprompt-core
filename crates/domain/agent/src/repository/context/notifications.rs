@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::{AgentId, ContextId};
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, Clone)]
@@ -25,8 +26,8 @@ impl ContextNotificationRepository {
 
     pub async fn insert(
         &self,
-        context_id: &str,
-        agent_id: &str,
+        context_id: &ContextId,
+        agent_id: &AgentId,
         notification_type: &str,
         notification_data: &serde_json::Value,
     ) -> Result<i32, RepositoryError> {
@@ -34,8 +35,8 @@ impl ContextNotificationRepository {
             r#"INSERT INTO context_notifications (context_id, agent_id, notification_type, notification_data)
             VALUES ($1, $2, $3, $4)
             RETURNING id"#,
-            context_id,
-            agent_id,
+            context_id.as_str(),
+            agent_id.as_str(),
             notification_type,
             notification_data,
         )

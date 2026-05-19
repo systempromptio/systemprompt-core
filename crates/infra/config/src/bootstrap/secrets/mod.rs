@@ -16,7 +16,9 @@ use base64::Engine;
 use systemprompt_models::profile::resolve_with_home;
 use systemprompt_models::secrets::Secrets;
 
-use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
+use super::manifest::{
+    MANIFEST_SIGNING_SEED_BYTES, decode_seed, dir_is_writable, generate_seed, persist_seed,
+};
 use super::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
@@ -147,9 +149,33 @@ impl SecretsBootstrap {
             return Ok(());
         }
         let seed = generate_seed();
-        persist_seed(&path, &seed)?;
         secrets.manifest_signing_secret_seed =
             Some(base64::engine::general_purpose::STANDARD.encode(seed));
+
+        // The profile directory may be mounted read-only (e.g. an air-gapped
+        // deployment with a `:ro` profile mount). The seed is only needed for
+        // manifest signing within this process, so a failed persist is a
+        // warning, not a fatal error: the in-memory seed above keeps signing
+        // working for this boot. Operators wanting a stable seed across boots
+        // should set `MANIFEST_SIGNING_SECRET_SEED` or use a writable dir.
+        let profile_dir = path.parent().unwrap_or_else(|| Path::new("."));
+        if !dir_is_writable(profile_dir) {
+            tracing::warn!(
+                path = %path.display(),
+                "profile dir is read-only — using an ephemeral manifest signing seed for this \
+                 boot; set MANIFEST_SIGNING_SECRET_SEED or use a writable dir to persist it"
+            );
+            return Ok(());
+        }
+        if let Err(err) = persist_seed(&path, &seed) {
+            tracing::warn!(
+                path = %path.display(),
+                error = %err,
+                "could not persist manifest_signing_secret_seed — using an ephemeral seed for \
+                 this boot; set MANIFEST_SIGNING_SECRET_SEED to make it stable"
+            );
+            return Ok(());
+        }
         tracing::info!(
             path = %path.display(),
             "Generated and persisted fresh manifest_signing_secret_seed"

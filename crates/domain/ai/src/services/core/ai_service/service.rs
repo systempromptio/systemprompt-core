@@ -97,12 +97,45 @@ impl AiService {
         let secrets = SecretsBootstrap::get()?;
 
         for (name, provider_config) in &mut config.providers {
+            // Resolve the endpoint first — a `${VAR}` endpoint is interpolated
+            // from the same secrets store as the api_key. An unresolved
+            // endpoint var clears `endpoint` to `None` so the provider falls
+            // back to its built-in external URL (a no-op for non-air-gapped
+            // deployments that simply omit the var).
+            if let Some(endpoint) = provider_config.endpoint.as_ref() {
+                if endpoint.starts_with("${") && endpoint.ends_with('}') {
+                    let var_name = endpoint[2..endpoint.len() - 1].to_string();
+                    if let Some(v) = secrets.get(&var_name) {
+                        provider_config.endpoint = Some(v.clone());
+                    } else {
+                        provider_config.endpoint = None;
+                        tracing::warn!(
+                            provider = %name,
+                            var = %var_name,
+                            "endpoint secret not found — falling back to provider default URL"
+                        );
+                    }
+                }
+            }
+            let has_custom_endpoint = provider_config.endpoint.is_some();
+
             if provider_config.api_key.starts_with("${") && provider_config.api_key.ends_with('}') {
                 let var_name =
                     provider_config.api_key[2..provider_config.api_key.len() - 1].to_string();
 
                 if let Some(v) = secrets.get(&var_name) {
                     provider_config.api_key.clone_from(v);
+                } else if has_custom_endpoint {
+                    // Air-gap: the provider points at an internal endpoint
+                    // (e.g. a mock) that needs no upstream credential. Keep it
+                    // enabled with an empty key rather than disabling it.
+                    provider_config.api_key = String::new();
+                    tracing::warn!(
+                        provider = %name,
+                        var = %var_name,
+                        "api_key secret not found, but a custom endpoint is configured — \
+                         keeping provider enabled with an empty key"
+                    );
                 } else {
                     provider_config.enabled = false;
                     provider_config.api_key = String::new();

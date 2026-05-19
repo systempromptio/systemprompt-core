@@ -246,7 +246,7 @@ pub struct ModelLimits {
     pub max_output_tokens: u32,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ModelPricing {
     #[serde(default)]
     pub input_per_million: f64,

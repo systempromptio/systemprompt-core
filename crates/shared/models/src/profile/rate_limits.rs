@@ -2,7 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TierMultipliers {
     #[serde(default = "default_admin_multiplier")]
     pub admin: f64,
@@ -55,7 +56,8 @@ impl Default for TierMultipliers {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RateLimitsConfig {
     #[serde(default)]
     pub disabled: bool,

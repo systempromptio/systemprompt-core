@@ -8,7 +8,10 @@ use crate::repository::context::message::{
 use systemprompt_traits::RepositoryError;
 
 impl TaskRepository {
-    pub async fn message_exists(&self, message_id: &str) -> Result<bool, RepositoryError> {
+    pub async fn message_exists(
+        &self,
+        message_id: &systemprompt_identifiers::MessageId,
+    ) -> Result<bool, RepositoryError> {
         message_exists(&self.pool, message_id).await
     }
 
