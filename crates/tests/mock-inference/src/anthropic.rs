@@ -10,8 +10,7 @@ use serde_json::{Value, json};
 
 use crate::{AppState, FIXED_OUTPUT_TOKENS, count_input_tokens, sse};
 
-/// Mock assistant text, split into chunks so the streaming path emits
-/// multiple `content_block_delta` events.
+// Chunked so the streaming path emits multiple `content_block_delta` events.
 const REPLY_CHUNKS: &[&str] = &["This ", "is ", "a ", "deterministic ", "mock ", "response."];
 
 fn reply_text() -> String {
