@@ -2,6 +2,10 @@
 
 ## [0.10.4] - 2026-05-19
 
+### Added
+
+- Air-gapped deployment test tooling. A new `mock-inference` test crate stands in for an internal OpenAI/Anthropic-compatible inference endpoint — Anthropic Messages and OpenAI Chat wire formats, streaming and non-streaming, with configurable latency, failure injection, and a request counter exposed at `GET /stats`. The load-test harness gains an `airgap` profile with strict latency thresholds, `gateway-inference` and `governance-only` scenarios that exercise the gateway pipeline end to end, a JSON reporter (`--output json` / `--out-file`), and a `--admin-email` flag (also read from `SYSTEMPROMPT_ADMIN_EMAIL`) so token acquisition works on cloud-less deployments. New `just` recipes `mock-inference` and `loadtest-airgap`.
+
 ### Removed
 
 - The `release-sign` and `sbom` GitHub workflows. `systemprompt-bridge` binaries — including their CycloneDX SBOMs and cosign signatures — are now produced through a manual release process rather than on every `v*` tag push.

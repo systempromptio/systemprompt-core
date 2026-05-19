@@ -34,20 +34,20 @@ pub async fn run(client: Client, base_url: String, token: Option<String>, metric
                 Err(_) => {
                     metrics.record(create_latency, false);
                     return;
-                }
+                },
             };
             match body["data"]["context_id"].as_str() {
                 Some(id) => id.to_string(),
                 None => {
                     metrics.record(create_latency, false);
                     return;
-                }
+                },
             }
-        }
+        },
         _ => {
             metrics.record(create_latency, false);
             return;
-        }
+        },
     };
     metrics.record(create_latency, true);
 

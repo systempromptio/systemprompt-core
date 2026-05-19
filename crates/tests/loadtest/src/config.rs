@@ -27,9 +27,18 @@ impl LoadConfig {
             base_url,
             token,
             stages: vec![
-                Stage { duration: Duration::from_secs(10), target_users: 10 },
-                Stage { duration: Duration::from_secs(15), target_users: 10 },
-                Stage { duration: Duration::from_secs(5), target_users: 0 },
+                Stage {
+                    duration: Duration::from_secs(10),
+                    target_users: 10,
+                },
+                Stage {
+                    duration: Duration::from_secs(15),
+                    target_users: 10,
+                },
+                Stage {
+                    duration: Duration::from_secs(5),
+                    target_users: 0,
+                },
             ],
             thresholds: Thresholds {
                 p95_ms: 500,
@@ -39,15 +48,53 @@ impl LoadConfig {
         }
     }
 
+    pub fn airgap(base_url: String, token: Option<String>) -> Self {
+        Self {
+            base_url,
+            token,
+            stages: vec![
+                Stage {
+                    duration: Duration::from_secs(20),
+                    target_users: 20,
+                },
+                Stage {
+                    duration: Duration::from_secs(60),
+                    target_users: 20,
+                },
+                Stage {
+                    duration: Duration::from_secs(20),
+                    target_users: 0,
+                },
+            ],
+            thresholds: Thresholds {
+                p95_ms: 300,
+                p99_ms: 600,
+                max_error_rate: 0.005,
+            },
+        }
+    }
+
     pub fn default_profile(base_url: String, token: Option<String>) -> Self {
         Self {
             base_url,
             token,
             stages: vec![
-                Stage { duration: Duration::from_secs(30), target_users: 50 },
-                Stage { duration: Duration::from_secs(120), target_users: 100 },
-                Stage { duration: Duration::from_secs(60), target_users: 100 },
-                Stage { duration: Duration::from_secs(30), target_users: 0 },
+                Stage {
+                    duration: Duration::from_secs(30),
+                    target_users: 50,
+                },
+                Stage {
+                    duration: Duration::from_secs(120),
+                    target_users: 100,
+                },
+                Stage {
+                    duration: Duration::from_secs(60),
+                    target_users: 100,
+                },
+                Stage {
+                    duration: Duration::from_secs(30),
+                    target_users: 0,
+                },
             ],
             thresholds: Thresholds {
                 p95_ms: 300,
