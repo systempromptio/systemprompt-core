@@ -48,7 +48,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     }
 
     let claim = if distributed_lock {
-        match acquire_claim(&job_name, &db_pool).await {
+        match acquire_claim(&job_name, &db_pool, &repository).await {
             Claim::Skip => {
                 running_jobs.lock().await.remove(&job_name);
                 return;
@@ -90,7 +90,11 @@ enum Claim {
     Skip,
 }
 
-async fn acquire_claim(job_name: &str, db_pool: &DbPool) -> Claim {
+async fn acquire_claim(
+    job_name: &str,
+    db_pool: &DbPool,
+    repository: &SchedulerRepository,
+) -> Claim {
     let write_pool = match db_pool.write_pool_arc() {
         Ok(pool) => pool,
         Err(e) => {
@@ -99,22 +103,50 @@ async fn acquire_claim(job_name: &str, db_pool: &DbPool) -> Claim {
         },
     };
 
-    match try_acquire_job_lock(&write_pool, job_name).await {
-        Ok(Some(guard)) => Claim::Held(guard),
+    let guard = match try_acquire_job_lock(&write_pool, job_name).await {
+        Ok(Some(guard)) => guard,
         Ok(None) => {
-            debug!(job_name = %job_name, "job claimed by another replica, skipping");
-            info!(
-                monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
-                job_name = %job_name,
-                event = "scheduler.job.skipped_by_lock",
-            );
-            Claim::Skip
+            skipped_by_lock(job_name);
+            return Claim::Skip;
         },
         Err(e) => {
             error!(job_name = %job_name, error = %e, "Failed to acquire distributed job lock");
-            Claim::Skip
+            return Claim::Skip;
+        },
+    };
+
+    // The advisory lock serialises replicas but does not by itself stop a
+    // replica from re-running a tick a peer completed microseconds earlier.
+    // The scheduler's finest cron granularity is one second, so a `last_run`
+    // newer than that — written by the peer under this same lock — means the
+    // current tick is already done.
+    match repository.find_job(job_name).await {
+        Ok(Some(job)) => {
+            if let Some(last_run) = job.last_run {
+                let since = chrono::Utc::now().signed_duration_since(last_run);
+                if since < chrono::Duration::milliseconds(900) {
+                    guard.release().await;
+                    skipped_by_lock(job_name);
+                    return Claim::Skip;
+                }
+            }
+        },
+        Ok(None) => {},
+        Err(e) => {
+            error!(job_name = %job_name, error = %e, "Failed to read job row for tick de-duplication");
         },
     }
+
+    Claim::Held(guard)
+}
+
+fn skipped_by_lock(job_name: &str) {
+    debug!(job_name = %job_name, "job already claimed for this tick by another replica, skipping");
+    info!(
+        monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
+        job_name = %job_name,
+        event = "scheduler.job.skipped_by_lock",
+    );
 }
 
 fn find_job(job_name: &str) -> Option<&'static dyn JobTrait> {

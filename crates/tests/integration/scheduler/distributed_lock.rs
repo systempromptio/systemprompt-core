@@ -221,57 +221,49 @@ async fn run_two_replicas(distributed_lock: bool, window: Duration) -> Result<i3
     read_run_count(&pool).await
 }
 
-/// FIXED behaviour: with the distributed advisory lock enabled, two replicas
-/// sharing a database run the job ONCE per tick, not twice.
+/// Regression test for the cross-replica single-execution guarantee.
 ///
-/// The assertion is deliberately tolerant. Over a `window` of `W` seconds we
-/// expect roughly `W` one-second ticks; cron alignment means the true count
-/// can be `W - 1` .. `W + 1`. The defining property of the fix is that the
-/// count stays near the single-replica rate and does NOT approach `2 * W`.
+/// Both phases share the one `scheduled_jobs` probe row, so they must run
+/// sequentially in a single test — two `#[tokio::test]` functions would race
+/// on that row under the default parallel test harness.
+///
+/// Phase 1 (lock enabled): two replicas sharing a database run the job ONCE
+/// per tick. Over a `W`-second window we expect roughly `W` one-second ticks;
+/// cron alignment puts the true count in `W - 1 ..= W + 1`. The defining
+/// property of the fix is that the count stays near the single-replica rate
+/// and does not approach `2 * W`.
+///
+/// Phase 2 (negative control, lock disabled): the same setup double-fires —
+/// both replicas dispatch every tick — documenting exactly what the lock
+/// prevents.
 #[tokio::test]
-async fn distributed_lock_runs_job_once_across_replicas() -> Result<()> {
+async fn distributed_lock_suppresses_duplicate_execution() -> Result<()> {
     let window_secs: u64 = 6;
-    let run_count = run_two_replicas(true, Duration::from_secs(window_secs)).await?;
+    let window = Duration::from_secs(window_secs);
+    let single_replica_ceiling = window_secs as i32 + 2;
 
-    // Lower bound: the job must actually have run — at least a couple of
-    // ticks in a six-second window.
+    let locked = run_two_replicas(true, window).await?;
     assert!(
-        run_count >= 3,
-        "expected the job to fire several times in {window_secs}s, got run_count={run_count}"
+        locked >= 3,
+        "expected the job to fire several times in {window_secs}s, got run_count={locked}"
+    );
+    assert!(
+        locked <= single_replica_ceiling,
+        "distributed lock failed to suppress duplicate execution: run_count={locked} exceeds \
+         the single-replica ceiling of {single_replica_ceiling}"
     );
 
-    // Upper bound: this is the regression guard. Two replicas without the
-    // lock would yield ~2 * window_secs executions. The lock must keep the
-    // count near the single-replica rate. We allow generous slack for cron
-    // edge ticks but stay well clear of the doubled rate.
-    let doubled = (2 * window_secs) as i32;
-    let single_replica_ceiling = window_secs as i32 + 2;
+    let unlocked = run_two_replicas(false, window).await?;
     assert!(
-        run_count <= single_replica_ceiling,
-        "distributed lock failed to suppress duplicate execution: run_count={run_count} exceeds \
-         the single-replica ceiling of {single_replica_ceiling} (doubled rate would be ~{doubled})"
-    );
-
-    Ok(())
-}
-
-/// Negative control: with the distributed lock DISABLED, the same two-replica
-/// setup double-fires the job — both replicas dispatch it every tick. This
-/// documents precisely the failure mode the advisory lock exists to prevent.
-#[tokio::test]
-async fn without_distributed_lock_job_double_fires() -> Result<()> {
-    let window_secs: u64 = 6;
-    let run_count = run_two_replicas(false, Duration::from_secs(window_secs)).await?;
-
-    // With no lock, both replicas run the job each tick. The count should
-    // clearly exceed what a single replica alone could produce. We assert it
-    // crosses above the single-replica ceiling rather than pinning an exact
-    // doubled value, to keep the test stable under scheduler jitter.
-    let single_replica_ceiling = window_secs as i32 + 2;
-    assert!(
-        run_count > single_replica_ceiling,
-        "expected double-firing without the lock: run_count={run_count} should exceed the \
+        unlocked > single_replica_ceiling,
+        "expected double-firing without the lock: run_count={unlocked} should exceed the \
          single-replica ceiling of {single_replica_ceiling}"
+    );
+
+    assert!(
+        locked < unlocked,
+        "the lock must yield meaningfully fewer runs than the unlocked control: \
+         locked={locked}, unlocked={unlocked}"
     );
 
     Ok(())
