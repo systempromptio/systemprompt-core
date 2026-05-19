@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-events-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for the systemprompt-events cross-replica relay"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-events = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-database = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+chrono = { workspace = true }
