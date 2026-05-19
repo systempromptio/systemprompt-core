@@ -68,27 +68,33 @@ impl Database {
         pool.ok_or_else(|| RepositoryError::invalid_state("Database is not PostgreSQL"))
     }
 
+    /// Provider that serves reads. Equal to [`Self::write`] when no separate
+    /// write URL is configured (single-node deployments).
+    #[must_use]
+    pub fn read(&self) -> &dyn DatabaseProvider {
+        self.provider.as_ref()
+    }
+
+    /// Provider that serves writes and transactions. Falls back to the read
+    /// provider when no separate write URL is configured.
+    #[must_use]
+    pub fn write(&self) -> &dyn DatabaseProvider {
+        self.write_provider
+            .as_deref()
+            .unwrap_or_else(|| self.provider.as_ref())
+    }
+
     pub fn get_postgres_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        self.pool_arc()
+        self.read_pool_arc()
     }
 
     pub fn write_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        self.write_provider.as_ref().map_or_else(
-            || self.get_postgres_pool_arc(),
-            |wp| Self::require_postgres(wp.get_postgres_pool()),
-        )
-    }
-
-    fn effective_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.write_provider
-            .as_ref()
-            .and_then(|wp| wp.get_postgres_pool())
-            .or_else(|| self.provider.get_postgres_pool())
+        Self::require_postgres(self.write().get_postgres_pool())
     }
 
     #[must_use]
     pub fn write_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.effective_pool()
+        self.write().get_postgres_pool()
     }
 
     #[must_use]
@@ -98,16 +104,14 @@ impl Database {
 
     #[must_use]
     pub fn write_provider(&self) -> &dyn DatabaseProvider {
-        self.write_provider
-            .as_deref()
-            .unwrap_or_else(|| self.provider.as_ref())
+        self.write()
     }
 
     pub async fn query(
         &self,
         sql: &dyn crate::models::QuerySelector,
     ) -> DatabaseResult<QueryResult> {
-        self.provider.query_raw(sql).await
+        self.read().query_raw(sql).await
     }
 
     pub async fn query_with(
@@ -115,15 +119,15 @@ impl Database {
         sql: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<QueryResult> {
-        self.provider.query_raw_with(sql, params).await
+        self.read().query_raw_with(sql, params).await
     }
 
     pub async fn execute_batch(&self, sql: &str) -> DatabaseResult<()> {
-        self.provider.execute_batch(sql).await
+        self.write().execute_batch(sql).await
     }
 
     pub async fn get_info(&self) -> DatabaseResult<DatabaseInfo> {
-        self.provider.get_database_info().await
+        self.read().get_database_info().await
     }
 
     pub async fn test_connection(&self) -> DatabaseResult<()> {
@@ -136,25 +140,25 @@ impl Database {
 
     #[must_use]
     pub fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.effective_pool()
+        self.read().get_postgres_pool()
     }
 
     pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Self::require_postgres(self.get_postgres_pool())
+        self.read_pool_arc()
     }
 
     #[must_use]
     pub fn pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.get_postgres_pool()
+        self.read().get_postgres_pool()
     }
 
     #[must_use]
     pub fn read_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.provider.get_postgres_pool()
+        self.read().get_postgres_pool()
     }
 
     pub fn read_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Self::require_postgres(self.provider.get_postgres_pool())
+        Self::require_postgres(self.read().get_postgres_pool())
     }
 
     pub async fn begin(&self) -> DatabaseResult<sqlx::Transaction<'_, sqlx::Postgres>> {
@@ -178,7 +182,7 @@ impl DatabaseExt for Arc<Database> {
 #[async_trait::async_trait]
 impl DatabaseProvider for Database {
     fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.effective_pool()
+        self.read().get_postgres_pool()
     }
 
     async fn execute(
@@ -186,11 +190,11 @@ impl DatabaseProvider for Database {
         query: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<u64> {
-        self.write_provider().execute(query, params).await
+        self.write().execute(query, params).await
     }
 
     async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
-        self.write_provider().execute_raw(sql).await
+        self.write().execute_raw(sql).await
     }
 
     async fn fetch_all(
@@ -198,7 +202,7 @@ impl DatabaseProvider for Database {
         query: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<Vec<crate::models::JsonRow>> {
-        self.provider.fetch_all(query, params).await
+        self.read().fetch_all(query, params).await
     }
 
     async fn fetch_one(
@@ -206,7 +210,7 @@ impl DatabaseProvider for Database {
         query: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<crate::models::JsonRow> {
-        self.provider.fetch_one(query, params).await
+        self.read().fetch_one(query, params).await
     }
 
     async fn fetch_optional(
@@ -214,7 +218,7 @@ impl DatabaseProvider for Database {
         query: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<Option<crate::models::JsonRow>> {
-        self.provider.fetch_optional(query, params).await
+        self.read().fetch_optional(query, params).await
     }
 
     async fn fetch_scalar_value(
@@ -222,32 +226,32 @@ impl DatabaseProvider for Database {
         query: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<crate::models::DbValue> {
-        self.provider.fetch_scalar_value(query, params).await
+        self.read().fetch_scalar_value(query, params).await
     }
 
     async fn begin_transaction(
         &self,
     ) -> DatabaseResult<Box<dyn crate::models::DatabaseTransaction>> {
-        self.write_provider().begin_transaction().await
+        self.write().begin_transaction().await
     }
 
     async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
-        self.provider.get_database_info().await
+        self.read().get_database_info().await
     }
 
     async fn test_connection(&self) -> DatabaseResult<()> {
-        self.provider.test_connection().await
+        self.read().test_connection().await
     }
 
     async fn execute_batch(&self, sql: &str) -> DatabaseResult<()> {
-        self.write_provider().execute_batch(sql).await
+        self.write().execute_batch(sql).await
     }
 
     async fn query_raw(
         &self,
         query: &dyn crate::models::QuerySelector,
     ) -> DatabaseResult<QueryResult> {
-        self.provider.query_raw(query).await
+        self.read().query_raw(query).await
     }
 
     async fn query_raw_with(
@@ -255,6 +259,6 @@ impl DatabaseProvider for Database {
         query: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<QueryResult> {
-        self.provider.query_raw_with(query, params).await
+        self.read().query_raw_with(query, params).await
     }
 }
