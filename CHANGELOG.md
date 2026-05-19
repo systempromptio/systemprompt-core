@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- The `release-sign` and `sbom` GitHub workflows. `systemprompt-bridge` binaries — including their CycloneDX SBOMs and cosign signatures — are now produced through a manual release process rather than on every `v*` tag push.
+
 ## [0.10.3] - 2026-05-18
 
 ### Added

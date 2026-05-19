@@ -68,7 +68,7 @@ pub async fn generate_with_web_search(
     let response = provider
         .client
         .post(&url)
-        .header("Authorization", format!("Bearer {}", &provider.api_key))
+        .header("Authorization", format!("Bearer {}", provider.api_key))
         .header("Content-Type", "application/json")
         .json(&request)
         .send()
