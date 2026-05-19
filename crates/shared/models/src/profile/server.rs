@@ -25,6 +25,19 @@ pub struct ServerConfig {
 
     #[serde(default)]
     pub security_headers: SecurityHeadersConfig,
+
+    /// Stable identifier for this replica. Empty/unset resolves to the
+    /// OS hostname (or a generated short id) at config build time.
+    #[serde(default)]
+    pub instance_id: Option<String>,
+
+    /// Global cap on concurrent A2A SSE streams for this replica.
+    #[serde(default = "default_max_concurrent_streams")]
+    pub max_concurrent_streams: usize,
+}
+
+fn default_max_concurrent_streams() -> usize {
+    crate::config::DEFAULT_MAX_CONCURRENT_STREAMS
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
