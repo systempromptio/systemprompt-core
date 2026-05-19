@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -6,7 +5,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::TenantId;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub struct QuotaWindow {
@@ -55,7 +53,7 @@ const CACHE_TTL: Duration = Duration::from_secs(60);
 #[derive(Clone)]
 pub struct PolicyResolver {
     repo: Arc<AiGatewayPolicyRepository>,
-    cache: Arc<RwLock<HashMap<String, CachedEntry>>>,
+    cache: Arc<RwLock<Option<CachedEntry>>>,
 }
 
 impl std::fmt::Debug for PolicyResolver {
@@ -77,22 +75,20 @@ impl PolicyResolver {
                 AiGatewayPolicyRepository::new(db)
                     .map_err(|e| anyhow::anyhow!("policy repo init: {e}"))?,
             ),
-            cache: Arc::new(RwLock::new(HashMap::new())),
+            cache: Arc::new(RwLock::new(None)),
         })
     }
 
-    pub async fn resolve(&self, tenant_id: Option<&TenantId>) -> GatewayPolicySpec {
-        let key = tenant_id.map_or_else(String::new, |t| t.as_str().to_string());
-
+    pub async fn resolve(&self) -> GatewayPolicySpec {
         if let Ok(cache) = self.cache.read() {
-            if let Some(entry) = cache.get(&key) {
+            if let Some(entry) = cache.as_ref() {
                 if entry.fetched_at.elapsed() < CACHE_TTL {
                     return entry.spec.clone();
                 }
             }
         }
 
-        let rows = match self.repo.find_for_tenant(tenant_id).await {
+        let rows = match self.repo.find_for_global().await {
             Ok(r) => r,
             Err(e) => {
                 tracing::warn!(error = %e, "policy resolve DB error — falling back to permissive");
@@ -102,13 +98,10 @@ impl PolicyResolver {
 
         let spec = merge(rows);
         if let Ok(mut cache) = self.cache.write() {
-            cache.insert(
-                key,
-                CachedEntry {
-                    spec: spec.clone(),
-                    fetched_at: Instant::now(),
-                },
-            );
+            *cache = Some(CachedEntry {
+                spec: spec.clone(),
+                fetched_at: Instant::now(),
+            });
         }
         spec
     }

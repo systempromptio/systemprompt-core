@@ -53,9 +53,6 @@ fn build_rejection_record(
         .provider(provider)
         .model(model)
         .streaming(partial.is_streaming);
-    if let Some(t) = &partial.tenant_id {
-        builder = builder.tenant_id(t.clone());
-    }
     if let Some(s) = &partial.session_id {
         builder = builder.session_id(s.clone());
     }
