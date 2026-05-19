@@ -96,8 +96,11 @@ audit/
 # Instructions (local-only documentation)
 instructions/*
 
-# Report files
-report/*
+# Assets (local-only, not part of the published tree)
+/assets/
+
+# Internal reports (local-only audits/evaluations)
+internal-reports/
 
 # Local-only scripts
 scripts/
