@@ -7,20 +7,37 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobResult};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
+use super::lock::{JobLockGuard, try_acquire_job_lock};
 use super::{RunningJobs, make_job_context};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::JobStatus;
 use crate::repository::SchedulerRepository;
 
-pub(super) async fn execute_job(
-    job_name: String,
-    db_pool: DbPool,
-    repository: SchedulerRepository,
-    app_context: Arc<AppContext>,
-    running_jobs: RunningJobs,
-) {
+/// Inputs needed to dispatch one job execution.
+pub(super) struct JobDispatch {
+    pub(super) job_name: String,
+    pub(super) db_pool: DbPool,
+    pub(super) repository: SchedulerRepository,
+    pub(super) app_context: Arc<AppContext>,
+    pub(super) running_jobs: RunningJobs,
+    pub(super) distributed_lock: bool,
+}
+
+pub(super) async fn execute_job(dispatch: JobDispatch) {
+    let JobDispatch {
+        job_name,
+        db_pool,
+        repository,
+        app_context,
+        running_jobs,
+        distributed_lock,
+    } = dispatch;
+
+    // Two layers guard against duplicate runs: the in-process `RunningJobs`
+    // set is a zero-latency fast-path for one process; the Postgres advisory
+    // lock below additionally serialises across replicas sharing a database.
     {
         let mut guard = running_jobs.lock().await;
         if guard.contains(&job_name) {
@@ -29,6 +46,18 @@ pub(super) async fn execute_job(
         }
         guard.insert(job_name.clone());
     }
+
+    let claim = if distributed_lock {
+        match acquire_claim(&job_name, &db_pool).await {
+            Claim::Skip => {
+                running_jobs.lock().await.remove(&job_name);
+                return;
+            },
+            Claim::Held(guard) => Some(guard),
+        }
+    } else {
+        None
+    };
 
     debug!(job_name = %job_name, "Starting job");
 
@@ -46,9 +75,45 @@ pub(super) async fn execute_job(
     let result = find_and_execute_job(&job_name, db_pool, app_context).await;
     handle_job_result(&job_name, result, &repository).await;
 
+    if let Some(claim) = claim {
+        claim.release().await;
+    }
+
     {
         let mut guard = running_jobs.lock().await;
         guard.remove(&job_name);
+    }
+}
+
+enum Claim {
+    Held(JobLockGuard),
+    Skip,
+}
+
+async fn acquire_claim(job_name: &str, db_pool: &DbPool) -> Claim {
+    let write_pool = match db_pool.write_pool_arc() {
+        Ok(pool) => pool,
+        Err(e) => {
+            error!(job_name = %job_name, error = %e, "Failed to resolve write pool for job lock");
+            return Claim::Skip;
+        },
+    };
+
+    match try_acquire_job_lock(&write_pool, job_name).await {
+        Ok(Some(guard)) => Claim::Held(guard),
+        Ok(None) => {
+            debug!(job_name = %job_name, "job claimed by another replica, skipping");
+            info!(
+                monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
+                job_name = %job_name,
+                event = "scheduler.job.skipped_by_lock",
+            );
+            Claim::Skip
+        },
+        Err(e) => {
+            error!(job_name = %job_name, error = %e, "Failed to acquire distributed job lock");
+            Claim::Skip
+        },
     }
 }
 
