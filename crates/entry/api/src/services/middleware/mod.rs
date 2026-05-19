@@ -9,6 +9,7 @@ pub mod jwt;
 pub mod negotiation;
 pub mod rate_limit;
 pub mod security_headers;
+pub mod served_by;
 pub mod session;
 pub mod site_auth;
 pub mod throttle;
@@ -30,6 +31,7 @@ pub use negotiation::{
 };
 pub use rate_limit::*;
 pub use security_headers::*;
+pub use served_by::*;
 pub use session::*;
 pub use site_auth::*;
 pub use throttle::*;

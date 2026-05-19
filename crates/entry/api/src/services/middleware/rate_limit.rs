@@ -1,3 +1,9 @@
+//! Router extension traits for rate limiting and authenticated route groups.
+//!
+//! `RouterExt::with_auth` attaches authentication and authorization in one
+//! call: it requires an `AuthzPolicy`, so a route group cannot be mounted
+//! authenticated-but-unauthorized — omitting the policy is a compile error.
+
 use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
 use crate::services::middleware::context::{ContextExtractor, ContextMiddleware};
 use axum::Router;
@@ -19,12 +25,6 @@ use tracing::warn;
 pub trait RouterExt<S> {
     fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self;
 
-    /// Attach authentication AND authorization to a route group in one call.
-    ///
-    /// `auth` builds the [`RequestContext`]; `policy` is the mandatory
-    /// authorization tier. There is no way to attach the auth middleware
-    /// without declaring an [`AuthzPolicy`] — that is the point: a route group
-    /// cannot be mounted authenticated-but-unauthorized.
     fn with_auth<E>(self, auth: ContextMiddleware<E>, policy: AuthzPolicy) -> Self
     where
         E: ContextExtractor + Clone + Send + Sync + 'static;

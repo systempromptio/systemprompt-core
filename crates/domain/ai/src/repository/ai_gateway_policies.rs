@@ -80,4 +80,22 @@ impl AiGatewayPolicyRepository {
         .await?;
         Ok(row.id)
     }
+
+    /// Names of every policy, regardless of `enabled` — used by the YAML
+    /// ingestion path to decide insert-vs-update and to find orphans.
+    pub async fn list_all_names(&self) -> Result<Vec<String>, RepositoryError> {
+        let names: Vec<String> = sqlx::query_scalar!("SELECT name FROM ai_gateway_policies")
+            .fetch_all(self.pool.as_ref())
+            .await?;
+        Ok(names)
+    }
+
+    /// Delete a policy by name. Used by the YAML ingestion path to drop
+    /// policies removed from the committed config (`delete_orphans`).
+    pub async fn delete_by_name(&self, name: &str) -> Result<(), RepositoryError> {
+        sqlx::query!("DELETE FROM ai_gateway_policies WHERE name = $1", name)
+            .execute(self.write_pool.as_ref())
+            .await?;
+        Ok(())
+    }
 }

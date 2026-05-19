@@ -56,6 +56,12 @@ pub use extension::AiExtension;
 
 pub use services::core::{AiService, ImageService};
 
+pub use services::gateway::{
+    GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyIngestionService,
+    GatewayPolicySpec, IngestOptions as GatewayPolicyIngestOptions,
+    IngestReport as GatewayPolicyIngestReport, QuotaWindow, SafetyConfig,
+    load_from_yaml as load_gateway_policies_from_yaml,
+};
 pub use services::storage::{ImageStorage, StorageConfig};
 pub use services::tools::NoopToolProvider;
 pub use systemprompt_models::ai::{GenerateResponseParams, GoogleSearchParams};

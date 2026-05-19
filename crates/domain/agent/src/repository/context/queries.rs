@@ -9,11 +9,11 @@ use systemprompt_traits::RepositoryError;
 impl ContextRepository {
     pub async fn find_user_id_for_context(
         &self,
-        context_id: &str,
+        context_id: &ContextId,
     ) -> Result<Option<UserId>, RepositoryError> {
         let row = sqlx::query_scalar!(
             r#"SELECT user_id FROM user_contexts WHERE context_id = $1"#,
-            context_id,
+            context_id.as_str(),
         )
         .fetch_optional(&*self.pool)
         .await

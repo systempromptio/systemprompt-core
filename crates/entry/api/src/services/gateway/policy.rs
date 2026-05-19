@@ -2,51 +2,14 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_database::DbPool;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
-pub struct QuotaWindow {
-    pub window_seconds: i32,
-    pub max_requests: Option<i64>,
-    pub max_input_tokens: Option<i64>,
-    pub max_output_tokens: Option<i64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct SafetyConfig {
-    #[serde(default)]
-    pub scanners: Vec<String>,
-    #[serde(default)]
-    pub block_categories: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct GatewayPolicySpec {
-    #[serde(default)]
-    pub allowed_models: Option<Vec<String>>,
-    #[serde(default)]
-    pub max_input_tokens_per_call: Option<u32>,
-    #[serde(default)]
-    pub max_tool_depth: Option<u32>,
-    #[serde(default)]
-    pub quota_windows: Vec<QuotaWindow>,
-    #[serde(default)]
-    pub safety: SafetyConfig,
-}
-
-impl GatewayPolicySpec {
-    pub fn permissive() -> Self {
-        Self::default()
-    }
-
-    pub fn model_allowed(&self, model: &str) -> bool {
-        self.allowed_models
-            .as_deref()
-            .is_none_or(|list| list.iter().any(|m| m == model))
-    }
-}
+// The gateway-policy spec types are owned by `systemprompt-ai` so the
+// version-controlled `services/ai/gateway-policies.yaml` and the persisted
+// `ai_gateway_policies.spec` column share one schema. Re-exported here so
+// existing `super::policy::{...}` call sites are unaffected.
+pub use systemprompt_ai::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
 
