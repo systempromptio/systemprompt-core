@@ -11,6 +11,7 @@ keywords.workspace = true
 categories.workspace = true
 description = "Event bus, SSE broadcasters, and fan-out routing for systemprompt.io AI governance infrastructure. A2A, analytics, and context stream wiring for the MCP governance pipeline."
 readme = "README.md"
+include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
@@ -27,6 +28,14 @@ axum = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+# Database - durable cross-replica relay via Postgres LISTEN/NOTIFY
+sqlx = { workspace = true }
+chrono = { workspace = true }
+
+# Extension registration
+systemprompt-extension = { workspace = true }
+inventory = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-identifiers = { workspace = true }
