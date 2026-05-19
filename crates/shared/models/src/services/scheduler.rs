@@ -53,6 +53,10 @@ pub struct SchedulerConfig {
     pub jobs: Vec<JobConfig>,
     #[serde(default = "default_bootstrap_jobs")]
     pub bootstrap_jobs: Vec<String>,
+    /// Gates the scheduler advisory lock that guarantees a job runs on
+    /// exactly one replica when multiple replicas share a database.
+    #[serde(default = "default_true")]
+    pub distributed_lock: bool,
 }
 
 fn default_bootstrap_jobs() -> Vec<String> {
@@ -81,6 +85,7 @@ impl Default for SchedulerConfig {
                     .with_schedule("0 0 4 * * *"),
             ],
             bootstrap_jobs: default_bootstrap_jobs(),
+            distributed_lock: true,
         }
     }
 }

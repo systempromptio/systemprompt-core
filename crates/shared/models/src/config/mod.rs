@@ -29,8 +29,25 @@ pub use verbosity::VerbosityLevel;
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
 
+/// Default global cap on concurrent A2A SSE streams.
+pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
+
+/// Resolve a stable instance identifier for this replica.
+///
+/// Prefers the `HOSTNAME` environment variable (set by most container
+/// runtimes and shells); falls back to a generated short id when absent.
+#[must_use]
+pub fn default_instance_id() -> String {
+    std::env::var("HOSTNAME")
+        .ok()
+        .filter(|h| !h.trim().is_empty())
+        .unwrap_or_else(|| format!("instance-{}", uuid::Uuid::new_v4().simple()))
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
+    pub instance_id: String,
+    pub max_concurrent_streams: usize,
     pub sitename: String,
     pub database_type: String,
     pub database_url: String,
@@ -105,6 +122,8 @@ impl ConfigProvider for Config {
             "api_external_url" => Some(self.api_external_url.clone()),
             "jwt_issuer" => Some(self.jwt_issuer.clone()),
             "is_cloud" => Some(self.is_cloud.to_string()),
+            "instance_id" => Some(self.instance_id.clone()),
+            "max_concurrent_streams" => Some(self.max_concurrent_streams.to_string()),
             _ => None,
         }
     }
