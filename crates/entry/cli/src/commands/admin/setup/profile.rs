@@ -66,6 +66,8 @@ pub fn build(
             ],
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
+            instance_id: None,
+            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         },
         paths: PathsConfig {
             system: system_path,
