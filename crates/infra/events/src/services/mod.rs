@@ -3,6 +3,7 @@
 
 mod bridge;
 mod broadcaster;
+mod repository;
 mod routing;
 
 pub use bridge::PostgresEventBridge;

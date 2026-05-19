@@ -25,6 +25,7 @@ use std::sync::{LazyLock, OnceLock};
 use systemprompt_identifiers::{EventOutboxId, UserId};
 use tracing::{debug, error};
 
+use super::repository::EventOutboxRepository;
 use super::{A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster};
 use crate::Broadcaster;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
@@ -39,7 +40,7 @@ pub static A2A_BROADCASTER: LazyLock<A2ABroadcaster> = LazyLock::new(A2ABroadcas
 pub static ANALYTICS_BROADCASTER: LazyLock<AnalyticsBroadcaster> =
     LazyLock::new(AnalyticsBroadcaster::new);
 
-static RELAY_POOL: OnceLock<sqlx::PgPool> = OnceLock::new();
+static OUTBOX_REPO: OnceLock<EventOutboxRepository> = OnceLock::new();
 
 /// The event kind carried by an `event_outbox` row, used to pick the
 /// correct deserialization target on the consuming replica.
@@ -78,11 +79,11 @@ impl OutboxChannel {
 pub struct EventRouter;
 
 impl EventRouter {
-    /// Installs the Postgres pool used to persist outbox rows and emit
+    /// Installs the outbox repository used to persist rows and emit
     /// `NOTIFY`. Idempotent: a second call is ignored. Called once by the
     /// [`crate::PostgresEventBridge`] at startup.
     pub fn install_relay(pool: sqlx::PgPool) {
-        if RELAY_POOL.set(pool).is_err() {
+        if OUTBOX_REPO.set(EventOutboxRepository::new(pool)).is_err() {
             debug!("EventRouter relay pool already installed; ignoring");
         }
     }
@@ -92,7 +93,7 @@ impl EventRouter {
         user_id: &UserId,
         event: &T,
     ) {
-        let Some(pool) = RELAY_POOL.get() else {
+        let Some(repo) = OUTBOX_REPO.get() else {
             return;
         };
         let payload = match serde_json::to_value(event) {
@@ -103,25 +104,11 @@ impl EventRouter {
             },
         };
         let id = EventOutboxId::generate();
-        let insert = sqlx::query!(
-            "INSERT INTO event_outbox (id, channel, user_id, payload) VALUES ($1, $2, $3, $4)",
-            id.as_str(),
-            channel.as_str(),
-            user_id.as_str(),
-            payload,
-        )
-        .execute(pool)
-        .await;
-        if let Err(e) = insert {
+        if let Err(e) = repo.insert(&id, channel, user_id, &payload).await {
             error!(error = %e, channel = channel.as_str(), "failed to persist outbox row");
             return;
         }
-        let notify = sqlx::query("SELECT pg_notify($1, $2)")
-            .bind(OUTBOX_CHANNEL)
-            .bind(id.as_str())
-            .execute(pool)
-            .await;
-        if let Err(e) = notify {
+        if let Err(e) = repo.notify(&id).await {
             error!(error = %e, "failed to NOTIFY cross-replica relay");
         }
     }

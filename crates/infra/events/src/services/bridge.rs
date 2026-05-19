@@ -21,6 +21,7 @@ use sqlx::postgres::PgListener;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
+use super::repository::EventOutboxRepository;
 use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
@@ -99,14 +100,8 @@ impl PostgresEventBridge {
     /// Loads the outbox row named by `row_id`, deserializes it, and fans it
     /// into the local broadcasters. This is the relay's fan-in entry point.
     async fn deliver(&self, row_id: &str) {
-        let row = sqlx::query!(
-            "SELECT channel, user_id, payload FROM event_outbox WHERE id = $1",
-            row_id,
-        )
-        .fetch_optional(&self.pool)
-        .await;
-
-        let row = match row {
+        let repo = EventOutboxRepository::new(self.pool.clone());
+        let row = match repo.find(row_id).await {
             Ok(Some(row)) => row,
             Ok(None) => {
                 debug!(row_id, "event bridge: outbox row already pruned; skipping");
@@ -134,6 +129,8 @@ impl PostgresEventBridge {
     pub(crate) async fn fan_in(
         channel: OutboxChannel,
         user_id: &UserId,
+        // JSON: outbox payload is polymorphic by channel; decoded into the
+        // matching typed event immediately below.
         payload: serde_json::Value,
     ) {
         match channel {
@@ -168,12 +165,9 @@ impl PostgresEventBridge {
         let cutoff = chrono::Utc::now()
             - chrono::Duration::from_std(OUTBOX_RETENTION)
                 .unwrap_or_else(|_| chrono::Duration::seconds(3600));
-        match sqlx::query!("DELETE FROM event_outbox WHERE created_at < $1", cutoff)
-            .execute(&self.pool)
-            .await
-        {
-            Ok(result) => {
-                let deleted = result.rows_affected();
+        let repo = EventOutboxRepository::new(self.pool.clone());
+        match repo.prune(cutoff).await {
+            Ok(deleted) => {
                 if deleted > 0 {
                     debug!(deleted, "event bridge: pruned expired outbox rows");
                 }
