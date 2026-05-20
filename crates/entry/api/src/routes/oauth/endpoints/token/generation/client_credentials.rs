@@ -76,11 +76,17 @@ pub async fn generate_client_tokens(
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
     let analytics = state.analytics_provider().extract_analytics(headers, None);
 
+    // Why: system clients (sys_*) have a synthesized UUID subject that has no
+    // `users` row by design — they're machine identities. Linking the session
+    // to that UUID violates `user_sessions_user_id_fkey`. Persist the session
+    // as user-less; the JWT still carries the synthesized `sub` for downstream
+    // authz.
+    let session_user_id = (!client_id.is_system()).then_some(&user_id);
     state
         .analytics_provider()
         .create_session(CreateSessionInput {
             session_id: &session_id,
-            user_id: Some(&user_id),
+            user_id: session_user_id,
             analytics: &analytics,
             session_source: SessionSource::Oauth,
             is_bot: false,
