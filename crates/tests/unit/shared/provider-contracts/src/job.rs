@@ -2,7 +2,12 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_identifiers::UserId;
 use systemprompt_provider_contracts::{JobContext, JobResult};
+
+fn test_actor() -> UserId {
+    UserId::new("test-actor")
+}
 
 mod job_result_tests {
     use super::*;
@@ -115,6 +120,7 @@ mod job_context_tests {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("app".to_string());
         JobContext::new(
+            test_actor(),
             db_pool,
             app_context,
             Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
@@ -163,6 +169,7 @@ mod job_context_tests {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let ctx = JobContext::new(
+            test_actor(),
             db_pool,
             app_context,
             Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
@@ -177,6 +184,7 @@ mod job_context_tests {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let ctx = JobContext::new(
+            test_actor(),
             db_pool,
             app_context,
             Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
@@ -191,6 +199,7 @@ mod job_context_tests {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
         let ctx = JobContext::new(
+            test_actor(),
             db_pool,
             app_context,
             Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
@@ -205,6 +214,7 @@ mod job_context_tests {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
         let ctx = JobContext::new(
+            test_actor(),
             db_pool,
             app_context,
             Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
@@ -219,6 +229,7 @@ mod job_context_tests {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(42i32);
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let ctx = JobContext::new(
+            test_actor(),
             db_pool.clone(),
             app_context,
             Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
@@ -233,6 +244,7 @@ mod job_context_tests {
         let db_pool: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
         let app_context: Arc<dyn std::any::Any + Send + Sync> = Arc::new("test".to_string());
         let ctx = JobContext::new(
+            test_actor(),
             db_pool,
             app_context.clone(),
             Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
