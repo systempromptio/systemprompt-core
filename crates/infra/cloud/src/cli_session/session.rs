@@ -15,6 +15,27 @@ const CURRENT_VERSION: u32 = 5;
 const MIN_SUPPORTED_VERSION: u32 = 5;
 const SESSION_DURATION_HOURS: i64 = 24;
 
+/// The authenticated identity a CLI session represents. Bundled so every
+/// builder call carries the full triple — there is no longer a default
+/// that silently elevates an unbound session to admin.
+#[derive(Debug, Clone)]
+pub struct SessionIdentity {
+    pub user_id: UserId,
+    pub email: Email,
+    pub user_type: UserType,
+}
+
+impl SessionIdentity {
+    #[must_use]
+    pub const fn new(user_id: UserId, email: Email, user_type: UserType) -> Self {
+        Self {
+            user_id,
+            email,
+            user_type,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliSession {
     pub version: u32,
@@ -53,9 +74,7 @@ impl CliSessionBuilder {
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
-        user_id: UserId,
-        user_email: Email,
-        user_type: UserType,
+        identity: SessionIdentity,
     ) -> Self {
         Self {
             tenant_key: None,
@@ -64,9 +83,9 @@ impl CliSessionBuilder {
             session_token,
             session_id,
             context_id,
-            user_id,
-            user_email,
-            user_type,
+            user_id: identity.user_id,
+            user_email: identity.email,
+            user_type: identity.user_type,
         }
     }
 
@@ -119,18 +138,14 @@ impl CliSession {
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
-        user_id: UserId,
-        user_email: Email,
-        user_type: UserType,
+        identity: SessionIdentity,
     ) -> CliSessionBuilder {
         CliSessionBuilder::new(
             profile_name,
             session_token,
             session_id,
             context_id,
-            user_id,
-            user_email,
-            user_type,
+            identity,
         )
     }
 

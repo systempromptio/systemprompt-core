@@ -55,7 +55,7 @@ pub use api_client::{
 pub use checkout::{
     CheckoutCallbackResult, CheckoutTemplates, run_checkout_callback_flow, wait_for_provisioning,
 };
-pub use cli_session::{CliSession, LOCAL_SESSION_KEY, SessionKey, SessionStore};
+pub use cli_session::{CliSession, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore};
 pub use constants::api::{PRODUCTION_URL, SANDBOX_URL};
 pub use context::{CloudContext, ResolvedTenant};
 pub use credentials::CloudCredentials;

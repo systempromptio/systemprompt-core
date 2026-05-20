@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
+use systemprompt_cloud::{
+    CliSession, CredentialsBootstrap, SessionIdentity, SessionKey, SessionStore,
+};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
@@ -32,9 +34,7 @@ pub(super) fn try_session_from_env(profile: &Profile) -> Option<CliSessionContex
         SessionToken::new(auth_token),
         SessionId::new(session_id),
         ContextId::new(context_id),
-        UserId::new(user_id),
-        email,
-        UserType::Admin,
+        SessionIdentity::new(UserId::new(user_id), email, UserType::Admin),
     )
     .build();
 
