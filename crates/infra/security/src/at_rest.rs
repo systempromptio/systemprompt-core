@@ -17,10 +17,6 @@ use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
-/// Compute HMAC-SHA-256 of `value` under `pepper`, returning the raw digest.
-///
-/// Infallible in practice: `Hmac<Sha256>::new_from_slice` accepts arbitrary
-/// key lengths by HMAC's construction (RFC 2104).
 #[allow(clippy::expect_used)]
 pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> [u8; 32] {
     let mut mac = HmacSha256::new_from_slice(pepper).expect("HMAC accepts any key length");
@@ -31,8 +27,6 @@ pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> [u8; 32] {
     out
 }
 
-/// Compute HMAC-SHA-256 of `value` under `pepper` and return its
-/// lowercase-hex representation, suitable for storage in a varchar column.
 pub fn hmac_sha256_hex(pepper: &[u8], value: &[u8]) -> String {
     hex::encode(hmac_sha256(pepper, value))
 }
