@@ -2,7 +2,8 @@
 //!
 //! JWT and cloud claim shapes, the [`AuthenticatedUser`] request
 //! identity, [`Permission`] parsing, base role definitions, and the
-//! OAuth/PKCE enums (`GrantType`, `ResponseType`, `PkceMethod`).
+//! OAuth/PKCE enums (`ResponseType`, `PkceMethod`). `GrantType` lives
+//! in `systemprompt_oauth` since it carries RFC 8693 token-exchange.
 //! Public functions return [`AuthError`].
 
 pub mod claims;
@@ -17,4 +18,4 @@ pub use cloud_claims::CloudAuthClaims;
 pub use enums::*;
 pub use permission::{Permission, parse_permissions, permissions_to_string};
 pub use roles::{BaseRole, BaseRoles};
-pub use types::{AuthError, AuthenticatedUser, BEARER_PREFIX, GrantType, PkceMethod, ResponseType};
+pub use types::{AuthError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType};

@@ -1,7 +1,9 @@
 //! Strongly-typed OAuth request parameter validation.
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::{AuthError, GrantType, ResponseType};
+use systemprompt_models::AuthError;
+
+use crate::models::{GrantType, ResponseType};
 
 #[derive(Debug)]
 pub struct CsrfToken(String);
