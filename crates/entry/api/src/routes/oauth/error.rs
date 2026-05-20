@@ -30,6 +30,7 @@ pub enum OAuthErrorCode {
     UnauthorizedClient,
     UnsupportedGrantType,
     InvalidScope,
+    InvalidToken,
     AccessDenied,
     ServerError,
     TemporarilyUnavailable,
@@ -53,6 +54,7 @@ impl OAuthErrorCode {
             Self::UnauthorizedClient => "unauthorized_client",
             Self::UnsupportedGrantType => "unsupported_grant_type",
             Self::InvalidScope => "invalid_scope",
+            Self::InvalidToken => "invalid_token",
             Self::AccessDenied => "access_denied",
             Self::ServerError => "server_error",
             Self::TemporarilyUnavailable => "temporarily_unavailable",
@@ -81,7 +83,8 @@ impl OAuthErrorCode {
             | Self::InvalidGrant
             | Self::UnauthorizedClient
             | Self::AccessDenied
-            | Self::AuthenticationFailed => StatusCode::UNAUTHORIZED,
+            | Self::AuthenticationFailed
+            | Self::InvalidToken => StatusCode::UNAUTHORIZED,
             Self::UsernameUnavailable | Self::EmailExists => StatusCode::CONFLICT,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
@@ -144,6 +147,11 @@ impl OAuthHttpError {
     #[must_use]
     pub fn invalid_scope(description: impl Into<String>) -> Self {
         Self::new(OAuthErrorCode::InvalidScope, description)
+    }
+
+    #[must_use]
+    pub fn invalid_token(description: impl Into<String>) -> Self {
+        Self::new(OAuthErrorCode::InvalidToken, description)
     }
 
     #[must_use]

@@ -11,6 +11,8 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
+use crate::routes::oauth::OAuthHttpError;
+
 #[derive(Debug, Serialize)]
 pub struct AnonymousTokenResponse {
     pub access_token: String,
@@ -20,12 +22,6 @@ pub struct AnonymousTokenResponse {
     pub user_id: UserId,
     pub client_id: ClientId,
     pub client_type: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AnonymousError {
-    pub error: String,
-    pub error_description: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,17 +36,6 @@ pub struct AnonymousTokenRequest {
 
 fn default_client_id() -> ClientId {
     ClientId::new("sp_web")
-}
-
-fn server_error(description: String) -> Response {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(AnonymousError {
-            error: "server_error".to_string(),
-            error_description: description,
-        }),
-    )
-        .into_response()
 }
 
 fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64) -> Response {
@@ -72,11 +57,11 @@ async fn issue_anonymous_session(
     headers: &HeaderMap,
     client_type: String,
     expires_in: i64,
-) -> Response {
+) -> Result<Response, OAuthHttpError> {
     let client_id = req.client_id.clone();
     let session_source = SessionSource::from_client_id(&req.client_id);
 
-    match session_service
+    let session_info = session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
             headers,
             uri: None,
@@ -84,22 +69,19 @@ async fn issue_anonymous_session(
             session_source,
         })
         .await
-    {
-        Ok(session_info) => {
-            let jwt_token = session_info.jwt_token;
-            let body = AnonymousTokenResponse {
-                access_token: jwt_token.clone(),
-                token_type: TokenType::Bearer.to_string(),
-                expires_in,
-                session_id: session_info.session_id,
-                user_id: session_info.user_id,
-                client_id,
-                client_type,
-            };
-            token_response(body, &jwt_token, expires_in)
-        },
-        Err(e) => server_error(format!("Failed to create session: {e}")),
-    }
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to create session: {e}")))?;
+
+    let jwt_token = session_info.jwt_token;
+    let body = AnonymousTokenResponse {
+        access_token: jwt_token.clone(),
+        token_type: TokenType::Bearer.to_string(),
+        expires_in,
+        session_id: session_info.session_id,
+        user_id: session_info.user_id,
+        client_id,
+        client_type,
+    };
+    Ok(token_response(body, &jwt_token, expires_in))
 }
 
 fn build_session_service(state: &OAuthState) -> SessionCreationService {
@@ -120,31 +102,18 @@ pub async fn generate_anonymous_token(
     State(state): State<OAuthState>,
     headers: HeaderMap,
     Json(req): Json<AnonymousTokenRequest>,
-) -> impl IntoResponse {
+) -> Result<Response, OAuthHttpError> {
     let expires_in = systemprompt_oauth::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
     let client_id = req.client_id.clone();
 
-    let validator = match ClientValidator::new(state.db_pool()) {
-        Ok(v) => v,
-        Err(e) => return server_error(format!("Failed to create client validator: {e}")),
-    };
+    let validator = ClientValidator::new(state.db_pool()).map_err(|e| {
+        OAuthHttpError::server_error(format!("Failed to create client validator: {e}"))
+    })?;
 
-    let validation = match validator
+    let validation = validator
         .validate_client(&client_id, req.redirect_uri.as_deref())
         .await
-    {
-        Ok(v) => v,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(AnonymousError {
-                    error: "invalid_client".to_string(),
-                    error_description: format!("Client validation failed: {e}"),
-                }),
-            )
-                .into_response();
-        },
-    };
+        .map_err(|e| OAuthHttpError::invalid_client(format!("Client validation failed: {e}")))?;
     let client_type = validation.client_type();
 
     let session_service = build_session_service(&state);
