@@ -283,7 +283,6 @@ fn test_create_anonymous_session_input_debug() {
         headers: &headers,
         uri: None,
         client_id: &client_id,
-        jwt_secret: "test_secret",
         session_source: SessionSource::Web,
     };
     let debug_output = format!("{:?}", input);

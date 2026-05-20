@@ -20,6 +20,7 @@ systemprompt-bridge = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
 jsonwebtoken = { workspace = true }
+rsa = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_jcs = "0.1"

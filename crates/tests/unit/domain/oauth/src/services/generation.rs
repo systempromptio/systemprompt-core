@@ -271,7 +271,6 @@ use systemprompt_oauth::services::{
 
 fn test_signing_params() -> JwtSigningParams<'static> {
     JwtSigningParams {
-        secret: "test-secret-key-for-unit-tests-only",
         issuer: "test-issuer",
     }
 }
