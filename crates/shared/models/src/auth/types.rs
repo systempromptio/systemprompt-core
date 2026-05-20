@@ -186,38 +186,6 @@ impl std::fmt::Display for PkceMethod {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GrantType {
-    AuthorizationCode,
-    RefreshToken,
-    ClientCredentials,
-}
-
-impl std::str::FromStr for GrantType {
-    type Err = AuthError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "authorization_code" => Ok(Self::AuthorizationCode),
-            "refresh_token" => Ok(Self::RefreshToken),
-            "client_credentials" => Ok(Self::ClientCredentials),
-            _ => Err(AuthError::InvalidRequest {
-                reason: format!("Unknown grant type: {s}"),
-            }),
-        }
-    }
-}
-
-impl std::fmt::Display for GrantType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::AuthorizationCode => write!(f, "authorization_code"),
-            Self::RefreshToken => write!(f, "refresh_token"),
-            Self::ClientCredentials => write!(f, "client_credentials"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResponseType {
     Code,
     Token,

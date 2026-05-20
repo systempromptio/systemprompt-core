@@ -131,8 +131,7 @@ pub use artifacts::{
 };
 pub use audit::{Actor, ActorKind};
 pub use auth::{
-    AuthError, AuthenticatedUser, BEARER_PREFIX, BaseRole, BaseRoles, GrantType, PkceMethod,
-    ResponseType,
+    AuthError, AuthenticatedUser, BEARER_PREFIX, BaseRole, BaseRoles, PkceMethod, ResponseType,
 };
 pub use config::{Config, PathNotConfiguredError};
 pub use content::{ContentLink, IngestionReport};
