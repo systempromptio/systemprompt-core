@@ -28,6 +28,7 @@ use tracing::{debug, error};
 use super::repository::EventOutboxRepository;
 use super::{A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster};
 use crate::Broadcaster;
+use systemprompt_models::audit::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
 /// Postgres `LISTEN`/`NOTIFY` channel used for the cross-replica relay.
@@ -104,7 +105,8 @@ impl EventRouter {
             },
         };
         let id = EventOutboxId::generate();
-        if let Err(e) = repo.insert(&id, channel, user_id, &payload).await {
+        let actor = Actor::user(user_id.clone());
+        if let Err(e) = repo.insert(&id, channel, &actor, &payload).await {
             error!(error = %e, channel = channel.as_str(), "failed to persist outbox row");
             return;
         }
