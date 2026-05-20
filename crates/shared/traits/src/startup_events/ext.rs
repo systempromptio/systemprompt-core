@@ -23,15 +23,30 @@ pub trait StartupEventExt {
     fn mcp_health_check(&self, name: impl Into<String>, attempt: u8, max: u8);
     fn mcp_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration, tools: usize);
     fn mcp_failed(&self, name: impl Into<String>, error: impl Into<String>);
+    fn mcp_service_cleanup(&self, name: impl Into<String>, reason: impl Into<String>);
+    fn mcp_reconciliation_complete(&self, running: usize, required: usize);
 
     fn agent_starting(&self, name: impl Into<String>, port: u16);
     fn agent_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration);
     fn agent_failed(&self, name: impl Into<String>, error: impl Into<String>);
+    fn agent_cleanup(&self, name: impl Into<String>, reason: impl Into<String>);
 
     fn server_listening(&self, address: impl Into<String>, pid: u32);
 
+    fn scheduler_initializing(&self);
+    fn scheduler_ready(&self, job_count: usize);
+    fn bootstrap_job_started(&self, name: impl Into<String>);
+    fn bootstrap_job_completed(
+        &self,
+        name: impl Into<String>,
+        success: bool,
+        message: Option<String>,
+    );
+
     fn warning(&self, message: impl Into<String>);
+    fn warning_with_context(&self, message: impl Into<String>, context: impl Into<String>);
     fn info(&self, message: impl Into<String>);
+    fn error(&self, message: impl Into<String>, fatal: bool);
 
     fn startup_complete(
         &self,
@@ -146,6 +161,64 @@ impl StartupEventExt for StartupEventSender {
         );
     }
 
+    fn agent_cleanup(&self, name: impl Into<String>, reason: impl Into<String>) {
+        emit(
+            self,
+            StartupEvent::AgentCleanup {
+                name: name.into(),
+                reason: reason.into(),
+            },
+        );
+    }
+
+    fn mcp_service_cleanup(&self, name: impl Into<String>, reason: impl Into<String>) {
+        emit(
+            self,
+            StartupEvent::McpServiceCleanup {
+                name: name.into(),
+                reason: reason.into(),
+            },
+        );
+    }
+
+    fn mcp_reconciliation_complete(&self, running: usize, required: usize) {
+        emit(
+            self,
+            StartupEvent::McpReconciliationComplete { running, required },
+        );
+    }
+
+    fn scheduler_initializing(&self) {
+        emit(self, StartupEvent::SchedulerInitializing);
+    }
+
+    fn scheduler_ready(&self, job_count: usize) {
+        emit(self, StartupEvent::SchedulerReady { job_count });
+    }
+
+    fn bootstrap_job_started(&self, name: impl Into<String>) {
+        emit(
+            self,
+            StartupEvent::BootstrapJobStarted { name: name.into() },
+        );
+    }
+
+    fn bootstrap_job_completed(
+        &self,
+        name: impl Into<String>,
+        success: bool,
+        message: Option<String>,
+    ) {
+        emit(
+            self,
+            StartupEvent::BootstrapJobCompleted {
+                name: name.into(),
+                success,
+                message,
+            },
+        );
+    }
+
     fn server_listening(&self, address: impl Into<String>, pid: u32) {
         emit(
             self,
@@ -166,11 +239,31 @@ impl StartupEventExt for StartupEventSender {
         );
     }
 
+    fn warning_with_context(&self, message: impl Into<String>, context: impl Into<String>) {
+        emit(
+            self,
+            StartupEvent::Warning {
+                message: message.into(),
+                context: Some(context.into()),
+            },
+        );
+    }
+
     fn info(&self, message: impl Into<String>) {
         emit(
             self,
             StartupEvent::Info {
                 message: message.into(),
+            },
+        );
+    }
+
+    fn error(&self, message: impl Into<String>, fatal: bool) {
+        emit(
+            self,
+            StartupEvent::Error {
+                message: message.into(),
+                fatal,
             },
         );
     }
@@ -189,24 +282,5 @@ impl StartupEventExt for StartupEventSender {
                 services,
             },
         );
-    }
-}
-
-pub trait OptionalStartupEventExt {
-    fn phase_started(&self, phase: Phase);
-    fn mcp_starting(&self, name: impl Into<String>, port: u16);
-}
-
-impl OptionalStartupEventExt for Option<&StartupEventSender> {
-    fn phase_started(&self, phase: Phase) {
-        if let Some(sender) = self {
-            sender.phase_started(phase);
-        }
-    }
-
-    fn mcp_starting(&self, name: impl Into<String>, port: u16) {
-        if let Some(sender) = self {
-            sender.mcp_starting(name, port);
-        }
     }
 }
