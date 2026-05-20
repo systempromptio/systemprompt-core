@@ -141,9 +141,6 @@ impl AiRequestRecordBuilder {
         }
     }
 
-    /// Unset means attribution to the requesting user directly
-    /// ([`Actor::user`]); job- or MCP-originated AI requests must call this
-    /// or the audit row will mis-attribute to the user.
     #[must_use]
     pub fn actor(mut self, actor: Actor) -> Self {
         self.actor = Some(actor);
