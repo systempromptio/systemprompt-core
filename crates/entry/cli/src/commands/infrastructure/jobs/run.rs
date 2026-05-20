@@ -133,11 +133,50 @@ async fn run_single_job(
     }
 
     let db_pool = Arc::clone(ctx.db_pool());
+    let users = match systemprompt_users::UserRepository::new(&db_pool) {
+        Ok(users) => users,
+        Err(e) => {
+            return JobRunOutput {
+                job_name: job_name.to_string(),
+                status: "failed".to_string(),
+                duration_ms: start.elapsed().as_millis() as u64,
+                result: JobRunResult {
+                    success: false,
+                    message: Some(format!("failed to open users repository: {e}")),
+                    items_processed: None,
+                    items_failed: None,
+                },
+            };
+        },
+    };
+    let actor = match users
+        .find_by_name(systemprompt_models::bootstrap_admin_owner().as_str())
+        .await
+    {
+        Ok(Some(user)) => user.id,
+        Ok(None) | Err(_) => {
+            return JobRunOutput {
+                job_name: job_name.to_string(),
+                status: "failed".to_string(),
+                duration_ms: start.elapsed().as_millis() as u64,
+                result: JobRunResult {
+                    success: false,
+                    message: Some(
+                        "bootstrap admin owner does not resolve to a user; \
+                         seed an `admin` user before running ad-hoc jobs"
+                            .to_string(),
+                    ),
+                    items_processed: None,
+                    items_failed: None,
+                },
+            };
+        },
+    };
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
     let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
         Arc::new(Arc::clone(ctx.app_paths_arc()));
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(&ctx));
-    let job_ctx = JobContext::new(db_pool_any, app_context_any, app_paths_any)
+    let job_ctx = JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
         .with_parameters(parameters.clone());
 
     let execute_result = if let Some(job) = ext_job {
