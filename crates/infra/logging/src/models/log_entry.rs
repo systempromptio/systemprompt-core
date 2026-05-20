@@ -1,8 +1,49 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::LogId;
+use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
 
 use super::{LogLevel, LoggingError};
+
+/// Mandatory attribution for every log row: who did the work, in which
+/// session, on which trace. Bundled so every `LogEntry::new` call carries
+/// the full triple instead of relying on hidden defaults.
+// Why allow `struct_field_names`: the `_id` suffix is load-bearing here —
+// it pairs each field with its typed identifier and matches the LogEntry
+// field names so the constructor reads `entry.user_id = actor.user_id`.
+#[allow(clippy::struct_field_names)]
+#[derive(Debug, Clone)]
+pub struct LogActor {
+    pub user_id: UserId,
+    pub session_id: SessionId,
+    pub trace_id: TraceId,
+}
+
+impl LogActor {
+    #[must_use]
+    pub const fn new(user_id: UserId, session_id: SessionId, trace_id: TraceId) -> Self {
+        Self {
+            user_id,
+            session_id,
+            trace_id,
+        }
+    }
+
+    /// Why this is the only sanctioned `UserId::admin()` call site in the
+    /// logging layer: per the security policy every log row must resolve
+    /// to a real user, even when that user is the platform owner. Platform
+    /// telemetry (gateway access logs, OTLP ingest) has no human
+    /// originator, so it declares the platform owner explicitly at the
+    /// call site through this constructor rather than hiding behind a
+    /// Default.
+    #[must_use]
+    pub fn platform(trace_id: TraceId) -> Self {
+        Self {
+            user_id: UserId::admin(),
+            session_id: SessionId::system(),
+            trace_id,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEntry {
@@ -12,10 +53,10 @@ pub struct LogEntry {
     pub module: String,
     pub message: String,
     pub metadata: Option<serde_json::Value>,
-    pub user_id: systemprompt_identifiers::UserId,
-    pub session_id: systemprompt_identifiers::SessionId,
+    pub user_id: UserId,
+    pub session_id: SessionId,
     pub task_id: Option<systemprompt_identifiers::TaskId>,
-    pub trace_id: systemprompt_identifiers::TraceId,
+    pub trace_id: TraceId,
     pub context_id: Option<systemprompt_identifiers::ContextId>,
     pub client_id: Option<systemprompt_identifiers::ClientId>,
 }
@@ -25,9 +66,7 @@ impl LogEntry {
         level: LogLevel,
         module: impl Into<String>,
         message: impl Into<String>,
-        user_id: systemprompt_identifiers::UserId,
-        session_id: systemprompt_identifiers::SessionId,
-        trace_id: systemprompt_identifiers::TraceId,
+        actor: LogActor,
     ) -> Self {
         Self {
             id: LogId::generate(),
@@ -36,41 +75,13 @@ impl LogEntry {
             module: module.into(),
             message: message.into(),
             metadata: None,
-            user_id,
-            session_id,
+            user_id: actor.user_id,
+            session_id: actor.session_id,
             task_id: None,
-            trace_id,
+            trace_id: actor.trace_id,
             context_id: None,
             client_id: None,
         }
-    }
-
-    /// Constructor for platform-attributed log rows that have no human
-    /// originator — external telemetry ingest (OTLP), gateway access logs
-    /// emitted by middleware before any request context is bound, and
-    /// similar platform-internal events.
-    ///
-    /// Why this is the only sanctioned `UserId::admin()` call site in the
-    /// logging layer: per the security policy every log row must resolve to
-    /// a real user, even when that user is the platform owner. Routing
-    /// these events through a named constructor makes the platform
-    /// attribution explicit at the call site instead of hiding behind a
-    /// Default.
-    #[must_use]
-    pub fn platform_event(
-        level: LogLevel,
-        module: impl Into<String>,
-        message: impl Into<String>,
-        trace_id: systemprompt_identifiers::TraceId,
-    ) -> Self {
-        Self::new(
-            level,
-            module,
-            message,
-            systemprompt_identifiers::UserId::admin(),
-            systemprompt_identifiers::SessionId::system(),
-            trace_id,
-        )
     }
 
     #[must_use]

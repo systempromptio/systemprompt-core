@@ -13,7 +13,7 @@ use prost::Message;
 use serde_json::{Value, json};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::TraceId;
-use systemprompt_logging::{LogEntry, LogLevel, LoggingRepository};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
@@ -123,7 +123,7 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
                 } else {
                     TraceId::new(trace_hex)
                 };
-                let entry = LogEntry::platform_event(
+                let entry = LogEntry::new(
                     level,
                     MODULE,
                     if span.name.is_empty() {
@@ -131,7 +131,7 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
                     } else {
                         span.name.clone()
                     },
-                    trace_id,
+                    LogActor::platform(trace_id),
                 )
                 .with_metadata(metadata);
                 if let Err(e) = repo.log(entry).await {
@@ -186,7 +186,7 @@ async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
                 } else {
                     TraceId::new(trace_hex)
                 };
-                let entry = LogEntry::platform_event(level, MODULE, message, trace_id)
+                let entry = LogEntry::new(level, MODULE, message, LogActor::platform(trace_id))
                     .with_metadata(metadata);
                 if let Err(e) = repo.log(entry).await {
                     tracing::warn!(error = %e, "otel: log persist failed");

@@ -1,7 +1,7 @@
 //! Unit tests for LogEntry struct
 
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
-use systemprompt_logging::{LogEntry, LogLevel};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel};
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn fixture_session_id() -> SessionId {
@@ -17,9 +17,7 @@ fn make_entry(level: LogLevel, module: &str, message: &str) -> LogEntry {
         level,
         module,
         message,
-        fixture_user_id(),
-        fixture_session_id(),
-        fixture_trace_id(),
+        LogActor::new(fixture_user_id(), fixture_session_id(), fixture_trace_id()),
     )
 }
 
@@ -253,11 +251,11 @@ fn test_log_entry_roundtrip() {
 
 #[test]
 fn test_log_entry_platform_event_attributes_to_platform_owner() {
-    let entry = LogEntry::platform_event(
+    let entry = LogEntry::new(
         LogLevel::Info,
         "module",
         "platform-internal event",
-        TraceId::new("trace-platform"),
+        LogActor::platform(TraceId::new("trace-platform")),
     );
 
     assert_eq!(entry.user_id, UserId::admin());

@@ -4,7 +4,7 @@ mod log_filter;
 mod log_level;
 mod log_row;
 
-pub use log_entry::LogEntry;
+pub use log_entry::{LogActor, LogEntry};
 pub use log_error::LoggingError;
 pub use log_filter::LogFilter;
 pub use log_level::LogLevel;

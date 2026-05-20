@@ -32,7 +32,7 @@ pub mod trace;
 pub use extension::LoggingExtension;
 
 pub use layer::DatabaseLayer;
-pub use models::{LogEntry, LogFilter, LogLevel};
+pub use models::{LogActor, LogEntry, LogFilter, LogLevel};
 pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
 #[cfg(feature = "cli")]
 pub use services::CliService;
