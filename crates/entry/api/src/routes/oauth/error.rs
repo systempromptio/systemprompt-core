@@ -73,10 +73,18 @@ impl OAuthErrorCode {
         }
     }
 
+    /// HTTP status per RFC 6749 §5.2: token-endpoint errors return 400 except
+    /// `invalid_client`, which "MAY use the HTTP 401 (Unauthorized) status code
+    /// to indicate which HTTP authentication schemes are supported" — we do.
+    /// `access_denied`, `invalid_token`, `authentication_failed` retain 401
+    /// because they signal that the *caller* (not the request) was rejected
+    /// (RFC 6750 §3.1).
     #[must_use]
     pub const fn default_status(self) -> StatusCode {
         match self {
             Self::InvalidRequest
+            | Self::InvalidGrant
+            | Self::UnauthorizedClient
             | Self::UnsupportedGrantType
             | Self::InvalidScope
             | Self::InvalidClientMetadata
@@ -86,8 +94,6 @@ impl OAuthErrorCode {
             | Self::InvalidTarget
             | Self::RegistrationFailed => StatusCode::BAD_REQUEST,
             Self::InvalidClient
-            | Self::InvalidGrant
-            | Self::UnauthorizedClient
             | Self::AccessDenied
             | Self::AuthenticationFailed
             | Self::InvalidToken => StatusCode::UNAUTHORIZED,
