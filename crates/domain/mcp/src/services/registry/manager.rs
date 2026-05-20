@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
-use systemprompt_identifiers::UserId;
 use systemprompt_loader::ExtensionRegistry;
 use systemprompt_models::Config;
 use systemprompt_models::mcp::McpServerType;
+use systemprompt_models::services::SystemAdmin;
 
 use crate::error::McpDomainResult;
 use crate::services::deployment::DeploymentService;
@@ -48,10 +48,10 @@ impl RegistryService {
             let config = crate::McpServerConfig {
                 name: server_name.clone(),
                 // Why: platform-loaded MCP server configs come from the deployment YAML, not
-                // a user action. Attributing them to the bootstrap admin row makes
-                // tool-call traces resolve to a real actor (the platform owner until
-                // delegated) instead of synthesising a fake principal mid-pipeline.
-                owner: UserId::admin(),
+                // a user action. Attributing them to the resolved system-admin row makes
+                // tool-call traces resolve to a real actor instead of synthesising a fake
+                // principal mid-pipeline.
+                owner: SystemAdmin::current_id()?.clone(),
                 server_type: deployment.server_type,
                 binary: deployment.binary.clone(),
                 enabled: deployment.enabled,

@@ -1,7 +1,7 @@
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
 use systemprompt_cloud::cli_session::{
-    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionKey, SessionStore,
+    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
@@ -19,9 +19,11 @@ fn test_builder(profile: &str) -> CliSessionBuilder {
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
         ContextId::new(TEST_CONTEXT_ID_A),
-        fixture_user_id(),
-        Email::new("test@example.com"),
-        UserType::User,
+        SessionIdentity::new(
+            fixture_user_id(),
+            Email::new("test@example.com"),
+            UserType::User,
+        ),
     )
 }
 
@@ -132,9 +134,11 @@ fn get_valid_session_returns_none_for_empty_token() {
         SessionToken::new(""),
         SessionId::new("sid"),
         ContextId::new(TEST_CONTEXT_ID_A),
-        fixture_user_id(),
-        Email::new("test@example.com"),
-        UserType::User,
+        SessionIdentity::new(
+            fixture_user_id(),
+            Email::new("test@example.com"),
+            UserType::User,
+        ),
     )
     .build();
     store.upsert_session(&key, session);
@@ -500,9 +504,11 @@ fn serde_roundtrip_preserves_all_fields() {
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
         ContextId::new(TEST_CONTEXT_ID_A),
-        fixture_user_id(),
-        Email::new("serde@test.com"),
-        UserType::User,
+        SessionIdentity::new(
+            fixture_user_id(),
+            Email::new("serde@test.com"),
+            UserType::User,
+        ),
     )
     .with_tenant_key(TenantId::new("serde-test"))
     .with_profile_path("/serde/path.yaml")

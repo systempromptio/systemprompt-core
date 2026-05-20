@@ -11,10 +11,6 @@ impl UserId {
         Self("system".to_string())
     }
 
-    pub fn admin() -> Self {
-        Self("admin".to_string())
-    }
-
     pub fn bootstrap(value: &'static str) -> Self {
         Self(value.to_string())
     }

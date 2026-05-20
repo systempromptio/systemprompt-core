@@ -12,12 +12,16 @@ pub async fn initialize_scheduler(
 ) -> Result<()> {
     events.scheduler_initializing();
 
+    let admin = ctx.system_admin();
     let config = ConfigLoader::load().map_or_else(
         |e| {
             tracing::warn!(error = %e, "Failed to load scheduler config, using defaults");
-            SchedulerConfig::default()
+            SchedulerConfig::with_system_admin(admin)
         },
-        |c| c.scheduler.unwrap_or_default(),
+        |c| {
+            c.scheduler
+                .unwrap_or_else(|| SchedulerConfig::with_system_admin(admin))
+        },
     );
 
     let scheduler =

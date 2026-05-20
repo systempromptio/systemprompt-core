@@ -57,20 +57,27 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
         } else {
             LogLevel::Info
         };
-        let entry = LogEntry::new(
-            level,
-            "systemprompt_api::gateway",
-            format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
-            LogActor::platform(systemprompt_identifiers::TraceId::system()),
-        )
-        .with_metadata(metadata);
-        if let Err(e) = repo
-            .with_database(true)
-            .with_terminal(false)
-            .log(entry)
-            .await
-        {
-            tracing::warn!(error = %e, "gateway access log persist failed");
+        match LogActor::platform(systemprompt_identifiers::TraceId::system()) {
+            Ok(actor) => {
+                let entry = LogEntry::new(
+                    level,
+                    "systemprompt_api::gateway",
+                    format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
+                    actor,
+                )
+                .with_metadata(metadata);
+                if let Err(e) = repo
+                    .with_database(true)
+                    .with_terminal(false)
+                    .log(entry)
+                    .await
+                {
+                    tracing::warn!(error = %e, "gateway access log persist failed");
+                }
+            },
+            Err(e) => {
+                tracing::warn!(error = %e, "gateway access log skipped: system admin not initialized");
+            },
         }
     }
 

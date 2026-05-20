@@ -20,6 +20,12 @@ pub enum ConfigValidationError {
 
     #[error("{0}")]
     BusinessRule(String),
+
+    #[error(
+        "Profile is missing required `system_admin.username`. Set it explicitly or supply the \
+         `SYSTEMPROMPT_SYSTEM_ADMIN` environment variable."
+    )]
+    MissingSystemAdmin,
 }
 
 impl ConfigValidationError {

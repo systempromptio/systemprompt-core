@@ -127,6 +127,8 @@ pub struct Profile {
 
     pub rate_limits: RateLimitsConfig,
 
+    pub system_admin: crate::services::SystemAdminConfig,
+
     #[serde(default)]
     pub runtime: RuntimeConfig,
 

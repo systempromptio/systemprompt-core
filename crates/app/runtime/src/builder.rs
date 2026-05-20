@@ -11,10 +11,12 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
+use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, AppContextParts};
+use crate::context_loaders;
 use crate::error::{RuntimeError, RuntimeResult};
 use crate::registry::ModuleApiRegistry;
 
@@ -156,6 +158,9 @@ impl AppContextBuilder {
             },
         };
 
+        let system_admin =
+            Arc::new(resolve_and_install_system_admin(&config, user_service.as_ref()).await?);
+
         let marketplace_filter = self
             .marketplace_filter
             .unwrap_or_else(|| build_marketplace_filter(&database));
@@ -176,7 +181,34 @@ impl AppContextBuilder {
             app_paths,
             marketplace_filter,
             event_bridge,
+            system_admin,
         }))
+    }
+}
+
+async fn resolve_and_install_system_admin(
+    config: &Config,
+    user_service: Option<&Arc<UserService>>,
+) -> RuntimeResult<SystemAdmin> {
+    let users = user_service.ok_or_else(|| {
+        RuntimeError::Internal("UserService unavailable for system admin resolution".to_string())
+    })?;
+    let cfg = SystemAdminConfig {
+        username: config.system_admin_username.clone(),
+    };
+    let resolved = context_loaders::resolve_system_admin(&cfg, users.as_ref()).await?;
+    match SystemAdmin::install(resolved.clone()) {
+        Ok(()) => Ok(resolved),
+        Err(_) => {
+            // Why: the process-wide OnceLock is already populated (typically by
+            // a prior AppContext::new() in the same process — e.g. a CLI
+            // command that built one context, returned, and the next command
+            // built another). Reuse the installed handle rather than failing,
+            // since the resolved identity is per-process.
+            SystemAdmin::current()
+                .cloned()
+                .map_err(|_| RuntimeError::SystemAdminAlreadyInstalled)
+        },
     }
 }
 

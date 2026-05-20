@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
+use systemprompt_models::services::{SystemAdmin, SystemAdminNotInitialized};
 
 use super::{LogLevel, LoggingError};
 
@@ -28,20 +29,17 @@ impl LogActor {
         }
     }
 
-    /// Why this is the only sanctioned `UserId::admin()` call site in the
-    /// logging layer: per the security policy every log row must resolve
-    /// to a real user, even when that user is the platform owner. Platform
-    /// telemetry (gateway access logs, OTLP ingest) has no human
-    /// originator, so it declares the platform owner explicitly at the
-    /// call site through this constructor rather than hiding behind a
-    /// Default.
-    #[must_use]
-    pub fn platform(trace_id: TraceId) -> Self {
-        Self {
-            user_id: UserId::admin(),
+    /// Platform telemetry (gateway access logs, OTLP ingest) has no human
+    /// originator, so it declares the resolved system-admin owner. Fails
+    /// when called before `SystemAdmin::install` has run (during very
+    /// early bootstrap); callers must propagate that error rather than
+    /// fabricating a sentinel.
+    pub fn platform(trace_id: TraceId) -> Result<Self, SystemAdminNotInitialized> {
+        Ok(Self {
+            user_id: SystemAdmin::current_id()?.clone(),
             session_id: SessionId::system(),
             trace_id,
-        }
+        })
     }
 }
 

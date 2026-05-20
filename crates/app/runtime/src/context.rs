@@ -12,6 +12,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReade
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_users::UserService;
 
@@ -35,6 +36,7 @@ pub struct AppContext {
     pub(crate) app_paths: Arc<AppPaths>,
     pub(crate) marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub(crate) event_bridge: Arc<OnceLock<JoinHandle<()>>>,
+    pub(crate) system_admin: Arc<SystemAdmin>,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -53,6 +55,7 @@ impl std::fmt::Debug for AppContext {
             .field("app_paths", &"AppPaths")
             .field("marketplace_filter", &self.marketplace_filter)
             .field("event_bridge", &self.event_bridge.get().is_some())
+            .field("system_admin", &self.system_admin.username())
             .finish()
     }
 }
@@ -72,6 +75,7 @@ pub struct AppContextParts {
     pub app_paths: Arc<AppPaths>,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
+    pub system_admin: Arc<SystemAdmin>,
 }
 
 impl AppContext {
@@ -99,6 +103,7 @@ impl AppContext {
             app_paths: parts.app_paths,
             marketplace_filter: parts.marketplace_filter,
             event_bridge: parts.event_bridge,
+            system_admin: parts.system_admin,
         }
     }
 
@@ -173,5 +178,9 @@ impl AppContext {
 
     pub const fn event_bridge(&self) -> &Arc<OnceLock<JoinHandle<()>>> {
         &self.event_bridge
+    }
+
+    pub fn system_admin(&self) -> &SystemAdmin {
+        &self.system_admin
     }
 }

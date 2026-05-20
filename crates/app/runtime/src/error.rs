@@ -51,6 +51,27 @@ pub enum RuntimeError {
     #[error(transparent)]
     Loader(#[from] LoaderError),
 
+    #[error(
+        "Configured system admin '{username}' was not found in the users table. Run `systemprompt \
+         admin bootstrap` first."
+    )]
+    SystemAdminNotFound { username: String },
+
+    #[error(
+        "Configured system admin '{username}' exists but is not active. Re-activate the user \
+         before starting the platform."
+    )]
+    SystemAdminInactive { username: String },
+
+    #[error(
+        "Configured system admin '{username}' exists but does not carry the 'admin' role. Grant \
+         the role before starting the platform."
+    )]
+    SystemAdminMissingRole { username: String },
+
+    #[error("System admin already installed; runtime resolves the admin exactly once")]
+    SystemAdminAlreadyInstalled,
+
     #[error("DATABASE_URL is empty")]
     EmptyDatabaseUrl,
 

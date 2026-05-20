@@ -115,6 +115,7 @@ fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
 
 fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Config> {
     let secrets = SecretsBootstrap::get()?;
+    let system_admin_username = resolve_system_admin_username(profile)?;
 
     Ok(Config {
         instance_id: profile
@@ -166,7 +167,23 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         content_negotiation: profile.server.content_negotiation.clone(),
         security_headers: profile.server.security_headers.clone(),
         allow_registration: profile.security.allow_registration,
+        system_admin_username,
     })
+}
+
+fn resolve_system_admin_username(profile: &Profile) -> ConfigResult<String> {
+    let env_override = std::env::var("SYSTEMPROMPT_SYSTEM_ADMIN")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(name) = env_override {
+        return Ok(name);
+    }
+    let profile_value = profile.system_admin.username.trim();
+    if profile_value.is_empty() {
+        return Err(ConfigError::MissingSystemAdmin);
+    }
+    Ok(profile_value.to_string())
 }
 
 fn resolve_signing_key_path(profile_path: &Path, system_path: &str) -> PathBuf {

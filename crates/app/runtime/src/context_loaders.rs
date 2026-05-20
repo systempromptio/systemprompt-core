@@ -10,7 +10,12 @@
 use std::sync::Arc;
 
 use systemprompt_logging::CliService;
+use systemprompt_models::auth::UserRole;
+use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw};
+use systemprompt_users::UserService;
+
+use crate::error::{RuntimeError, RuntimeResult};
 
 #[cfg(feature = "geolocation")]
 use systemprompt_analytics::GeoIpReader;
@@ -55,6 +60,29 @@ pub fn load_geoip_database(
     _show_warnings: bool,
 ) -> Option<systemprompt_analytics::GeoIpReader> {
     None
+}
+
+pub async fn resolve_system_admin(
+    cfg: &SystemAdminConfig,
+    users: &UserService,
+) -> RuntimeResult<SystemAdmin> {
+    let user = users.find_by_name(&cfg.username).await?.ok_or_else(|| {
+        RuntimeError::SystemAdminNotFound {
+            username: cfg.username.clone(),
+        }
+    })?;
+    if !user.is_active() {
+        return Err(RuntimeError::SystemAdminInactive {
+            username: cfg.username.clone(),
+        });
+    }
+    let admin_role = UserRole::Admin.as_str();
+    if !user.roles.iter().any(|r| r == admin_role) {
+        return Err(RuntimeError::SystemAdminMissingRole {
+            username: cfg.username.clone(),
+        });
+    }
+    Ok(SystemAdmin::new(user.id, user.name))
 }
 
 pub fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {

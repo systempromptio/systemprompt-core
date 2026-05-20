@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_models::profile::{expand_home, resolve_path, resolve_with_home};
+use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileStyle, ProfileType,
@@ -71,6 +72,9 @@ fn make_profile(name: &str) -> Profile {
         extensions: ExtensionsConfig::default(),
         gateway: None,
         governance: None,
+        system_admin: SystemAdminConfig {
+            username: "admin".to_string(),
+        },
     }
 }
 
