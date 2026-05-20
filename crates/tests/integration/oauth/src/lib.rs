@@ -27,7 +27,21 @@ pub async fn setup_test_db() -> DbPool {
         .await
         .expect("Failed to connect to test database");
 
-    Arc::new(db)
+    let db = Arc::new(db);
+    seed_fixture_user(&db).await;
+    db
+}
+
+async fn seed_fixture_user(db: &DbPool) {
+    let pool = db.pool_arc().expect("read pool");
+    sqlx::query(
+        "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT (id) DO NOTHING",
+    )
+    .bind(systemprompt_test_fixtures::fixture_user_id().as_str())
+    .bind("test-user@example.invalid")
+    .execute(pool.as_ref())
+    .await
+    .expect("seed fixture user");
 }
 
 pub async fn create_test_user(db: &DbPool) -> UserId {

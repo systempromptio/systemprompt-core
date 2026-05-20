@@ -13,9 +13,9 @@ use systemprompt_database::Database;
 use systemprompt_users::{UpdateUserParams, UserRepository, UserRole, UserStatus};
 use systemprompt_identifiers::UserId;
 
-async fn get_db() -> Option<Database> {
+async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok()
+    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
 }
 
 #[tokio::test]
@@ -25,7 +25,7 @@ async fn create_user_with_all_fields() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -61,7 +61,7 @@ async fn create_user_without_display_name_uses_full_name() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -88,7 +88,7 @@ async fn create_anonymous_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -113,7 +113,7 @@ async fn find_by_id_returns_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -141,7 +141,7 @@ async fn find_by_id_returns_none_for_nonexistent() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
 
     let fake_id = UserId::new("nonexistent-user-id".to_string());
@@ -158,7 +158,7 @@ async fn find_by_email_returns_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -185,7 +185,7 @@ async fn find_by_email_returns_none_for_nonexistent() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
 
     let found = repo.find_by_email("nonexistent@example.com").await?;
@@ -201,7 +201,7 @@ async fn find_by_name_returns_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -228,7 +228,7 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -254,7 +254,7 @@ async fn find_first_admin_returns_admin_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
 
     let admin = repo.find_first_admin().await?;
@@ -272,7 +272,7 @@ async fn update_email_changes_email() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -300,7 +300,7 @@ async fn update_full_name_changes_name() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -326,7 +326,7 @@ async fn update_status_changes_status() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -352,7 +352,7 @@ async fn update_email_verified_sets_flag() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -378,7 +378,7 @@ async fn update_all_fields_updates_everything() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -415,7 +415,7 @@ async fn assign_roles_updates_roles() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -443,7 +443,7 @@ async fn delete_removes_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
 
     let unique_email = format!("delete_user_{}@example.com", uuid::Uuid::new_v4());
@@ -465,7 +465,7 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
 
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
@@ -483,7 +483,7 @@ async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
 
     let deleted = repo.cleanup_old_anonymous(30).await?;
@@ -499,7 +499,7 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 
@@ -527,7 +527,7 @@ async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
     let pool = db.pool_arc()?;
 

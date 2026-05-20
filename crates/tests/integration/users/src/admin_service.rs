@@ -9,9 +9,9 @@ use anyhow::Result;
 use systemprompt_database::Database;
 use systemprompt_users::{DemoteResult, PromoteResult, UserAdminService, UserService};
 
-async fn get_db() -> Option<Database> {
+async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok()
+    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
 }
 
 #[tokio::test]
@@ -21,7 +21,7 @@ async fn admin_find_user_by_email() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -48,7 +48,7 @@ async fn admin_find_user_by_name() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -75,7 +75,7 @@ async fn admin_find_user_by_uuid() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -102,7 +102,7 @@ async fn admin_find_user_returns_none_for_nonexistent() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service);
 
@@ -119,7 +119,7 @@ async fn admin_promote_user_to_admin() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -152,7 +152,7 @@ async fn admin_promote_already_admin_returns_already_admin() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -185,7 +185,7 @@ async fn admin_promote_nonexistent_returns_not_found() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service);
 
@@ -203,7 +203,7 @@ async fn admin_demote_user_from_admin() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -238,7 +238,7 @@ async fn admin_demote_non_admin_returns_not_admin() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -269,7 +269,7 @@ async fn admin_demote_nonexistent_returns_not_found() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let user_service = UserService::new(&db_pool)?;
     let admin_service = UserAdminService::new(user_service);
 

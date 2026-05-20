@@ -9,9 +9,9 @@ use anyhow::Result;
 use systemprompt_database::Database;
 use systemprompt_users::{UserRole, UserService, UserStatus};
 
-async fn get_db() -> Option<Database> {
+async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok()
+    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
 }
 
 #[tokio::test]
@@ -21,7 +21,7 @@ async fn service_create_and_find_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_create_{}@example.com", uuid::Uuid::new_v4());
@@ -63,7 +63,7 @@ async fn service_create_anonymous_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let fingerprint = format!("svc_anon_{}", uuid::Uuid::new_v4());
@@ -88,7 +88,7 @@ async fn service_list_users() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let users = service.list(10, 0).await?;
@@ -104,7 +104,7 @@ async fn service_search_users() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_search_{}@example.com", uuid::Uuid::new_v4());
@@ -129,7 +129,7 @@ async fn service_count_users() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let count = service.count().await?;
@@ -145,7 +145,7 @@ async fn service_find_by_role() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let users = service.find_by_role(UserRole::User).await?;
@@ -163,7 +163,7 @@ async fn service_update_email() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_upd_email_{}@example.com", uuid::Uuid::new_v4());
@@ -190,7 +190,7 @@ async fn service_update_status() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_upd_status_{}@example.com", uuid::Uuid::new_v4());
@@ -215,7 +215,7 @@ async fn service_assign_roles() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_roles_{}@example.com", uuid::Uuid::new_v4());
@@ -242,7 +242,7 @@ async fn service_delete_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_delete_{}@example.com", uuid::Uuid::new_v4());
@@ -268,7 +268,7 @@ async fn service_delete_anonymous_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let fingerprint = format!("svc_del_user_{}", uuid::Uuid::new_v4());
@@ -289,7 +289,7 @@ async fn service_cleanup_old_anonymous() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let deleted = service.cleanup_old_anonymous(30).await?;
@@ -305,7 +305,7 @@ async fn service_find_first_admin() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let admin = service.find_first_admin().await?;
@@ -323,7 +323,7 @@ async fn service_get_authenticated_user() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_auth_{}@example.com", uuid::Uuid::new_v4());
@@ -349,7 +349,7 @@ async fn service_is_temporary_anonymous() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let fingerprint = format!("svc_temp_anon_{}", uuid::Uuid::new_v4());
@@ -372,7 +372,7 @@ async fn service_list_sessions() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_sessions_{}@example.com", uuid::Uuid::new_v4());
@@ -396,7 +396,7 @@ async fn service_list_active_sessions() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_active_{}@example.com", uuid::Uuid::new_v4());
@@ -420,7 +420,7 @@ async fn service_list_recent_sessions() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_recent_{}@example.com", uuid::Uuid::new_v4());
@@ -444,7 +444,7 @@ async fn service_list_non_anonymous_with_sessions() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let users = service.list_non_anonymous_with_sessions(10).await?;
@@ -462,7 +462,7 @@ async fn service_get_with_sessions() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_with_sess_{}@example.com", uuid::Uuid::new_v4());
@@ -489,7 +489,7 @@ async fn service_get_activity() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_activity_{}@example.com", uuid::Uuid::new_v4());
@@ -513,7 +513,7 @@ async fn service_get_stats() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let stats = service.get_stats().await?;
@@ -531,7 +531,7 @@ async fn service_count_with_breakdown() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let breakdown = service.count_with_breakdown().await?;
@@ -547,7 +547,7 @@ async fn service_update_full_name() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_fullname_{}@example.com", uuid::Uuid::new_v4());
@@ -571,7 +571,7 @@ async fn service_update_display_name() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_dispname_{}@example.com", uuid::Uuid::new_v4());
@@ -595,7 +595,7 @@ async fn service_update_email_verified() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_verified_{}@example.com", uuid::Uuid::new_v4());
@@ -619,7 +619,7 @@ async fn service_bulk_update_status() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let user1_email = format!("svc_bulk1_{}@example.com", uuid::Uuid::new_v4());
@@ -653,7 +653,7 @@ async fn service_bulk_delete() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let user1_email = format!("svc_bulkdel1_{}@example.com", uuid::Uuid::new_v4());
@@ -683,7 +683,7 @@ async fn service_list_by_filter_with_status() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_filter_{}@example.com", uuid::Uuid::new_v4());
@@ -707,7 +707,7 @@ async fn service_list_by_filter_with_role() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let unique_email = format!("svc_filterrole_{}@example.com", uuid::Uuid::new_v4());
@@ -731,7 +731,7 @@ async fn service_merge_users() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
     let source_email = format!("svc_merge_src_{}@example.com", uuid::Uuid::new_v4());

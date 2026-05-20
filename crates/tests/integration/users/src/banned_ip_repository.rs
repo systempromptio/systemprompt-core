@@ -13,9 +13,9 @@ use systemprompt_users::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository,
 };
 
-async fn get_db() -> Option<Database> {
+async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok()
+    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
 }
 
 async fn cleanup_test_ip(repo: &BannedIpRepository, ip: &str) {
@@ -29,7 +29,7 @@ async fn repository_creation_from_db_pool() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let count = repo.count_active_bans().await?;
@@ -61,7 +61,7 @@ async fn is_banned_returns_false_for_unbanned_ip() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.255.254";
@@ -80,7 +80,7 @@ async fn is_banned_returns_true_for_banned_ip() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.1";
@@ -104,7 +104,7 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.2";
@@ -118,7 +118,7 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
     );
     repo.ban_ip(params).await?;
 
-    let ban = repo.get_ban(test_ip).await?;
+    let ban = repo.find_ban(test_ip).await?;
     let ban = ban.expect("get_ban should return the newly created ban");
     assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.reason, "Test ban creation");
@@ -138,7 +138,7 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.3";
@@ -149,7 +149,7 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
         .with_source_fingerprint(fingerprint);
     repo.ban_ip(params).await?;
 
-    let ban = repo.get_ban(test_ip).await?;
+    let ban = repo.find_ban(test_ip).await?;
     let ban = ban.expect("get_ban should return the ban with fingerprint");
     assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.source_fingerprint.as_deref(), Some(fingerprint));
@@ -166,7 +166,7 @@ async fn ban_ip_permanent() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.4";
@@ -180,7 +180,7 @@ async fn ban_ip_permanent() -> Result<()> {
     );
     repo.ban_ip(params).await?;
 
-    let ban = repo.get_ban(test_ip).await?;
+    let ban = repo.find_ban(test_ip).await?;
     let ban = ban.expect("get_ban should return the permanent ban");
     assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.reason, "Permanent ban test");
@@ -199,7 +199,7 @@ async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.5";
@@ -208,14 +208,14 @@ async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
     let params = BanIpParams::new(test_ip, "First ban", BanDuration::Hours(1), "integration_test");
     repo.ban_ip(params).await?;
 
-    let ban = repo.get_ban(test_ip).await?;
+    let ban = repo.find_ban(test_ip).await?;
     let first_count = ban.map(|b| b.ban_count).unwrap_or(0);
 
     let params =
         BanIpParams::new(test_ip, "Second ban", BanDuration::Hours(1), "integration_test");
     repo.ban_ip(params).await?;
 
-    let ban = repo.get_ban(test_ip).await?;
+    let ban = repo.find_ban(test_ip).await?;
     let second_count = ban.map(|b| b.ban_count).unwrap_or(0);
 
     assert_eq!(second_count, first_count + 1);
@@ -232,7 +232,7 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.6";
@@ -251,7 +251,7 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
 
     repo.ban_ip_with_metadata(params).await?;
 
-    let ban = repo.get_ban(test_ip).await?;
+    let ban = repo.find_ban(test_ip).await?;
     let ban = ban.expect("get_ban should return the ban with metadata");
     assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.reason, "Metadata ban test");
@@ -273,7 +273,7 @@ async fn unban_ip_removes_ban() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.7";
@@ -299,7 +299,7 @@ async fn unban_ip_returns_false_for_nonexistent() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.200.200";
@@ -318,13 +318,13 @@ async fn get_ban_returns_none_for_unbanned() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.200.201";
     cleanup_test_ip(&repo, test_ip).await;
 
-    let ban = repo.get_ban(test_ip).await?;
+    let ban = repo.find_ban(test_ip).await?;
     assert!(ban.is_none());
 
     Ok(())
@@ -337,7 +337,7 @@ async fn list_active_bans_returns_active_bans() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.8";
@@ -362,7 +362,7 @@ async fn list_bans_by_source_filters_correctly() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.9";
@@ -388,7 +388,7 @@ async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let test_ip = "192.168.100.10";
@@ -415,7 +415,7 @@ async fn count_active_bans_returns_count() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let count = repo.count_active_bans().await?;
@@ -431,7 +431,7 @@ async fn cleanup_expired_runs_without_error() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = db.as_pool()?;
+    let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
     let deleted = repo.cleanup_expired().await?;

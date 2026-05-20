@@ -8,9 +8,10 @@ use systemprompt_extension::ExtensionRegistry;
 #[allow(unused_imports)]
 use {
     systemprompt_agent as _, systemprompt_ai as _, systemprompt_analytics as _,
-    systemprompt_content as _, systemprompt_files as _, systemprompt_logging as _,
-    systemprompt_mcp as _, systemprompt_oauth as _, systemprompt_scheduler as _,
-    systemprompt_sync as _, systemprompt_users as _,
+    systemprompt_content as _, systemprompt_events as _, systemprompt_files as _,
+    systemprompt_logging as _, systemprompt_mcp as _, systemprompt_oauth as _,
+    systemprompt_scheduler as _, systemprompt_security as _, systemprompt_sync as _,
+    systemprompt_users as _,
 };
 
 #[tokio::main]

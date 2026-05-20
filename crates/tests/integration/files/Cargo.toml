@@ -18,3 +18,5 @@ systemprompt-identifiers = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true }
 uuid = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }

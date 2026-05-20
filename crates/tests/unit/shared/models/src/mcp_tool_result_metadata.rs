@@ -26,12 +26,7 @@ fn to_meta_and_back() {
 
 #[test]
 fn missing_meta_fails() {
-    let result = rmcp::model::CallToolResult {
-        content: vec![],
-        structured_content: None,
-        is_error: None,
-        meta: None,
-    };
+    let result = rmcp::model::CallToolResult::default();
 
     let err = McpToolResultMetadata::from_call_tool_result(&result)
         .expect_err("missing meta should produce an error");
