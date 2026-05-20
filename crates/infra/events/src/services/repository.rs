@@ -9,7 +9,8 @@
 //! rather than running SQL themselves.
 
 use sqlx::PgPool;
-use systemprompt_identifiers::{EventOutboxId, UserId};
+use systemprompt_identifiers::EventOutboxId;
+use systemprompt_models::audit::Actor;
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
@@ -35,15 +36,20 @@ impl EventOutboxRepository {
         &self,
         id: &EventOutboxId,
         channel: OutboxChannel,
-        user_id: &UserId,
+        actor: &Actor,
         payload: &serde_json::Value,
     ) -> Result<(), sqlx::Error> {
+        let actor_kind = actor.kind.as_str();
+        let actor_id = actor.kind.actor_id(&actor.user_id);
         sqlx::query!(
-            "INSERT INTO event_outbox (id, channel, user_id, payload) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id) \
+             VALUES ($1, $2, $3, $4, $5, $6)",
             id.as_str(),
             channel.as_str(),
-            user_id.as_str(),
+            actor.user_id.as_str(),
             payload,
+            actor_kind,
+            actor_id,
         )
         .execute(&self.pool)
         .await

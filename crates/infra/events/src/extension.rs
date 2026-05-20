@@ -26,9 +26,15 @@ impl Extension for EventsExtension {
                     "channel".into(),
                     "user_id".into(),
                     "payload".into(),
+                    "actor_kind".into(),
+                    "actor_id".into(),
                     "created_at".into(),
                 ]),
         ]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        extension_migrations!()
     }
 }
 

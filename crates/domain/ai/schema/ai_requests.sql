@@ -26,10 +26,13 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     is_streaming BOOLEAN NOT NULL DEFAULT FALSE,
     status VARCHAR(255) NOT NULL DEFAULT 'pending',
     error_message TEXT,
+    actor_kind TEXT NOT NULL DEFAULT 'user' CHECK (actor_kind IN ('user', 'job', 'mcp')),
+    actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ
 );
+CREATE INDEX IF NOT EXISTS idx_ai_requests_actor ON ai_requests(actor_kind, actor_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_request_id ON ai_requests(request_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_provider ON ai_requests(provider);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_status ON ai_requests(status);
