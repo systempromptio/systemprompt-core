@@ -37,6 +37,19 @@ pub struct AuthUser {
     pub is_active: bool,
 }
 
+/// Federated-identity claim payload passed to
+/// [`UserProvider::find_or_create_federated`]. Carries only the OIDC fields
+/// needed to seed a freshly federated user — the trait stays free of any
+/// concrete JWT type so it can live in `systemprompt-traits` without taking a
+/// dependency on `systemprompt-models`.
+#[derive(Debug, Clone, Default)]
+pub struct FederatedIdentityClaims {
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub preferred_username: Option<String>,
+    pub roles: Vec<String>,
+}
+
 #[async_trait]
 pub trait UserProvider: Send + Sync {
     async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>>;
@@ -50,6 +63,18 @@ pub trait UserProvider: Send + Sync {
     ) -> AuthResult<AuthUser>;
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser>;
     async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()>;
+
+    /// Resolve an externally-issued identity (`issuer`, `external_sub`) to a
+    /// stable local `UserId`. On first touch creates a new `users` row plus a
+    /// `federated_identities` mapping; subsequent calls advance `last_seen_at`
+    /// and return the existing id. Implementations MUST perform both writes
+    /// in a single transaction.
+    async fn find_or_create_federated(
+        &self,
+        issuer: &str,
+        external_sub: &str,
+        claims: &FederatedIdentityClaims,
+    ) -> AuthResult<UserId>;
 }
 
 #[async_trait]
