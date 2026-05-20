@@ -182,6 +182,7 @@ pub async fn provision_bridge_oauth_client(
     } else {
         let params = CreateClientParams {
             client_id: client_id.clone(),
+            owner_user_id: user_id.clone(),
             client_secret_hash: secret_hash,
             client_name: format!("bridge hook client for {}", user_id.as_str()),
             redirect_uris: Vec::new(),
