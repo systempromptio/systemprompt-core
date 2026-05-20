@@ -2,6 +2,7 @@ pub mod access_control;
 pub mod agents;
 pub mod bridge;
 pub mod config;
+pub mod keys;
 pub mod session;
 pub mod setup;
 pub mod users;
@@ -42,6 +43,12 @@ pub enum AdminCommands {
         about = "Access-control baseline operations (DB → YAML export)"
     )]
     AccessControl(access_control::AccessControlCommands),
+
+    #[command(
+        subcommand,
+        about = "RSA signing-key generation for the federated JWT plane"
+    )]
+    Keys(keys::KeysCommands),
 }
 
 pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
@@ -57,6 +64,7 @@ pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
         AdminCommands::Session(cmd) => session::execute(cmd, config).await,
         AdminCommands::Bridge(cmd) => bridge::execute(cmd, config).await,
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, config).await,
+        AdminCommands::Keys(cmd) => keys::execute(cmd),
     }
 }
 

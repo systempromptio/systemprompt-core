@@ -39,6 +39,7 @@ pub mod db_value;
 
 pub use db_value::{DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_datetime};
 
+mod actor;
 mod agent;
 mod ai;
 mod auth;
@@ -74,10 +75,12 @@ mod url;
 mod user;
 mod webhook;
 
+pub mod bootstrap;
 pub mod error;
 pub mod headers;
 pub mod macros;
 
+pub use actor::{Actor, ActorKind};
 pub use agent::{AgentId, AgentName, ExternalAgentId};
 pub use ai::{
     AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, MessageId,

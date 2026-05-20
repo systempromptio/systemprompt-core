@@ -5,8 +5,8 @@ use crate::auth::UserType;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use systemprompt_identifiers::{
-    AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId, TaskId,
-    TraceId, UserId,
+    Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId,
+    TaskId, TraceId,
 };
 
 use super::CallSource;
@@ -14,8 +14,14 @@ use super::CallSource;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthContext {
     pub auth_token: JwtToken,
-    pub user_id: UserId,
+    pub actor: Actor,
     pub user_type: UserType,
+    /// RFC 8693 actor (`act`) chain in outermost-first order: index 0 is
+    /// the most recent delegate that requested the current token, and the
+    /// last entry is the original delegating principal. Empty for direct
+    /// (non-delegated) tokens.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub act_chain: Vec<Actor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

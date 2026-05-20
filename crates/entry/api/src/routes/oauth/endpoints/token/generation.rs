@@ -22,13 +22,23 @@ pub struct TokenGenerationParams<'a> {
     pub scope: Option<&'a str>,
     pub headers: &'a HeaderMap,
     pub resource: Option<&'a str>,
+    /// If `Some`, the new refresh token joins this existing family (rotation).
+    /// `None` mints a fresh family rooted at the new token id (initial
+    /// authorization-code exchange).
+    pub family_id: Option<&'a str>,
+}
+
+#[derive(Debug)]
+pub struct GeneratedTokens {
+    pub response: TokenResponse,
+    pub refresh_token_id: String,
 }
 
 pub async fn generate_tokens_by_user_id(
     repo: &OAuthRepository,
     params: TokenGenerationParams<'_>,
     state: &OAuthState,
-) -> Result<TokenResponse> {
+) -> Result<GeneratedTokens> {
     let expires_in = Config::get()?.jwt_access_token_expiration;
 
     let scope_str = params
@@ -59,12 +69,15 @@ pub async fn generate_tokens_by_user_id(
         );
     }
 
-    Ok(TokenResponse {
-        access_token: jwt_and_refresh.access_token,
-        token_type: "Bearer".to_string(),
-        expires_in,
-        refresh_token: Some(jwt_and_refresh.refresh_token_value),
-        scope: Some(jwt_and_refresh.scope_string),
+    Ok(GeneratedTokens {
+        response: TokenResponse {
+            access_token: jwt_and_refresh.access_token,
+            token_type: "Bearer".to_string(),
+            expires_in,
+            refresh_token: Some(jwt_and_refresh.refresh_token_value),
+            scope: Some(jwt_and_refresh.scope_string),
+        },
+        refresh_token_id: jwt_and_refresh.refresh_token_id,
     })
 }
 
@@ -81,6 +94,7 @@ struct JwtAndRefreshToken {
     access_token: String,
     refresh_token_value: String,
     scope_string: String,
+    refresh_token_id: String,
 }
 
 async fn create_jwt_and_refresh_token(
@@ -114,20 +128,23 @@ async fn create_jwt_and_refresh_token(
     let refresh_expires_at =
         chrono::Utc::now().timestamp() + Config::get()?.jwt_refresh_token_expiration;
 
-    let refresh_params = RefreshTokenParams::builder(
+    let mut builder = RefreshTokenParams::builder(
         &refresh_token_id,
         params.client_id,
         params.user_id,
         &scope_string,
         refresh_expires_at,
-    )
-    .build();
-    repo.store_refresh_token(refresh_params).await?;
+    );
+    if let Some(family) = params.family_id {
+        builder = builder.with_family(family);
+    }
+    repo.store_refresh_token(builder.build()).await?;
 
     Ok(JwtAndRefreshToken {
         access_token,
         refresh_token_value,
         scope_string,
+        refresh_token_id: refresh_token_id.as_str().to_string(),
     })
 }
 

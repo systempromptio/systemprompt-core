@@ -6,7 +6,7 @@ use crate::error::OauthResult as Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{ClientId, UserId};
 
 #[derive(Debug)]
 pub struct ClientRelations {
@@ -30,6 +30,7 @@ pub struct OAuthClientRow {
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
     pub last_used_at: Option<DateTime<Utc>>,
+    pub owner_user_id: UserId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +50,7 @@ pub struct OAuthClient {
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub owner_user_id: UserId,
 }
 
 impl OAuthClient {
@@ -71,6 +73,7 @@ impl OAuthClient {
             is_active: row.is_active.unwrap_or(true),
             created_at: row.created_at.unwrap_or_else(Utc::now),
             updated_at: row.updated_at.unwrap_or_else(Utc::now),
+            owner_user_id: row.owner_user_id,
         }
     }
 

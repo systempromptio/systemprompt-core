@@ -36,7 +36,7 @@ impl A2aContextExtractor {
             context_id,
             AgentName::new(agent_name),
         )
-        .with_user_id(UserId::new(user_id));
+        .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user_id)));
 
         if let Some(task_id_str) = HeaderSource::extract_optional(headers, "x-task-id") {
             context = context.with_task_id(TaskId::new(task_id_str));
@@ -89,7 +89,7 @@ impl A2aContextExtractor {
             context_id,
             AgentName::new(agent_name),
         )
-        .with_user_id(UserId::new(user_id));
+        .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user_id)));
 
         if let Some(task_id_str) = task_id {
             context = context.with_task_id(TaskId::new(task_id_str));

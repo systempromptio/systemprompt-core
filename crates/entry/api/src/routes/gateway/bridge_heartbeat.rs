@@ -8,7 +8,7 @@ use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
-use systemprompt_identifiers::{JwtToken, SessionId, TenantId};
+use systemprompt_identifiers::{JwtToken, SessionId};
 use systemprompt_oauth::repository::{BridgeSessionRepository, UpsertBridgeSession};
 use systemprompt_runtime::AppContext;
 
@@ -48,12 +48,6 @@ pub async fn handle(
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
-    let tenant_id = headers
-        .get(systemprompt_identifiers::headers::TENANT_ID)
-        .and_then(|v| v.to_str().ok())
-        .filter(|s| !s.is_empty())
-        .map(|s| TenantId::new(s.to_string()));
-
     let repo = BridgeSessionRepository::new(ctx.db_pool()).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -64,7 +58,6 @@ pub async fn handle(
     repo.upsert(UpsertBridgeSession {
         session_id: payload.session_id,
         user_id: claims.user_id,
-        tenant_id,
         bridge_version: payload.bridge_version,
         os: payload.os,
         hostname: payload.hostname,

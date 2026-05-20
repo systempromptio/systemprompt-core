@@ -1,61 +1,55 @@
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
-use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
+use chrono::Duration;
+use systemprompt_analytics::{CreateSessionParams, SessionRepository};
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::{SessionId, SessionSource, UserId};
+use uuid::Uuid;
 
-#[derive(Debug, Serialize)]
-struct CliSessionRequest {
-    client_id: ClientId,
-    user_id: UserId,
-    email: String,
-}
+// Why: the public `POST /oauth/session` endpoint must not accept a
+// caller-supplied `user_id` — doing so allows arbitrary admin-JWT issuance
+// against any known user UUID on a public route. The CLI is colocated with
+// the database and holds the JWT signing secret, so it mints session rows
+// (and the JWTs above) locally instead of round-tripping through the public
+// HTTP endpoint.
+pub async fn create_local_session_row(db_pool: &DbPool, user: &UserId) -> Result<SessionId> {
+    let session_repo =
+        SessionRepository::new(db_pool).context("Failed to construct session repository")?;
 
-#[derive(Debug, Deserialize)]
-struct CliSessionResponse {
-    session_id: SessionId,
-}
+    let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
+    let expires_at = chrono::Utc::now() + Duration::hours(24);
 
-pub(super) async fn request_session_id(
-    api_url: &str,
-    user: &UserId,
-    email: &str,
-) -> Result<SessionId> {
-    let client = reqwest::Client::builder()
-        .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
-        .build()
-        .context("Failed to create HTTP client")?;
-
-    let url = format!(
-        "{}/api/v1/core/oauth/session",
-        api_url.trim_end_matches('/')
-    );
-
-    let request = CliSessionRequest {
-        client_id: ClientId::new("sp_cli"),
-        user_id: user.clone(),
-        email: email.to_string(),
+    let params = CreateSessionParams {
+        session_id: &session_id,
+        user_id: Some(user),
+        session_source: SessionSource::Cli,
+        fingerprint_hash: None,
+        ip_address: None,
+        user_agent: None,
+        device_type: None,
+        browser: None,
+        os: None,
+        country: None,
+        region: None,
+        city: None,
+        preferred_locale: None,
+        referrer_source: None,
+        referrer_url: None,
+        landing_page: None,
+        entry_url: None,
+        utm_source: None,
+        utm_medium: None,
+        utm_campaign: None,
+        utm_content: None,
+        utm_term: None,
+        is_bot: false,
+        is_ai_crawler: false,
+        expires_at,
     };
 
-    let response = client
-        .post(&url)
-        .json(&request)
-        .send()
+    session_repo
+        .create_session(&params)
         .await
-        .context("Failed to send session creation request")?;
+        .context("Failed to insert CLI session row")?;
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response
-            .text()
-            .await
-            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-        anyhow::bail!("Session creation failed with status {}: {}", status, body);
-    }
-
-    let session_response: CliSessionResponse = response
-        .json()
-        .await
-        .context("Failed to parse session response")?;
-
-    Ok(session_response.session_id)
+    Ok(session_id)
 }

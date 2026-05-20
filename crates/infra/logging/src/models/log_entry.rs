@@ -29,7 +29,7 @@ impl LogEntry {
             module: module.into(),
             message: message.into(),
             metadata: None,
-            user_id: systemprompt_identifiers::UserId::system(),
+            user_id: systemprompt_identifiers::UserId::admin(),
             session_id: systemprompt_identifiers::SessionId::system(),
             task_id: None,
             trace_id: systemprompt_identifiers::TraceId::system(),

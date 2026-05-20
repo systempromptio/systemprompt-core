@@ -4,7 +4,7 @@ use systemprompt_ai::models::ai_request_record::AiRequestRecord;
 use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
 };
-use systemprompt_identifiers::{AiRequestId, UserId};
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_runtime::AppContext;
 
 use super::extract::RejectionPartial;
@@ -39,7 +39,7 @@ fn build_rejection_record(
     let user_id = partial
         .user_id
         .clone()
-        .unwrap_or_else(|| UserId::new("anonymous"));
+        .unwrap_or_else(systemprompt_identifiers::bootstrap::anonymous);
     let provider = partial
         .provider
         .clone()
@@ -53,9 +53,6 @@ fn build_rejection_record(
         .provider(provider)
         .model(model)
         .streaming(partial.is_streaming);
-    if let Some(t) = &partial.tenant_id {
-        builder = builder.tenant_id(t.clone());
-    }
     if let Some(s) = &partial.session_id {
         builder = builder.session_id(s.clone());
     }

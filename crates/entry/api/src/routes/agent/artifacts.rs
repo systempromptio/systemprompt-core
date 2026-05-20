@@ -106,7 +106,7 @@ pub async fn list_artifacts_by_user(
     State(app_context): State<AppContext>,
     Query(params): Query<ArtifactQueryParams>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let user_id = req_ctx.auth.user_id.as_str();
+    let user_id = req_ctx.auth.actor.user_id.as_str();
 
     tracing::debug!(user_id = %user_id, "Listing artifacts by user");
 

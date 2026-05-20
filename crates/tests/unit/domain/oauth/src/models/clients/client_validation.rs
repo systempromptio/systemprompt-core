@@ -17,6 +17,7 @@ fn create_test_client_row() -> OAuthClientRow {
         created_at: Some(Utc::now()),
         updated_at: Some(Utc::now()),
         last_used_at: Some(Utc::now()),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     }
 }
 
@@ -60,6 +61,7 @@ fn test_oauth_client_from_row_with_default_values() {
         created_at: None,
         updated_at: None,
         last_used_at: None,
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     };
 
     let relations = create_test_relations();

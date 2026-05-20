@@ -5,6 +5,11 @@ All notable changes to `systemprompt-marketplace` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace version alignment; no consumer-facing API change beyond inherited typed-identifier and rustdoc standards work.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

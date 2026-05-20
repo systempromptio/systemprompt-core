@@ -102,6 +102,7 @@ pub fn generate_jwt(
         session_id: Some(session_id.clone()),
         rate_limit_tier: Some(user_type.rate_tier()),
         plugin_id: config.plugin_id,
+        act: None,
     };
 
     let header = Header::new(Algorithm::HS256);
@@ -184,6 +185,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         session_id: Some(session_id.clone()),
         rate_limit_tier: Some(RateLimitTier::Anon),
         plugin_id: None,
+        act: None,
     };
 
     let header = Header::new(Algorithm::HS256);
@@ -252,6 +254,7 @@ pub fn generate_admin_jwt_with_expiry(
         session_id: Some(session_id.clone()),
         rate_limit_tier: Some(RateLimitTier::Admin),
         plugin_id: None,
+        act: None,
     };
 
     let header = Header::new(Algorithm::HS256);

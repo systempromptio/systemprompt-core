@@ -44,6 +44,8 @@ impl ApiPaths {
     pub const OAUTH_WEBAUTHN_COMPLETE: &'static str = "/api/v1/core/oauth/webauthn/complete";
     pub const OAUTH_CLIENTS: &'static str = "/api/v1/core/oauth/clients";
 
+    pub const CORE_USERS: &'static str = "/api/v1/core/users";
+
     pub const WEBHOOK: &'static str = "/api/v1/webhook";
     pub const WEBHOOK_AGUI: &'static str = "/api/v1/webhook/agui";
     pub const WEBHOOK_A2A: &'static str = "/api/v1/webhook/a2a";
@@ -57,6 +59,7 @@ impl ApiPaths {
     pub const WELLKNOWN_OAUTH_SERVER: &'static str = "/.well-known/oauth-authorization-server";
     pub const WELLKNOWN_OPENID_CONFIG: &'static str = "/.well-known/openid-configuration";
     pub const WELLKNOWN_OAUTH_PROTECTED: &'static str = "/.well-known/oauth-protected-resource";
+    pub const WELLKNOWN_JWKS: &'static str = "/.well-known/jwks.json";
 
     pub const A2A_CARD: &'static str = "/api/a2a/card";
 
@@ -140,14 +143,6 @@ impl ApiPaths {
     pub fn tenant_rotate_credentials(tenant_id: &TenantId) -> String {
         format!(
             "{}/{}/rotate-credentials",
-            Self::CLOUD_TENANTS,
-            tenant_id.as_str()
-        )
-    }
-
-    pub fn tenant_rotate_sync_token(tenant_id: &TenantId) -> String {
-        format!(
-            "{}/{}/rotate-sync-token",
             Self::CLOUD_TENANTS,
             tenant_id.as_str()
         )

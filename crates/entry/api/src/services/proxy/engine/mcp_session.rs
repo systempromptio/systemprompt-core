@@ -48,7 +48,9 @@ pub(super) async fn enrich_with_cached_identity(
             uuid::Uuid::nil()
         });
         req_context = req_context
-            .with_user_id(UserId::new(identity.user.clone()))
+            .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
+                identity.user.clone(),
+            )))
             .with_user_type(user_type)
             .with_auth_token(identity.auth_token.clone())
             .with_user(AuthenticatedUser::new(

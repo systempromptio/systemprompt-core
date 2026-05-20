@@ -44,6 +44,12 @@ pub enum SchedulerError {
     #[error("Configuration error: {message}")]
     ConfigError { message: String },
 
+    #[error(
+        "Job '{job_name}' declares owner '{owner}', but no active user with that name exists. \
+         Owners must resolve to a real `users` row (status='active')."
+    )]
+    UnresolvedJobOwner { job_name: String, owner: String },
+
     #[error("Scheduler already running")]
     AlreadyRunning,
 

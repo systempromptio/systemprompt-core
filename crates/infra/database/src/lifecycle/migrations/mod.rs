@@ -5,10 +5,12 @@
 
 mod down;
 mod exec;
+mod mark_applied;
 mod repair;
 mod squash;
 mod status;
 
+pub use mark_applied::MarkAppliedOutcome;
 pub use repair::RepairResult;
 pub use squash::SquashPlan;
 pub use status::{

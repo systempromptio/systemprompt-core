@@ -7,6 +7,7 @@ use systemprompt_mcp::services::network::port_manager::{
     MAX_PORT_CLEANUP_ATTEMPTS, PORT_BACKOFF_BASE_MS, POST_KILL_DELAY_MS,
 };
 use systemprompt_mcp::services::schema::{SchemaValidationMode, SchemaValidationReport};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn health_status_healthy_as_str() {
@@ -320,6 +321,7 @@ fn port_manager_constants_are_reasonable() {
 fn test_mcp_config(name: &str) -> systemprompt_models::mcp::McpServerConfig {
     systemprompt_models::mcp::McpServerConfig {
         name: name.to_string(),
+        owner: fixture_user_id(),
         server_type: systemprompt_models::mcp::deployment::McpServerType::Internal,
         binary: "test-binary".to_string(),
         enabled: true,

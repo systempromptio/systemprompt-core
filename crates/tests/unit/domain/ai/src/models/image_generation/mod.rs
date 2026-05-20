@@ -4,7 +4,8 @@ use systemprompt_ai::models::image_generation::{
     AspectRatio, GeneratedImageRecord, ImageGenerationRequest, ImageGenerationResponse,
     ImageResolution, NewImageGenerationResponse, ReferenceImage,
 };
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::SessionId;
+use systemprompt_test_fixtures::fixture_user_id;
 
 mod image_resolution_tests {
     use super::*;
@@ -112,7 +113,7 @@ mod image_generation_request_tests {
             aspect_ratio: AspectRatio::Landscape169,
             reference_images: vec![reference],
             enable_search_grounding: true,
-            user_id: Some(UserId::new("user-123")),
+            user_id: Some(fixture_user_id()),
             session_id: Some(SessionId::new("session-456")),
             trace_id: Some("trace-789".to_string()),
             mcp_execution_id: None,
@@ -124,7 +125,7 @@ mod image_generation_request_tests {
         assert_eq!(request.aspect_ratio, AspectRatio::Landscape169);
         assert_eq!(request.reference_images.len(), 1);
         assert!(request.enable_search_grounding);
-        assert_eq!(request.user_id, Some(UserId::new("user-123")));
+        assert_eq!(request.user_id, Some(fixture_user_id()));
     }
 }
 
@@ -261,7 +262,7 @@ mod generated_image_record_tests {
             aspect_ratio: Some("1:1".to_string()),
             generation_time_ms: Some(500),
             cost_estimate: Some(0.05),
-            user_id: Some(UserId::new("user-123")),
+            user_id: Some(fixture_user_id()),
             session_id: Some(SessionId::new("session-456")),
             trace_id: None,
             created_at: chrono::Utc::now(),

@@ -2,8 +2,8 @@
 
 use chrono::Utc;
 use std::collections::HashMap;
-use systemprompt_identifiers::UserId;
 use systemprompt_users::{User, UserCountBreakdown, UserExport, UserStats};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn user_stats_creation() {
@@ -205,7 +205,7 @@ fn user_export_debug() {
 #[test]
 fn user_export_from_user_conversion() {
     let user = User {
-        id: UserId::new("user-456".to_string()),
+        id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
@@ -235,7 +235,7 @@ fn user_export_from_user_conversion() {
 #[test]
 fn user_export_from_user_with_none_fields() {
     let user = User {
-        id: UserId::new("user-789".to_string()),
+        id: fixture_user_id(),
         name: "minimal".to_string(),
         email: "minimal@example.com".to_string(),
         full_name: None,

@@ -262,8 +262,9 @@ fn test_jwt_config_deserialize() {
 }
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{JwtClaims, UserType};
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::{
     JwtSigningParams, generate_admin_jwt_with_expiry, generate_anonymous_jwt_with_expiry,
 };
@@ -294,7 +295,7 @@ fn test_generate_anonymous_jwt_with_expiry_produces_valid_jwt() {
     let signing = test_signing_params();
     let client_id = ClientId::new("test-client-id");
     let token = generate_anonymous_jwt_with_expiry(
-        &UserId::new("anon-user-1"),
+        &fixture_user_id(),
         &SessionId::new("session-1"),
         &client_id,
         &signing,
@@ -314,7 +315,7 @@ fn test_generate_anonymous_jwt_with_expiry_standard_duration() {
     let signing = test_signing_params();
     let client_id = ClientId::new("client-abc");
     let token = generate_anonymous_jwt_with_expiry(
-        &UserId::new("anon-user-2"),
+        &fixture_user_id(),
         &SessionId::new("session-2"),
         &client_id,
         &signing,
@@ -323,7 +324,7 @@ fn test_generate_anonymous_jwt_with_expiry_standard_duration() {
     .unwrap();
 
     let claims = decode_token(&token, signing.secret);
-    assert_eq!(claims.sub, "anon-user-2");
+    assert_eq!(claims.sub, "test-user");
     assert_eq!(claims.iss, "test-issuer");
     assert_eq!(claims.user_type, UserType::Anon);
     assert_eq!(claims.scope, vec![Permission::Anonymous]);
@@ -334,7 +335,7 @@ fn test_generate_anonymous_jwt_with_expiry_zero_seconds() {
     let signing = test_signing_params();
     let client_id = ClientId::new("client-zero");
     let result = generate_anonymous_jwt_with_expiry(
-        &UserId::new("anon-user-3"),
+        &fixture_user_id(),
         &SessionId::new("session-3"),
         &client_id,
         &signing,
@@ -351,7 +352,7 @@ fn test_generate_anonymous_jwt_with_expiry_claims_contain_client_id() {
     let signing = test_signing_params();
     let client_id = ClientId::new("my-client-123");
     let token = generate_anonymous_jwt_with_expiry(
-        &UserId::new("anon-user-4"),
+        &fixture_user_id(),
         &SessionId::new("session-4"),
         &client_id,
         &signing,
@@ -362,8 +363,8 @@ fn test_generate_anonymous_jwt_with_expiry_claims_contain_client_id() {
     let claims = decode_token(&token, signing.secret);
     assert_eq!(claims.client_id, Some(ClientId::new("my-client-123")));
     assert_eq!(claims.session_id, Some(SessionId::new("session-4")));
-    assert_eq!(claims.username, "anon-user-4");
-    assert_eq!(claims.email, "anon-user-4");
+    assert_eq!(claims.username, "test-user");
+    assert_eq!(claims.email, "test-user");
 }
 
 #[test]
@@ -371,7 +372,7 @@ fn test_generate_admin_jwt_with_expiry_produces_valid_jwt() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client");
     let token = generate_admin_jwt_with_expiry(
-        &UserId::new("admin-user-1"),
+        &fixture_user_id(),
         &SessionId::new("admin-session-1"),
         "admin@example.com",
         &client_id,
@@ -389,7 +390,7 @@ fn test_generate_admin_jwt_with_expiry_standard_duration() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client-2");
     let token = generate_admin_jwt_with_expiry(
-        &UserId::new("admin-user-2"),
+        &fixture_user_id(),
         &SessionId::new("admin-session-2"),
         "admin2@example.com",
         &client_id,
@@ -399,7 +400,7 @@ fn test_generate_admin_jwt_with_expiry_standard_duration() {
     .unwrap();
 
     let claims = decode_token(&token, signing.secret);
-    assert_eq!(claims.sub, "admin-user-2");
+    assert_eq!(claims.sub, "test-user");
     assert_eq!(claims.iss, "test-issuer");
     assert_eq!(claims.user_type, UserType::Admin);
     assert_eq!(claims.scope, vec![Permission::Admin]);
@@ -410,7 +411,7 @@ fn test_generate_admin_jwt_with_expiry_claims_contain_email_and_roles() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client-3");
     let token = generate_admin_jwt_with_expiry(
-        &UserId::new("admin-user-3"),
+        &fixture_user_id(),
         &SessionId::new("admin-session-3"),
         "super@example.com",
         &client_id,
@@ -433,7 +434,7 @@ fn test_generate_admin_jwt_with_expiry_zero_seconds() {
     let signing = test_signing_params();
     let client_id = ClientId::new("admin-client-zero");
     let result = generate_admin_jwt_with_expiry(
-        &UserId::new("admin-user-4"),
+        &fixture_user_id(),
         &SessionId::new("admin-session-4"),
         "admin4@example.com",
         &client_id,

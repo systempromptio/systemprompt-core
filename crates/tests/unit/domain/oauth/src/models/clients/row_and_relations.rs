@@ -17,6 +17,7 @@ fn create_test_client_row() -> OAuthClientRow {
         created_at: Some(Utc::now()),
         updated_at: Some(Utc::now()),
         last_used_at: Some(Utc::now()),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     }
 }
 
@@ -52,6 +53,7 @@ fn test_oauth_client_row_with_none_values() {
         created_at: None,
         updated_at: None,
         last_used_at: None,
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     };
 
     assert_eq!(row.client_id.as_str(), "client_minimal");
@@ -88,7 +90,8 @@ fn test_oauth_client_row_deserialize() {
         "is_active": true,
         "created_at": null,
         "updated_at": null,
-        "last_used_at": null
+        "last_used_at": null,
+        "owner_user_id": "test-user"
     }"#;
 
     let row: OAuthClientRow = serde_json::from_str(json).unwrap();

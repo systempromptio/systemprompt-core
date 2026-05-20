@@ -40,7 +40,7 @@ async fn persist_ai_request(
     let user_id = request
         .user_id
         .clone()
-        .unwrap_or_else(|| UserId::new("anonymous"));
+        .unwrap_or_else(systemprompt_identifiers::bootstrap::anonymous);
 
     let mut builder = AiRequestRecordBuilder::new(response.request_id.clone(), user_id)
         .provider(&response.provider)

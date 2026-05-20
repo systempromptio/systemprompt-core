@@ -1,5 +1,5 @@
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
@@ -137,7 +137,7 @@ impl AuthValidationService {
             HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate),
             HeaderExtractor::extract_agent_name(headers),
         )
-        .with_user_id(user_id)
+        .with_actor(Actor::user(user_id))
         .with_auth_token(token)
         .with_user_type(claims.user_type)
     }
@@ -149,7 +149,9 @@ impl AuthValidationService {
             HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate),
             HeaderExtractor::extract_agent_name(headers),
         )
-        .with_user_id(UserId::anonymous())
+        .with_actor(Actor::anonymous(
+            systemprompt_identifiers::bootstrap::anonymous(),
+        ))
         .with_user_type(UserType::Anon)
     }
 
@@ -160,7 +162,7 @@ impl AuthValidationService {
             ContextId::generate(),
             AgentName::new(TEST_AGENT_NAME.to_string()),
         )
-        .with_user_id(UserId::new(TEST_USER_ID.to_string()))
+        .with_actor(Actor::user(UserId::new(TEST_USER_ID.to_string())))
         .with_user_type(UserType::User)
     }
 }

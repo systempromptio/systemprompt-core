@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS oauth_auth_codes (
     resource TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     used_at TIMESTAMPTZ,
+    refresh_token_id TEXT REFERENCES oauth_refresh_tokens(token_id) ON DELETE SET NULL,
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CHECK (expires_at > created_at),
@@ -20,3 +21,4 @@ CREATE INDEX IF NOT EXISTS idx_auth_codes_expires ON oauth_auth_codes(expires_at
 CREATE INDEX IF NOT EXISTS idx_auth_codes_user ON oauth_auth_codes(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_codes_client ON oauth_auth_codes(client_id);
 CREATE INDEX IF NOT EXISTS idx_auth_codes_lookup ON oauth_auth_codes(code, expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_refresh_token_id ON oauth_auth_codes(refresh_token_id);

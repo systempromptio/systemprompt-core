@@ -143,14 +143,6 @@ pub struct RotateCredentialsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RotateSyncTokenOutput {
-    #[serde(rename = "tenant_id")]
-    pub tenant: String,
-    pub status: String,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProfileSummary {
     pub name: String,
     pub has_secrets: bool,

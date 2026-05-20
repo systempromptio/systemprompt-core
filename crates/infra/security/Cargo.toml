@@ -33,6 +33,11 @@ axum = { workspace = true }
 uuid = { workspace = true }
 jsonwebtoken = { workspace = true }
 chrono = { workspace = true }
+rsa = { workspace = true }
+pkcs8 = { workspace = true }
+sha2 = { workspace = true }
+lru = { workspace = true }
+url = { workspace = true }
 
 # Signed-manifest crypto (bridge)
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }

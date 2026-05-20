@@ -41,7 +41,7 @@ pub async fn create_test_user(db: &DbPool) -> UserId {
         .await
         .expect("Failed to create test user");
 
-    UserId::new(user.id.clone())
+    user.id.clone()
 }
 
 pub async fn cleanup_test_user(db: &DbPool, user_id: &UserId) {

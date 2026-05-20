@@ -34,7 +34,7 @@ pub async fn get_context(
             );
         },
     };
-    let user_id = &req_ctx.auth.user_id;
+    let user_id = &req_ctx.auth.actor.user_id;
     let context_id = ContextId::new(&context_id_str);
 
     match context_repo.get_context(&context_id, user_id).await {

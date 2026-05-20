@@ -28,7 +28,7 @@ pub async fn broadcast_context_event(
         ));
     }
 
-    let authenticated_user_id = &req_ctx.auth.user_id;
+    let authenticated_user_id = &req_ctx.auth.actor.user_id;
 
     if authenticated_user_id.as_str() != request.user_id {
         tracing::error!(jwt_user_id = %authenticated_user_id, payload_user_id = %request.user_id, context_id = %request.context_id, "User mismatch");

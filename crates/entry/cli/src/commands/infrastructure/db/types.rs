@@ -228,6 +228,15 @@ pub struct MigrateRepairOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrateMarkAppliedOutput {
+    pub extension_id: String,
+    pub version: u32,
+    pub name: String,
+    pub checksum: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrateStatusOutput {
     pub rows: Vec<MigrateStatusRow>,
     pub drift: Vec<MigrationDriftInfo>,

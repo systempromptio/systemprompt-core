@@ -75,12 +75,6 @@ mod sync_config_builder_tests {
     }
 
     #[test]
-    fn builder_defaults_sync_token_to_none() {
-        let config = test_builder();
-        assert!(config.sync_token.is_none());
-    }
-
-    #[test]
     fn builder_defaults_local_database_url_to_none() {
         let config = test_builder();
         assert!(config.local_database_url.is_none());
@@ -143,22 +137,6 @@ mod sync_config_builder_tests {
     }
 
     #[test]
-    fn with_sync_token_some() {
-        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
-            .with_sync_token(Some("sync-token-123".to_string()))
-            .build();
-        assert_eq!(config.sync_token, Some("sync-token-123".to_string()));
-    }
-
-    #[test]
-    fn with_sync_token_none() {
-        let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
-            .with_sync_token(None)
-            .build();
-        assert!(config.sync_token.is_none());
-    }
-
-    #[test]
     fn with_local_database_url() {
         let config = SyncConfig::builder(TenantId::new("t"), "url", "token", "/path")
             .with_local_database_url("postgres://localhost/db")
@@ -176,7 +154,6 @@ mod sync_config_builder_tests {
             .with_dry_run(true)
             .with_verbose(true)
             .with_hostname(Some("h".to_string()))
-            .with_sync_token(Some("st".to_string()))
             .with_local_database_url("db")
             .build();
 
@@ -185,7 +162,6 @@ mod sync_config_builder_tests {
         assert!(config.dry_run);
         assert!(config.verbose);
         assert_eq!(config.hostname, Some("h".to_string()));
-        assert_eq!(config.sync_token, Some("st".to_string()));
         assert_eq!(config.local_database_url, Some("db".to_string()));
     }
 

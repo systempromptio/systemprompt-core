@@ -9,6 +9,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 use systemprompt_users::BannedIpRepository;
 
+use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
     ContextMiddleware, JwtContextExtractor, RouterExt, ip_ban_middleware,
 };
@@ -52,11 +53,15 @@ pub fn configure_routes(
     router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 
     router = router.merge(
-        discovery_router(ctx, metrics_handle).with_auth_middleware(public_middleware.clone()),
+        discovery_router(ctx, metrics_handle)
+            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
     );
-    router =
-        router.merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware));
-    router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
+    router = router.merge(
+        authenticated_discovery_router(ctx)
+            .with_auth(user_middleware, AuthzPolicy::authenticated()),
+    );
+    router = router
+        .merge(wellknown_router(ctx).with_auth(public_middleware.clone(), AuthzPolicy::public()));
 
     router = router.route(
         "/auth/link-passkey",
@@ -85,19 +90,29 @@ pub fn configure_routes(
 }
 
 fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
-    let extractor = JwtContextExtractor::new(
-        systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
-            LoaderError::InitializationFailed {
-                extension: "jwt".to_string(),
-                message: e.to_string(),
-            }
-        })?,
-        ctx.db_pool(),
-    );
-    Ok(match ctx.analytics_provider() {
-        Some(analytics) => extractor.with_analytics_provider(analytics),
-        None => extractor,
-    })
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
+        LoaderError::InitializationFailed {
+            extension: "jwt".to_string(),
+            message: e.to_string(),
+        }
+    })?;
+    let analytics = ctx
+        .analytics_provider()
+        .ok_or_else(|| LoaderError::InitializationFailed {
+            extension: "jwt".to_string(),
+            message: "AnalyticsProvider is required for JWT session enforcement".to_string(),
+        })?;
+    let user_provider = ctx
+        .user_provider()
+        .ok_or_else(|| LoaderError::InitializationFailed {
+            extension: "jwt".to_string(),
+            message: "UserProvider is required for JWT validation".to_string(),
+        })?;
+    Ok(JwtContextExtractor::new(
+        jwt_secret,
+        analytics,
+        user_provider,
+    ))
 }
 
 fn discovery_router(

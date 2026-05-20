@@ -185,6 +185,13 @@ async fn exchange_code_for_token(
     .build();
     repo.store_refresh_token(refresh_params).await?;
 
+    if let Err(e) = repo
+        .link_auth_code_to_refresh_token(params.code, refresh_token_id.as_str())
+        .await
+    {
+        tracing::warn!(error = %e, "Failed to link auth code to refresh token");
+    }
+
     Ok(TokenResponse { access_token })
 }
 

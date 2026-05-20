@@ -1,0 +1,20 @@
+[package]
+name = "systemprompt-files-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-files crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-files = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+uuid = { workspace = true }

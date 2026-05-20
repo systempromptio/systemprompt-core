@@ -5,7 +5,7 @@
 
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_identifiers::{TraceId, UserId};
+use systemprompt_identifiers::{Actor, TraceId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
@@ -161,6 +161,11 @@ async fn enforce_authz_for_server(server_name: &str, claims: &JwtClaims) -> Resu
         ));
     };
     let user_id = UserId::new(claims.sub.clone());
+    let act_chain = claims
+        .act
+        .as_ref()
+        .map(systemprompt_models::auth::ActClaim::flatten_to_chain)
+        .unwrap_or_default();
     let req = AuthzRequest {
         entity_type: EntityKind::McpServer,
         entity_id: server_name.to_string(),
@@ -169,6 +174,7 @@ async fn enforce_authz_for_server(server_name: &str, claims: &JwtClaims) -> Resu
         department: claims.department.clone().unwrap_or_else(String::new),
         trace_id: TraceId::generate(),
         context: serde_json::Value::Null,
+        act_chain,
     };
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
@@ -202,7 +208,7 @@ fn build_authenticated_context(
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_user_id(UserId::new(claims.sub.clone()))
+        .with_actor(Actor::user(UserId::new(claims.sub.clone())))
         .with_user_type(claims.user_type);
 
     Ok(AuthenticatedRequestContext::new(context, token))

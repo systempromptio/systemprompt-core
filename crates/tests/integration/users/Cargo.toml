@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-users-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-users crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-users = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }

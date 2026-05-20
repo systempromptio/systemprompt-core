@@ -4,6 +4,7 @@ use systemprompt_events::{
 };
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
+use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,
     SystemEvent,
@@ -12,7 +13,7 @@ use systemprompt_models::{
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
 fn test_user_id() -> UserId {
-    UserId::new("test-router-user")
+    fixture_user_id()
 }
 
 fn test_agui_event() -> AgUiEvent {
@@ -74,7 +75,7 @@ async fn test_route_agui_returns_tuple() {
 
 #[tokio::test]
 async fn test_route_agui_with_registered_connection() {
-    let user_id = UserId::new("agui-test-user");
+    let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     AGUI_BROADCASTER
@@ -108,7 +109,7 @@ async fn test_route_a2a_returns_tuple() {
 
 #[tokio::test]
 async fn test_route_a2a_with_registered_connection() {
-    let user_id = UserId::new("a2a-test-user");
+    let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     A2A_BROADCASTER
@@ -141,7 +142,7 @@ async fn test_route_system_returns_count() {
 
 #[tokio::test]
 async fn test_route_system_with_registered_connection() {
-    let user_id = UserId::new("system-test-user");
+    let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     CONTEXT_BROADCASTER
@@ -164,7 +165,7 @@ async fn test_route_system_with_registered_connection() {
 
 #[tokio::test]
 async fn test_route_agui_broadcasts_to_context() {
-    let user_id = UserId::new("cross-route-user");
+    let user_id = unique_user_id("user-id");
     let (context_sender, mut context_receiver) =
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -192,7 +193,7 @@ async fn test_route_agui_broadcasts_to_context() {
 
 #[tokio::test]
 async fn test_route_a2a_broadcasts_to_context() {
-    let user_id = UserId::new("a2a-cross-route-user");
+    let user_id = unique_user_id("user-id");
     let (context_sender, mut context_receiver) =
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -270,7 +271,7 @@ async fn test_route_analytics_returns_count() {
 
 #[tokio::test]
 async fn test_route_analytics_with_registered_connection() {
-    let user_id = UserId::new("analytics-test-user");
+    let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
@@ -293,7 +294,7 @@ async fn test_route_analytics_with_registered_connection() {
 
 #[tokio::test]
 async fn test_route_analytics_multiple_connections() {
-    let user_id = UserId::new("analytics-multi-user");
+    let user_id = unique_user_id("user-id");
     let (sender1, mut rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender2, mut rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -327,7 +328,7 @@ async fn test_route_analytics_multiple_connections() {
 
 #[tokio::test]
 async fn test_analytics_broadcaster_connection_count() {
-    let user_id = UserId::new("analytics-count-user");
+    let user_id = unique_user_id("user-id");
     let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     assert_eq!(ANALYTICS_BROADCASTER.connection_count(&user_id).await, 0);
@@ -352,7 +353,7 @@ async fn test_analytics_event_timestamp_exists() {
 
 #[tokio::test]
 async fn test_route_analytics_heartbeat_event() {
-    let user_id = UserId::new("heartbeat-test-user");
+    let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER
@@ -374,7 +375,7 @@ async fn test_route_analytics_heartbeat_event() {
 
 #[tokio::test]
 async fn test_route_analytics_session_ended_event() {
-    let user_id = UserId::new("session-end-user");
+    let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
     ANALYTICS_BROADCASTER

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- Authorisation policy plumbing supporting the new compile-time `RouterExt::with_auth(_, AuthzPolicy::*)` middleware in `entry/api`. Every authenticated route declares its policy at registration.
+
+### Changed
+- `repository.rs` query sites use compile-time-verified `query!` / `query_scalar!` macros throughout, in line with the repository-pattern rule.
+
+### Fixed
+- Authz `bootstrap.rs` tests are no longer flaky: a process-wide `tokio::sync::Mutex` serialises the shared global hook slot, so concurrent tests no longer observe half-installed hooks.
+
 ## [0.9.2] - 2026-05-14
 
 ### Added

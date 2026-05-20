@@ -41,6 +41,7 @@ fn make_security_config() -> SecurityConfig {
         access_token_expiration: 3600,
         refresh_token_expiration: 86400,
         audiences: vec![],
+        allowed_resource_audiences: vec![],
         allow_registration: true,
     }
 }

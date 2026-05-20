@@ -13,8 +13,7 @@ pub use provisioning::{
 pub use tenant::{
     CloudEnterpriseLicenseInfo, CloudPlan, CloudPlanInfo, CloudTenant, CloudTenantInfo,
     CloudTenantSecrets, CloudTenantStatus, CloudTenantStatusResponse, ExternalDbAccessResponse,
-    RotateCredentialsResponse, RotateSyncTokenResponse, SetExternalDbAccessRequest,
-    SubscriptionStatus,
+    RotateCredentialsResponse, SetExternalDbAccessRequest, SubscriptionStatus,
 };
 pub use usage::{
     BridgeProfileUsage, ConversationGroup, ConversationSummary, ModelShare,

@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::UserCreationService;
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
+use systemprompt_test_fixtures::unique_user_id;
 
 struct MockUserProvider {
     users: Mutex<Vec<AuthUser>>,
@@ -49,7 +50,7 @@ impl UserProvider for MockUserProvider {
         full_name: Option<&str>,
     ) -> AuthResult<AuthUser> {
         let user = AuthUser {
-            id: UserId::new(uuid::Uuid::new_v4().to_string()),
+            id: unique_user_id("user"),
             name: name.to_string(),
             email: email.to_string(),
             roles: Vec::new(),
@@ -74,7 +75,7 @@ impl UserProvider for MockUserProvider {
 
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: UserId::new(uuid::Uuid::new_v4().to_string()),
+            id: unique_user_id("user"),
             name: format!("anon-{fingerprint}"),
             email: String::new(),
             roles: Vec::new(),
@@ -88,6 +89,15 @@ impl UserProvider for MockUserProvider {
             .expect("lock poisoned")
             .push((user_id.as_str().to_string(), roles.to_vec()));
         Ok(())
+    }
+
+    async fn find_or_create_federated(
+        &self,
+        _issuer: &str,
+        _external_sub: &str,
+        _claims: &systemprompt_traits::FederatedIdentityClaims,
+    ) -> AuthResult<UserId> {
+        Ok(unique_user_id("user"))
     }
 }
 

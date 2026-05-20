@@ -2,9 +2,10 @@
 //! timestamp)
 
 use chrono::Utc;
-use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId};
 use systemprompt_logging::models::LogRow;
 use systemprompt_logging::{LogEntry, LogLevel};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn test_log_row_to_log_entry_with_valid_metadata() {
@@ -62,7 +63,7 @@ fn test_log_row_to_log_entry_with_user_id() {
         module: "user::module".to_string(),
         message: "User message".to_string(),
         metadata: None,
-        user_id: Some(UserId::new("user-12345")),
+        user_id: Some(fixture_user_id()),
         session_id: None,
         task_id: None,
         trace_id: None,
@@ -71,7 +72,7 @@ fn test_log_row_to_log_entry_with_user_id() {
     };
 
     let entry: LogEntry = row.into();
-    assert_eq!(entry.user_id.as_str(), "user-12345");
+    assert_eq!(entry.user_id.as_str(), "test-user");
 }
 
 #[test]
@@ -235,7 +236,7 @@ fn test_log_row_to_log_entry_full_conversion() {
         module: "full::conversion".to_string(),
         message: "Full conversion test".to_string(),
         metadata: Some(r#"{"test": true}"#.to_string()),
-        user_id: Some(UserId::new("user-full")),
+        user_id: Some(fixture_user_id()),
         session_id: Some(SessionId::new("session-full")),
         task_id: Some(TaskId::new("task-full")),
         trace_id: Some(TraceId::new("trace-full")),
@@ -252,7 +253,7 @@ fn test_log_row_to_log_entry_full_conversion() {
         .metadata
         .as_ref()
         .expect("full conversion should preserve metadata");
-    assert_eq!(entry.user_id.as_str(), "user-full");
+    assert_eq!(entry.user_id.as_str(), "test-user");
     assert_eq!(entry.session_id.as_str(), "session-full");
     entry
         .task_id

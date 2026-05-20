@@ -99,7 +99,7 @@ async fn handle_authorization_code_grant(
             reason: e.to_string(),
         })?;
 
-        let token_response = generate_tokens_by_user_id(
+        let generated = generate_tokens_by_user_id(
             &repo,
             TokenGenerationParams {
                 client_id: &client_id,
@@ -107,6 +107,7 @@ async fn handle_authorization_code_grant(
                 scope: Some(&validation_result.scope),
                 headers,
                 resource: validation_result.resource.as_deref(),
+                family_id: None,
             },
             state,
         )
@@ -115,6 +116,14 @@ async fn handle_authorization_code_grant(
             message: e.to_string(),
         })?;
 
+        if let Err(e) = repo
+            .link_auth_code_to_refresh_token(&code, &generated.refresh_token_id)
+            .await
+        {
+            tracing::warn!(error = %e, "Failed to link auth code to refresh token");
+        }
+
+        let token_response = generated.response;
         tracing::info!(
             grant_type = "authorization_code",
             client_id = %client_id,
@@ -170,12 +179,15 @@ async fn handle_refresh_token_grant(
             .await
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
-        let (user_id, original_scope) = repo
+        let consumed = repo
             .consume_refresh_token(&refresh_token, &client_id)
             .await
             .map_err(|e| TokenError::InvalidRefreshToken {
                 reason: e.to_string(),
             })?;
+        let user_id = consumed.user_id;
+        let original_scope = consumed.scope;
+        let family_id = consumed.family_id;
 
         let effective_scope = if let Some(requested_scope) = request.scope.as_deref() {
             let original_scopes = OAuthRepository::parse_scopes(&original_scope);
@@ -194,7 +206,7 @@ async fn handle_refresh_token_grant(
             &original_scope
         };
 
-        let token_response = generate_tokens_by_user_id(
+        let generated = generate_tokens_by_user_id(
             &repo,
             TokenGenerationParams {
                 client_id: &client_id,
@@ -202,6 +214,7 @@ async fn handle_refresh_token_grant(
                 scope: Some(effective_scope),
                 headers,
                 resource: request.resource.as_deref(),
+                family_id: Some(family_id.as_str()),
             },
             state,
         )
@@ -210,6 +223,7 @@ async fn handle_refresh_token_grant(
             message: e.to_string(),
         })?;
 
+        let token_response = generated.response;
         tracing::info!(
             grant_type = "refresh_token",
             client_id = %client_id,

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. Users repository surface unchanged.
+
 ## [0.10.0] - 2026-05-15
 
 ### Changed

@@ -151,6 +151,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         jwt_access_token_expiration: profile.security.access_token_expiration,
         jwt_refresh_token_expiration: profile.security.refresh_token_expiration,
         jwt_audiences: profile.security.audiences.clone(),
+        allowed_resource_audiences: profile.security.allowed_resource_audiences.clone(),
         use_https: profile.server.use_https,
         rate_limits: (&profile.rate_limits).into(),
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),

@@ -22,7 +22,6 @@ pub struct NewCloudTenantParams {
     pub database_url: Option<String>,
     pub internal_database_url: String,
     pub external_db_access: bool,
-    pub sync_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -63,9 +62,6 @@ pub struct StoredTenant {
     pub external_db_access: bool,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sync_token: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shared_container_db: Option<String>,
 }
 
@@ -82,7 +78,6 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::default(),
             external_db_access: false,
-            sync_token: None,
             shared_container_db: None,
         }
     }
@@ -99,7 +94,6 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::Local,
             external_db_access: false,
-            sync_token: None,
             shared_container_db: None,
         }
     }
@@ -121,7 +115,6 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::Local,
             external_db_access: false,
-            sync_token: None,
             shared_container_db: Some(shared_container_db),
         }
     }
@@ -138,7 +131,6 @@ impl StoredTenant {
             internal_database_url: Some(params.internal_database_url),
             tenant_type: TenantType::Cloud,
             external_db_access: params.external_db_access,
-            sync_token: params.sync_token,
             shared_container_db: None,
         }
     }
@@ -155,7 +147,6 @@ impl StoredTenant {
             internal_database_url: Some(info.database_url.clone()),
             tenant_type: TenantType::Cloud,
             external_db_access: info.external_db_access,
-            sync_token: None,
             shared_container_db: None,
         }
     }
@@ -209,11 +200,6 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub fn is_sync_token_missing(&self) -> bool {
-        self.tenant_type == TenantType::Cloud && self.sync_token.is_none()
-    }
-
-    #[must_use]
     pub fn is_database_url_masked(&self) -> bool {
         self.internal_database_url
             .as_ref()
@@ -222,7 +208,6 @@ impl StoredTenant {
 
     #[must_use]
     pub fn has_missing_credentials(&self) -> bool {
-        self.tenant_type == TenantType::Cloud
-            && (self.is_sync_token_missing() || self.is_database_url_masked())
+        self.tenant_type == TenantType::Cloud && self.is_database_url_masked()
     }
 }

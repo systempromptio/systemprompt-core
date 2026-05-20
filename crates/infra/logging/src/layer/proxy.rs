@@ -182,7 +182,7 @@ where
         user_id: span_context
             .as_ref()
             .and_then(|c| c.user.as_ref())
-            .map_or_else(UserId::system, |s| UserId::new(s.clone())),
+            .map_or_else(UserId::admin, |s| UserId::new(s.clone())),
         session_id: span_context
             .as_ref()
             .and_then(|c| c.session.as_ref())

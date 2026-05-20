@@ -3,11 +3,12 @@
 use systemprompt_events::{Broadcaster, GenericBroadcaster};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
+use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
 type TestBroadcaster = GenericBroadcaster<SystemEvent>;
 
 fn test_user_id() -> UserId {
-    UserId::new("test-user-123")
+    fixture_user_id()
 }
 
 fn test_event() -> SystemEvent {
@@ -85,8 +86,8 @@ async fn test_broadcaster_broadcast_removes_failed_senders() {
 #[tokio::test]
 async fn test_broadcaster_broadcast_only_to_target_user() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let user1 = UserId::new("user-1");
-    let user2 = UserId::new("user-2");
+    let user1 = unique_user_id("user1");
+    let user2 = unique_user_id("user2");
     let (sender1, mut rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender2, mut rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -124,8 +125,8 @@ async fn test_broadcaster_total_connections_empty() {
 #[tokio::test]
 async fn test_broadcaster_total_connections_multiple_users() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let user1 = UserId::new("user-1");
-    let user2 = UserId::new("user-2");
+    let user1 = unique_user_id("user1");
+    let user2 = unique_user_id("user2");
     let (s1, _r1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (s2, _r2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (s3, _r3) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
@@ -168,8 +169,8 @@ async fn test_broadcaster_connected_users_single() {
 #[tokio::test]
 async fn test_broadcaster_connected_users_multiple() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let first_user = UserId::new("user-1");
-    let second_user = UserId::new("user-2");
+    let first_user = unique_user_id("first-user");
+    let second_user = unique_user_id("second-user");
     let (s1, _r1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (s2, _r2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -197,8 +198,8 @@ async fn test_broadcaster_connection_info_empty() {
 #[tokio::test]
 async fn test_broadcaster_connection_info_with_data() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let user1 = UserId::new("user-1");
-    let user2 = UserId::new("user-2");
+    let user1 = unique_user_id("user1");
+    let user2 = unique_user_id("user2");
     let (s1, _r1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (s2, _r2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (s3, _r3) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);

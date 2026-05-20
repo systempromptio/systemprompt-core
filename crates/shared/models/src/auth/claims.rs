@@ -1,11 +1,48 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use systemprompt_identifiers::{ClientId, SessionId};
+use systemprompt_identifiers::{ClientId, SessionId, UserId};
 
 use super::{
     JwtAudience, Permission, RateLimitTier, TokenType, UserType, parse_permissions,
     permissions_to_string,
 };
+use systemprompt_identifiers::Actor;
+
+/// RFC 8693 §4.1 actor (`act`) claim.
+///
+/// Captures the immediate actor (`iss` + `sub`) that requested a token
+/// exchange and a recursive `act` link to its own delegating actor. The
+/// chain is walked outermost-first by [`ActClaim::flatten_to_chain`]:
+/// the outermost `JwtClaims.act` is the most recent delegate, and each
+/// nested `act` is the actor that delegated to it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActClaim {
+    pub iss: String,
+    pub sub: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub act: Box<Option<Self>>,
+}
+
+impl ActClaim {
+    /// Walk the `act` chain and return reconstructed [`Actor`] values in
+    /// outermost-first order: index 0 is the most recent delegate
+    /// (i.e. `self`), and the last element is the original delegating
+    /// principal.
+    ///
+    /// Every link is reconstructed as [`Actor::user`] with the `sub`
+    /// claim as the [`UserId`]; `ActorKind` cannot be discerned from a
+    /// bare RFC 8693 `act` chain, so we default to `User`.
+    #[must_use]
+    pub fn flatten_to_chain(&self) -> Vec<Actor> {
+        let mut chain = Vec::new();
+        let mut cursor = Some(self);
+        while let Some(node) = cursor {
+            chain.push(Actor::user(UserId::new(node.sub.clone())));
+            cursor = node.act.as_ref().as_ref();
+        }
+        chain
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtClaims {
@@ -48,6 +85,9 @@ pub struct JwtClaims {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugin_id: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub act: Option<ActClaim>,
 }
 
 fn serialize_audiences<S>(auds: &[JwtAudience], s: S) -> Result<S::Ok, S::Error>

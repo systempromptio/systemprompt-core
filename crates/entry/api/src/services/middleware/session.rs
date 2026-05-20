@@ -100,7 +100,9 @@ impl SessionMiddleware {
             ContextId::generate(),
             AgentName::system(),
         )
-        .with_user_id(UserId::new("anonymous".to_string()))
+        .with_actor(systemprompt_identifiers::Actor::anonymous(
+            systemprompt_identifiers::bootstrap::anonymous(),
+        ))
         .with_user_type(UserType::Anon)
         .with_tracked(false)
     }
@@ -112,7 +114,9 @@ impl SessionMiddleware {
             ContextId::generate(),
             AgentName::system(),
         )
-        .with_user_id(UserId::new("bot".to_string()))
+        .with_actor(systemprompt_identifiers::Actor::user(
+            systemprompt_identifiers::bootstrap::bot(),
+        ))
         .with_user_type(UserType::Anon)
         .with_tracked(false)
     }
@@ -148,7 +152,7 @@ impl SessionMiddleware {
             HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate);
 
         let mut ctx = RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-            .with_user_id(user_id)
+            .with_actor(systemprompt_identifiers::Actor::user(user_id))
             .with_auth_token(jwt_token)
             .with_user_type(UserType::Anon)
             .with_tracked(true);
@@ -183,10 +187,10 @@ impl SessionMiddleware {
 
         let session_exists = self
             .analytics_service
-            .find_session_by_id(&jwt_context.session_id)
+            .find_active_session_by_id(&jwt_context.session_id)
             .await
             .map_err(|e| {
-                tracing::warn!(error = %e, "find_session_by_id failed");
+                tracing::warn!(error = %e, "find_active_session_by_id failed");
                 e
             })
             .ok()

@@ -9,6 +9,7 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_agent::repository::context::ContextRepository;
+use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::AppContext;
 
 use handlers::{
@@ -43,7 +44,10 @@ pub async fn handle_context_notification(
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
-    let user_id = match ctx_repo.find_user_id_for_context(&context_id).await {
+    let user_id = match ctx_repo
+        .find_user_id_for_context(&ContextId::new(context_id.clone()))
+        .await
+    {
         Ok(Some(uid)) => uid,
         Ok(None) => {
             tracing::error!(context_id = %context_id, "Context not found");

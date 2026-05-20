@@ -14,6 +14,7 @@ chrono = "0.4"
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-events = { path = "../../infra/events" }
+systemprompt-test-fixtures = { path = "../common/fixtures" }
 
 [[bench]]
 name = "serde_throughput"

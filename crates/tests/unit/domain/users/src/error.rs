@@ -6,20 +6,20 @@
 //! - Error conversions (From implementations)
 //! - Result type alias
 
-use systemprompt_identifiers::UserId;
 use systemprompt_users::UserError;
+use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
 mod user_error_display_tests {
     use super::*;
 
     #[test]
     fn not_found_displays_user_id() {
-        let user_id = UserId::new("user-123".to_string());
+        let user_id = fixture_user_id();
         let error = UserError::NotFound(user_id);
 
         let display = error.to_string();
         assert!(display.contains("user not found"));
-        assert!(display.contains("user-123"));
+        assert!(display.contains("test-user"));
     }
 
     #[test]
@@ -74,7 +74,7 @@ mod user_error_debug_tests {
 
     #[test]
     fn not_found_debug() {
-        let user_id = UserId::new("user-456".to_string());
+        let user_id = fixture_user_id();
         let error = UserError::NotFound(user_id);
 
         let debug = format!("{:?}", error);
@@ -127,8 +127,8 @@ mod user_error_construction_tests {
 
     #[test]
     fn not_found_with_different_user_ids() {
-        let id1 = UserId::new("user-1".to_string());
-        let id2 = UserId::new("user-2".to_string());
+        let id1 = unique_user_id("user-1");
+        let id2 = unique_user_id("user-2");
 
         let error1 = UserError::NotFound(id1);
         let error2 = UserError::NotFound(id2);
@@ -194,7 +194,7 @@ mod error_trait_tests {
 
     #[test]
     fn not_found_source_is_none() {
-        let error = UserError::NotFound(UserId::new("user-123".to_string()));
+        let error = UserError::NotFound(fixture_user_id());
         assert!(error.source().is_none());
     }
 
@@ -266,12 +266,12 @@ mod result_type_tests {
 
     #[test]
     fn result_err_can_be_matched() {
-        let result: Result<()> = Err(UserError::NotFound(UserId::new("user-123".to_string())));
+        let result: Result<()> = Err(UserError::NotFound(fixture_user_id()));
 
         match result {
             Ok(_) => panic!("Expected error"),
             Err(UserError::NotFound(id)) => {
-                assert_eq!(id.to_string(), "user-123");
+                assert_eq!(id.to_string(), "test-user");
             },
             Err(_) => panic!("Expected NotFound error"),
         }
@@ -283,7 +283,7 @@ mod edge_case_tests {
 
     #[test]
     fn empty_user_id_in_not_found() {
-        let error = UserError::NotFound(UserId::new("".to_string()));
+        let error = UserError::NotFound(fixture_user_id());
         let display = error.to_string();
         assert!(display.contains("user not found"));
     }

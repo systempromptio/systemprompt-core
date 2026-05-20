@@ -25,6 +25,7 @@ async fn test_client_lifecycle() {
 
     let params = CreateClientParams {
         client_id: client_id.clone(),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
         client_secret_hash: "hash_of_secret".to_string(),
         client_name: "Test Client".to_string(),
         redirect_uris: redirect_uris.clone(),
@@ -108,6 +109,7 @@ async fn test_client_update() {
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
         client_secret_hash: "hash_of_secret".to_string(),
         client_name: "Original Name".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],
@@ -160,6 +162,7 @@ async fn test_client_secret_update() {
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
         client_secret_hash: "original_hash".to_string(),
         client_name: "Test Client".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],
@@ -202,6 +205,7 @@ async fn test_client_counting() {
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
         client_secret_hash: "hash".to_string(),
         client_name: "Count Test".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],

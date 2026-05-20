@@ -3,7 +3,7 @@ use serde_json::json;
 use systemprompt_agent::repository::context::ContextNotificationRepository;
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_events::EventRouter;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AgentId, ContextId, TaskId, UserId};
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_runtime::AppContext;
 
@@ -19,7 +19,12 @@ pub async fn persist_notification(
     let notification_data =
         serde_json::to_value(notification).map_err(|e| anyhow::anyhow!("{}", e))?;
     let id = repo
-        .insert(context, agent, &notification.method, &notification_data)
+        .insert(
+            &ContextId::new(context),
+            &AgentId::new(agent),
+            &notification.method,
+            &notification_data,
+        )
         .await?;
     Ok(id)
 }
@@ -55,7 +60,7 @@ pub async fn process_notification(
 
             let task_repo = TaskRepository::new(db)?;
             task_repo
-                .apply_notification_status(task_id, state, &timestamp)
+                .apply_notification_status(&TaskId::new(task_id), state, &timestamp)
                 .await?;
 
             Ok(())

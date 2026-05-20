@@ -2,7 +2,7 @@
 
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 
@@ -78,7 +78,7 @@ pub(super) fn try_proxy_verified_auth(
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_user_id(UserId::new(user_id_str.to_string()));
+        .with_actor(Actor::user(UserId::new(user_id_str.to_string())));
 
     tracing::info!(
         server = %server_name,

@@ -5,7 +5,7 @@ use super::{ClientRepository, CreateClientParams, UpdateClientParams};
 use crate::error::OauthResult as Result;
 use crate::models::{ClientRelations, OAuthClient, OAuthClientRow, TokenAuthMethod};
 use chrono::Utc;
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{ClientId, UserId};
 
 impl ClientRepository {
     pub async fn create(&self, params: CreateClientParams) -> Result<OAuthClient> {
@@ -36,8 +36,8 @@ impl ClientRepository {
             WITH new_client AS (
                 INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
                                            token_endpoint_auth_method, client_uri, logo_uri,
-                                           is_active, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7)
+                                           is_active, created_at, updated_at, owner_user_id)
+                VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7, $13)
             ),
             new_uris AS (
                 INSERT INTO oauth_client_redirect_uris (client_id, redirect_uri, is_primary)
@@ -72,6 +72,7 @@ impl ClientRepository {
             response_types_list,
             &params.scopes,
             contacts_list,
+            params.owner_user_id.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;
@@ -88,6 +89,7 @@ impl ClientRepository {
             created_at: Some(now),
             updated_at: Some(now),
             last_used_at: None,
+            owner_user_id: UserId::new(params.owner_user_id.as_str()),
         };
 
         let relations = ClientRelations {

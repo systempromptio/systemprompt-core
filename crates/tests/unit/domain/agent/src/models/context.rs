@@ -7,8 +7,9 @@
 
 use chrono::Utc;
 use systemprompt_agent::models::context::{ContextDetail, ContextMessage, ContextStateEvent};
-use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, UserId};
+use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId};
 use systemprompt_models::UserContext;
+use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -90,7 +91,7 @@ fn test_context_detail_serialize() {
             name: "Test Context".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            user_id: UserId::new("user-1"),
+            user_id: fixture_user_id(),
         },
         messages: vec![],
     };
@@ -108,7 +109,7 @@ fn test_context_detail_with_messages() {
             name: "Conversation".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            user_id: UserId::new("user-2"),
+            user_id: fixture_user_id(),
         },
         messages: vec![
             ContextMessage {
@@ -169,7 +170,7 @@ fn test_context_state_event_context_created() {
             name: "New Context".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            user_id: UserId::new("user-1"),
+            user_id: fixture_user_id(),
         },
         timestamp: Utc::now(),
     };

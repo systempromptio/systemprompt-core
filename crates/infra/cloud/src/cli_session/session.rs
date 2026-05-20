@@ -66,7 +66,7 @@ impl CliSessionBuilder {
             session_token,
             session_id,
             context_id,
-            user_id: UserId::system(),
+            user_id: UserId::admin(),
             user_email: Email::new("system@local.invalid"),
             user_type: UserType::Admin,
         }

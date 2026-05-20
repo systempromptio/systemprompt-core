@@ -5,6 +5,7 @@
 //! a deny to an allow.
 
 use async_trait::async_trait;
+use systemprompt_identifiers::Actor;
 
 use super::repository::{GovernanceDecisionRecord, GovernanceDecisionRepository};
 use super::{AuthzAuditSink, AuthzSource};
@@ -39,9 +40,10 @@ impl AuthzAuditSink for DbAuditSink {
             "context": req.context,
             "source": format!("{:?}", source),
         });
+        let actor = Actor::user(req.user_id.clone());
         let record = GovernanceDecisionRecord {
             id: &id,
-            user_id: req.user_id.as_str(),
+            actor: &actor,
             session_id: req.trace_id.as_str(),
             tool_name: &req.entity_id,
             agent_id: None,
@@ -51,6 +53,7 @@ impl AuthzAuditSink for DbAuditSink {
             reason: &reason_str,
             evaluated_rules: &evaluated,
             plugin_id: None,
+            act_chain: &req.act_chain,
         };
         if let Err(err) = self.repo.insert(&record).await {
             tracing::error!(

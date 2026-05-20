@@ -1,11 +1,15 @@
 use crate::error::McpDomainResult;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_traits::{ToolContext, ToolProviderError};
 
 use crate::services::deployment::DeploymentService;
 
-pub fn create_request_context(ctx: &ToolContext) -> Result<RequestContext, ToolProviderError> {
+pub fn create_request_context(
+    ctx: &ToolContext,
+    server_config: &McpServerConfig,
+) -> Result<RequestContext, ToolProviderError> {
     let session_id = ctx
         .session_id
         .as_ref()
@@ -45,9 +49,12 @@ pub fn create_request_context(ctx: &ToolContext) -> Result<RequestContext, ToolP
     let mut request_ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)
         .with_auth_token(ctx.auth_token.clone());
 
-    if let Some(user_id) = ctx.headers.get("x-user-id").filter(|s| !s.is_empty()) {
-        request_ctx = request_ctx.with_user_id(UserId::new(user_id.clone()));
-    }
+    let actor_user_id = ctx
+        .headers
+        .get("x-user-id")
+        .filter(|s| !s.is_empty())
+        .map_or_else(|| server_config.owner.clone(), |s| UserId::new(s.clone()));
+    request_ctx = request_ctx.with_actor(Actor::mcp(actor_user_id, server_config.name.clone()));
 
     if let Some(task_id) = ctx.headers.get("x-task-id").filter(|s| !s.is_empty()) {
         request_ctx = request_ctx.with_task_id(TaskId::new(task_id.clone()));

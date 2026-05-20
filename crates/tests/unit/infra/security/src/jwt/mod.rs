@@ -1,10 +1,11 @@
 use chrono::Duration;
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_security::{AdminTokenParams, JwtService};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn test_admin_token_params_creation() {
-    let user_id = UserId::new("user_123".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session_456".to_string());
 
     let params = AdminTokenParams {
@@ -23,7 +24,7 @@ fn test_admin_token_params_creation() {
 
 #[test]
 fn test_admin_token_params_debug() {
-    let user_id = UserId::new("user_123".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session_456".to_string());
 
     let params = AdminTokenParams {
@@ -42,7 +43,7 @@ fn test_admin_token_params_debug() {
 
 #[test]
 fn test_generate_admin_token_success() {
-    let user_id = UserId::new("admin_user_id".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("admin_session_id".to_string());
 
     let params = AdminTokenParams {
@@ -67,7 +68,7 @@ fn test_generate_admin_token_success() {
 
 #[test]
 fn test_generate_admin_token_structure() {
-    let user_id = UserId::new("user_id".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session_id".to_string());
 
     let params = AdminTokenParams {
@@ -91,7 +92,7 @@ fn test_generate_admin_token_structure() {
 
 #[test]
 fn test_generate_admin_token_different_durations() {
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let short_params = AdminTokenParams {
@@ -125,7 +126,7 @@ fn test_generate_admin_token_different_durations() {
 
 #[test]
 fn test_generate_admin_token_different_secrets() {
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params1 = AdminTokenParams {
@@ -156,8 +157,8 @@ fn test_generate_admin_token_different_secrets() {
 
 #[test]
 fn test_generate_admin_token_different_users() {
-    let user_id1 = UserId::new("user_one".to_string());
-    let user_id2 = UserId::new("user_two".to_string());
+    let user_id1 = fixture_user_id();
+    let user_id2 = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params1 = AdminTokenParams {
@@ -188,7 +189,7 @@ fn test_generate_admin_token_different_users() {
 
 #[test]
 fn test_generate_admin_token_different_sessions() {
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id1 = SessionId::new("session_one".to_string());
     let session_id2 = SessionId::new("session_two".to_string());
 
@@ -220,7 +221,7 @@ fn test_generate_admin_token_different_sessions() {
 
 #[test]
 fn test_generate_admin_token_unique_jti() {
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params = AdminTokenParams {

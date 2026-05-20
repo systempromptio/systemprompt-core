@@ -5,7 +5,7 @@ use systemprompt_bridge::auth::plugin_oauth::{CachedHookToken, global_cache};
 use systemprompt_bridge::config::paths::SYNTHETIC_PLUGIN_NAME;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, ManagedMcpServer, SignedManifest, SkillEntry, UserId,
+    AgentEntry, AgentId, AgentName, ManagedMcpServer, SignedManifest, SkillEntry,
     ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
@@ -13,6 +13,7 @@ use systemprompt_bridge::ids::{
     ManagedMcpServerName, ManifestSignature, Sha256Digest, SkillId, SkillName,
 };
 use systemprompt_bridge::sync::write_synthetic_plugin;
+use systemprompt_test_fixtures::fixture_user_id;
 
 async fn prime_token_cache() {
     let cache = global_cache().await;
@@ -56,7 +57,7 @@ fn manifest_with(
         manifest_version: version(),
         issued_at: "2026-04-30T12:00:00+00:00".into(),
         not_before: "2026-04-30T12:00:00+00:00".into(),
-        user_id: UserId::new("u1"),
+        user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
         plugins: vec![],

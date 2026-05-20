@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use systemprompt_identifiers::{JwtToken, TenantId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, JwtToken, TraceId, UserId};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
@@ -7,28 +7,26 @@ use crate::services::middleware::JwtContextExtractor;
 
 pub(super) struct AuthedPrincipal {
     pub user_id: UserId,
-    pub tenant_id: Option<TenantId>,
     pub trace_id: Option<TraceId>,
     pub roles: Vec<String>,
     pub department: String,
+    pub act_chain: Vec<Actor>,
 }
 
 pub(super) async fn authenticate(
     credential: &str,
     jwt_extractor: &JwtContextExtractor,
     ctx: &AppContext,
-    tenant_id: Option<TenantId>,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     if credential.starts_with(API_KEY_PREFIX) {
-        return authenticate_api_key(credential, ctx, tenant_id).await;
+        return authenticate_api_key(credential, ctx).await;
     }
-    authenticate_jwt(credential, jwt_extractor, tenant_id).await
+    authenticate_jwt(credential, jwt_extractor).await
 }
 
 async fn authenticate_api_key(
     credential: &str,
     ctx: &AppContext,
-    tenant_id: Option<TenantId>,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     let service = ApiKeyService::new(ctx.db_pool()).map_err(|e| {
         (
@@ -45,10 +43,10 @@ async fn authenticate_api_key(
     match record {
         Some(rec) => Ok(AuthedPrincipal {
             user_id: rec.user_id,
-            tenant_id,
             trace_id: Some(TraceId::generate()),
             roles: Vec::new(),
             department: String::new(),
+            act_chain: Vec::new(),
         }),
         None => Err((
             StatusCode::UNAUTHORIZED,
@@ -60,7 +58,6 @@ async fn authenticate_api_key(
 async fn authenticate_jwt(
     credential: &str,
     jwt_extractor: &JwtContextExtractor,
-    header_tenant_id: Option<TenantId>,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     let jwt_token = JwtToken::new(credential);
     let claims = jwt_extractor
@@ -70,9 +67,9 @@ async fn authenticate_jwt(
 
     Ok(AuthedPrincipal {
         user_id: claims.user_id,
-        tenant_id: header_tenant_id,
         trace_id: Some(TraceId::generate()),
         roles: claims.roles,
         department: claims.department.unwrap_or_else(String::new),
+        act_chain: claims.act_chain,
     })
 }

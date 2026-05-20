@@ -3,7 +3,7 @@ use chrono::Utc;
 use http::{HeaderMap, Uri};
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{
-    AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
+    ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
     CreateSessionInput, FingerprintProvider, SessionAnalytics as TraitSessionAnalytics,
     SessionAnalyticsProvider, SessionAnalyticsProviderError, SessionAnalyticsResult,
 };
@@ -128,6 +128,33 @@ impl AnalyticsProvider for AnalyticsService {
             fingerprint: r.fingerprint_hash,
             created_at: r.started_at.unwrap_or_else(Utc::now),
         }))
+    }
+
+    async fn find_active_session_by_id(
+        &self,
+        session_id: &SessionId,
+    ) -> AnalyticsResult<Option<ActiveSession>> {
+        let result = self
+            .session_repo()
+            .find_active_by_id(session_id)
+            .await
+            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
+
+        Ok(result.map(|r| ActiveSession { user_id: r.user_id }))
+    }
+
+    async fn revoke_session(&self, session_id: &SessionId) -> AnalyticsResult<()> {
+        self.session_repo()
+            .revoke_session(session_id)
+            .await
+            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+    }
+
+    async fn revoke_all_sessions_for_user(&self, user_id: &UserId) -> AnalyticsResult<u64> {
+        self.session_repo()
+            .revoke_all_for_user(user_id)
+            .await
+            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
     }
 
     async fn migrate_user_sessions(

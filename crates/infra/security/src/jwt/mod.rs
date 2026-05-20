@@ -51,6 +51,7 @@ impl JwtService {
             session_id: Some(params.session_id.clone()),
             rate_limit_tier: Some(RateLimitTier::Admin),
             plugin_id: None,
+            act: None,
         };
 
         let header = Header::new(Algorithm::HS256);

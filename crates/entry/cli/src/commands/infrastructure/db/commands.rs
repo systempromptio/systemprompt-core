@@ -104,6 +104,19 @@ pub enum DbCommands {
         #[arg(long, help = "Emit JSON instead of a text table")]
         json: bool,
     },
+    #[command(
+        about = "Record a migration as already applied without running its SQL (recovers partial \
+                 state where schema is applied but tracking row is missing)",
+        name = "migrate-mark-applied"
+    )]
+    MigrateMarkApplied {
+        #[arg(long, help = "Extension ID owning the migration")]
+        extension: String,
+        #[arg(long, help = "Migration version to mark as applied")]
+        version: u32,
+        #[arg(long, help = "Emit JSON instead of a text summary")]
+        json: bool,
+    },
     #[command(about = "Assign admin role to a user")]
     AssignAdmin { user: String },
     #[command(about = "Show database connection status")]

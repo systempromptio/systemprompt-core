@@ -7,6 +7,7 @@ use http::HeaderMap;
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_oauth::services::session::AuthenticatedSessionInfo;
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::{
     generate_client_secret, hash_client_secret, verify_client_secret,
 };
@@ -55,6 +56,21 @@ impl AnalyticsProvider for MockAnalyticsProvider {
         Ok(None)
     }
 
+    async fn find_active_session_by_id(
+        &self,
+        _session_id: &SessionId,
+    ) -> AnalyticsResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
+    }
+
+    async fn revoke_session(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
+
+    async fn revoke_all_sessions_for_user(&self, _user_id: &UserId) -> AnalyticsResult<u64> {
+        Ok(0)
+    }
+
     async fn migrate_user_sessions(
         &self,
         _from_user_id: &UserId,
@@ -91,7 +107,7 @@ impl UserProvider for MockUserProvider {
         _full_name: Option<&str>,
     ) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: UserId::new("user_new"),
+            id: fixture_user_id(),
             name: "newuser".to_string(),
             email: "new@example.com".to_string(),
             roles: vec![],
@@ -101,7 +117,7 @@ impl UserProvider for MockUserProvider {
 
     async fn create_anonymous(&self, _fingerprint: &str) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: UserId::new("user_anon"),
+            id: fixture_user_id(),
             name: "anonymous".to_string(),
             email: "anon@example.com".to_string(),
             roles: vec![],
@@ -111,6 +127,15 @@ impl UserProvider for MockUserProvider {
 
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {
         Ok(())
+    }
+
+    async fn find_or_create_federated(
+        &self,
+        _issuer: &str,
+        _external_sub: &str,
+        _claims: &systemprompt_traits::FederatedIdentityClaims,
+    ) -> AuthResult<UserId> {
+        Ok(fixture_user_id())
     }
 }
 
@@ -230,7 +255,7 @@ fn test_session_creation_error_internal() {
 #[test]
 fn test_session_creation_error_display() {
     let user_error = SessionCreationError::UserNotFound {
-        user_id: UserId::new("user_missing"),
+        user_id: fixture_user_id(),
     };
     let internal_error = SessionCreationError::Internal("timeout".to_string());
 

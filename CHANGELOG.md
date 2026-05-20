@@ -1,14 +1,62 @@
 # Changelog
 
-## [0.10.4] - 2026-05-19
+## [0.11.0] - 2026-05-20
+
+Multi-replica deployment readiness, the gateway tenancy strip, the Service-JWT sync handshake, mandatory actor attribution on every audit-bearing row, RFC 8693 token-exchange with a published JWKS, federated identities, and a sweep of OAuth and session hardening. AI gateway and bridge-session paths no longer carry a runtime `tenant_id`; sync clients authenticate with a `client_credentials` Service-JWT instead of the legacy shared `SYNC_TOKEN`; events relay across replicas through a Postgres outbox; scheduled jobs claim work behind cross-replica advisory locks; database reads route to a configured read replica. Pre-1.0 SemVer dictates a minor bump for the `JwtAudience::Cowork → Bridge` rename in `systemprompt-models`.
+
+### Breaking
+
+- **`JwtAudience::Cowork` renamed to `JwtAudience::Bridge`** in `systemprompt-models`; `as_str()` now returns `"bridge"`. Re-issue any persisted JWTs minted under the old audience — tokens with `aud: "cowork"` no longer validate.
+- **AI gateway tenancy removed.** The `tenant_id` column is dropped from every `gateway_*` table by migration `003_drop_runtime_tenancy.sql`; repository signatures and request/response types in `systemprompt-ai` no longer carry a tenant parameter. Tenancy continues to live in the cloud deployment plane.
+- **`bridge_sessions.tenant_id` removed.** Migration `003_drop_bridge_session_tenant.sql` in `systemprompt-oauth` drops the column; bridge OAuth flows no longer scope to a per-row tenant identifier.
+- **Sync routes drop the `SYNC_TOKEN` middleware.** The static shared-secret header is replaced with a `client_credentials` Service-JWT obtained from the `sys_sync` OAuth client. Existing operators must provision the new client and reconfigure sync agents to mint tokens via the OAuth flow; `SYNC_TOKEN` is no longer read.
+- **Audit attribution is mandatory.** Every audit-bearing insert (`ai_requests`, `event_outbox`, `governance_decisions`, and the schema-level audit-row contract) now requires an explicit `(actor_kind, actor_id)` pair. The previous default `actor_kind` is dropped; repositories no longer accept a row without one.
+- **`McpServerConfig` and `JobConfig` require an owner.** Both types take an owner `UserId` at construction; system-invoked tools resolve their actor through `Actor::from_tool_name`, and the scheduler resolves each job's owner before dispatch.
+- **`/oauth/register` now requires authentication.** The endpoint persists the caller as `owner_user_id` on the resulting `oauth_clients` row; anonymous client registration is gone. Migration adds `owner_user_id` to `oauth_clients`.
 
 ### Added
 
-- Air-gapped deployment test tooling. A new `mock-inference` test crate stands in for an internal OpenAI/Anthropic-compatible inference endpoint — Anthropic Messages and OpenAI Chat wire formats, streaming and non-streaming, with configurable latency, failure injection, and a request counter exposed at `GET /stats`. The load-test harness gains an `airgap` profile with strict latency thresholds, `gateway-inference` and `governance-only` scenarios that exercise the gateway pipeline end to end, a JSON reporter (`--output json` / `--out-file`), and a `--admin-email` flag (also read from `SYSTEMPROMPT_ADMIN_EMAIL`) so token acquisition works on cloud-less deployments. New `just` recipes `mock-inference` and `loadtest-airgap`.
+- **Actor attribution across the platform.** `Actor` and `ActorKind` live in `systemprompt-identifiers` and carry both the accountable principal (`user_id`) and the surface that ran on their behalf (`User`, `Anonymous`, `System`, `Job { job_name }`, `Mcp { server_name }`, `Agent { agent_id }`). Smart constructors — `Actor::user`, `Actor::anonymous`, `Actor::system`, `Actor::job`, `Actor::mcp`, `Actor::agent`, `Actor::from_tool_name` — and a single `Actor::audit_columns()` accessor make it impossible for the persisted `(user_id, actor_kind, actor_id)` triple to drift across insert sites. `Actor::from_tool_name` recovers the MCP surface from Claude Code's `mcp__<server>__<tool>` naming and attributes non-MCP tool calls to the agent surface when an agent id is present, falling back to the user — never to a sentinel.
+- **Actor propagated through `ToolContext` and `JobContext`** in `systemprompt-provider-contracts`. AI tool invocations and scheduled jobs carry the acting `Actor` end-to-end; the CLI and API seed a bootstrap actor from the admin user; logging fields carry the actor on every span.
+- **`UserId::admin()` and the `UserId::new` / `UserId::bootstrap` split.** Bootstrap admin owner is a typed identifier; `UserId::new` is the fallible runtime constructor; `UserId::bootstrap` is the compile-time form. `bootstrap_admin_owner()` is removed in favour of `UserId::admin()`.
+- **RFC 8693 token exchange with `act_chain`.** `JwtClaims` and `RequestContext` carry an act-chain; security middleware persists it on audit rows; `profile.security.trusted_issuers` and `profile.security.signing_key_path` configure the validator. `/.well-known/jwks.json` is published on the API server; a JWKS HTTP client uses a bounded LRU with an HTTPS allowlist; `systemprompt admin keys generate` mints the RSA keypair.
+- **Federated identities.** New `federated_identities` schema in `systemprompt-users` and `UserProvider::find_or_create_federated` lookup-or-provision API for federated subjects arriving via token exchange.
+- **OAuth client ownership.** `oauth_clients` rows carry `owner_user_id`; bridge and admin client-create flows thread the owner through; `client_credentials` tokens are minted as the client's owner so audit attribution is consistent end-to-end.
+- **Session hardening.** JWT middleware enforces session existence on every authenticated request; `/oauth/revoke` revokes the session via the analytics provider; auth-code replay detection revokes the entire refresh-token family; `POST /api/v1/core/users/me/sessions/revoke_all` lets a user invalidate every session from any device.
+- **`infra db migrate-mark-applied`.** Marks a migration as applied without running its SQL, for partial-state recovery scenarios where a migration ran out-of-band and the bookkeeping row needs to catch up.
+- **Shared `systemprompt-test-fixtures` crate.** All placeholder `UserId` construction in tests routes through it; the previous per-crate sentinels are gone.
+- **Service-JWT sync auth.** New `sys_sync` OAuth client and `provision_sync_oauth_client` service in `systemprompt-oauth`; `app/sync` API client requests tokens via `client_credentials` and rotates them on expiry. Headers and identifier types are typed end to end (`ClientId::sync()`, `ClientId::bridge()`).
+- **`RouterExt::with_auth(_, AuthzPolicy::*)` middleware gate** in `entry/api`. Every authenticated route declares its policy at registration, making authz tier a compile-time requirement; the runtime no longer silently accepts a route that forgot to install a guard.
+- **Postgres event outbox.** `infra/events` ships an outbox repository plus a `LISTEN`/`NOTIFY` bridge on the `systemprompt_events` channel (`OUTBOX_CHANNEL` constant). Domain events written by one replica are observed by every other replica subscribed to the bus.
+- **Cross-replica scheduler job claim.** `app/scheduler` claims cron jobs through Postgres advisory locks keyed by job + tick; concurrent replicas race for the lock and at most one executes a given tick. A tick-deterministic key removes the previous time-drift flake.
+- **Read-replica routing.** `infra/database` honours an optional read-replica URL and routes read-only queries to it; writes continue to land on the primary. New `infra db migrate-repair` reconciles checksum drift in place.
+- **Typed identifiers across `domain/agent`.** Context, task, message, and notification repositories take `&ContextId` / `&AgentId` / `&TaskId` / `&MessageId` parameters end to end; raw `&str` IDs are gone from the agent surface.
+- **`JsonSchema` derives across the profile config tree** in `systemprompt-models` — `profile/{security,governance,runtime,gateway,server,cloud,site,paths,...}`. Profiles can now be introspected and validated against a generated schema.
+- **Prometheus metrics endpoint** on the API server, plus a `services/middleware/served_by.rs` middleware tagging responses with the serving replica identity for load-balancer fairness measurement.
+- **Replica identity and stream-concurrency config** in `app/runtime`. A global semaphore bounds in-flight A2A SSE streams so a single replica can't exhaust file descriptors under fan-out.
+- **Load-test `lb_fairness` scenario and text reporter** in the load-test harness, alongside the air-gap profile shipped earlier in this cycle: distributed-runner, soak, and spike profiles round out the multi-replica validation matrix.
+- **Air-gapped deployment test tooling.** A new `mock-inference` test crate stands in for an internal OpenAI/Anthropic-compatible inference endpoint — Anthropic Messages and OpenAI Chat wire formats, streaming and non-streaming, with configurable latency, failure injection, and a request counter exposed at `GET /stats`. The load-test harness gains an `airgap` profile with strict latency thresholds, `gateway-inference` and `governance-only` scenarios, a JSON reporter (`--output json` / `--out-file`), and a `--admin-email` flag (also read from `SYSTEMPROMPT_ADMIN_EMAIL`). New `just` recipes `mock-inference` and `loadtest-airgap`.
+
+### Changed
+
+- **AI gateway repositories use compile-time-verified query macros** (`query!`, `query_as!`, `query_scalar!`) instead of dynamic `query(_)` + `bind(_)`. The runtime-SQL carve-out in `crates/infra/database/src/admin/**` remains the only legal home for dynamic SQL in domain repositories.
+- **`entry/api` strips every per-item `///` rustdoc** in line with the standing rustdoc rule — handlers, middleware, and binary modules describe their purpose through file-level `//!` blocks where the value is real, not by paraphrasing each function signature.
+- **`apply_notification_status` and `message_exists` retyped end-to-end** through the handler chain to consume the agent crate's typed identifiers; no raw `String` IDs reach the repository.
+- **`Authorization` and image OpenAI provider call sites** cleaned up of `clippy::useless_borrows_in_formatting` and redundant `&` in `format!` arguments.
 
 ### Removed
 
-- The `release-sign` and `sbom` GitHub workflows. `systemprompt-bridge` binaries — including their CycloneDX SBOMs and cosign signatures — are now produced through a manual release process rather than on every `v*` tag push.
+- **`release-sign` and `sbom` GitHub workflows.** `systemprompt-bridge` binaries — including CycloneDX SBOMs and cosign signatures — are now produced through a manual release process rather than on every `v*` tag push.
+- **Dead `ToolProvider` trait and `AiServiceToolProvider`** in `systemprompt-agent`, and unused dead-code fields surfaced by the standards pass.
+
+### Fixed
+
+- **Authz `bootstrap.rs` tests are no longer flaky.** A shared global hook slot is now serialised via a process-wide `tokio::sync::Mutex`; concurrent test execution no longer sees half-installed hooks.
+- **CI `test` job no longer inherits the workspace `-D warnings` clippy level**, so a warning surfaced by a sibling crate doesn't fail an unrelated test job. The dedicated `lint` job continues to enforce `-D warnings`.
+- **CHANGELOG-drift error path is actionable**: the database migration runner points operators at `infra db migrate-repair --apply` instead of dead-ending on the previous "use `--allow-checksum-drift`" hint, which suppresses the symptom without reconciling the drift.
+- **Stricter `UserId` parsing on the OAuth and WebAuthn paths.** Invalid identifier inputs return a typed parse error rather than being coerced.
+- **Tighter authentication scope on OAuth endpoints.** `/oauth/register` and `/oauth/introspect` now require client authentication; `/oauth/introspect` responses are limited to the authenticated client's own subjects.
+- **Scheduler lock probe takes an explicit owner.** The distributed-lock test path no longer relies on a placeholder `UserId`.
 
 ## [0.10.3] - 2026-05-18
 

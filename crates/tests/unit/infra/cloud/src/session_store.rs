@@ -4,10 +4,11 @@ use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionKey, SessionStore,
 };
 use systemprompt_identifiers::{
-    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
 };
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
+use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -490,7 +491,7 @@ fn serde_roundtrip_preserves_all_fields() {
     let key = SessionKey::Tenant(TenantId::new("serde-test"));
     let session = test_builder("serde-prof")
         .with_tenant_key(TenantId::new("serde-test"))
-        .with_user(UserId::new("uid-99"), Email::new("serde@test.com"))
+        .with_user(fixture_user_id(), Email::new("serde@test.com"))
         .with_user_type(UserType::User)
         .with_profile_path("/serde/path.yaml")
         .build();
@@ -506,7 +507,7 @@ fn serde_roundtrip_preserves_all_fields() {
 
     let s = deserialized.get_session(&key).unwrap();
     assert_eq!(s.profile_name.as_str(), "serde-prof");
-    assert_eq!(s.user_id, UserId::new("uid-99"));
+    assert_eq!(s.user_id, fixture_user_id());
     assert_eq!(s.user_email.as_str(), "serde@test.com");
     assert_eq!(s.user_type, UserType::User);
     assert_eq!(s.profile_path, Some(PathBuf::from("/serde/path.yaml")));

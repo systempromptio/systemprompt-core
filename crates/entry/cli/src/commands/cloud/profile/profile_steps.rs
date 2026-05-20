@@ -75,7 +75,6 @@ pub fn create_profile_for_tenant(
     save_secrets(
         &db_urls,
         api_keys,
-        tenant.sync_token.as_deref(),
         &secrets_path,
         tenant.tenant_type == TenantType::Cloud,
     )?;
@@ -166,7 +165,6 @@ pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Resul
 pub struct RefreshedCredentials {
     pub external_database_url: String,
     pub internal_database_url: String,
-    pub sync_token: Option<String>,
 }
 
 pub async fn refresh_tenant_credentials(
@@ -181,7 +179,6 @@ pub async fn refresh_tenant_credentials(
     Ok(RefreshedCredentials {
         external_database_url: secrets.database_url,
         internal_database_url: secrets.internal_database_url,
-        sync_token: secrets.sync_token,
     })
 }
 
@@ -215,9 +212,6 @@ pub async fn ensure_unmasked_credentials(
             updated_tenant.internal_database_url = Some(creds.internal_database_url);
             if updated_tenant.external_db_access {
                 updated_tenant.database_url = Some(creds.external_database_url);
-            }
-            if let Some(token) = creds.sync_token {
-                updated_tenant.sync_token = Some(token);
             }
 
             let mut store = TenantStore::load_from_path(tenants_path)

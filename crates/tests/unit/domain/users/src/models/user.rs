@@ -1,15 +1,15 @@
 //! Unit tests for User struct helper methods
 
 use chrono::Utc;
-use systemprompt_identifiers::UserId;
 use systemprompt_users::{User, UserRole};
+use systemprompt_test_fixtures::fixture_user_id;
 
 mod user_tests {
     use super::*;
 
     fn create_test_user() -> User {
         User {
-            id: UserId::new("user-123".to_string()),
+            id: fixture_user_id(),
             name: "testuser".to_string(),
             email: "test@example.com".to_string(),
             full_name: Some("Test User".to_string()),
@@ -157,7 +157,7 @@ mod user_tests {
     #[test]
     fn user_optional_fields_can_be_none() {
         let user = User {
-            id: UserId::new("user-456".to_string()),
+            id: fixture_user_id(),
             name: "minimal".to_string(),
             email: "minimal@example.com".to_string(),
             full_name: None,

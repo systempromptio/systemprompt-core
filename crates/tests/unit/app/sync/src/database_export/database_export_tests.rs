@@ -3,6 +3,7 @@
 use chrono::{TimeZone, Utc};
 use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_sync::{ContextExport, DatabaseExport};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn full_export() {
@@ -11,7 +12,7 @@ fn full_export() {
         users: vec![],
         contexts: vec![ContextExport {
             context_id: ContextId::new("ctx_1"),
-            user_id: UserId::new("user_1"),
+            user_id: fixture_user_id(),
             session_id: None,
             name: "Context".to_string(),
             created_at: now,
@@ -59,7 +60,7 @@ fn with_users() {
     let export = DatabaseExport {
         users: vec![
             UserExport {
-                id: UserId::new("user_1"),
+                id: fixture_user_id(),
                 name: "user1".to_string(),
                 email: "user1@example.com".to_string(),
                 full_name: Some("User One".to_string()),
@@ -74,7 +75,7 @@ fn with_users() {
                 updated_at: now,
             },
             UserExport {
-                id: UserId::new("user_2"),
+                id: fixture_user_id(),
                 name: "user2".to_string(),
                 email: "user2@example.com".to_string(),
                 full_name: None,

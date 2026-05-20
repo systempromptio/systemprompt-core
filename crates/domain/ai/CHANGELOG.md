@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Breaking
+- AI gateway tenancy removed. Migration `003_drop_runtime_tenancy.sql` drops the `tenant_id` column from every `gateway_*` table. Repository signatures, request/response types, and the new `services/gateway/` module no longer carry a tenant parameter. Tenancy continues to live in the cloud deployment plane.
+
+### Fixed
+- Migration `003_drop_runtime_tenancy.sql` now guards the post-`DROP COLUMN` `ADD CONSTRAINT` statements with an `information_schema.table_constraints` check, so re-running the migration is idempotent on a database that already applied a prior revision. Operators upgrading mid-cycle should run `infra db migrate-repair --apply` to reconcile the resulting checksum drift.
+
+### Added
+- `services/gateway/` module hosting the gateway pipeline now that tenancy has been removed from request routing.
+
+### Changed
+- Gateway repositories use compile-time-verified `query!` / `query_as!` / `query_scalar!` macros instead of dynamic `query(_)` + `bind(_)`.
+- OpenAI image provider and `Authorization` call sites cleaned up of `clippy::useless_borrows_in_formatting`.
+
 ## [0.10.2] - 2026-05-15
 
 ### Added

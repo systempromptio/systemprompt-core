@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod access_control_config;
 #[cfg(test)]
+mod act_chain;
+#[cfg(test)]
 mod bootstrap;
 #[cfg(test)]
 mod hook_runtime;

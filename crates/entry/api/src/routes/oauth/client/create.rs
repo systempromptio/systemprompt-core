@@ -25,7 +25,7 @@ pub async fn create_client(
             tracing::error!(
                 error = %e,
                 client_id = %request.client_id,
-                created_by = %req_ctx.auth.user_id,
+                created_by = %req_ctx.auth.actor.user_id,
                 "OAuth client creation failed"
             );
             return error_response(
@@ -38,6 +38,7 @@ pub async fn create_client(
 
     let params = CreateClientParams {
         client_id: request.client_id.clone(),
+        owner_user_id: req_ctx.auth.actor.user_id.clone(),
         client_secret_hash,
         client_name: request.name.clone(),
         redirect_uris: request.redirect_uris.clone(),
@@ -60,7 +61,7 @@ pub async fn create_client(
                 client_name = ?client.name,
                 redirect_uris = ?request.redirect_uris,
                 scopes = ?request.scopes,
-                created_by = %req_ctx.auth.user_id,
+                created_by = %req_ctx.auth.actor.user_id,
                 "OAuth client created"
             );
 
@@ -86,7 +87,7 @@ pub async fn create_client(
             tracing::info!(
                 client_id = %request.client_id,
                 reason = if is_duplicate { "Client ID already exists" } else { &error_msg },
-                created_by = %req_ctx.auth.user_id,
+                created_by = %req_ctx.auth.actor.user_id,
                 "OAuth client creation rejected"
             );
 

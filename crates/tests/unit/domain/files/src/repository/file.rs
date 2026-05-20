@@ -4,7 +4,8 @@
 //! in integration tests. These unit tests focus on InsertFileRequest builder.
 
 use systemprompt_files::InsertFileRequest;
-use systemprompt_identifiers::{FileId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{FileId, SessionId, TraceId};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn test_insert_file_request_new() {
@@ -98,12 +99,12 @@ fn test_insert_file_request_with_metadata() {
 #[test]
 fn test_insert_file_request_with_user_id() {
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
-    let user_id = UserId::new("user_abc123");
+    let user_id = fixture_user_id();
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_user_id(user_id);
 
     request.user_id.as_ref().expect("user_id should be present");
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), "user_abc123");
+    assert_eq!(request.user_id.as_ref().unwrap().as_str(), "test-user");
 }
 
 #[test]
@@ -137,7 +138,7 @@ fn test_insert_file_request_with_trace_id() {
 #[test]
 fn test_insert_file_request_builder_chain() {
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
-    let user_id = UserId::new("user_123");
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("sess_456");
     let trace_id = TraceId::new("trace_789");
     let metadata = serde_json::json!({"custom": "value"});
@@ -179,7 +180,7 @@ fn test_insert_file_request_partial_builder() {
 
     let request = InsertFileRequest::new(file_id, "/path", "/url", "application/pdf")
         .with_size(1024)
-        .with_user_id(UserId::new("user"));
+        .with_user_id(fixture_user_id());
 
     assert_eq!(request.size_bytes, Some(1024));
     request.user_id.as_ref().expect("user_id should be present");

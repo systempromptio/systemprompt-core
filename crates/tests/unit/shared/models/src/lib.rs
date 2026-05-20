@@ -66,3 +66,12 @@ mod marketplace;
 
 #[cfg(test)]
 mod gateway_hash;
+
+#[cfg(test)]
+mod config_paths;
+
+#[cfg(test)]
+mod permission;
+
+#[cfg(test)]
+mod mcp_tool_result_metadata;

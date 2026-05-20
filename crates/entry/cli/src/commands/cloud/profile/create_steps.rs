@@ -43,7 +43,6 @@ pub fn write_profile_files(
     save_secrets(
         &db_urls,
         api_keys,
-        tenant.sync_token.as_deref(),
         &secrets_path,
         tenant.tenant_type == TenantType::Cloud,
     )?;

@@ -1,8 +1,9 @@
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, SignedManifest, SkillEntry, UserId, UserInfo, canonical_payload,
+    AgentEntry, AgentId, AgentName, SignedManifest, SkillEntry, UserInfo, canonical_payload,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
+use systemprompt_test_fixtures::fixture_user_id;
 
 const FAKE_SHA: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
@@ -16,7 +17,7 @@ fn canonical_payload_excludes_signature() {
         manifest_version: version("2026-04-22T00:00:00Z-01abcdef"),
         issued_at: "2026-04-22T00:00:00Z".into(),
         not_before: "2026-04-22T00:00:00Z".into(),
-        user_id: UserId::new("u1"),
+        user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -39,10 +40,10 @@ fn canonical_payload_includes_user_skills_agents() {
         manifest_version: version("2026-04-22T00:00:00Z-02abcdef"),
         issued_at: "2026-04-22T00:00:00Z".into(),
         not_before: "2026-04-22T00:00:00Z".into(),
-        user_id: UserId::new("u1"),
+        user_id: fixture_user_id(),
         tenant_id: None,
         user: Some(UserInfo {
-            id: UserId::new("u1"),
+            id: fixture_user_id(),
             name: "alice".into(),
             email: "a@e.com".into(),
             display_name: Some("Alice".into()),
@@ -93,7 +94,7 @@ fn canonical_payload_includes_not_before() {
         manifest_version: version("2026-04-22T00:00:00Z-03abcdef"),
         issued_at: "2026-04-22T00:00:00Z".into(),
         not_before: "2026-04-22T01:00:00Z".into(),
-        user_id: UserId::new("u1"),
+        user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
         plugins: vec![],

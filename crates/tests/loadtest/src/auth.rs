@@ -4,8 +4,16 @@ use std::process::Command;
 // cloud-less deployments (e.g. air-gapped): without it the CLI falls back to
 // resolving the admin identity from cloud credentials, which an air-gapped box
 // will never have. When `None`, the CLI's cloud-credential path is used.
-pub fn acquire_token(web_dir: &str, admin_email: Option<&str>) -> Result<String, String> {
-    let profile_path = format!("{web_dir}/.systemprompt/profiles/local/profile.yaml");
+pub fn acquire_token(
+    web_dir: &str,
+    profile: &str,
+    admin_email: Option<&str>,
+) -> Result<String, String> {
+    // Honour the `--profile` arg so the loadtest can self-acquire a token
+    // against any profile (air-gap, ci, local) — each has its own DB and
+    // jwt_secret, so a hardcoded `local` path would mint a token the target
+    // server rejects.
+    let profile_path = format!("{web_dir}/.systemprompt/profiles/{profile}/profile.yaml");
 
     let mut command = Command::new(format!("{web_dir}/target/debug/systemprompt"));
     command

@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-test-fixtures = { workspace = true }
 systemprompt-sync = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-agent = { workspace = true }
@@ -21,3 +22,5 @@ tempfile = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+wiremock = { workspace = true }
+reqwest = { workspace = true }

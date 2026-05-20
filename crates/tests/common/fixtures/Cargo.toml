@@ -1,0 +1,9 @@
+[package]
+name = "systemprompt-test-fixtures"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+systemprompt-identifiers = { workspace = true }
+uuid = { workspace = true }

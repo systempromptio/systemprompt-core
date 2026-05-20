@@ -5,22 +5,23 @@ use axum::http::HeaderMap;
 use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 use systemprompt_security::TokenExtractor;
-use systemprompt_traits::AnalyticsProvider;
+use systemprompt_traits::{AnalyticsProvider, AuthUser, UserProvider};
 
 use super::params::{BuildContextParams, build_context, extract_common_headers};
 use super::token::{JwtExtractor, JwtUserContext};
-use super::validation::{validate_session_exists, validate_user_exists};
+use super::validation::{UserCache, user_is_admin, validate_session_exists, validate_user_exists};
 
 #[derive(Clone)]
 pub struct JwtContextExtractor {
     jwt_extractor: Arc<JwtExtractor>,
     token_extractor: TokenExtractor,
-    db_pool: DbPool,
-    analytics_provider: Option<Arc<dyn AnalyticsProvider>>,
+    analytics_provider: Arc<dyn AnalyticsProvider>,
+    user_provider: Arc<dyn UserProvider>,
+    user_cache: Arc<UserCache>,
 }
 
 impl std::fmt::Debug for JwtContextExtractor {
@@ -28,25 +29,23 @@ impl std::fmt::Debug for JwtContextExtractor {
         f.debug_struct("JwtContextExtractor")
             .field("jwt_extractor", &self.jwt_extractor)
             .field("token_extractor", &self.token_extractor)
-            .field("db_pool", &"DbPool")
-            .field("analytics_provider", &self.analytics_provider.is_some())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
 impl JwtContextExtractor {
-    pub fn new(jwt_secret: &str, db_pool: &DbPool) -> Self {
+    pub fn new(
+        jwt_secret: &str,
+        analytics_provider: Arc<dyn AnalyticsProvider>,
+        user_provider: Arc<dyn UserProvider>,
+    ) -> Self {
         Self {
             jwt_extractor: Arc::new(JwtExtractor::new(jwt_secret)),
             token_extractor: TokenExtractor::browser_only(),
-            db_pool: Arc::clone(db_pool),
-            analytics_provider: None,
+            analytics_provider,
+            user_provider,
+            user_cache: UserCache::new(),
         }
-    }
-
-    pub fn with_analytics_provider(mut self, provider: Arc<dyn AnalyticsProvider>) -> Self {
-        self.analytics_provider = Some(provider);
-        self
     }
 
     fn extract_jwt_context(
@@ -60,6 +59,28 @@ impl JwtContextExtractor {
         self.jwt_extractor
             .extract_user_context(&token)
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
+    }
+
+    async fn validate(
+        &self,
+        jwt_context: &JwtUserContext,
+        route_context: &str,
+    ) -> Result<AuthUser, ContextExtractionError> {
+        if jwt_context.session_id.as_str().is_empty() {
+            return Err(ContextExtractionError::MissingSessionId);
+        }
+        if jwt_context.user_id.as_str().is_empty() {
+            return Err(ContextExtractionError::MissingUserId);
+        }
+        let validated = validate_user_exists(
+            &self.user_provider,
+            &self.user_cache,
+            jwt_context,
+            route_context,
+        )
+        .await?;
+        validate_session_exists(&self.analytics_provider, jwt_context, route_context).await?;
+        Ok(validated.user)
     }
 
     pub async fn extract_standard(
@@ -78,17 +99,7 @@ impl JwtContextExtractor {
         }
 
         let jwt_context = self.extract_jwt_context(headers)?;
-
-        if jwt_context.session_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingSessionId);
-        }
-        if jwt_context.user_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingUserId);
-        }
-
-        validate_user_exists(&self.db_pool, &jwt_context, "").await?;
-        validate_session_exists(self.analytics_provider.as_ref(), &jwt_context, headers, "")
-            .await?;
+        let user = self.validate(&jwt_context, "").await?;
 
         let session_id = headers
             .get("x-session-id")
@@ -116,6 +127,8 @@ impl JwtContextExtractor {
         let (trace_id, task_id, auth_token, agent_name) =
             extract_common_headers(&self.token_extractor, headers);
 
+        let user_type = resolve_user_type(jwt_context.user_type, &user);
+
         Ok(build_context(BuildContextParams {
             jwt_context,
             session_id,
@@ -125,6 +138,7 @@ impl JwtContextExtractor {
             agent_name,
             task_id,
             auth_token,
+            user_type,
         }))
     }
 
@@ -144,15 +158,7 @@ impl JwtContextExtractor {
             .extract_user_context(jwt_token.as_str())
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
 
-        if jwt_context.session_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingSessionId);
-        }
-        if jwt_context.user_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingUserId);
-        }
-
-        validate_user_exists(&self.db_pool, &jwt_context, "gateway").await?;
-
+        let _ = self.validate(&jwt_context, "gateway").await?;
         Ok(jwt_context)
     }
 
@@ -175,22 +181,7 @@ impl JwtContextExtractor {
         }
 
         let jwt_context = self.extract_jwt_context(&headers)?;
-
-        if jwt_context.session_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingSessionId);
-        }
-        if jwt_context.user_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingUserId);
-        }
-
-        validate_user_exists(&self.db_pool, &jwt_context, " (A2A route)").await?;
-        validate_session_exists(
-            self.analytics_provider.as_ref(),
-            &jwt_context,
-            &headers,
-            " (A2A route)",
-        )
-        .await?;
+        let user = self.validate(&jwt_context, " (A2A route)").await?;
 
         let (body_bytes, reconstructed_request) =
             PayloadSource::read_and_reconstruct(request).await?;
@@ -211,6 +202,7 @@ impl JwtContextExtractor {
             extract_common_headers(&self.token_extractor, &headers);
 
         let task_id = task_id_from_payload.or(task_id_from_header);
+        let user_type = resolve_user_type(jwt_context.user_type, &user);
 
         let session_id = jwt_context.session_id.clone();
         let user_id = jwt_context.user_id.clone();
@@ -223,9 +215,24 @@ impl JwtContextExtractor {
             agent_name,
             task_id,
             auth_token,
+            user_type,
         });
 
         Ok((ctx, reconstructed_request))
+    }
+}
+
+/// Settle the JWT-claimed `user_type` against the authoritative `users` row.
+///
+/// Human types (`Admin`, `User`) are downgraded if the database says the user
+/// is no longer an admin; an `Admin` JWT for a non-admin row is rewritten to
+/// `User`. Machine types (`Service`, `A2a`, `Mcp`, `Anon`) are trusted from
+/// the JWT — they are minted by the OAuth layer and not reflected in the
+/// `users.roles` column.
+fn resolve_user_type(claimed: UserType, user: &AuthUser) -> UserType {
+    match claimed {
+        UserType::Admin if !user_is_admin(user) => UserType::User,
+        other => other,
     }
 }
 

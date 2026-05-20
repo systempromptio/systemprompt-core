@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
-    ManagedMcpServer, SignedManifest, SkillEntry, UserId, ValidatedUrl,
+    ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
@@ -12,6 +12,7 @@ use systemprompt_bridge::ids::{
 };
 use systemprompt_bridge::integration::codex_cli::CodexCliSync;
 use systemprompt_bridge::sync::{HostSync, HostSyncCtx};
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -34,7 +35,7 @@ fn manifest_with(
         manifest_version: version(),
         issued_at: "2026-04-30T12:00:00+00:00".into(),
         not_before: "2026-04-30T12:00:00+00:00".into(),
-        user_id: UserId::new("u1"),
+        user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
         plugins: vec![],

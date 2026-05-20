@@ -84,7 +84,7 @@ pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     builder.build().unwrap_or_else(|_| {
         AiRequestRecordBuilder::new(
             AiRequestId::new(params.response.request_id.to_string()),
-            UserId::new("unknown"),
+            systemprompt_identifiers::bootstrap::unknown(),
         )
         .provider("unknown")
         .model("unknown")

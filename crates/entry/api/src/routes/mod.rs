@@ -10,6 +10,7 @@ pub mod oauth;
 pub mod proxy;
 pub mod stream;
 pub mod sync;
+pub mod users;
 pub mod wellknown;
 
 pub use agent::{artifacts_router, contexts_router, registry_router, tasks_router, webhook_router};

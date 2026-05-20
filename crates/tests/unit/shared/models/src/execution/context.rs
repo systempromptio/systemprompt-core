@@ -1,8 +1,8 @@
 use systemprompt_identifiers::{
     AgentName, AiToolCallId, ClientId, ContextId, McpExecutionId, SessionId, TaskId, TraceId,
-    UserId,
 };
 use systemprompt_models::auth::UserType;
+use systemprompt_test_fixtures::fixture_actor;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -46,7 +46,7 @@ fn request_context_new_sets_agent_name() {
 #[test]
 fn request_context_new_defaults_to_anonymous_user() {
     let ctx = test_context();
-    assert!(ctx.user_id().is_anonymous());
+    assert!(ctx.is_anonymous());
 }
 
 #[test]
@@ -93,8 +93,8 @@ fn request_context_new_is_not_authenticated() {
 
 #[test]
 fn request_context_with_user_id() {
-    let ctx = test_context().with_user_id(UserId::new("user-42"));
-    assert_eq!(ctx.user_id().as_str(), "user-42");
+    let ctx = test_context().with_actor(fixture_actor());
+    assert_eq!(ctx.user_id().as_str(), "test-user");
 }
 
 #[test]
@@ -180,14 +180,14 @@ fn request_context_with_fingerprint_hash() {
 #[test]
 fn request_context_builder_chain_multiple() {
     let ctx = test_context()
-        .with_user_id(UserId::new("u1"))
+        .with_actor(fixture_actor())
         .with_user_type(UserType::User)
         .with_auth_token("token")
         .with_task_id(TaskId::new("t1"))
         .with_call_source(CallSource::Direct)
         .with_budget(100);
 
-    assert_eq!(ctx.user_id().as_str(), "u1");
+    assert_eq!(ctx.user_id().as_str(), "test-user");
     assert_eq!(ctx.user_type(), UserType::User);
     assert_eq!(ctx.auth_token().as_str(), "token");
     assert_eq!(ctx.task_id().unwrap().as_str(), "t1");
@@ -237,7 +237,7 @@ fn request_context_validate_authenticated_fails_with_anonymous_user() {
 fn request_context_validate_authenticated_succeeds_when_valid() {
     let ctx = test_context()
         .with_auth_token("valid-token")
-        .with_user_id(UserId::new("real-user"));
+        .with_actor(fixture_actor());
     assert!(ctx.validate_authenticated().is_ok());
 }
 

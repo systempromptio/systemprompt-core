@@ -1,47 +1,106 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use crate::config::Thresholds;
+use crate::config::{NodeId, ScenarioId, Thresholds};
 
 pub struct Metrics {
     inner: Mutex<MetricsInner>,
+    start: Instant,
+    interval_secs: u64,
+}
+
+struct IntervalBucket {
+    latencies: Vec<Duration>,
+    errors: u64,
+    total: u64,
+}
+
+impl IntervalBucket {
+    fn new() -> Self {
+        Self {
+            latencies: Vec::new(),
+            errors: 0,
+            total: 0,
+        }
+    }
 }
 
 struct MetricsInner {
     latencies: Vec<Duration>,
     errors: u64,
     total: u64,
+    served_by: BTreeMap<String, u64>,
+    buckets: Vec<IntervalBucket>,
 }
 
 impl Metrics {
-    pub fn new() -> Self {
+    pub fn new(interval_secs: u64) -> Self {
         Self {
             inner: Mutex::new(MetricsInner {
                 latencies: Vec::new(),
                 errors: 0,
                 total: 0,
+                served_by: BTreeMap::new(),
+                buckets: Vec::new(),
             }),
+            start: Instant::now(),
+            interval_secs,
         }
     }
 
     pub fn record(&self, latency: Duration, success: bool) {
+        let elapsed = self.start.elapsed();
         let mut inner = self.inner.lock().expect("metrics lock poisoned");
         inner.latencies.push(latency);
         inner.total += 1;
         if !success {
             inner.errors += 1;
         }
+
+        if let Some(bucket_idx) = elapsed.as_secs().checked_div(self.interval_secs) {
+            let bucket_idx = bucket_idx as usize;
+            if inner.buckets.len() <= bucket_idx {
+                inner
+                    .buckets
+                    .resize_with(bucket_idx + 1, IntervalBucket::new);
+            }
+            let bucket = &mut inner.buckets[bucket_idx];
+            bucket.latencies.push(latency);
+            bucket.total += 1;
+            if !success {
+                bucket.errors += 1;
+            }
+        }
+    }
+
+    pub fn record_served_by(&self, instance: &str) {
+        let mut inner = self.inner.lock().expect("metrics lock poisoned");
+        *inner.served_by.entry(instance.to_string()).or_insert(0) += 1;
     }
 
     pub fn snapshot(&self) -> MetricsSnapshot {
         let inner = self.inner.lock().expect("metrics lock poisoned");
         let mut latencies = inner.latencies.clone();
         latencies.sort();
+
+        let time_series = if self.interval_secs > 0 {
+            inner
+                .buckets
+                .iter()
+                .enumerate()
+                .map(|(idx, bucket)| TimeSeriesPoint::from_bucket(idx, self.interval_secs, bucket))
+                .collect()
+        } else {
+            Vec::new()
+        };
+
         MetricsSnapshot {
             latencies,
             errors: inner.errors,
             total: inner.total,
+            served_by: inner.served_by.clone(),
+            time_series,
         }
     }
 }
@@ -50,16 +109,22 @@ pub struct MetricsSnapshot {
     latencies: Vec<Duration>,
     errors: u64,
     total: u64,
+    served_by: BTreeMap<String, u64>,
+    time_series: Vec<TimeSeriesPoint>,
+}
+
+fn percentile_of(sorted: &[Duration], p: f64) -> Duration {
+    if sorted.is_empty() {
+        return Duration::ZERO;
+    }
+    let idx = ((sorted.len() as f64 * p).ceil() as usize).saturating_sub(1);
+    let idx = idx.min(sorted.len() - 1);
+    sorted[idx]
 }
 
 impl MetricsSnapshot {
     fn percentile(&self, p: f64) -> Duration {
-        if self.latencies.is_empty() {
-            return Duration::ZERO;
-        }
-        let idx = ((self.latencies.len() as f64 * p).ceil() as usize).saturating_sub(1);
-        let idx = idx.min(self.latencies.len() - 1);
-        self.latencies[idx]
+        percentile_of(&self.latencies, p)
     }
 
     pub fn p50(&self) -> Duration {
@@ -85,6 +150,14 @@ impl MetricsSnapshot {
         self.total
     }
 
+    pub fn served_by(&self) -> &BTreeMap<String, u64> {
+        &self.served_by
+    }
+
+    pub fn time_series(&self) -> &[TimeSeriesPoint] {
+        &self.time_series
+    }
+
     pub fn to_json(&self, thresholds: &Thresholds) -> ScenarioJson {
         ScenarioJson {
             requests: self.total(),
@@ -92,47 +165,47 @@ impl MetricsSnapshot {
             p95_ms: self.p95().as_millis(),
             p99_ms: self.p99().as_millis(),
             error_rate: self.error_rate(),
-            passed: self.check_thresholds_quiet(thresholds),
+            passed: self.check_thresholds(thresholds),
+            nodes: BTreeMap::new(),
+            served_by: self.served_by.clone(),
+            time_series: self.time_series.clone(),
         }
     }
 
-    fn check_thresholds_quiet(&self, thresholds: &Thresholds) -> bool {
+    pub fn check_thresholds(&self, thresholds: &Thresholds) -> bool {
         (self.p95().as_millis() as u64) <= thresholds.p95_ms
             && (self.p99().as_millis() as u64) <= thresholds.p99_ms
             && self.error_rate() <= thresholds.max_error_rate
     }
+}
 
-    pub fn check_thresholds(&self, thresholds: &Thresholds) -> bool {
-        let mut passed = true;
+#[derive(Clone, serde::Serialize)]
+pub struct TimeSeriesPoint {
+    pub window_start_secs: u64,
+    pub requests: u64,
+    pub error_rate: f64,
+    pub p50_ms: u128,
+    pub p95_ms: u128,
+    pub p99_ms: u128,
+}
 
-        if self.p95().as_millis() as u64 > thresholds.p95_ms {
-            eprintln!(
-                "  FAIL p95 latency: {}ms > {}ms",
-                self.p95().as_millis(),
-                thresholds.p95_ms
-            );
-            passed = false;
+impl TimeSeriesPoint {
+    fn from_bucket(idx: usize, interval_secs: u64, bucket: &IntervalBucket) -> Self {
+        let mut sorted = bucket.latencies.clone();
+        sorted.sort();
+        let error_rate = if bucket.total == 0 {
+            0.0
+        } else {
+            bucket.errors as f64 / bucket.total as f64
+        };
+        Self {
+            window_start_secs: idx as u64 * interval_secs,
+            requests: bucket.total,
+            error_rate,
+            p50_ms: percentile_of(&sorted, 0.50).as_millis(),
+            p95_ms: percentile_of(&sorted, 0.95).as_millis(),
+            p99_ms: percentile_of(&sorted, 0.99).as_millis(),
         }
-
-        if self.p99().as_millis() as u64 > thresholds.p99_ms {
-            eprintln!(
-                "  FAIL p99 latency: {}ms > {}ms",
-                self.p99().as_millis(),
-                thresholds.p99_ms
-            );
-            passed = false;
-        }
-
-        if self.error_rate() > thresholds.max_error_rate {
-            eprintln!(
-                "  FAIL error rate: {:.2}% > {:.2}%",
-                self.error_rate() * 100.0,
-                thresholds.max_error_rate * 100.0
-            );
-            passed = false;
-        }
-
-        passed
     }
 }
 
@@ -144,10 +217,42 @@ pub struct ScenarioJson {
     pub p99_ms: u128,
     pub error_rate: f64,
     pub passed: bool,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub nodes: BTreeMap<String, NodeJson>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub served_by: BTreeMap<String, u64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub time_series: Vec<TimeSeriesPoint>,
+}
+
+#[derive(serde::Serialize)]
+pub struct NodeJson {
+    pub requests: u64,
+    pub p50_ms: u128,
+    pub p95_ms: u128,
+    pub p99_ms: u128,
+    pub error_rate: f64,
+}
+
+impl MetricsSnapshot {
+    pub fn to_node_json(&self) -> NodeJson {
+        NodeJson {
+            requests: self.total(),
+            p50_ms: self.p50().as_millis(),
+            p95_ms: self.p95().as_millis(),
+            p99_ms: self.p99().as_millis(),
+            error_rate: self.error_rate(),
+        }
+    }
+}
+
+pub struct ScenarioReport {
+    pub aggregate: MetricsSnapshot,
+    pub per_node: BTreeMap<NodeId, MetricsSnapshot>,
 }
 
 pub struct Report {
-    pub scenarios: BTreeMap<String, MetricsSnapshot>,
+    pub scenarios: BTreeMap<ScenarioId, ScenarioReport>,
 }
 
 impl Report {
@@ -157,39 +262,55 @@ impl Report {
         }
     }
 
-    pub fn add(&mut self, name: String, metrics: &Metrics) {
-        self.scenarios.insert(name, metrics.snapshot());
+    pub fn add(&mut self, name: ScenarioId, metrics: &Metrics) {
+        self.scenarios.insert(
+            name,
+            ScenarioReport {
+                aggregate: metrics.snapshot(),
+                per_node: BTreeMap::new(),
+            },
+        );
     }
 
-    pub fn print(&self, thresholds: &Thresholds) -> bool {
-        let mut all_passed = true;
+    pub fn add_distributed(&mut self, name: ScenarioId, per_node: &[(NodeId, MetricsSnapshot)]) {
+        let mut latencies = Vec::new();
+        let mut errors = 0u64;
+        let mut total = 0u64;
+        let mut served_by: BTreeMap<String, u64> = BTreeMap::new();
+        let mut nodes = BTreeMap::new();
 
-        println!("\n{:=<70}", "");
-        println!("  Load Test Results");
-        println!("{:=<70}\n", "");
-
-        for (name, snapshot) in &self.scenarios {
-            println!("  {name}:");
-            println!("    requests:   {}", snapshot.total());
-            println!("    p50:        {}ms", snapshot.p50().as_millis());
-            println!("    p95:        {}ms", snapshot.p95().as_millis());
-            println!("    p99:        {}ms", snapshot.p99().as_millis());
-            println!("    error rate: {:.2}%", snapshot.error_rate() * 100.0);
-
-            if !snapshot.check_thresholds(thresholds) {
-                all_passed = false;
+        for (node, snapshot) in per_node {
+            latencies.extend(snapshot.latencies.iter().copied());
+            errors += snapshot.errors;
+            total += snapshot.total;
+            for (instance, count) in &snapshot.served_by {
+                *served_by.entry(instance.clone()).or_insert(0) += count;
             }
-
-            println!();
+            nodes.insert(
+                *node,
+                MetricsSnapshot {
+                    latencies: snapshot.latencies.clone(),
+                    errors: snapshot.errors,
+                    total: snapshot.total,
+                    served_by: snapshot.served_by.clone(),
+                    time_series: Vec::new(),
+                },
+            );
         }
+        latencies.sort();
 
-        if all_passed {
-            println!("  All thresholds passed.");
-        } else {
-            println!("  Some thresholds FAILED.");
-        }
-
-        println!("{:=<70}\n", "");
-        all_passed
+        self.scenarios.insert(
+            name,
+            ScenarioReport {
+                aggregate: MetricsSnapshot {
+                    latencies,
+                    errors,
+                    total,
+                    served_by,
+                    time_series: Vec::new(),
+                },
+                per_node: nodes,
+            },
+        );
     }
 }

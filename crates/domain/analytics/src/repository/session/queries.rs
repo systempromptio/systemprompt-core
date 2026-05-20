@@ -9,7 +9,7 @@ use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::models::AnalyticsSession;
 
-use super::types::SessionRecord;
+use super::types::{ActiveSessionLookup, SessionRecord};
 
 pub async fn find_by_id(pool: &PgPool, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
     let id = session_id.as_str();
@@ -110,6 +110,25 @@ pub async fn find_recent_by_fingerprint(
         "#,
         fingerprint_hash,
         cutoff
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(Into::into)
+}
+
+pub async fn find_active_by_id(
+    pool: &PgPool,
+    session_id: &SessionId,
+) -> Result<Option<ActiveSessionLookup>> {
+    let id = session_id.as_str();
+    sqlx::query_as!(
+        ActiveSessionLookup,
+        r#"
+        SELECT user_id as "user_id?: UserId"
+        FROM user_sessions
+        WHERE session_id = $1 AND revoked_at IS NULL
+        "#,
+        id
     )
     .fetch_optional(pool)
     .await

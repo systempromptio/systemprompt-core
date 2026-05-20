@@ -1,6 +1,7 @@
 //! Unit tests for LogEntry struct
 
 use systemprompt_logging::{LogEntry, LogLevel};
+use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -57,7 +58,7 @@ fn test_log_entry_with_metadata() {
 
 #[test]
 fn test_log_entry_with_user_id() {
-    let user_id = systemprompt_identifiers::UserId::new("test-user-123");
+    let user_id = fixture_user_id();
     let entry = LogEntry::new(LogLevel::Info, "module", "message").with_user_id(user_id.clone());
 
     assert_eq!(entry.user_id, user_id);
@@ -108,7 +109,7 @@ fn test_log_entry_with_client_id() {
 
 #[test]
 fn test_log_entry_builder_chaining() {
-    let user_id = systemprompt_identifiers::UserId::new("chain-user");
+    let user_id = fixture_user_id();
     let session_id = systemprompt_identifiers::SessionId::new("chain-session");
     let metadata = serde_json::json!({"action": "test"});
 
@@ -286,9 +287,9 @@ fn test_log_entry_roundtrip() {
 }
 
 #[test]
-fn test_log_entry_default_user_id_is_system() {
+fn test_log_entry_default_user_id_is_admin() {
     let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert_eq!(entry.user_id, systemprompt_identifiers::UserId::system());
+    assert_eq!(entry.user_id, systemprompt_identifiers::UserId::admin());
 }
 
 #[test]

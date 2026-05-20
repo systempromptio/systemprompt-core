@@ -17,10 +17,7 @@ mod sync_api_client_tests {
     fn with_direct_sync() {
         let client = SyncApiClient::new("https://api.example.com", "test-token")
             .expect("test client")
-            .with_direct_sync(
-                Some("app.example.com".to_string()),
-                Some("sync-token".to_string()),
-            );
+            .with_direct_sync(Some("app.example.com".to_string()));
 
         let debug_str = format!("{:?}", client);
         assert!(debug_str.contains("app.example.com"));
@@ -30,7 +27,7 @@ mod sync_api_client_tests {
     fn with_direct_sync_none() {
         let client = SyncApiClient::new("https://api.example.com", "test-token")
             .expect("test client")
-            .with_direct_sync(None, None);
+            .with_direct_sync(None);
 
         let debug_str = format!("{:?}", client);
         assert!(debug_str.contains("None"));
@@ -120,7 +117,6 @@ mod sync_service_tests {
                 .with_dry_run(true)
                 .with_verbose(true)
                 .with_hostname(Some("host.com".to_string()))
-                .with_sync_token(Some("sync-tok".to_string()))
                 .with_local_database_url("postgresql://db:5432/app")
                 .build();
 
