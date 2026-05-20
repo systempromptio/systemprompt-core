@@ -145,10 +145,10 @@ mod config_additional_tests {
     }
 
     #[test]
-    fn builder_with_sync_token() {
+    fn builder_with_sync_client_secret() {
         let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
-            .with_sync_token(Some("sync-secret-token".to_string())).build();
-        assert_eq!(config.sync_token, Some("sync-secret-token".to_string()));
+            .with_sync_client_secret(Some("sync-secret-token".to_string())).build();
+        assert_eq!(config.sync_client_secret, Some("sync-secret-token".to_string()));
     }
 
     #[test]
@@ -165,7 +165,7 @@ mod config_additional_tests {
             .with_dry_run(true)
             .with_verbose(true)
             .with_hostname(Some("host.example.com".to_string()))
-            .with_sync_token(Some("sync-token".to_string()))
+            .with_sync_client_secret(Some("sync-token".to_string()))
             .with_local_database_url("postgresql://db:5432/app")
             .build();
         assert_eq!(config.tenant_id, "tenant-full");
