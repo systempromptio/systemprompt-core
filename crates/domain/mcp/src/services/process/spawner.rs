@@ -29,18 +29,17 @@ fn configure_environment(command: &mut Command, env: &SpawnEnvironment<'_>) {
         server_model_config_json,
     } = env;
 
+    command.env_clear();
+    if let Ok(path) = std::env::var("PATH") {
+        command.env("PATH", path);
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        command.env("HOME", home);
+    }
+
     command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
-        .env("JWT_SECRET", &secrets.jwt_secret)
-        .env(
-            "MANIFEST_SIGNING_SECRET_SEED",
-            secrets
-                .manifest_signing_secret_seed
-                .as_deref()
-                .unwrap_or(""),
-        )
-        .env("DATABASE_URL", &secrets.database_url)
         .env("DATABASE_TYPE", &config_global.database_type)
         .env("MCP_SERVICE_ID", &config.name)
         .env("MCP_PORT", config.port.to_string())
@@ -48,25 +47,8 @@ fn configure_environment(command: &mut Command, env: &SpawnEnvironment<'_>) {
         .env("MCP_SERVER_MODEL_CONFIG", server_model_config_json)
         .env("SYSTEM_PATH", paths.system().root());
 
-    if let Some(key) = &secrets.gemini {
-        command.env("GEMINI_API_KEY", key);
-    }
-    if let Some(key) = &secrets.anthropic {
-        command.env("ANTHROPIC_API_KEY", key);
-    }
-    if let Some(key) = &secrets.openai {
-        command.env("OPENAI_API_KEY", key);
-    }
-    if let Some(key) = &secrets.github {
-        command.env("GITHUB_TOKEN", key);
-    }
-
-    if !secrets.custom.is_empty() {
-        let uppercase_keys = secrets.custom_env_var_names();
-        command.env("SYSTEMPROMPT_CUSTOM_SECRETS", uppercase_keys.join(","));
-        for (env_name, value) in secrets.custom_env_vars() {
-            command.env(env_name, value);
-        }
+    for (k, v) in secrets.to_subprocess_env() {
+        command.env(k, v);
     }
 
     for var_name in &config.env_vars {
